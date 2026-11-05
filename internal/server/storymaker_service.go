@@ -32,8 +32,9 @@ type storymakerRuntime struct {
 	browsers *render.Browsers
 	ffmpeg   *storymakerFFmpegCache // the FFmpeg check of the status endpoint
 	runner   *render.Runner
-	jobs     *render.Manager // the render queue
-	narrate  *render.Manager // the narrate and music queue
+	jobs     *render.Manager           // the render queue
+	narrate  *render.Manager           // the narrate and music queue
+	usage    *storymakerNarrationUsage // daily characters of the cloud voices
 }
 
 // storymakerUIFiles returns the ui tree the catalog and the player bundles are read from: the
@@ -98,6 +99,7 @@ func (s *Server) newStorymakerRuntime(dataDir string) (*storymakerRuntime, error
 		catalog:  catalog,
 		browsers: render.NewBrowsers(dir),
 		ffmpeg:   newStorymakerFFmpegCache(),
+		usage:    newStorymakerNarrationUsage(filepath.Join(dir, "narrate")),
 	}
 	if s.storymakerBrowsers != nil {
 		rt.browsers = s.storymakerBrowsers

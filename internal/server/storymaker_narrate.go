@@ -2,9 +2,15 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
+	"os"
+	"path/filepath"
+	"sync"
+	"time"
+	"unicode/utf8"
 
 	"aurago/internal/config"
 	"aurago/internal/fileutil"
@@ -21,6 +27,121 @@ const storymakerMaxPieceBytes = 256 << 20
 // errStorymakerPieceTooLarge refuses a provider answer over storymakerMaxPieceBytes.
 var errStorymakerPieceTooLarge = errors.New("it returned more than 256 MiB of audio for one piece")
 
+const storymakerUsageVersion = 1
+
+// storymakerUsageFile is usage.json: the characters sent to cloud voices on one local date.
+type storymakerUsageFile struct {
+	V     int    `json:"v"`
+	Date  string `json:"date"`
+	Chars int    `json:"chars"`
+}
+
+// storymakerNarrationUsage keeps the daily count in storymaker/narrate/usage.json. It fails closed:
+// an unreadable file stops cloud calls for that date, because a budget guard that fails open would be
+// a bypass.
+type storymakerNarrationUsage struct {
+	mu   sync.Mutex
+	path string
+	now  func() time.Time
+}
+
+func newStorymakerNarrationUsage(dir string) *storymakerNarrationUsage {
+	return &storymakerNarrationUsage{path: filepath.Join(dir, "usage.json"), now: time.Now}
+}
+
+func (u *storymakerNarrationUsage) badPath() string {
+	return filepath.Join(filepath.Dir(u.path), "usage.bad.json")
+}
+
+// loadLocked returns the count of the current local date. A missing file or an older date starts at
+// 0. An unreadable file is renamed to usage.bad.json and replaced by one that holds maxDaily.
+func (u *storymakerNarrationUsage) loadLocked(maxDaily int) (storymakerUsageFile, error) {
+	today := u.now().Format(time.DateOnly)
+	fresh := storymakerUsageFile{V: storymakerUsageVersion, Date: today}
+	data, err := os.ReadFile(u.path)
+	if errors.Is(err, os.ErrNotExist) {
+		return fresh, nil
+	}
+	if err != nil {
+		return storymakerUsageFile{}, err
+	}
+	var cur storymakerUsageFile
+	if json.Unmarshal(data, &cur) != nil || cur.V != storymakerUsageVersion || cur.Chars < 0 || !storymakerValidUsageDate(cur.Date) {
+		_ = fileutil.Rename(u.path, u.badPath())
+		fresh.Chars = maxDaily
+		return fresh, u.writeLocked(fresh)
+	}
+	if cur.Date != today {
+		return fresh, nil
+	}
+	return cur, nil
+}
+
+func storymakerValidUsageDate(date string) bool {
+	_, err := time.Parse(time.DateOnly, date)
+	return err == nil
+}
+
+// writeLocked publishes the file through a synced temp file and a rename. It takes no job context:
+// the count must survive a revoked run.
+func (u *storymakerNarrationUsage) writeLocked(cur storymakerUsageFile) error {
+	data, err := json.Marshal(cur)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(u.path), 0o700); err != nil {
+		return err
+	}
+	return fileutil.WriteFileContext(context.Background(), u.path, data, 0o600)
+}
+
+// reserve counts chars for today and writes the file, or returns a budget_exceeded job error.
+func (u *storymakerNarrationUsage) reserve(chars, maxDaily int) error {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	cur, err := u.loadLocked(maxDaily)
+	if err != nil {
+		return render.Fail(render.CodeBudgetExceeded, "The daily count in %s could not be read or written, so cloud voices stop.", filepath.Base(u.path))
+	}
+	if cur.Chars+chars > maxDaily {
+		if _, statErr := os.Stat(u.badPath()); statErr == nil && cur.Chars >= maxDaily {
+			return render.Fail(render.CodeBudgetExceeded, "Cloud voices stop for today: the daily limit of %d characters is reached, and an unreadable count was kept as %s.", maxDaily, filepath.Base(u.badPath()))
+		}
+		return render.Fail(render.CodeBudgetExceeded, "The daily limit of %d characters for cloud voices is reached: %d are used and this piece needs %d.", maxDaily, cur.Chars, chars)
+	}
+	cur.Chars += chars
+	if err := u.writeLocked(cur); err != nil {
+		return render.Fail(render.CodeBudgetExceeded, "The daily count in %s could not be read or written, so cloud voices stop.", filepath.Base(u.path))
+	}
+	return nil
+}
+
+// release subtracts chars after a provider error with no bytes.
+func (u *storymakerNarrationUsage) release(chars, maxDaily int) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	cur, err := u.loadLocked(maxDaily)
+	if err != nil {
+		return
+	}
+	cur.Chars -= chars
+	if cur.Chars < 0 {
+		cur.Chars = 0
+	}
+	_ = u.writeLocked(cur)
+}
+
+// today returns the characters counted for the current local date.
+func (u *storymakerNarrationUsage) today(maxDaily int) (int, error) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	cur, err := u.loadLocked(maxDaily)
+	if err != nil {
+		return 0, err
+	}
+	return cur.Chars, nil
+}
+
 // storymakerNarratePayload is the payload of a narrate job.
 type storymakerNarratePayload struct{ ProjectID string }
 
@@ -31,6 +152,8 @@ type storymakerNarrateRun struct {
 	h  *render.Handle
 	// verified holds the hashes whose stored file decoded during this job, so each file is decoded once.
 	verified map[string]bool
+	// sent counts the characters this job has sent to a cloud voice.
+	sent int
 }
 
 // storymakerNarrateTarget is the next piece that needs work.
@@ -164,10 +287,29 @@ func (s *Server) storymakerNarrateStep(ctx context.Context, run *storymakerNarra
 	if free, err := s.storymakerFreeDisk(cfg.VirtualDesktop.WorkspaceDir); err == nil && free < render.MinFreeDiskBytes {
 		return false, render.Fail(render.CodeNarrationFailed, "Only %d MiB are free in the desktop workspace; narration needs at least %d MiB.", free>>20, render.MinFreeDiskBytes>>20)
 	}
-	// One provider call. The stored format is the detected one, never the provider's claim.
+	// The caps of a cloud voice. The job cap counts what this job already sent. The daily count is
+	// written before the call, so a crash during the call cannot lose it.
 	provider := target.block.Voice.Provider
+	maxDaily := cfg.Storymaker.Narration.MaxDailyChars
+	charge := 0
+	if !storymaker.LocalVoiceProvider(provider) {
+		charge = utf8.RuneCountInString(target.piece.Text)
+		if maxJob := cfg.Storymaker.Narration.MaxJobChars; run.sent+charge > maxJob {
+			return false, render.Fail(render.CodeBudgetExceeded, "This job would send %d characters to %s; one job may send %d.", run.sent+charge, provider, maxJob)
+		}
+		if err := run.rt.usage.reserve(charge, maxDaily); err != nil {
+			return false, err
+		}
+		run.sent += charge
+	}
+	// One provider call. The stored format is the detected one, never the provider's claim.
 	data, err := s.storymakerSynth(ctx, cfg, target.block.Voice, target.piece.Text)
 	if err != nil {
+		// No bytes: nothing to bill. Once the provider has answered it has billed, so a decode or
+		// write failure below keeps the reservation.
+		if charge > 0 && len(data) == 0 {
+			run.rt.usage.release(charge, maxDaily)
+		}
 		if ctx.Err() != nil {
 			return false, s.storymakerNarrateStopped()
 		}

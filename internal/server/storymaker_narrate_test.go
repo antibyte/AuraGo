@@ -10,6 +10,7 @@ import (
 	"io"
 	"math"
 	"net/http"
+	"os"
 	"slices"
 	"strings"
 	"testing"
@@ -394,5 +395,193 @@ func TestStorymakerNarrateRerunSkipsStoredPieces(t *testing.T) {
 	}
 	if missing := env.missing(t); len(missing) != 0 {
 		t.Fatalf("still missing: %+v", missing)
+	}
+}
+
+const narrateJobOpenAI = `{"provider":"openai","voice":"alloy","language":"de"}`
+
+// A fixed noon, so a test run across midnight cannot change the date.
+var narrateUsageDay = time.Date(2026, 11, 4, 12, 0, 0, 0, time.Local)
+
+func newNarrateUsageEnv(t *testing.T) *narrateJobEnv {
+	t.Helper()
+	env := newNarrateJobEnv(t)
+	env.rt.usage.now = func() time.Time { return narrateUsageDay }
+	return env
+}
+
+// narrateUsageChars reads the count on disk, -1 when the file is unusable. Stubs call it on the job goroutine.
+func narrateUsageChars(path string) int {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return -1
+	}
+	var cur storymakerUsageFile
+	if json.Unmarshal(data, &cur) != nil {
+		return -1
+	}
+	return cur.Chars
+}
+
+func TestStorymakerNarrateCloudCapsRefuseBeforeTheCall(t *testing.T) {
+	// 135 code points (26 x 5 + 5) in one sentence: over the job cap of 100, under the chunk limit 400 of openai.
+	long := strings.Repeat("wort ", 26) + "ende."
+	t.Run("job cap", func(t *testing.T) {
+		env := newNarrateUsageEnv(t)
+		narrateJobSetConfig(env.s, func(c *config.Config) { c.Storymaker.Narration.MaxJobChars = 100 })
+		env.mustSave(t, narrateJobStory(narrateJobOpenAI, long))
+		var calls []string
+		env.s.storymakerSynthOverride = narrateJobRecorder(&calls)
+		requireNarrateFailure(t, env.run(t), render.CodeBudgetExceeded)
+		if len(calls) != 0 {
+			t.Fatalf("provider calls = %q", calls)
+		}
+		if _, err := os.Stat(env.rt.usage.path); !os.IsNotExist(err) {
+			t.Fatalf("a refused piece touched usage.json: %v", err)
+		}
+	})
+	t.Run("daily cap", func(t *testing.T) {
+		env := newNarrateUsageEnv(t)
+		narrateJobSetConfig(env.s, func(c *config.Config) { c.Storymaker.Narration.MaxDailyChars = 1000 })
+		env.mustSave(t, narrateJobStory(narrateJobOpenAI, narrateJobFirst))
+		// 995 counted: 995 + 32 code points of the sentence is over the cap of 1000.
+		if err := os.WriteFile(env.rt.usage.path, []byte(`{"v":1,"date":"2026-11-04","chars":995}`), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		var calls []string
+		env.s.storymakerSynthOverride = narrateJobRecorder(&calls)
+		requireNarrateFailure(t, env.run(t), render.CodeBudgetExceeded)
+		if len(calls) != 0 || narrateUsageChars(env.rt.usage.path) != 995 {
+			t.Fatalf("calls = %q, chars = %d", calls, narrateUsageChars(env.rt.usage.path))
+		}
+	})
+}
+
+func TestStorymakerNarrateLocalVoiceIsExemptInAnyCase(t *testing.T) {
+	env := newNarrateUsageEnv(t)
+	narrateJobSetConfig(env.s, func(c *config.Config) {
+		c.Storymaker.Narration.MaxJobChars = 100
+		c.Storymaker.Narration.MaxDailyChars = 1000
+	})
+	// 135 code points, over the job cap, on a provider spelled with a capital.
+	long := strings.Repeat("wort ", 26) + "ende."
+	env.mustSave(t, narrateJobStory(`{"provider":"Phonon","voice":"","language":"de"}`, long))
+	var calls []string
+	env.s.storymakerSynthOverride = narrateJobRecorder(&calls)
+	job := env.run(t)
+	if job.Status != render.StatusSucceeded || !slices.Equal(calls, []string{long}) {
+		t.Fatalf("job = %+v, calls = %q", job, calls)
+	}
+	if _, err := os.Stat(env.rt.usage.path); !os.IsNotExist(err) {
+		t.Fatalf("a local voice touched usage.json: %v", err)
+	}
+}
+
+func TestStorymakerNarrateUsageIsWrittenBeforeTheCallAndKeptOnceAnswered(t *testing.T) {
+	env := newNarrateUsageEnv(t)
+	env.mustSave(t, narrateJobStory(narrateJobOpenAI, narrateJobFirst))
+	path := env.rt.usage.path
+	// The one piece has 32 code points.
+	const charge = 32
+
+	during := -1
+	env.s.storymakerSynthOverride = func(context.Context, tools.TTSConfig, string) ([]byte, string, error) {
+		during = narrateUsageChars(path)
+		return nil, "", errors.New("provider down")
+	}
+	requireNarrateFailure(t, env.run(t), render.CodeNarrationFailed)
+	if during != charge || narrateUsageChars(path) != 0 {
+		t.Fatalf("during the call %d, after it %d, want %d and 0", during, narrateUsageChars(path), charge)
+	}
+
+	// The provider answered, so it has billed: bytes that do not decode keep the reservation.
+	env.s.storymakerSynthOverride = func(context.Context, tools.TTSConfig, string) ([]byte, string, error) {
+		return []byte("this is not audio"), "mp3", nil
+	}
+	requireNarrateFailure(t, env.run(t), render.CodeNarrationFailed)
+	if got := narrateUsageChars(path); got != charge {
+		t.Fatalf("after undecodable audio %d, want %d", got, charge)
+	}
+
+	// An error that still delivered bytes keeps it too.
+	env.s.storymakerSynthOverride = func(context.Context, tools.TTSConfig, string) ([]byte, string, error) {
+		return []byte("partial"), "mp3", errors.New("cut off")
+	}
+	requireNarrateFailure(t, env.run(t), render.CodeNarrationFailed)
+	if got := narrateUsageChars(path); got != 2*charge {
+		t.Fatalf("after an error with bytes %d, want %d", got, 2*charge)
+	}
+}
+
+func TestStorymakerNarrateJobCapCountsCharactersAlreadySent(t *testing.T) {
+	env := newNarrateUsageEnv(t)
+	narrateJobSetConfig(env.s, func(c *config.Config) { c.Storymaker.Narration.MaxJobChars = 100 })
+	// Two sentences of 65 code points (12 x 5 + 5): each fits the cap of 100, together they do not.
+	one := strings.Repeat("wort ", 12) + "ende."
+	two := strings.Repeat("Satz ", 12) + "ende."
+	env.mustSave(t, narrateJobStory(narrateJobOpenAI, one+" "+two))
+	var calls []string
+	env.s.storymakerSynthOverride = narrateJobRecorder(&calls)
+	requireNarrateFailure(t, env.run(t), render.CodeBudgetExceeded)
+	if !slices.Equal(calls, []string{one}) || narrateUsageChars(env.rt.usage.path) != 65 {
+		t.Fatalf("calls = %q, chars = %d", calls, narrateUsageChars(env.rt.usage.path))
+	}
+}
+
+func TestStorymakerNarrateUnreadableUsageStopsCloudCalls(t *testing.T) {
+	env := newNarrateUsageEnv(t)
+	narrateJobSetConfig(env.s, func(c *config.Config) { c.Storymaker.Narration.MaxDailyChars = 1000 })
+	env.mustSave(t, narrateJobStory(narrateJobOpenAI, narrateJobFirst))
+	path := env.rt.usage.path
+	if err := os.WriteFile(path, []byte("not json"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var calls []string
+	env.s.storymakerSynthOverride = narrateJobRecorder(&calls)
+	job := env.run(t)
+	requireNarrateFailure(t, job, render.CodeBudgetExceeded)
+	if !strings.Contains(job.Error.Message, "usage.bad.json") || len(calls) != 0 {
+		t.Fatalf("message = %q, calls = %q", job.Error.Message, calls)
+	}
+	bad, err := os.ReadFile(strings.TrimSuffix(path, "usage.json") + "usage.bad.json")
+	if err != nil || string(bad) != "not json" {
+		t.Fatalf("usage.bad.json = %q, %v", bad, err)
+	}
+	// The replacement holds the whole cap, so the guard does not fail open.
+	if got := narrateUsageChars(path); got != 1000 {
+		t.Fatalf("usage.json holds %d, want 1000", got)
+	}
+}
+
+func TestStorymakerUsageResetsOnANewLocalDate(t *testing.T) {
+	u := newStorymakerNarrationUsage(t.TempDir())
+	day := time.Date(2026, 11, 4, 23, 59, 0, 0, time.Local)
+	u.now = func() time.Time { return day }
+	if err := u.reserve(900, 1000); err != nil {
+		t.Fatal(err)
+	}
+	// 900 + 200 is over the cap of 1000.
+	var refused *render.JobError
+	if err := u.reserve(200, 1000); !errors.As(err, &refused) || refused.Code != render.CodeBudgetExceeded {
+		t.Fatalf("second reserve = %v", err)
+	}
+	day = day.Add(2 * time.Minute) // 00:01 on the next local date
+	if err := u.reserve(200, 1000); err != nil {
+		t.Fatalf("reserve on the new date = %v", err)
+	}
+	used, err := u.today(1000)
+	if err != nil || used != 200 {
+		t.Fatalf("today = %d, %v", used, err)
+	}
+	data, err := os.ReadFile(u.path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cur storymakerUsageFile
+	if err := json.Unmarshal(data, &cur); err != nil {
+		t.Fatal(err)
+	}
+	if cur.V != 1 || cur.Date != "2026-11-05" || cur.Chars != 200 {
+		t.Fatalf("usage.json = %+v", cur)
 	}
 }
