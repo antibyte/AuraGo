@@ -1072,3 +1072,33 @@ func Mix(ctx context.Context, in *MixInput, newMeter func(context.Context) (*Met
 	res.StemPeak, res.Clamps = writer.peak, writer.clamps
 	return res, nil
 }
+
+// EstimateMixBytes is the staging space a mix needs: the copied inputs, the decoded files and the
+// mix WAV. Stems count twice, because they are staged and then published.
+func EstimateMixBytes(decodedBytes, inputBytes, filmFrames int64, stems bool) int64 {
+	total := inputBytes + decodedBytes + filmFrames*4
+	if stems {
+		total += filmFrames * 4 * 3 * 2
+	}
+	return total
+}
+
+// HasAudio says whether a job has anything to mix: a measured block or music in the plan, or an sfx
+// event in the report. Narration and music are never decided from the report, so a report cannot
+// switch them off. Sfx exist only in the report.
+func HasAudio(plan *Plan, rep compileReport) bool {
+	if plan.Music != nil {
+		return true
+	}
+	for _, scene := range plan.AudioInfo.Narration {
+		if len(scene.Blocks) > 0 {
+			return true
+		}
+	}
+	for _, ev := range rep.AudioEvents {
+		if ev.Kind == "sfx" {
+			return true
+		}
+	}
+	return false
+}
