@@ -163,11 +163,12 @@ func TestDesktopEasyDragGroupsBrowser(t *testing.T) {
 	for _, width := range []int{320, 390, 1440} {
 		p.MustSetViewport(width, 900, 1, width < 760)
 		p.MustElement(`[data-ed-zoom="reset"]`).MustClick()
-		s.wait(`()=>Math.abs(edFixture.editor().view.zoom-1)<0.001`)
-		s.settle()
-		measure := p.MustEval(`()=>{const ed=edFixture.editor(),g=ed.model.doc.groups.find(g=>g.id===window.__statusGroup),head=document.querySelector('.ed-group-head[data-ed-group="'+g.id+'"]'),note=head.querySelector('.ed-group-note'),first=document.querySelector('.ed-node[data-node-id="'+g.members[0]+'"]');return {headBottom:head.getBoundingClientRect().bottom,nodeTop:first.getBoundingClientRect().top,noteHeight:note.getBoundingClientRect().height,line:parseFloat(getComputedStyle(note).lineHeight)};}`).Map()
+		// The model changes before the RAF applies its transform; the animation timer alone
+		// can expire before a delayed render. Measure only the actual 100% canvas geometry.
+		s.wait(`()=>{const ed=edFixture.editor(),canvas=document.querySelector('.ed-canvas'),world=canvas?.querySelector('.ed-world');if(!world || canvas.classList.contains('is-animating'))return false;const m=new DOMMatrixReadOnly(getComputedStyle(world).transform);return Math.abs(ed.view.zoom-1)<0.001 && Math.abs(m.a-1)<0.001 && Math.abs(m.d-1)<0.001;}`)
+		measure := p.MustEval(`()=>{const ed=edFixture.editor(),g=ed.model.doc.groups.find(g=>g.id===window.__statusGroup),head=document.querySelector('.ed-group-head[data-ed-group="'+g.id+'"]'),note=head.querySelector('.ed-group-note'),first=document.querySelector('.ed-node[data-node-id="'+g.members[0]+'"]'),m=new DOMMatrixReadOnly(getComputedStyle(document.querySelector('.ed-world')).transform);return {headBottom:head.getBoundingClientRect().bottom,nodeTop:first.getBoundingClientRect().top,noteHeight:note.getBoundingClientRect().height,line:parseFloat(getComputedStyle(note).lineHeight),modelZoom:ed.view.zoom,renderedZoom:m.a};}`).Map()
 		if measure["noteHeight"].Num() < measure["line"].Num()*1.8 || measure["headBottom"].Num() > measure["nodeTop"].Num()+1 {
-			t.Fatalf("group header overlaps member at viewport %d: %+v", width, measure)
+			t.Fatalf("invalid group header geometry at viewport %d: %+v", width, measure)
 		}
 	}
 	p.MustEval(`()=>{edFixture.editor().run=null;}`)
