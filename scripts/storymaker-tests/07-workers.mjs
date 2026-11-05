@@ -122,3 +122,18 @@ check('scene worker: build reports duration, needs and issues; frame returns a b
     assert.match(missing.error.message, /did not register a scene function/);
     none.terminate();
 });
+
+check('workers: FontFace gets the weight range and the unicode range, and an empty range is omitted', async () => {
+    const greek = { name: 'sm-greek', family: 'SMGreek', weight: 400, weight_range: '300 700', unicode_range: 'U+0370-03FF', data: new ArrayBuffer(8) };
+    const cjk = { name: 'sm-cjk', family: 'SMCJK', weight: 400, weight_range: '400', unicode_range: '', data: new ArrayBuffer(8) };
+    for (const role of ['player', 'scene']) {
+        const w = new InProcessWorker(role, role === 'scene' ? s3Bundle : ''), c = client(w);
+        await until(() => c.hello === role, 'hello');
+        const reply = await c.call({ type: 'assets', assets: {}, fonts: [greek, cjk, font] });
+        assert.equal(reply.ok, true, role);
+        assert.deepEqual(plain(w.context.fonts.faces.map(f => f.desc)), [
+            { weight: '300 700', unicodeRange: 'U+0370-03FF' }, { weight: '400' }, { weight: '400' }
+        ], role);
+        w.terminate();
+    }
+});

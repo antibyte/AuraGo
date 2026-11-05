@@ -289,3 +289,56 @@ check('host app: a worker that never says hello falls back to the host realm', a
     await until(() => a.sent('time').length >= 1, 'the fallback frame');
     assert.equal(a.sent('compiled').length, 1);
 });
+
+check('host app: an oversized font passes only with a face of the last accepted load, and the total spans load and assets', async () => {
+    const MIB = 1048576;
+    const cjkFace = { id: 'sm-cjk', family: 'SMCJK', file: '/fonts/qr/NotoSansCJKsc.otf', weight: '400', unicode_range: '', max_bytes: 17 * MIB, d: [32, 94] };
+    const withFaces = { ...catalog, glyph_data: { schema: 'storymaker-glyphs/1', faces: [cjkFace] } };
+    const nine = new ArrayBuffer(9 * MIB);   // over the 8 MiB cap, under the 17 MiB of the face
+    const a = makeApp(), ok = a.H.checkMessage;
+    const loadOf = (cat, name, family) => ({ sm: 1, type: 'load', story: firewall, catalog: cat, fonts: [{ name, family, weight: 400, data: nine }] });
+    const fontAnswer = (key, data = nine) => ({ sm: 1, type: 'assets', req: 'r', assets: { [key]: data } });
+
+    // load: the message's own glyph data decides
+    assert.match(ok(loadOf(withFaces, 'default', 'Storymaker Default')), /oversized/);
+    assert.equal(ok(loadOf(withFaces, 'sm-cjk', 'SMCJK')), null);
+    assert.match(ok(loadOf(catalog, 'sm-cjk', 'SMCJK')), /oversized/, 'without faces an oversized font is refused');
+
+    // assets: the faces of the last accepted load decide
+    const held = { faces: [cjkFace], fontBytes: 0 };
+    assert.match(ok(fontAnswer('font:default/400'), held), /oversized/);
+    assert.equal(ok(fontAnswer('font:sm-cjk/400'), held), null);
+    assert.match(ok(fontAnswer('font:sm-cjk/400')), /oversized/, 'a missing loaded means no faces');
+    // 8 MiB + 1 byte is the limit of this face, so 9 MiB does not fit
+    assert.match(ok(fontAnswer('font:sm-cjk/400'), { faces: [{ ...cjkFace, max_bytes: 8 * MIB + 1 }], fontBytes: 0 }), /oversized/);
+    // max_bytes never lifts the limit above the 18 MiB of maxFallbackFontBytes
+    assert.match(ok(fontAnswer('font:sm-cjk/400', new ArrayBuffer(19 * MIB)), { faces: [{ ...cjkFace, max_bytes: 40 * MIB }], fontBytes: 0 }), /oversized/);
+    // the 32 MiB total: 23 + 9 = 32 fits, 24 + 9 = 33 does not
+    assert.equal(ok(fontAnswer('font:sm-cjk/400'), { faces: [cjkFace], fontBytes: 23 * MIB }), null);
+    assert.match(ok(fontAnswer('font:sm-cjk/400'), { faces: [cjkFace], fontBytes: 24 * MIB }), /too large/);
+
+    // the state: set by a load, grown by an assets answer, cleared by a reset
+    a.send(a.loadMsg({ catalog: withFaces, assets: {}, fonts: [{ name: 'sm-cjk', family: 'SMCJK', weight: 400, data: nine }] }));
+    assert.deepEqual(plain(a.app.state.loaded.faces.map(f => f.id)), ['sm-cjk']);
+    assert.equal(a.app.state.loaded.fontBytes, 9 * MIB, 'the load counts its fonts');
+    await until(() => a.sent('need_assets').length === 1, 'need_assets');
+    const all = assetsOf(files); all['font:default/400'] = new ArrayBuffer(16);
+    a.send({ type: 'assets', req: a.sent('need_assets')[0].req, assets: all, missing: [] });
+    assert.equal(a.app.state.loaded.fontBytes, 9 * MIB + 16, 'the assets answer adds the 16 bytes of its font');
+    await until(() => a.sent('time').length >= 1, 'the first frame');
+
+    // onMessage passes the state: the same answer is fine before the reset and refused after it
+    a.send({ type: 'assets', req: 'late', assets: { 'font:sm-cjk/400': nine } });
+    assert.equal(a.sent('error').length, 0);
+    a.send({ type: 'reset' });
+    assert.deepEqual(plain(a.app.state.loaded), { faces: [], fontBytes: 0 });
+    a.send({ type: 'assets', req: 'late', assets: { 'font:sm-cjk/400': nine } });
+    assert.equal(a.sent('error').at(-1).code, 'bad_message');
+    assert.match(a.sent('error').at(-1).message, /oversized/);
+
+    // the descriptor carries the ranges of a face and leaves a catalog font alone
+    const desc = a.H.Engine.prototype.fontDescriptor(withFaces, 'font:sm-cjk/400', nine);
+    assert.deepEqual([desc.name, desc.family, desc.weight, desc.weight_range, desc.unicode_range], ['sm-cjk', 'SMCJK', 400, '400', '']);
+    const base = a.H.Engine.prototype.fontDescriptor(withFaces, 'font:default/400', nine);
+    assert.deepEqual([base.family, base.weight_range, base.unicode_range], ['Storymaker Default', undefined, undefined]);
+});

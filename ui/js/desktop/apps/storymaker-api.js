@@ -124,10 +124,11 @@
                 if (text.length > MAX_JSON_BYTES) throw S.errors.normalize({ message: 'The catalog file is too large.' });
                 return JSON.parse(text);
             },
-            async fontBuffer(file) {
+            // maxBytes is the byte limit of a fallback face; the default stays 8 MiB
+            async fontBuffer(file, maxBytes) {
                 const response = await request('GET', String(file), { raw: true });
                 const buffer = await response.arrayBuffer();
-                if (buffer.byteLength > 8 * 1048576) throw S.errors.normalize({ message: 'The font is too large.' });
+                if (buffer.byteLength > (maxBytes > 0 ? maxBytes : 8 * 1048576)) throw S.errors.normalize({ message: 'The font is too large.' });
                 return buffer;
             }
         };

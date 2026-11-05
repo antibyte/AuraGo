@@ -295,7 +295,15 @@
     Engine.prototype.fontDescriptor = function (catalog, key, data) {
         var m = /^font:(.+)\/(\d+)$/.exec(key), name = m ? m[1] : key, weight = m ? parseInt(m[2], 10) : 400, family = name;
         ((catalog && catalog.fonts) || []).forEach(function (f) { if (f.name === name && f.weight === weight) family = f.family; });
-        return { name: name, family: family, weight: weight, data: data };
+        var out = { name: name, family: family, weight: weight, data: data };
+        var faces = catalog && catalog.glyph_data && catalog.glyph_data.faces;
+        (Array.isArray(faces) ? faces : []).forEach(function (f) {
+            if (!f || f.id !== name) return;
+            out.family = f.family;
+            out.weight_range = f.weight;
+            out.unicode_range = f.unicode_range;
+        });
+        return out;
     };
 
     // ensureAssets: gather what the player and the code scenes need from msg.assets / msg.fonts / the asset source.

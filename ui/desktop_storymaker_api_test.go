@@ -116,13 +116,14 @@ async function rejects(promise, check, what) {
   eq(await api.getBundle(id, 's3'), null, 'no bundle');
 
   // the asset resolver: the catalog files go out, everything else is missing
-  const staticFiles = { '/img/storymaker/catalog.json': catalogText };
+  const staticFiles = { '/img/storymaker/catalog.json': catalogText, '/img/storymaker/glyphs.json': fs.readFileSync(path.join(path.dirname(catalogFile), 'glyphs.json'), 'utf8') };
   const served = [];
   function staticFetch(url, init) {
     const hit = url.indexOf('/img/storymaker/') === 0 && url !== '/img/storymaker/catalog.json';
     served.push(url);
     if (staticFiles[url]) return Promise.resolve(new Response(staticFiles[url], { status: 200, headers: { 'Content-Type': 'application/json' } }));
     if (hit) return Promise.resolve(new Response(JSON.stringify({ file: url }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    if (url === '/fonts/qr/NotoSansCJKsc.otf') return Promise.resolve(new Response(new Uint8Array(9 * 1048576), { status: 200 }));
     if (url.indexOf('/fonts/') === 0) return Promise.resolve(new Response(new Uint8Array([1, 2, 3, 4]), { status: 200 }));
     return fetcher(url, init);
   }
@@ -144,6 +145,13 @@ async function rejects(promise, check, what) {
   eq(result.missing.length, 8, 'everything else is reported missing, none silently');
   eq(served.some(u => u.indexOf('passwd') >= 0 || u.indexOf('other.json') >= 0), false, 'a path the catalog does not list is never requested');
   eq(result.assets['bundle:s3'], 'self.__smScene = 2;', 'the bundle is fetched fresh');
+  // fallback faces: the coverage file travels on the catalog, and a face resolves with its own byte limit
+  eq(prepared.catalog.glyph_data.schema, 'storymaker-glyphs/1', 'the coverage file is attached to the catalog');
+  const faces = await assets.resolve(['font:sm-cjk/400', 'font:sm-greek/400', 'font:sm-cjk/700', 'font:sm-nope/400'], story, id);
+  eq(Object.keys(faces.assets).sort(), ['font:sm-cjk/400', 'font:sm-greek/400'], 'both faces resolve');
+  eq(faces.assets['font:sm-cjk/400'].byteLength, 9 * 1048576, 'the CJK face passes over 8 MiB through its max_bytes');
+  eq(faces.missing.sort(), ['font:sm-cjk/700', 'font:sm-nope/400'], 'a face answers only at weight 400');
+  await rejects(S.createApi({ fetch: staticFetch }).fontBuffer('/fonts/qr/NotoSansCJKsc.otf'), err => eq(err.message, 'The font is too large.', 'the default cap stays 8 MiB'), 'font cap');
   console.log('storymaker app api ok');
 })().catch(err => { console.error(err.stack || err); process.exit(1); });
 `

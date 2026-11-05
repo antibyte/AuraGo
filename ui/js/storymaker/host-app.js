@@ -8,6 +8,7 @@
     var H = root.StorymakerHost || (root.StorymakerHost = {});
 
     var CAPS = {
+        maxFallbackFontBytes: 18 * 1048576,
         maxScenes: 400, maxEntries: 6000, maxAssetKeys: 2000, maxFonts: 16, maxFontBytes: 8 * 1048576, maxFontTotal: 32 * 1048576,
         maxBundles: 400, maxBundleChars: 262144, maxFrame: 100000000, thumbMin: 16, thumbMax: 1920, maxKey: 240, maxReq: 64
     };
@@ -20,11 +21,28 @@
     function isInt(v, lo, hi) { return typeof v === 'number' && isFinite(v) && Math.floor(v) === v && v >= lo && v <= hi; }
     function okReq(v) { return (typeof v === 'string' || typeof v === 'number') && String(v).length <= CAPS.maxReq; }
 
-    // checkMessage(msg) = null when the message fits the schema, else a short reason.
-    function checkMessage(msg) {
+    // facesOf(catalog): the fallback faces of a catalog's glyph data. Only these may name a font over maxFontBytes.
+    function facesOf(catalog) {
+        var data = isObject(catalog) ? catalog.glyph_data : null;
+        return isObject(data) && data.schema === 'storymaker-glyphs/1' && Array.isArray(data.faces) ? data.faces : [];
+    }
+
+    // fontLimit(name, faces): the byte limit of one font. A face with that id lifts it to its max_bytes, at most maxFallbackFontBytes.
+    function fontLimit(name, faces) {
+        var limit = CAPS.maxFontBytes;
+        faces.forEach(function (face) {
+            if (isObject(face) && face.id === name && typeof face.max_bytes === 'number' && face.max_bytes > limit) limit = Math.min(face.max_bytes, CAPS.maxFallbackFontBytes);
+        });
+        return limit;
+    }
+
+    // checkMessage(msg, loaded) = null when the message fits the schema, else a short reason. loaded = {faces, fontBytes} comes
+    // from the last accepted load, because an assets message carries no catalog. A missing loaded means no faces and 0 bytes.
+    function checkMessage(msg, loaded) {
         if (!isObject(msg) || msg.sm !== 1) return 'not a storymaker message';
         if (TYPES.indexOf(msg.type) < 0) return 'unknown message type';
         var i, k, total = 0;
+        var heldFaces = loaded && Array.isArray(loaded.faces) ? loaded.faces : [], heldBytes = loaded && loaded.fontBytes > 0 ? loaded.fontBytes : 0;
         switch (msg.type) {
             case 'load': {
                 if (!isObject(msg.story) || !Array.isArray(msg.story.scenes) || msg.story.scenes.length > CAPS.maxScenes) return 'load.story is invalid or too large';
@@ -36,10 +54,13 @@
                 }
                 if (msg.fonts !== undefined) {
                     if (!Array.isArray(msg.fonts) || msg.fonts.length > CAPS.maxFonts) return 'load.fonts is invalid or too large';
+                    var loadFaces = facesOf(msg.catalog).concat(heldFaces);
                     for (i = 0; i < msg.fonts.length; i++) {
                         var f = msg.fonts[i];
                         if (!isObject(f) || typeof f.name !== 'string' || f.name.length > 64 || typeof f.family !== 'string' || f.family.length > 128 || !isInt(f.weight, 100, 900) || !isBuffer(f.data)) return 'load.fonts has a bad entry';
-                        if (f.data.byteLength > CAPS.maxFontBytes) return 'load.fonts has an oversized font';
+                        if (f.weight_range !== undefined && (typeof f.weight_range !== 'string' || f.weight_range.length > 16)) return 'load.fonts has a bad entry';
+                        if (f.unicode_range !== undefined && (typeof f.unicode_range !== 'string' || f.unicode_range.length > 256)) return 'load.fonts has a bad entry';
+                        if (f.data.byteLength > fontLimit(f.name, loadFaces)) return 'load.fonts has an oversized font';
                         total += f.data.byteLength;
                     }
                     if (total > CAPS.maxFontTotal) return 'load.fonts is too large';
@@ -63,6 +84,13 @@
                 if (!okReq(msg.req)) return 'assets.req is invalid';
                 if (!isObject(msg.assets) || Object.keys(msg.assets).length > CAPS.maxAssetKeys) return 'assets.assets is invalid or too large';
                 for (k in msg.assets) if (!KEY_RE.test(k)) return 'assets.assets has a bad key';
+                for (k in msg.assets) {
+                    if (k.indexOf('font:') !== 0) continue;
+                    if (!isBuffer(msg.assets[k])) return 'assets.assets has a bad font';
+                    if (msg.assets[k].byteLength > fontLimit(k.slice(5).replace(/\/\d+$/, ''), heldFaces)) return 'assets.assets has an oversized font';
+                    total += msg.assets[k].byteLength;
+                }
+                if (heldBytes + total > CAPS.maxFontTotal) return 'assets.assets is too large';
                 if (msg.missing !== undefined) {
                     if (!Array.isArray(msg.missing) || msg.missing.length > CAPS.maxAssetKeys) return 'assets.missing is invalid';
                     for (i = 0; i < msg.missing.length; i++) if (typeof msg.missing[i] !== 'string' || msg.missing[i].length > CAPS.maxKey) return 'assets.missing has a bad key';
@@ -91,7 +119,7 @@
         var env = H.defaultEnv(base, Object.assign({ raf: function (fn) { return win.requestAnimationFrame(fn); }, cancelRaf: function (h) { win.cancelAnimationFrame(h); } }, opts.env || {}));
         var targetOrigin = opts.targetOrigin || originOf(base);
         var ctx = canvas.getContext('2d');
-        var state = { engine: null, report: null, frame: 0, playing: false, loadToken: 0, busy: false, shown: -1, lastTime: -1e9, pendingAssets: {}, nextAsset: 1 };
+        var state = { engine: null, report: null, frame: 0, playing: false, loadToken: 0, busy: false, shown: -1, lastTime: -1e9, pendingAssets: {}, nextAsset: 1, loaded: { faces: [], fontBytes: 0 } };
         var disposed = false;
 
         function post(msg, transfer) {
@@ -135,6 +163,7 @@
             state.busy = false;
             Object.keys(state.pendingAssets).forEach(function (r) { env.clearTimer(state.pendingAssets[r].timer); state.pendingAssets[r].reject(H.fail('cancelled', 'reset')); });
             state.pendingAssets = {};
+            state.loaded = { faces: [], fontBytes: 0 };
             if (canvas.width) ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
         function postTime(force) {
@@ -161,6 +190,7 @@
             reset();
             var token = state.loadToken;
             try {
+                state.loaded = { faces: facesOf(msg.catalog), fontBytes: (msg.fonts || []).reduce(function (sum, f) { return sum + f.data.byteLength; }, 0) };
                 var engine = H.createEngine(env);
                 state.engine = engine;
                 var result = await engine.load(msg);
@@ -240,12 +270,13 @@
             if (!p) return;
             delete state.pendingAssets[msg.req];
             env.clearTimer(p.timer);
+            Object.keys(msg.assets).forEach(function (k) { if (k.indexOf('font:') === 0) state.loaded.fontBytes += msg.assets[k].byteLength; });
             p.resolve({ assets: msg.assets, missing: msg.missing || [] });
         }
 
         function onMessage(event) {
             if (disposed || event.source !== win.parent) return;
-            var why = checkMessage(event.data);
+            var why = checkMessage(event.data, state.loaded);
             if (why) { post({ type: 'error', code: 'bad_message', message: why }); return; }
             var msg = event.data;
             switch (msg.type) {

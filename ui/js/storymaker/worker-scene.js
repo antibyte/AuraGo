@@ -61,7 +61,9 @@
                     var key = f.name + '/' + f.weight;
                     if (this.fontsLoaded[key]) continue;
                     try {
-                        var face = new env.FontFace(f.family, f.data, { weight: String(f.weight) });
+                        var desc = { weight: f.weight_range || String(f.weight) };
+                        if (f.unicode_range) desc.unicodeRange = f.unicode_range;
+                        var face = new env.FontFace(f.family, f.data, desc);
                         await face.load();
                         env.fonts.add(face);
                         this.fontsLoaded[key] = true;

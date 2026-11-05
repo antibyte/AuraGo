@@ -9,6 +9,7 @@
 
     const S = window.StorymakerParts = window.StorymakerParts || {};
     const KEY_RE = /^(catalog|font|bundle):(\S{1,230})$/;
+    const FONT_FILE_RE = /^\/fonts\/(qr\/)?[A-Za-z0-9_.-]+$/;
 
     function createAssets(api) {
         let catalogPromise = null;
@@ -24,7 +25,11 @@
 
         function loadCatalog() {
             if (!catalogPromise) {
-                catalogPromise = api.catalogJSON('catalog.json').then(raw => {
+                catalogPromise = api.catalogJSON('catalog.json').then(async raw => {
+                    // the coverage file travels on the catalog as glyph_data: in memory only, never in catalog.json
+                    if (raw && raw.glyphs && typeof raw.glyphs.file === 'string') raw.glyph_data = await api.catalogJSON(raw.glyphs.file);
+                    return raw;
+                }).then(raw => {
                     if (!raw || raw.schema !== 'storymaker-catalog/1' || !Array.isArray(raw.entries)) throw S.errors.normalize({ message: 'The catalog has an unknown format.' });
                     if (current && current.raw.version !== raw.version) cache.clear();
                     current = { raw, index: S.model.indexCatalog(raw), paths: allowedPaths(raw) };
@@ -45,7 +50,7 @@
         }
 
         function fontFaces(raw, name) {
-            return (raw.fonts || []).filter(font => font && font.name === name && typeof font.file === 'string' && /^\/fonts\/[A-Za-z0-9_.-]+$/.test(font.file));
+            return (raw.fonts || []).filter(font => font && font.name === name && typeof font.file === 'string' && FONT_FILE_RE.test(font.file));
         }
 
         // The fonts the story uses, as the `load.fonts` entries {name, family, weight, data}.
@@ -58,6 +63,12 @@
                 weight: Number(face.weight),
                 data: await cached('font:' + face.name + '/' + face.weight, () => api.fontBuffer(face.file))
             })));
+        }
+
+        // glyphFace(raw, id): the fallback face of the coverage file, with its file and max_bytes. Its key is always font:<id>/400.
+        function glyphFace(raw, id) {
+            const faces = raw.glyph_data && Array.isArray(raw.glyph_data.faces) ? raw.glyph_data.faces : [];
+            return faces.find(face => face && face.id === id && typeof face.file === 'string' && FONT_FILE_RE.test(face.file));
         }
 
         function codeSceneIds(story) {
@@ -95,9 +106,9 @@
                         assets[key] = await cached(key, () => api.catalogJSON(m[2]));
                     } else if (m[1] === 'font') {
                         const parts = /^([^/]+)\/(\d{3})$/.exec(m[2]);
-                        const face = parts && fontFaces(raw, parts[1]).find(font => String(font.weight) === parts[2]);
+                        const face = parts && (fontFaces(raw, parts[1]).find(font => String(font.weight) === parts[2]) || (parts[2] === '400' && glyphFace(raw, parts[1])));
                         if (!face) { missing.push(key); return; }
-                        assets[key] = await cached(key, () => api.fontBuffer(face.file));
+                        assets[key] = await cached(key, () => api.fontBuffer(face.file, face.max_bytes));
                     } else if (m[1] === 'bundle') {
                         if (!codeIds.has(m[2])) { missing.push(key); return; }
                         const text = await api.getBundle(projectId, m[2]);
