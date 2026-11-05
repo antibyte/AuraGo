@@ -36,6 +36,18 @@
         var plans = P.planAll({ scenes: scenesIn }, audioInfo || {}, cat, fmt, issues);
         var scenes = [], envPrev = null, narrationEvents = [], audioEvents = [];
         var styleFont = story.style && story.style.font || 'default';
+        var captionsOn = !(story.style && story.style.captions === false);
+        var glyphIdx = P.glyphIndex(catalog), fontChain = glyphIdx ? SM.glyphs.chain(glyphIdx, '$style') : undefined;
+        var catalogFamilies = {};
+        Object.keys(families).forEach(function (k) { catalogFamilies[families[k]] = true; });
+        // needGlyphs(text): one font key per fallback face the text draws from. A face with a catalog font's family adds
+        // nothing, because catalog.fonts loads it.
+        function needGlyphs(text) {
+            SM.glyphs.needsFor(glyphIdx, text).forEach(function (face) {
+                if (!catalogFamilies[face.family]) needs[SM.glyphs.key(face)] = true;
+            });
+        }
+        if (glyphIdx) needGlyphs(String.fromCharCode(0x2026));
         var rhythmFactor = SM.motion.factor(story.style);
 
         scenesIn.forEach(function (sc, i) {
@@ -106,6 +118,18 @@
                 }
             }
 
+            // fallback faces of every text this scene draws; the narration only when captions or a say without text draws it
+            if (glyphIdx) {
+                var saysNoText = false;
+                scene.entities.forEach(function (e) { if (e.type === 'text') needGlyphs(e.text); });
+                if (!isCode) (sc.beats || []).forEach(function (b) {
+                    if (!b || b.do !== 'say') return;
+                    var said = SM.narration.parse(b.text);
+                    if (said.words > 0) needGlyphs(said.plain); else saysNoText = true;
+                });
+                if (n.plain && (captionsOn || saysNoText)) needGlyphs(n.plain);
+            }
+
             // fonts in use
             scene.entities.forEach(function (e) {
                 if (e.type !== 'text') return;
@@ -135,7 +159,7 @@
         var timeline = {
             version: 1, fps: fps, width: fmt.width, height: fmt.height, aspect: fmt.aspect, frame_count: frameCount,
             catalog_version: cat.version, palette: palette, style: { font: styleFont, captions: !(story.style && story.style.captions === false) },
-            fontFamilies: families, cat: cat, rigFile: catalog && catalog.rig && catalog.rig.file || '', safe: catalog && catalog.stage && catalog.stage.safe || null,
+            fontFamilies: families, fontChain: fontChain, cat: cat, rigFile: catalog && catalog.rig && catalog.rig.file || '', safe: catalog && catalog.stage && catalog.stage.safe || null,
             scenes: scenes, schedule: schedule, narrationEvents: narrationEvents
         };
         return { timeline: timeline, report: report, schedule: schedule, needs: Object.keys(needs).sort() };

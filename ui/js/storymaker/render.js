@@ -19,7 +19,7 @@
     function makeContext(timeline, assets, W, H) {
         return {
             W: W, H: H, aspect: timeline.aspect, fps: timeline.fps, palette: timeline.palette, cat: timeline.cat,
-            families: timeline.fontFamilies, styleFont: timeline.style.font, safe: timeline.safe || SM.stage.DEFAULT_SAFE,
+            families: timeline.fontFamilies, fontChain: timeline.fontChain, styleFont: timeline.style.font, safe: timeline.safe || SM.stage.DEFAULT_SAFE,
             assets: assets || {}, codeFrames: (assets && assets.codeFrames) || {}, codeErrors: (assets && assets.codeErrors) || {}
         };
     }
@@ -33,7 +33,9 @@
 
     function familyOf(rc, style) {
         var name = !style.font || style.font === 'default' ? rc.styleFont : style.font;
-        return rc.families[name] || rc.families.default || 'sans-serif';
+        var family = rc.families[name] || rc.families.default || 'sans-serif';
+        if (!rc.fontChain) return family;
+        return rc.fontChain.map(function (f) { return f === '$style' ? family : f; });
     }
 
     function drawBackdrop(ctx, rc) {

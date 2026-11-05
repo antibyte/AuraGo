@@ -1744,6 +1744,11 @@
         return tokens;
     }
 
+    // glyphIndex(catalog): the decoded coverage of catalog.glyph_data, or null. That key exists only in memory, never in catalog.json.
+    function glyphIndex(catalog) {
+        return catalog && catalog.glyph_data ? SM.glyphs.index(catalog.glyph_data) : null;
+    }
+
     function fontFamilies(cat) {
         var out = {};
         cat.fonts.forEach(function (f) { if (f && f.name && !out[f.name]) out[f.name] = f.family; });
@@ -1788,11 +1793,12 @@
     }
 
     // planTiming(story, audioInfo, catalog, opts) = {fps, scenes: {<scene id>: {index, transition_frames, narration_start,
-    // narration_seconds, cues: {n: seconds}}}, issues}. Pure; used by the host before it builds code scenes.
+    // narration_seconds, cues: {n: seconds}}}, issues, language, fontChain}. Pure; used by the host before it builds code scenes.
+    // fontChain stays undefined without glyph data.
     function planTiming(story, audioInfo, catalog, opts) {
         var cat = SM.scene.indexCatalog(catalog), issues = [];
         var fmt = normaliseFormat(story, opts);
-        var plans = planAll(story, audioInfo || {}, cat, fmt, issues), scenes = {};
+        var plans = planAll(story, audioInfo || {}, cat, fmt, issues), scenes = {}, glyphIdx = glyphIndex(catalog);
         plans.forEach(function (p) {
             var s = story.scenes[p.index];
             scenes[s.id] = {
@@ -1802,7 +1808,8 @@
         });
         return {
             fps: fmt.fps, width: fmt.width, height: fmt.height, aspect: fmt.aspect, scenes: scenes, issues: issues,
-            palette: pickPalette(story, cat, []), fontFamilies: fontFamilies(cat), styleFont: story.style && story.style.font || 'default'
+            palette: pickPalette(story, cat, []), fontFamilies: fontFamilies(cat), styleFont: story.style && story.style.font || 'default',
+            language: story.voice && story.voice.language || '', fontChain: glyphIdx ? SM.glyphs.chain(glyphIdx, '$style') : undefined
         };
     }
 
@@ -1810,7 +1817,7 @@
         KNOWN: KNOWN, SUPPORTED_TRANSITIONS: SUPPORTED_TRANSITIONS, SUPPORTED_BEATS: SUPPORTED_BEATS,
         MIN_SCENE_SECONDS: MIN_SCENE_SECONDS, MAX_CODE_SECONDS: MAX_CODE_SECONDS, issue: issue, contains: contains,
         normaliseFormat: normaliseFormat, pickPalette: pickPalette, fontFamilies: fontFamilies, transitionFor: transitionFor, planScene: planScene, planAll: planAll,
-        planTiming: planTiming
+        planTiming: planTiming, glyphIndex: glyphIndex
     };
     SM.planTiming = planTiming;
 })(typeof globalThis !== 'undefined' ? globalThis : self);
@@ -2514,6 +2521,18 @@
         var plans = P.planAll({ scenes: scenesIn }, audioInfo || {}, cat, fmt, issues);
         var scenes = [], envPrev = null, narrationEvents = [], audioEvents = [];
         var styleFont = story.style && story.style.font || 'default';
+        var captionsOn = !(story.style && story.style.captions === false);
+        var glyphIdx = P.glyphIndex(catalog), fontChain = glyphIdx ? SM.glyphs.chain(glyphIdx, '$style') : undefined;
+        var catalogFamilies = {};
+        Object.keys(families).forEach(function (k) { catalogFamilies[families[k]] = true; });
+        // needGlyphs(text): one font key per fallback face the text draws from. A face with a catalog font's family adds
+        // nothing, because catalog.fonts loads it.
+        function needGlyphs(text) {
+            SM.glyphs.needsFor(glyphIdx, text).forEach(function (face) {
+                if (!catalogFamilies[face.family]) needs[SM.glyphs.key(face)] = true;
+            });
+        }
+        if (glyphIdx) needGlyphs(String.fromCharCode(0x2026));
         var rhythmFactor = SM.motion.factor(story.style);
 
         scenesIn.forEach(function (sc, i) {
@@ -2584,6 +2603,18 @@
                 }
             }
 
+            // fallback faces of every text this scene draws; the narration only when captions or a say without text draws it
+            if (glyphIdx) {
+                var saysNoText = false;
+                scene.entities.forEach(function (e) { if (e.type === 'text') needGlyphs(e.text); });
+                if (!isCode) (sc.beats || []).forEach(function (b) {
+                    if (!b || b.do !== 'say') return;
+                    var said = SM.narration.parse(b.text);
+                    if (said.words > 0) needGlyphs(said.plain); else saysNoText = true;
+                });
+                if (n.plain && (captionsOn || saysNoText)) needGlyphs(n.plain);
+            }
+
             // fonts in use
             scene.entities.forEach(function (e) {
                 if (e.type !== 'text') return;
@@ -2613,7 +2644,7 @@
         var timeline = {
             version: 1, fps: fps, width: fmt.width, height: fmt.height, aspect: fmt.aspect, frame_count: frameCount,
             catalog_version: cat.version, palette: palette, style: { font: styleFont, captions: !(story.style && story.style.captions === false) },
-            fontFamilies: families, cat: cat, rigFile: catalog && catalog.rig && catalog.rig.file || '', safe: catalog && catalog.stage && catalog.stage.safe || null,
+            fontFamilies: families, fontChain: fontChain, cat: cat, rigFile: catalog && catalog.rig && catalog.rig.file || '', safe: catalog && catalog.stage && catalog.stage.safe || null,
             scenes: scenes, schedule: schedule, narrationEvents: narrationEvents
         };
         return { timeline: timeline, report: report, schedule: schedule, needs: Object.keys(needs).sort() };
@@ -2702,7 +2733,7 @@
     function makeContext(timeline, assets, W, H) {
         return {
             W: W, H: H, aspect: timeline.aspect, fps: timeline.fps, palette: timeline.palette, cat: timeline.cat,
-            families: timeline.fontFamilies, styleFont: timeline.style.font, safe: timeline.safe || SM.stage.DEFAULT_SAFE,
+            families: timeline.fontFamilies, fontChain: timeline.fontChain, styleFont: timeline.style.font, safe: timeline.safe || SM.stage.DEFAULT_SAFE,
             assets: assets || {}, codeFrames: (assets && assets.codeFrames) || {}, codeErrors: (assets && assets.codeErrors) || {}
         };
     }
@@ -2716,7 +2747,9 @@
 
     function familyOf(rc, style) {
         var name = !style.font || style.font === 'default' ? rc.styleFont : style.font;
-        return rc.families[name] || rc.families.default || 'sans-serif';
+        var family = rc.families[name] || rc.families.default || 'sans-serif';
+        if (!rc.fontChain) return family;
+        return rc.fontChain.map(function (f) { return f === '$style' ? family : f; });
     }
 
     function drawBackdrop(ctx, rc) {
@@ -3037,7 +3070,8 @@
         return { start: start, end: start + dur, dur: dur, ease: ease };
     }
 
-    // build(sceneFn, opts): opts = {sceneId, catalog, aspect, width, height, fps, cues, palette, families, styleFont, safe}.
+    // build(sceneFn, opts): opts = {sceneId, catalog, aspect, width, height, fps, cues, palette, families, styleFont, safe,
+    // language, fontChain}.
     function build(sceneFn, opts) {
         var cat = SM.scene.indexCatalog(opts.catalog), S = SM.scene, DW = SM.stage.DESIGN_W, DH = SM.stage.DESIGN_H;
         var stage = SM.stage.create({ aspect: opts.aspect, width: opts.width, height: opts.height, env: null, safe: opts.safe });
@@ -3045,6 +3079,8 @@
         var state = { duration: null, entities: [], onFrame: null, needs: {}, issues: [], counter: 0, unsupportedSeen: {} };
         var cues = opts.cues || {};
         var rigFile = opts.catalog && opts.catalog.rig && opts.catalog.rig.file || '';
+        var glyphIdx = opts.catalog && opts.catalog.glyph_data ? SM.glyphs.index(opts.catalog.glyph_data) : null;
+        if (glyphIdx) SM.glyphs.facesForLanguage(glyphIdx, opts.language).forEach(function (face) { state.needs[SM.glyphs.key(face)] = true; });
 
         function note(code, message) {
             var key = code + message;
@@ -3540,7 +3576,7 @@
                 var key2 = width + 'x' + height;
                 if (!this.canvases[key2]) { var c = this.env.makeCanvas(width, height); this.canvases[key2] = { canvas: c, ctx: c.getContext('2d') }; }
                 var main = this.canvases[key2];
-                var tl = { aspect: o.aspect, fps: o.fps, palette: o.palette, cat: SM.scene.indexCatalog(o.catalog), fontFamilies: o.families || {}, style: { font: o.styleFont || 'default' }, safe: o.safe };
+                var tl = { aspect: o.aspect, fps: o.fps, palette: o.palette, cat: SM.scene.indexCatalog(o.catalog), fontFamilies: o.families || {}, fontChain: o.fontChain, style: { font: o.styleFont || 'default' }, safe: o.safe };
                 var rc = SM.render.makeContext(tl, { rig: this.files[o.catalog && o.catalog.rig && o.catalog.rig.file] || null, props: this.files, envs: this.files }, width, height);
                 rc.sceneId = o.sceneId;
                 this.built.stages = this.built.stages || {};

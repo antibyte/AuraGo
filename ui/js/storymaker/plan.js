@@ -83,6 +83,11 @@
         return tokens;
     }
 
+    // glyphIndex(catalog): the decoded coverage of catalog.glyph_data, or null. That key exists only in memory, never in catalog.json.
+    function glyphIndex(catalog) {
+        return catalog && catalog.glyph_data ? SM.glyphs.index(catalog.glyph_data) : null;
+    }
+
     function fontFamilies(cat) {
         var out = {};
         cat.fonts.forEach(function (f) { if (f && f.name && !out[f.name]) out[f.name] = f.family; });
@@ -127,11 +132,12 @@
     }
 
     // planTiming(story, audioInfo, catalog, opts) = {fps, scenes: {<scene id>: {index, transition_frames, narration_start,
-    // narration_seconds, cues: {n: seconds}}}, issues}. Pure; used by the host before it builds code scenes.
+    // narration_seconds, cues: {n: seconds}}}, issues, language, fontChain}. Pure; used by the host before it builds code scenes.
+    // fontChain stays undefined without glyph data.
     function planTiming(story, audioInfo, catalog, opts) {
         var cat = SM.scene.indexCatalog(catalog), issues = [];
         var fmt = normaliseFormat(story, opts);
-        var plans = planAll(story, audioInfo || {}, cat, fmt, issues), scenes = {};
+        var plans = planAll(story, audioInfo || {}, cat, fmt, issues), scenes = {}, glyphIdx = glyphIndex(catalog);
         plans.forEach(function (p) {
             var s = story.scenes[p.index];
             scenes[s.id] = {
@@ -141,7 +147,8 @@
         });
         return {
             fps: fmt.fps, width: fmt.width, height: fmt.height, aspect: fmt.aspect, scenes: scenes, issues: issues,
-            palette: pickPalette(story, cat, []), fontFamilies: fontFamilies(cat), styleFont: story.style && story.style.font || 'default'
+            palette: pickPalette(story, cat, []), fontFamilies: fontFamilies(cat), styleFont: story.style && story.style.font || 'default',
+            language: story.voice && story.voice.language || '', fontChain: glyphIdx ? SM.glyphs.chain(glyphIdx, '$style') : undefined
         };
     }
 
@@ -149,7 +156,7 @@
         KNOWN: KNOWN, SUPPORTED_TRANSITIONS: SUPPORTED_TRANSITIONS, SUPPORTED_BEATS: SUPPORTED_BEATS,
         MIN_SCENE_SECONDS: MIN_SCENE_SECONDS, MAX_CODE_SECONDS: MAX_CODE_SECONDS, issue: issue, contains: contains,
         normaliseFormat: normaliseFormat, pickPalette: pickPalette, fontFamilies: fontFamilies, transitionFor: transitionFor, planScene: planScene, planAll: planAll,
-        planTiming: planTiming
+        planTiming: planTiming, glyphIndex: glyphIndex
     };
     SM.planTiming = planTiming;
 })(typeof globalThis !== 'undefined' ? globalThis : self);

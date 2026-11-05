@@ -80,7 +80,7 @@
                 var key2 = width + 'x' + height;
                 if (!this.canvases[key2]) { var c = this.env.makeCanvas(width, height); this.canvases[key2] = { canvas: c, ctx: c.getContext('2d') }; }
                 var main = this.canvases[key2];
-                var tl = { aspect: o.aspect, fps: o.fps, palette: o.palette, cat: SM.scene.indexCatalog(o.catalog), fontFamilies: o.families || {}, style: { font: o.styleFont || 'default' }, safe: o.safe };
+                var tl = { aspect: o.aspect, fps: o.fps, palette: o.palette, cat: SM.scene.indexCatalog(o.catalog), fontFamilies: o.families || {}, fontChain: o.fontChain, style: { font: o.styleFont || 'default' }, safe: o.safe };
                 var rc = SM.render.makeContext(tl, { rig: this.files[o.catalog && o.catalog.rig && o.catalog.rig.file] || null, props: this.files, envs: this.files }, width, height);
                 rc.sceneId = o.sceneId;
                 this.built.stages = this.built.stages || {};

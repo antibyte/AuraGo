@@ -31,7 +31,8 @@
         return { start: start, end: start + dur, dur: dur, ease: ease };
     }
 
-    // build(sceneFn, opts): opts = {sceneId, catalog, aspect, width, height, fps, cues, palette, families, styleFont, safe}.
+    // build(sceneFn, opts): opts = {sceneId, catalog, aspect, width, height, fps, cues, palette, families, styleFont, safe,
+    // language, fontChain}.
     function build(sceneFn, opts) {
         var cat = SM.scene.indexCatalog(opts.catalog), S = SM.scene, DW = SM.stage.DESIGN_W, DH = SM.stage.DESIGN_H;
         var stage = SM.stage.create({ aspect: opts.aspect, width: opts.width, height: opts.height, env: null, safe: opts.safe });
@@ -39,6 +40,8 @@
         var state = { duration: null, entities: [], onFrame: null, needs: {}, issues: [], counter: 0, unsupportedSeen: {} };
         var cues = opts.cues || {};
         var rigFile = opts.catalog && opts.catalog.rig && opts.catalog.rig.file || '';
+        var glyphIdx = opts.catalog && opts.catalog.glyph_data ? SM.glyphs.index(opts.catalog.glyph_data) : null;
+        if (glyphIdx) SM.glyphs.facesForLanguage(glyphIdx, opts.language).forEach(function (face) { state.needs[SM.glyphs.key(face)] = true; });
 
         function note(code, message) {
             var key = code + message;
