@@ -10,8 +10,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -269,6 +271,52 @@ func smappEventually(t *testing.T, limit time.Duration, what string, ok func() b
 	}
 }
 
+// smappNarrateByRoute starts the narrate job through the real route and waits until the project has no missing block.
+func smappNarrateByRoute(t *testing.T, origin, id string) {
+	t.Helper()
+	res, err := http.Post(origin+storymakerAPIBase+"/projects/"+id+"/narrate", "application/json", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := io.ReadAll(res.Body)
+	res.Body.Close()
+	if res.StatusCode != http.StatusAccepted && res.StatusCode != http.StatusOK {
+		t.Fatalf("narrate = %d %s", res.StatusCode, body)
+	}
+	deadline := time.Now().Add(2 * time.Minute)
+	for {
+		var answer struct {
+			Missing []json.RawMessage `json:"missing"`
+		}
+		smappGet(t, origin, "/projects/"+id+"/narration", &answer)
+		if len(answer.Missing) == 0 {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("%d narration blocks are still missing after 2 minutes", len(answer.Missing))
+		}
+		time.Sleep(250 * time.Millisecond)
+	}
+}
+
+// smappMaxVolume runs FFmpeg's volumedetect over the first audio stream of a file and returns its max_volume in dB.
+func smappMaxVolume(t *testing.T, ffmpeg, file string) float64 {
+	t.Helper()
+	out, err := exec.Command(ffmpeg, "-hide_banner", "-nostats", "-i", file, "-map", "0:a:0", "-af", "volumedetect", "-f", "null", "-").CombinedOutput()
+	if err != nil {
+		t.Fatalf("volumedetect: %v\n%s", err, out)
+	}
+	match := regexp.MustCompile(`max_volume: (-?[0-9.]+) dB`).FindSubmatch(out)
+	if match == nil {
+		t.Fatalf("volumedetect printed no max_volume:\n%s", out)
+	}
+	value, err := strconv.ParseFloat(string(match[1]), 64)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return value
+}
+
 func TestStorymakerAppRealServerBrowser(t *testing.T) {
 	s := storymakerRealServer(t)
 	// A stub synth behind the real narrate job: no provider call and no cost. The key only makes the provider ready.
@@ -425,6 +473,28 @@ func TestStorymakerAppRealServerBrowser(t *testing.T) {
 	smappWait(t, page, `()=>`+waveDrawn+`==='true'`)
 	smappNoErrors(t, page)
 
+	// Four side tabs stay inside the side panel: the strip wraps instead of clipping the last tab.
+	if !page.MustEval(`()=>{const r=document.querySelector('[data-stm="side"]').getBoundingClientRect().right;return [...document.querySelectorAll('[data-stm="side-tab"]')].every(b=>b.getBoundingClientRect().right<=r);}`).Bool() {
+		t.Fatal("a side tab overflows the side panel")
+	}
+
+	// The gate: narration text without audio stops the export. The panel names the scene and offers the voice panel, and the same
+	// export passes once the narrate job has stored the audio. The code scene code2 is still selected.
+	smappClick(t, page, `[data-stm="side-tab"][data-tab="scene"]`)
+	page.MustElement(`[data-stm="narration"]`).MustInput("Every packet gets checked.")
+	smappWait(t, page, `()=>document.querySelector('[data-stm="save-state"]')?.dataset.state==='saved'`)
+	smappClick(t, page, `[data-stm="export"]`)
+	smappWait(t, page, `()=>!!document.querySelector('[data-stm="export-start"]') && !document.querySelector('[data-stm="export-start"]').disabled`)
+	smappClick(t, page, `[data-stm="export-start"]`)
+	smappWait(t, page, `()=>document.querySelector('[data-stm="export-refused"]')?.dataset.code==='narration_incomplete'`)
+	if missing := smappText(page, `[data-stm="export-missing"]`); !strings.Contains(missing, "code2") {
+		t.Fatalf("the refusal does not name the scene: %q", missing)
+	}
+	smappClick(t, page, `[data-stm="export-go-voice"]`)
+	smappWait(t, page, `()=>document.querySelector('[data-stm="export-panel"]').hidden`)
+	smappNarrateByRoute(t, origin, id)
+	smappNoErrors(t, page)
+
 	// Export: the real render runs (FFmpeg and Chrome), progress arrives on the project's event stream and the panel ends in
 	// the output path of an MP4 that exists in the project folder.
 	smappClick(t, page, `[data-stm="export"]`)
@@ -452,6 +522,17 @@ func TestStorymakerAppRealServerBrowser(t *testing.T) {
 	}
 	if !video {
 		t.Fatalf("the MP4 is not 1920x1080 yuv420p: %+v", doc.Streams)
+	}
+	// The film has a real AAC track. Silence reads -91 dB and the mix peaks near its ceiling of -1 dBTP, so -30 dB separates them.
+	var aac bool
+	for _, st := range doc.Streams {
+		aac = aac || st.CodecType == "audio" && st.CodecName == "aac"
+	}
+	if !aac {
+		t.Fatalf("the MP4 has no AAC track: %+v", doc.Streams)
+	}
+	if peak := smappMaxVolume(t, s.Cfg.VideoStudio.FFmpegPath, mp4); peak < -30 {
+		t.Fatalf("the export has no audible track: max_volume %.1f dB", peak)
 	}
 	windows := page.MustEval(`()=>auditTest.state.windows.size`).Int()
 	page.MustEval(`()=>document.querySelector('[data-stm="export-show"]').click()`)
