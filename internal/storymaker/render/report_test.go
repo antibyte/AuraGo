@@ -348,3 +348,59 @@ func TestParseReportAcceptsTheMeasuredFixture(t *testing.T) {
 		t.Fatalf("cue_precision = %v", rep.CuePrecision)
 	}
 }
+
+// A text the page wrote must reach the refusal without the render prefix and the token, also when a clip would
+// have cut through the prefix: the scrub runs before the clip.
+func TestParseReportRefusalsCarryNoSecrets(t *testing.T) {
+	const prefix, token = "/pfx-9Zq4Lm7Vw2Xk8", "tok-Hd3Rt6Yb1Nc5"
+	want := reportExpectation()
+	want.Prefix, want.Token = prefix, token
+	// The prefix starts about 390 bytes into the text, so a clip at 400 would keep only a part of it.
+	cutting := strings.Repeat("x", 360) + "http://127.0.0.1:5555" + prefix + "/story.json " + token
+	cases := map[string]func(m map[string]any){
+		"issue message": func(m map[string]any) {
+			m["issues"] = []any{map[string]any{"severity": "error", "scene_id": "s3", "code": "code_error", "message": "fetch failed: http://127.0.0.1:5555" + prefix + "/x?t=" + token}}
+		},
+		"issue scene id": func(m map[string]any) {
+			m["issues"] = []any{map[string]any{"severity": "error", "scene_id": "http://127.0.0.1:5555" + prefix, "code": "unknown_asset", "message": "bad"}}
+		},
+		"issue cut by clip": func(m map[string]any) {
+			m["issues"] = []any{map[string]any{"severity": "error", "scene_id": "s3", "code": "code_error", "message": cutting}}
+		},
+		"catalog version": func(m map[string]any) { m["catalog_version"] = prefix + strings.Repeat("v", 600) + token },
+		"catalog version cut by clip": func(m map[string]any) {
+			m["catalog_version"] = strings.Repeat("v", 345) + prefix + token
+		},
+		"scene id": func(m map[string]any) { m["scenes"].([]any)[0].(map[string]any)["id"] = prefix + token },
+	}
+	for name, mut := range cases {
+		m := goodReport()
+		mut(m)
+		body, _ := json.Marshal(m)
+		_, refusal := parseReport(body, want)
+		if refusal == nil {
+			t.Errorf("%s: not refused", name)
+			continue
+		}
+		if len(refusal.Message) > 460 {
+			t.Errorf("%s: message has %d bytes, it is not clipped", name, len(refusal.Message))
+		}
+		for _, frag := range []string{"pfx-", "9Zq4", "Lm7V", "Xk8", "tok-", "Hd3R", "Yb1N", "Rt6Y"} {
+			if strings.Contains(refusal.Message, frag) {
+				t.Errorf("%s: the message keeps %q: %q", name, frag, refusal.Message)
+			}
+		}
+	}
+
+	// The same text through the run hook reaches neither the job record nor the answer.
+	run := &renderRun{r: &Runner{}, prefix: prefix, token: token, fps: 30, width: 1920, height: 1080, frameLimit: 27000, catVersion: "70d5cf51a9a9",
+		plan: &Plan{}, failCh: make(chan *JobError, 1)}
+	m := goodReport()
+	cases["issue cut by clip"](m)
+	body, _ := json.Marshal(m)
+	ans := run.onReport(body)
+	failed := <-run.failCh
+	if ans.Start || failed == nil || strings.Contains(ans.Message+failed.Message, "Zq4") || strings.Contains(ans.Message+failed.Message, "Hd3R") || failed.Message != ans.Message {
+		t.Errorf("onReport: answer %+v, job error %+v", ans, failed)
+	}
+}

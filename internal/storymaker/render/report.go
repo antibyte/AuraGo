@@ -108,7 +108,7 @@ func checkAudioEvents(events []reportAudioEvent, filmMS int64, want reportExpect
 		case storymaker.BlockKindNarration, storymaker.BlockKindDialogue:
 			b, ok := want.Blocks[ev.BlockID]
 			if !ok {
-				return fmt.Sprintf("audio event %d names the unknown block %q", i, clip(ev.BlockID, 60))
+				return fmt.Sprintf("audio event %d names the unknown block %q", i, want.clean(ev.BlockID, 60))
 			}
 			if b.Kind != ev.Kind || b.SceneID != ev.SceneID {
 				return fmt.Sprintf("audio event %d has the wrong kind or scene for block %q", i, ev.BlockID)
@@ -130,7 +130,7 @@ func checkAudioEvents(events []reportAudioEvent, filmMS int64, want reportExpect
 			// The catalog has no sound effects yet, so no such event can be valid.
 			return fmt.Sprintf("audio event %d is a sound effect, which the catalog does not have", i)
 		default:
-			return fmt.Sprintf("audio event %d has the unknown kind %q", i, clip(ev.Kind, 40))
+			return fmt.Sprintf("audio event %d has the unknown kind %q", i, want.clean(ev.Kind, 40))
 		}
 	}
 	// The pieces of a block form a prefix: compile may drop the events past the film end, never one in the
@@ -161,7 +161,7 @@ func checkCaptions(captions []reportCaption, filmMS int64, want reportExpect) st
 	for i, c := range captions {
 		text, ok := want.captionText(c.BlockID)
 		if !ok {
-			return fmt.Sprintf("caption %d names the unknown block %q", i, clip(c.BlockID, 60))
+			return fmt.Sprintf("caption %d names the unknown block %q", i, want.clean(c.BlockID, 60))
 		}
 		if c.StartMS < 0 || c.EndMS <= c.StartMS || c.EndMS > filmMS {
 			return fmt.Sprintf("caption %d runs from %d to %d ms, outside the film of %d ms", i, c.StartMS, c.EndMS, filmMS)
@@ -217,6 +217,15 @@ type reportExpect struct {
 	CaptionText map[string]string
 	// MaxEvents bounds audio_events: the pieces of all measured blocks.
 	MaxEvents int
+	// Prefix and Token are the render secrets. A text the page wrote is cleaned of both before it reaches a
+	// refusal message, and a refusal message reaches the job record and the model.
+	Prefix, Token string
+}
+
+// clean removes the secrets from a page text and then clips it. The order matters: a clip that cuts through the
+// prefix leaves a part that withoutSecrets no longer matches.
+func (e reportExpect) clean(s string, n int) string {
+	return clip(withoutSecrets(s, e.Prefix, e.Token), n)
 }
 
 // captionText returns the captionKey of a block's text, measured or estimated.
@@ -237,7 +246,8 @@ func parseReport(body []byte, want reportExpect) (compileReport, *reportRefusal)
 		return rep, &reportRefusal{CodeRenderFailed, "The compile report is not valid JSON."}
 	}
 	bad := func(format string, args ...any) (compileReport, *reportRefusal) {
-		return rep, &reportRefusal{CodeRenderFailed, "The compile report was refused: " + fmt.Sprintf(format, args...)}
+		// The arguments can carry page text (a catalog version, a scene id), so the whole reason is cleaned and bounded.
+		return rep, &reportRefusal{CodeRenderFailed, "The compile report was refused: " + want.clean(fmt.Sprintf(format, args...), 400)}
 	}
 	if rep.FPS != want.FPS || rep.Width != want.Width || rep.Height != want.Height {
 		return bad("it describes %dx%d at %d fps, the job is %dx%d at %d fps", rep.Width, rep.Height, rep.FPS, want.Width, want.Height, want.FPS)
@@ -251,9 +261,10 @@ func parseReport(body []byte, want reportExpect) (compileReport, *reportRefusal)
 			if is.Code == storymaker.CodeCodeError || is.Code == storymaker.CodeDeadline {
 				code = CodeCodeError
 			}
-			msg := is.Message
+			// Both fields are page text: scrub each one before the join, then clip the result.
+			msg := withoutSecrets(is.Message, want.Prefix, want.Token)
 			if is.SceneID != "" {
-				msg = "Scene " + is.SceneID + ": " + msg
+				msg = "Scene " + withoutSecrets(is.SceneID, want.Prefix, want.Token) + ": " + msg
 			}
 			return rep, &reportRefusal{code, clip(strings.TrimSpace(msg), 400)}
 		}
