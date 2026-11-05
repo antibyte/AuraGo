@@ -515,10 +515,32 @@ function wireWindow(win, id) {
         };
         const [left, width] = axis(start.left, start.width, dx, edge.includes('w'), edge.includes('e'), limits.minWidth, limits.width);
         const [top, height] = axis(start.top, start.height, dy, edge.includes('n'), edge.includes('s'), limits.minHeight, limits.height);
-        win.style.left = left + 'px';
-        win.style.top = top + 'px';
-        win.style.width = width + 'px';
-        win.style.height = height + 'px';
+        let nextLeft = left;
+        let nextTop = top;
+        let nextWidth = width;
+        let nextHeight = height;
+        const aspect = appWindowAspect(win.dataset.appId);
+        if (aspect) {
+            // A window with a fixed shape (the terminal's tube monitor) follows the pointer on the axis the
+            // handle drags and takes the other one from the ratio, so the picture stays 4:3 while the window
+            // grows. The edge opposite the handle stays where it was.
+            const horizontal = edge.includes('e') || edge.includes('w');
+            const vertical = edge.includes('n') || edge.includes('s');
+            const driveWidth = horizontal && (!vertical || Math.abs(dx) >= Math.abs(dy));
+            const bounds = aspectUnitBounds(aspect, { width: limits.minWidth, height: limits.minHeight }, { width: limits.width, height: limits.height });
+            const unit = driveWidth ? Math.round(width / aspect.width) : Math.round(height / aspect.height);
+            const shaped = aspectWindowSize(aspect, Math.min(Math.max(unit, bounds.min), bounds.max));
+            nextWidth = shaped.width;
+            nextHeight = shaped.height;
+            nextLeft = edge.includes('w') ? (start.left + start.width) - nextWidth : left;
+            nextTop = edge.includes('n') ? (start.top + start.height) - nextHeight : top;
+            nextLeft = Math.max(0, Math.min(nextLeft, limits.width - nextWidth));
+            nextTop = Math.max(0, Math.min(nextTop, limits.height - nextHeight));
+        }
+        win.style.left = nextLeft + 'px';
+        win.style.top = nextTop + 'px';
+        win.style.width = nextWidth + 'px';
+        win.style.height = nextHeight + 'px';
         scheduleFruityDockOcclusionCheck();
     }
 

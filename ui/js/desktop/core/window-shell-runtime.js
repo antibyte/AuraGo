@@ -1377,15 +1377,47 @@
         return !!(app && app.metadata && (app.metadata.open_maximized === 'true' || app.metadata.store_app_id === 'quakejs-rootless'));
     }
 
-    function clampWindowSize(size) {
+    // Apps with a fixed shape: the terminal is a tube monitor and keeps its 4:3 picture, also while the
+    // window grows. The ratio lives in whole steps (4 px of width per 3 px of height), so the picture
+    // never drifts and the window stays exactly 4:3.
+    const APP_WINDOW_ASPECTS = { terminal: { width: 4, height: 3 } };
+
+    function appWindowAspect(appId) {
+        return APP_WINDOW_ASPECTS[appId] || null;
+    }
+
+    // The steps a fixed-shape window may take: its own units inside the app's minimum size and the
+    // workspace (the unit is the height's step, 3 px for the terminal's 4:3).
+    function aspectUnitBounds(aspect, minimum, maximum) {
+        const min = Math.max(Math.ceil(minimum.width / aspect.width), Math.ceil(minimum.height / aspect.height));
+        const max = Math.min(Math.floor(maximum.width / aspect.width), Math.floor(maximum.height / aspect.height));
+        return { min: min, max: Math.max(min, max) };
+    }
+
+    // The size of a fixed-shape window in the shape's own steps.
+    function aspectWindowSize(aspect, unit) {
+        const steps = Math.max(1, Math.round(unit));
+        return { width: steps * aspect.width, height: steps * aspect.height };
+    }
+
+    // The room a window may use: the workspace without its margin and the taskbar.
+    function windowWorkspaceSize() {
         const workspace = $('vd-workspace') || document.body;
         const workspaceRect = workspace.getBoundingClientRect();
         const margin = 16;
         const taskbar = document.querySelector('.vd-taskbar');
         const taskbarReserve = (shellLayout() === 'taskbar' && taskbar) ? taskbar.offsetHeight : 0;
         return {
-            width: Math.min(size.width, Math.max(1, workspaceRect.width - margin * 2)),
-            height: Math.min(size.height, Math.max(1, workspaceRect.height - taskbarReserve - margin * 2))
+            width: Math.max(1, workspaceRect.width - margin * 2),
+            height: Math.max(1, workspaceRect.height - taskbarReserve - margin * 2)
+        };
+    }
+
+    function clampWindowSize(size) {
+        const room = windowWorkspaceSize();
+        return {
+            width: Math.min(size.width, room.width),
+            height: Math.min(size.height, room.height)
         };
     }
 
@@ -1662,6 +1694,17 @@
             const availableMinimum = clampWindowSize(minSize);
             size.width = Math.max(size.width, availableMinimum.width);
             size.height = Math.max(size.height, availableMinimum.height);
+        }
+        const aspect = appWindowAspect(appId);
+        if (aspect) {
+            // The tube monitor keeps its shape: the window opens 4:3, whatever the desktop allows and
+            // whatever the session restored. The width leads (it holds the columns), the height follows
+            // the ratio in whole steps.
+            const bounds = aspectUnitBounds(aspect, minSize, windowWorkspaceSize());
+            const unit = Math.min(Math.max(Math.round(size.width / aspect.width), bounds.min), bounds.max);
+            const shaped = aspectWindowSize(aspect, unit);
+            size.width = shaped.width;
+            size.height = shaped.height;
         }
         const position = sessionRestore
             ? { left: sessionRestore.left || 0, top: sessionRestore.top || 0 }

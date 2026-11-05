@@ -40,6 +40,31 @@ func TestDesktopWindowPlacementIsClamped(t *testing.T) {
 	}
 }
 
+func TestDesktopTerminalWindowKeepsItsFourThreeShape(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/main.js")
+	for _, marker := range []string{
+		"const APP_WINDOW_ASPECTS = { terminal: { width: 4, height: 3 } };",
+		"function appWindowAspect(appId)",
+		"function aspectUnitBounds(aspect, minimum, maximum)",
+		"function aspectWindowSize(aspect, unit)",
+		"function windowWorkspaceSize()",
+		// The opening: the window takes the shape's own steps, whatever the session restored.
+		"const aspect = appWindowAspect(appId);",
+		"const unit = Math.min(Math.max(Math.round(size.width / aspect.width), bounds.min), bounds.max);",
+		// The resize: the pointer drives one axis, the ratio gives the other.
+		"const aspect = appWindowAspect(win.dataset.appId);",
+		"const unit = driveWidth ? Math.round(width / aspect.width) : Math.round(height / aspect.height);",
+		"nextLeft = edge.includes('w') ? (start.left + start.width) - nextWidth : left;",
+		"nextTop = edge.includes('n') ? (start.top + start.height) - nextHeight : top;",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("desktop window aspect lock missing marker %q", marker)
+		}
+	}
+}
+
 func TestDesktopWindowCanOpenMetadataAppsMaximized(t *testing.T) {
 	source := readDesktopAssetText(t, "js/desktop/main.js")
 	for _, marker := range []string{

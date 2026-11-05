@@ -96,16 +96,6 @@ func TestDesktopTerminalRetroBrowser(t *testing.T) {
 			t.Fatalf("%s; browser errors: %s", name, page.MustEval(`()=>JSON.stringify(fixtureErrors)`).Str())
 		}
 	}
-	check(t, "4:3 CRT opening", `()=>{const w=document.querySelector('.vd-window');return w && w.style.width==='960px' && w.style.height==='720px' && Math.abs((parseFloat(w.style.width)/parseFloat(w.style.height))-(4/3))<0.001;}`)
-	check(t, "cold C64 font metrics", `async()=>{
-        await document.fonts.load('13px "Press Start 2P"');
-        await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
-        const term=fixtureTerms[0],canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');
-        ctx.font='13px "Press Start 2P"';
-        const expected=ctx.measureText('W').width,actual=term._core._renderService.dimensions.css.cell.width;
-        if(Math.abs(actual-expected)>0.6)throw Error('C64 cell width '+actual+' differs from loaded font '+expected);
-        return true;
-    }`)
 	snapshot := func(name string) {
 		t.Helper()
 		if dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); dir != "" {
@@ -117,6 +107,49 @@ func TestDesktopTerminalRetroBrowser(t *testing.T) {
 			}
 		}
 	}
+	check(t, "4:3 CRT opening", `()=>{const w=document.querySelector('.vd-window');return w && w.style.width==='960px' && w.style.height==='720px' && Math.abs((parseFloat(w.style.width)/parseFloat(w.style.height))-(4/3))<0.001;}`)
+	// The tube monitor keeps its shape while it grows: every handle takes the other axis from the ratio (a
+	// corner follows the pointer's stronger axis, an edge handle follows its own).
+	t.Run("resize keeps the 4:3 shape", func(t *testing.T) {
+		page.MustEval(`()=>{const w=document.querySelector('.vd-window');w.style.cssText+=';width:640px;height:480px;left:16px;top:16px';}`)
+		dragHandle := func(selector string, dx, dy float64) {
+			t.Helper()
+			point := page.MustEval(`selector=>{const r=document.querySelector(selector).getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2};}`, selector)
+			start := proto.Point{X: point.Get("x").Num(), Y: point.Get("y").Num()}
+			if err := page.Mouse.MoveTo(start); err != nil {
+				t.Fatal(err)
+			}
+			if err := page.Mouse.Down(proto.InputMouseButtonLeft, 1); err != nil {
+				t.Fatal(err)
+			}
+			if err := page.Mouse.MoveTo(proto.Point{X: start.X + dx, Y: start.Y + dy}); err != nil {
+				t.Fatal(err)
+			}
+			if err := page.Mouse.Up(proto.InputMouseButtonLeft, 1); err != nil {
+				t.Fatal(err)
+			}
+		}
+		shape := func(name string, wantWidth, wantHeight int) {
+			t.Helper()
+			check(t, name, fmt.Sprintf(`()=>{const s=document.querySelector('.vd-window').style;return s.width==='%dpx'&&s.height==='%dpx'&&Math.abs((parseFloat(s.width)/parseFloat(s.height))-(4/3))<0.001;}`, wantWidth, wantHeight))
+		}
+		dragHandle(".vd-resize-se", 160, 120)
+		shape("corner grows in 4:3", 800, 600)
+		dragHandle(".vd-resize-e", 80, 0)
+		shape("right edge grows in 4:3", 880, 660)
+		dragHandle(".vd-resize-s", 0, 60)
+		shape("bottom edge grows in 4:3", 960, 720)
+		snapshot("terminal-4x3-after-resize")
+	})
+	check(t, "cold C64 font metrics", `async()=>{
+        await document.fonts.load('13px "Press Start 2P"');
+        await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+        const term=fixtureTerms[0],canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');
+        ctx.font='13px "Press Start 2P"';
+        const expected=ctx.measureText('W').width,actual=term._core._renderService.dimensions.css.cell.width;
+        if(Math.abs(actual-expected)>0.6)throw Error('C64 cell width '+actual+' differs from loaded font '+expected);
+        return true;
+    }`)
 	page.MustEval(`async()=>{await fixtureWrite();}`)
 	snapshot("terminal-c64-cold-open")
 	check(t, "late font completion cannot revert a newer style", `async()=>{
@@ -341,7 +374,7 @@ func TestDesktopTerminalRetroBrowser(t *testing.T) {
         terminalTest.openApp('terminal',{sessionRestore:{left:30,top:50,width:700,height:400}});
         await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
     }`)
-	check(t, "saved custom bounds remain authoritative", `()=>{const s=document.querySelector('.vd-window').style;return s.width==='700px' && s.height==='400px';}`)
+	check(t, "restored bounds keep the 4:3 shape", `()=>{const s=document.querySelector('.vd-window').style;return s.width==='700px' && s.height==='525px';}`)
 	page.MustEval(`()=>TerminalApp.dispose()`)
 	check(t, "no browser errors", `()=>fixtureErrors.length===0`)
 }
