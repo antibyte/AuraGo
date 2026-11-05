@@ -1617,3 +1617,66 @@ func TestRunStemsOfASilentFilmAreAnEmptyObject(t *testing.T) {
 		t.Errorf("output = %s", data)
 	}
 }
+
+func TestRunLibraryCopy(t *testing.T) {
+	fx := newRunFixture(t)
+	var slug string
+	var size, read int64
+	fx.deps.Library = func(_ context.Context, s string, r io.Reader, n int64) (string, error) {
+		copied, err := io.Copy(io.Discard, r)
+		slug, size, read = s, n, copied
+		return "Videos/Storymaker/" + s + ".mp4", err
+	}
+	fx.rebuild(t)
+	fx.playing(playOptions{frames: 12})
+	job := fx.render(t)
+	if job.Status != StatusSucceeded || job.Output == nil {
+		t.Fatalf("job = %+v %+v", job, job.Error)
+	}
+	// The title of the fixture, "Was ist eine Firewall?", gives this slug (see TestRunRendersAndPublishesTheVideo).
+	if slug != "Was-ist-eine-Firewall" || job.Output.Library != "Videos/Storymaker/Was-ist-eine-Firewall.mp4" {
+		t.Errorf("slug %q, library %q", slug, job.Output.Library)
+	}
+	if size != job.Output.Size || read != job.Output.Size {
+		t.Errorf("the copy got size %d and %d bytes, the MP4 has %d", size, read, job.Output.Size)
+	}
+	raw, _ := fx.pub.get("Documents/Storymaker/" + fx.projectID + "/exports/" + job.ID + ".json")
+	if !strings.Contains(string(raw), `"library": "Videos/Storymaker/Was-ist-eine-Firewall.mp4"`) {
+		t.Errorf("record = %s", raw)
+	}
+}
+
+func TestRunFailedLibraryCopyKeepsTheMP4(t *testing.T) {
+	fx := newRunFixture(t)
+	fx.deps.Library = func(context.Context, string, io.Reader, int64) (string, error) {
+		return "", errors.New("the library disk is full")
+	}
+	fx.rebuild(t)
+	fx.playing(playOptions{frames: 12})
+	job := fx.render(t)
+	if job.Status != StatusSucceeded || job.Output == nil {
+		t.Fatalf("job = %+v %+v", job, job.Error)
+	}
+	if job.Output.Library != "" || !hasWarning(job, "library_failed") {
+		t.Errorf("library %q, warnings %+v", job.Output.Library, job.Warnings)
+	}
+	if _, ok := fx.pub.get(job.Output.Path); !ok {
+		t.Error("the MP4 is gone")
+	}
+}
+
+func TestRunLowWorkspaceSkipsTheLibraryCopy(t *testing.T) {
+	fx := newRunFixture(t)
+	var called atomic.Bool
+	fx.deps.Library = func(context.Context, string, io.Reader, int64) (string, error) {
+		called.Store(true)
+		return "Videos/Storymaker/x.mp4", nil
+	}
+	fx.deps.WorkspaceFree = func() (int64, error) { return 1, nil }
+	fx.rebuild(t)
+	fx.playing(playOptions{frames: 12})
+	job := fx.render(t)
+	if job.Status != StatusSucceeded || !hasWarning(job, "library_failed") || called.Load() {
+		t.Fatalf("job = %+v %+v, library called %v", job, job.Error, called.Load())
+	}
+}

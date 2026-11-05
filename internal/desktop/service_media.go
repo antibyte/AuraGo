@@ -2,17 +2,29 @@ package desktop
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
 	"fmt"
+	"io"
 	"log/slog"
 	"mime"
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"aurago/internal/dbutil"
+	"aurago/internal/fileutil"
 )
+
+const (
+	storymakerVideoFolder = "Storymaker"
+	// storymakerVideoMargin is the free space a library copy must leave.
+	storymakerVideoMargin = int64(64) << 20
+)
+
+var storymakerVideoSlug = regexp.MustCompile(`^[A-Za-z0-9-]{1,80}$`)
 
 func (s *Service) resolveMediaMount(rawPath string) (mediaMount, string, string, bool, error) {
 	cleanSlash := cleanDesktopPathSlash(rawPath)
@@ -53,6 +65,105 @@ func (s *Service) resolveMediaMount(rawPath string) (mediaMount, string, string,
 		return mount, filepath.Clean(candidateAbs), filepath.ToSlash(rel), true, nil
 	}
 	return mediaMount{}, "", "", false, nil
+}
+
+// WriteStorymakerVideo copies r into Videos/Storymaker/<slug>.mp4, or <slug>-2.mp4, <slug>-3.mp4 and so on.
+// slug must match ^[A-Za-z0-9-]{1,80}$; the path is built here. It returns the desktop path. Slow source I/O
+// never holds the shared mutation lock. RegisterMedia is skipped on purpose.
+func (s *Service) WriteStorymakerVideo(ctx context.Context, slug string, r io.Reader, size int64, source string) (string, error) {
+	if !storymakerVideoSlug.MatchString(slug) {
+		return "", fmt.Errorf("invalid storymaker video name")
+	}
+	if r == nil || size <= 0 {
+		return "", fmt.Errorf("invalid storymaker video size")
+	}
+	if err := s.ensureReady(ctx); err != nil {
+		return "", err
+	}
+	if s.Config().ReadOnly {
+		return "", fmt.Errorf("virtual desktop is read-only")
+	}
+	mount, _, _, mounted, err := s.resolveMediaMount("Videos/" + storymakerVideoFolder)
+	if err != nil {
+		return "", err
+	}
+	if !mounted {
+		return "", fmt.Errorf("the Videos media mount is not available")
+	}
+	free, err := fileutil.FreeDiskBytes(mount.Dir)
+	if err != nil {
+		return "", fmt.Errorf("check free space: %w", err)
+	}
+	if free <= size+storymakerVideoMargin {
+		return "", fmt.Errorf("not enough free space for the library copy (%d MB free)", free>>20)
+	}
+	root, err := os.OpenRoot(mount.Dir)
+	if err != nil {
+		return "", fmt.Errorf("open videos root: %w", err)
+	}
+	defer root.Close()
+	// Only the mount root exists at start, so the first copy creates the folder.
+	if err := root.MkdirAll(storymakerVideoFolder, 0o700); err != nil {
+		return "", fmt.Errorf("create the storymaker video folder: %w", err)
+	}
+	temp := filepath.Join(storymakerVideoFolder, ".aurago-write-"+rand.Text())
+	out, err := root.OpenFile(temp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		return "", fmt.Errorf("stage the library copy: %w", err)
+	}
+	defer root.Remove(temp)
+	n, writeErr := io.Copy(out, io.LimitReader(desktopContextReader{ctx, r}, size+1))
+	if writeErr == nil && n != size {
+		writeErr = fmt.Errorf("the source has %d bytes, expected %d", n, size)
+	}
+	if writeErr == nil {
+		writeErr = out.Sync()
+	}
+	closeErr := out.Close()
+	if writeErr != nil {
+		return "", fmt.Errorf("write the library copy: %w", writeErr)
+	}
+	if closeErr != nil {
+		return "", fmt.Errorf("close the library copy: %w", closeErr)
+	}
+
+	desktopMutationMu.Lock()
+	defer desktopMutationMu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+	if s.Config().ReadOnly {
+		return "", fmt.Errorf("virtual desktop is read-only")
+	}
+	name, err := freeStorymakerVideoName(root, slug)
+	if err != nil {
+		return "", err
+	}
+	if err := fileutil.RenameRootContext(ctx, root, temp, filepath.Join(storymakerVideoFolder, name)); err != nil {
+		return "", fmt.Errorf("publish the library copy: %w", err)
+	}
+	desktopPath := "Videos/" + storymakerVideoFolder + "/" + name
+	s.invalidateListCache()
+	_ = s.Audit(ctx, "write_file", desktopPath, map[string]interface{}{"bytes": n}, source)
+	return desktopPath, nil
+}
+
+// freeStorymakerVideoName finds the first name that is not taken. The caller holds desktopMutationMu.
+func freeStorymakerVideoName(root *os.Root, slug string) (string, error) {
+	for i := 1; i <= 100000; i++ {
+		name := slug + ".mp4"
+		if i > 1 {
+			name = fmt.Sprintf("%s-%d.mp4", slug, i)
+		}
+		_, err := root.Lstat(filepath.Join(storymakerVideoFolder, name))
+		if os.IsNotExist(err) {
+			return name, nil
+		}
+		if err != nil {
+			return "", fmt.Errorf("stat the library copy: %w", err)
+		}
+	}
+	return "", fmt.Errorf("no free library name for %s", slug)
 }
 
 func mediaRelativePath(mount mediaMount, absPath string) string {

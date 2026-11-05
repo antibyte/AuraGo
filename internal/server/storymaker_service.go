@@ -112,6 +112,7 @@ func (s *Server) newStorymakerRuntime(dataDir string) (*storymakerRuntime, error
 		Settings: func(ctx context.Context) (render.Settings, error) { return s.storymakerSettings(ctx) },
 		Logger:   logger, FrameObserver: s.storymakerFrameObserver,
 		WorkspaceFree: s.storymakerWorkspaceFree,
+		Library:       store.WriteLibraryVideo,
 		MusicKey:      s.storymakerMusicKey,
 	})
 	run := rt.runner.Run

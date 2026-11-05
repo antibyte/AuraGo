@@ -166,6 +166,15 @@ func (st *storymakerStore) WriteStream(ctx context.Context, p string, r io.Reade
 	return err
 }
 
+// WriteLibraryVideo is render.Deps.Library: the create-only copy in Videos/Storymaker.
+func (st *storymakerStore) WriteLibraryVideo(ctx context.Context, slug string, r io.Reader, size int64) (string, error) {
+	svc, err := st.service()
+	if err != nil {
+		return "", err
+	}
+	return svc.WriteStorymakerVideo(ctx, slug, r, size, desktop.SourceUser)
+}
+
 // WriteBytes implements render.Publisher: a small file, replaced when it exists.
 func (st *storymakerStore) WriteBytes(ctx context.Context, p string, data []byte) error {
 	svc, err := st.service()

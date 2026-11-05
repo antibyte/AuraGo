@@ -99,6 +99,8 @@ type Deps struct {
 	SessionTweak func(o *sessionOptions)
 	// ReportObserver, when set, sees every compile report body the page posts.
 	ReportObserver func(body []byte)
+	// Library copies the finished MP4 into the video library and returns its desktop path; nil skips the copy.
+	Library func(ctx context.Context, slug string, r io.Reader, size int64) (string, error)
 	// WorkspaceFree returns the free bytes of the desktop workspace; nil skips the check.
 	WorkspaceFree func() (int64, error)
 	// mixHook, when set, runs where the mix runs, on the mix context. Tests hold the start with it.
@@ -623,6 +625,28 @@ func (run *renderRun) publishExtras(ctx context.Context, slug, exportDir string,
 	if opts.VTT {
 		out.VTT = run.publishSubtitle(ctx, dir+"/captions.vtt", WriteVTT(run.report.Captions))
 	}
+	if run.r.deps.Library != nil {
+		if err := run.publishLibrary(ctx, slug, out); err != nil {
+			run.warn(warnLibraryFailed, "The copy in Videos/Storymaker could not be written: "+run.scrubbed(err))
+		}
+	}
+}
+
+func (run *renderRun) publishLibrary(ctx context.Context, slug string, out *Output) error {
+	if err := run.workspaceHolds(out.Size); err != nil {
+		return err
+	}
+	file, err := os.Open(run.output)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	target, err := run.r.deps.Library(ctx, slug, file, out.Size)
+	if err != nil {
+		return err
+	}
+	out.Library = target
+	return nil
 }
 
 // workspaceHolds refuses an extra the desktop workspace has no room for. The stream path has no check of its own.
