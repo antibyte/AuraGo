@@ -38,8 +38,10 @@ allows racing but does not write settings or personal bests.
   damage, a drift-refilled nitro resource and eight surface types. It runs at a fixed
   120 Hz with an accumulator and a five-substep catch-up clamp; rendering is independent
   and interpolated by the camera. Braking fades out at standstill (no slip-sign chatter),
-  a held brake engages a bounded reverse, and the player's steering input flips while
-  rolling backwards so the keys always rotate the car nose as printed. All gameplay
+  a held brake engages a bounded reverse, and the solver maps raw steering to an arcade
+  nose response that is identical forward and reverse (no input-side flip, response fades
+  to zero at a standstill so it never snaps through zero). Drafting a rival's wake trims
+  drag and refills nitro. All gameplay
   randomness comes from a seeded PRNG; particles use a separate source.
 - **Tracks:** six authored radial-harmonic layouts with different widths, grip profiles,
   weather, lighting and checkpoint orders, plus a seeded daily generator. Closed Catmull-Rom
@@ -47,23 +49,29 @@ allows racing but does not write settings or personal bests.
   Ground and props are generated per 320 m chunk into offscreen canvases with an LRU cache
   capped by quality tier. `AD.validateTrack` checks length, width, spacing, corner radius
   and overlapping sections.
-- **Graphics:** Canvas 2D world renderer with streamed ground chunks, world-anchored road
-  markings (red/white kerbs, dashed centre line, worn racing-line bands, checkered
-  start/finish line that never animate with frame time and scale with the camera zoom),
-  skid-mark decals over the road surface, procedural cars with steering front wheels,
-  night headlight cones and lamp posts, particles, weather, vignette and speed streaks.
+- **Graphics:** Canvas 2D world renderer with streamed ground chunks and a true offset
+  road ribbon, so the surface edge always meets the kerbs exactly, even in hairpins.
+  World-anchored markings (staggered red/white kerbs, haloed dashed centre line, worn
+  racing-line bands, faint 55 m transverse joints, framed checkered start with gantry)
+  never animate with frame time and scale with the camera zoom; skid-mark decals fade
+  over the road surface. Red/white tyre stacks guard tight corners, procedural cars show
+  steering front wheels, player chevron, night headlight cones and lamp posts, particles,
+  weather (harbour rain with splash rings, industry sparks, night fog, glare, heat),
+  vignette and speed streaks. The HUD adds a live position tower with gaps plus
+  drift/nitro and slipstream feedback.
   The High and Ultra tiers add a WebGL2 post-processing pass (`aura-drift-post.js`) over
   the 2D frame: bright-pass bloom, radial speed streaks, short vertical wet-asphalt
   reflections (night harbour and industry), per-biome colour grading, vignette, impact
-  chromatic aberration and film grain. Shader math is NaN-guarded and clamped; context
+  chromatic aberration, damage heartbeat and film grain. Shader math is NaN-guarded and clamped; context
   loss, disposal and a Canvas 2D fallback are implemented. Four quality tiers scale
   particles, weather, lighting and chunk cache; `auto` selects a tier from measured frame
   time with a 2.5 s window and hysteresis. Reduced motion disables shake, weather, speed
   lines and shader animation.
 - **Audio:** Web Audio synthesis only. A layered engine stack (harmonics, intake, turbo),
   gear-shift clicks, throttle-lift backfires, tyre slip squeal, surface grit, wall scrape
-  and wind noise are driven by physical state; separate buses feed a master compressor.
-  Adaptive music runs a kick/bass/arp/pad scheduler on each biome's scale and tempo with
+  and wind noise (plus slipstream draft) are driven by physical state; stereo rival engines
+  are panned by relative position, and separate buses feed a master compressor.
+  Adaptive music runs a kick/snare/bass/arp/pad scheduler on each biome's scale and tempo with
   intensity from speed. Volume, mute, focus and disposal are honoured. No sample files or
   external URLs.
 - **Weapons:** oil slick, mine, EMP, homing rocket, MG salvo and shield, each with a
@@ -118,8 +126,9 @@ is Canvas 2D; WebGL2 is used for the optional High/Ultra post pass, not for scen
 There is no multiplayer, backend, agent tool, config switch, external API or deployment.
 Still open: engineering-grade tyre data, fully authored per-biome music themes (scale and
 tempo layers ship today), offline audio clipping capture, a full WCAG 2.2 AA review,
-30-minute soak runs, acceptance on recorded reference hardware, a track editor, branch
-shortcuts and Cup aggregate scoring.
+ 30-minute soak runs, acceptance on recorded reference hardware, a track editor and branch
+ shortcuts. Cup aggregate scoring ships as 25-18-15-12 points shown with the cup total
+ on each cup result screen.
 
 ## Verification
 

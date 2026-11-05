@@ -22,10 +22,11 @@ uniform vec3 uGrade;
 uniform float uTime;
 uniform float uBloom;
 uniform float uWet;
-uniform float uImpact;
-uniform float uBoost;
-uniform float uReduced;
-uniform float uSpeed;
+                uniform float uImpact;
+                uniform float uBoost;
+                uniform float uDamage;
+                uniform float uReduced;
+                uniform float uSpeed;
 
 vec3 sane(vec3 c) {
     if (!(c.r == c.r)) c.r = 0.0;
@@ -95,6 +96,9 @@ void main() {
     color *= uGrade;
     float vignette = 1.0 - 0.22 * smoothstep(0.35, 0.78, length(radial));
     color *= vignette;
+    float wound = uDamage * (0.5 + 0.5 * sin(uTime * 5.2));
+    float rim = smoothstep(0.42, 0.78, length(radial));
+    color = mix(color, vec3(0.55, 0.05, 0.04), rim * wound * 0.35);
     if (uReduced < 0.5) {
         color += grain(uv * 720.0 + fract(uTime) * 41.0) * 0.012;
     }
@@ -181,7 +185,7 @@ void main() {
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
-            for (const name of ['uScene', 'uTexel', 'uGrade', 'uTime', 'uBloom', 'uWet', 'uImpact', 'uBoost', 'uReduced', 'uSpeed']) {
+            for (const name of ['uScene', 'uTexel', 'uGrade', 'uTime', 'uBloom', 'uWet', 'uImpact', 'uBoost', 'uDamage', 'uReduced', 'uSpeed']) {
                 uniforms[name] = gl.getUniformLocation(program, name);
             }
             gl.useProgram(program);
@@ -241,6 +245,7 @@ void main() {
                 const v = race && race.cars[0] ? race.cars[0].v : null;
                 gl.uniform1f(uniforms.uImpact, v ? clamp(v.impact, 0, 1) : 0);
                 gl.uniform1f(uniforms.uBoost, v ? v.boost : 0);
+                gl.uniform1f(uniforms.uDamage, v ? clamp(v.damage / 100, 0, 1) : 0);
                 gl.uniform1f(uniforms.uReduced, reducedMotion ? 1 : 0);
                 gl.uniform1f(uniforms.uSpeed, v ? clamp(Math.max(0, v.vx) / 80, 0, 1) : 0);
                 gl.drawArrays(gl.TRIANGLES, 0, 3);

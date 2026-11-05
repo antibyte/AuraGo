@@ -127,6 +127,20 @@
                 text(labels.bestLap + ' ' + (isFinite(player.bestLap) ? AD.formatTime(player.bestLap) : '--:--.---'),
                     pad + 12, pad + 88, 11, '#8fa9c4');
 
+                /* Live tower: order, colour chips and gaps in metres. */
+                const towerH = 24 + race.cars.length * 18;
+                panel(pad, pad + 102, compact ? 178 : 214, towerH);
+                const order = (race.standings && race.standings.length ? race.standings : race.cars.slice());
+                for (let i = 0; i < order.length; i++) {
+                    const entry = order[i];
+                    const y = pad + 102 + 22 + i * 18;
+                    c.fillStyle = entry.v.car.colour;
+                    c.beginPath(); c.arc(pad + 20, y - 4, 4, 0, Math.PI * 2); c.fill();
+                    const gap = i === 0 ? '' : '  +' + Math.max(0, Math.round(order[0].progress - entry.progress)) + 'm';
+                    text('P' + (i + 1) + (entry.isPlayer ? ' •' : '') + gap,
+                        pad + 30, y, 12, entry.isPlayer ? '#ffffff' : '#a9c4df');
+                }
+
                 const mapSize = compact ? 122 : 158;
                 panel(width - mapSize - pad, pad, mapSize, mapSize);
                 minimap(race, width - mapSize - pad, pad, mapSize);
@@ -140,8 +154,12 @@
                 bar(pad + 12, height - 42, dialW - 24, 5, v.rpm / 7200, v.rpm > 6300 ? '#ff8a5c' : '#5eead4');
                 bar(pad + 12, height - 33, dialW - 24, 3, 1 - v.damage / 100, '#7fb2ff');
                 /* Nitro resource: filled by drifting, spent by boost. */
-                text(labels.nitro, pad + 12, height - 21, 10, '#8fa9c4');
-                bar(pad + 12, height - 17, dialW - 24, 5, v.nitro === undefined ? 0 : v.nitro, '#7dd3fc');
+                const drifting = !settings.reducedMotion && v.slip > 2.6 && Math.max(0, v.vx) > 8;
+                text(labels.nitro + (drifting ? '  +DRIFT' : ''), pad + 12, height - 21, 10, drifting ? '#7dd3fc' : '#8fa9c4');
+                bar(pad + 12, height - 17, dialW - 24, 5, v.nitro === undefined ? 0 : v.nitro, v.nitro > 0.98 ? '#ffd166' : '#7dd3fc');
+                if (v.slipstream > 0.25) {
+                    text('» SLIP', pad + dialW - 12, height - 21, 11, '#ffd166', 'right');
+                }
 
                 const weaponW = compact ? 150 : 186;
                 panel(width - weaponW - pad, height - 76 - pad, weaponW, 76);

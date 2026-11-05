@@ -20,7 +20,7 @@
         const Ctor = window.AudioContext || window.webkitAudioContext;
         let ctx = null, master = null, comp = null;
         let engineGain = null, sfxGain = null, musicGain = null;
-        let engineNodes = [], noiseBuffer = null;
+        let engineNodes = [], noiseBuffer = null, rivalNodes = [];
         let tyreGain = null, windGain = null, engineFilter = null;
         let squealOsc = null, squealGain = null, squealFilter = null;
         let surfaceGain = null, surfaceFilter = null, scrapeGain = null;
@@ -121,6 +121,26 @@
             /* Wall scrape layer fed by the impact envelope. */
             const scrape = loopNoise('bandpass', 2600, 0);
             scrape.gain.connect(master); scrapeGain = scrape.gain;
+
+            /* Rival engines: one lean saw voice per opponent with distance
+               gain and stereo pan, so duels are heard, not just seen. */
+            for (let i = 0; i < 3; i++) {
+                const osc = ctx.createOscillator();
+                osc.type = 'sawtooth'; osc.frequency.value = 70;
+                const filter = ctx.createBiquadFilter();
+                filter.type = 'lowpass'; filter.frequency.value = 1100;
+                const gain = ctx.createGain(); gain.gain.value = 0;
+                let pan = null;
+                try {
+                    if (typeof ctx.createStereoPanner === 'function') {
+                        pan = ctx.createStereoPanner(); pan.pan.value = 0;
+                    }
+                } catch (_) { pan = null; }
+                if (pan) osc.connect(filter).connect(gain).connect(pan).connect(master);
+                else osc.connect(filter).connect(gain).connect(master);
+                osc.start();
+                rivalNodes.push({ osc, filter, gain, pan });
+            }
 
             nextNote = ctx.currentTime + 0.1;
             running = true;
@@ -268,6 +288,24 @@
             }
         }
 
+        function snare(time, level) {
+            const source = ctx.createBufferSource(); source.buffer = noiseBuffer;
+            const filter = ctx.createBiquadFilter(); filter.type = 'bandpass'; filter.frequency.value = 2100; filter.Q.value = 0.8;
+            const gain = ctx.createGain();
+            gain.gain.setValueAtTime(level, time);
+            gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.11);
+            source.connect(filter).connect(gain).connect(musicGain);
+            source.start(time); source.stop(time + 0.13);
+            source.onended = () => { source.disconnect(); filter.disconnect(); gain.disconnect(); };
+            const osc = ctx.createOscillator(), og = ctx.createGain();
+            osc.type = 'triangle'; osc.frequency.value = 190;
+            og.gain.setValueAtTime(level * 0.7, time);
+            og.gain.exponentialRampToValueAtTime(0.0001, time + 0.08);
+            osc.connect(og).connect(musicGain);
+            osc.start(time); osc.stop(time + 0.1);
+            osc.onended = () => { osc.disconnect(); og.disconnect(); };
+        }
+
         function scheduleMusic(intensity) {
             if (!ctx || muted || !running) return;
             const tempo = TEMPI[musicKey] || 104;
@@ -287,12 +325,17 @@
                     ], beat * 8);
                 }
                 if (step === 8 || (intensity > 0.72 && step === 6)) kick(nextNote);
+                if ((step === 4 || step === 12) && intensity > 0.35) snare(nextNote, 0.10 + intensity * 0.08);
                 if (step % 2 === 1 && intensity > 0.3) hat(nextNote, step % 8 === 7);
                 if (step % 4 === 0 || step === 14) {
                     bass(nextNote, noteFreq(scale, degree, root), beat * 1.7, 0.16 + intensity * 0.08);
+                    if (step === 14 && intensity > 0.55) bass(nextNote, noteFreq(scale, degree, root * 2), beat * 0.9, 0.07);
                 }
                 if (intensity > 0.45 && (step === 2 || step === 5 || step === 10 || step === 13)) {
                     pluck(nextNote, noteFreq(scale, degree + 2 + (step % 3), root * 8), 0.05 + intensity * 0.05);
+                }
+                if (intensity > 0.68 && bar % 2 === 1 && (step === 7 || step === 15)) {
+                    pluck(nextNote, noteFreq(scale, degree + 4 + (step === 7 ? 0 : 2), root * 16), 0.035);
                 }
                 nextNote += beat;
                 noteIndex++;
@@ -350,7 +393,28 @@
                 surfaceFilter.frequency.setTargetAtTime(
                     v.surface === 'mud' ? 900 : (v.surface === 'sand' ? 2600 : 1900), now, 0.1);
                 scrapeGain.gain.setTargetAtTime(clamp(v.impact * 0.16, 0, 0.16), now, 0.03);
-                windGain.gain.setTargetAtTime(clamp(speed / 90, 0, 1) * 0.055 * (active ? 1 : 0), now, 0.1);
+                const draftWind = clamp((v.slipstream || 0), 0, 1) * 0.03;
+                windGain.gain.setTargetAtTime((clamp(speed / 90, 0, 1) * 0.055 + draftWind) * (active ? 1 : 0), now, 0.1);
+
+                /* Rival engines: distance gain, lateral pan, rev pitch. */
+                const cos = Math.cos(v.psi), sin = Math.sin(v.psi);
+                for (let i = 0; i < rivalNodes.length; i++) {
+                    const node = rivalNodes[i];
+                    const rival = race.cars[i + 1];
+                    if (!rival || !active) {
+                        node.gain.gain.setTargetAtTime(0, now, 0.1);
+                        continue;
+                    }
+                    const dx = rival.v.x - v.x, dy = rival.v.y - v.y;
+                    const dist = Math.hypot(dx, dy);
+                    const lateral = (-dx * sin + dy * cos) / Math.max(1, dist);
+                    const rrpm = clamp(rival.v.rpm / 7200, 0, 1);
+                    const level = clamp(1 - dist / 70, 0, 1);
+                    node.osc.frequency.setTargetAtTime(48 + rrpm * 145, now, 0.08);
+                    node.filter.frequency.setTargetAtTime(500 + rrpm * 1800, now, 0.08);
+                    node.gain.gain.setTargetAtTime(level * level * 0.12, now, 0.1);
+                    if (node.pan) node.pan.pan.setTargetAtTime(clamp(lateral, -1, 1) * 0.8, now, 0.1);
+                }
 
                 scheduleMusic(clamp(speed / 70, 0, 1));
             },
@@ -363,6 +427,12 @@
                     try { if (node.osc) node.osc.stop(); if (node.source) node.source.stop(); } catch (_) { /* already stopped */ }
                 }
                 engineNodes = [];
+                for (const node of rivalNodes) {
+                    try { if (node.osc) node.osc.stop(); } catch (_) { /* already stopped */ }
+                    try { if (node.gain) node.gain.disconnect(); } catch (_) { /* already gone */ }
+                    try { if (node.pan) node.pan.disconnect(); } catch (_) { /* already gone */ }
+                }
+                rivalNodes = [];
                 for (const osc of [squealOsc, turboOsc]) {
                     try { if (osc) osc.stop(); } catch (_) { /* already stopped */ }
                 }

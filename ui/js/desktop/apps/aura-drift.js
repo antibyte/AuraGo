@@ -152,6 +152,7 @@
         const scheduler = AD.createScheduler();
         const pressed = new Set();
         let race = null, cupIndex = 0, currentConfig = null;
+        let cupScores = [0, 0, 0, 0];
         let paused = false, raf = 0, last = 0;
         let qualityLevel = QUALITY_ORDER.includes(settings.quality) ? settings.quality : 'high';
         let frameAccum = 0, frameCount = 0;
@@ -184,6 +185,7 @@
             onStart(config) {
                 audio.unlock();
                 cupIndex = 0;
+                cupScores = [0, 0, 0, 0];
                 startRace(config);
             },
             onRestart() { startRace(currentConfig || { mode: 'quick', trackId: AD.TRACKS[0].id, laps: 3 }); },
@@ -264,12 +266,11 @@
             const key = name => pressed.has(name);
             input.throttle = (key('ArrowUp') || key('KeyW') || touch.throttle) ? 1 : 0;
             input.brake = (key('ArrowDown') || key('KeyS') || touch.brake) ? 1 : 0;
-            /* Arcade steering: the keys always rotate the car nose the way they
-               point. While rolling backwards the physical yaw response inverts,
-               so the input sign flips with it - steering never feels twisted. */
-            const reversing = race.cars[0].v.vx < -0.8;
+            /* Raw arcade steering: the solver maps this to a nose response
+               that is identical forward and reverse (see physics steerMag),
+               so no input-side flip is needed here. */
             input.steer = (((key('ArrowRight') || key('KeyD') || touch.right) ? 1 : 0) -
-                ((key('ArrowLeft') || key('KeyA') || touch.left) ? 1 : 0)) * (reversing ? -1 : 1);
+                ((key('ArrowLeft') || key('KeyA') || touch.left) ? 1 : 0));
             input.handbrake = (key('ShiftLeft') || key('ShiftRight') || touch.handbrake) ? 1 : 0;
             input.fire = (key('Space') || touch.fire) ? 1 : 0;
             input.boost = (key('ControlLeft') || key('ControlRight') || touch.boost) ? 1 : 0;
@@ -354,9 +355,20 @@
                 bests[key] = { time: result.time, tape: result.tape };
                 AD.saveBests(bests, readonly);
             }
+            /* Cup points: 25-18-15-12 for P1..P4, accumulated across the cup. */
+            let cupLine = '';
+            if (race.mode === 'cup' && race.standings) {
+                const points = [25, 18, 15, 12];
+                for (let i = 0; i < race.standings.length; i++) {
+                    const slot = race.standings[i].index || 0;
+                    cupScores[slot] = (cupScores[slot] || 0) + (points[i] || 12);
+                }
+                const me = cupScores[0] || 0;
+                cupLine = '  ' + labels.cup + ' ' + me;
+            }
             ui.showResults(result, {
                 field: race.cars.length,
-                track: race.track.name,
+                track: race.track.name + cupLine,
                 record: record,
                 hasNext: race.mode === 'cup' && cupIndex < AD.TRACKS.length - 1
             });

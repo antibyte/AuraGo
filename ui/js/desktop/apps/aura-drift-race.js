@@ -172,8 +172,26 @@
                 grip = Math.min(grip, AD.SURFACES.oil.grip);
             }
         }
+        /* Slipstream: tucked directly behind a rival at speed. Deterministic,
+           symmetric for player and AI, no randomness. */
+        let draft = 0;
+        if (Math.max(0, v.vx) > 18) {
+            const cos = Math.cos(v.psi), sin = Math.sin(v.psi);
+            for (const other of race.cars) {
+                if (other.v === v) continue;
+                const dx = other.v.x - v.x, dy = other.v.y - v.y;
+                const dist = Math.hypot(dx, dy);
+                if (dist < 4 || dist > 20) continue;
+                const ahead = (dx * cos + dy * sin) / Math.max(0.001, dist);
+                const lateral = Math.abs(-dx * sin + dy * cos);
+                const aligned = Math.cos(other.v.psi - v.psi);
+                if (ahead > 0.86 && lateral < 3.2 && aligned > 0.7) {
+                    draft = Math.max(draft, (1 - dist / 20) * ahead * aligned);
+                }
+            }
+        }
         v.surface = surface.type;
-        return { grip: grip, roll: roll, sample: sample };
+        return { grip: grip, roll: roll, sample: sample, slipstream: clamp(draft, 0, 1) };
     }
 
     function fireWeapon(race, car) {

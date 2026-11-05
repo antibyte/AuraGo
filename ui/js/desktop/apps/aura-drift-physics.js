@@ -26,7 +26,7 @@
             steer: 0, throttle: 0, brake: 0,
             gear: 1, rpm: 900, slip: 0, surface: 'asphalt',
             damage: 0, disabled: 0, boost: 0, shield: 0,
-            nitro: 1, brakeHold: 0,
+            nitro: 1, brakeHold: 0, slipstream: 0,
             impact: 0, carIndex: carIndex, car: car,
             wallContacts: 0
         };
@@ -38,12 +38,12 @@
         v.steer = 0; v.throttle = 0; v.brake = 0;
         v.gear = 1; v.rpm = 900; v.slip = 0;
         v.damage = 0; v.disabled = 0; v.boost = 0; v.shield = 0;
-        v.nitro = 1; v.brakeHold = 0;
+        v.nitro = 1; v.brakeHold = 0; v.slipstream = 0;
         v.impact = 0; v.wallContacts = 0;
     };
 
     AD.vehicleState = function (v) {
-        return [v.x, v.y, v.psi, v.vx, v.vy, v.r, v.steer, v.rpm];
+        return [v.x, v.y, v.psi, v.vx, v.vy, v.r, v.steer, v.rpm, v.nitro, v.slipstream];
     };
 
     /* env: { grip, roll, disabled, boostBonus }. Pure: no randomness, no clock. */
@@ -56,17 +56,21 @@
         const power = v.car.power * (1 - 0.32 * clamp(v.damage / 100, 0, 1));
 
         const speed = Math.abs(v.vx);
-        /* Smooth motion direction: a hard Math.sign() flipped the slip-angle
-           sign every substep while braking to a standstill (the solver limits
-           to a ±0.06 m/s chatter loop), which made the steering feel randomly
-           inverted. The linear ramp keeps full response above 0.6 m/s. */
+        /* Arcade nose response: left/right always rotate the nose the way the
+           keys point, forward or reverse. The signed travel direction still
+           drives the longitudinal forces below; only the steering term uses
+           the magnitude so the response fades to zero at a standstill instead
+           of snapping through zero the way a sign-gated flip did. The old
+           input-side flip (threshold -0.8 m/s) disagreed with this ramp (full
+           -1 below -0.6 m/s) and inverted the steering in between. */
         const dir = clamp(v.vx / 0.6, -1, 1);
+        const steerMag = Math.abs(dir);
         const steerLimit = MAX_STEER / (1 + speed * 0.018);
         v.steer = AD.smooth(v.steer, clamp(input.steer || 0, -1, 1) * steerLimit, 14, dt);
         const delta = v.steer;
 
         const denom = Math.max(speed, 2.5);
-        const alphaF = Math.atan2(v.vy + A * v.r, denom) - delta * dir;
+        const alphaF = Math.atan2(v.vy + A * v.r, denom) - delta * steerMag;
         const alphaR = Math.atan2(v.vy - B * v.r, denom);
 
         const throttle = disabled ? 0 : clamp(input.throttle || 0, 0, 1);
@@ -86,14 +90,20 @@
             v.nitro = Math.max(0, v.nitro - dt * 0.32);
         }
         /* Drifting at speed refills the nitro resource (deterministic state). */
+        const draft = clamp((env && env.slipstream) || 0, 0, 1);
+        v.slipstream = draft;
         if (!disabled && speed > 12 && v.slip > 2.0) {
             v.nitro = Math.min(1, v.nitro + dt * clamp(v.slip * 0.045, 0, 0.2));
+        }
+        /* Slipstreaming a rival's wake refills nitro and trims drag. */
+        if (!disabled && draft > 0.05 && speed > 18) {
+            v.nitro = Math.min(1, v.nitro + dt * 0.22 * draft);
         }
         /* Brake force fades to zero at standstill: brakes hold a stopped car
            instead of pumping it backwards against the next substep. */
         const brakeFade = clamp(speed / 1.2, 0, 1);
         const braking = reversing ? 0 : (brake * BRAKE_FORCE + handbrake * 5200) * brakeFade;
-        const drag = DRAG * v.vx * Math.abs(v.vx);
+        const drag = DRAG * (1 - 0.32 * draft) * v.vx * Math.abs(v.vx);
         const rolling = roll * M * G * dir * brakeFade;
         const fx = drive - dir * braking - drag - rolling;
 
