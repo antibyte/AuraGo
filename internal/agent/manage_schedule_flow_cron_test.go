@@ -47,7 +47,7 @@ func mm1c09NewCron(t *testing.T) *mm1c09CronFixture {
 	if err := mm.SyncFlowMission(flowID, "Bericht", []tools.FlowTriggerSpec{spec}); err != nil {
 		t.Fatalf("SyncFlowMission: %v", err)
 	}
-	if err := mm.SetFlowMissionEnabled(flowID, true); err != nil {
+	if err := mm.SetFlowMissionEnabled(flowID, "flow_aaaaaaaaaa", true); err != nil {
 		t.Fatalf("SetFlowMissionEnabled: %v", err)
 	}
 	f := &mm1c09CronFixture{

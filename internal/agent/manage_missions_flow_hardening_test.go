@@ -63,7 +63,7 @@ func mm1c09New(t *testing.T) *mm1c09Fixture {
 	if err := mm.SyncFlowMission(id, "Bericht", nil); err != nil {
 		t.Fatalf("SyncFlowMission: %v", err)
 	}
-	if err := mm.SetFlowMissionEnabled(id, true); err != nil {
+	if err := mm.SetFlowMissionEnabled(id, "flow_aaaaaaaaaa", true); err != nil {
 		t.Fatalf("SetFlowMissionEnabled: %v", err)
 	}
 	return &mm1c09Fixture{
@@ -242,7 +242,7 @@ func TestManageMissionsFlowMissionsStayReadableAndRunnable(t *testing.T) {
 		t.Fatalf("run without hooks: %q", out)
 	}
 	f.mm.SetFlowHooks(f.hooks)
-	if err := f.mm.SetFlowMissionEnabled(f.flowID, false); err != nil {
+	if err := f.mm.SetFlowMissionEnabled(f.flowID, "flow_aaaaaaaaaa", false); err != nil {
 		t.Fatalf("disable through the manager: %v", err)
 	}
 	out = f.call(t, map[string]interface{}{"operation": "run", "id": f.flowID})

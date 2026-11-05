@@ -73,7 +73,7 @@ func TestMissionCompletedCarriesOutputToPromptsAndFlows(t *testing.T) {
 		TriggerConfig: &TriggerConfig{SourceMissionID: source, RequireSuccess: true}}}); err != nil {
 		t.Fatal(err)
 	}
-	if err := mm.SetFlowMissionEnabled(follower, true); err != nil {
+	if err := mm.SetFlowMissionEnabled(follower, expectedFlowID(t, mm, follower), true); err != nil {
 		t.Fatal(err)
 	}
 
@@ -149,7 +149,7 @@ func TestRunNowAndTriggerStartFlowRuns(t *testing.T) {
 	}
 	hooks.waitStart(t)
 	hooks.setErr(nil)
-	if err := mm.SetFlowMissionEnabled(id, false); err != nil {
+	if err := mm.SetFlowMissionEnabled(id, expectedFlowID(t, mm, id), false); err != nil {
 		t.Fatal(err)
 	}
 	if err := mm.RunNow(id); err == nil || !strings.Contains(err.Error(), "disabled") {
@@ -235,7 +235,7 @@ func TestNextRunForFlowMissions(t *testing.T) {
 	if next, ok := mm.NextRun(id); !ok || !next.Equal(want) {
 		t.Fatalf("NextRun = %v %v", next, ok)
 	}
-	if err := mm.SetFlowMissionEnabled(id, false); err != nil {
+	if err := mm.SetFlowMissionEnabled(id, expectedFlowID(t, mm, id), false); err != nil {
 		t.Fatal(err)
 	}
 	if _, ok := mm.NextRun(id); ok {

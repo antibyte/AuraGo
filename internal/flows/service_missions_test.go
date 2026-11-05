@@ -2,9 +2,56 @@ package flows
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"testing"
 	"time"
 )
+
+func TestServiceMissionStateUsesOnlyStoredFlowBinding(t *testing.T) {
+	clock := newFakeClock(time.Date(2026, 10, 3, 7, 0, 0, 0, time.UTC))
+	s, bridge := newServiceFixture(t, clock)
+	ctx := context.Background()
+	rec, err := s.CreateFlow(ctx, CreateRequest{Name: "State"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, err := s.MissionState(ctx, rec.ID); err != nil || got != MissionStateDisabled {
+		t.Fatalf("initial state = %q, %v", got, err)
+	}
+	if err := bridge.SetFlowMissionEnabled(rec.MissionID, rec.ID, true); err != nil {
+		t.Fatal(err)
+	}
+	for name, draft := range map[string]string{
+		"invalid":   "not-json",
+		"oversized": strings.Repeat("x", MaxDocumentBytes+1),
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := s.store.db.ExecContext(ctx, `UPDATE flows SET draft_json=? WHERE id=?`, draft, rec.ID); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := s.GetFlow(ctx, rec.ID); err == nil {
+				t.Fatal("corrupt flow document unexpectedly parsed")
+			}
+			if got, err := s.MissionState(ctx, rec.ID); err != nil || got != MissionStateEnabled {
+				t.Fatalf("mission state = %q, %v", got, err)
+			}
+		})
+	}
+	block, err := s.CreateBlock(ctx, "Block")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.store.db.ExecContext(ctx, `UPDATE flows SET draft_json=? WHERE id=?`, "not-json", block.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.GetBlock(ctx, block.ID); err == nil {
+		t.Fatal("corrupt block document unexpectedly parsed")
+	}
+	if _, err := s.MissionState(ctx, block.ID); !errors.Is(err, ErrWrongFlowKind) {
+		t.Fatalf("block mission state error = %v, want ErrWrongFlowKind", err)
+	}
+}
 
 // waitFlow: manual trigger -> wait 60 s (blocks until the fake clock advances).
 func waitFlow(name string) *Flow {
@@ -78,7 +125,7 @@ func TestServiceMissionEnabledChangedAndNextTimer(t *testing.T) {
 		t.Fatal("a disabled flow has no armed timer")
 	}
 	// Mission Control switches the mission on directly.
-	if err := bridge.SetFlowMissionEnabled(pub.MissionID, true); err != nil {
+	if err := bridge.SetFlowMissionEnabled(pub.MissionID, pub.ID, true); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.MissionEnabledChanged(ctx, pub.MissionID); err != nil {
@@ -88,7 +135,7 @@ func TestServiceMissionEnabledChangedAndNextTimer(t *testing.T) {
 	if !ok || !next.Equal(time.Date(2026, 10, 3, 9, 0, 0, 0, time.UTC)) {
 		t.Fatalf("NextTimer = %v %v", next, ok)
 	}
-	if err := bridge.SetFlowMissionEnabled(pub.MissionID, false); err != nil {
+	if err := bridge.SetFlowMissionEnabled(pub.MissionID, pub.ID, false); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.MissionEnabledChanged(ctx, pub.MissionID); err != nil {

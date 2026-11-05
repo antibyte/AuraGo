@@ -26,7 +26,7 @@ func TestFF1AgentDependentsGetCappedFlowOutputs(t *testing.T) {
 		TriggerConfig: &TriggerConfig{SourceMissionID: source}}}); err != nil {
 		t.Fatal(err)
 	}
-	if err := mm.SetFlowMissionEnabled(follower, true); err != nil {
+	if err := mm.SetFlowMissionEnabled(follower, expectedFlowID(t, mm, follower), true); err != nil {
 		t.Fatal(err)
 	}
 

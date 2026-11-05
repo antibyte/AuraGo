@@ -312,9 +312,14 @@ func TestAudit17UnreadableSwitchIsAWarnWithItsReason(t *testing.T) {
 		about string   // part of the expected message
 		keep  bool     // the timer row stays and retrying holds the occurrence
 	}{
-		{"switched off", func(b *ff1ReconBridge, m string) { _ = b.fakeBridge.SetFlowMissionEnabled(m, false) },
+		{"switched off", func(b *ff1ReconBridge, m string) {
+			_ = b.fakeBridge.SetFlowMissionEnabled(m, b.fakeBridge.flowIDForMission(m), false)
+		},
 			[]string{"INFO "}, "is switched off", false},
-		{"no Mission Control", func(b *ff1ReconBridge, m string) { _ = b.fakeBridge.SetFlowMissionEnabled(m, false); b.none = true },
+		{"no Mission Control", func(b *ff1ReconBridge, m string) {
+			_ = b.fakeBridge.SetFlowMissionEnabled(m, b.fakeBridge.flowIDForMission(m), false)
+			b.none = true
+		},
 			[]string{"WARN " + ErrMissionControlUnavailable.Error()}, "cannot tell whether its flow is switched on", true},
 		{"mission missing", func(b *ff1ReconBridge, m string) { _ = b.fakeBridge.DeleteFlowMission(m) },
 			[]string{"WARN " + ErrFlowMissionMissing.Error()}, "cannot tell whether its flow is switched on", false},

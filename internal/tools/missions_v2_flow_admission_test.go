@@ -29,7 +29,9 @@ func TestFlowAdmissionRevocationSignalsSynchronousStateChanges(t *testing.T) {
 		run  func(*MissionManagerV2, string) error
 	}{
 		{"manager disable", func(m *MissionManagerV2, id string) error { return m.Update(id, &MissionV2{Enabled: false}) }},
-		{"service disable", func(m *MissionManagerV2, id string) error { return m.SetFlowMissionEnabled(id, false) }},
+		{"service disable", func(m *MissionManagerV2, id string) error {
+			return m.SetFlowMissionEnabled(id, expectedFlowID(t, m, id), false)
+		}},
 		{"manager delete", func(m *MissionManagerV2, id string) error { return m.Delete(id) }},
 		{"service delete", func(m *MissionManagerV2, id string) error { return m.DeleteFlowMission(id) }},
 	} {
@@ -58,7 +60,9 @@ func TestFlowAdmissionRevocationFollowsVisibleFailedSaves(t *testing.T) {
 		wantSignal, wantMission, wantEnabled bool
 	}{
 		{"manager disable", func(m *MissionManagerV2, id string) error { return m.Update(id, &MissionV2{Enabled: false}) }, true, true, false},
-		{"service disable", func(m *MissionManagerV2, id string) error { return m.SetFlowMissionEnabled(id, false) }, true, true, false},
+		{"service disable", func(m *MissionManagerV2, id string) error {
+			return m.SetFlowMissionEnabled(id, expectedFlowID(t, m, id), false)
+		}, true, true, false},
 		{"manager delete rolls back", func(m *MissionManagerV2, id string) error { return m.Delete(id) }, false, true, true},
 		{"service delete remains removed", func(m *MissionManagerV2, id string) error { return m.DeleteFlowMission(id) }, true, false, false},
 	} {

@@ -70,7 +70,7 @@ func TestFF1FlowScheduleIsNotPersisted(t *testing.T) {
 		t.Fatalf("persisted cron jobs = %+v", persisted)
 	}
 	// Disabling the flow removes the runtime job.
-	if err := mm.SetFlowMissionEnabled(id, false); err != nil {
+	if err := mm.SetFlowMissionEnabled(id, expectedFlowID(t, mm, id), false); err != nil {
 		t.Fatal(err)
 	}
 	if hasCronJob(cronMgr, jobID) {

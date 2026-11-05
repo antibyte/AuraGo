@@ -46,7 +46,7 @@ func TestDurableAuthorityChecksLivePolicyAndMissionOwnership(t *testing.T) {
 	if err := bridge.AuthorizeDurable(ctx, rec.ID, rec.MissionID, 0); err == nil {
 		t.Fatal("invalid revision allowed")
 	}
-	if err := s.MissionManagerV2.SetFlowMissionEnabled(rec.MissionID, false); err != nil {
+	if err := s.MissionManagerV2.SetFlowMissionEnabled(rec.MissionID, rec.ID, false); err != nil {
 		t.Fatal(err)
 	}
 	if err := bridge.AuthorizeDurable(ctx, rec.ID, rec.MissionID, rec.LiveRevision); err == nil {

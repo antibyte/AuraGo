@@ -53,7 +53,7 @@ func (b *svcBridge) SyncFlowMission(missionID, name string, bindings []TriggerBi
 	return b.fakeBridge.SyncFlowMission(missionID, name, bindings)
 }
 
-func (b *svcBridge) SetFlowMissionEnabled(missionID string, enabled bool) error {
+func (b *svcBridge) SetFlowMissionEnabled(missionID, expectedFlowID string, enabled bool) error {
 	b.mu.Lock()
 	gate, delay := b.gates[missionID], b.enableDelay
 	b.mu.Unlock()
@@ -64,7 +64,7 @@ func (b *svcBridge) SetFlowMissionEnabled(missionID string, enabled bool) error 
 	if delay > 0 {
 		time.Sleep(delay)
 	}
-	err := b.fakeBridge.SetFlowMissionEnabled(missionID, enabled)
+	err := b.fakeBridge.SetFlowMissionEnabled(missionID, expectedFlowID, enabled)
 	b.record(fmt.Sprintf("enabled:%s:%v", missionID, enabled))
 	return err
 }

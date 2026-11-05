@@ -54,6 +54,31 @@ type FlowTriggerSpec struct {
 	Schedule      string         `json:"schedule,omitempty"`
 }
 
+// FlowMissionStatus is a lock-protected snapshot without the mission document.
+type FlowMissionStatus struct {
+	Exists       bool
+	OwnerMatches bool
+	Enabled      bool
+}
+
+// FlowMissionStatus returns only the fields needed to verify a flow's current owner and switch.
+func (m *MissionManagerV2) FlowMissionStatus(missionID, expectedFlowID string) FlowMissionStatus {
+	if m == nil {
+		return FlowMissionStatus{}
+	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	mission, ok := m.missions[missionID]
+	if !ok || mission == nil {
+		return FlowMissionStatus{}
+	}
+	return FlowMissionStatus{
+		Exists:       true,
+		OwnerMatches: expectedFlowID != "" && isFlowMission(mission) && mission.FlowID == expectedFlowID,
+		Enabled:      mission.Enabled,
+	}
+}
+
 // FlowHooks connects Mission Control with the flow service (implemented in internal/server).
 // The manager never calls a hook while it holds its lock.
 type FlowHooks interface {
@@ -252,7 +277,7 @@ func (m *MissionManagerV2) SyncFlowMission(missionID, name string, specs []FlowT
 // SetFlowMissionEnabled switches the Mission Control triggers of a flow on or off. The new
 // state is saved even when a trigger registration fails; the returned error then reports
 // the registration problem.
-func (m *MissionManagerV2) SetFlowMissionEnabled(missionID string, enabled bool) error {
+func (m *MissionManagerV2) SetFlowMissionEnabled(missionID, expectedFlowID string, enabled bool) error {
 	if err := requireMissionMutationPermission(); err != nil {
 		return err
 	}
@@ -261,6 +286,9 @@ func (m *MissionManagerV2) SetFlowMissionEnabled(missionID string, enabled bool)
 	mission, err := m.flowMissionLocked(missionID)
 	if err != nil {
 		return err
+	}
+	if expectedFlowID == "" || mission.FlowID != expectedFlowID {
+		return fmt.Errorf("%w: %s", ErrFlowMissionOwnerMismatch, missionID)
 	}
 	mission.Enabled = enabled
 	if !enabled {
@@ -301,6 +329,9 @@ func (m *MissionManagerV2) DeleteFlowMission(missionID string) error {
 // Control holds no flow mission of that id. The flow API tells the user to re-create the
 // flow, since a publish never recreates a missing mission.
 var ErrFlowMissionNotFound = errors.New("flow mission not found")
+
+// ErrFlowMissionOwnerMismatch means the supplied expected flow no longer owns this mission.
+var ErrFlowMissionOwnerMismatch = errors.New("flow mission owner mismatch")
 
 func (m *MissionManagerV2) flowMissionLocked(missionID string) (*MissionV2, error) {
 	mission, ok := m.missions[missionID]

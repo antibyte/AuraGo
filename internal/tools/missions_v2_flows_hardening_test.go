@@ -181,7 +181,11 @@ func (h *c07ReentrantHooks) StartFlowRun(missionID, _, triggerType, _ string) er
 	if len(h.mm.List()) == 0 {
 		h.addErr(fmt.Errorf("List() returned no missions"))
 	}
-	if err := h.mm.SetFlowMissionEnabled(missionID, true); err != nil {
+	expected := ""
+	if mission, ok := h.mm.Get(missionID); ok {
+		expected = mission.FlowID
+	}
+	if err := h.mm.SetFlowMissionEnabled(missionID, expected, true); err != nil {
 		h.addErr(fmt.Errorf("SetFlowMissionEnabled: %w", err))
 	}
 	h.runs <- triggerType
@@ -557,7 +561,7 @@ func TestFlowCronJobsLeavePromptJobsAlone(t *testing.T) {
 	}
 	promptJobsIntact("sync")
 	for _, enabled := range []bool{false, true} {
-		_ = mm.SetFlowMissionEnabled(flowID, enabled)
+		_ = mm.SetFlowMissionEnabled(flowID, expectedFlowID(t, mm, flowID), enabled)
 		promptJobsIntact(fmt.Sprintf("enabled=%v", enabled))
 	}
 	if !hasCronJob(cronMgr, flowCronJobID(flowID, "n_aaaaaaaa")) {
@@ -799,7 +803,7 @@ func TestFlowResyncNeverDoublesRegistrations(t *testing.T) {
 		}
 	}
 	for _, enabled := range []bool{false, true} {
-		if err := mm.SetFlowMissionEnabled(id, enabled); err != nil {
+		if err := mm.SetFlowMissionEnabled(id, expectedFlowID(t, mm, id), enabled); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -1161,7 +1165,7 @@ func TestHomeAssistantMonitoredEntitiesKeepsPromptBehaviour(t *testing.T) {
 	if got := homeAssistantMonitoredEntities(mm.List()); !reflect.DeepEqual(got, map[string]bool{"binary_sensor.door": true}) {
 		t.Fatalf("enabled flow entities = %v", got)
 	}
-	if err := mm.SetFlowMissionEnabled(id, false); err != nil {
+	if err := mm.SetFlowMissionEnabled(id, expectedFlowID(t, mm, id), false); err != nil {
 		t.Fatal(err)
 	}
 	if got := homeAssistantMonitoredEntities(mm.List()); len(got) != 0 {

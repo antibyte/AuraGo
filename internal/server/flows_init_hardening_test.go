@@ -62,7 +62,7 @@ func TestFF1InitFlowsSurvivesAPanic(t *testing.T) {
 	if err := s.MissionManagerV2.SyncFlowMission(id, "FF1", nil); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.MissionManagerV2.SetFlowMissionEnabled(id, true); err != nil {
+	if err := s.MissionManagerV2.SetFlowMissionEnabled(id, "flow_ff1aaaaaaa", true); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.MissionManagerV2.RunNow(id); err == nil || !strings.Contains(err.Error(), tools.ErrFlowsUnavailable.Error()) {

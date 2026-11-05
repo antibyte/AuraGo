@@ -16,8 +16,8 @@ import (
 //
 // The rule for implementations: no method of the bridge may synchronously call a
 // Service method that takes a flow lock, for any flow. Today those are Publish,
-// SetEnabled, DeleteFlow, DeleteFlowForMission, MissionEnabledChanged and
-// ReconcileMissions. The Service calls the bridge while it holds a flow lock, and
+// SetEnabled, MissionState, DeleteFlow, DeleteFlowForMission, MissionEnabledChanged
+// and ReconcileMissions. The Service calls the bridge while it holds a flow lock, and
 // FlowRunFinished can run inside such an operation (deleting a flow ends its queued runs
 // through Runner.CancelFlow on the caller's goroutine), so such a call could wait for
 // itself, or for another operation that waits for it. Work that needs one of these
@@ -30,7 +30,9 @@ type MissionBridge interface {
 	// SyncFlowMission stores the published name and trigger bindings of a flow mission.
 	SyncFlowMission(missionID, name string, bindings []TriggerBinding) error
 	// SetFlowMissionEnabled turns the flow's Mission Control triggers on or off.
-	SetFlowMissionEnabled(missionID string, enabled bool) error
+	SetFlowMissionEnabled(missionID, expectedFlowID string, enabled bool) error
+	// FlowMissionState reports the switch only when Mission Control still identifies this exact owner.
+	FlowMissionState(missionID, expectedFlowID string) MissionState
 	// FlowMissionEnabled reports the mission's enabled switch.
 	FlowMissionEnabled(missionID string) bool
 	// DeleteFlowMission removes the mission; it must not call back into Service.DeleteFlow.
@@ -46,6 +48,17 @@ type MissionBridge interface {
 	// info.Record.TriggerData is bounded and read-only like FlowRunStarted's.
 	FlowRunFinished(info RunFinishedInfo)
 }
+
+// MissionState is the bounded Mission Control status exposed for a flow.
+type MissionState string
+
+const (
+	MissionStateEnabled     MissionState = "enabled"
+	MissionStateDisabled    MissionState = "disabled"
+	MissionStateMissing     MissionState = "missing"
+	MissionStateMismatch    MissionState = "mismatch"
+	MissionStateUnavailable MissionState = "unavailable"
+)
 
 // RunGate is an optional extension of MissionBridge that the Service looks for by type
 // assertion (a bridge without it allows everything). AutomaticRunsAllowed says whether runs

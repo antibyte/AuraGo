@@ -221,13 +221,28 @@ func (s *Service) SetEnabled(ctx context.Context, id string, enabled bool) error
 	}
 	// Once the switch is flipped the timers must follow, whatever happens to the caller.
 	ctx = context.WithoutCancel(ctx)
-	if err := s.bridge.SetFlowMissionEnabled(rec.MissionID, enabled); err != nil {
+	if err := s.bridge.SetFlowMissionEnabled(rec.MissionID, rec.ID, enabled); err != nil {
 		return err
 	}
 	if !enabled {
 		s.InvalidateFlowAdmissions(rec.MissionID)
 	}
 	return s.armTimers(ctx, rec)
+}
+
+// MissionState reads the stored mission binding and verifies it against Mission Control.
+// The flow lock keeps the binding stable while the manager checks its owner under its own lock.
+func (s *Service) MissionState(ctx context.Context, id string) (MissionState, error) {
+	unlock, err := s.locks.lock(ctx, id)
+	if err != nil {
+		return "", err
+	}
+	defer unlock()
+	missionID, err := s.store.flowMissionID(ctx, id)
+	if err != nil {
+		return "", err
+	}
+	return s.bridge.FlowMissionState(missionID, id), nil
 }
 
 // armTimers arms the Date/Time triggers of the live revision when the flow is enabled,

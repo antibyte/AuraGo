@@ -200,7 +200,7 @@ func TestMissionCompletedOutputsAreBounded(t *testing.T) {
 		TriggerConfig: &TriggerConfig{SourceMissionID: source}}}); err != nil {
 		t.Fatal(err)
 	}
-	if err := mm.SetFlowMissionEnabled(follower, true); err != nil {
+	if err := mm.SetFlowMissionEnabled(follower, expectedFlowID(t, mm, follower), true); err != nil {
 		t.Fatal(err)
 	}
 
@@ -271,7 +271,7 @@ func TestMissionCompletedOutputsWithinTheBoundStayWhole(t *testing.T) {
 		TriggerConfig: &TriggerConfig{SourceMissionID: source}}}); err != nil {
 		t.Fatal(err)
 	}
-	if err := mm.SetFlowMissionEnabled(follower, true); err != nil {
+	if err := mm.SetFlowMissionEnabled(follower, expectedFlowID(t, mm, follower), true); err != nil {
 		t.Fatal(err)
 	}
 	report = strings.Repeat("a", flowCompletionOutputsMaxBytes-len(`{"report":""}`))
@@ -405,7 +405,7 @@ func TestFlowHooksMayReenterFromRunsNextRunAndMissionControl(t *testing.T) {
 		TriggerConfig: &TriggerConfig{SourceMissionID: source}}}); err != nil {
 		t.Fatal(err)
 	}
-	if err := mm.SetFlowMissionEnabled(follower, true); err != nil {
+	if err := mm.SetFlowMissionEnabled(follower, expectedFlowID(t, mm, follower), true); err != nil {
 		t.Fatal(err)
 	}
 
@@ -974,7 +974,7 @@ func TestPromptSourceStartsFlowFollower(t *testing.T) {
 		TriggerConfig: &TriggerConfig{SourceMissionID: "src"}}}); err != nil {
 		t.Fatal(err)
 	}
-	if err := mm.SetFlowMissionEnabled(follower, true); err != nil {
+	if err := mm.SetFlowMissionEnabled(follower, expectedFlowID(t, mm, follower), true); err != nil {
 		t.Fatal(err)
 	}
 	mm.OnMissionComplete("src", MissionResultSuccess, "Ergebnis")

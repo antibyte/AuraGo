@@ -45,11 +45,11 @@ func TestBlockAdmissionRevokedAcrossDisableAndReenable(t *testing.T) {
 	result := make(chan error, 1)
 	go func() { _, err := s.RunNow(ctx, parent.ID); result <- err }()
 	waitBlockAdmission(t, s.runner)
-	if err := bridge.SetFlowMissionEnabled(pub.MissionID, false); err != nil {
+	if err := bridge.SetFlowMissionEnabled(pub.MissionID, pub.ID, false); err != nil {
 		t.Fatal(err)
 	}
 	s.InvalidateFlowAdmissions(pub.MissionID)
-	if err := bridge.SetFlowMissionEnabled(pub.MissionID, true); err != nil {
+	if err := bridge.SetFlowMissionEnabled(pub.MissionID, pub.ID, true); err != nil {
 		t.Fatal(err)
 	}
 	select {

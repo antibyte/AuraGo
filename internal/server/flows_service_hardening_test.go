@@ -219,7 +219,7 @@ func TestC16DisabledFlowsLeaveFlowMissionsInert(t *testing.T) {
 			if err := mm.SyncFlowMission(missionID, "Alter Flow", []tools.FlowTriggerSpec{{NodeID: "n_aaaaaaaa", TriggerType: tools.FlowTriggerManual}}); err != nil {
 				t.Fatal(err)
 			}
-			if err := mm.SetFlowMissionEnabled(missionID, true); err != nil {
+			if err := mm.SetFlowMissionEnabled(missionID, "flow_c16aaaaaa", true); err != nil {
 				t.Fatal(err)
 			}
 			agent := make(chan string, 4)

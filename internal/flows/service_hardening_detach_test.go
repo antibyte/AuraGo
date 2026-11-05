@@ -40,8 +40,8 @@ func (b *svcCancelBridge) fire(err error) {
 	}
 }
 
-func (b *svcCancelBridge) SetFlowMissionEnabled(missionID string, enabled bool) error {
-	err := b.svcBridge.SetFlowMissionEnabled(missionID, enabled)
+func (b *svcCancelBridge) SetFlowMissionEnabled(missionID, expectedFlowID string, enabled bool) error {
+	err := b.svcBridge.SetFlowMissionEnabled(missionID, expectedFlowID, enabled)
 	b.fire(err)
 	return err
 }

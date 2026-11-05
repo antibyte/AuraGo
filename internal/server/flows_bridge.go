@@ -91,14 +91,33 @@ func (b flowMissionBridge) SyncFlowMission(missionID, name string, bindings []fl
 }
 
 // SetFlowMissionEnabled implements flows.MissionBridge.
-func (b flowMissionBridge) SetFlowMissionEnabled(missionID string, enabled bool) error {
+func (b flowMissionBridge) SetFlowMissionEnabled(missionID, expectedFlowID string, enabled bool) error {
 	mm, err := b.missions()
 	if err != nil {
 		return err
 	}
-	err = mm.SetFlowMissionEnabled(missionID, enabled)
+	err = mm.SetFlowMissionEnabled(missionID, expectedFlowID, enabled)
 	broadcastMissionState(b.s)
 	return err
+}
+
+// FlowMissionState implements flows.MissionBridge without exposing a mission record.
+func (b flowMissionBridge) FlowMissionState(missionID, expectedFlowID string) flows.MissionState {
+	mm, err := b.missions()
+	if err != nil {
+		return flows.MissionStateUnavailable
+	}
+	status := mm.FlowMissionStatus(missionID, expectedFlowID)
+	switch {
+	case !status.Exists:
+		return flows.MissionStateMissing
+	case !status.OwnerMatches:
+		return flows.MissionStateMismatch
+	case status.Enabled:
+		return flows.MissionStateEnabled
+	default:
+		return flows.MissionStateDisabled
+	}
 }
 
 // FlowMissionEnabled implements flows.MissionBridge.

@@ -71,7 +71,7 @@ func (e *c15Env) c15Mission(t *testing.T, flowID, name string) string {
 	if err := e.bridge.SyncFlowMission(id, name, []flows.TriggerBinding{{NodeID: "n_aaaaaaaa", Kind: flows.BindingManual}}); err != nil {
 		t.Fatal(err)
 	}
-	if err := e.bridge.SetFlowMissionEnabled(id, true); err != nil {
+	if err := e.bridge.SetFlowMissionEnabled(id, flowID, true); err != nil {
 		t.Fatal(err)
 	}
 	return id

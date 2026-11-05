@@ -14,6 +14,22 @@ import (
 // the flows, because Mission Control would then run the wrong one.
 var ErrMissionAmbiguous = errors.New("more than one flow is linked to this mission")
 
+// flowMissionID reads the stored mission binding without loading either flow document.
+func (s *Store) flowMissionID(ctx context.Context, flowID string) (string, error) {
+	var missionID, kind string
+	err := s.db.QueryRowContext(ctx, `SELECT mission_id, kind FROM flows WHERE id = ?`, flowID).Scan(&missionID, &kind)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", ErrNotFound
+	}
+	if err != nil {
+		return "", err
+	}
+	if kind != string(KindFlow) {
+		return "", ErrWrongFlowKind
+	}
+	return missionID, nil
+}
+
 // flowByMissionSQL reads at most two owners of a mission: enough to tell one from
 // several without loading them all. It is a constant so a test can check its
 // query plan (it must use idx_flows_mission).

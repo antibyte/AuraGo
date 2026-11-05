@@ -70,7 +70,7 @@ func TestFlowBridgeKeepsMissionControlInSync(t *testing.T) {
 	if err := bridge.SyncFlowMission(id, "Bericht", []flows.TriggerBinding{{NodeID: "n_aaaaaaaa", Kind: flows.BindingManual}}); err != nil {
 		t.Fatal(err)
 	}
-	if err := bridge.SetFlowMissionEnabled(id, true); err != nil || !bridge.FlowMissionEnabled(id) {
+	if err := bridge.SetFlowMissionEnabled(id, "flow_aaaaaaaaaa", true); err != nil || !bridge.FlowMissionEnabled(id) {
 		t.Fatalf("enable = %v", err)
 	}
 	bridge.FlowRunStarted(id, flows.RunRecord{ID: "run_aaaaaaaaaaaa", FlowID: "flow_aaaaaaaaaa", TriggerType: "manual", TriggerData: map[string]any{"x": 1.0}})

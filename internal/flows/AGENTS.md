@@ -764,9 +764,14 @@ the contracts below describe the implemented behavior of each delivered slice.
   it the Service calls only the store, the bridge, `TimerService.Replace` and `Runner.CancelFlow`, and none of
   those may take a flow lock. Run paths (starting runs, runner hooks, timer callbacks) never take it;
   `armTimers` requires it to be held.
+- Flow mission identity: `SetEnabled` passes the stored mission ID and exact flow ID to the bridge; the
+  Mission Control mutation checks both under its mutation lock before enabling or disabling. The read-only
+  `MissionState` query holds the per-flow lock and reads only the stored flow kind and mission binding, then
+  asks the bridge to verify the execution type and exact flow ID under the manager read lock. It returns only
+  `enabled`, `disabled`, `missing`, `mismatch` or `unavailable`; uncertain ownership is never disabled.
 - Bridge rule: a `MissionBridge` must not synchronously call a Service method that takes a flow lock, for any
-  flow (today `Publish`, `SetEnabled`, `DeleteFlow`, `DeleteFlowForMission`, `MissionEnabledChanged` and
-  `ReconcileMissions`; the same holds for the optional `MissionReconciler` methods). The Service calls the
+  flow (today `Publish`, `SetEnabled`, `MissionState`, `DeleteFlow`, `DeleteFlowForMission`,
+  `MissionEnabledChanged` and `ReconcileMissions`; the same holds for the optional `MissionReconciler` methods). The Service calls the
   bridge under a flow lock, and runner hooks can run inside such an operation. Lock-free reads (`GetFlow`,
   `ListFlows`, `NextTimer`) and `TriggerFromMission` (also from inside `FlowRunFinished`) may be called
   synchronously and must stay lock-free.

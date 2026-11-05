@@ -41,7 +41,7 @@ func TestC17MissingFlowMissionIsErrFlowMissionNotFound(t *testing.T) {
 	if !errors.Is(err, ErrFlowMissionNotFound) || err.Error() != "flow mission not found: mission_c17_gone" {
 		t.Fatalf("SyncFlowMission of a missing mission = %v", err)
 	}
-	if err := mm.SetFlowMissionEnabled("mission_c17_gone", true); !errors.Is(err, ErrFlowMissionNotFound) {
+	if err := mm.SetFlowMissionEnabled("mission_c17_gone", "", true); !errors.Is(err, ErrFlowMissionNotFound) {
 		t.Fatalf("SetFlowMissionEnabled of a missing mission = %v", err)
 	}
 }

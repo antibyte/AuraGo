@@ -109,7 +109,7 @@ func TestFF1FlowSchedulePublishStillNeedsSchedulerMutation(t *testing.T) {
 	if err := mm.SyncFlowMission(id, "Plan", []FlowTriggerSpec{{NodeID: "n_aaaaaaaa", TriggerType: FlowTriggerSchedule, Schedule: "0 7 * * *"}}); err != nil {
 		t.Fatal(err)
 	}
-	err = mm.SetFlowMissionEnabled(id, true)
+	err = mm.SetFlowMissionEnabled(id, expectedFlowID(t, mm, id), true)
 	if err == nil || !strings.Contains(err.Error(), "scheduler mutation is disabled") {
 		t.Fatalf("switching a flow on with a read-only scheduler = %v", err)
 	}

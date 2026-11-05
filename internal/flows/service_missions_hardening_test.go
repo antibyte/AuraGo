@@ -223,7 +223,7 @@ func TestServiceMissionEnabledChangedHoldsTheFlowLock(t *testing.T) {
 	ctx := context.Background()
 	a := fx.published(t, "A", svcDateTimeFlow("A", 10, "2026-10-04 09:00"))
 	// Mission Control switches the mission on directly, then tells the Service.
-	if err := bridge.fakeBridge.SetFlowMissionEnabled(a.MissionID, true); err != nil {
+	if err := bridge.fakeBridge.SetFlowMissionEnabled(a.MissionID, a.ID, true); err != nil {
 		t.Fatal(err)
 	}
 	mark := len(bridge.callLog())
@@ -293,7 +293,7 @@ func TestServiceMissionEnabledChangedRereadsTheFlowInsideTheLock(t *testing.T) {
 	fx, bridge := newC10Fixture(t, slog.New(logs))
 	ctx := context.Background()
 	a := fx.published(t, "A", svcDateTimeFlow("A", 10, "2026-10-04 09:00"))
-	if err := bridge.fakeBridge.SetFlowMissionEnabled(a.MissionID, true); err != nil {
+	if err := bridge.fakeBridge.SetFlowMissionEnabled(a.MissionID, a.ID, true); err != nil {
 		t.Fatal(err)
 	}
 
@@ -826,7 +826,7 @@ func TestRunnerCancelFlowModeWaitsForAStartInProgress(t *testing.T) {
 func TestServiceMissionEnabledChangedFinishesAfterCancel(t *testing.T) {
 	fx, bridge := newC10Fixture(t, nil)
 	a := fx.published(t, "A", svcDateTimeFlow("A", 10, "2026-10-04 09:00"))
-	if err := bridge.fakeBridge.SetFlowMissionEnabled(a.MissionID, true); err != nil {
+	if err := bridge.fakeBridge.SetFlowMissionEnabled(a.MissionID, a.ID, true); err != nil {
 		t.Fatal(err)
 	}
 	release := bridge.holdRead(a.MissionID)

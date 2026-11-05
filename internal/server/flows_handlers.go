@@ -275,6 +275,8 @@ func (s *Server) flowsErrorFrom(w http.ResponseWriter, r *http.Request, err erro
 	case errors.Is(err, tools.ErrFlowMissionNotFound), errors.Is(err, flows.ErrFlowMissionMissing):
 		flowsError(w, http.StatusConflict, "FLOW_MISSION_MISSING",
 			"the flow's Mission Control entry is missing; repair its connection")
+	case errors.Is(err, tools.ErrFlowMissionOwnerMismatch):
+		flowsError(w, http.StatusConflict, "FLOW_MISSION_MISMATCH", "the flow no longer owns its Mission Control entry")
 	case errors.Is(err, tools.ErrFlowMissionConflict):
 		flowsError(w, http.StatusConflict, "FLOW_MISSION_CONFLICT", "the Mission Control identity is already in use")
 	case errors.Is(err, flows.ErrQueueFull):
@@ -711,33 +713,41 @@ func (s *Server) flowRoute(w http.ResponseWriter, r *http.Request, id string, re
 		s.broadcastFlowsChanged(id, "published")
 		flowsJSON(w, http.StatusOK, map[string]any{"flow": rec, "issues": nonNilIssues(issues)})
 	case "enabled":
-		if r.Method != http.MethodPost {
+		switch r.Method {
+		case http.MethodGet:
+			state, err := s.Flows.MissionState(ctx, id)
+			if err != nil {
+				s.flowsErrorFrom(w, r, err)
+				return
+			}
+			flowsJSON(w, http.StatusOK, map[string]flows.MissionState{"mission_state": state})
+		case http.MethodPost:
+			var body struct {
+				Enabled bool `json:"enabled"`
+			}
+			if !flowsDecode(w, r, &body, flowsSmallBodyLimit, false) {
+				return
+			}
+			if err := s.Flows.SetEnabled(ctx, id, body.Enabled); err != nil {
+				s.flowsErrorFrom(w, r, err)
+				return
+			}
+			event, state := "flow_disable", "disabled"
+			if body.Enabled {
+				event, state = "flow_enable", "enabled"
+			}
+			// The name for the audit entry comes from the lock-free read; the switch is done,
+			// so a client that went away does not leave the entry without it.
+			name, label := "", id
+			if rec, err := s.Flows.GetFlow(context.WithoutCancel(ctx), id); err == nil {
+				name, label = rec.Name, rec.Name
+			}
+			s.recordFlowAudit(event, id, name, "Flow "+label+" "+state)
+			s.broadcastFlowsChanged(id, "enabled")
+			flowsJSON(w, http.StatusOK, map[string]bool{"enabled": body.Enabled})
+		default:
 			flowsMethodNotAllowed(w)
-			return
 		}
-		var body struct {
-			Enabled bool `json:"enabled"`
-		}
-		if !flowsDecode(w, r, &body, flowsSmallBodyLimit, false) {
-			return
-		}
-		if err := s.Flows.SetEnabled(ctx, id, body.Enabled); err != nil {
-			s.flowsErrorFrom(w, r, err)
-			return
-		}
-		event, state := "flow_disable", "disabled"
-		if body.Enabled {
-			event, state = "flow_enable", "enabled"
-		}
-		// The name for the audit entry comes from the lock-free read; the switch is done,
-		// so a client that went away does not leave the entry without it.
-		name, label := "", id
-		if rec, err := s.Flows.GetFlow(context.WithoutCancel(ctx), id); err == nil {
-			name, label = rec.Name, rec.Name
-		}
-		s.recordFlowAudit(event, id, name, "Flow "+label+" "+state)
-		s.broadcastFlowsChanged(id, "enabled")
-		flowsJSON(w, http.StatusOK, map[string]bool{"enabled": body.Enabled})
 	case "export":
 		if r.Method != http.MethodGet {
 			flowsMethodNotAllowed(w)

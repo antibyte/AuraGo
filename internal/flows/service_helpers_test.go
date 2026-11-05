@@ -52,15 +52,34 @@ func (b *fakeBridge) SyncFlowMission(missionID, name string, bindings []TriggerB
 	return nil
 }
 
-func (b *fakeBridge) SetFlowMissionEnabled(missionID string, enabled bool) error {
+func (b *fakeBridge) SetFlowMissionEnabled(missionID, expectedFlowID string, enabled bool) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	m := b.missions[missionID]
 	if m == nil {
 		return errors.New("unknown mission")
 	}
+	if expectedFlowID == "" || m.flowID != expectedFlowID {
+		return errors.New("flow mission owner mismatch")
+	}
 	m.enabled = enabled
 	return nil
+}
+
+func (b *fakeBridge) FlowMissionState(missionID, expectedFlowID string) MissionState {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	m := b.missions[missionID]
+	switch {
+	case m == nil:
+		return MissionStateMissing
+	case expectedFlowID == "" || m.flowID != expectedFlowID:
+		return MissionStateMismatch
+	case m.enabled:
+		return MissionStateEnabled
+	default:
+		return MissionStateDisabled
+	}
 }
 
 func (b *fakeBridge) FlowMissionEnabled(missionID string) bool {
@@ -97,6 +116,15 @@ func (b *fakeBridge) mission(id string) (fakeMission, bool) {
 		return fakeMission{}, false
 	}
 	return *m, true
+}
+
+func (b *fakeBridge) flowIDForMission(id string) string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if mission := b.missions[id]; mission != nil {
+		return mission.flowID
+	}
+	return ""
 }
 
 func (b *fakeBridge) startedRuns() []RunRecord {

@@ -106,6 +106,15 @@ func newFlowTestManager(t *testing.T) (*MissionManagerV2, *fakeFlowHooks, *fakeW
 	return mm, hooks, webhooks
 }
 
+func expectedFlowID(t *testing.T, mm *MissionManagerV2, missionID string) string {
+	t.Helper()
+	mission, ok := mm.Get(missionID)
+	if !ok || !isFlowMission(mission) || mission.FlowID == "" {
+		t.Fatalf("mission %s is not an owned flow mission: %+v", missionID, mission)
+	}
+	return mission.FlowID
+}
+
 // publishTestFlow creates, publishes and enables a flow mission with the given specs.
 func publishTestFlow(t *testing.T, mm *MissionManagerV2, specs ...FlowTriggerSpec) string {
 	t.Helper()
@@ -116,7 +125,7 @@ func publishTestFlow(t *testing.T, mm *MissionManagerV2, specs ...FlowTriggerSpe
 	if err := mm.SyncFlowMission(id, "Morgenbericht", specs); err != nil {
 		t.Fatalf("SyncFlowMission: %v", err)
 	}
-	if err := mm.SetFlowMissionEnabled(id, true); err != nil {
+	if err := mm.SetFlowMissionEnabled(id, "flow_aaaaaaaaaa", true); err != nil {
 		t.Fatalf("SetFlowMissionEnabled: %v", err)
 	}
 	return id
@@ -143,9 +152,111 @@ func TestCreateFlowMissionIsDisabledAndLocal(t *testing.T) {
 	if err := mm.Create(&MissionV2{Name: "x", Prompt: "y", ExecutionType: ExecutionFlow}); !errors.Is(err, ErrFlowMissionManaged) {
 		t.Fatalf("Create(flow) = %v", err)
 	}
-	if err := mm.SetFlowMissionEnabled("missing", true); err == nil {
+	if err := mm.SetFlowMissionEnabled("missing", "", true); err == nil {
 		t.Fatal("unknown flow missions must fail")
 	}
+}
+
+func TestFlowMissionStatusAndPauseRequireExactOwner(t *testing.T) {
+	mm, _, _ := newFlowTestManager(t)
+	const flowID = "flow_aaaaaaaaaa"
+	missionID, err := mm.CreateFlowMission(flowID, "Bericht")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := mm.FlowMissionStatus(missionID, flowID); !got.Exists || !got.OwnerMatches || got.Enabled {
+		t.Fatalf("initial status = %+v", got)
+	}
+	if err := mm.SetFlowMissionEnabled(missionID, flowID, true); err != nil {
+		t.Fatal(err)
+	}
+	for _, expected := range []string{"", "flow_bbbbbbbbbb"} {
+		if got := mm.FlowMissionStatus(missionID, expected); !got.Exists || got.OwnerMatches {
+			t.Fatalf("status for expected owner %q = %+v", expected, got)
+		}
+		for _, enabled := range []bool{true, false} {
+			if err := mm.SetFlowMissionEnabled(missionID, expected, enabled); !errors.Is(err, ErrFlowMissionOwnerMismatch) {
+				t.Fatalf("set enabled=%t with expected owner %q = %v", enabled, expected, err)
+			}
+		}
+	}
+	if got, _ := mm.Get(missionID); !got.Enabled {
+		t.Fatal("owner mismatch disabled the mission")
+	}
+	mm.mu.Lock()
+	mm.missions[missionID].ExecutionType = ExecutionManual
+	mm.mu.Unlock()
+	if got := mm.FlowMissionStatus(missionID, flowID); !got.Exists || got.OwnerMatches {
+		t.Fatalf("wrong execution type status = %+v", got)
+	}
+	if err := mm.SetFlowMissionEnabled(missionID, flowID, false); !errors.Is(err, ErrFlowMissionNotFound) {
+		t.Fatalf("disable of non-flow mission = %v", err)
+	}
+	if got, _ := mm.Get(missionID); !got.Enabled {
+		t.Fatal("wrong execution type changed the mission")
+	}
+}
+
+func TestSetFlowMissionEnabledChecksOwnerAfterAcquiringMutationLock(t *testing.T) {
+	mm, _, _ := newFlowTestManager(t)
+	const flowID = "flow_aaaaaaaaaa"
+	missionID, err := mm.CreateFlowMission(flowID, "Bericht")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := mm.SetFlowMissionEnabled(missionID, flowID, true); err != nil {
+		t.Fatal(err)
+	}
+	mm.mu.Lock()
+	started := make(chan struct{})
+	done := make(chan error, 1)
+	go func() {
+		close(started)
+		done <- mm.SetFlowMissionEnabled(missionID, flowID, false)
+	}()
+	<-started
+	mm.missions[missionID].FlowID = "flow_bbbbbbbbbb"
+	mm.mu.Unlock()
+	if err := <-done; !errors.Is(err, ErrFlowMissionOwnerMismatch) {
+		t.Fatalf("pause after owner change = %v", err)
+	}
+	if got, _ := mm.Get(missionID); !got.Enabled {
+		t.Fatal("a pause for the prior owner changed the mission")
+	}
+}
+
+func TestFlowMissionStatusReadsOwnerAndSwitchAsOneSnapshot(t *testing.T) {
+	mm, _, _ := newFlowTestManager(t)
+	const flowID = "flow_aaaaaaaaaa"
+	missionID, err := mm.CreateFlowMission(flowID, "Bericht")
+	if err != nil {
+		t.Fatal(err)
+	}
+	mm.mu.Lock()
+	mm.missions[missionID].Enabled = true
+	mm.mu.Unlock()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for i := 0; i < 500; i++ {
+			mm.mu.Lock()
+			if i%2 == 0 {
+				mm.missions[missionID].FlowID = flowID
+				mm.missions[missionID].Enabled = true
+			} else {
+				mm.missions[missionID].FlowID = "flow_bbbbbbbbbb"
+				mm.missions[missionID].Enabled = false
+			}
+			mm.mu.Unlock()
+		}
+	}()
+	for i := 0; i < 500; i++ {
+		status := mm.FlowMissionStatus(missionID, flowID)
+		if !status.Exists || status.OwnerMatches != status.Enabled {
+			t.Fatalf("owner and switch came from different snapshots: %+v", status)
+		}
+	}
+	<-done
 }
 
 func TestFlowWebhookTriggerStartsRunWithoutQueue(t *testing.T) {
@@ -166,13 +277,13 @@ func TestFlowWebhookTriggerStartsRunWithoutQueue(t *testing.T) {
 	if n := len(webhooks.callbacks["hook-1"]); n != 1 {
 		t.Fatalf("republishing registered the webhook %d times", n)
 	}
-	if err := mm.SetFlowMissionEnabled(id, false); err != nil {
+	if err := mm.SetFlowMissionEnabled(id, expectedFlowID(t, mm, id), false); err != nil {
 		t.Fatal(err)
 	}
 	webhooks.Fire("hook-1", []byte(`{}`))
 	hooks.expectNoStart(t)
 
-	if err := mm.SetFlowMissionEnabled(id, true); err != nil {
+	if err := mm.SetFlowMissionEnabled(id, expectedFlowID(t, mm, id), true); err != nil {
 		t.Fatal(err)
 	}
 	moved := spec
@@ -270,7 +381,7 @@ func TestFlowMQTTAndEmailTriggers(t *testing.T) {
 	if c := hooks.waitStart(t); c.triggerType != "email" || !strings.Contains(c.data, `"subject":"Rechnung Oktober"`) {
 		t.Fatalf("email start = %+v", c)
 	}
-	if err := mm.SetFlowMissionEnabled(id, false); err != nil {
+	if err := mm.SetFlowMissionEnabled(id, expectedFlowID(t, mm, id), false); err != nil {
 		t.Fatal(err)
 	}
 	if len(mqtt.unregisteredTriggers) == 0 || mqtt.unregisteredTriggers[0] != flowSlot(id, "n_aaaaaaaa", TriggerMQTTMessage) {
@@ -318,7 +429,7 @@ func TestFlowScheduleSpecsUseOneCronJobPerNode(t *testing.T) {
 	if hasCronJob(cronMgr, flowCronJobID(id, "n_aaaaaaaa")) || !hasCronJob(cronMgr, flowCronJobID(id, "n_bbbbbbbb")) {
 		t.Fatal("republishing must drop removed schedule nodes and keep the others")
 	}
-	if err := mm.SetFlowMissionEnabled(id, false); err != nil {
+	if err := mm.SetFlowMissionEnabled(id, expectedFlowID(t, mm, id), false); err != nil {
 		t.Fatal(err)
 	}
 	if hasCronJob(cronMgr, flowCronJobID(id, "n_bbbbbbbb")) {
