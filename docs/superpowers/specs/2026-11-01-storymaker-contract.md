@@ -56,7 +56,7 @@ assetId     ^(char|prop|env|sfx)\.[a-z0-9][a-z0-9.-]{0,63}$  |  ^(my|lib)\.(char
 
 Notes on the shape:
 
-- `voice` and `music` may be `null`. Phase 1 validates the shape of `voice` and of the provider id only; it does not synthesise.
+- `voice` and `music` may be `null`. `POST /narrate` synthesises; validation still checks only the shape of `voice` and of the provider id.
 - `voice.provider` (and `cast[].voice.provider`) is a concrete TTS provider id, never `"active"`. The ids are the dispatcher ids of `internal/tools/tts.go` `synthesizeProvider`, kept as a sorted list in `validate.go` (`voiceProviders`; the package does not import `internal/tools`). The comparison ignores case and surrounding space, and `Validate` does not rewrite the value. `"active"` is refused as `invalid_value` at `<voice path>/provider` (a saved story names a concrete provider). Any other id outside the list, including the dispatcher aliases `s2s` and `s2s-lab` (a story saves only `speech_lab`), is `unknown_name` at `<voice path>/provider` with at most 5 closest alternatives and a `{"provider":"..."}` example. An empty provider is `missing_field`. The voice id must match `^[A-Za-z0-9._-]{1,128}$` (`invalid_value` at `<voice path>/voice`); the language is only required.
 - `style` may be given without `captions`; the decoder then sets captions to true.
 - Numbers `amount`, `seconds`, `delay`, `duration`, `count`, `cue` and the `scale` of actors and props are plain numbers with `omitempty`. A value of 0 means "absent".
@@ -83,15 +83,14 @@ Pose, expression, gesture, palette, text style, transition and ease values are b
 
 | Item | Behaviour |
 | --- | --- |
-| Beats the player plays | enter, exit, walk, move, pose, gesture, emote, look, show (with `item` or `text` only), hide, highlight, camera, wait |
-| Beats accepted and ignored | say, sfx, chart, and show with `icon` or `chart`. Each gets a minor `not_supported_yet` issue. |
+| Beats the player plays | enter, exit, walk, move, pose, gesture, emote, look, say, show (with `item` or `text` only), hide, highlight, camera, wait |
+| Beats accepted and ignored | sfx, chart, and show with `icon` or `chart`. Each gets a minor `not_supported_yet` issue. |
 | Transitions the player plays | cut, fade, slide-left, wipe |
 | Transitions accepted, played as fade | slide-right, slide-up, slide-down, zoom, iris, whip. Each gets a minor `not_supported_yet` issue. |
 | `music` other than `none` | Accepted, ignored, minor `not_supported_yet`. |
-| `speaker` other than the narrator | Minor `not_supported_yet`. |
 | A known pose, expression or gesture that the catalog lacks | Minor `not_supported_yet`. The player uses stand, neutral, or no gesture. |
 | An unknown name | Error `unknown_name`, with up to five alternatives. |
-| Narration audio | None. Phase 1 renders are silent. A scene with narration gets a `narration_missing` warning from the player. |
+| Narration audio | From `/narrate`; until the gate landed a narrated story exports silently; a scene without audio gets `narration_missing`. |
 
 Behaviour of the first scene: the player never plays an entry transition on scene 1, whatever `transition` says.
 
@@ -153,9 +152,9 @@ Issue codes (fixed; the desktop app has a localised heading for each):
 | `unknown_field` | error | Go decode: one issue per unknown key, matching is case-sensitive |
 | `schema_mismatch` | error | Go decode and Validate: `schema` missing or not `storymaker/1` |
 | `too_large` | error | Go decode: story over the size limit |
-| `limit_exceeded` | error | Go Validate: scenes, items, beats, narration, scene duration, summed durations, chart entries |
+| `limit_exceeded` | error | Go Validate: scenes, items, beats, narration, say text, scene duration, summed durations, chart entries |
 | `missing_field` | error | Go Validate: title, scenes, ids, per-beat required fields, voice provider and language, music file |
-| `invalid_value` | error or warning | Go Validate: enums, ranges, slugs, positions, asset kind, voice and music shape, the voice provider `"active"`. Warning: a code scene with actors, props or beats (ignored); `with: "prev"` on the first beat; a variant the environment lacks. Player: a duration shorter than the narration (warning). |
+| `invalid_value` | error or warning | Go Validate: enums, ranges, slugs, positions, asset kind, voice and music shape, the voice provider `"active"`. Warning: a code scene with actors, props or beats (ignored); `with: "prev"` on the first beat; a variant the environment lacks. Player: a duration shorter than the speech, narration or a say block (warning). |
 | `duplicate_id` | error | Go Validate: scene ids, cast ids, instance ids of props and show beats, one cast member twice in a scene |
 | `unknown_name` | error | Go Validate: pose, gesture, expression, transition, ease, palette, font, text style, beat kind, target, voice provider (not one of the `VoiceProvider` ids). Player: warning, with a tolerant fallback. |
 | `unknown_asset` | error | Go Validate: asset id not in the catalog (alternatives by tag and edit distance) |
@@ -168,6 +167,7 @@ Issue codes (fixed; the desktop app has a localised heading for each):
 | `code_error` | error | Go `CodeSceneIssues`: a code scene without source or with a failed bundle. Player: a code scene that fails to build or to draw. |
 | `deadline` | error | Player compile report: a code scene build or a frame missed its deadline |
 | `layout_unverified` | minor | Player compile report: one per code scene (layout inside code is not checked) |
+| `glyph_missing` | error | Go Validate: a character no face covers, at the text path |
 | `line_unread`, `dead_stretch`, `first_frame_empty`, `text_too_small`, `fade_between_worlds`, `cue_late` | warning | Player compile report, storyboard scenes |
 | `entry_monotony`, `transition_variety` | minor | Player compile report |
 
@@ -183,6 +183,8 @@ Owned by part A and read by part C's Node tests. The text of the fixtures is the
 | `internal/storymaker/testdata/stories/firewall.json` | three scenes: a storyboard scene with `env.office` and a prop, a storyboard scene with `env.abstract-tech` and a camera zoom, and the code scene `s3` |
 | `internal/storymaker/testdata/scenes/s3.js` | the source of the code scene of `firewall.json` |
 | `internal/storymaker/testdata/scenes/s3.bundle.js` | golden bundle of `s3.js` (1365 bytes), produced by `BundleCodeScene` and reproduced byte for byte by Node esbuild 0.28.2 |
+| `internal/storymaker/testdata/narration/cross_language.json` | rows `{input, plain, cues, chars_total, width, words, pieces}`, read by a Go test and a Node test |
+| `internal/storymaker/testdata/stories/speech.json` | a story with CJK, RTL, Greek and Hindi text and bubbles |
 
 ---
 
@@ -193,20 +195,22 @@ The catalog is produced by `scripts/build-storymaker-catalog.mjs` from `assets/s
 ### Manifest
 
 ```
-catalog.json  {schema:"storymaker-catalog/1", version, stage, rig, fonts, palettes, entries}
-version       12 hex characters: sha256 over the LF-normalised bytes of every file below ui/img/storymaker/
-              except catalog.json, in sorted path order. Current value: ab33e88a6b77.
+catalog.json  {schema:"storymaker-catalog/1", version, stage, rig, glyphs, fonts, palettes, entries}
+version       12 hex characters: sha256 over the bytes of every file below ui/img/storymaker/
+              except catalog.json, in sorted path order; text files LF-normalised.
 stage         {width:1920, height:1080, safe:{x:5, y:5, w:90, h:90}}   // design frame, percent safe area
 rig           {id:"rig.human/1", file:"rig/human.json"}
 fonts         [{name:"default", family:"Geist", weight:400|500|600|700, file:"/fonts/Geist-<face>.woff2",
                 licence:"OFL-1.1"}]                                    // one entry per face
+glyphs        {file:"glyphs.json"}
 palettes      [{id:"palette.sunny"|"palette.calm", name, name_key, tokens:{bg, bg2, fg, accent, accent2, text, outline}}]
 entries       [Entry]
 ```
 
+- Fallback faces live only in `glyphs.json`. They are not `fonts` entries and `style.font` cannot name them.
 - The default font is Geist (four faces: Regular 400, Medium 500, SemiBold 600, Bold 700; files `/fonts/Geist-Regular.woff2`, `Geist-Medium.woff2`, `Geist-SemiBold.woff2`, `Geist-Bold.woff2`). Montserrat was rejected because `ui/fonts` has only weight 500 in unicode-range files.
 - Palette tokens are hex colours. Palette `sunny` is the palette of the mini fixture; `calm` is the second starter palette.
-- `LoadCatalog` checks the manifest and the entry fields. It does not read the files named by entries. `VerifyFiles` checks that every referenced file exists (used by tests).
+- `LoadCatalog` checks the manifest and the entry fields. `LoadCatalog` reads `glyphs.file` too. It does not read the other files named by entries. `VerifyFiles` checks that every referenced file exists (used by tests).
 
 ### Entries
 
@@ -246,11 +250,11 @@ The tests and the mini fixture rely on these IDs.
 | expressions | 10 | all names of the expression set |
 | mouth shapes | 7 | all names of the mouth set |
 | cycles | 2 | `cycle.walk` `cycle.idle` |
-| text styles | 3 | `text.title` `text.caption` `text.label` |
+| text styles | 6 | `text.title` `text.caption` `text.label` `text.speech` `text.thought` `text.subtitle` |
 | transitions | 4 | `trans.cut` `trans.fade` `trans.slide-left` `trans.wipe` |
 | palettes | 2 | `palette.sunny` `palette.calm` |
 
-The starter catalog has 76 entries (4 + 23 + 4 + 10 + 9 + 10 + 7 + 2 + 3 + 4) and 2 palettes. Entries of other kinds (`sfx`) belong to phase 2.
+The catalog has 79 entries (4 + 23 + 4 + 10 + 9 + 10 + 7 + 2 + 6 + 4) and 2 palettes. Entries of other kinds (`sfx`) belong to phase 2.
 
 Text styles use these usage examples: `title` as in the mini fixture; `caption` and `label` add `"style"` to the `show` beat, so the validator accepts `style` on `show` beats with `text`.
 
@@ -261,6 +265,27 @@ Names come from `ui/lang/storymaker_catalog/<lang>.json` (16 files). The key of 
 ### Thumbnails
 
 `thumbs/<id>.svg`, one per entry. Character thumbnails show the rig posed in `stand`, three-quarter view, cropped to head and torso. Pose and gesture thumbnails show the woman, expression and mouth thumbnails her head in front view. Thumbnails are `<svg>` documents without script, images or links.
+
+### Glyphs
+
+`ui/img/storymaker/glyphs.json` holds the coverage of each face. The manifest names it as `"glyphs":{"file":"glyphs.json"}`, and the file joins the `version` hash and `--check`.
+
+```json
+{"schema":"storymaker-glyphs/1","faces":[
+  {"id":"sm-greek","family":"SMGreek","file":"/fonts/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1pL7SUc.woff2","weight":"300 700","unicode_range":"U+0370-03FF","d":[880,3]},
+  {"id":"sm-greek-ext","family":"SMGreek","file":"/fonts/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa2ZL7SUc.woff2","weight":"300 700","unicode_range":"U+1F00-1FFF","d":[7936,21]},
+  {"id":"geist","family":"Geist","file":"/fonts/Geist-Regular.woff2","weight":"400","unicode_range":"","d":[32,94]},
+  {"id":"sm-deva","family":"SMDeva","file":"/fonts/qr/NotoSansDevanagari.ttf","weight":"100 900","unicode_range":"","d":[2304,127]},
+  {"id":"sm-arab","family":"SMArab","file":"/fonts/qr/NotoSansArabic.ttf","weight":"100 900","unicode_range":"","d":[1536,255]},
+  {"id":"sm-cjk","family":"SMCJK","file":"/fonts/qr/NotoSansCJKsc.otf","weight":"400","unicode_range":"","max_bytes":17825792,"d":[32,94]}
+]}
+```
+
+- The `d` values above show the format only; the build writes the real ones. Decode: the first `d` value is the first range start, then `gap = start - previous end`, `len = end - start`.
+- A codepoint is covered if it is in the face's cmap and inside `unicode_range`. `geist` data excludes U+0370-03FF.
+- Family order: `SMGreek`, the style family in place of `Geist`, `SMDeva`, `SMArab`, `SMCJK`.
+- A face whose `family` equals a catalog font family adds no need. Its faces are loaded through `catalog.fonts`.
+- The host attaches the parsed file as `catalog.glyph_data`. That key exists only in memory, never in `catalog.json`.
 
 ---
 
@@ -279,7 +304,7 @@ Normative for the player and for the catalog build. The rig file is `rig/human.j
 9. **Limb sides.** Views face right. `_r` is the character's right limb. In `front` view `_r` is on the screen right (x > 0) and `_l` on the left. In `three_quarter` and `profile` `_r` is the near limb (drawn above the torso, on the back side at x < 0) and `_l` is the far limb. A negative angle swings a limb towards +x.
 10. **Slots and variant keys.** A slot takes its variant key from the character's value for `slot.param`. The player resolves the params `body`, `skin`, `hair`, `eyes`, `brows`, `mouth`, `hand`, `top`, `bottom`, `shoes`, `glasses`, `facial_hair` and `accessory`. The shipped rig uses no slot with the param `skin`. The back hair slot `hair_back` has the param `hair`. `top`, `bottom` and `shoes` come from `params.outfit[<outfit>]`. `hand_l` and `hand_r` (param `hand`) use `pose.hands.l` and `pose.hands.r`, default `open`.
 11. **Eyes and brows.** Keys are `<character value>/<expression variant>`, falling back to `<character value>/neutral`. The optional key `<value>/blink` drives a blink (0.12 s every 3.6 s, desynchronised per actor). A value `none` draws nothing; a missing variant draws nothing.
-12. **Mouth.** The current speech shape (`rest ai e o u mbp fv`), else the mouth of the expression, else `rest`. Expression mouths (for example `smile`, `frown`) are variants of the same slot.
+12. **Mouth.** The current speech shape (`rest ai e o u mbp fv`), else the mouth of the expression, else `rest`. Expression mouths (for example `smile`, `frown`) are variants of the same slot. Speech shapes come from the player's lip-sync track.
 13. **Seated poses and the root drop.** A pose lowers the root by its `offset_y` (rig units, positive is down). `pose.sit` and `pose.typing` have `offset_y` 215. A `seated` pose without `offset_y` uses `rig.seat_drop`, then `rig.seated_offset`, then the length of `lower_leg_l`, then 0.24 × `units_height`. The drop blends with the pose blend.
 14. **Point poses.** For an actor who faces left, `point-left` and `point-right` swap their bones, hands and view, so that the name keeps the screen direction. The swap happens only when both entries exist.
 15. **Gesture and cycle keys.** Keys are additive bone deltas on top of the pose, eased ease-in-out per segment. `offset_y` (rig units) shifts the root. The hands of a gesture key hold for each side until a later key sets that side again. At t = 1 a gesture returns to the base pose and the pose hands return.
@@ -297,7 +322,7 @@ Normative for the player and for the catalog build. The rig file is `rig/human.j
 
 ## 3b. Mini catalog fixture
 
-`internal/storymaker/testdata/catalog-mini/catalog.json` is a small catalog for the tests. Its version is `mini00000000` and it has one palette (`palette.sunny`). Its 20 entries are `char.office-woman-1`, `prop.lock`, `prop.shield`, `env.plain-stage`, `env.office`, `env.abstract-tech`, `pose.stand`, `pose.typing`, `gesture.point`, `expr.neutral`, `expr.surprised`, `expr.happy`, `mouth.rest`, `cycle.walk`, `cycle.idle`, `text.title`, `trans.cut`, `trans.fade`, `trans.slide-left`, `trans.wipe`. The file is byte-identical to the mini fixture text recorded by parts A and C.
+`internal/storymaker/testdata/catalog-mini/catalog.json` is a small catalog for the tests. Its version is `mini00000000` and it has one palette (`palette.sunny`). Its 23 entries are `char.office-woman-1`, `prop.lock`, `prop.shield`, `env.plain-stage`, `env.office`, `env.abstract-tech`, `pose.stand`, `pose.typing`, `gesture.point`, `expr.neutral`, `expr.surprised`, `expr.happy`, `mouth.rest`, `cycle.walk`, `cycle.idle`, `text.title`, `text.speech`, `text.thought`, `text.subtitle`, `trans.cut`, `trans.fade`, `trans.slide-left`, `trans.wipe`. Its first 20 entries are the mini fixture text recorded by parts A and C; phase 2 added the three speech styles.
 
 Ownership: part A owns the catalog file and `LoadCatalog` reads only its manifest. The stub files it names (`rig/human.json`, `props/lock.json`, `props/shield.json`, `environments/*.json`) are owned by part C and follow section 3a. Fixtures never live under `ui/`, because assetpack ships `testdata` directories.
 
@@ -317,7 +342,7 @@ const MaxModelIssues = 8                      // model-facing answers
 const MaxHTTPIssues = 200                     // HTTP save answers
 const DefaultEnvironment = "env.plain-stage"  // DefaultAspect "16:9", DefaultFPS 30, DefaultPalette "sunny", DefaultFont "default"
 const SeverityError, SeverityWarning, SeverityMinor   // "error" "warning" "minor"
-// Code<CamelCase> constants for the 27 issue codes of section 2
+// Code<CamelCase> constants for the 28 issue codes of section 2
 
 var ErrConflict = errors.New(...)          // failed If-Match or MustNotExist on an existing file
 var ErrInvalidID, ErrInvalidArgument, ErrTooLarge error
@@ -360,7 +385,7 @@ func NormalizeKind(kind string) string                              // "char" ->
 
 `Search` ranks an exact id 10, an exact name 8, an exact tag 4, a name 3, a partial tag or id 2. Scores of several terms are summed, the plural "s" is tried, ties keep the catalog order.
 
-`LoadCatalog` checks the manifest: schema, `version` (1 to 64 characters), `stage`, `rig`, the font named `default`, palettes with the seven hex tokens, entry prefixes, bare names, `name_key`, relative thumbs, `usage_example` objects and the fields of each kind.
+`LoadCatalog` checks the manifest: schema, `version` (1 to 64 characters), `stage`, `rig`, `glyphs` (read through `LoadGlyphs` when the manifest names it), the font named `default`, palettes with the seven hex tokens, entry prefixes, bare names, `name_key`, relative thumbs, `usage_example` objects and the fields of each kind.
 
 ### Code scenes
 
@@ -381,6 +406,7 @@ type Store interface {
     Remove(ctx context.Context, path string) error
     List(ctx context.Context, dir string) ([]string, error)
     MkdirAll(ctx context.Context, dir string) error
+    Open(ctx context.Context, path string) (io.ReadSeekCloser, FileInfo, error)   // missing: fs.ErrNotExist
 }
 ```
 
@@ -390,6 +416,7 @@ Store semantics (the desktop implementation is in `internal/server/storymaker_st
 - `Remove` works like `os.RemoveAll`: a folder tree is removed, and a missing path is not an error.
 - `List` returns the base names of the direct children. A missing folder gives `nil, nil`.
 - `ReadFile` returns `ETag(data)`.
+- `Open` returns a seekable file for the audio routes, which serve files over 50 MB through it. `FileInfo` is `{Name string; Size int64; ModTime time.Time; MIME string}`. `MemStore` and `storymakerStore` are the only implementers.
 
 ```go
 type Project struct {
@@ -414,13 +441,92 @@ func ValidProjectID(id string) bool                                // lowercase 
 func Slugify(title, fallback string) string                       // ASCII letters and digits with dashes; Windows device names refused; 80 characters at most
 ```
 
-- `Create` writes `story.json` (title, format, default style, one scene `s1` on `env.plain-stage`, defaults applied) and `project.json`. It creates `assets/`, `audio/narration/`, `audio/music/` and `exports/`. The folder `scenes/` appears with the first code scene.
+- `Create` writes `story.json` (title, format, default style, one scene `s1` on `env.plain-stage`, defaults applied) and `project.json`. It creates `assets/`, `audio/narration/`, `audio/music/` and `exports/`. The folder `scenes/` appears with the first code scene. `CreateWithVoice` stores a resolved voice.
 - `SaveStory` stores the bytes as given, refuses more than the story size limit (`ErrTooLarge`), requires the project to exist, mirrors title, aspect and fps into `project.json` and sets `updated_at`.
 - `SaveCodeScene` refuses source over 64 KiB (`ErrTooLarge`) before anything is written. It checks the precondition first; a failed precondition changes nothing. On success it writes `scenes/<id>.js` and `scenes/<id>.bundle.js`, and removes `scenes/<id>.errors.json`. When the bundle fails it writes the source, removes the old bundle, and writes `scenes/<id>.errors.json` as a JSON array. A bundle failure is not a Go error: the result carries the errors.
-- `Delete` removes the project folder (`Store.Remove`, recursive). The `DELETE` endpoint also cancels the project's render jobs. Code files have no delete of their own: a code scene removed from the story leaves `scenes/<id>.js` in place.
+- `Delete` removes the project folder (`Store.Remove`, recursive). The `DELETE` endpoint also cancels the project's render, narrate and music jobs. Code files have no delete of their own: a code scene removed from the story leaves `scenes/<id>.js` in place.
 - Ids are lowercase uuid v4 (`github.com/google/uuid`). Scene ids are slugs.
 
 Error mapping for the HTTP layer: `*DecodeError` gives 422 `invalid_story`; `ErrConflict` gives 412; `fs.ErrNotExist` gives 404; `ErrInvalidID` gives 400 `invalid_id`; `ErrInvalidArgument` gives 400 `invalid_argument`; `ErrTooLarge` gives 413 `too_large`.
+
+### Narration, envelopes, audio info, glyphs and voices
+
+```go
+const BlockKindNarration, BlockKindDialogue    // "narration" "dialogue"
+const JoinSentence, JoinSplit                  // "sentence" (350 ms pause after the piece), "split" (150 ms)
+
+type NarrationBlock struct { ID, Kind, SceneID string; SceneIndex, Beat int; Speaker string; Voice Voice; Text string }
+type Piece struct { Text string; Chars int; Join string }
+func Blocks(s *Story) []NarrationBlock
+func StripMarkers(text string) string
+func SplitPieces(text string, limit int) []Piece
+func NormalizeProvider(id string) string       // trimmed and lower-cased
+func ChunkLimit(provider string) int           // runes: phonon 2000, sanotts 2000, google 200, others 400
+func PieceKey(v Voice, pieceText string) string
+func PiecesOf(b NarrationBlock) []Piece
+func IsJSSpace(r rune) bool
+func UTF16Len(s string) int
+func TextWidth(s string) int                   // East Asian wide counts 2
+func WordCount(s string) int
+
+var ErrUnknownAudio error
+type DecodedAudio struct { Rate, Channels int; Samples []float32 }
+func SniffAudio(head []byte) string            // "wav", "mp3" or ""
+func DecodeAudio(data []byte) (DecodedAudio, string, error)
+func ProbeAudio(r io.ReadSeeker) (ext string, durationMS int, err error)
+
+type Levels []uint8                            // marshals as a JSON array of integers 0..255
+type Envelope struct { V, DurationMS, Rate int; Levels Levels }   // audio/narration/<hash>.env.json
+func ComputeEnvelope(a DecodedAudio) Envelope
+func (e Envelope) SpeechRuns() [][2]int
+func ParseEnvelope(data []byte) (Envelope, error)
+type AudioPieceInput struct { Hash, Ext string; Chars int; Join string; Env Envelope }
+type AudioPiece struct { Hash, Ext string; AtMS, InMS, OutMS, Chars int }
+type AudioBlock struct { ID, Kind string; Beat *int; Speaker string; DurationMS int; Spans [][2]int; Levels Levels; Pieces []AudioPiece; SpeechOK bool }
+func AssembleBlock(b NarrationBlock, pieces []AudioPieceInput, fps int) AudioBlock
+
+type SceneAudio struct { Blocks []AudioBlock }
+type AudioInfo struct { Narration map[string]SceneAudio }
+type MissingBlock struct { SceneID, BlockID string; Chars int }
+type CharCounts struct { Total, Missing int }
+type MusicRef struct { Key, Ext string; DurationMS int }
+type AudioAnswer struct { Narration map[string]SceneAudio; Missing []MissingBlock; Chars CharCounts; Music *MusicRef; MusicIssue string }
+func (a AudioAnswer) Info() AudioInfo
+var ErrMusicSourceMissing error
+type MusicKeyResolver func(ctx context.Context, m *Music) (string, error)
+func (p *ProjectStore) AudioAnswer(ctx context.Context, id string, s *Story, resolve MusicKeyResolver) (AudioAnswer, error)
+type PieceFile struct { Ext string; HasEnv bool }
+func (p *ProjectStore) PieceFiles(ctx context.Context, id string) (map[string]PieceFile, error)
+func (p *ProjectStore) AudioPath(id, folder, file string) (string, error)
+func (p *ProjectStore) OpenAudio(ctx context.Context, id, folder, file string) (io.ReadSeekCloser, FileInfo, error)
+func (p *ProjectStore) WritePiece(ctx context.Context, id, hash, ext string, data []byte, env Envelope) error
+func (p *ProjectStore) WriteEnvelope(ctx context.Context, id, hash string, env Envelope) error
+func (p *ProjectStore) RemovePiece(ctx context.Context, id, hash, ext string) error
+
+const GlyphsSchema = "storymaker-glyphs/1"
+type GlyphFace struct { ID, Family, File, Weight, UnicodeRange string; MaxBytes int64 }
+type Glyphs struct { Faces []GlyphFace }
+func LoadGlyphs(fsys fs.FS, path string) (*Glyphs, error)   // at most 1 MiB, schema, monotonic ranges
+func (g *Glyphs) FaceOf(r rune) int
+func (g *Glyphs) Covered(r rune) bool
+func (g *Glyphs) Missing(text string) []rune
+func IsDefaultIgnorable(r rune) bool
+func (c *Catalog) Glyphs() *Glyphs                          // nil when the manifest names no glyphs file
+func (c *Catalog) GlyphsFile() string
+
+func (p *ProjectStore) CreateWithVoice(ctx context.Context, title, aspect string, fps int, voice *Voice) (Project, Story, string, error)
+type VoiceOption struct { ID, Name, Language, Gender string; Installed *bool; Note string }
+type VoiceProvider struct { ID string; Active, Ready bool; Voices []VoiceOption; FreeText bool; Languages, TestedLanguages []string; NeedsInstall bool; DefaultVoice string; ChunkLimit int; Note string }
+var ErrNoVoiceForLanguage error
+func ResolveProjectVoice(providers []VoiceProvider, language string, defaultVoiceFor func(provider, language string) string) (Voice, []string, error)
+func LanguageBase(tag string) string
+func LocalVoiceProvider(id string) bool                     // phonon, piper, sanotts, supertonic, speech_lab
+func ApplyCaptionOverride(s *Story, burnIn *bool)
+```
+
+- A block enters `Narration` only when every piece has audio and a valid envelope. Otherwise it appears in `Missing`, and the player estimates it. `Missing` and `Narration` are never null.
+- `ErrMusicSourceMissing` is not an error of `AudioAnswer`: the narration stays, `Music` is null and `MusicIssue` is `source_missing`.
+- Layout: `audio/narration/<hash>.<ext>`, `audio/narration/<hash>.env.json`, `audio/music/<key>.<ext>`.
 
 ### Configuration
 
@@ -430,6 +536,7 @@ Error mapping for the HTTP layer: `*DecodeError` gives 422 `invalid_story`; `Err
 type StorymakerConfig struct {
     Enabled bool                   `yaml:"enabled" json:"enabled"`        // loader default true (config.go:577)
     Render  StorymakerRenderConfig `yaml:"render" json:"render"`
+    Narration StorymakerNarrationConfig `yaml:"narration" json:"narration"`
 }
 type StorymakerRenderConfig struct {
     TimeoutSeconds     int    `yaml:"timeout_seconds" json:"timeout_seconds"`          // default 3600, 60..14400
@@ -437,6 +544,11 @@ type StorymakerRenderConfig struct {
     BrowserPath        string `yaml:"browser_path" json:"browser_path"`                // optional absolute path, 1024 characters at most
     Transport          string `yaml:"transport" json:"transport"`                      // "", png, webp, raw, screenshot
 }
+type StorymakerNarrationConfig struct {
+    MaxDailyChars int `yaml:"max_daily_chars" json:"max_daily_chars"` // default 100000, 1000..100000000
+    MaxJobChars   int `yaml:"max_job_chars" json:"max_job_chars"`     // default 20000, 100..10000000
+}
+
 func NormalizeStorymakerConfig(c *StorymakerConfig) error   // defaults, ranges, path and transport; does not change Enabled
 ```
 
@@ -473,7 +585,7 @@ Flat, as in the rest of the desktop API:
 | --- | --- | --- | --- |
 | `GET /status` | read | 200 status object (below), `Cache-Control: no-store` | 500 `configuration_invalid`, 500 `storage_unavailable` |
 | `GET /projects` | read | 200 `{projects:[Project]}`, newest first | |
-| `POST /projects` `{title, aspect?, fps?}` | write | 201 `{project, story, etag}`, `ETag` and `Location` headers. Defaults 16:9 and 30 fps. | 400 `invalid_request` (body), 400 `invalid_argument` (title 1 to 120 characters, aspect, fps 24, 25 or 30) |
+| `POST /projects` `{title, aspect?, fps?, language?}` | write | 201 `{project, story, etag}`, `ETag` and `Location` headers. Defaults 16:9 and 30 fps. With `language` the story has the resolved `voice`; without it `voice:null`. | 400 `invalid_request` (body), 400 `invalid_argument` (title 1 to 120 characters, aspect, fps 24, 25 or 30), 422 `narration_unavailable` with `languages` |
 | `GET /projects/{id}` | read | 200 `{project, story, etag, issues, code_scenes}`. `issues` = Validate of the story after defaults, plus `code_error` for each code scene without a bundle. `code_scenes` is never null. | 404 `project_not_found` |
 | `DELETE /projects/{id}` | write | 204. Cancels the project's jobs. | 404 `project_not_found` |
 | `PUT /projects/{id}/story` | write | 200 `{etag, issues, defaults_applied, story}`. `story` is the canonical form after defaults. The new `ETag` is in the body. Validation errors (unknown assets and so on) do not block the save; they come back in `issues`. | 428 `precondition_required` (no If-Match), 400 `precondition_invalid` (If-Match is not a quoted sha256), 412 `precondition_failed` (stale; the current tag is in the `ETag` header), 413 `too_large` (over 1 MiB), 422 `invalid_story` (undecodable; nothing is saved, `issues` says why) |
@@ -481,17 +593,48 @@ Flat, as in the rest of the desktop API:
 | `PUT /projects/{id}/scenes/{scene}/code` | write | 200 `{etag, ok, errors:[{line, column, message}]}`. A syntax error still saves the source and answers `ok:false`. | 428 `precondition_required` (send If-Match, or `If-None-Match: *` for a new scene), 400 `precondition_invalid`, 412 `precondition_failed`, 413 `too_large` (over 64 KiB), 400 `invalid_request` (unreadable body) |
 | `GET /projects/{id}/scenes/{scene}/bundle` | read | 200 `text/javascript` IIFE with `ETag` | 404 `bundle_not_found` (the last bundle failed or does not exist) |
 | `POST /projects/{id}/render` | write | 202 `{job}` | 428, 400 `precondition_invalid`, 412 `precondition_failed`, 400 `invalid_idempotency_key`, 409 `idempotency_conflict`, 422 `invalid_story` (with `issues`), 422 `code_error`, 409 `ffmpeg_unavailable`, 409 `browser_unavailable` (message is the status issue), 429 `busy` |
-| `GET /projects/{id}/jobs` | read | 200 `{jobs:[Job]}`, newest first | |
-| `GET /projects/{id}/events` | read | `text/event-stream` (see below) | |
-| `GET /jobs/{id}` | read | 200 `{job}` | 404 `job_not_found` |
-| `POST /jobs/{id}/cancel` | write, `desktopStop` | 200 `{job}`. Also answers for a finished job. | 404 `job_not_found` |
+| `GET /projects/{id}/jobs` | read | 200 `{jobs:[Job]}`, newest first, across the render and narrate queues | |
+| `GET /projects/{id}/events` | read | `text/event-stream` (see below), across the render and narrate queues | |
+| `GET /jobs/{id}` | read | 200 `{job}`, across the render and narrate queues | 404 `job_not_found` |
+| `POST /jobs/{id}/cancel` | write, `desktopStop` | 200 `{job}`, across the render and narrate queues. Also answers for a finished job. | 404 `job_not_found` |
 | `GET /player` | read, session cookie only | 200 HTML, the player host page (section 6) | 403 `storymaker_disabled` |
+| `GET /voices` | read | 200 `{providers:[VoiceProvider]}`: the active provider first, then phonon, piper, sanotts, supertonic, speech_lab, then the cloud ids sorted. `no-store`, no secret. google is absent unless active. Works read-only. | none; a provider whose list fails has `ready:false` |
+| `GET /projects/{id}/narration` | read | 200 `AudioAnswer`, `no-store`. Works read-only. | 404 `project_not_found`, 422 `invalid_story` |
+| `POST /projects/{id}/narrate` (empty body) | write | 202 `{job}` new; 200 `{job}` existing queued or running job of this project; 200 `{job:null}` nothing missing. Coalesced per project and kind. | 404 `project_not_found`, 422 `invalid_story`, 409 `voice_required` (any block without a voice, message names the first), 409 `narration_unavailable` (provider not ready or not offered, message names it), 409 `voice_unknown` with `alternatives` (at most 5; a voice off the provider's list, or a Phonon voice that is not installed), 409 `budget_exceeded` with `{limit, missing}`, 429 `busy`, 403 `desktop_readonly` |
+| `GET,HEAD /projects/{id}/audio/narration/{hash}.{ext}` | read | 200 or 206 through `http.ServeContent`, Range honoured. Works read-only. | 404 `audio_not_found`, 405 |
+| `GET,HEAD /projects/{id}/audio/music/{key}.{ext}` | read | 200 or 206, Range honoured. Works read-only. | 404 `audio_not_found`, 405 |
 
 Render details:
 
 - `If-Match` on the render call is the story etag of the request. The render takes a snapshot of the story (after defaults) and of the code bundles when the job is queued. Edits made while the job waits change nothing.
 - `Idempotency-Key` is optional: 1 to 128 printable characters. The same key with the same story etag returns the same job, again with 202. The same key with another etag gives 409 `idempotency_conflict`.
 - Sixteen jobs may wait (`max_queued_renders`). A seventeenth gives 429 `busy`.
+- 128 narrate jobs may wait, in their own queue. `/narrate` coalesces per project and kind.
+
+Audio routes:
+
+- The folder segment must be exactly `narration` or `music`, else 404 `audio_not_found`. The file segment must match `^([0-9a-f]{64})\.(wav|mp3)$`.
+- `.env.json`, `.meta.json` and `.pending.json` are never served.
+- Headers: `Content-Type: audio/wav` or `audio/mpeg`, `X-Content-Type-Options: nosniff`, `Content-Security-Policy: sandbox; default-src 'none'`, `Cache-Control: private, max-age=86400, immutable`.
+
+Narration answer:
+
+```json
+{
+  "narration": {"s1": {"blocks": [{
+      "id":"s1:n", "kind":"narration", "speaker":"narrator",
+      "duration_ms":4210, "spans":[[40,1820],[2170,4110]], "speech_ok":true,
+      "levels":[0,0,91,140,171],
+      "pieces":[{"hash":"<64 hex>","ext":"wav","at_ms":0,"in_ms":52,"out_ms":1932,"chars":34}]
+  }]}},
+  "missing": [{"scene_id":"s2","block_id":"s2:n","chars":120}],
+  "chars": {"total":640,"missing":120},
+  "music": {"key":"<64 hex>","ext":"mp3","duration_ms":61000}
+}
+```
+
+- `beat` appears on dialogue blocks only. `pieces[].chars` is UTF-16 units including joining whitespace. `missing[].chars` and `chars.*` are code points of the piece text, which is what cloud caps count.
+- `music_issue` appears only as `"source_missing"`, together with `music:null`.
 
 ### Status object
 
@@ -504,7 +647,7 @@ Render details:
 | `desktop_enabled` | bool | the virtual desktop is enabled |
 | `ffmpeg` | object | `ready` (bool), `version?` (the version token of `ffmpeg -version`, for example `8.1.1-full_build-www.gyan.dev`, not the banner line), `issue?` (text when not ready). FFmpeg comes from `video_studio.ffmpeg_path` or PATH. |
 | `browser` | object | `ready` (bool), `source` (`config`, `system`, `pinned` or `missing`), `issue?`, `can_download?` (bool: the pinned Chromium can be downloaded by the first export), `version?` |
-| `limits` | object | `max_duration_seconds`, `max_scenes`, `max_items_per_scene`, `max_beats_per_scene`, `max_narration_chars`, `max_story_bytes`, `max_code_bytes`, `max_queued_renders` (16) |
+| `limits` | object | `max_duration_seconds`, `max_scenes`, `max_items_per_scene`, `max_beats_per_scene`, `max_narration_chars`, `max_story_bytes`, `max_code_bytes`, `max_queued_renders` (16), `max_queued_narrations` (128), `max_daily_chars`, `max_job_chars` |
 | `transport` | string | the transport in use (`png` by default) |
 | `catalog_version` | string | the catalog version, for example `ab33e88a6b77` |
 
@@ -513,17 +656,19 @@ When Storymaker or the desktop is disabled the answer has only `enabled`, `read_
 ### Job object
 
 ```
-Job {id, project_id, kind:"render", status, progress:0..1, phase?, frames_done, frames_total,
+Job {id, project_id, kind:"render"|"narrate", status, progress:0..1, phase?, frames_done, frames_total,
+     pieces_done?, pieces_total?,
      output?:{path, size}, error?:{code, message}, created_at, updated_at, started_at?, finished_at?}
 status  queued | running | succeeded | failed | cancelled | interrupted
-phase   starting | compiling | rendering | encoding | writing
+phase   starting | compiling | rendering | encoding | writing | synthesizing
 ```
 
 - `phase` is omitted while it is empty (a queued job). `starting` covers the browser start and a first-time download. `mixing` is defined in the code but phase 1 never sets it.
 - `output.path` is the desktop path `Documents/Storymaker/<project id>/exports/<slug>-<first 8 characters of the job id>.mp4`. `size` is in bytes.
 - A job that was running when AuraGo stopped is `interrupted` with the error code `interrupted`.
+- A narrate job has no `output` key. `pieces_done` and `pieces_total` show its progress.
 
-Job error codes: `invalid_story`, `code_error`, `browser_unavailable`, `ffmpeg_unavailable`, `render_failed`, `render_timeout`, `cancelled`, `interrupted`, `storymaker_disabled`.
+Job error codes: `invalid_story`, `code_error`, `browser_unavailable`, `ffmpeg_unavailable`, `render_failed`, `render_timeout`, `cancelled`, `interrupted`, `storymaker_disabled`, `narration_failed`, `narration_unavailable`, `voice_required`, `budget_exceeded`.
 
 Export files, written by the server into the desktop workspace through the desktop service (the MP4 as a conditional stream write, the record as a plain write):
 
@@ -537,7 +682,7 @@ The library copy in `Videos/Storymaker/` is phase 2. `Videos` is a read-only med
 `GET /projects/{id}/events` is a server-sent event stream:
 
 1. A comment line `: storymaker events`.
-2. The latest five jobs of the project, oldest first, as `event: job` with `data: {"job": {...}}`. A window opened during a render sees its progress at once.
+2. Every unfinished job across both queues and the latest five jobs across both queues, oldest first, as `event: job` with `data: {"job": {...}}`. A window opened during a render sees its progress at once.
 3. Every later state or progress change as `event: job`. Progress notices come at most every 150 ms.
 4. A comment `: ping` every 15 seconds.
 
@@ -554,7 +699,7 @@ The app reads `limits.max_narration_chars` for the narration length limit, `issu
 Source: `ui/js/storymaker/`. Classic scripts, each in its own IIFE, shared through `StorymakerCore` (the pure modules) and `StorymakerHost` (the document realm). Parts are listed in `scripts/storymaker-bundle-parts.js`, which the bundle build and the Node tests both read.
 
 - `ui/js/storymaker/host.bundle.js` (5 parts) runs in the document realm: the page, the host and the render driver.
-- `ui/js/storymaker/player.bundle.js` (25 parts, with `seed.js`, `ranges.js`, `motion.js` and `lint.js` from phase 2) runs in workers (one blob per worker, prelude `self.__SM_ROLE__ = "player" | "scene"; importScripts(<base>/js/storymaker/player.bundle.js);`, plus the scene bundle text for a scene worker).
+- `ui/js/storymaker/player.bundle.js` (30 parts, in the order of `scripts/storymaker-bundle-parts.js`; phase 2 added `seed`, `ranges`, `motion`, `lint`, `glyphs`, `cuemap`, `captions`, `lipsync`, `bubble`) runs in workers (one blob per worker, prelude `self.__SM_ROLE__ = "player" | "scene"; importScripts(<base>/js/storymaker/player.bundle.js);`, plus the scene bundle text for a scene worker).
 - `.gitattributes` keeps both bundles LF (`ui/js/storymaker/*.bundle.js text eol=lf`).
 - `package.json` scripts: `test:storymaker` (`node scripts/test-storymaker-player.mjs`), `build:storymaker-catalog`, `check:storymaker-catalog` (with `--check`). `node scripts/build-storymaker-ranges.mjs` generates `ui/js/storymaker/ranges.js` and `internal/storymaker/ranges_gen.go`; with `--check` it fails on a stale output. Node runs the tests with a vm-based runner.
 - `ui/css/storymaker-player.css` makes the canvas fill the page with `object-fit: contain` on black.
@@ -591,7 +736,7 @@ The origin comes from the request host (validated) and the scheme (`https` when 
   - `planTiming(story, audioInfo, catalog, opts) → {fps, scenes: {<id>: {index, transition_frames, narration_start, …}}}` (used before code scenes are built)
   - `renderFrame(timeline, n, ctx, assets, opts)`
   - `ease(name, t)`
-- `audioInfo` is `{}` in phase 1. A scene with narration and no audio info gets an estimated length (words ÷ 2.3 s, at least 1.0 s) and a `narration_missing` warning.
+- `audioInfo` is `{}` or `{narration:{<scene id>:{blocks:[Block]}}}`, the `narration` value of `GET /projects/{id}/narration`. A block's absence means the scene or say text is estimated (words ÷ 2.3 s, at least 1.0 s), and a scene's narration or a say's text then gets `narration_missing`.
 
 ### Source rules
 
@@ -601,24 +746,26 @@ No template string with data, no `innerHTML` and no `eval` in the player source.
 
 ```
 {frame_count, fps, width, height, duration_ms, catalog_version,
- scenes:[{id, start_frame, end_frame, kind}], audio_events:[], captions:[], checks:[],
+ scenes:[{id, start_frame, end_frame, kind, cues:[{marker, at_ms, placed}]}],
+ audio_events:[{kind:"narration"|"dialogue", ref, start_ms, scene_id, block_id, piece}],
+ captions:[{start_ms, end_ms, lines, scene_id, block_id}], cue_precision, checks:[],
  unverified:[Issue], issues:[Issue]}
 ```
 
 - `end_frame` is exclusive. `frame_count` is the largest `end_frame`. `duration_ms = round(frame_count × 1000 / fps)`.
 - Transitions overlap: `start_frame[i] < end_frame[i-1]` is allowed.
-- Phase 1: `audio_events`, `captions` and `checks` are empty. `unverified` holds one minor `layout_unverified` per code scene.
+- `checks` is empty until phase 3. `unverified` holds one minor `layout_unverified` per code scene. `captions` is always filled, measured or estimated. Compile drops audio events at or past `duration_ms` and cuts captions at it.
 - `issues` holds the player's issues (`narration_missing`, `not_supported_yet`, `unknown_cue`, `unknown_spot`, `unknown_cast`, `unknown_asset`, `unknown_name`, `missing_field`, `duplicate_id`, `invalid_value` (warnings, tolerant fallbacks), and `code_error` or `deadline` (errors)). An error issue blocks the render job.
-- Timing: `audio_events` carries one `{kind:"narration", ref, start_ms, gain}` per measured block when audio info is given. Phase 2 uses it.
+- `audio_events` has one entry per piece; Go owns the gain, so there is no `gain` field. `cue_precision` is the share of cues placed by a span, or null without cues. `scenes[].cues[].at_ms` is scene-local.
 
 ### Timing rules (summary)
 
 - Scene time 0 is the start of the entry transition. Narration starts when the transition ends. A beat without a cue starts there too; a cued arrival may start earlier, down to scene time 0.
-- A cue time is the start plus (character position ÷ text length) × the block duration. The block duration is words ÷ 2.3 (at least 1 s) or the measured first block.
-- Automatic scene length is the largest of: narration end plus 0.4 s, the end of the last beat, the end of the last text hold, and 1.0 s for a scene without speech.
-- An explicit `duration` is the total local length, entry transition included. Narration longer than an explicit duration is a `warning` at `/scenes/<i>/duration`.
+- A cue time comes from `cueMap(block, offset)`: inside the piece holding the offset, proportional over that piece's used audio, starting at its `at_ms`; `placed:proportion` over the block duration when pieces are unmeasured, their `chars` do not sum to the text length, or a piece had no detectable speech.
+- Automatic scene length is the largest of: narration end plus 0.4 s, last dialogue block end plus 0.4 s, the end of the last beat, the end of the last text hold, and 1.0 s for a scene without speech. A code scene without `api.duration` takes its last motion plus 0.5 s; with narration, it takes the larger of that and this automatic length.
+- An explicit `duration` is the total local length, entry transition included. Narration or a say block that runs past an explicit duration is one `warning` at `/scenes/<i>/duration`: the speech overlaps the next scene or is cut at the film end.
 - Scene boundaries are whole frames: `start_frame[i] = max(start_frame[i-1] + 1, end_frame[i-1] - tf[i])`, where `tf = round(duration × fps)`.
-- Beat defaults, scaled by the rhythm factor unless explicit: enter and exit 0.6 s (they walk); walk distance at `cycle.walk.speed`, at least 0.3 s; move 0.8 s; pose 0.3 s; gesture = catalog duration × `count`; emote 0.25 s; look 0.3 s; show 0.5 s (0 with `entry: "none"`); hide 0.35 s; camera 0.8 s (shake 0.5 s); highlight 0.8 s; sfx 0. `wait` is `seconds` (default 1), never scaled.
+- Beat defaults, scaled by the rhythm factor unless explicit: enter and exit 0.6 s (they walk); walk distance at `cycle.walk.speed`, at least 0.3 s; move 0.8 s; pose 0.3 s; gesture = catalog duration × `count`; emote 0.25 s; look 0.3 s; show 0.5 s (0 with `entry: "none"`); hide 0.35 s; camera 0.8 s (shake 0.5 s); highlight 0.8 s; say the block length. `wait` is `seconds` (default 1), never scaled.
 - Scheduling, in beat order. State: `cursor = T`, `prev`, `anchor`, the last end per target instance, `beatsEnd`. `f` is the rhythm factor.
   1. A non-object is skipped. An unknown kind, `chart`, or a show with `icon` or `chart` gets its minor issue and leaves the state untouched.
   2. A beat's target is the resolved instance of `who`, else `target`. A show's target is the instance it creates. `wait`, `sfx`, `chart`, a camera without a target, and a string that resolves to no instance (a camera on a spot) have none. Targets compare as instances, never as strings.
@@ -629,8 +776,9 @@ No template string with data, no `innerHTML` and no `eval` in the player source.
   7. Rules a, c, d: `start = max(0, floor, t)`. Rule b: `start = max(0, t)`, with no floor, so a `with: "prev"` beat stays together with the previous beat, also on the same target. A cued beat held back by its target gets a `cue_late` warning at `<beat>/cue` with `at_seconds = start + lead`. A clamp at 0 never warns.
   8. `landing = start + lead` for an arrival, else none. `end = start + dur`. `cursor`: rule b gives `max(cursor, end)`, the others give `end`. `anchor`: under rule b it moves only when `end` reaches the anchor's end, otherwise it is this beat. `prev` is always this beat.
   9. After the loop, `holdsEnd` is the largest `landing + scaled hold` of a text that no `hide` removes. A show with entry `none` has no landing and holds from its `start`. A hold is `0.5 + 0.3 × words`, at least 1.2 s for a caption or label in a scene that shows a title, and `max(1, f)` times that when scaled.
+- `say` with text starts at the later of its scheduled start and the previous block's end, sets the new block end, and emits one `dialogue` event per piece. An estimated say with text gets a warning `narration_missing` at `/scenes/<i>/beats/<j>/text`. It adds the bubble and, with measured levels, a `speech` interval on `who`. When the actor is off stage the events stay, and there is no bubble and no interval. `say` without text keeps its start, lasts 0 and leaves the block end, the cursor and the target's last end unchanged. Its bubble stays until the end of the scene narration, with the 0.12 s fades, and its lines come from `SM.captions.at` at each time. A start at or after that end draws no bubble, and a silent scene draws none.
 - Camera framings: wide 1.0, medium 1.35, close 1.9. `zoom` multiplies the current zoom (default 1.25). `focus` zooms to `amount` (default 1.6) on a target. `pan` moves to a target or by `amount` percent of the width. `shake` is `amount` design pixels (default 14).
-- `show` text uses the `title` style at the upper third. Text is drawn in screen space; camera movement does not move it.
+- `show` text uses the `title` style at the upper third. Text is drawn in screen space; camera movement does not move it. Bubbles and burned captions are drawn by the player; bubbles follow the camera.
 - A `show` instance id is `<item slug>-<n>` (per item and scene; props first) unless `id` is given. `hide` with `target` names an instance id; without one it hides the latest instance of the item.
 
 ### Deadlines
@@ -651,7 +799,7 @@ A code-scene frame error ends that scene's worker once; the scene shows a placeh
 
 A code scene is a function `export default function scene(api) { ... }` in JavaScript. The main calls:
 
-- `api.duration(seconds)`: the local length (an explicit story `duration` wins).
+- `api.duration(seconds)`: the local length (an explicit story `duration` wins). The scene keeps it, and a longer narration is a warning. A scene that does not call it takes its last motion plus 0.5 s; with narration, the larger of that and the automatic scene length.
 - `api.add(assetId, {at, pose?, ...})`: an actor (`char.*`) or a prop; returns a handle with `gesture(name, {start})` and `emote(name, {start})`.
 - `api.text(string, style, {at})`: a text handle (style `title`, `caption` or `label`).
 - `api.shape('rect' | 'circle' | 'line', {at, w, h, fill, stroke})`.
@@ -681,7 +829,7 @@ Go side: `internal/storymaker/render/` (`listener.go`, `ingest.go`, `render.go`,
 - Per job, on `http://127.0.0.1:<port>` (loopback only). The render base is `<origin>/<prefix>`, where `prefix` is 32 hex characters from `crypto/rand`.
 - A request whose Host header is not the listener address gets 404 (protection against DNS rebinding). A path outside `<base>/` gets 404.
 - Timeouts: read-header 10 s, read, write and idle 2 minutes each.
-- Every response under `<base>` has `Access-Control-Allow-Origin: *`, `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`. The render page has an opaque origin, so every request from it is cross-origin with `Origin: null`; the prefix is the credential.
+- Every response under `<base>` has `Access-Control-Allow-Origin: *`, `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`. The render page has an opaque origin, so every request from it is cross-origin with `Origin: null`; the prefix is the credential for reads, and the token of `boot.json` is the credential for `/report`, `/frame` and `/error`.
 - `OPTIONS` answers 204 with `Access-Control-Allow-Methods: GET, POST`, `Access-Control-Allow-Headers: Content-Type, X-SM-Frame` and `Access-Control-Max-Age: 600`.
 
 | Method and path | Purpose |
@@ -693,9 +841,11 @@ Go side: `internal/storymaker/render/` (`listener.go`, `ingest.go`, `render.go`,
 | `GET <base>/fonts/…` | the font files named in boot.json |
 | `GET <base>/scenes/<id>.js` | code scene bundles (`text/javascript`) |
 | `GET <base>/js/storymaker/host.bundle.js`, `player.bundle.js` | the bundles |
-| `POST <base>/report` | compile report (JSON, 1 MiB at most) |
-| `POST <base>/frame?n=<n>` | one frame (see below) |
-| `POST <base>/error` | a page failure (see below) |
+| `POST <base>/report?t=<token>` | compile report (JSON, 8 MiB at most) |
+| `POST <base>/frame?n=<n>&t=<token>` | one frame (see below) |
+| `POST <base>/error?t=<token>` | a page failure (see below) |
+
+`boot.json` carries `token` on its first GET only. `/report`, `/frame` and `/error` require it as `t`; otherwise they answer 403 `bad_token` without any effect.
 
 The render page is served with this CSP:
 
@@ -711,9 +861,14 @@ It has no `style-src`. The render page markup:
 ### boot.json
 
 ```
-{mode:"render", fps, width, height, transport, frame_limit, frame_deadline_ms,
- story_url, catalog_url, assets_base, code_bundles:{<scene_id>: url}, fonts:[{name, family, weight, url}],
- audio_info:{}}
+{"mode":"render","fps":30,"width":1920,"height":1080,"transport":"png","frame_limit":27000,"frame_deadline_ms":5000,
+ "token":"<32 hex, first GET only>",
+ "story_url":"<base>/story.json","catalog_url":"<base>/catalog/catalog.json","assets_base":"<base>/catalog/",
+ "code_bundles":{"s3":"<base>/scenes/s3.js"},
+ "fonts":[{"name":"default","family":"Geist","weight":400,"url":"<base>/fonts/Geist-Regular.woff2"},
+          {"name":"sm-cjk","family":"SMCJK","weight":400,"url":"<base>/fonts/qr/NotoSansCJKsc.otf","fallback":true,"weight_range":"400","max_bytes":17825792},
+          {"name":"sm-greek","family":"SMGreek","weight":400,"url":"<base>/fonts/UcC73...woff2","fallback":true,"weight_range":"300 700","unicode_range":"U+0370-03FF"}],
+ "audio_info":{"narration":{}}}
 ```
 
 - `fps` is the story's fps. `width` and `height` are the canvas of the aspect (1920×1080, 1080×1920 or 1080×1080). The page takes `fps`, `width` and `height` from boot.json, not from the story.
@@ -721,18 +876,18 @@ It has no `style-src`. The render page markup:
 - `frame_deadline_ms` is 5000: the per-frame deadline of render mode. The page uses it instead of 250 ms.
 - `story_url` is `<base>/story.json`; `catalog_url` is `<base>/catalog/catalog.json`; `assets_base` is `<base>/catalog/`.
 - `code_bundles` maps each code scene id to `<base>/scenes/<id>.js`.
-- `fonts` lists the four faces of the story's font, with URLs under `<base>/fonts/`. The page takes font URLs only from this list.
+- `fonts` lists the faces of the story's font and every fallback face (`fallback`, `unicode_range`, `weight_range`, `max_bytes`). The page fetches a face only when compile needs it, and takes font URLs only from this list.
 
 ### Flow
 
-1. The page loads boot.json, story.json, the catalog and its files, the bundles and the fonts, then compiles.
+1. The page loads boot.json, story.json, the catalog, `glyphs.json` and the bundles, then compiles, and fetches the fonts compile needs during `prepare`.
 2. `POST /report` with the compile report. The answer is `{"start":true}` when frames may follow, or `{"start":false, "error":"<code>", "message":"..."}` when the render is refused. The answer has no `from_frame` field. The 10 s no-frame watchdog starts after `start:true` and stands still while Go works on a frame the page delivered (the FFmpeg write, the hardware encoder settle, the software restart), so it only measures the page.
 3. The page sends frames in order, one at a time, and waits for each answer.
 4. The last frame is answered with `done:true`.
 
 ### Frames
 
-`POST <base>/frame?n=<n>` with the body of one frame. The page sends `Content-Type: text/plain`, which is CORS-safelisted, so Chrome sends no preflight. The listener also accepts the number as the header `X-SM-Frame: <n>`; the query is used when the header is absent.
+`POST <base>/frame?n=<n>&t=<token>` with the body of one frame. The page sends `Content-Type: text/plain`, which is CORS-safelisted, so Chrome sends no preflight. The listener also accepts the number as the header `X-SM-Frame: <n>`; the query is used when the header is absent.
 
 The page sends `text/plain` for every transport. The listener also accepts the transport's own type, so the table gives the type of each body as well.
 
@@ -752,15 +907,15 @@ The body is limited to the largest frame the transport can send for the canvas (
 | 200 | `{"restart":true}` | the encoder was replaced (hardware encoder fallback): render again from frame 0 without a new report |
 | 200 or 4xx/5xx | `{"stop":true, "error"?, "message"?}` | refused; the page stops |
 
-Refusal codes: `frame_header` (400, no number), `frame_too_large` (413), `frame_read` (400), `frame_limit` (413, past the frame count), `frame_order` (409, a frame other than the expected one), `not_running` (409), `encoder_failed` (500).
+Refusal codes: `frame_header` (400, no number), `frame_too_large` (413), `frame_read` (400), `frame_limit` (413, past the frame count), `frame_order` (409, a frame other than the expected one), `not_running` (409), `encoder_failed` (500), `bad_token` (403).
 
 ### Page errors
 
-`POST <base>/error` with `{code, message, scene_id?}`. The code is clipped to 40 characters, the message to 600 and the scene id to 60; the body is at most 16 KiB. Codes sent by the page: `readiness`, `deadline`, `code_error`, `render_failed`. The answer is `{"ok":true}`. Any `/error` ends the job: a page that reports an error does not continue.
+`POST <base>/error?t=<token>` with `{code, message, scene_id?}`. The code is clipped to 40 characters, the message to 600 and the scene id to 60; the body is at most 16 KiB. Codes sent by the page: `readiness`, `deadline`, `code_error`, `render_failed`. The answer is `{"ok":true}`; a wrong token answers 403 and does not end the job. Any accepted `/error` ends the job: a page that reports an error does not continue.
 
 ### Report refusals
 
-`report_too_large` (413, a report over 1 MiB), `report_repeated` (a second report for the same job).
+`report_too_large` (413, over 8 MiB), `report_repeated`, `bad_token` (403).
 
 ### Transports and render timing
 
@@ -809,7 +964,7 @@ The render page cannot reach the network by three independent layers. Each one a
 
 Notes from the measurements: a Fetch pause on a request that carries a frame costs about 35 ms, so the catch-all mode halves the rendering rate. A dedicated worker's own CDP session does not accept `Fetch.enable`; the page session covers the requests that workers make. WebSocket handshakes are outside Fetch and the block list; the CSP and the proxy stop them.
 
-Limit: the prefix is not a secret against scene code, because the blob worker's source names the base. A hostile scene can post bogus frames or a report to its own job's listener. The effect is limited to that job.
+Limit: the prefix is not a secret against scene code, but a scene cannot obtain the token, because the host takes it before any worker exists. Go validates every report field it uses against its own plan.
 
 ### FFmpeg
 
@@ -832,7 +987,7 @@ Every message is an object with `sm: 1` and a `type`. The parent accepts message
 | --- | --- | --- |
 | `ready` | `caps: {workers, offscreen}` | sent when the host starts; after every iframe reload, send `load` again |
 | `need_assets` | `req`, `keys` (sorted) | assets the host still needs |
-| `compiled` | `report` | the compile report (section 6) |
+| `compiled` | `report` | `report` (section 6), cleaned by the parent; `audio_events` at most 40000, `captions` at most 8000 |
 | `time` | `frame`, `playing` | the playhead. Sent every 90 ms while playing and on seek, pause, play and end. The first `time` after a compile means "ready to play". |
 | `thumb` | `req`, `scene_id`, `bitmap` (ImageBitmap, transferred) | answer to `thumb` |
 | `error` | `code`, `message` (600 characters at most), `scene_id?`, `line?`, `column?` | codes: `code_error`, `deadline`, `readiness`, `bad_message`, `unknown_name` |
@@ -841,7 +996,7 @@ Every message is an object with `sm: 1` and a `type`. The parent accepts message
 
 | Type | Fields | Notes |
 | --- | --- | --- |
-| `load` | `story`, `catalog` (parsed `catalog.json`), `audio_info?`, `assets?` (`catalog:<path>` to parsed JSON), `fonts?` (`{name, family, weight, data: ArrayBuffer}`), `code_bundles?` (`{<scene_id>: text}`), `format?` `{aspect, fps, width?}` | a new `load` or `reset` ends all workers |
+| `load` | `story`, `catalog` (parsed `catalog.json`; may carry `glyph_data`), `audio_info?` (section 6), `assets?` (`catalog:<path>` to parsed JSON), `fonts?` (`{name, family, weight, data: ArrayBuffer, weight_range?, unicode_range?}`), `code_bundles?` (`{<scene_id>: text}`), `format?` `{aspect, fps, width?}` | a new `load` or `reset` ends all workers |
 | `assets` | `req`, `assets` (keys to values), `missing?` | answer to `need_assets` |
 | `seek` | `frame` | one seek at a time; the newest wanted frame wins |
 | `play`, `pause` | none | |
@@ -862,13 +1017,21 @@ Host caps (`StorymakerHost.CAPS`):
 | scenes in `load.story` | 400 |
 | catalog entries | 6000 |
 | asset keys per message | 2000 |
-| fonts | 16, each at most 8 MiB, 32 MiB in total |
+| fonts | 16, each at most 8 MiB unless a named glyph face allows more, 32 MiB in total, checked on `load.fonts` and on `font:` values of `assets`, with the faces and the byte count of the last accepted load |
 | code bundles | 400, each at most 256 KiB of text |
 | key length (in `missing`) | 240 |
 | thumb width | 16 to 1920 |
 | format `width` | 64 to 3840 |
 | format `aspect` | `16:9`, `9:16`, `1:1` |
 | format `fps` | 24, 25, 30 |
+| audio scenes | 400 |
+| audio blocks per scene | 61 |
+| audio pieces per block | 800 |
+| levels per block | 27000 |
+| levels per message | 200000 |
+| glyph faces | 16 |
+| glyph range values | 60000 |
+| fallback font | at most its `max_bytes` and at most 18 MiB |
 
 `format.width` is the width of the preview canvas (the height follows the aspect). Without it the canvas has the export size. The desktop app uses 960 px for 16:9, 720 px for 1:1 and 540 px for 9:16.
 
@@ -890,7 +1053,7 @@ Name: Storymaker. Global name `StorymakerApp`.
 
 - Manifest in `internal/desktop/types.go`: entry `builtin://storymaker`, category `creative`, `Requires: ["storymaker"]`, icon `storymaker`, metadata `logo_path` `/img/desktop-icons/storymaker.svg` and `open_maximized` `true`. Permissions: `files:read`, `files:write`, `notifications`. The manifest test is `internal/desktop/storymaker_app_test.go`.
 - Capability `storymaker` in `internal/server/bluetooth_live.go` (`storymakerAvailable`).
-- Module loader (`ui/js/desktop/core/module-loader.js`): the style `desktop-app-storymaker.css` and eleven scripts in order: `storymaker-core.js`, `storymaker-model.js`, `storymaker-api.js`, `storymaker-assets.js`, `storymaker-player.js`, `storymaker-projects.js`, `storymaker-strip.js`, `storymaker-inspector.js`, `storymaker-code.js`, `storymaker-export.js`, `storymaker.js`. Each file is under 1100 lines.
+- Module loader (`ui/js/desktop/core/module-loader.js`): the style `desktop-app-storymaker.css` and thirteen scripts in order: `storymaker-core.js`, `storymaker-model.js`, `storymaker-api.js`, `storymaker-assets.js`, `storymaker-player.js`, `storymaker-projects.js`, `storymaker-strip.js`, `storymaker-inspector.js`, `storymaker-code.js`, `storymaker-export.js`, `storymaker-audio.js`, `storymaker-voice.js`, `storymaker.js`. Each file is under 1100 lines.
 - Window size: default 1320×840; minimum 640×480 (`window-shell-runtime.js`).
 - Dispatch: `ui/js/desktop/core/menus-and-routing.js` loads the scripts and renders through `window.StorymakerApp.render(...)`.
 - Icon: `ui/img/desktop-icons/storymaker.svg`.
@@ -904,7 +1067,7 @@ Name: Storymaker. Global name `StorymakerApp`.
 
 ### Configuration block
 
-`ui/cfg/virtual_desktop.js` (`vdCfgStorymaker`): the toggle for `storymaker.enabled`; `storymaker.render.timeout_seconds` (60 to 14400), `storymaker.render.max_duration_seconds` (10 to 3600), `storymaker.render.browser_path`, and `storymaker.render.transport` (automatic, png, webp, raw, screenshot). The "Check export setup" action reads `GET /api/desktop/storymaker/status` for the saved settings only.
+`ui/cfg/virtual_desktop.js` (`vdCfgStorymaker`): the toggle for `storymaker.enabled`; `storymaker.render.timeout_seconds` (60 to 14400), `storymaker.render.max_duration_seconds` (10 to 3600), `storymaker.render.browser_path`, `storymaker.render.transport` (automatic, png, webp, raw, screenshot), `storymaker.narration.max_daily_chars` (1000 to 100000000), and `storymaker.narration.max_job_chars` (100 to 10000000). The "Check export setup" action reads `GET /api/desktop/storymaker/status` for the saved settings only.
 
 ### Phase 1 screens
 

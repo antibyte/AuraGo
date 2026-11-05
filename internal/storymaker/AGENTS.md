@@ -40,7 +40,7 @@ JavaScript (`ui/js/storymaker/`); Go never recomputes the timeline.
   at once with the fade of the environment it copied, so its environment edits go through `S.model.setEnvironment`
   (`ui/js/desktop/apps/storymaker-model.js`): a stored fade that now crosses into another environment becomes a wipe, on that
   scene and on the next. Other transitions stay, and `fade_between_worlds` still flags a fade the user picks afterwards.
-- `LoadCatalog` checks the manifest only; `VerifyFiles` checks that referenced files exist. The catalog is immutable after
+- `LoadCatalog` checks the manifest and reads `glyphs.file` through `LoadGlyphs`, nothing else; `VerifyFiles` checks that referenced files exist. The catalog is immutable after
   loading. Search is term scoring over id, name and tags (default 6 results, cap 12).
 - `BundleCodeScene`: esbuild `Transform` (IIFE, global `__smSceneModule`, ES2020, no legal comments) plus the appended
   `self.__smScene=__smSceneModule.default;`. The pre-check is a tokenizer over the author's source and is defence in depth
@@ -65,11 +65,20 @@ JavaScript (`ui/js/storymaker/`); Go never recomputes the timeline.
 
 - `go test ./internal/storymaker/... -count=1` and `go test ./internal/config/... -count=1`.
 
+## Speech
+
+- `narration.go`: `Blocks` is the one list of what must be spoken: one narration block per scene that is not silent, and one dialogue block per `say` with text, also in a silent scene and also with its actor off stage. `StripMarkers` is byte for byte `SM.narration.parse(text).plain`, and `testdata/narration/cross_language.json` holds the two languages together. One sentence is one piece (`SplitPieces`). `PieceKey` hashes provider, voice, language and piece text, with provider and language trimmed and lower-cased.
+- `audio_decode.go`: `DecodeAudio` and `ProbeAudio` detect the format from the bytes, never from an extension. WAV and MP3 only, at most 600 s. `ProbeAudio` reads a duration without keeping samples.
+- `envelope.go`: `<hash>.env.json` is a 10 ms series, so it stays free of the frame rate. `AssembleBlock` is the one function behind `/narration` and `Plan.AudioInfo`. `ParseEnvelope` trusts nothing, because these are ordinary workspace files: an audio file without a valid envelope counts as missing.
+- `glyphs.go`: reads the build-generated `ui/img/storymaker/glyphs.json`; Go never reads WOFF2. `Validate` adds `glyph_missing` for show text, say text and narration that is drawn. A silent scene's narration is never drawn, so it is not checked. Code-scene strings stay `layout_unverified`. The mini catalog has no `glyphs` key and skips the check.
+- `voices.go`: `ResolveProjectVoice` takes providers in the order of `storymakerVoiceProviders`, so a paid provider never wins over a free one. `Validate` checks only the shape of a voice, because the package does not import `internal/tools`; `POST /narrate` checks the list.
+- `Store.Open` returns a seekable file for the audio routes. `MemStore` and `storymakerStore` are its only implementers.
+
 ## Render and server (part B)
 
 - `render/` turns a story into an MP4 (job manager, listener, ingest, browser, egress guard, FFmpeg); its contract is `render/AGENTS.md`. The package has no dependency on `internal/server`; the handlers are `internal/server/storymaker_*.go`.
 - The server implements `Store` and `render.Publisher` over `*desktop.Service` (`storymakerStore`), passes `Limits.MaxDurationSeconds = storymaker.render.max_duration_seconds` to the validator and gives every request its own `Story` copy (`Validate` and `ApplyDefaults` mutate).
-- Catalog version, canvas sizes (1920x1080, 1080x1920, 1080x1080), the support matrix and the error codes of a job (`invalid_story`, `browser_unavailable`, `ffmpeg_unavailable`, `render_failed`, `render_timeout`, `cancelled`, `busy`, `code_error`, `interrupted`, `storymaker_disabled`) are shared with the app through `GET /status` and the job document.
+- Catalog version, canvas sizes (1920x1080, 1080x1920, 1080x1080), the support matrix and the error codes of a job (`invalid_story`, `browser_unavailable`, `ffmpeg_unavailable`, `render_failed`, `render_timeout`, `cancelled`, `busy`, `code_error`, `interrupted`, `storymaker_disabled`, `narration_failed`, `narration_unavailable`, `voice_required`, `budget_exceeded`) are shared with the app through `GET /status` and the job document.
 
 ## Fallback fonts (part G)
 

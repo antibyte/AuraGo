@@ -1147,6 +1147,15 @@ depends on the API, SSE and error contracts below; its side is in `ui/js/desktop
   empty). The shell handles an id once; never give two events the same id or
   broadcast to only one transport (`TestBroadcastDesktopEvent*`).
 
+## Storymaker audio
+
+- `storymaker_service.go` runs two `render.Manager`s, `jobs` for renders and `narrate`. `jobByID`, `listJobs` and `cancelProject` route across both. `/events` sends every unfinished job of both plus the merged latest five, so newer narrate jobs cannot push a running export out of the list a reloaded app reads.
+- `storymakerAudioRun` gets its runtime through the closure built in `newStorymakerRuntime`. It must not call `s.storymakerRuntime()`, which holds `s.storymakerMu` while the old manager waits for the running job. It starts with `beginDesktopRun`, so a config change that sets read-only cancels a provider call in flight, and every error it returns is a `*render.JobError`.
+- Before every provider call the narrate loop re-reads `story.json` and the config, and checks read-only, voice, free disk and the character caps. Usage is written to `storymaker/narrate/usage.json` before the call, because a provider that answered has billed. An unreadable file becomes `usage.bad.json` and stops cloud calls for that date: a budget guard must not fail open.
+- `/voices`, `POST /projects` and `POST /narrate` share `storymakerVoiceProviders`: active first, then local, then cloud, so resolution never picks a paid provider ahead of a free one. google is omitted unless active.
+- The audio routes accept only the folder `narration` or `music` and `^([0-9a-f]{64})\.(wav|mp3)$`, and never serve `.env.json`, `.meta.json` or `.pending.json`.
+- Test seams beside `storymakerRunOverride`: `storymakerAudioRunOverride` and `storymakerSynthOverride`. Run the tour with a stub synth through `AURAGO_RUN_BROWSER_SMOKE=1 go test ./internal/server -run '^TestStorymakerAppRealServerBrowser$' -count=1 -timeout 15m`.
+
 ## Verification
 
 - `preview_gateway.go` dispatches configured guest hosts outside the main-site

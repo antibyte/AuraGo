@@ -2,8 +2,8 @@
 
 Storymaker is the Virtual Desktop app for short explainer videos. You stage scenes with cartoon people, props and
 environments from a built-in catalog, write the narration text, watch a live preview and export an MP4. This page describes
-the first version (phase 1): the editor, the preview and a silent export. Voices, music, captions and the agent come in later
-phases.
+the current version: the editor, the preview, voices and narration, captions and a silent export. Music, sound in the export and
+the agent come in later versions.
 
 ## Switch it on
 
@@ -16,6 +16,8 @@ Storymaker is on by default. **Configuration → Virtual Desktop → Storymaker*
 | `storymaker.render.max_duration_seconds` | `900` | The longest video that can be exported (10 to 3600). |
 | `storymaker.render.browser_path` | empty | Absolute path of Chrome or Chromium. Empty: the browser installed on the system, else a pinned download. |
 | `storymaker.render.transport` | empty | How frames reach FFmpeg (`png`, `webp`, `raw`, `screenshot`). Empty is the measured default; change it only on advice. |
+| `storymaker.narration.max_daily_chars` | `100000` | Characters that cloud voices may speak per local day (1000 to 100000000). |
+| `storymaker.narration.max_job_chars` | `20000` | Characters that cloud voices may speak in one narration job (100 to 10000000). |
 
 The **Check export setup** button asks the running server whether FFmpeg and a browser are ready. The app is read-only while
 `virtual_desktop.readonly` is on: you can watch the preview, but nothing is edited, saved or exported.
@@ -28,6 +30,7 @@ Every project is a folder in the desktop workspace, `Documents/Storymaker/<proje
 story.json        the story document (the editor saves it with If-Match, so two windows cannot overwrite each other)
 project.json      title, format and timestamps
 scenes/<id>.js    code scenes (and <id>.bundle.js, the bundled copy the player runs)
+audio/narration/  one audio file per sentence (<hash>.wav or .mp3) with its level curve (<hash>.env.json)
 exports/          the exported videos and their records
 ```
 
@@ -48,6 +51,16 @@ Delete a project in the list: the whole folder, exports included, goes away.
   cannot reach the network or the page.
 - **Issues.** The badge in the toolbar counts errors and warnings. An error blocks the export; the list says where.
 
+## Voice and narration
+
+- **Voice panel.** Pick a provider, a voice and a language, then **Use this voice** writes them into the story. **Generate narration** and **Play a sample** work with the saved voice, so a voice you picked needs this click first. Phonon voices that are not installed are not listed: download them in the Phonon settings under More voices. `not tested` means nobody has listened to that provider in that language yet. A new project asks for a voice in the desktop language; when no voice speaks it, the app lists the languages that have one and offers to create the project without a voice.
+- **Generate narration.** Audio is made one sentence at a time and only for sentences without audio, so an edit costs one sentence. The panel shows the characters, what has no audio and the progress. **Play a sample** plays a stored sentence and never calls a provider.
+- **Limits.** Cloud voices count characters per job and per local day (settings above). Local voices (phonon, piper, sanotts, supertonic, speech_lab) are not counted.
+- **Preview.** The narration plays with the preview, and the timeline shows its waveform. Speech bubbles, burned-in captions and lip-sync are drawn in the preview and in the export. A switch in the voice panel turns the captions off.
+- **Languages.** Greek, Hindi, Arabic, Chinese and Japanese text uses bundled fallback fonts that load only when needed. A character no font covers, such as an emoji or Thai and Hebrew text, is the error `glyph_missing` at that text.
+
+Projects from the first version change in two ways. Captions default to on, so every narrated older story starts drawing them. A `say` without text whose `who` is not the scene's speaker is now an error that blocks the export.
+
 ## Export
 
 The **Export** button opens a panel that first says what is missing. Exporting needs:
@@ -60,7 +73,7 @@ The **Export** button opens a panel that first says what is missing. Exporting n
 
 Editing and the preview work without 1 and 2. The export draws every frame in a headless browser, so a 15 minute video takes a
 while; the panel shows the phase and the frame count and can cancel. The result is
-`Documents/Storymaker/<project id>/exports/<title>-<job>.mp4`; **Show in Files** opens that folder. Phase 1 videos have no sound.
+`Documents/Storymaker/<project id>/exports/<title>-<job>.mp4`; **Show in Files** opens that folder. Videos still have no sound, even for a narrated story: the narration plays in the preview, and the export draws its captions.
 
 ## Motion
 
@@ -91,9 +104,9 @@ The issues list also shows motion hints. A hint never blocks an export.
 | `entry_monotony` | Three or more show beats, all with the same entry. |
 | `transition_variety` | More than five transition kinds in one film. |
 
-## Not in phase 1
+## Not yet
 
-Voices and narration audio, music and sound effects, captions, the agent panel and chat tool, the asset generator, charts and
+Music and sound effects, the agent panel and chat tool, the asset generator, charts and
 diagrams, most transitions (cut, fade, slide-left and wipe exist) and drag and drop staging. The story format already accepts
 the fields of later phases; the editor shows them as "not supported yet" and the player ignores them.
 
