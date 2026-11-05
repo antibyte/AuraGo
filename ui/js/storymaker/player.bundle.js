@@ -2816,7 +2816,12 @@
             busy.push([landing, landing + hold.scaled]);
         });
 
-        log.forEach(function (l) { if (l.kind !== 'wait' && l.end > l.start) busy.push([l.start, l.end]); });
+        log.forEach(function (l) {
+            if (l.kind !== 'wait' && l.end > l.start) busy.push([l.start, l.end]);
+            // a say plays its whole block, also past a shorter explicit duration (frozen 4.6 step 4)
+            var spoken = l.kind === 'say' ? n.dialogue[l.j] : null;
+            if (spoken) busy.push([l.start, l.start + spoken.duration_ms / 1000]);
+        });
         if (n.seconds > 0) busy.push([n.start, n.start + n.seconds]);
         busy.sort(function (a, b) { return a[0] - b[0]; });
         var reached = T;

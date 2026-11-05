@@ -1,0 +1,132 @@
+{
+ "schema": "storymaker/1",
+ "title": "Speech fixture",
+ "format": {
+  "aspect": "16:9",
+  "fps": 30
+ },
+ "style": {
+  "palette": "sunny",
+  "font": "default",
+  "captions": true
+ },
+ "voice": null,
+ "music": null,
+ "cast": [
+  {
+   "id": "anna",
+   "name": "Anna",
+   "character": "char.office-woman-1"
+  },
+  {
+   "id": "ben",
+   "name": "Ben",
+   "character": "char.office-man-1"
+  }
+ ],
+ "scenes": [
+  {
+   "id": "s1",
+   "environment": "env.office",
+   "speaker": "narrator",
+   "narration": "防火墙检查每个数据包。{1}只有安全的数据才能通过。",
+   "actors": [
+    {
+     "cast": "anna",
+     "at": "left"
+    },
+    {
+     "cast": "ben",
+     "at": "right"
+    }
+   ],
+   "beats": [
+    {
+     "cue": 1,
+     "do": "show",
+     "text": "防火墙",
+     "at": "center",
+     "entry": "pop"
+    },
+    {
+     "do": "say",
+     "who": "anna",
+     "text": "こんにちは、世界。",
+     "style": "speech"
+    }
+   ]
+  },
+  {
+   "id": "s2",
+   "environment": "env.abstract-tech",
+   "speaker": "narrator",
+   "narration": "جدار الحماية يفحص كل حزمة. {1}الحزم الآمنة فقط تمر.",
+   "actors": [
+    {
+     "cast": "ben",
+     "at": "center"
+    }
+   ],
+   "beats": [
+    {
+     "cue": 1,
+     "do": "show",
+     "text": "جدار الحماية",
+     "at": "center",
+     "entry": "fade"
+    },
+    {
+     "do": "say",
+     "who": "ben",
+     "text": "كل حزمة مهمة.",
+     "style": "thought"
+    }
+   ]
+  },
+  {
+   "id": "s3",
+   "environment": "env.office",
+   "speaker": "anna",
+   "narration": "Το τείχος προστασίας ελέγχει κάθε πακέτο.",
+   "actors": [
+    {
+     "cast": "anna",
+     "at": "center"
+    }
+   ],
+   "beats": [
+    {
+     "do": "show",
+     "text": "ἀρχή",
+     "at": "center",
+     "entry": "none"
+    },
+    {
+     "do": "say",
+     "who": "anna",
+     "style": "speech"
+    }
+   ]
+  },
+  {
+   "id": "s4",
+   "environment": "env.home-office",
+   "speaker": "narrator",
+   "narration": "फ़ायरवॉल हर पैकेट की जाँच करता है।",
+   "actors": [
+    {
+     "cast": "ben",
+     "at": "center"
+    }
+   ],
+   "beats": [
+    {
+     "do": "say",
+     "who": "ben",
+     "text": "यह सुरक्षित है।",
+     "style": "speech"
+    }
+   ]
+  }
+ ]
+}

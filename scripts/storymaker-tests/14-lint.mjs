@@ -99,3 +99,29 @@ check('lint: a clean story fires none, and a text counts as activity until its h
     ] };
     assert.deepEqual(lintOf(clean), []);
 });
+
+// ---- Task S11: dialogue keeps a scene alive. The imports are aliased because this block joins the M14 checks above.
+import s11Assert from 'node:assert/strict';
+import { plain as s11Plain } from '../storymaker-test-support.mjs';
+import { t as s11 } from '../storymaker-test-context.mjs';
+
+const S11 = s11.core();
+// a 6 s dialogue block for beat 0 of scene a
+const s11Audio = { narration: { a: { blocks: [{
+    id: 'a:b0', kind: 'dialogue', beat: 0, speaker: 'anna', duration_ms: 6000, spans: [[0, 6000]], speech_ok: true, levels: [],
+    pieces: [{ hash: 'c'.repeat(64), ext: 'wav', at_ms: 0, in_ms: 0, out_ms: 6000, chars: 10 }]
+}] } } };
+const s11Say = extra => ({
+    cast: [{ id: 'anna', character: 'char.office-woman-1' }],
+    scenes: [{ id: 'a', actors: [{ cast: 'anna', at: 'center' }], beats: [{ do: 'say', who: 'anna', text: 'Hallo Welt', style: 'speech', ...extra }] }]
+});
+const s11Dead = (story, audio) => s11Plain(S11.compile(story, audio, s11.catalog).report.issues).filter(i => i.code === 'dead_stretch');
+
+s11.check('lint: dialogue suppresses dead_stretch, also when the say beat ends before its block', () => {
+    // The block ends at 6 s and the scene at 6.4 s (last block + 0.4 s tail).
+    s11Assert.deepEqual(s11Dead(s11Say({}), s11Audio), [], 'the say beat lasts its block');
+    // duration 0.5 ends the beat at 0.5 s (frozen 4.6 step 4), but the audio plays to 6 s. A lint that misses dialogue sees 5.9 s idle, over the 3 s limit.
+    s11Assert.deepEqual(s11Dead(s11Say({ duration: 0.5 }), s11Audio), [], 'the audio plays on after the beat');
+    // control: a 6 s wait has no narration, no dialogue and no beat in progress
+    s11Assert.ok(s11Dead({ scenes: [{ id: 'a', beats: [{ do: 'wait', seconds: 6 }] }] }, {}).length > 0, 'a wait still counts as dead');
+});

@@ -4,6 +4,7 @@
 // of the cast sheet (internal/storymaker/testdata/player/castsheet.json) that must draw without an unresolved token.
 import assert from 'node:assert/strict';
 import { plain, realCatalog, realFiles, realAssets, renderAssets, playerStory, story, FakeCanvas } from '../storymaker-test-support.mjs';
+import { readJSON as readFixture, REAL as REAL_DIR } from '../storymaker-test-support.mjs';
 import { t } from '../storymaker-test-context.mjs';
 
 // The async checks of the earlier modules (the host and render driver) run against real timers and deadlines; let them finish before
@@ -335,6 +336,17 @@ check('real catalog: title, caption and label clear the 2.6 % floor in every asp
             { do: 'show', text: 'c', style: 'label', at: { x: 20, y: 50 }, entry: 'none', with: 'prev' }] }] });
         assert.deepEqual(plain(out.report.issues).filter(i => i.code === 'text_too_small'), [], aspect);
     }
+});
+
+check('real catalog: speech.json needs every fallback face and compiles with zero errors', () => {
+    const withGlyphs = { ...catalog, glyph_data: readFixture(REAL_DIR + 'glyphs.json') };
+    const out = SM.compile(story('speech'), {}, withGlyphs);
+    assert.deepEqual(plain(out.report.issues.filter(i => i.severity === 'error')), []);
+    const needs = plain(out.needs);
+    // geist adds no need, because its family is a catalog font family. Each other face covers a text of the fixture:
+    // Greek letters, the polytonic letter U+1F00, Devanagari, Arabic, and Han with kana.
+    for (const face of ['sm-greek', 'sm-greek-ext', 'sm-deva', 'sm-arab', 'sm-cjk']) assert.ok(needs.includes('font:' + face + '/400'), face + ' is not in ' + JSON.stringify(needs));
+    assert.ok(needs.some(n => n.startsWith('font:default/')), 'captions and bubbles also need the base font');
 });
 
 // ---- the remaining rules of the catalog: views, walking, bodies, spots with a depth, fonts -------------------------------

@@ -70,7 +70,7 @@ func TestRealCatalogGlyphs(t *testing.T) {
 
 func TestRealCatalogValidatesTheFixtureStories(t *testing.T) {
 	cat := loadReal(t)
-	for _, name := range []string{"stories/minimal", "stories/firewall", "player/castsheet"} {
+	for _, name := range []string{"stories/minimal", "stories/firewall", "player/castsheet", "stories/speech"} {
 		data, err := os.ReadFile("testdata/" + name + ".json")
 		if err != nil {
 			t.Fatal(err)
