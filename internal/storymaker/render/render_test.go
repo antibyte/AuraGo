@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -19,6 +20,7 @@ import (
 	"time"
 
 	"aurago/internal/storymaker"
+	"aurago/internal/storymaker/storymakertest"
 	"aurago/internal/videostudio"
 )
 
@@ -1154,6 +1156,238 @@ func TestRunDeferredStartPageCrashStartsNoFFmpeg(t *testing.T) {
 	run.mu.Unlock()
 	if ff != nil {
 		t.Error("FFmpeg started after the crash")
+	}
+	if entries, _ := os.ReadDir(StagingRoot(fx.dir)); len(entries) != 0 {
+		t.Errorf("staging not cleaned: %v", entries)
+	}
+}
+
+const narratedStoryDoc = `{"schema":"storymaker/1","title":"Mix","scenes":[{"id":"s1","narration":"Hallo Welt, das ist ein kurzer Test."}]}`
+
+// seedNarratedStory saves doc, seeds its audio and returns the audio events an honest page reports for it.
+func (fx *runFixture) seedNarratedStory(t *testing.T, doc string, seconds float64) []any {
+	t.Helper()
+	ctx := context.Background()
+	if _, err := fx.projects.SaveStory(ctx, fx.projectID, []byte(doc), ""); err != nil {
+		t.Fatal(err)
+	}
+	data, _, err := fx.projects.LoadStory(ctx, fx.projectID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	story, _, err := storymaker.DecodeStory(data, fx.settings.Limits)
+	if err != nil {
+		t.Fatal(err)
+	}
+	storymaker.ApplyDefaults(&story)
+	if err := storymakertest.SeedNarration(ctx, fx.projects, fx.projectID, &story, seconds); err != nil {
+		t.Fatal(err)
+	}
+	answer, err := fx.projects.AudioAnswer(ctx, fx.projectID, &story, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(answer.Missing) != 0 {
+		t.Fatalf("seeded story still misses %+v", answer.Missing)
+	}
+	events := []any{}
+	for sceneID, scene := range answer.Narration {
+		for _, block := range scene.Blocks {
+			for i, piece := range block.Pieces {
+				events = append(events, map[string]any{"kind": block.Kind, "ref": piece.Hash, "start_ms": piece.AtMS, "scene_id": sceneID, "block_id": block.ID, "piece": i})
+			}
+		}
+	}
+	return events
+}
+
+// publishedMP4 writes the job's published MP4 to a temp file.
+func (fx *runFixture) publishedMP4(t *testing.T, job Job) string {
+	t.Helper()
+	if job.Output == nil {
+		t.Fatalf("job %+v has no output", job)
+	}
+	mp4, ok := fx.pub.get(job.Output.Path)
+	if !ok {
+		t.Fatalf("%s was not published", job.Output.Path)
+	}
+	tmp := filepath.Join(t.TempDir(), "check.mp4")
+	if err := os.WriteFile(tmp, mp4, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return tmp
+}
+
+// meterFile reads the loudness of a file's audio with the meter's own filter graph.
+func meterFile(t *testing.T, ffmpeg, file string) MeterReading {
+	t.Helper()
+	graph := ""
+	args := MeterArgs()
+	for i, a := range args {
+		if a == "-af" && i+1 < len(args) {
+			graph = args[i+1]
+		}
+	}
+	if graph == "" {
+		t.Fatalf("MeterArgs has no -af: %v", args)
+	}
+	cmd := exec.Command(ffmpeg, "-hide_banner", "-nostdin", "-nostats", "-loglevel", "info", "-i", file, "-map", "0:a:0", "-af", graph, "-f", "null", "-")
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("meter: %v\n%s", err, stderr.String())
+	}
+	reading, err := parseMeterOutput(stderr.String())
+	if err != nil {
+		t.Fatalf("meter output: %v\n%s", err, stderr.String())
+	}
+	return reading
+}
+
+// wantLandedMix checks the level of the AAC track: the target is -16 LUFS (mixTargetLUFS), and the seeded tone
+// sits far below the -1 dBTP ceiling, so the loudness bound decides the gain.
+func wantLandedMix(t *testing.T, r MeterReading) {
+	t.Helper()
+	if r.Silent || r.I < -18.5 || r.I > -15.5 || r.TP > -1.0 {
+		t.Errorf("mix landed at %+v, want -18.5..-15.5 LUFS at -1 dBTP or below", r)
+	}
+}
+
+func hasWarning(job Job, code string) bool {
+	for _, w := range job.Warnings {
+		if w.Code == code {
+			return true
+		}
+	}
+	return false
+}
+
+// silentWAV is a 48 kHz stereo s16 WAV of digital silence.
+func silentWAV(seconds int) []byte {
+	const rate, channels, sampleBytes = 48000, 2, 2
+	dataLen := seconds * rate * channels * sampleBytes
+	le32 := func(v int) []byte { return []byte{byte(v), byte(v >> 8), byte(v >> 16), byte(v >> 24)} }
+	le16 := func(v int) []byte { return []byte{byte(v), byte(v >> 8)} }
+	var b bytes.Buffer
+	b.WriteString("RIFF")
+	b.Write(le32(36 + dataLen))
+	b.WriteString("WAVEfmt ")
+	b.Write(le32(16))
+	b.Write(le16(1))
+	b.Write(le16(channels))
+	b.Write(le32(rate))
+	b.Write(le32(rate * channels * sampleBytes))
+	b.Write(le16(channels * sampleBytes))
+	b.Write(le16(16))
+	b.WriteString("data")
+	b.Write(le32(dataLen))
+	b.Write(make([]byte, dataLen))
+	return b.Bytes()
+}
+
+func TestRunMixSeededStoryHasAudibleAAC(t *testing.T) {
+	ffmpeg, ffprobe := testBinary(t, "ffmpeg"), testBinary(t, "ffprobe")
+	fx := newRunFixture(t)
+	// 120 frames at 30 fps are 4 s, so the 3 s piece fits inside the film.
+	events := fx.seedNarratedStory(t, narratedStoryDoc, 3)
+	fx.playing(playOptions{frames: 120, mutateRep: func(rep map[string]any) { rep["audio_events"] = events }})
+	job := fx.render(t)
+	if job.Status != StatusSucceeded {
+		t.Fatalf("job = %+v %+v", job, job.Error)
+	}
+	file := fx.publishedMP4(t, job)
+	aac := false
+	for _, s := range ffprobeFile(t, ffprobe, file).Streams {
+		aac = aac || (s.CodecType == "audio" && s.CodecName == "aac" && s.SampleRate == "48000")
+	}
+	if !aac {
+		t.Error("the MP4 has no 48 kHz AAC track")
+	}
+	wantLandedMix(t, meterFile(t, ffmpeg, file))
+}
+
+func TestRunMixSurvivesTheSoftwareRestart(t *testing.T) {
+	ffmpeg := testBinary(t, "ffmpeg")
+	fx := newRunFixture(t)
+	fx.settings.Encoder = videostudio.Encoder{Codec: videostudio.CodecVAAPI, Device: "/dev/dri/does-not-exist"}
+	fx.settings.EncoderName = videostudio.CodecVAAPI
+	// 60 frames at 30 fps are 2 s, so the 1.5 s piece fits inside the film.
+	events := fx.seedNarratedStory(t, narratedStoryDoc, 1.5)
+	var restarts atomic.Int32
+	fx.playing(playOptions{frames: 60, onRestart: func() { restarts.Add(1) }, mutateRep: func(rep map[string]any) { rep["audio_events"] = events }})
+	job := fx.render(t)
+	if job.Status != StatusSucceeded {
+		t.Fatalf("job = %+v %+v", job, job.Error)
+	}
+	if restarts.Load() != 1 {
+		t.Fatalf("the page was told to restart %d times", restarts.Load())
+	}
+	wantLandedMix(t, meterFile(t, ffmpeg, fx.publishedMP4(t, job)))
+}
+
+func TestRunMixDropsASilentBedWithAWarning(t *testing.T) {
+	ffmpeg := testBinary(t, "ffmpeg")
+	fx := newRunFixture(t)
+	key := strings.Repeat("a", 64)
+	fx.deps.MusicKey = func(context.Context, *storymaker.Music) (string, error) { return key, nil }
+	fx.rebuild(t)
+	const doc = `{"schema":"storymaker/1","title":"Mix","music":{"mode":"generated","mood":"calm-ambient"},"scenes":[{"id":"s1","narration":"Hallo Welt, das ist ein kurzer Test."}]}`
+	events := fx.seedNarratedStory(t, doc, 1.5)
+	ctx := context.Background()
+	if err := fx.projects.WriteMusic(ctx, fx.projectID, key, "wav", silentWAV(2)); err != nil {
+		t.Fatal(err)
+	}
+	if err := fx.projects.WriteMusicMeta(ctx, fx.projectID, key, storymaker.MusicMeta{V: 1, Ext: "wav", DurationMS: 2000}); err != nil {
+		t.Fatal(err)
+	}
+	fx.playing(playOptions{frames: 60, mutateRep: func(rep map[string]any) { rep["audio_events"] = events }})
+	job := fx.render(t)
+	if job.Status != StatusSucceeded {
+		t.Fatalf("job = %+v %+v", job, job.Error)
+	}
+	if !hasWarning(job, "music_silent") {
+		t.Errorf("warnings = %+v, want music_silent", job.Warnings)
+	}
+	wantLandedMix(t, meterFile(t, ffmpeg, fx.publishedMP4(t, job)))
+}
+
+func TestRunMixSilentStoryKeepsAnullsrc(t *testing.T) {
+	ffmpeg := testBinary(t, "ffmpeg")
+	fx := newRunFixture(t)
+	fx.playing(playOptions{frames: 24})
+	job := fx.render(t)
+	if job.Status != StatusSucceeded || len(job.Warnings) != 0 {
+		t.Fatalf("job = %+v %+v", job, job.Error)
+	}
+	if r := meterFile(t, ffmpeg, fx.publishedMP4(t, job)); !r.Silent {
+		t.Errorf("a silent story measured %+v", r)
+	}
+}
+
+func TestRunMixCancelEndsTheJob(t *testing.T) {
+	fx := newRunFixture(t)
+	inMix := make(chan struct{})
+	fx.deps.mixHook = func(ctx context.Context, _ *renderRun) error {
+		close(inMix)
+		<-ctx.Done()
+		return ctx.Err()
+	}
+	fx.rebuild(t)
+	events := fx.seedNarratedStory(t, narratedStoryDoc, 1.5)
+	fx.playing(playOptions{frames: 60, mutateRep: func(rep map[string]any) { rep["audio_events"] = events }})
+	job := fx.enqueueRender(t)
+	select {
+	case <-inMix:
+	case <-time.After(time.Minute):
+		t.Fatal("the mix never started")
+	}
+	fx.mgr.Cancel(job.ID)
+	done := waitJob(t, fx.mgr, job.ID, terminal)
+	if done.Status != StatusCancelled {
+		t.Fatalf("job = %+v %+v", done, done.Error)
+	}
+	if len(fx.pub.names()) != 0 {
+		t.Errorf("a cancelled mix published %v", fx.pub.names())
 	}
 	if entries, _ := os.ReadDir(StagingRoot(fx.dir)); len(entries) != 0 {
 		t.Errorf("staging not cleaned: %v", entries)

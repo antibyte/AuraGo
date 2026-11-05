@@ -297,6 +297,11 @@ type renderRun struct {
 	// startCh is closed once FFmpeg runs or the start failed; startErr is read after that.
 	startCh  chan struct{}
 	startErr *JobError
+	// audioPath is set under mu before the first FFmpeg start. startFFmpeg reads it, so recoverEncoder keeps the mix.
+	audioPath string
+	// mixResult and warnings are guarded by mu.
+	mixResult MixResult
+	warnings  []JobWarning
 
 	mu        sync.Mutex
 	ctx       context.Context
@@ -787,6 +792,21 @@ func (run *renderRun) startAfterReport() {
 			return
 		}
 	}
+	if HasAudio(run.plan, run.report) && run.mixCtx.Err() == nil {
+		mixPath, res, err := run.mixAudio(run.mixCtx)
+		if err != nil && run.mixCtx.Err() == nil {
+			run.failStart(run.mixFailure(err))
+			return
+		}
+		if err == nil {
+			run.mu.Lock()
+			run.audioPath, run.mixResult = mixPath, res
+			run.mu.Unlock()
+			if res.BedDropped {
+				run.warn(warnMusicSilent, "The music track is silent, so the film has no music.")
+			}
+		}
+	}
 
 	ff, err := run.startEncoder()
 	if err != nil {
@@ -812,10 +832,53 @@ func (run *renderRun) startAfterReport() {
 	}
 }
 
+// mixAudio writes staging/mix.wav. ctx is the mix context, so a cancel stops it at the next block.
+func (run *renderRun) mixAudio(ctx context.Context) (string, MixResult, error) {
+	staging := filepath.Dir(run.output)
+	plan, err := run.planMixInput(ctx)
+	if err != nil {
+		return "", MixResult{}, err
+	}
+	in, err := run.buildMixInput(ctx, plan, staging)
+	if err != nil {
+		return "", MixResult{}, err
+	}
+	mix := filepath.Join(staging, "mix.wav")
+	newMeter := func(c context.Context) (*Meter, error) { return StartMeter(c, run.st.FFmpegPath) }
+	res, err := Mix(ctx, in, newMeter, MixOutputs{Mix: mix}, func(float64) {})
+	if err != nil {
+		return "", MixResult{}, err
+	}
+	return mix, res, nil
+}
+
+// mixFailure maps a mix error to the job error: a *JobError keeps its code, anything else is render_failed.
+func (run *renderRun) mixFailure(err error) *JobError {
+	var je *JobError
+	if errors.As(err, &je) {
+		return je
+	}
+	return Fail(CodeRenderFailed, "The audio could not be mixed: %s", run.scrubbed(err))
+}
+
+// scrubbed is the text of err without the staging folder, because no absolute path may reach the user.
+func (run *renderRun) scrubbed(err error) string {
+	return clip(strings.ReplaceAll(err.Error(), filepath.Dir(run.output), "<staging>"), 400)
+}
+
+// warn adds a warning to the job and keeps it for the export record.
+func (run *renderRun) warn(code, message string) {
+	run.mu.Lock()
+	run.warnings = append(run.warnings, JobWarning{Code: code, Message: clip(message, 400)})
+	run.mu.Unlock()
+	run.h.AddWarning(code, message)
+}
+
 func (run *renderRun) startFFmpeg(enc videostudio.Encoder, frames int) (*FFmpeg, error) {
 	return StartFFmpeg(run.ctx, FFmpegConfig{
 		Path: run.st.FFmpegPath, Encoder: enc, Transport: run.transport,
 		Width: run.width, Height: run.height, FPS: run.fps, Frames: frames, Output: run.output,
+		AudioPath: run.audioPath,
 	})
 }
 

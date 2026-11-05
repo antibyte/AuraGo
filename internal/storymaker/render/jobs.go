@@ -103,24 +103,39 @@ type Output struct {
 	Size int64  `json:"size"`
 }
 
+// Warning codes of a job that still succeeded.
+const (
+	warnStemFailed     = "stem_failed"
+	warnSubtitleFailed = "subtitle_failed"
+	warnLibraryFailed  = "library_failed"
+	warnMusicSilent    = "music_silent"
+)
+
+// JobWarning is a problem that did not fail the job.
+type JobWarning struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
 // Job is the public job document (contract section 5).
 type Job struct {
-	ID          string     `json:"id"`
-	ProjectID   string     `json:"project_id"`
-	Kind        string     `json:"kind"`
-	Status      string     `json:"status"`
-	Progress    float64    `json:"progress"`
-	Phase       string     `json:"phase,omitempty"`
-	FramesDone  int        `json:"frames_done"`
-	FramesTotal int        `json:"frames_total"`
-	PiecesDone  int        `json:"pieces_done,omitempty"`
-	PiecesTotal int        `json:"pieces_total,omitempty"`
-	Output      *Output    `json:"output,omitempty"`
-	Error       *JobError  `json:"error,omitempty"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
-	StartedAt   *time.Time `json:"started_at,omitempty"`
-	FinishedAt  *time.Time `json:"finished_at,omitempty"`
+	ID          string       `json:"id"`
+	ProjectID   string       `json:"project_id"`
+	Kind        string       `json:"kind"`
+	Status      string       `json:"status"`
+	Progress    float64      `json:"progress"`
+	Phase       string       `json:"phase,omitempty"`
+	FramesDone  int          `json:"frames_done"`
+	FramesTotal int          `json:"frames_total"`
+	PiecesDone  int          `json:"pieces_done,omitempty"`
+	PiecesTotal int          `json:"pieces_total,omitempty"`
+	Output      *Output      `json:"output,omitempty"`
+	Warnings    []JobWarning `json:"warnings,omitempty"`
+	Error       *JobError    `json:"error,omitempty"`
+	CreatedAt   time.Time    `json:"created_at"`
+	UpdatedAt   time.Time    `json:"updated_at"`
+	StartedAt   *time.Time   `json:"started_at,omitempty"`
+	FinishedAt  *time.Time   `json:"finished_at,omitempty"`
 }
 
 // Terminal reports whether the job has ended.
@@ -845,6 +860,14 @@ func (h *Handle) SetProgress(p float64) {
 		}
 		r.Progress = p
 	}, false)
+}
+
+// AddWarning records a warning (a state change: it is persisted and announced at once). A reader may hold the
+// old slice, so the append always copies.
+func (h *Handle) AddWarning(code, message string) {
+	h.update(func(r *record) {
+		r.Warnings = append(r.Warnings[:len(r.Warnings):len(r.Warnings)], JobWarning{Code: code, Message: clip(message, 400)})
+	}, true)
 }
 
 func clip(s string, n int) string {
