@@ -2,7 +2,7 @@
 // with tracks. The scheduler: a beat on another target starts at 0.4 of the anchor, a beat on the same target follows it,
 // "with": "prev" runs together with the previous beat, and a cued arrival lands on its marker. Timing defaults and role
 // eases live in motion.js and are scaled by style.rhythm. Beats: enter exit walk move pose gesture emote look show (item
-// and text) hide camera wait; sfx is placed with impact 0; the other beats are reported as minor not_supported_yet and
+// and text) hide camera wait; sfx lands by its take's impact; the other beats are reported as minor not_supported_yet and
 // ignored. Classic script; publishes StorymakerCore.beats.
 (function (root) {
     'use strict';
@@ -230,6 +230,19 @@
             return start;
         }
 
+        // ---- sfx (frozen 4.6): the take is chosen at step 5, the event is written when the beat runs.
+        var sfxPicks = {}, sfxEvents = [], lastTake = c.lastTake || new Map();
+
+        function sfxImpact(b, j) {
+            var entry = S.sfxEntry(cat, b.sound);
+            if (!entry) {
+                warn('warning', beatPath(j, 'sound'), 'unknown_asset', 'Unknown sound "' + b.sound + '"; the beat is silent.');
+                return 0;
+            }
+            sfxPicks[j] = SM.motion.pickTake(sid, j, entry, 0, lastTake);
+            return sfxPicks[j].impact;
+        }
+
         var kinds = {
             enter: {
                 dur: function () { return DEF.enter * f; },
@@ -360,10 +373,6 @@
                     }
                 }
             },
-            sfx: {
-                dur: function () { return 0; },
-                run: function (b, j) { warn('minor', beatPath(j), 'not_supported_yet', 'Beat "sfx" is not supported yet; it is ignored.'); }
-            },
             say: {
                 dur: function (b) { return sayInfo.get(b).seconds; },
                 run: function (b, j, t0, dur) {
@@ -378,6 +387,14 @@
             wait: {
                 dur: function (b) { return b.seconds >= 0 ? b.seconds : 1; },
                 run: function () {}
+            }
+        };
+
+        kinds.sfx = {
+            dur: function () { return 0; },
+            run: function (b, j, t0) {
+                var pick = sfxPicks[j];
+                if (pick) sfxEvents.push({ ref: b.sound, t: t0, take: pick.take });
             }
         };
 
@@ -454,8 +471,8 @@
             var floor = tgt ? (lastEnd.get(tgt) || 0) : 0;
             // a walk measures its distance from the target's position at floor: only same-target beats move that track
             var dur = typeof b.duration === 'number' && b.duration >= 0 ? b.duration : spec.dur(b, floor);
-            // impact stays 0 until the catalog has sfx entries
-            var delay = b.delay > 0 ? b.delay : 0, lead = SM.motion.leadOf(b, dur), impact = 0, cueT, byPrev = false, t;
+            // impact: the chosen take's impact for an sfx, 0 for a sound the catalog lacks and for every other beat
+            var delay = b.delay > 0 ? b.delay : 0, lead = SM.motion.leadOf(b, dur), impact = b.do === 'sfx' ? sfxImpact(b, j) : 0, cueT, byPrev = false, t;
             if (b.cue !== undefined && b.cue !== null) {
                 cueT = plan.narration.cues[b.cue];
                 if (cueT === undefined) warn('warning', beatPath(j, 'cue'), 'unknown_cue', 'Narration has no cue marker {' + b.cue + '}; the beat follows the previous one.');
@@ -487,7 +504,7 @@
         var motionEnd = SM.camera.end(cam);
         for (var k = 0; k < entities.length; k++) { var ee = S.entityEnd(entities[k]); if (ee > motionEnd) motionEnd = ee; }
         return {
-            entities: entities, camera: cam, beatsEnd: beatsEnd, motionEnd: motionEnd, framing: framing, actorsPlaced: placed, log: log,
+            entities: entities, camera: cam, beatsEnd: beatsEnd, motionEnd: motionEnd, framing: framing, actorsPlaced: placed, log: log, sfxEvents: sfxEvents,
             holdsEnd: holdsEndOf(log, f), blocksEnd: blocksEnd, audioEvents: audioEvents, sayBlocks: sayBlocks
         };
     }

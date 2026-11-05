@@ -61,6 +61,7 @@
         var plans = P.planAll({ scenes: scenesIn }, audioInfo || {}, cat, fmt, issues);
         var scenes = [], envPrev = null, narrationEvents = [], audioEvents = [];
         var styleFont = story.style && story.style.font || 'default';
+        var lastTake = new Map(); // soundId -> take, spans the film (frozen 4.3)
         var captionList = [];
         var captionsOn = !(story.style && story.style.captions === false);
         var glyphIdx = P.glyphIndex(catalog), fontChain = glyphIdx ? SM.glyphs.chain(glyphIdx, '$style') : undefined;
@@ -102,7 +103,7 @@
                     issues.push(P.issue('minor', sc.id, '/scenes/' + i + '/beats/' + j, 'not_supported_yet', 'Beats of a code scene are ignored; the code scene draws everything.'));
                 });
             } else {
-                built = SM.beats.buildStoryboard({ story: story, scene: sc, index: i, plan: plan, cat: cat, fmt: fmt, stage: stage, issues: issues, needs: needs, castMap: castMap });
+                built = SM.beats.buildStoryboard({ story: story, scene: sc, index: i, plan: plan, cat: cat, fmt: fmt, stage: stage, issues: issues, needs: needs, castMap: castMap, lastTake: lastTake });
             }
 
             // duration (scene-local seconds, origin = start of the entry transition)
@@ -140,6 +141,10 @@
 
             // narration windows (global seconds) and, with measured audio, one audio event per piece
             var base = scene.start_frame / fps;
+            // sfx events: film-global start from the scene-local event time (frozen section 3).
+            (built.sfxEvents || []).forEach(function (ev) {
+                audioEvents.push({ kind: 'sfx', ref: ev.ref, start_ms: Math.round((base + ev.t) * 1000), scene_id: sc.id, take: ev.take });
+            });
             if (n.seconds > 0 && !sc.silent) {
                 captionList = captionList.concat(SM.captions.forBlock(n.plain, n.block, Math.round((base + n.start) * 1000), sc.id));
                 if (n.measured) {

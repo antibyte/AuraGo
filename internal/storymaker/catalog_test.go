@@ -324,9 +324,16 @@ func TestCatalogVerifyFiles(t *testing.T) {
 	c := loadMini(t)
 	// The mini fixture references files that part C owns; the manifest alone loads fine.
 	fsys := fstest.MapFS{}
+	// Take 1 is also the entry's file. It exists from the start, so the count does not depend on how often VerifyFiles names it.
+	for _, e := range c.Entries() {
+		if e.Kind == "sfx" {
+			fsys["img/storymaker/"+e.File] = &fstest.MapFile{Data: []byte("RIFF")}
+		}
+	}
 	err := c.VerifyFiles(fsys, "img/storymaker")
-	// 23 thumbs, 5 prop and environment files, the rig and the font: 30
-	if err == nil || !strings.Contains(err.Error(), "img/storymaker/rig/human.json") || !strings.Contains(err.Error(), "30 missing files") {
+	// Rig 1, font 1, 23 thumbs and 5 entry files give 30 (S5). The sfx entries have no thumb, and their
+	// other takes add whoosh 1, pop 1 and typing 2, so 34.
+	if err == nil || !strings.Contains(err.Error(), "img/storymaker/rig/human.json") || !strings.Contains(err.Error(), "34 missing files") {
 		t.Fatalf("missing files not reported: %v", err)
 	}
 	for _, e := range c.Entries() {
@@ -336,7 +343,12 @@ func TestCatalogVerifyFiles(t *testing.T) {
 		if e.File != "" {
 			fsys["img/storymaker/"+e.File] = &fstest.MapFile{Data: []byte("{}")}
 		}
-		fsys["img/storymaker/"+e.Thumb] = &fstest.MapFile{Data: []byte("<svg/>")}
+		for _, take := range e.Takes {
+			fsys["img/storymaker/"+take.File] = &fstest.MapFile{Data: []byte("RIFF")}
+		}
+		if e.Thumb != "" {
+			fsys["img/storymaker/"+e.Thumb] = &fstest.MapFile{Data: []byte("<svg/>")}
+		}
 	}
 	fsys["img/storymaker/rig/human.json"] = &fstest.MapFile{Data: []byte("{}")}
 	if err := c.VerifyFiles(fsys, "img/storymaker"); err == nil || !strings.Contains(err.Error(), "fonts/placeholder.woff2") || strings.Contains(err.Error(), "thumbs/") {

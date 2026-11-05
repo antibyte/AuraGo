@@ -113,7 +113,8 @@ check('compile: the phase-1 support matrix reports not_supported_yet and falls b
     const out = SM.compile(s, {}, catalog), issues = plain(out.report.issues);
     const codes = (path, code) => issues.filter(i => i.path === path && i.code === code);
     assert.equal(codes('/scenes/0/beats/0', 'not_supported_yet').length, 0, 'highlight is played');
-    for (const j of [2, 3]) assert.equal(codes('/scenes/0/beats/' + j, 'not_supported_yet').length, 1, 'beat ' + j);
+    assert.equal(codes('/scenes/0/beats/2', 'not_supported_yet').length, 0, 'the sfx beat plays');
+    assert.equal(codes('/scenes/0/beats/3', 'not_supported_yet').length, 1, 'the chart beat');
     assert.equal(codes('/scenes/0/beats/1/text', 'narration_missing').length, 1, 'a say without audio is estimated');
     assert.equal(codes('/scenes/0/beats/4', 'not_supported_yet').length, 1, 'show with an icon');
     assert.equal(codes('/scenes/0/beats/5', 'not_supported_yet').length, 1, 'show with a chart');

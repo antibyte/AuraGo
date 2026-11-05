@@ -75,4 +75,14 @@
         RHYTHM: RHYTHM, DEFAULTS: DEFAULTS, OVERLAP: OVERLAP, factor: factor, leadFraction: leadFraction, holdSeconds: holdSeconds,
         defaultEase: defaultEase, fadeEase: fadeEase, isArrival: isArrival, leadOf: leadOf
     };
+
+    // pickTake(sceneId, j, entry, key, lastTake) = {take, impact in seconds}. It rotates through seed.takeIndex and
+    // remembers the take in lastTake (soundId -> take), which spans the film. A plain sfx uses key 0.
+    function pickTake(sceneId, j, entry, key, lastTake) {
+        var take = SM.seed.takeIndex(sceneId, j, entry.id, key, entry.takes.length, lastTake.get(entry.id));
+        lastTake.set(entry.id, take);
+        return { take: take, impact: (entry.takes[take].impact_ms || 0) / 1000 };
+    }
+
+    SM.motion.pickTake = pickTake;
 })(typeof globalThis !== 'undefined' ? globalThis : self);

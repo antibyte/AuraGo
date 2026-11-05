@@ -33,6 +33,12 @@
         return idx;
     }
 
+    // sfxEntry(cat, id) = the catalog entry of a sound that has takes, or null.
+    function sfxEntry(cat, id) {
+        var e = cat && cat.byId ? cat.byId[id] : null;
+        return e && e.kind === 'sfx' && Array.isArray(e.takes) && e.takes.length ? e : null;
+    }
+
     function base(type, id, x, y) {
         var t = T();
         return {
@@ -170,7 +176,7 @@
     }
 
     SM.scene = {
-        indexCatalog: indexCatalog, createActor: createActor, createProp: createProp, createText: createText,
+        indexCatalog: indexCatalog, sfxEntry: sfxEntry, createActor: createActor, createProp: createProp, createText: createText,
         createShape: createShape, createBubble: createBubble, evalEntity: evalEntity, entityEnd: entityEnd
     };
 })(typeof globalThis !== 'undefined' ? globalThis : self);

@@ -72,7 +72,7 @@ let story, catalog, files = {}, fontBuf, bundle;
 async function prepare() {
   story = await getJSON('/fixtures/firewall.json');
   catalog = await getJSON('/img/storymaker/catalog.json');
-  const paths = [catalog.rig.file].concat(catalog.entries.filter(e => e.file).map(e => e.file));
+  const paths = [catalog.rig.file].concat(catalog.entries.filter(e => e.file && e.kind !== 'sfx').map(e => e.file));
   for (const p of paths) files['catalog:' + p] = await getJSON('/img/storymaker/' + p);
   fontBuf = await (await fetch('/fonts/placeholder.woff2')).arrayBuffer();
   bundle = await (await fetch('/fixtures/gate.bundle.js')).text();
