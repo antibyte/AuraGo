@@ -1,3 +1,4 @@
+// EasyDrag library pause: bounded review, serial owner checks, one write and readback per target.
 (function () {
     'use strict';
 
