@@ -1,6 +1,6 @@
 # EasyDrag durable human approval
 
-Status: implementation contract; not a claim of completed acceptance.
+Status: implemented and locally verified for the pure-local boundary below; production and human acceptance remain open.
 Roadmap: `2026-11-04-easydrag-flagship-plan.md`, H.2 and H.6.
 Base: the pure-local Runner contract in `2026-11-04-easydrag-durable-execution-contract.md`.
 Owners: flows, server and Desktop EasyDrag guides. No production activation or deployment.
@@ -126,6 +126,15 @@ Historical metadata must disclose when the full review is gone. Keep keyboard/fo
 Update English/German manuals and nearest owning guides with the implemented boundary.
 
 ## Required verification
+
+The focused local gate passes: populated schema migrations and rollback, actual v7-binary
+refusal of v8, three combined runtime cases including process exits and a fractional-microsecond
+clock, two HTTP authorization/reconciliation cases, and Linux race checks of those affected paths.
+One combined native journey covers the inbox, exact review, uncertain response, stale digest,
+blocked session and terminal history in Standard dark and Fruity light/dark at desktop/phone sizes.
+Root screenshot review confirms the 320/390 px dialog keeps its title and footer visible while
+complete review data scrolls. Locale, module, syntax and bundle checks pass. Full suites,
+performance benchmarks, live integrations and assistive-technology certification were not run.
 
 - Migration: populated v7/WAL, backup verification and injected migration failures; unchanged v6
   owner markers/v7 history/ciphertext; actual v7 binary refusal of v8 without mutation.
