@@ -28,9 +28,10 @@ const uiDirForTests = "../../../ui"
 
 // memPublisher is the desktop workspace of the tests: create-only streams and replaceable small files.
 type memPublisher struct {
-	mu    sync.Mutex
-	files map[string][]byte
-	fail  error
+	mu     sync.Mutex
+	files  map[string][]byte
+	fail   error
+	failOn func(path string) bool // one file fails alone
 }
 
 func newMemPublisher() *memPublisher { return &memPublisher{files: map[string][]byte{}} }
@@ -38,6 +39,9 @@ func newMemPublisher() *memPublisher { return &memPublisher{files: map[string][]
 func (p *memPublisher) WriteStream(_ context.Context, path string, r io.Reader, max int64) error {
 	if p.fail != nil {
 		return p.fail
+	}
+	if p.failOn != nil && p.failOn(path) {
+		return errors.New("disk full for this file")
 	}
 	data, err := io.ReadAll(io.LimitReader(r, max+1))
 	if err != nil {
@@ -53,6 +57,9 @@ func (p *memPublisher) WriteStream(_ context.Context, path string, r io.Reader, 
 }
 
 func (p *memPublisher) WriteBytes(_ context.Context, path string, data []byte) error {
+	if p.failOn != nil && p.failOn(path) {
+		return errors.New("disk full for this file")
+	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.files[path] = append([]byte(nil), data...)
@@ -1452,5 +1459,161 @@ func TestPrepareBurnInOverrideRunsBeforeTheGlyphCheck(t *testing.T) {
 	}
 	if !found {
 		t.Errorf("issues = %+v, want glyph_missing", pe.Issues)
+	}
+}
+
+// extrasFixture is a seeded narrated story whose report holds one caption.
+func extrasFixture(t *testing.T) *runFixture {
+	t.Helper()
+	fx := newRunFixture(t)
+	// 60 frames at 30 fps are 2 s, so the 1.5 s piece and the caption end at 1500 ms fit inside the film.
+	events := fx.seedNarratedStory(t, narratedStoryDoc, 1.5)
+	fx.playing(playOptions{frames: 60, mutateRep: func(rep map[string]any) {
+		rep["audio_events"] = events
+		rep["captions"] = []any{map[string]any{"start_ms": 100, "end_ms": 1500, "lines": []any{"Hallo Welt,"}, "scene_id": "s1", "block_id": "s1:n"}}
+	}})
+	return fx
+}
+
+func TestRunPublishesExtrasBesideTheMP4(t *testing.T) {
+	fx := extrasFixture(t)
+	job := fx.renderWith(t, RenderOptions{SRT: true, VTT: true, Stems: true, Quality: "standard"})
+	if job.Status != StatusSucceeded || job.Output == nil || job.Output.Stems == nil {
+		t.Fatalf("job = %+v %+v", job, job.Error)
+	}
+	// The title "Mix" gives the slug "Mix".
+	dir := "Documents/Storymaker/" + fx.projectID + "/exports/Mix-" + job.ID[:8]
+	if job.Output.Stems.Narration != dir+"/narration.wav" || job.Output.Stems.Music != "" || job.Output.Stems.SFX != "" {
+		t.Errorf("stems = %+v", job.Output.Stems)
+	}
+	if data, ok := fx.pub.get(dir + "/narration.wav"); !ok || !bytes.HasPrefix(data, []byte("RIFF")) {
+		t.Error("the narration stem is not a WAV")
+	}
+	for _, silent := range []string{"/music.wav", "/sfx.wav"} {
+		if _, ok := fx.pub.get(dir + silent); ok {
+			t.Errorf("the silent stem %s was published", silent)
+		}
+	}
+	if job.Output.SRT != dir+"/captions.srt" || job.Output.VTT != dir+"/captions.vtt" {
+		t.Errorf("subtitles = %q %q", job.Output.SRT, job.Output.VTT)
+	}
+	if data, _ := fx.pub.get(job.Output.SRT); !strings.Contains(string(data), "Hallo Welt,") {
+		t.Errorf("SRT = %q", data)
+	}
+	if data, _ := fx.pub.get(job.Output.VTT); !bytes.HasPrefix(data, []byte("WEBVTT\n")) {
+		t.Errorf("VTT = %q", data)
+	}
+	raw, ok := fx.pub.get("Documents/Storymaker/" + fx.projectID + "/exports/" + job.ID + ".json")
+	if !ok {
+		t.Fatal("no export record")
+	}
+	var rec map[string]any
+	if err := json.Unmarshal(raw, &rec); err != nil {
+		t.Fatal(err)
+	}
+	if rec["srt"] != job.Output.SRT || rec["vtt"] != job.Output.VTT {
+		t.Errorf("record = %v", rec)
+	}
+	if stems, _ := rec["stems"].(map[string]any); stems["narration"] != job.Output.Stems.Narration {
+		t.Errorf("record stems = %v", rec["stems"])
+	}
+	if _, present := rec["cue_precision"]; !present {
+		t.Errorf("record has no cue_precision: %v", rec)
+	}
+	loudness, _ := rec["loudness"].(map[string]any)
+	if i, _ := loudness["i"].(float64); i < -18.5 || i > -15.5 {
+		t.Errorf("record loudness = %v", rec["loudness"])
+	}
+	if _, present := loudness["tp"]; !present {
+		t.Errorf("record loudness = %v", rec["loudness"])
+	}
+	if _, present := loudness["master_gain_db"]; !present {
+		t.Errorf("record loudness = %v", rec["loudness"])
+	}
+}
+
+func TestRunFailedExtrasKeepTheMP4(t *testing.T) {
+	cases := []struct {
+		name  string
+		setup func(t *testing.T, fx *runFixture)
+		opts  RenderOptions
+		codes []string
+		check func(t *testing.T, out *Output)
+	}{
+		{
+			name: "a failed stem",
+			setup: func(_ *testing.T, fx *runFixture) {
+				fx.pub.failOn = func(p string) bool { return strings.HasSuffix(p, "/narration.wav") }
+			},
+			opts:  RenderOptions{Stems: true, Quality: "standard"},
+			codes: []string{"stem_failed"},
+			check: func(t *testing.T, out *Output) {
+				if out.Stems == nil || out.Stems.Narration != "" {
+					t.Errorf("stems = %+v", out.Stems)
+				}
+			},
+		},
+		{
+			name: "a failed subtitle",
+			setup: func(_ *testing.T, fx *runFixture) {
+				fx.pub.failOn = func(p string) bool { return strings.HasSuffix(p, "/captions.srt") }
+			},
+			opts:  RenderOptions{SRT: true, VTT: true, Quality: "standard"},
+			codes: []string{"subtitle_failed"},
+			check: func(t *testing.T, out *Output) {
+				if out.SRT != "" || out.VTT == "" {
+					t.Errorf("subtitles = %q %q", out.SRT, out.VTT)
+				}
+			},
+		},
+		{
+			name: "low workspace space",
+			setup: func(t *testing.T, fx *runFixture) {
+				fx.deps.WorkspaceFree = func() (int64, error) { return 1, nil }
+				fx.rebuild(t)
+			},
+			opts:  RenderOptions{SRT: true, Stems: true, Quality: "standard"},
+			codes: []string{"stem_failed", "subtitle_failed"},
+			check: func(t *testing.T, out *Output) {
+				if out.SRT != "" || out.Stems == nil || out.Stems.Narration != "" {
+					t.Errorf("output = %+v", out)
+				}
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fx := extrasFixture(t)
+			tc.setup(t, fx)
+			job := fx.renderWith(t, tc.opts)
+			if job.Status != StatusSucceeded || job.Output == nil {
+				t.Fatalf("job = %+v %+v", job, job.Error)
+			}
+			if _, ok := fx.pub.get(job.Output.Path); !ok {
+				t.Error("the MP4 is gone")
+			}
+			for _, code := range tc.codes {
+				if !hasWarning(job, code) {
+					t.Errorf("warnings = %+v, want %s", job.Warnings, code)
+				}
+			}
+			tc.check(t, job.Output)
+		})
+	}
+}
+
+func TestRunStemsOfASilentFilmAreAnEmptyObject(t *testing.T) {
+	fx := newRunFixture(t)
+	fx.playing(playOptions{frames: 12})
+	job := fx.renderWith(t, RenderOptions{Stems: true, Quality: "standard"})
+	if job.Status != StatusSucceeded || job.Output == nil || len(job.Warnings) != 0 {
+		t.Fatalf("job = %+v %+v", job, job.Error)
+	}
+	data, err := json.Marshal(job.Output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), `"stems":{}`) {
+		t.Errorf("output = %s", data)
 	}
 }

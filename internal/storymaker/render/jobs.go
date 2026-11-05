@@ -97,10 +97,21 @@ func Fail(code, format string, args ...any) *JobError {
 	return &JobError{Code: code, Message: fmt.Sprintf(format, args...)}
 }
 
-// Output is the file a successful render wrote: its desktop path and size.
+// OutputStems names the published stems. A silent stem is omitted.
+type OutputStems struct {
+	Narration string `json:"narration,omitempty"`
+	Music     string `json:"music,omitempty"`
+	SFX       string `json:"sfx,omitempty"`
+}
+
+// Output is what a successful render wrote. Stems is present ("{}") whenever stems were asked for.
 type Output struct {
-	Path string `json:"path"`
-	Size int64  `json:"size"`
+	Path    string       `json:"path"`
+	Size    int64        `json:"size"`
+	Stems   *OutputStems `json:"stems,omitempty"`
+	SRT     string       `json:"srt,omitempty"`
+	VTT     string       `json:"vtt,omitempty"`
+	Library string       `json:"library,omitempty"`
 }
 
 // Warning codes of a job that still succeeded.

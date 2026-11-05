@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/fileutil"
 	"aurago/internal/storymaker"
 	"aurago/internal/storymaker/render"
 	"aurago/internal/videostudio"
@@ -110,7 +111,8 @@ func (s *Server) newStorymakerRuntime(dataDir string) (*storymakerRuntime, error
 		Dir: dir, UI: ui, Catalog: catalog, Projects: rt.projects, Browsers: rt.browsers, Publisher: store,
 		Settings: func(ctx context.Context) (render.Settings, error) { return s.storymakerSettings(ctx) },
 		Logger:   logger, FrameObserver: s.storymakerFrameObserver,
-		MusicKey: s.storymakerMusicKey,
+		WorkspaceFree: s.storymakerWorkspaceFree,
+		MusicKey:      s.storymakerMusicKey,
 	})
 	run := rt.runner.Run
 	if s.storymakerRunOverride != nil {
@@ -288,6 +290,15 @@ func (s *Server) storymakerSettings(ctx context.Context) (render.Settings, error
 		EncoderName:        enc.Name,
 		Limits:             storymakerLimits(cfg),
 	}, nil
+}
+
+// storymakerWorkspaceFree is the free space of the desktop workspace, checked before each export extra.
+func (s *Server) storymakerWorkspaceFree() (int64, error) {
+	cfg := s.ConfigSnapshot()
+	if cfg == nil {
+		return 0, errors.New("configuration unavailable")
+	}
+	return fileutil.FreeDiskBytes(cfg.VirtualDesktop.WorkspaceDir)
 }
 
 // storymakerAvailable is the capability behind Requires: ["storymaker"]: the feature flag and an

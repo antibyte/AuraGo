@@ -99,6 +99,8 @@ type Deps struct {
 	SessionTweak func(o *sessionOptions)
 	// ReportObserver, when set, sees every compile report body the page posts.
 	ReportObserver func(body []byte)
+	// WorkspaceFree returns the free bytes of the desktop workspace; nil skips the check.
+	WorkspaceFree func() (int64, error)
 	// mixHook, when set, runs where the mix runs, on the mix context. Tests hold the start with it.
 	mixHook func(ctx context.Context, run *renderRun) error
 	// ListenerObserver, when set, receives the request counts of the listener when the job ends.
@@ -590,18 +592,134 @@ func (run *renderRun) finish(ctx context.Context) (Output, error) {
 		}
 		return Output{}, Fail(CodeRenderFailed, "The video could not be saved to the project: %v", err)
 	}
+	published := Output{Path: outPath, Size: info.Size()}
+	run.publishExtras(ctx, slug, exportDir, &published)
 	meta := map[string]any{
 		"job_id": run.job.ID, "title": run.plan.Story.Title, "output_path": outPath, "size": info.Size(),
 		"frames": run.report.FrameCount, "duration_ms": run.report.DurationMS, "fps": run.fps, "width": run.width, "height": run.height,
 		"encoder": run.currentEncoderName(), "transport": run.transport, "catalog_version": run.catVersion,
 		"created_at": time.Now().UTC().Format(time.RFC3339), "render_seconds": time.Since(run.startedAt).Seconds(),
 	}
+	run.addRecordExtras(meta, published)
 	if data, err := json.MarshalIndent(meta, "", "  "); err == nil {
 		if err := run.r.deps.Publisher.WriteBytes(ctx, exportDir+"/"+run.job.ID+".json", append(data, '\n')); err != nil {
 			run.r.deps.Logger.Warn("[Storymaker] The export record could not be written", "error", err)
 		}
 	}
-	return Output{Path: outPath, Size: info.Size()}, nil
+	return published, nil
+}
+
+// publishExtras writes the stems and subtitles into exports/<slug>-<job8>/. A failed extra leaves the MP4
+// alone and becomes a warning.
+func (run *renderRun) publishExtras(ctx context.Context, slug, exportDir string, out *Output) {
+	opts := run.plan.Options
+	dir := exportDir + "/" + slug + "-" + run.job.ID[:8]
+	if opts.Stems {
+		out.Stems = run.publishStems(ctx, dir)
+	}
+	if opts.SRT {
+		out.SRT = run.publishSubtitle(ctx, dir+"/captions.srt", WriteSRT(run.report.Captions))
+	}
+	if opts.VTT {
+		out.VTT = run.publishSubtitle(ctx, dir+"/captions.vtt", WriteVTT(run.report.Captions))
+	}
+}
+
+// workspaceHolds refuses an extra the desktop workspace has no room for. The stream path has no check of its own.
+func (run *renderRun) workspaceHolds(size int64) error {
+	free := run.r.deps.WorkspaceFree
+	if free == nil {
+		return nil
+	}
+	n, err := free()
+	if err != nil {
+		return err
+	}
+	if n < size+minFreeStagingByte {
+		return fmt.Errorf("only %d MB are free on the desktop workspace", n>>20)
+	}
+	return nil
+}
+
+func (run *renderRun) publishStems(ctx context.Context, dir string) *OutputStems {
+	run.mu.Lock()
+	peaks := run.mixResult.StemPeak
+	run.mu.Unlock()
+	stems := &OutputStems{}
+	for i, stem := range []struct {
+		name   string
+		target *string
+	}{{"narration", &stems.Narration}, {"music", &stems.Music}, {"sfx", &stems.SFX}} {
+		if peaks[i] <= 0 {
+			continue // a silent stem is omitted
+		}
+		target := dir + "/" + stem.name + ".wav"
+		if err := run.publishStem(ctx, stem.name, target); err != nil {
+			run.warn(warnStemFailed, "The "+stem.name+" stem could not be saved: "+run.scrubbed(err))
+			continue
+		}
+		*stem.target = target
+	}
+	return stems
+}
+
+func (run *renderRun) publishStem(ctx context.Context, name, target string) error {
+	file, err := os.Open(filepath.Join(filepath.Dir(run.output), "stem-"+name+".wav"))
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil {
+		return err
+	}
+	if info.Size() > maxOutputBytes {
+		return fmt.Errorf("the file is larger than %d GB", maxOutputBytes>>30)
+	}
+	if err := run.workspaceHolds(info.Size()); err != nil {
+		return err
+	}
+	return run.r.deps.Publisher.WriteStream(ctx, target, file, maxOutputBytes)
+}
+
+func (run *renderRun) publishSubtitle(ctx context.Context, target string, data []byte) string {
+	err := run.workspaceHolds(int64(len(data)))
+	if err == nil {
+		err = run.r.deps.Publisher.WriteBytes(ctx, target, data)
+	}
+	if err != nil {
+		run.warn(warnSubtitleFailed, "The subtitle file "+path.Base(target)+" could not be saved: "+run.scrubbed(err))
+		return ""
+	}
+	return target
+}
+
+// addRecordExtras adds the phase 2 fields to the export record. The loudness is the level after the master
+// gain. MixResult stores a silent reading as -70, so the values are finite and JSON can hold them.
+func (run *renderRun) addRecordExtras(meta map[string]any, out Output) {
+	if out.Stems != nil {
+		meta["stems"] = out.Stems
+	}
+	if out.SRT != "" {
+		meta["srt"] = out.SRT
+	}
+	if out.VTT != "" {
+		meta["vtt"] = out.VTT
+	}
+	if out.Library != "" {
+		meta["library"] = out.Library
+	}
+	run.mu.Lock()
+	warnings := append([]JobWarning(nil), run.warnings...)
+	mixed, res := run.audioPath != "", run.mixResult
+	run.mu.Unlock()
+	if len(warnings) > 0 {
+		meta["warnings"] = warnings
+	}
+	if mixed {
+		meta["loudness"] = map[string]float64{"i": res.PreI + res.MasterGainDB, "tp": res.PreTP + res.MasterGainDB, "master_gain_db": res.MasterGainDB}
+	}
+	meta["cue_precision"] = run.report.CuePrecision
 }
 
 func (run *renderRun) currentEncoderName() string {
@@ -856,7 +974,13 @@ func (run *renderRun) mixAudio(ctx context.Context) (string, MixResult, error) {
 	}
 	mix := filepath.Join(staging, "mix.wav")
 	newMeter := func(c context.Context) (*Meter, error) { return StartMeter(c, run.st.FFmpegPath) }
-	res, err := Mix(ctx, in, newMeter, MixOutputs{Mix: mix}, func(float64) {})
+	outputs := MixOutputs{Mix: mix}
+	if run.plan.Options.Stems {
+		outputs.Narration = filepath.Join(staging, "stem-narration.wav")
+		outputs.Music = filepath.Join(staging, "stem-music.wav")
+		outputs.SFX = filepath.Join(staging, "stem-sfx.wav")
+	}
+	res, err := Mix(ctx, in, newMeter, outputs, func(float64) {})
 	if err != nil {
 		return "", MixResult{}, err
 	}
