@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -68,6 +69,11 @@ func newSmokeBrowserWith(t *testing.T, tweak func(*launcher.Launcher)) *rod.Brow
 		NoSandbox(true).
 		Set("disable-gpu").
 		Set("disable-dev-shm-usage")
+	if runtime.GOOS == "windows" {
+		// Rod's leakless helper can hang before publishing the child PID on Windows.
+		l.Leakless(false)
+		t.Cleanup(l.Kill)
+	}
 	if os.Getenv("AURAGO_BROWSER_MUTE_AUDIO") == "1" {
 		l.Set("mute-audio")
 	}

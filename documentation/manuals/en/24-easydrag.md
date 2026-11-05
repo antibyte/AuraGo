@@ -47,6 +47,20 @@ If another window saved first, your input stays visible; **Reload stored values*
 discarding it. Hidden tags remain on the server during a folder move. **Replace hidden
 content** starts a fresh tag list. Keep secrets out of these names and tags.
 
+**Pause several flows:** select up to 50 published flows in the library, then choose
+**Review pause**. Selection does not change your flows; changing the search, folder or
+filter clears it. The review checks every target. Only flows shown as active in that
+review can receive a pause request, after another current-state check.
+
+Choose **Pause active flows** to proceed. Future scheduled and timer runs stop, and
+durable recovery waits while paused. Ordinary runs already accepted may continue;
+pausing does not undo completed actions. Each flow gets its own result. **Currently
+paused; saving unconfirmed** means the current switch is off but the write was not
+acknowledged; this does not confirm that the pause will survive a restart. No failed
+or unanswered pause request is retried automatically. An uncertain write or permission
+loss stops remaining requests; check the results before starting a new reviewed action.
+Closing the dialog stops unsent pause requests, but a request already sent may still finish.
+
 For a first result without an account, choose **Your first local result** in the recipe
 gallery. Its three steps read a sample name, make a greeting and check that the name
 is present. Open the greeting step's output after testing. Recipe search and category

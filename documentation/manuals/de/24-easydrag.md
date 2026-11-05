@@ -51,6 +51,24 @@ neu laden** fragt vor dem Verwerfen nach. Verborgene Tags bleiben beim Ordnerwec
 auf dem Server. **Verborgenen Inhalt ersetzen** beginnt eine frische Tagliste. Gib in
 diesen Namen und Tags keine Geheimnisse ein.
 
+**Mehrere Flows pausieren:** Wähle in der Bibliothek bis zu 50 veröffentlichte Flows
+aus und öffne **Pause prüfen**. Die Auswahl verändert Deine Flows nicht; eine andere
+Suche, ein anderer Ordner oder Filter hebt sie auf. Die Vorschau prüft jedes Ziel.
+Nur dort als aktiv angezeigte Flows kommen nach einer erneuten Statusprüfung für die
+Pause infrage.
+
+Wähle **Aktive Flows pausieren**, um fortzufahren. Künftige Zeitplan- und Timerläufe
+stoppen, und die gespeicherte Wiederaufnahme wartet während der Pause. Bereits
+angenommene gewöhnliche Läufe können weiterlaufen; ausgeführte Aktionen werden durch
+die Pause nicht rückgängig gemacht. Jeder Flow erhält ein eigenes Ergebnis. **Derzeit
+pausiert; Speichern unbestätigt** bedeutet: Der Schalter ist aktuell aus, aber der
+Schreibvorgang wurde nicht bestätigt. Ob die Pause einen Neustart übersteht, ist damit
+nicht geklärt. Fehlgeschlagene oder unbeantwortete Pausen werden nie automatisch erneut
+angefordert. Ein unklarer Schreibvorgang oder verlorene Berechtigungen stoppen die
+übrigen Anfragen. Prüfe die Ergebnisse, bevor Du einen neuen Vorgang startest. Beim
+Schließen des Dialogs werden keine weiteren Pausen angefordert; eine bereits gesendete
+Anfrage kann noch abgeschlossen werden.
+
 Für ein erstes Ergebnis ohne Konto wähle **Dein erstes lokales Ergebnis** in der
 Rezeptauswahl. Drei Schritte lesen einen Beispielnamen, bilden eine Begrüßung und prüfen,
 ob der Name vorhanden ist. Öffne nach dem Test die Ausgabe des Begrüßungsschritts.

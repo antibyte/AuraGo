@@ -27,6 +27,148 @@
     // itself may be at most 2 MiB (flows.MaxDocumentBytes); the server answers a larger one with
     // FLOW_TOO_LARGE.
     const IMPORT_MAX_BYTES = 4 * 1024 * 1024;
+    const PAUSE_LIMIT = 50;
+    const PAUSE_REQUEST_MS = 8000;
+    const PAUSE_REVIEW_MS = 60000;
+    const PAUSE_OPERATION_MS = 120000;
+
+    function abortError() { return Object.assign(new Error('request cancelled'), { name: 'AbortError' }); }
+    function deadlineError() { return Object.assign(new Error('request deadline exceeded'), { name: 'TimeoutError' }); }
+    function notSentError(cancelled, permissionLost) { return Object.assign(new Error('pause request was not sent'), { pauseNotSent: true, pauseCancelled: !!cancelled, pausePermissionLost: !!permissionLost }); }
+    function errorCode(err) { return String(err && err.body && (err.body.code || err.body.error) || '').toLowerCase(); }
+    function authorityLost(err) {
+        return [401, 403].includes(Number(err && err.status)) || ['unauthorized', 'forbidden', 'permission_denied', 'desktop_scope_required', 'desktop_readonly', 'flow_permission_denied', 'flows_disabled', 'flow_request_cancelled'].includes(errorCode(err));
+    }
+    function stateFromError(err) {
+        if (Number(err && err.status) === 404 || ['flow_not_found', 'flow_mission_missing'].includes(errorCode(err))) return 'missing';
+        if (['flow_mission_mismatch', 'flow_mission_wrong_owner'].includes(errorCode(err))) return 'mismatch';
+        return 'unavailable';
+    }
+    function missionState(reply) {
+        const state = reply && reply.mission_state;
+        return ['enabled', 'disabled', 'missing', 'mismatch', 'unavailable'].includes(state) ? state : 'unavailable';
+    }
+    async function pauseRequest(fn, signals, timeoutMs) {
+        if (signals.some(signal => signal && signal.aborted)) throw abortError();
+        const controller = new AbortController();
+        let timer, rejectCancel;
+        const cancel = new Promise((_, reject) => { rejectCancel = reject; });
+        const listeners = signals.filter(Boolean).map(signal => {
+            const listener = () => { controller.abort(); rejectCancel(abortError()); };
+            signal.addEventListener('abort', listener, { once: true });
+            return () => signal.removeEventListener('abort', listener);
+        });
+        const deadline = new Promise((_, reject) => {
+            timer = setTimeout(() => { controller.abort(); reject(deadlineError()); }, timeoutMs);
+        });
+        const request = Promise.resolve().then(() => {
+            if (controller.signal.aborted) throw abortError();
+            return fn(controller.signal);
+        });
+        try { return await Promise.race([request, cancel, deadline]); }
+        finally { clearTimeout(timer); listeners.forEach(remove => remove()); }
+    }
+    async function reviewPauseTargets(api, targets, options) {
+        const opts = options || {}, endAt = Date.now() + (opts.totalMs || PAUSE_REVIEW_MS), rows = [];
+        let stopped = false, permissionLost = false;
+        for (let index = 0; index < targets.length; index++) {
+            const target = targets[index];
+            if (opts.signal && opts.signal.aborted) return { rows, stopped: true, cancelled: true, permissionLost };
+            if (Date.now() >= endAt) {
+                stopped = true;
+                rows.push(...targets.slice(index).map(item => ({ ...item, state: 'unavailable' })));
+                break;
+            }
+            if (opts.onProgress) opts.onProgress(index + 1, targets.length, target);
+            try {
+                const reply = await pauseRequest(signal => api.enabledStatus(target.id, signal), [opts.signal, opts.destroySignal], Math.min(opts.requestMs || PAUSE_REQUEST_MS, Math.max(1, endAt - Date.now())));
+                rows.push({ ...target, state: missionState(reply) });
+                if (missionState(reply) === 'unavailable') stopped = true;
+            } catch (err) {
+                if (opts.signal && opts.signal.aborted || opts.destroySignal && opts.destroySignal.aborted) return { rows, stopped: true, cancelled: true, permissionLost };
+                const state = stateFromError(err);
+                rows.push({ ...target, state });
+                if (authorityLost(err)) { permissionLost = true; stopped = true; rows.push(...targets.slice(index + 1).map(item => ({ ...item, state: 'unavailable' }))); break; }
+            }
+        }
+        return { rows, stopped, cancelled: false, permissionLost };
+    }
+    async function executePauseTargets(api, reviewed, options) {
+        const opts = options || {}, rows = reviewed.map(row => ({ ...row, outcome: row.state === 'disabled' ? 'disabled' : row.state === 'enabled' ? 'not_attempted' : row.state }));
+        const endAt = Date.now() + (opts.totalMs || PAUSE_OPERATION_MS), candidates = rows.filter(row => row.state === 'enabled');
+        let stopped = false, permissionLost = false, cancelled = false;
+        const finishUnsent = from => {
+            candidates.slice(from).forEach(row => { row.outcome = 'not_attempted'; });
+        };
+        for (let index = 0; index < candidates.length; index++) {
+            const target = candidates[index], row = rows.find(item => item.id === target.id);
+            if (opts.cancelled && opts.cancelled() || opts.cancelSignal && opts.cancelSignal.aborted) { cancelled = true; stopped = true; finishUnsent(index); break; }
+            if (opts.destroySignal && opts.destroySignal.aborted || Date.now() >= endAt || opts.canWrite && !opts.canWrite()) {
+                stopped = true; finishUnsent(index); break;
+            }
+            if (opts.onProgress) opts.onProgress(index + 1, candidates.length, target, 'check');
+            let state;
+            try {
+                const reply = await pauseRequest(signal => api.enabledStatus(target.id, signal), [opts.cancelSignal, opts.destroySignal], Math.min(opts.requestMs || PAUSE_REQUEST_MS, Math.max(1, endAt - Date.now())));
+                state = missionState(reply);
+            } catch (err) {
+                if (opts.cancelled && opts.cancelled() || opts.cancelSignal && opts.cancelSignal.aborted) { cancelled = true; stopped = true; row.outcome = 'not_attempted'; finishUnsent(index + 1); break; }
+                state = stateFromError(err);
+                if (state === 'unavailable' || authorityLost(err)) {
+                    row.outcome = 'unresolved'; stopped = true; permissionLost = authorityLost(err); finishUnsent(index + 1); break;
+                }
+            }
+            row.state = state;
+            if (state === 'unavailable') { row.outcome = 'unresolved'; stopped = true; finishUnsent(index + 1); break; }
+            if (state !== 'enabled') { row.outcome = state; continue; }
+
+            let acknowledged = false, mutationError = null;
+            if (opts.cancelled && opts.cancelled() || opts.cancelSignal && opts.cancelSignal.aborted) {
+                cancelled = true; stopped = true; row.outcome = 'not_attempted'; finishUnsent(index + 1); break;
+            }
+            if (opts.destroySignal && opts.destroySignal.aborted || Date.now() >= endAt || opts.canWrite && !opts.canWrite()) {
+                stopped = true; finishUnsent(index); break;
+            }
+            try {
+                if (opts.onProgress) opts.onProgress(index + 1, candidates.length, target, 'pause');
+                await pauseRequest(signal => {
+                    const closed = opts.cancelled && opts.cancelled() || opts.cancelSignal && opts.cancelSignal.aborted;
+                    if (closed) throw notSentError(true, false);
+                    const writable = !opts.canWrite || opts.canWrite();
+                    if (opts.destroySignal && opts.destroySignal.aborted || Date.now() >= endAt || !writable) throw notSentError(false, !writable);
+                    return api.setEnabled(target.id, false, signal);
+                }, [opts.destroySignal], Math.min(opts.requestMs || PAUSE_REQUEST_MS, Math.max(1, endAt - Date.now())));
+                acknowledged = true;
+            } catch (err) {
+                if (err && err.pauseNotSent) {
+                    if (err.pauseCancelled) cancelled = true;
+                    if (err.pausePermissionLost) permissionLost = true;
+                    stopped = true; finishUnsent(index); break;
+                }
+                mutationError = err;
+            }
+
+            // A sent pause is never retried. Even a lost reply gets exactly one readback.
+            try {
+                const reply = await pauseRequest(signal => api.enabledStatus(target.id, signal), [opts.destroySignal], Math.min(opts.requestMs || PAUSE_REQUEST_MS, Math.max(1, endAt - Date.now())));
+                const after = missionState(reply);
+                row.state = after;
+                row.outcome = after === 'disabled' ? (acknowledged ? 'confirmed' : 'save_uncertain') : after === 'enabled' ? 'active' : 'unresolved';
+                if (row.outcome === 'unresolved') stopped = true;
+            } catch (err) {
+                row.state = stateFromError(err);
+                row.outcome = 'unresolved';
+                stopped = true;
+                permissionLost = authorityLost(err);
+            }
+            if (mutationError) {
+                stopped = true;
+                permissionLost = permissionLost || authorityLost(mutationError);
+            }
+            if (stopped) { finishUnsent(index + 1); break; }
+        }
+        return { rows, stopped, cancelled, permissionLost };
+    }
 
     function previewSVG(nodes, esc, edges) {
         if (!nodes || !nodes.length) return '<svg viewBox="0 0 240 110" aria-hidden="true"><rect class="ed-mini-empty" x="94" y="39" width="52" height="32" rx="8"></rect></svg>';
@@ -78,6 +220,9 @@
         let folders = [], foldersError = null, organizationFolder = '', organizationTag = '';
         let folderMap = new Map(), tagSet = new Set(), folderOptions = '', tagOptions = '', installedFolders = '', installedTags = '';
         let privacyUpdate = false;
+        const selectedFlows = new Map();
+        const destroyed = new AbortController();
+        let activePause = null, pauseSequence = 0;
         const hasOrganization = !!(ED.metadata && app.api.folders && app.api.library);
 
         const el = core.el('<div class="ed-home">' +
@@ -98,6 +243,7 @@
             '<div class="ed-seg ed-seg--small" role="radiogroup" aria-label="' + esc(t('easydrag.ui.library_view')) + '"><button type="button" role="radio" data-ed-library-view="cards" aria-checked="true">' + core.icon('grid') + esc(t('easydrag.ui.library_cards')) + '</button><button type="button" role="radio" data-ed-library-view="list" aria-checked="false">' + core.icon('list') + esc(t('easydrag.ui.library_list')) + '</button></div>' +
             '<button type="button" class="ed-btn" aria-pressed="false" data-ed-library-favorites>' + core.icon('star') + esc(t('easydrag.ui.library_favorites')) + '</button>' +
             '<details class="ed-details ed-library-saved"><summary>' + esc(t('easydrag.ui.library_saved_filters')) + '</summary><div class="ed-library-presets"><select class="ed-input" data-ed-library-filter aria-label="' + esc(t('easydrag.ui.library_saved_filters')) + '"></select><button type="button" class="ed-btn" data-ed-library-save>' + core.icon('plus') + esc(t('easydrag.ui.library_filter_save')) + '</button><button type="button" class="ed-icon-btn" data-ed-library-delete disabled aria-label="' + esc(t('easydrag.ui.library_filter_delete')) + '" title="' + esc(t('easydrag.ui.library_filter_delete')) + '">' + core.icon('trash') + '</button></div></details></div></div>' +
+            '<div class="ed-library-selection" data-ed-bulk-selection role="group" aria-label="' + esc(t('easydrag.ui.home_bulk_review')) + '" hidden><span data-ed-bulk-count aria-live="polite"></span><button type="button" class="ed-btn" data-ed-bulk-review>' + core.icon('pause') + '<span>' + esc(t('easydrag.ui.home_bulk_review')) + '</span></button><button type="button" class="ed-btn ed-btn--ghost" data-ed-bulk-clear>' + esc(t('easydrag.ui.home_bulk_clear')) + '</button></div>' +
             '<p class="ed-hint" data-ed-library-local>' + esc(t('easydrag.ui.library_local')) + '</p><div class="ed-flow-grid"></div></section>' +
             '<section class="ed-home-section"><h2>' + esc(t('easydrag.ui.home_templates')) + '</h2><p class="ed-hint">' + esc(t('easydrag.ui.home_templates_hint')) + '</p>' +
             '<div class="ed-recipe-intro" data-ed-recipe-intro hidden><h2>' + esc(t('easydrag.ui.recipe_intro_title')) + '</h2><p>' + esc(t('easydrag.ui.recipe_intro_hint')) + '</p><div class="ed-recipe-steps">' + ['build', 'test', 'result'].map(id => '<span>' + esc(t('easydrag.ui.recipe_step_' + id)) + '</span>').join('') + '</div></div>' +
@@ -131,7 +277,7 @@
         }
 
         function metadataEnv() { return { root: el, api: app.api, ctx, t, esc, readonly: !!app.readonly, canWrite: mayChange,
-            onAuthLost(err) { flows = []; templates = []; folders = []; loadError = err; staleError = null; listed = false; cacheOrganization(); render(); reportLoaded(); },
+            onAuthLost(err) { flows = []; templates = []; folders = []; clearSelection(); loadError = err; staleError = null; listed = false; cacheOrganization(); render(); reportLoaded(); },
             onLibraryRead(id, library, nextFolders) { const flow = flows.find(row => row.id === id); if (flow) flow.library = library; folders = nextFolders; cacheOrganization(); render(); }
         }; }
         function metadataOf(flow) { return flow.library || { folder_id: null, tags: [], revision: 0 }; }
@@ -176,6 +322,149 @@
             if (select.innerHTML !== options) select.innerHTML = options;
             select.value = selectedFilter;
             el.querySelector('[data-ed-library-delete]').disabled = !selectedFilter;
+            selectionControls();
+        }
+
+        function selectionControls() {
+            const controls = el.querySelector('[data-ed-bulk-selection]');
+            if (!controls) return;
+            controls.hidden = !selectedFlows.size || !!loadError;
+            controls.querySelector('[data-ed-bulk-count]').textContent = t('easydrag.ui.home_bulk_selected', { count: selectedFlows.size });
+            const locked = !mayChange() || !!activePause;
+            controls.querySelector('[data-ed-bulk-review]').disabled = locked || !selectedFlows.size;
+            controls.querySelector('[data-ed-bulk-clear]').disabled = !!activePause;
+            grid.querySelectorAll('[data-ed-select-flow]').forEach(input => {
+                const selected = selectedFlows.has(input.dataset.edSelectFlow);
+                input.checked = selected;
+                input.disabled = locked || (!selected && selectedFlows.size >= PAUSE_LIMIT);
+                const card = input.closest('[data-ed-flow]');
+                if (card) card.classList.toggle('is-bulk-selected', selected);
+            });
+        }
+
+        function clearSelection() {
+            if (!selectedFlows.size) return;
+            selectedFlows.clear();
+            selectionControls();
+        }
+
+        function pauseRowMarkup(row, final) {
+            const state = ['checking', 'enabled', 'disabled', 'missing', 'mismatch', 'unavailable'].includes(row.state) ? row.state : 'unavailable';
+            const label = final && row.outcome && ['confirmed', 'save_uncertain', 'active', 'unresolved', 'not_attempted'].includes(row.outcome)
+                ? t('easydrag.ui.home_bulk_outcome_' + row.outcome) : t('easydrag.ui.home_bulk_' + (state === 'checking' ? 'loading' : 'status_' + (row.outcome && ['disabled', 'missing', 'mismatch', 'unavailable'].includes(row.outcome) ? row.outcome : state)));
+            return '<li class="ed-bulk-pause-row" data-state="' + state + '"><span class="ed-bulk-pause-name">' + esc(row.name) + '</span><span class="ed-bulk-pause-state">' + esc(label) + '</span></li>';
+        }
+
+        function pauseDialogBody(rows, options) {
+            const opts = options || {};
+            const note = opts.note ? '<p class="ed-hint" data-ed-bulk-state-note>' + esc(t(opts.note)) + '</p>' : '';
+            const progress = opts.progress ? '<p class="ed-bulk-pause-progress" role="status" aria-live="polite">' + esc(t('easydrag.ui.home_bulk_progress', opts.progress)) + '</p>' : '';
+            const summary = opts.summary ? '<p class="ed-bulk-pause-summary" role="status">' + esc(t(opts.summary)) + '</p>' : '';
+            const list = '<ul class="ed-bulk-pause-list">' + rows.map(row => pauseRowMarkup(row, !!opts.final)).join('') + '</ul>';
+            if (opts.final) return summary + list + note;
+            return '<p class="ed-bulk-pause-intro">' + esc(t('easydrag.ui.home_bulk_intro')) + '</p>' + summary + progress + note + list;
+        }
+
+        async function reviewPause() {
+            if (!mayChange() || activePause || !selectedFlows.size || selectedFlows.size > PAUSE_LIMIT) return;
+            const opener = el.querySelector('[data-ed-bulk-review]');
+            const restorePauseFocus = () => {
+                const anotherModalOpen = Array.from(document.querySelectorAll('.ed-modal-backdrop:not(.is-closing)')).some(overlay => !dialog || !overlay.contains(dialog.el));
+                if (anotherModalOpen) return;
+                const openerVisible = opener && opener.isConnected && !opener.disabled && opener.offsetParent !== null && !opener.closest('[hidden]');
+                if (openerVisible) return;
+                const active = document.activeElement;
+                const activeInClosingDialog = operation && operation.closed && dialog && dialog.el.contains(active);
+                if (active === opener || activeInClosingDialog || !active || active === document.body || !active.isConnected || active.closest('[hidden]')) {
+                    const search = el.querySelector('[data-ed-home-search]');
+                    if (search && !search.disabled) search.focus();
+                    else el.querySelector('[data-ed-home-retry]')?.focus();
+                }
+            };
+            const operation = { id: ++pauseSequence, cancel: new AbortController(), closed: false, running: true, executing: false };
+            activePause = operation;
+            selectionControls();
+            const targets = Array.from(selectedFlows.values(), row => ({ id: row.id, name: row.name }));
+            async function runPause() {
+                try {
+                    const result = await executePauseTargets(app.api, operation.preview.rows, {
+                        cancelSignal: operation.cancel.signal, destroySignal: destroyed.signal, cancelled: () => operation.closed,
+                        canWrite: mayChange,
+                        onProgress(current, total, target) {
+                            if (operation.closed || gone || operation.id !== pauseSequence) return;
+                            dialog.body.innerHTML = pauseDialogBody(operation.preview.rows, { progress: { current, total, name: target.name } });
+                        }
+                    });
+                    if (!operation.closed && !gone && operation.id === pauseSequence) {
+                        dialog.body.innerHTML = pauseDialogBody(result.rows, { final: true, note: 'easydrag.ui.home_bulk_state_note', summary: result.permissionLost ? 'easydrag.ui.home_bulk_permission_lost' : result.stopped ? 'easydrag.ui.home_bulk_stopped' : 'easydrag.ui.home_bulk_results' });
+                        const close = dialog.el.querySelector('[data-ed-action="cancel"]');
+                        if (close) close.querySelector('span').textContent = t('easydrag.ui.close');
+                    }
+                } catch (err) {
+                    if (!operation.closed && !gone && operation.id === pauseSequence) {
+                        dialog.body.innerHTML = pauseDialogBody(operation.preview.rows.map(row => ({ ...row, outcome: 'unresolved' })), { final: true, note: 'easydrag.ui.home_bulk_state_note', summary: 'easydrag.ui.home_bulk_stopped' });
+                    }
+                } finally {
+                    operation.running = false;
+                    if (operation.executing && !gone && !destroyed.signal.aborted) {
+                        operation.refreshPromise = reload();
+                        operation.refreshPromise.then(() => { if (operation.closed && !gone) restorePauseFocus(); }, () => { if (operation.closed && !gone) restorePauseFocus(); });
+                    }
+                    if (activePause === operation) activePause = null;
+                    if (!operation.closed && !gone) selectionControls();
+                    if (operation.closed && !gone) restorePauseFocus();
+                }
+            }
+            const dialog = core.modal(el, {
+                title: t('easydrag.ui.home_bulk_title'), closeLabel: t('easydrag.ui.close'), className: 'ed-modal--bulk-pause',
+                body: pauseDialogBody(targets.map(row => ({ ...row, state: 'checking' })), { summary: 'easydrag.ui.home_bulk_loading' }),
+                actions: [{ id: 'cancel', label: t('easydrag.ui.cancel') }], cancel: 'cancel',
+                onAction: action => {
+                    if (action !== 'confirm') return true;
+                    if (operation.executing || !operation.preview || !mayChange()) return false;
+                    operation.executing = true;
+                    operation.running = true;
+                    const confirm = dialog.el.querySelector('[data-ed-action="confirm"]');
+                    if (confirm) confirm.hidden = true;
+                    const cancel = dialog.el.querySelector('[data-ed-action="cancel"]');
+                    if (cancel) setTimeout(() => { if (!operation.closed && !gone && !cancel.disabled) cancel.focus(); }, 0);
+                    runPause();
+                    return false;
+                }
+            });
+            operation.dialog = dialog;
+            dialog.done.then(() => {
+                operation.closed = true;
+                operation.cancel.abort();
+                if (!operation.running && activePause === operation) activePause = null;
+                if (!gone) {
+                    selectionControls();
+                    restorePauseFocus();
+                }
+            });
+            try {
+                const preview = await reviewPauseTargets(app.api, targets, {
+                    signal: operation.cancel.signal, destroySignal: destroyed.signal,
+                    onProgress(current, total, target) {
+                        if (operation.closed || gone || operation.id !== pauseSequence) return;
+                        dialog.body.innerHTML = pauseDialogBody(targets.map(row => ({ ...row, state: 'checking' })), { progress: { current, total, name: target.name } });
+                    }
+                });
+                operation.preview = preview;
+                if (!operation.closed && !gone && operation.id === pauseSequence) {
+                    dialog.body.innerHTML = pauseDialogBody(preview.rows, { summary: preview.permissionLost ? 'easydrag.ui.home_bulk_permission_lost' : '' });
+                    const candidates = preview.rows.filter(row => row.state === 'enabled').length;
+                    const footer = dialog.el.querySelector('.ed-modal-foot');
+                    if (candidates && !preview.permissionLost && footer) {
+                        const confirm = core.el('<button type="button" class="ed-btn ed-btn--primary" data-ed-action="confirm"><span>' + esc(t('easydrag.ui.home_bulk_confirm')) + '</span></button>');
+                        footer.insertBefore(confirm, footer.firstChild);
+                    }
+                }
+            } finally {
+                operation.running = false;
+                if (operation.closed && activePause === operation) activePause = null;
+                if (!operation.closed && !gone) selectionControls();
+            }
         }
 
         function toggleFavorite(id) {
@@ -375,9 +664,11 @@
         }
 
         function render() {
+            const list = visibleFlows();
+            const visiblePublished = new Set(list.filter(flow => flow.published).map(flow => flow.id));
+            for (const id of selectedFlows.keys()) if (!visiblePublished.has(id)) selectedFlows.delete(id);
             libraryControls();
             organizationControls();
-            const list = visibleFlows();
             const off = createOff();
             const banner = (!loadError && staleError ? staleBanner() : '') + (!loadError ? timersBanner() : '');
             if (loadError) {
@@ -391,7 +682,8 @@
                 speak(staleError ? 'stale-none' : 'none', t('easydrag.ui.home_no_match'));
             } else {
                 grid.innerHTML = banner + list.map(f =>
-                    '<article class="ed-flow-card' + (f.enabled ? ' is-active' : '') + '" data-ed-flow="' + esc(f.id) + '" tabindex="0" aria-label="' + esc(cardName(f)) + '">' +
+                    '<article class="ed-flow-card' + (f.enabled ? ' is-active' : '') + (f.published && !off ? ' is-bulk-selectable' : '') + (selectedFlows.has(f.id) ? ' is-bulk-selected' : '') + '" data-ed-flow="' + esc(f.id) + '" tabindex="0" aria-label="' + esc(cardName(f)) + '">' +
+                    (f.published && !off ? '<label class="ed-flow-select" data-ed-select-label="' + esc(f.id) + '"><input type="checkbox" data-ed-select-flow="' + esc(f.id) + '" aria-label="' + esc(t('easydrag.ui.home_bulk_select_flow', { name: f.name })) + '"' + (selectedFlows.has(f.id) ? ' checked' : '') + '><span class="ed-sr-only">' + esc(t('easydrag.ui.home_bulk_select_flow', { name: f.name })) + '</span></label>' : '') +
                     '<div class="ed-flow-preview">' + previewSVG(f.preview, esc, f.preview_edges) + '</div>' +
                     '<div class="ed-flow-info"><h3>' + esc(f.name) + '</h3><p class="ed-flow-triggers">' + core.icon('bolt') + '<span>' + esc(triggerLabels(f).join(' · ') || t('easydrag.ui.home_no_trigger')) + '</span></p>' +
                     '<div class="ed-flow-meta">' + statusBadge(f) + liveBadge(f) + '<span class="ed-flow-run">' + lastRun(f) + '</span></div>' + metadataMarkup(f) + '</div>' +
@@ -423,6 +715,7 @@
             const sortSel = el.querySelector('[data-ed-home-sort]');
             if (sortSel) sortSel.disabled = !!loadError;
             el.querySelectorAll('[data-ed-filter]').forEach(b => { b.disabled = !!loadError; });
+            selectionControls();
         }
 
         // loadSeq numbers the list requests: only the newest answer is shown, none after dispose.
@@ -449,6 +742,7 @@
                 if (authLoss(err)) {
                     folders = [];
                     flows = [];
+                    clearSelection();
                     templates = [];
                     templateError = null;
                     listed = false;
@@ -456,6 +750,7 @@
                     loadError = err;
                 } else if (core.errorCode(err) === 'FLOWS_DISABLED' || !listed) {
                     flows = [];
+                    clearSelection();
                     listed = false;
                     staleError = null;
                     loadError = err;
@@ -650,7 +945,7 @@
             const paused = !!f.published && !f.enabled;
             const why = blockReason();
             ctx.showContextMenu(x, y, [
-                { icon: 'edit', label: t('easydrag.ui.home_open'), action: () => app.openFlow(f.id) },
+                { icon: 'edit', label: t('easydrag.ui.home_open'), action: () => { clearSelection(); app.openFlow(f.id); } },
                 ...(hasOrganization ? [{ icon: 'folder', label: t('easydrag.ui.organize'), disabled: locked, disabledHint: why, action: () => ED.metadata.organization(metadataEnv(), f.id, reload) }] : []),
                 { icon: 'play', label: t('easydrag.ui.run_now'), disabled: locked || !f.published || paused || runsPending.has(f.id), disabledHint: why || (paused && !app.readonly ? t('easydrag.ui.error_flow_disabled') : ''), action: () => runNow(f) },
                 { icon: 'copy', label: t('easydrag.ui.home_duplicate'), disabled: locked, disabledHint: why, action: () => duplicate(f.id) },
@@ -674,6 +969,7 @@
 
         function clearSearch() {
             searchUpdate.cancel();
+            clearSelection();
             selectedFilter = '';
             query = '';
             const input = el.querySelector('[data-ed-home-search]');
@@ -685,6 +981,7 @@
         }
 
         function clearFilter() {
+            clearSelection();
             selectedFilter = ''; favoritesOnly = false;
             organizationFolder = ''; organizationTag = '';
             filter = 'all';
@@ -696,10 +993,13 @@
         }
 
         bag.listen(el, 'click', (event) => {
+            if (event.target.closest('[data-ed-select-label], [data-ed-select-flow]')) { event.stopPropagation(); return; }
             if (loadError && event.target.closest('[data-ed-library-tools]')) return;
+            if (event.target.closest('[data-ed-bulk-review]')) { reviewPause(); return; }
+            if (event.target.closest('[data-ed-bulk-clear]')) { clearSelection(); return; }
             const view = event.target.closest('[data-ed-library-view]');
             if (view) { changePreferences(next => { next.view = view.dataset.edLibraryView; }); libraryControls(); return; }
-            if (event.target.closest('[data-ed-library-favorites]')) { favoritesOnly = !favoritesOnly; selectedFilter = ''; render(); return; }
+            if (event.target.closest('[data-ed-library-favorites]')) { clearSelection(); favoritesOnly = !favoritesOnly; selectedFilter = ''; render(); return; }
             if (event.target.closest('[data-ed-library-save]')) { saveFilter(); return; }
             if (event.target.closest('[data-ed-library-delete]')) { changePreferences(next => { next.filters = next.filters.filter(item => item.id !== selectedFilter); }); selectedFilter = ''; libraryControls(); return; }
             const favorite = event.target.closest('[data-ed-favorite]');
@@ -715,6 +1015,7 @@
             if (event.target.closest('[data-ed-import]')) { el.querySelector('[data-ed-import-file]').click(); return; }
             const f = event.target.closest('[data-ed-filter]');
             if (f) {
+                clearSelection();
                 selectedFilter = '';
                 filter = f.dataset.edFilter;
                 core.storage.set(FILTER_KEY, filter);
@@ -729,7 +1030,20 @@
             const tpl = event.target.closest('[data-ed-template]');
             if (tpl) { if (!createOff()) create({ template: tpl.dataset.edTemplate }); return; }
             const card = event.target.closest('[data-ed-flow]');
-            if (card) app.openFlow(card.dataset.edFlow);
+            if (card) { clearSelection(); app.openFlow(card.dataset.edFlow); }
+        });
+        bag.listen(el, 'change', event => {
+            const input = event.target?.closest?.('[data-ed-select-flow]');
+            if (!input) return;
+            event.stopPropagation();
+            const flow = flows.find(row => row.id === input.dataset.edSelectFlow && row.published);
+            if (!input.checked) selectedFlows.delete(input.dataset.edSelectFlow);
+            else if (!mayChange() || !flow) input.checked = false;
+            else if (selectedFlows.size >= PAUSE_LIMIT && !selectedFlows.has(flow.id)) {
+                input.checked = false;
+                voice.announce(t('easydrag.ui.home_bulk_limit'));
+            } else selectedFlows.set(flow.id, { id: flow.id, name: flow.name });
+            selectionControls();
         });
         bag.listen(el.querySelector('[data-ed-template-search]'), 'input', event => { templateQuery = event.target.value.trim().toLocaleLowerCase(); render(); });
         bag.listen(el.querySelector('[data-ed-template-category]'), 'change', event => { templateCategory = event.target.value; render(); });
@@ -747,10 +1061,11 @@
             cardMenu(flows.find(x => x.id === card.dataset.edFlow), event.clientX, event.clientY);
         });
         const searchUpdate = core.debounce(event => { query = event.target.value; selectedFilter = ''; render(); }, 120);
-        bag.listen(el.querySelector('[data-ed-home-search]'), 'input', searchUpdate);
+        bag.listen(el.querySelector('[data-ed-home-search]'), 'input', event => { clearSelection(); searchUpdate(event); });
         bag.add(() => searchUpdate.cancel());
         bag.listen(el.querySelector('[data-ed-library-filter]'), 'change', event => {
             const saved = prefs.filters.find(item => item.id === event.target.value);
+            clearSelection();
             selectedFilter = saved ? saved.id : '';
             if (!saved) return;
             searchUpdate.cancel();
@@ -795,6 +1110,7 @@
             if (d.reason === 'version_note') return;
             // A flow deleted elsewhere leaves nothing behind in this browser either.
             if (d.reason === 'deleted' && d.flow_id) core.forgetFlow(d.flow_id);
+            if (activePause && activePause.executing) return;
             if (d.reason === 'saved' || d.reason === 'run_finished') reloadSoon(); else reload();
         });
         bag.add(() => { loadSeq++; reloadSoon.cancel(); voice.cancel(); });
@@ -810,8 +1126,8 @@
         });
         if (organization) {
             const frame = core.frame(organizationControls); bag.add(() => frame.cancel());
-            bag.listen(organization.querySelector('[data-ed-folder-filter]'), 'change', event => { organizationFolder = event.target.value; selectedFilter = ''; render(); });
-            bag.listen(organization.querySelector('[data-ed-tag-filter]'), 'change', event => { if (event.target.value === '' || event.target.value.startsWith('tag:')) organizationTag = event.target.value ? event.target.value.slice(4) : ''; selectedFilter = ''; render(); });
+            bag.listen(organization.querySelector('[data-ed-folder-filter]'), 'change', event => { clearSelection(); organizationFolder = event.target.value; selectedFilter = ''; render(); });
+            bag.listen(organization.querySelector('[data-ed-tag-filter]'), 'change', event => { clearSelection(); if (event.target.value === '' || event.target.value.startsWith('tag:')) organizationTag = event.target.value ? event.target.value.slice(4) : ''; selectedFilter = ''; render(); });
             bag.listen(organization.querySelector('[data-ed-folder-filter]'), 'blur', () => frame.request());
             bag.listen(organization.querySelector('[data-ed-tag-filter]'), 'blur', () => frame.request());
             bag.listen(organization.querySelector('[data-ed-folders-manage]'), 'click', () => ED.metadata.folders(metadataEnv(), rows => { folders = rows; cacheOrganization(); render(); }));
@@ -821,8 +1137,8 @@
         render();
         reload();
         if (runtime) runtime.refresh();
-        return { el, reload, createOff, dispose() { gone = true; if (ED.metadata) ED.metadata.dispose(el); bag.dispose(); el.remove(); } };
+        return { el, reload, createOff, dispose() { gone = true; pauseSequence++; destroyed.abort(); if (activePause) activePause.cancel.abort(); if (ED.metadata) ED.metadata.dispose(el); bag.dispose(); el.remove(); } };
     }
 
-    ED.home = { create, previewSVG };
+    ED.home = { create, previewSVG, pauseOps: { review: reviewPauseTargets, execute: executePauseTargets } };
 })();

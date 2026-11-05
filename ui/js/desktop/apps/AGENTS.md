@@ -1590,6 +1590,30 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   the grid and does not keep protected cards; auth loss also clears templates. Nothing for those
   failures is written to storage. Create, import, duplicate, delete, toggle and run follow
   `createOff`. Opening a flow stays available when the list is only read-only.
+- The home library's pause selection is temporary, explicit and limited to 50 published normal
+  flows. It is never stored with library preferences; changing the query, filter or folder clears
+  it. A flow that becomes hidden or unpublished after a live preference/list refresh is pruned
+  before a new review. Review uses only `GET /api/desktop/flows/{id}/enabled` and freezes as candidates only the
+  flows observed `enabled`. The user must confirm before any write. Execution serially rechecks
+  each frozen candidate, sends one `POST {enabled:false}` at most, then makes exactly one status
+  readback even when the write reply is lost. Never retry an uncertain write. Acknowledged write
+  plus observed `disabled` is “Pause confirmed”; a failed or lost write plus observed `disabled`
+  is “Currently paused; saving unconfirmed”. Both describe observation, not proof of causation.
+  Missing, mismatch, already-disabled and unavailable states are shown per flow; auth/read-only
+  loss, a failed write, any unresolved post-write status (including missing or mismatched ownership), cancellation or the 120-second operation
+  deadline stop remaining writes and keep every target result. Review is capped at 60 seconds;
+  individual requests at 8 seconds. Closing stops unsent work and fences late painting; teardown
+  aborts outstanding requests. This operation only pauses future admission/recovery; accepted runs
+  can continue and completed actions are not undone. The house modal keeps Cancel enabled while a
+  write is in flight. Once the queue settles, refresh the home list once. When that refresh hides
+  the Review control that opened the result, closing the dialog restores focus to library search.
+  Verify `test-easydrag-library.mjs` and
+  `TestDesktopEasyDragLibraryPauseBrowser` in Standard dark and Fruity light/dark, including 320/390
+  pixel layouts, keyboard confirmation, cancellation during a held write, mixed outcomes and the
+  long save-uncertain result.
+  At widths up to 460px, review/result rows stack the name above a left-aligned full-width status.
+  Final results lead with the summary and target rows; the repeated lifecycle intro stays in review
+  and progress views.
 - Strings: `easydrag.ui.*`, `easydrag.decision.*`, `easydrag.availability.*` in
   `ui/lang/easydrag/<16>.json` (shared with the server's catalog keys); built keys (`core.tr`)
   belong to a family of `TestEasyDragUIKeysExistInAllLocales`.

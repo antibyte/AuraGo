@@ -7,11 +7,23 @@ export async function run({ sandbox, eq, guardAsync, settle }) {
         { id: 'f3', name: 'Gamma', published: false, enabled: false, triggers: [] }
     ];
     const KEY = 'aurago.easydrag.library';
-    function harness() {
-        const h = sandbox(req => req.url === '/api/desktop/flows' ? { flows } : req.url.startsWith('/api/desktop/flows/templates') ? { templates: [] } : undefined);
+    function harness(input = flows) {
+        const rows = input.map(flow => Object.assign({}, flow));
+        const h = sandbox(req => {
+            if (req.url === '/api/desktop/flows') return { flows: rows };
+            if (req.url.startsWith('/api/desktop/flows/templates')) return { templates: [] };
+            const match = /^\/api\/desktop\/flows\/([^/]+)\/enabled$/.exec(req.url);
+            if (!match) return undefined;
+            const flow = rows.find(row => row.id === match[1]);
+            if (!flow) throw Object.assign(new Error('missing'), { status: 404, body: { code: 'FLOW_NOT_FOUND' } });
+            if (req.method === 'GET') return { mission_state: flow.enabled ? 'enabled' : 'disabled' };
+            if (req.method === 'POST') { flow.enabled = !!req.body.enabled; return { enabled: flow.enabled }; }
+            return undefined;
+        });
+        h.rows = rows;
         h.win.crypto = webcrypto;
-        h.home = () => {
-            const home = h.ED.home.create({ ctx: h.ctx, t: h.ctx.t, esc: h.ED.core.esc, api: h.api, catalog: h.catalog, readonly: true, openFlow: id => h.opened.push(id) });
+        h.home = (readonly = true) => {
+            const home = h.ED.home.create({ ctx: h.ctx, t: h.ctx.t, esc: h.ED.core.esc, api: h.api, catalog: h.catalog, readonly, openFlow: id => h.opened.push(id) });
             h.body.appendChild(home.el); return home;
         };
         return h;
@@ -92,5 +104,153 @@ export async function run({ sandbox, eq, guardAsync, settle }) {
         second.el.querySelector('[data-ed-library-view="cards"]').fire('click');
         eq('library disposed homes release local subscriptions', [first.el.parentNode, second.el.querySelector('.ed-flow-grid').classList.contains('is-list'), h.logged], [null, false, []]);
         second.dispose();
+    });
+
+    await guardAsync('library pause selection stays explicit, published-only, capped and clears on query changes', async () => {
+        const many = Array.from({ length: 51 }, (_, index) => ({ id: 'f' + String(index + 1), name: 'Flow ' + (index + 1), published: true, enabled: true, triggers: [] }));
+        const h = harness(many), home = h.home(false); await settle();
+        const boxes = home.el.querySelectorAll('[data-ed-select-flow]');
+        boxes.slice(0, 50).forEach(box => { box.checked = true; box.fire('change', { target: box }); });
+        boxes[50].checked = true; boxes[50].fire('change', { target: boxes[50] });
+        const selectedAtLimit = [home.el.querySelector('[data-ed-bulk-count]').textContent, boxes.filter(box => box.checked).length, boxes[50].checked, h.requests.filter(req => req.method === 'POST').length];
+        const search = home.el.querySelector('[data-ed-home-search]'); search.value = 'Flow 1'; search.fire('input', { target: search });
+        eq('library pause selects at most 50 published flows and query input clears the temporary selection without writes', [selectedAtLimit, home.el.querySelector('[data-ed-bulk-selection]').hidden, h.requests.filter(req => req.method === 'POST').length], [['home_bulk_selected:50', 50, false, 0], true, 0]);
+        home.dispose();
+    });
+
+    await guardAsync('library pause drops a selected flow when it disappears from a live favorites filter', async () => {
+        const h = harness(), home = h.home(false); await settle();
+        home.el.querySelector('[data-ed-favorite="f1"]').fire('click');
+        home.el.querySelector('[data-ed-library-favorites]').fire('click');
+        const checkbox = home.el.querySelector('[data-ed-select-flow="f1"]');
+        checkbox.checked = true; checkbox.fire('change', { target: checkbox });
+        const before = [home.el.querySelector('[data-ed-bulk-count]').textContent, ids(home)];
+        home.el.querySelector('[data-ed-favorite="f1"]').fire('click');
+        eq('library pause never keeps a hidden flow selected after a favorite changes in the current filter', [before, home.el.querySelector('[data-ed-bulk-selection]').hidden, home.el.querySelector('[data-ed-bulk-count]').textContent, ids(home)], [['home_bulk_selected:1', ['f1']], true, 'home_bulk_selected:0', []]);
+        home.dispose();
+    });
+
+    await guardAsync('library pause prunes a selected flow after an external reload changes filter membership', async () => {
+        const h = harness(), home = h.home(false); await settle();
+        home.el.querySelector('[data-ed-filter="active"]').fire('click');
+        const checkbox = home.el.querySelector('[data-ed-select-flow="f1"]');
+        checkbox.checked = true; checkbox.fire('change', { target: checkbox });
+        h.rows.find(row => row.id === 'f1').enabled = false;
+        h.fireDoc('aurago:flows-changed', { detail: { flow_id: 'f1', reason: 'enabled' } });
+        await settle();
+        eq('library pause never reviews a flow hidden by a newer list response', [home.el.querySelector('[data-ed-bulk-selection]').hidden, home.el.querySelector('[data-ed-bulk-count]').textContent, ids(home), h.requests.filter(req => req.method === 'POST').length], [true, 'home_bulk_selected:0', [], 0]);
+        home.dispose();
+    });
+
+    await guardAsync('library deletion clears per-flow browser data while a pause write is in flight', async () => {
+        const h = harness(), home = h.home(false);
+        let releasePost, postStarted = false, reads = 0;
+        const heldPost = new Promise(resolve => { releasePost = resolve; });
+        h.ED.core.FLOW_KEYS.forEach(prefix => h.store.set(prefix + 'f1', 'sensitive fixture data'));
+        h.api.enabledStatus = async () => ({ mission_state: ++reads >= 3 ? 'disabled' : 'enabled' });
+        h.api.setEnabled = async () => { postStarted = true; await heldPost; return { enabled: false }; };
+        try {
+            await settle();
+            const checkbox = home.el.querySelector('[data-ed-select-flow="f1"]');
+            checkbox.checked = true; checkbox.fire('change', { target: checkbox });
+            home.el.querySelector('[data-ed-bulk-review]').fire('click');
+            await settle();
+            home.el.querySelector('.ed-modal--bulk-pause [data-ed-action="confirm"]').fire('click');
+            await settle();
+            if (!postStarted) throw new Error('pause POST did not enter its held in-flight state');
+            h.fireDoc('aurago:flows-changed', { detail: { flow_id: 'f1', reason: 'deleted' } });
+            const retained = h.ED.core.FLOW_KEYS.filter(prefix => h.store.has(prefix + 'f1'));
+            eq('library deletion forgets private per-flow browser data without starting a concurrent list reload', [retained, h.requests.filter(req => req.url === '/api/desktop/flows').length], [[], 1]);
+        } finally {
+            releasePost();
+            await settle();
+            home.dispose();
+        }
+    });
+
+    await guardAsync('library pause review and execution use exact statuses and one serial pause with readback', async () => {
+        const states = new Map([['a', 'enabled'], ['b', 'disabled'], ['c', 'missing'], ['d', 'mismatch'], ['e', 'unavailable']]);
+        const calls = [];
+        const api = {
+            enabledStatus: async id => { calls.push('GET ' + id); return { mission_state: states.get(id) || 'unavailable' }; },
+            setEnabled: async (id, enabled) => { calls.push('POST ' + id + ' ' + enabled); states.set(id, 'disabled'); return { enabled }; }
+        };
+        const targets = Array.from(states.keys(), id => ({ id, name: 'Flow ' + id }));
+        const h = harness(), review = await h.ED.home.pauseOps.review(api, targets);
+        const previewCalls = calls.slice();
+        const result = await h.ED.home.pauseOps.execute(api, review.rows);
+        eq('library pause review is read-only and execution rechecks, writes once, then reads back', [review.rows.map(row => row.state), previewCalls.every(call => call.startsWith('GET ')), calls.slice(5), result.rows.map(row => row.outcome)], [['enabled', 'disabled', 'missing', 'mismatch', 'unavailable'], true, ['GET a', 'POST a false', 'GET a'], ['confirmed', 'disabled', 'missing', 'mismatch', 'unavailable']]);
+    });
+
+    await guardAsync('library pause lost POST reply reconciles once and stops unsent work', async () => {
+        const calls = [], count = new Map();
+        const api = {
+            enabledStatus: async id => { calls.push('GET ' + id); const n = (count.get(id) || 0) + 1; count.set(id, n); return { mission_state: id === 'a' && n > 1 ? 'disabled' : 'enabled' }; },
+            setEnabled: async id => { calls.push('POST ' + id); throw Object.assign(new Error('lost'), { status: 500, body: { code: 'FLOW_INTERNAL' } }); }
+        };
+        const reviewed = [{ id: 'a', name: 'Alpha', state: 'enabled' }, { id: 'b', name: 'Beta', state: 'enabled' }];
+        const result = await harness().ED.home.pauseOps.execute(api, reviewed);
+        eq('library pause never retries an uncertain POST and marks later targets not attempted', [calls, result.rows.map(row => row.outcome), result.stopped], [['GET a', 'POST a', 'GET a'], ['save_uncertain', 'not_attempted'], true]);
+    });
+
+    await guardAsync('library pause stops later writes when readback no longer proves the target identity', async () => {
+        const results = [];
+        for (const state of ['missing', 'mismatch']) {
+            const calls = [], api = {
+                enabledStatus: async id => { calls.push('GET ' + id); return { mission_state: calls.filter(call => call === 'GET a').length === 1 ? 'enabled' : state }; },
+                setEnabled: async (id, enabled) => { calls.push('POST ' + id + ' ' + enabled); return { enabled }; }
+            };
+            const result = await harness().ED.home.pauseOps.execute(api, [{ id: 'a', name: 'Alpha', state: 'enabled' }, { id: 'b', name: 'Beta', state: 'enabled' }]);
+            results.push([calls, result.rows.map(row => row.outcome), result.stopped]);
+        }
+        eq('library pause keeps missing or mismatched post-write identity unresolved and sends no later POST', results, [
+            [['GET a', 'POST a false', 'GET a'], ['unresolved', 'not_attempted'], true],
+            [['GET a', 'POST a false', 'GET a'], ['unresolved', 'not_attempted'], true]
+        ]);
+    });
+
+    await guardAsync('library pause read-only loss stops the queue and keeps every selected result', async () => {
+        const calls = [], counts = new Map();
+        const api = {
+            enabledStatus: async id => { calls.push('GET ' + id); const n = (counts.get(id) || 0) + 1; counts.set(id, n); return { mission_state: n > 1 ? 'disabled' : 'enabled' }; },
+            setEnabled: async id => { calls.push('POST ' + id); throw Object.assign(new Error('readonly'), { status: 403, body: { code: 'desktop_readonly' } }); }
+        };
+        const reviewed = [{ id: 'a', name: 'Alpha', state: 'enabled' }, { id: 'b', name: 'Beta', state: 'enabled' }];
+        const result = await harness().ED.home.pauseOps.execute(api, reviewed);
+        eq('library pause stops unsent requests after a read-only denial while preserving uncertain readback', [calls, result.permissionLost, result.rows.map(row => row.outcome)], [['GET a', 'POST a', 'GET a'], true, ['save_uncertain', 'not_attempted']]);
+    });
+
+    await guardAsync('library pause close cancels an unsent candidate after its precheck', async () => {
+        const calls = []; let cancelled = false;
+        const api = {
+            enabledStatus: async id => { calls.push('GET ' + id); return { mission_state: 'enabled' }; },
+            setEnabled: async id => { calls.push('POST ' + id); return {}; }
+        };
+        const reviewed = [{ id: 'a', name: 'Alpha', state: 'enabled' }, { id: 'b', name: 'Beta', state: 'enabled' }];
+        const result = await harness().ED.home.pauseOps.execute(api, reviewed, { cancelled: () => cancelled, onProgress() { cancelled = true; } });
+        eq('library pause does not post after cancellation while candidates are being checked', [calls, result.rows.map(row => row.outcome), result.stopped], [['GET a'], ['not_attempted', 'not_attempted'], true]);
+    });
+
+    await guardAsync('library pause refuses a new POST when the operation deadline expires after precheck', async () => {
+        const started = Date.now();
+        const calls = [], api = {
+            enabledStatus: async id => { calls.push('GET ' + id); return { mission_state: 'enabled' }; },
+            setEnabled: async id => { calls.push('POST ' + id); return {}; }
+        };
+        const result = await harness().ED.home.pauseOps.execute(api, [{ id: 'a', name: 'Alpha', state: 'enabled' }], {
+            totalMs: 50, requestMs: 5000,
+            onProgress(_current, _total, _target, stage) { if (stage === 'pause') while (Date.now() < started + 100) {} }
+        });
+        eq('library pause deadline check immediately before the mutation leaves it unsent', [calls, result.rows[0].outcome, result.stopped], [['GET a'], 'not_attempted', true]);
+    });
+
+    await guardAsync('library pause preserves permission loss when its one mutation readback also fails', async () => {
+        const calls = [], api = {
+            enabledStatus: async id => { calls.push('GET ' + id); if (calls.length === 1) return { mission_state: 'enabled' }; throw Object.assign(new Error('readback failed'), { status: 500, body: { code: 'FLOW_INTERNAL' } }); },
+            setEnabled: async id => { calls.push('POST ' + id); throw Object.assign(new Error('read only'), { status: 403, body: { code: 'desktop_readonly' } }); }
+        };
+        const reviewed = [{ id: 'a', name: 'Alpha', state: 'enabled' }, { id: 'b', name: 'Beta', state: 'enabled' }];
+        const result = await harness().ED.home.pauseOps.execute(api, reviewed);
+        eq('library pause keeps the write-side permission loss across a failed readback and sends no later mutation', [calls, result.permissionLost, result.rows.map(row => row.outcome)], [['GET a', 'POST a', 'GET a'], true, ['unresolved', 'not_attempted']]);
     });
 }

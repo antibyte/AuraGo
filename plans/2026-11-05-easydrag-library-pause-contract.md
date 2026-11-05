@@ -47,7 +47,8 @@ Do not add bulk activation, deletion, replay, automatic mutation retries or a ba
   persistence across restart or proof that this client caused the transition.
 - No automatic POST retry. An explicit later user action may start a new reviewed operation.
   Any failed/lost mutation reply stops remaining writes after that target's single readback;
-  an unreadable post-write status also stops them. This includes an authority change racing past
+  any unresolved post-write status, including missing or mismatched ownership, also stops them.
+  This includes an authority change racing past
   the HTTP pre-gate, which may surface as a generic internal error. Preflight missing/mismatched
   or already disabled targets can be skipped without stopping the other reviewed candidates.
   Auth/read-only loss stops remaining writes; remaining targets are not attempted. Closing or

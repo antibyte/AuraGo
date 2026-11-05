@@ -1186,6 +1186,7 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
 - Browser contracts (Chrome or Edge):
   `$env:AURAGO_RUN_BROWSER_SMOKE='1'; $env:AURAGO_BROWSER_ARTIFACT_DIR='../disposable/browser-artifacts'; go test -count=1 ./ui/... -run 'Precision.*Browser|Config.*Browser'`.
 - Browser discovery honors `CHROME_BIN`, then PATH and standard Windows/macOS locations. An explicit override must be executable; it never silently falls back. With `AURAGO_RUN_BROWSER_SMOKE=1`, missing browsers and launch failures fail the test. Security Gates partitions the full UI package into populated-config, config-layout and remaining-test jobs with independent timeouts and fail-fast disabled; the audit package checks that each test belongs to exactly one job.
+- The shared Rod browser helper disables its leakless wrapper on Windows because the wrapper can hang before publishing the child PID; it registers `launcher.Kill` for explicit process cleanup. Linux retains Rod's default leakless behavior.
 - Config refresh browser coverage uses the real lazy renderers with local API
   fixtures, every section at five widths in both themes/densities, plus draft,
   failure, search, disclosure and dialog interactions. Run an individual matrix
