@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -776,5 +777,224 @@ func TestStorymakerStatusReportsMusicConfigured(t *testing.T) {
 	s.Cfg.MusicGeneration.APIKey = "test-key"
 	if !read() {
 		t.Fatal("music_configured is false with a provider")
+	}
+}
+
+func waitStorymakerMusicJob(t *testing.T, rt *storymakerRuntime, id string) render.Job {
+	t.Helper()
+	deadline := time.Now().Add(20 * time.Second)
+	for time.Now().Before(deadline) {
+		if job, ok := rt.narrate.Get(id); ok && job.Terminal() {
+			return job
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("the music job %s did not end", id)
+	return render.Job{}
+}
+
+// queueMusicJob skips POST /music, because these tests reach job checks that the route stops first.
+func queueMusicJob(t *testing.T, rt *storymakerRuntime, id string) render.Job {
+	t.Helper()
+	job, _, err := rt.narrate.Enqueue(render.EnqueueRequest{ProjectID: id, Kind: render.KindMusic, Coalesce: true, Payload: storymakerMusicPayload{ProjectID: id, DurationMS: 15000}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return job
+}
+
+func musicFileFixture(t *testing.T, seconds float64) (*Server, string, string, *storymakerRuntime, string) {
+	t.Helper()
+	s, _, token := storymakerAPIFixture(t)
+	p := createStorymakerProject(t, s, token)
+	writeMusicSource(t, s, "Documents/theme.wav", musicRouteWAV(seconds))
+	musicRouteStory(t, s, token, &p, `{"mode":"file","file":"Documents/theme.wav"}`)
+	rt, err := s.storymakerRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	key, err := s.storymakerMusicKey(context.Background(), &storymaker.Music{Mode: "file", File: "Documents/theme.wav"})
+	if err != nil || key == "" {
+		t.Fatalf("music key = %q, %v", key, err)
+	}
+	return s, token, p.Project.ID, rt, key
+}
+
+func TestStorymakerMusicTrackSourceRules(t *testing.T) {
+	s, _, token := storymakerAPIFixture(t)
+	createStorymakerProject(t, s, token) // binds the store to the desktop service
+	db, err := tools.InitMediaRegistryDB(filepath.Join(t.TempDir(), "media.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	s.MediaRegistryDB = db
+	rt, err := s.storymakerRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := normalizedStorymakerConfig(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	audioDir := filepath.Join(s.Cfg.Directories.DataDir, "audio")
+	if err := os.MkdirAll(audioDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	inside := filepath.Join(audioDir, "song.wav")
+	outside := filepath.Join(s.Cfg.Directories.DataDir, "secret.wav")
+	for _, file := range []string{inside, outside} {
+		if err := os.WriteFile(file, musicRouteWAV(2), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	register := func(mediaType, file string) string {
+		t.Helper()
+		id, _, err := tools.RegisterMedia(db, tools.MediaItem{MediaType: mediaType, SourceTool: "test", Filename: filepath.Base(file), FilePath: file})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return strconv.FormatInt(id, 10)
+	}
+	open := func(track string) error {
+		src, _, err := s.storymakerMusicSourceOpen(context.Background(), rt, cfg, &storymaker.Music{Mode: "file", Track: track})
+		if err == nil {
+			_ = src.Close()
+		}
+		return err
+	}
+	if err := open(register("music", inside)); err != nil {
+		t.Fatalf("a music track in the audio folder: %v", err)
+	}
+	var refusal *storymakerMusicRefusal
+	if err := open(register("audio", inside)); !errors.As(err, &refusal) {
+		t.Fatalf("another media type: %v", err)
+	}
+	if err := open(register("music", outside)); !errors.As(err, &refusal) {
+		t.Fatalf("a path outside the audio folder: %v", err)
+	}
+	if err := open("999999"); !errors.Is(err, storymaker.ErrMusicSourceMissing) {
+		t.Fatalf("an unknown track: %v", err)
+	}
+	// A plain os.Open would follow this link. Store.Open refuses it, because it leaves the Music mount.
+	link := filepath.Join(audioDir, "link.wav")
+	if err := os.Symlink(outside, link); err != nil {
+		t.Logf("this box cannot create a symlink, so that case is not run: %v", err)
+		return
+	}
+	if err := open(register("music", link)); err == nil {
+		t.Fatal("a symlink out of the audio folder was opened, so the source did not go through Store.Open")
+	}
+}
+
+func TestStorymakerMusicJobCopiesAFileAndWritesMeta(t *testing.T) {
+	s, token, id, rt, key := musicFileFixture(t, 2)
+	ctx := context.Background()
+	w := postMusic(s, token, id, "")
+	var got struct {
+		Job render.Job `json:"job"`
+	}
+	decodeBody(t, w, &got)
+	if w.Code != http.StatusAccepted {
+		t.Fatalf("queue: %d %s", w.Code, w.Body.String())
+	}
+	done := waitStorymakerMusicJob(t, rt, got.Job.ID)
+	if done.Status != render.StatusSucceeded {
+		t.Fatalf("job = %+v %+v", done, done.Error)
+	}
+	// ProbeAudio over the stored copy: 2 s of WAV.
+	meta, ext, err := rt.projects.MusicInfo(ctx, id, key)
+	if err != nil || ext != "wav" || meta != (storymaker.MusicMeta{V: 1, Ext: "wav", DurationMS: 2000}) {
+		t.Fatalf("music info = %+v %q %v", meta, ext, err)
+	}
+	stored, _, err := rt.projects.OpenAudio(ctx, id, "music", key+".wav")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stored.Close()
+	data, err := io.ReadAll(stored)
+	if err != nil || !bytes.Equal(data, musicRouteWAV(2)) {
+		t.Fatalf("the stored copy differs from the source: %d bytes, %v", len(data), err)
+	}
+	if w := postMusic(s, token, id, ""); w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"job":null`) {
+		t.Fatalf("a second call: %d %s", w.Code, w.Body.String())
+	}
+}
+
+func TestStorymakerMusicStoreCountsAPathConflictAsSuccess(t *testing.T) {
+	_, _, id, rt, _ := musicFileFixture(t, 2)
+	ctx := context.Background()
+	key := strings.Repeat("a", 64)
+	first := musicRouteWAV(2)
+	if err := storymakerStoreMusic(ctx, rt, id, key, "wav", bytes.NewReader(first)); err != nil {
+		t.Fatal(err)
+	}
+	if err := storymakerStoreMusic(ctx, rt, id, key, "wav", bytes.NewReader(musicRouteWAV(3))); err != nil {
+		t.Fatalf("a second copy under the same key: %v", err)
+	}
+	stored, _, err := rt.projects.OpenAudio(ctx, id, "music", key+".wav")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stored.Close()
+	data, err := io.ReadAll(stored)
+	if err != nil || !bytes.Equal(data, first) {
+		t.Fatalf("the first copy was replaced: %d bytes, %v", len(data), err)
+	}
+}
+
+func TestStorymakerMusicJobWritesMetaForAStoredCopy(t *testing.T) {
+	s, token, id, rt, key := musicFileFixture(t, 2)
+	ctx := context.Background()
+	// The stored copy lasts 3 s and the source 2 s, so 3000 proves the job probed the copy and left it in place.
+	if err := rt.projects.WriteMusic(ctx, id, key, "wav", musicRouteWAV(3)); err != nil {
+		t.Fatal(err)
+	}
+	w := postMusic(s, token, id, "")
+	var got struct {
+		Job render.Job `json:"job"`
+	}
+	decodeBody(t, w, &got)
+	if w.Code != http.StatusAccepted {
+		t.Fatalf("queue: %d %s", w.Code, w.Body.String())
+	}
+	done := waitStorymakerMusicJob(t, rt, got.Job.ID)
+	if done.Status != render.StatusSucceeded {
+		t.Fatalf("job = %+v %+v", done, done.Error)
+	}
+	meta, _, err := rt.projects.MusicInfo(ctx, id, key)
+	if err != nil || meta.V != 1 || meta.DurationMS != 3000 {
+		t.Fatalf("meta = %+v, %v", meta, err)
+	}
+}
+
+func TestStorymakerMusicJobRemovesACopyOfTheWrongLength(t *testing.T) {
+	_, _, id, rt, key := musicFileFixture(t, 0.5)
+	done := waitStorymakerMusicJob(t, rt, queueMusicJob(t, rt, id).ID)
+	if done.Status != render.StatusFailed || done.Error == nil || done.Error.Code != render.CodeMusicFailed {
+		t.Fatalf("job = %+v %+v", done, done.Error)
+	}
+	meta, ext, err := rt.projects.MusicInfo(context.Background(), id, key)
+	if err != nil || meta.V != 0 || ext != "" {
+		t.Fatalf("the copy of 500 ms stayed: %+v %q %v", meta, ext, err)
+	}
+	for ms, want := range map[int]bool{999: false, 1000: true, 3600000: true, 3600001: false} {
+		if storymakerMusicDurationOK(ms) != want {
+			t.Errorf("storymakerMusicDurationOK(%d) != %v", ms, want)
+		}
+	}
+}
+
+func TestStorymakerMusicJobStopsWhenReadOnly(t *testing.T) {
+	s, _, id, rt, key := musicFileFixture(t, 2)
+	ro := *s.ConfigSnapshot()
+	ro.VirtualDesktop.ReadOnly = true
+	s.replaceConfigSnapshot(&ro)
+	done := waitStorymakerMusicJob(t, rt, queueMusicJob(t, rt, id).ID)
+	if done.Status != render.StatusFailed || done.Error == nil || done.Error.Code != render.CodeMusicFailed || !strings.Contains(done.Error.Message, "read-only") {
+		t.Fatalf("job = %+v %+v", done, done.Error)
+	}
+	if _, ext, err := rt.projects.MusicInfo(context.Background(), id, key); err != nil || ext != "" {
+		t.Fatalf("a read-only stop stored %q, %v", ext, err)
 	}
 }

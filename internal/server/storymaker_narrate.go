@@ -16,6 +16,7 @@ import (
 	"unicode/utf8"
 
 	"aurago/internal/config"
+	"aurago/internal/desktop"
 	"aurago/internal/fileutil"
 	"aurago/internal/security"
 	"aurago/internal/storymaker"
@@ -621,7 +622,141 @@ func (s *Server) storymakerMusicSourceProblem(ctx context.Context, rt *storymake
 	return nil
 }
 
-// storymakerMusicRun is the music job. A25b replaces this stub with the copy of a file or track source.
+// storymakerMusicRun is the music job: it stores the story's music under its key and writes the meta. A ctx error becomes
+// music_failed here, and runJob still reports a cancel request or a shutdown as such.
 func (s *Server) storymakerMusicRun(ctx context.Context, rt *storymakerRuntime, job render.Job, p storymakerMusicPayload, h *render.Handle) (render.Output, error) {
-	return render.Output{}, render.Fail(render.CodeMusicFailed, "Music jobs cannot run yet.")
+	ctx, release, err := s.beginDesktopRun(ctx)
+	if err != nil {
+		return render.Output{}, storymakerMusicStopped()
+	}
+	defer release()
+	err = s.storymakerMusicStore(ctx, rt, p, h)
+	var je *render.JobError
+	var refusal *storymakerMusicRefusal
+	switch {
+	case err == nil:
+		return render.Output{}, nil
+	case ctx.Err() != nil:
+		return render.Output{}, storymakerMusicStopped()
+	case errors.As(err, &je):
+		return render.Output{}, je
+	case errors.As(err, &refusal):
+		return render.Output{}, render.Fail(render.CodeMusicFailed, "%s", refusal.message)
+	case errors.Is(err, storymaker.ErrMusicSourceMissing):
+		return render.Output{}, render.Fail(render.CodeMusicFailed, "The music source no longer exists.")
+	}
+	s.storymakerMusicLogger().Warn("[Storymaker] The music job failed", "project", p.ProjectID, "error", err)
+	return render.Output{}, render.Fail(render.CodeMusicFailed, "The music could not be stored.")
+}
+
+// storymakerMusicStopped names both causes, because a revoked run can see its cancelled ctx before the new
+// configuration is published (server.go revokes first and stores the snapshot later).
+func storymakerMusicStopped() *render.JobError {
+	return render.Fail(render.CodeMusicFailed, "The desktop became read-only or its configuration changed, so the music was not stored.")
+}
+
+func (s *Server) storymakerMusicLogger() *slog.Logger {
+	if s.Logger != nil {
+		return s.Logger
+	}
+	return slog.Default()
+}
+
+// storymakerMusicStore re-reads the story, so an edit while the job waited is picked up, and brings the key's file and
+// meta into place. A stored file without valid meta needs no source: it is only probed. A paid generation runs only under
+// the key in the payload, so an edit while the job waited cannot start one.
+func (s *Server) storymakerMusicStore(ctx context.Context, rt *storymakerRuntime, p storymakerMusicPayload, h *render.Handle) error {
+	cfg, err := normalizedStorymakerConfig(s)
+	if err != nil {
+		return err
+	}
+	if !cfg.Storymaker.Enabled || !cfg.VirtualDesktop.Enabled {
+		return render.Fail(render.CodeDisabled, "Storymaker was switched off before the music was stored.")
+	}
+	data, _, err := rt.projects.LoadStory(ctx, p.ProjectID)
+	if err != nil {
+		return err
+	}
+	story, _, err := storymaker.DecodeStory(data, storymakerLimits(cfg))
+	if err != nil {
+		return err
+	}
+	storymaker.ApplyDefaults(&story)
+	key, err := s.storymakerMusicKey(ctx, story.Music)
+	if err != nil {
+		return err
+	}
+	if key == "" {
+		return nil
+	}
+	meta, ext, err := rt.projects.MusicInfo(ctx, p.ProjectID, key)
+	if err != nil {
+		return err
+	}
+	if meta.V == 1 && ext != "" {
+		return nil
+	}
+	if ext == "" {
+		if ext, err = s.storymakerCopyMusicSource(ctx, rt, cfg, p, key, story.Music, h); err != nil {
+			return err
+		}
+	}
+	return storymakerFinishMusic(ctx, rt, p.ProjectID, key, ext)
+}
+
+// storymakerCopyMusicSource copies the story's source to the key's file and returns its format.
+func (s *Server) storymakerCopyMusicSource(ctx context.Context, rt *storymakerRuntime, cfg *config.Config, p storymakerMusicPayload, key string, m *storymaker.Music, h *render.Handle) (string, error) {
+	if m.Mode == "generated" {
+		return "", &storymakerMusicRefusal{message: "Generated music cannot run yet."}
+	}
+	h.SetPhase(render.PhaseWriting)
+	src, info, err := s.storymakerMusicSourceOpen(ctx, rt, cfg, m)
+	if err != nil {
+		return "", err
+	}
+	defer src.Close()
+	ext, err := storymakerCheckMusicSource(src, info.Size, cfg.VirtualDesktop.WorkspaceDir)
+	if err != nil {
+		return "", err
+	}
+	return ext, storymakerStoreMusic(ctx, rt, p.ProjectID, key, ext, src)
+}
+
+// storymakerStoreMusic writes the key's create-only file. A file that already exists counts as success, because the key
+// says it has this content.
+func storymakerStoreMusic(ctx context.Context, rt *storymakerRuntime, id, key, ext string, r io.Reader) error {
+	target, err := rt.projects.AudioPath(id, "music", key+"."+ext)
+	if err != nil {
+		return err
+	}
+	err = rt.store.WriteStream(ctx, target, r, maxMusicSourceBytes)
+	var conflict *desktop.PathConflict
+	if errors.As(err, &conflict) {
+		return nil
+	}
+	return err
+}
+
+// storymakerFinishMusic probes the stored copy on every path, because not every provider reports a duration. A copy of
+// the wrong length is removed. The meta comes after the file, so a file without meta counts as missing.
+func storymakerFinishMusic(ctx context.Context, rt *storymakerRuntime, id, key, ext string) error {
+	file := key + "." + ext
+	r, _, err := rt.projects.OpenAudio(ctx, id, "music", file)
+	if err != nil {
+		return err
+	}
+	_, durationMS, probeErr := storymaker.ProbeAudio(r)
+	// Close first: Windows cannot remove an open file.
+	_ = r.Close()
+	if probeErr != nil || !storymakerMusicDurationOK(durationMS) {
+		target, err := rt.projects.AudioPath(id, "music", file)
+		if err != nil {
+			return err
+		}
+		if err := rt.store.Remove(ctx, target); err != nil {
+			return err
+		}
+		return &storymakerMusicRefusal{message: "The music must be readable audio that lasts between 1 second and 1 hour."}
+	}
+	return rt.projects.WriteMusicMeta(ctx, id, key, storymaker.MusicMeta{V: 1, Ext: ext, DurationMS: durationMS})
 }
