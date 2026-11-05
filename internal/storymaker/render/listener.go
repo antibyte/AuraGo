@@ -2,6 +2,7 @@ package render
 
 import (
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -17,11 +18,12 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
 const (
-	maxReportBytes = 1 << 20
+	maxReportBytes = 8 << 20
 	maxErrorBytes  = 16 << 10
 )
 
@@ -58,6 +60,9 @@ type PageParams struct {
 	// so it is far above the 250 ms of the app preview. A page that does not know the field keeps its
 	// own deadline.
 	FrameDeadlineMS int
+	// Token authorises the page's POSTs (32 hex characters). boot.json hands it out once, before any
+	// scene worker exists, so a scene worker that knows the base still cannot forge a report.
+	Token string
 }
 
 // ReportAnswer is the reply to POST /report.
@@ -109,6 +114,9 @@ type Listener struct {
 	fonts  map[string]*SnapshotFont
 	maxFrm int64
 
+	// tokenServed flips on the first GET of boot.json.
+	tokenServed atomic.Bool
+
 	statsMu sync.Mutex
 	stats   map[string]int64
 }
@@ -126,6 +134,9 @@ func NewPrefix() (string, error) {
 func StartListener(prefix string, snap *Snapshot, params PageParams, hooks Hooks) (*Listener, error) {
 	if len(prefix) < 32 || strings.ContainsAny(prefix, "/?#%") {
 		return nil, errors.New("storymaker: render prefix must be 32 or more safe characters")
+	}
+	if len(params.Token) < 32 {
+		return nil, errors.New("storymaker: render token must have 32 or more characters")
 	}
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -328,6 +339,7 @@ type bootDoc struct {
 	CodeBundles     map[string]string `json:"code_bundles"`
 	Fonts           []bootFont        `json:"fonts"`
 	AudioInfo       map[string]any    `json:"audio_info"`
+	Token           string            `json:"token,omitempty"`
 }
 
 func (l *Listener) boot(w http.ResponseWriter, r *http.Request) {
@@ -352,6 +364,10 @@ func (l *Listener) boot(w http.ResponseWriter, r *http.Request) {
 	for _, f := range l.snap.Fonts {
 		doc.Fonts = append(doc.Fonts, bootFont{Name: f.Name, Family: f.Family, Weight: f.Weight, URL: base + f.File})
 	}
+	// The first GET takes the token. A HEAD never does, and the page makes that GET before any worker exists.
+	if r.Method == http.MethodGet && !l.tokenServed.Swap(true) {
+		doc.Token = l.params.Token
+	}
 	writeJSON(w, http.StatusOK, doc)
 }
 
@@ -373,14 +389,34 @@ func (l *Listener) font(w http.ResponseWriter, r *http.Request, file string) {
 	serveBytes(w, r, "font/woff2", f.Data)
 }
 
+// badTokenAnswer is the body of a 403. A wrong or missing token calls no hook and consumes nothing.
+var badTokenAnswer = map[string]string{"error": "bad_token"}
+
+// withoutSecrets removes the render prefix and the report token from a text the page wrote, before the text reaches the
+// job record. A worker's error text can name a URL under the base, and the prefix in that URL is the read credential for
+// the story and the catalog. Call it before clip, because a clip could leave a part of a secret. An empty secret changes
+// nothing.
+func withoutSecrets(text, prefix, token string) string {
+	return strings.ReplaceAll(strings.ReplaceAll(text, prefix, ""), token, "")
+}
+
+// tokenOK compares the t query parameter with the job's token in constant time.
+func (l *Listener) tokenOK(r *http.Request) bool {
+	return subtle.ConstantTimeCompare([]byte(r.URL.Query().Get("t")), []byte(l.params.Token)) == 1
+}
+
 func (l *Listener) report(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		methodNotAllowed(w, "POST, OPTIONS")
 		return
 	}
+	if !l.tokenOK(r) {
+		writeJSON(w, http.StatusForbidden, badTokenAnswer)
+		return
+	}
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxReportBytes))
 	if err != nil {
-		writeJSON(w, http.StatusRequestEntityTooLarge, ReportAnswer{Error: "report_too_large", Message: "The compile report is larger than 1 MiB."})
+		writeJSON(w, http.StatusRequestEntityTooLarge, ReportAnswer{Error: "report_too_large", Message: "The compile report is larger than 8 MiB."})
 		return
 	}
 	if l.hooks.Report == nil {
@@ -393,6 +429,10 @@ func (l *Listener) report(w http.ResponseWriter, r *http.Request) {
 func (l *Listener) frame(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		methodNotAllowed(w, "POST, OPTIONS")
+		return
+	}
+	if !l.tokenOK(r) {
+		writeJSON(w, http.StatusForbidden, FrameAnswer{Stop: true, Error: "bad_token"})
 		return
 	}
 	// The frame number is the X-SM-Frame header or, for a CORS-simple request that needs no preflight,
@@ -439,12 +479,16 @@ func (l *Listener) pageError(w http.ResponseWriter, r *http.Request) {
 		methodNotAllowed(w, "POST, OPTIONS")
 		return
 	}
+	if !l.tokenOK(r) {
+		writeJSON(w, http.StatusForbidden, badTokenAnswer)
+		return
+	}
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxErrorBytes))
 	var e PageError
 	if err != nil || json.Unmarshal(body, &e) != nil || e.Code == "" {
 		e = PageError{Code: "render_failed", Message: "The page reported an unreadable error."}
 	}
-	e.Code, e.Message, e.SceneID = clip(e.Code, 40), clip(e.Message, 600), clip(e.SceneID, 60)
+	e.Code, e.Message, e.SceneID = clip(e.Code, 40), clip(withoutSecrets(e.Message, l.prefix, l.params.Token), 600), clip(withoutSecrets(e.SceneID, l.prefix, l.params.Token), 60)
 	if l.hooks.Error != nil {
 		l.hooks.Error(e)
 	}

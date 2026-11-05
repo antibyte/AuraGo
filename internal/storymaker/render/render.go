@@ -259,6 +259,8 @@ type renderRun struct {
 	output     string // staging MP4
 	ingest     *Ingest
 	base       string
+	prefix     string
+	token      string
 	catVersion string
 
 	failCh   chan *JobError
@@ -360,9 +362,15 @@ func (run *renderRun) execute(ctx context.Context) (Output, error) {
 	if err != nil {
 		return Output{}, Fail(CodeRenderFailed, "%v", err)
 	}
+	// NewPrefix gives 128 bits from crypto/rand as 32 hex characters, which is what the token needs too.
+	token, err := NewPrefix()
+	if err != nil {
+		return Output{}, Fail(CodeRenderFailed, "%v", err)
+	}
+	run.prefix, run.token = prefix, token
 	h.SetPrefixHash(HashPrefix(prefix))
 	run.ingest = NewIngest(IngestConfig{Width: run.width, Height: run.height, Transport: run.transport, FrameLimit: run.frameLimit})
-	listener, err := StartListener(prefix, snap, PageParams{Width: run.width, Height: run.height, FPS: run.fps, Transport: run.transport, FrameLimit: run.frameLimit, FrameDeadlineMS: frameDeadlineMS},
+	listener, err := StartListener(prefix, snap, PageParams{Width: run.width, Height: run.height, FPS: run.fps, Transport: run.transport, FrameLimit: run.frameLimit, FrameDeadlineMS: frameDeadlineMS, Token: token},
 		Hooks{Report: run.onReport, Frame: run.onFrame, Error: run.onPageError})
 	if err != nil {
 		return Output{}, Fail(CodeRenderFailed, "%v", err)
@@ -455,7 +463,7 @@ func (run *renderRun) wait(ctx context.Context, page browserPage) error {
 		case <-reportTimeout:
 			msg := "The render page did not report within " + reportWait.String() + "."
 			if status := page.Status(ctx); status != "" && status != "null" {
-				msg += " Page status: " + clip(status, 300)
+				msg += " Page status: " + clip(withoutSecrets(status, run.prefix, run.token), 300)
 			}
 			return Fail(CodeRenderFailed, "%s", msg)
 		case <-overall.C:
@@ -741,7 +749,8 @@ func (run *renderRun) onPageError(e PageError) {
 // driveScreenshots renders and captures every frame for the screenshot transport.
 func (run *renderRun) driveScreenshots(ctx context.Context, page browserPage) {
 	if err := page.WaitReady(ctx); err != nil {
-		run.fail(Fail(CodeRenderFailed, "%v", err))
+		// WaitReady's error quotes the message in __smStatus.
+		run.fail(Fail(CodeRenderFailed, "%s", withoutSecrets(err.Error(), run.prefix, run.token)))
 		return
 	}
 	total := run.frames
@@ -752,7 +761,8 @@ func (run *renderRun) driveScreenshots(ctx context.Context, page browserPage) {
 		shot, err := page.Capture(ctx, n)
 		if err != nil {
 			if ctx.Err() == nil {
-				run.fail(Fail(CodeRenderFailed, "Frame %d could not be captured: %v", n, err))
+				// rod's error quotes the exception of __smRenderFrame, and its stack names the bundle URL under the base.
+				run.fail(Fail(CodeRenderFailed, "Frame %d could not be captured: %s", n, withoutSecrets(err.Error(), run.prefix, run.token)))
 			}
 			return
 		}

@@ -28,18 +28,24 @@
         var status = win.__smStatus = { phase: 'boot', frame: -1 };
         var engine = null;
 
-        async function getJSON(url) {
+        // The token of the first boot.json answer stays here, and only post() reads it. A failure text names a label or a route and
+        // never a URL, because a URL holds the secret prefix and this text reaches __smStatus, POST /error and the job record.
+        var token = '';
+
+        async function getJSON(label, url) {
             var res = await doFetch(url, { cache: 'no-store' });
-            if (!res.ok) throw H.fail('readiness', 'GET ' + url + ' answered ' + res.status);
+            if (!res.ok) throw H.fail('readiness', 'GET ' + label + ' answered ' + res.status);
             return res.json();
         }
         async function post(path, body, headers) {
-            var res = await doFetch(base + path, { method: 'POST', headers: headers, body: body, cache: 'no-store' });
+            var url = base + path;
+            if (token) url += (path.indexOf('?') >= 0 ? '&' : '?') + 't=' + encodeURIComponent(token);
+            var res = await doFetch(url, { method: 'POST', headers: headers, body: body, cache: 'no-store' });
             var text = '';
             try { text = await res.text(); } catch (e) { text = ''; }
             var json = null;
             try { json = text ? JSON.parse(text) : {}; } catch (e) { json = null; }
-            if (!res.ok && (!json || !(json.stop || json.restart))) throw H.fail('render_failed', 'POST ' + path + ' answered ' + res.status + (text ? ': ' + text.slice(0, 200) : ''));
+            if (!res.ok && (!json || !(json.stop || json.restart))) throw H.fail('render_failed', 'POST ' + path.split('?')[0] + ' answered ' + res.status + (text ? ': ' + text.slice(0, 200) : ''));
             return json || {};
         }
         async function postError(err, sceneId) {
@@ -52,17 +58,19 @@
             if (win.document && win.document.body && win.document.body.style) win.document.body.style.margin = '0';
             if (win.document && win.document.documentElement && win.document.documentElement.style) win.document.documentElement.style.overflow = 'hidden';
             if (canvas.style) canvas.style.display = 'block';
-            var boot = await getJSON(base + '/boot.json');
+            var boot = await getJSON('boot.json', base + '/boot.json');
             if (!boot || boot.mode !== 'render' || !(boot.fps > 0) || !(boot.width > 0) || !(boot.height > 0) || TRANSPORTS.indexOf(boot.transport) < 0) {
                 throw H.fail('readiness', 'boot.json is not a render boot document.');
             }
+            // The stub servers of the tests send no token, and then the page sends no t.
+            token = typeof boot.token === 'string' ? boot.token : '';
             canvas.width = boot.width;
             canvas.height = boot.height;
             // A render is not real time: Go offers a per-frame deadline far above the 250 ms of the app preview.
             if (boot.frame_deadline_ms > 0) env.limits.frameDeadlineMs = Math.min(60000, boot.frame_deadline_ms);
             var ctx =canvas.getContext('2d', { willReadFrequently: boot.transport === 'raw' });
-            var story = await getJSON(boot.story_url);
-            var catalog = await getJSON(boot.catalog_url);
+            var story = await getJSON('story', boot.story_url);
+            var catalog = await getJSON('catalog', boot.catalog_url);
             var bundles = {}, ids = Object.keys(boot.code_bundles || {});
             await Promise.all(ids.map(async function (id) {
                 var res = await doFetch(boot.code_bundles[id], { cache: 'no-store' });

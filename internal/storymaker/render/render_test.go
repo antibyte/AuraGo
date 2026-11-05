@@ -140,6 +140,7 @@ func play(t *testing.T, o playOptions) func(ctx context.Context, base string) {
 		var boot struct {
 			FPS, Width, Height int
 			Transport          string
+			Token              string
 		}
 		_ = json.Unmarshal(bootBytes, &boot)
 		var rawBoot map[string]any
@@ -169,14 +170,14 @@ func play(t *testing.T, o playOptions) func(ctx context.Context, base string) {
 		}
 		body, _ := json.Marshal(rep)
 		if !o.skipReport {
-			out, st, err := httpDo(context.WithoutCancel(ctx), "POST", base+"/report", "application/json", nil, body)
+			out, st, err := httpDo(context.WithoutCancel(ctx), "POST", base+"/report?t="+boot.Token, "application/json", nil, body)
 			if err != nil || st != 200 {
 				return
 			}
 			var answer ReportAnswer
 			_ = json.Unmarshal(out, &answer)
 			if o.reportTwice {
-				out2, _, _ := httpDo(ctx, "POST", base+"/report", "application/json", nil, body)
+				out2, _, _ := httpDo(ctx, "POST", base+"/report?t="+boot.Token, "application/json", nil, body)
 				var second ReportAnswer
 				_ = json.Unmarshal(out2, &second)
 				if second.Start {
@@ -200,12 +201,12 @@ func play(t *testing.T, o playOptions) func(ctx context.Context, base string) {
 				return
 			}
 			if o.errorAfter > 0 && n >= o.errorAfter {
-				httpDo(ctx, "POST", base+"/error", "application/json", nil, []byte(o.errorBody))
+				httpDo(ctx, "POST", base+"/error?t="+boot.Token, "application/json", nil, []byte(o.errorBody))
 				<-ctx.Done()
 				return
 			}
 			ct, data := o.frame(n)
-			out, st, err := httpDo(ctx, "POST", base+"/frame", ct, map[string]string{"X-SM-Frame": strconv.Itoa(n)}, data)
+			out, st, err := httpDo(ctx, "POST", base+"/frame?t="+boot.Token, ct, map[string]string{"X-SM-Frame": strconv.Itoa(n)}, data)
 			if err != nil {
 				return
 			}
@@ -517,6 +518,57 @@ func TestRunTreatsAnyPageErrorAsFatal(t *testing.T) {
 	job2 := fx2.render(t)
 	if job2.Status != StatusFailed || job2.Error.Code != CodeRenderFailed {
 		t.Fatalf("job2 = %+v %+v", job2, job2.Error)
+	}
+}
+
+// failingPage fails the way the real page does: Status gives __smStatus, WaitReady quotes its message, and a Capture
+// error quotes the exception of __smRenderFrame, whose stack names the bundle URL under the base.
+type failingPage struct {
+	fakePage
+	status     string
+	readyErr   error
+	captureErr error
+}
+
+func (p *failingPage) Status(context.Context) string   { return p.status }
+func (p *failingPage) WaitReady(context.Context) error { return p.readyErr }
+func (p *failingPage) Capture(context.Context, int) ([]byte, error) {
+	return nil, p.captureErr
+}
+
+func TestRunKeepsThePrefixAndTheTokenOutOfAPageFailure(t *testing.T) {
+	old := reportWait
+	reportWait = time.Millisecond
+	t.Cleanup(func() { reportWait = old })
+	prefix, token := strings.Repeat("a", 32), strings.Repeat("b", 32)
+	text := "boom at http://127.0.0.1:9/" + prefix + "/js/storymaker/host.bundle.js?t=" + token
+	newRun := func() *renderRun {
+		return &renderRun{prefix: prefix, token: token, frames: 1, st: Settings{TimeoutSeconds: 60}, failCh: make(chan *JobError, 1)}
+	}
+	check := func(name, got string) {
+		t.Helper()
+		if strings.Contains(got, prefix) || strings.Contains(got, token) || !strings.Contains(got, "boom") {
+			t.Errorf("%s: %q", name, got)
+		}
+	}
+	for name, page := range map[string]*failingPage{
+		"ready":   {readyErr: errors.New(text)},
+		"capture": {captureErr: errors.New(text)},
+	} {
+		run := newRun()
+		run.driveScreenshots(context.Background(), page)
+		select {
+		case je := <-run.failCh:
+			check(name, je.Message)
+		default:
+			t.Errorf("%s: no failure", name)
+		}
+	}
+	// No report arrives, so wait ends with the report timeout, and that message quotes __smStatus.
+	if err := newRun().wait(context.Background(), &failingPage{status: text}); err == nil {
+		t.Error("status: no failure")
+	} else {
+		check("status", err.Error())
 	}
 }
 

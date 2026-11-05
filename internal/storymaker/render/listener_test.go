@@ -11,6 +11,9 @@ import (
 	"time"
 )
 
+// testRenderToken is the token of the listener fixture: 32 hex characters, like NewPrefix gives.
+const testRenderToken = "feedfacefeedfacefeedfacefeedface"
+
 type listenerFixture struct {
 	l      *Listener
 	client *http.Client
@@ -34,7 +37,7 @@ func newListenerFixture(t *testing.T) *listenerFixture {
 		CodeBundles:  map[string][]byte{"s3": []byte("self.__smScene=function(){};")},
 		HostBundle:   []byte("/*host*/"), PlayerBundle: []byte("/*player*/"),
 	}
-	params := PageParams{Width: 1920, Height: 1080, FPS: 30, Transport: TransportPNG, FrameLimit: 27000}
+	params := PageParams{Width: 1920, Height: 1080, FPS: 30, Transport: TransportPNG, FrameLimit: 27000, Token: testRenderToken}
 	hooks := Hooks{
 		Report: func(body []byte) ReportAnswer {
 			fx.mu.Lock()
@@ -244,7 +247,7 @@ func TestListenerReportFrameAndErrorEndpoints(t *testing.T) {
 	if res, _ := fx.do(t, http.MethodGet, base+"/report", nil, nil); res.StatusCode != http.StatusMethodNotAllowed {
 		t.Errorf("GET report = %d", res.StatusCode)
 	}
-	res, body := fx.do(t, http.MethodPost, base+"/report", []byte(`{"frame_count":3}`), map[string]string{"Content-Type": "application/json"})
+	res, body := fx.do(t, http.MethodPost, base+"/report?t="+testRenderToken, []byte(`{"frame_count":3}`), map[string]string{"Content-Type": "application/json"})
 	if res.StatusCode != http.StatusOK || !strings.Contains(string(body), `"start":true`) {
 		t.Errorf("report = %d %s", res.StatusCode, body)
 	}
@@ -255,19 +258,23 @@ func TestListenerReportFrameAndErrorEndpoints(t *testing.T) {
 		t.Errorf("report body = %q", gotReport)
 	}
 	big := bytes.Repeat([]byte("x"), maxReportBytes+1)
-	if res, _ := fx.do(t, http.MethodPost, base+"/report", big, nil); res.StatusCode != http.StatusRequestEntityTooLarge {
-		t.Errorf("oversized report = %d", res.StatusCode)
+	if res, body := fx.do(t, http.MethodPost, base+"/report?t="+testRenderToken, big, nil); res.StatusCode != http.StatusRequestEntityTooLarge || !strings.Contains(string(body), "8 MiB") {
+		t.Errorf("oversized report = %d %s", res.StatusCode, body)
+	}
+	// 2 MiB is over the old cap of 1 MiB and inside the new one.
+	if res, _ := fx.do(t, http.MethodPost, base+"/report?t="+testRenderToken, bytes.Repeat([]byte("x"), 2<<20), nil); res.StatusCode != http.StatusOK {
+		t.Errorf("2 MiB report = %d", res.StatusCode)
 	}
 
 	// Frames: the header is required, the hook sees content type and bytes, and the answer is JSON.
-	if res, _ := fx.do(t, http.MethodPost, base+"/frame", []byte("f"), map[string]string{"Content-Type": "image/png"}); res.StatusCode != http.StatusBadRequest {
+	if res, _ := fx.do(t, http.MethodPost, base+"/frame?t="+testRenderToken, []byte("f"), map[string]string{"Content-Type": "image/png"}); res.StatusCode != http.StatusBadRequest {
 		t.Errorf("frame without header = %d", res.StatusCode)
 	}
-	res, body = fx.do(t, http.MethodPost, base+"/frame", []byte("frame-0"), map[string]string{"Content-Type": "image/png", "X-SM-Frame": "0"})
+	res, body = fx.do(t, http.MethodPost, base+"/frame?t="+testRenderToken, []byte("frame-0"), map[string]string{"Content-Type": "image/png", "X-SM-Frame": "0"})
 	if res.StatusCode != http.StatusOK || string(body) != `{"ok":true}` {
 		t.Errorf("frame 0 = %d %s", res.StatusCode, body)
 	}
-	res, body = fx.do(t, http.MethodPost, base+"/frame", []byte("frame-2"), map[string]string{"Content-Type": "image/png", "X-SM-Frame": "2"})
+	res, body = fx.do(t, http.MethodPost, base+"/frame?t="+testRenderToken, []byte("frame-2"), map[string]string{"Content-Type": "image/png", "X-SM-Frame": "2"})
 	if !strings.Contains(string(body), `"done":true`) {
 		t.Errorf("last frame answer = %s", body)
 	}
@@ -277,16 +284,17 @@ func TestListenerReportFrameAndErrorEndpoints(t *testing.T) {
 	}
 	fx.mu.Unlock()
 	tooBig := bytes.Repeat([]byte("x"), int(MaxFrameBytes(IngestConfig{Width: 1920, Height: 1080, Transport: TransportPNG}))+1)
-	res, body = fx.do(t, http.MethodPost, base+"/frame", tooBig, map[string]string{"Content-Type": "image/png", "X-SM-Frame": "5"})
+	res, body = fx.do(t, http.MethodPost, base+"/frame?t="+testRenderToken, tooBig, map[string]string{"Content-Type": "image/png", "X-SM-Frame": "5"})
 	if res.StatusCode != http.StatusRequestEntityTooLarge || !strings.Contains(string(body), `"stop":true`) {
 		t.Errorf("oversized frame = %d %s", res.StatusCode, body)
 	}
 
-	res, body = fx.do(t, http.MethodPost, base+"/error", []byte(`{"code":"code_error","message":"scene s3 threw","scene_id":"s3"}`), map[string]string{"Content-Type": "application/json"})
+	// This message quotes the token, and the page error check below pins it without the token.
+	res, body = fx.do(t, http.MethodPost, base+"/error?t="+testRenderToken, []byte(`{"code":"code_error","message":"scene s3 threw`+testRenderToken+`","scene_id":"s3"}`), map[string]string{"Content-Type": "application/json"})
 	if res.StatusCode != http.StatusOK {
 		t.Errorf("error endpoint = %d %s", res.StatusCode, body)
 	}
-	fx.do(t, http.MethodPost, base+"/error", []byte(`not json`), nil)
+	fx.do(t, http.MethodPost, base+"/error?t="+testRenderToken, []byte(`not json`), nil)
 	fx.mu.Lock()
 	defer fx.mu.Unlock()
 	if len(fx.errors) < 3 {
@@ -301,9 +309,108 @@ func TestListenerReportFrameAndErrorEndpoints(t *testing.T) {
 	}
 }
 
+func bootToken(t *testing.T, fx *listenerFixture) string {
+	t.Helper()
+	res, body := fx.do(t, http.MethodGet, fx.l.Base()+"/boot.json", nil, nil)
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("boot.json = %d", res.StatusCode)
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(body, &doc); err != nil {
+		t.Fatal(err)
+	}
+	token, _ := doc["token"].(string)
+	return token
+}
+
+func TestListenerServesTheTokenOnTheFirstGetOnly(t *testing.T) {
+	fx := newListenerFixture(t)
+	if head, _ := fx.do(t, http.MethodHead, fx.l.Base()+"/boot.json", nil, nil); head.StatusCode != http.StatusOK {
+		t.Fatalf("HEAD boot.json = %d", head.StatusCode)
+	}
+	if got := bootToken(t, fx); got != testRenderToken {
+		t.Fatalf("first GET after a HEAD: token = %q", got)
+	}
+	if got := bootToken(t, fx); got != "" {
+		t.Fatalf("second GET: token = %q", got)
+	}
+}
+
+func TestListenerRefusesARequestWithoutTheToken(t *testing.T) {
+	fx := newListenerFixture(t)
+	base := fx.l.Base()
+	jsonHeader := map[string]string{"Content-Type": "application/json"}
+	for _, q := range []string{"", "?t=", "?t=" + strings.Repeat("0", 32), "?t=" + testRenderToken[:31]} {
+		res, body := fx.do(t, http.MethodPost, base+"/report"+q, []byte(`{"frame_count":3}`), jsonHeader)
+		if res.StatusCode != http.StatusForbidden || string(body) != `{"error":"bad_token"}` {
+			t.Errorf("report %q = %d %s", q, res.StatusCode, body)
+		}
+		res, body = fx.do(t, http.MethodPost, base+"/frame"+q, []byte("f"), map[string]string{"Content-Type": "text/plain", "X-SM-Frame": "0"})
+		if res.StatusCode != http.StatusForbidden || string(body) != `{"stop":true,"error":"bad_token"}` {
+			t.Errorf("frame %q = %d %s", q, res.StatusCode, body)
+		}
+		res, body = fx.do(t, http.MethodPost, base+"/error"+q, []byte(`{"code":"code_error","message":"forged"}`), jsonHeader)
+		if res.StatusCode != http.StatusForbidden || string(body) != `{"error":"bad_token"}` {
+			t.Errorf("error %q = %d %s", q, res.StatusCode, body)
+		}
+	}
+	fx.mu.Lock()
+	report, frames, errs := fx.report, len(fx.frames), len(fx.errors)
+	fx.mu.Unlock()
+	if report != nil || frames != 0 || errs != 0 {
+		t.Fatalf("a hook ran: report %q, %d frames, %d errors", report, frames, errs)
+	}
+	// The one-shot stays free: the page's own report still reaches the hook.
+	res, body := fx.do(t, http.MethodPost, base+"/report?t="+testRenderToken, []byte(`{"frame_count":3}`), jsonHeader)
+	if res.StatusCode != http.StatusOK || !strings.Contains(string(body), `"start":true`) {
+		t.Fatalf("report with the token = %d %s", res.StatusCode, body)
+	}
+}
+
+func TestListenerKeepsThePrefixAndTheTokenOutOfAPageError(t *testing.T) {
+	fx := newListenerFixture(t)
+	base := fx.l.Base()
+	// Chrome's text for a refused importScripts can name the URL, and the URL holds the prefix.
+	sent, err := json.Marshal(PageError{Code: "code_error", Message: "refused " + base + "/scenes/s3.js?t=" + testRenderToken, SceneID: fx.l.prefix})
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, body := fx.do(t, http.MethodPost, base+"/error?t="+testRenderToken, sent, map[string]string{"Content-Type": "application/json"})
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("error endpoint = %d %s", res.StatusCode, body)
+	}
+	fx.mu.Lock()
+	defer fx.mu.Unlock()
+	want := PageError{Code: "code_error", Message: "refused " + fx.l.Origin() + "//scenes/s3.js?t="}
+	if len(fx.errors) != 1 || fx.errors[0] != want {
+		t.Fatalf("errors seen = %+v, want %+v", fx.errors, want)
+	}
+}
+
+func TestStartListenerRefusesAShortToken(t *testing.T) {
+	prefix, err := NewPrefix()
+	if err != nil {
+		t.Fatal(err)
+	}
+	params := PageParams{Width: 1920, Height: 1080, FPS: 30, Transport: TransportPNG}
+	for _, token := range []string{"", strings.Repeat("a", 31)} {
+		params.Token = token
+		if l, err := StartListener(prefix, &Snapshot{}, params, Hooks{}); err == nil {
+			_ = l.Close()
+			t.Errorf("token %q accepted", token)
+		}
+	}
+	params.Token = testRenderToken
+	l, err := StartListener(prefix, &Snapshot{}, params, Hooks{})
+	if err != nil {
+		t.Fatalf("a 32 character token was refused: %v", err)
+	}
+	_ = l.Close()
+}
+
 func TestStartListenerRejectsWeakPrefixes(t *testing.T) {
 	for _, prefix := range []string{"", "short", strings.Repeat("a/", 20), strings.Repeat("a", 31)} {
-		if l, err := StartListener(prefix, &Snapshot{}, PageParams{}, Hooks{}); err == nil {
+		if l, err := StartListener(prefix, &Snapshot{}, PageParams{Token: testRenderToken}, Hooks{}); err == nil {
 			_ = l.Close()
 			t.Errorf("prefix %q accepted", prefix)
 		}

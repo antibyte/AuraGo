@@ -29,10 +29,12 @@ function makeServer(opts = {}) {
     let frames = 0;
     async function fetch(url, init = {}) {
         if (init.method === 'POST') {
-            const p = url.slice(RBASE.length);
-            const rec = { path: p, headers: init.headers || {}, body: init.body };
+            // The matches below see the route. The token has a check of its own, in the run that sets boot.token.
+            const p = url.slice(RBASE.length).replace(/[?&]t=[^&]*$/, '');
+            const rec = { path: p, url, headers: init.headers || {}, body: init.body };
             posts.push(rec);
             if (p === '/report') {
+                if (opts.reportStatus) return res('internal error', opts.reportStatus);
                 const rep = JSON.parse(init.body);
                 rec.report = rep;
                 frames = rep.frame_count;
@@ -176,6 +178,26 @@ check('render mode: a code scene that fails is reported in the report issues and
     const err = server.posts.find(p => p.path === '/error');
     assert.ok(err && err.error.code === 'code_error' && err.error.scene_id === 's3');
     void status;
+});
+
+check('render mode: the boot token goes on every POST and into no message', async () => {
+    const token = 'feedfacefeedfacefeedfacefeedface', prefix = RBASE.slice(RBASE.lastIndexOf('/') + 1);
+    const withToken = await runRender({ story: minimal, noCode: true, boot: { token } });
+    assert.equal(withToken.status.phase, 'done', JSON.stringify(withToken.status));
+    assert.ok(withToken.frames.length > 0);
+    withToken.server.posts.forEach(p => assert.equal(new URL(p.url).searchParams.get('t'), token, p.url));
+    const without = await runRender({ story: minimal, noCode: true });
+    assert.equal(without.status.phase, 'done', JSON.stringify(without.status));
+    without.server.posts.forEach(p => assert.equal(new URL(p.url).searchParams.has('t'), false, p.url));
+    const refused = await runRender({ story: minimal, noCode: true, boot: { token }, reportStatus: 500 });
+    assert.equal(refused.status.phase, 'error');
+    const sent = refused.server.posts.find(p => p.path === '/error');
+    assert.equal(new URL(sent.url).searchParams.get('t'), token, 'the failure report carries the token');
+    assert.match(sent.error.message, /POST \/report answered 500/);
+    const broken = await runRender({ bootStatus: 503 });
+    const seen = [refused.status, sent.error, broken.status, broken.server.posts.find(p => p.path === '/error').error].map(v => JSON.stringify(v)).join('\n');
+    assert.ok(!seen.includes(token), seen);
+    assert.ok(!seen.includes(prefix), seen);
 });
 
 check('host bundle is small and self-contained: no codescene, rig or compile in the document realm', () => {
