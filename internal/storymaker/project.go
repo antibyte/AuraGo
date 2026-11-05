@@ -141,58 +141,7 @@ func (p *ProjectStore) checkScene(id, sceneID string) error {
 // opens on something that renders; defaults are applied before the first write. It returns the
 // project, the story and the etag of story.json.
 func (p *ProjectStore) Create(ctx context.Context, title, aspect string, fps int) (Project, Story, string, error) {
-	title = strings.TrimSpace(title)
-	if title == "" || runeLen(title) > 120 {
-		return Project{}, Story{}, "", fmt.Errorf("%w: the title must have 1 to 120 characters", ErrInvalidArgument)
-	}
-	if aspect == "" {
-		aspect = DefaultAspect
-	}
-	if aspect != "16:9" && aspect != "9:16" && aspect != "1:1" {
-		return Project{}, Story{}, "", fmt.Errorf("%w: aspect must be 16:9, 9:16 or 1:1", ErrInvalidArgument)
-	}
-	if fps == 0 {
-		fps = DefaultFPS
-	}
-	if fps != 24 && fps != 25 && fps != 30 {
-		return Project{}, Story{}, "", fmt.Errorf("%w: fps must be 24, 25 or 30", ErrInvalidArgument)
-	}
-
-	id := p.newID()
-	now := p.now()
-	story := Story{
-		Schema: Schema, Title: title,
-		Format: Format{Aspect: aspect, FPS: fps},
-		Style:  Style{Palette: DefaultPalette, Font: DefaultFont, Captions: true},
-		Cast:   []CastMember{},
-		Scenes: []Scene{{ID: "s1"}},
-	}
-	ApplyDefaults(&story)
-	storyBytes, err := CanonicalJSON(story)
-	if err != nil {
-		return Project{}, Story{}, "", err
-	}
-	proj := Project{ID: id, Title: title, Aspect: aspect, FPS: fps, CreatedAt: now, UpdatedAt: now}
-	projBytes, err := encodeProject(proj)
-	if err != nil {
-		return Project{}, Story{}, "", err
-	}
-
-	for _, sub := range []string{"", "assets", "audio/narration", "audio/music", "exports"} {
-		if err := p.st.MkdirAll(ctx, p.file(id, sub)); err != nil {
-			p.cleanup(id)
-			return Project{}, Story{}, "", fmt.Errorf("storymaker: create project folders: %w", err)
-		}
-	}
-	etag, err := p.st.WriteFile(ctx, p.file(id, "story.json"), storyBytes, MustNotExist)
-	if err == nil {
-		_, err = p.st.WriteFile(ctx, p.file(id, "project.json"), projBytes, MustNotExist)
-	}
-	if err != nil {
-		p.cleanup(id)
-		return Project{}, Story{}, "", fmt.Errorf("storymaker: create project: %w", err)
-	}
-	return proj, story, etag, nil
+	return p.CreateWithVoice(ctx, title, aspect, fps, nil)
 }
 
 // cleanup removes a half-created project; a failure to clean up is not reported.
