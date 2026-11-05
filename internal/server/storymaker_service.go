@@ -272,6 +272,10 @@ func (s *Server) storymakerSettings(ctx context.Context) (render.Settings, error
 	if err != nil {
 		return render.Settings{}, fmt.Errorf("FFmpeg is not available: %v", err)
 	}
+	ffprobe, err := videostudio.ResolveFFprobe(ffmpeg)
+	if err != nil {
+		return render.Settings{}, fmt.Errorf("FFprobe is not available: %v", err)
+	}
 	enc := videoStudioEncoder(ctx, cfg)
 	return render.Settings{
 		TimeoutSeconds:     cfg.Storymaker.Render.TimeoutSeconds,
@@ -279,6 +283,7 @@ func (s *Server) storymakerSettings(ctx context.Context) (render.Settings, error
 		BrowserPath:        cfg.Storymaker.Render.BrowserPath,
 		Transport:          cfg.Storymaker.Render.Transport,
 		FFmpegPath:         ffmpeg,
+		FFprobePath:        ffprobe,
 		Encoder:            enc.Encoder,
 		EncoderName:        enc.Name,
 		Limits:             storymakerLimits(cfg),

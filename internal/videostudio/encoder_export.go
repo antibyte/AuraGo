@@ -19,3 +19,9 @@ func (e Encoder) VideoArgs(rate Rate) []string { return e.videoArgs(rate) }
 func ResolveFFmpeg(configuredPath string) (string, error) {
 	return resolveBinary(configuredPath, "ffmpeg")
 }
+
+// ResolveFFprobe resolves the FFprobe binary that goes with a resolved FFmpeg path: the adjacent
+// binary, else PATH.
+func ResolveFFprobe(ffmpegPath string) (string, error) {
+	return resolveProbeBinary(ffmpegPath)
+}

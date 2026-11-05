@@ -263,7 +263,7 @@ func newRunFixture(t *testing.T) *runFixture {
 	}
 	fx.projectID = proj.ID
 	lim := storymaker.DefaultLimits()
-	fx.settings = Settings{TimeoutSeconds: 60, MaxDurationSeconds: 900, FFmpegPath: ffmpeg, EncoderName: "libx264", Limits: lim}
+	fx.settings = Settings{TimeoutSeconds: 60, MaxDurationSeconds: 900, FFmpegPath: ffmpeg, FFprobePath: testBinary(t, "ffprobe"), EncoderName: "libx264", Limits: lim}
 	b := NewBrowsers(fx.dir)
 	b.lookPath = func() (string, bool) { return "/fake/chrome", true }
 	b.launchProbe = func(context.Context, string) (string, error) { return "Fake/1", nil }
@@ -677,6 +677,13 @@ func TestRunReportsCapabilityFailures(t *testing.T) {
 	fx.playing(playOptions{frames: 10})
 	if job := fx.render(t); job.Status != StatusFailed || job.Error.Code != CodeFFmpegUnavailable {
 		t.Fatalf("no ffmpeg: %+v %+v", job, job.Error)
+	}
+
+	fx = newRunFixture(t)
+	fx.settings.FFprobePath = ""
+	fx.playing(playOptions{frames: 10})
+	if job := fx.render(t); job.Status != StatusFailed || job.Error.Code != CodeFFmpegUnavailable {
+		t.Fatalf("no ffprobe: %+v %+v", job, job.Error)
 	}
 
 	fx = newRunFixture(t)

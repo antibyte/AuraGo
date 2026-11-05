@@ -197,3 +197,59 @@ func TestFFmpegWriteFailsWithAMessageWhenTheProcessDies(t *testing.T) {
 		t.Fatal("a write to a dead FFmpeg succeeded")
 	}
 }
+
+func TestBuildFFmpegArgsAudioInputs(t *testing.T) {
+	base := FFmpegConfig{Path: "ffmpeg", Transport: TransportPNG, Width: 1920, Height: 1080, FPS: 30, Frames: 90, Output: "out.mp4"}
+	silent, err := BuildFFmpegArgs(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	joined := strings.Join(silent, " ")
+	// 90 frames at 30 fps is 3 s.
+	for _, want := range []string{
+		"-protocol_whitelist file,pipe -format_whitelist lavfi -f lavfi -t 3.000000 -i anullsrc=r=48000:cl=stereo",
+		"-c:a aac -b:a 192k -ar 48000 -ac 2",
+	} {
+		if !strings.Contains(joined, want) {
+			t.Errorf("silent args lack %q:\n%s", want, joined)
+		}
+	}
+	if strings.Contains(joined, "-shortest") {
+		t.Errorf("silent args keep -shortest:\n%s", joined)
+	}
+
+	withMix := base
+	withMix.AudioPath = "staging/mix.wav"
+	mixed, err := BuildFFmpegArgs(withMix)
+	if err != nil {
+		t.Fatal(err)
+	}
+	joined = strings.Join(mixed, " ")
+	for _, want := range []string{
+		"-protocol_whitelist file,pipe -format_whitelist wav -i staging/mix.wav",
+		"-map 0:v:0 -map 1:a:0",
+		"-c:a aac -b:a 192k -ar 48000 -ac 2",
+	} {
+		if !strings.Contains(joined, want) {
+			t.Errorf("mix args lack %q:\n%s", want, joined)
+		}
+	}
+	if strings.Contains(joined, "anullsrc") || strings.Contains(joined, "-shortest") {
+		t.Errorf("mix args:\n%s", joined)
+	}
+}
+
+func TestFFmpegMessageHoldsNoStagingPath(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "job")
+	out := filepath.Join(dir, "out.mp4")
+	mix := filepath.Join(dir, "mix.wav")
+	f := &FFmpeg{output: out, stderr: &tailBuffer{limit: ffmpegStderrKeep}}
+	_, _ = f.stderr.Write([]byte(mix + ": Invalid data\n" + out + ": No such file\n" + filepath.ToSlash(mix) + ": again\n"))
+	msg := f.Message()
+	if strings.Contains(msg, dir) || strings.Contains(msg, filepath.ToSlash(dir)) {
+		t.Fatalf("message holds the staging path: %s", msg)
+	}
+	if !strings.Contains(msg, "mix.wav") || !strings.Contains(msg, "<output>") {
+		t.Fatalf("message lost its content: %s", msg)
+	}
+}

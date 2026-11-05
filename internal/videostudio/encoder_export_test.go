@@ -1,6 +1,7 @@
 package videostudio
 
 import (
+	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -35,5 +36,17 @@ func TestResolveFFmpegUsesTheSharedPolicy(t *testing.T) {
 	}
 	if _, err := ResolveFFmpeg(t.TempDir()); err == nil {
 		t.Error("a directory was accepted as the FFmpeg binary")
+	}
+}
+
+func TestResolveFFprobeFindsTheBinaryBesideFFmpeg(t *testing.T) {
+	dir := t.TempDir()
+	probe := filepath.Join(dir, "ffprobe.exe")
+	if err := os.WriteFile(probe, []byte("stand-in"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	got, err := ResolveFFprobe(filepath.Join(dir, "ffmpeg.exe"))
+	if err != nil || got != probe {
+		t.Fatalf("ResolveFFprobe = %q, %v, want %q", got, err, probe)
 	}
 }

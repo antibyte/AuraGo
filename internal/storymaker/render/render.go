@@ -67,6 +67,7 @@ type Settings struct {
 	BrowserPath        string
 	Transport          string // "" selects DefaultTransport
 	FFmpegPath         string
+	FFprobePath        string // empty fails the job with ffmpeg_unavailable
 	Encoder            videostudio.Encoder
 	EncoderName        string
 	Limits             storymaker.Limits
@@ -334,6 +335,9 @@ func (run *renderRun) execute(ctx context.Context) (Output, error) {
 
 	if run.st.FFmpegPath == "" {
 		return Output{}, Fail(CodeFFmpegUnavailable, "FFmpeg was not found.")
+	}
+	if run.st.FFprobePath == "" {
+		return Output{}, Fail(CodeFFmpegUnavailable, "FFprobe was not found.")
 	}
 	// A first export may download the pinned Chromium. That happens before the render clock starts
 	// (wait), so the render timeout bounds it here; OpenPage keeps the job context, because rod ties

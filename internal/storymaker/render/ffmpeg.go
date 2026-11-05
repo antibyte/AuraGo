@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -21,8 +22,8 @@ const (
 	// hardwareSettle is how long a hardware encoder gets after the first frame to fail: FFmpeg opens the
 	// encoder only once it has seen a frame, and a failure must surface before the page renders on.
 	hardwareSettle      = 1500 * time.Millisecond
-	silentAudioRate     = 48000
-	silentAudioBitrate  = "64k"
+	audioRate           = 48000
+	audioBitrate        = "192k"
 	silentAudioLavfiSrc = "anullsrc=r=48000:cl=stereo"
 )
 
@@ -36,10 +37,11 @@ type FFmpegConfig struct {
 	FPS       int
 	Frames    int
 	Output    string
+	AudioPath string // "" keeps anullsrc with -t; else the mix WAV as input 1
 }
 
-// BuildFFmpegArgs returns the FFmpeg arguments of a render: frames on stdin (video), a silent
-// AAC track from anullsrc (so the MP4 has the stream layout later phases mix into), BT.709
+// BuildFFmpegArgs returns the FFmpeg arguments of a render: frames on stdin (video), the mix WAV or
+// a silent track from anullsrc as the AAC audio, BT.709
 // limited-range YUV 4:2:0 through an explicit scale (FFmpeg before 7.1 would otherwise convert with
 // BT.601 while the stream is tagged BT.709), the encoder's filter tail, and +faststart. Both inputs
 // carry protocol and format whitelists.
@@ -64,14 +66,18 @@ func BuildFFmpegArgs(cfg FFmpegConfig) ([]string, error) {
 	default:
 		return nil, fmt.Errorf("storymaker: unknown transport %q", cfg.Transport)
 	}
-	seconds := strconv.FormatFloat(float64(cfg.Frames)/float64(cfg.FPS), 'f', 6, 64)
-	args = append(args, "-protocol_whitelist", "file,pipe", "-format_whitelist", "lavfi",
-		"-f", "lavfi", "-t", seconds, "-i", silentAudioLavfiSrc)
+	if cfg.AudioPath != "" {
+		args = append(args, "-protocol_whitelist", "file,pipe", "-format_whitelist", "wav", "-i", cfg.AudioPath)
+	} else {
+		seconds := strconv.FormatFloat(float64(cfg.Frames)/float64(cfg.FPS), 'f', 6, 64)
+		args = append(args, "-protocol_whitelist", "file,pipe", "-format_whitelist", "lavfi",
+			"-f", "lavfi", "-t", seconds, "-i", silentAudioLavfiSrc)
+	}
 	args = append(args, "-map", "0:v:0", "-map", "1:a:0",
 		"-vf", "scale=out_color_matrix=bt709:out_range=tv,format=yuv420p"+cfg.Encoder.FilterTail())
 	args = append(args, cfg.Encoder.VideoArgs(videostudio.Rate{Num: int64(cfg.FPS), Den: 1})...)
-	args = append(args, "-c:a", "aac", "-b:a", silentAudioBitrate, "-ar", strconv.Itoa(silentAudioRate), "-ac", "2",
-		"-shortest", "-movflags", "+faststart", "-f", "mp4", "-y", cfg.Output)
+	args = append(args, "-c:a", "aac", "-b:a", audioBitrate, "-ar", strconv.Itoa(audioRate), "-ac", "2",
+		"-movflags", "+faststart", "-f", "mp4", "-y", cfg.Output)
 	return args, nil
 }
 
@@ -133,13 +139,24 @@ func (f *FFmpeg) Err() error {
 	return f.waitErr
 }
 
-// Message is the tail of FFmpeg's error output with the output path scrubbed.
+// Message is the tail of FFmpeg's error output with the output path and the staging folder scrubbed.
 func (f *FFmpeg) Message() string {
 	text := strings.TrimSpace(f.stderr.String())
 	if f.output != "" {
 		text = strings.ReplaceAll(text, f.output, "<output>")
+		text = scrubStaging(text, filepath.Dir(f.output))
 	}
 	return clip(text, 600)
+}
+
+// scrubStaging removes the staging folder from a tool's message, in both slash forms, so no
+// absolute path reaches a job error.
+func scrubStaging(text, dir string) string {
+	if dir == "" || dir == "." {
+		return text
+	}
+	text = strings.ReplaceAll(text, dir, "<staging>")
+	return strings.ReplaceAll(text, filepath.ToSlash(dir), "<staging>")
 }
 
 // WriteFrame implements FrameSink. A write that does not complete within 30 seconds kills FFmpeg.
