@@ -49,7 +49,7 @@
                 var built;
                 try { built = SM.codescene.build(fn, msg.opts); } catch (err) { throw sceneError(err, 'Scene "' + msg.opts.sceneId + '"'); }
                 this.built = built;
-                return { payload: { duration: built.duration, needs: built.needs, issues: built.issues } };
+                return { payload: { duration: built.duration, explicit: built.explicit, needs: built.needs, issues: built.issues } };
             }
             case 'assets': {
                 var assets = msg.assets || {}, k;

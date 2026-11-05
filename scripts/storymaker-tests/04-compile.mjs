@@ -1,6 +1,6 @@
 // Task C5: compile: scene-local timing, cues, auto durations, transition overlap, beats, the support matrix.
 import assert from 'node:assert/strict';
-import { plain } from '../storymaker-test-support.mjs';
+import { plain, readJSON } from '../storymaker-test-support.mjs';
 import { t } from '../storymaker-test-context.mjs';
 
 const { check, near, catalog, firewall, minimal } = t;
@@ -164,3 +164,99 @@ check('frame plan: one layer, or two with the transition share p in (0, 1)', () 
     assert.equal(after.layers.length, 1);
     assert.equal(plain(SM.schedule.framePlan(sched, compiled.report.frame_count - 1)).cur, 2);
 });
+// Task S3: cue fields, cue_precision, the film end, and the report fixture that Go parses.
+{
+    const HASH_A = 'a'.repeat(64), HASH_B = 'b'.repeat(64), HASH_C = 'c'.repeat(64);
+    const audioPiece = (hash, at, used, chars) => ({ hash, ext: 'wav', at_ms: at, in_ms: 0, out_ms: used, chars });
+    const narrationBlock = (id, durationMs, pieces) => ({ id, kind: 'narration', speaker: 'narrator', duration_ms: durationMs, spans: [], levels: [], speech_ok: true, pieces });
+
+    check('compile report: scenes[].cues and cue_precision', () => {
+        assert.equal(SM.compile(minimal, {}, catalog).report.cue_precision, null, 'no cue in the film');
+        const r = plain(compiled.report);
+        // firewall s1 has one marker on an estimated block, the other scenes have none.
+        const cueSeconds = plain(SM.planTiming(firewall, {}, catalog)).scenes.s1.cues['1'];
+        assert.deepEqual(r.scenes[0].cues, [{ marker: 1, at_ms: Math.round(cueSeconds * 1000), placed: 'proportion' }]);
+        assert.deepEqual(r.scenes[1].cues, []);
+        assert.equal(r.cue_precision, 0);
+        // One span cue and one estimated cue: the share is 1/2. 'eins zwei' has 9 units.
+        const mixed = SM.compile({ scenes: [{ id: 'a', narration: 'eins {1}zwei' }, { id: 'b', narration: 'drei {1}vier' }] },
+            { narration: { a: { blocks: [narrationBlock('a:n', 1000, [audioPiece(HASH_A, 0, 1000, 9)])] } } }, catalog).report;
+        assert.equal(mixed.cue_precision, 0.5);
+    });
+
+    // The story behind internal/storymaker/render/testdata/report_measured.json, mini catalog, 30 fps.
+    // s1: first scene, T = 0. Pieces of 25 + 1 and 29 UTF-16 units, used 1900 ms and 2350 ms, with the 350 ms sentence pause, so
+    // piece 1 starts at 2250 ms and the block lasts 4600 ms. Scene length 4.6 + 0.4 tail = 5 s = 150 frames.
+    // {1} stands at offset 26, the start of piece 1: at_ms 2250, placed span. One span cue of one cue: cue_precision 1.
+    // s2: fade 0.5 s = 15 frames, so it starts at frame 150 - 15 = 135 and T = 0.5 s. Length 0.5 + 2 + 0.4 tail = 2.9 s = 87 frames,
+    // range 135..222. The film has 222 frames = 7400 ms. The s2 block starts at 135/30 + 0.5 = 5 s = 5000 ms.
+    const measuredStory = { scenes: [
+        { id: 's1', narration: 'Das Paket kommt heute an. {1}Die Firewall prueft es genau.' },
+        { id: 's2', transition: 'fade', narration: 'Das ist das Ende vom Film.' }
+    ] };
+    const measuredAudio = { narration: {
+        s1: { blocks: [narrationBlock('s1:n', 4600, [audioPiece(HASH_A, 0, 1900, 26), audioPiece(HASH_B, 2250, 2350, 29)])] },
+        s2: { blocks: [narrationBlock('s2:n', 2000, [audioPiece(HASH_C, 0, 2000, 26)])] }
+    } };
+
+    check('compile report: the measured report equals the fixture that Go parses', () => {
+        const out = SM.compile(measuredStory, measuredAudio, catalog), report = plain(out.report);
+        const fixture = readJSON('internal/storymaker/render/testdata/report_measured.json');
+        const wire = r => { const { captions, issues, ...rest } = r; return rest; };
+        assert.deepEqual(wire(report), wire(fixture));
+        assert.ok(report.issues.every(i => i.severity !== 'error'), 'no error issue');
+        assert.deepEqual(plain(SM.overlappingNarration(out.timeline)), [], 'no two narration events overlap');
+    });
+
+    check('compile: the film end drops late audio events with one warning on the scene', () => {
+        // 10 s of speech: used 2650 ms + 350 ms pause, used 3550 ms + 350 ms pause, used 3100 ms. 'Eins. ' and 'Zwei. ' have 6 units, 'Drei.' has 5.
+        const late = id => ({ narration: { [id]: { blocks: [narrationBlock(id + ':n', 10000, [audioPiece(HASH_A, 0, 2650, 6), audioPiece(HASH_B, 3000, 3550, 6), audioPiece(HASH_C, 6900, 3100, 5)])] } } });
+        const warned = r => r.issues.filter(i => i.code === 'invalid_value' && i.path === '/scenes/0/duration');
+        // Duration 3 s = 90 frames = 3000 ms: piece 1 starts exactly at the film end, piece 2 past it.
+        const explicit = plain(SM.compile({ scenes: [{ id: 'a', duration: 3, narration: 'Eins. Zwei. Drei.' }] }, late('a'), catalog).report);
+        assert.equal(explicit.duration_ms, 3000);
+        assert.deepEqual(explicit.audio_events.map(e => e.ref), [HASH_A]);
+        assert.equal(warned(explicit).length, 1);
+        // A code scene with api.duration(1) = 30 frames = 1000 ms: only piece 0 starts inside the film.
+        const code = plain(SM.compile({ scenes: [{ id: 'c', kind: 'code', narration: 'Eins. Zwei. Drei.' }] }, late('c'), catalog, { codeScenes: { c: { duration: 1, explicit: true } } }).report);
+        assert.equal(code.duration_ms, 1000);
+        assert.deepEqual(code.audio_events.map(e => e.ref), [HASH_A]);
+        assert.equal(warned(code).length, 1);
+    });
+
+    // A code scene that reports 3.5 s of motion, 8 s of speech, then a narrated scene with a 0.5 s fade. 'Eins. Zwei. Drei.' has 17 units.
+    const codeFirst = { scenes: [
+        { id: 'c', kind: 'code', narration: 'Eins. Zwei. Drei.' },
+        { id: 'n', transition: 'fade', narration: 'Das ist das Ende vom Film.' }
+    ] };
+    const codeFirstAudio = { narration: {
+        c: { blocks: [narrationBlock('c:n', 8000, [audioPiece(HASH_A, 0, 8000, 17)])] },
+        n: { blocks: [narrationBlock('n:n', 2000, [audioPiece(HASH_C, 0, 2000, 26)])] }
+    } };
+    const durationWarnings = r => r.issues.filter(i => i.code === 'invalid_value' && i.path === '/scenes/0/duration');
+
+    check('compile: a code scene without api.duration covers its narration, so the next narration starts after it', () => {
+        const out = SM.compile(codeFirst, codeFirstAudio, catalog, { codeScenes: { c: { duration: 3.5 } } }), report = plain(out.report);
+        // T = 0, 8 s of speech + 0.4 s tail = 8.4 s = 252 frames. The fade of 15 frames starts the next scene at 237.
+        assert.equal(report.scenes[0].end_frame, 252);
+        assert.equal(report.scenes[1].start_frame, 237);
+        assert.deepEqual(plain(SM.overlappingNarration(out.timeline)), []);
+        assert.equal(durationWarnings(report).length, 0);
+        // A motion longer than the speech keeps its own length.
+        const longer = plain(SM.compile(codeFirst, codeFirstAudio, catalog, { codeScenes: { c: { duration: 9 } } }).report);
+        assert.equal(longer.scenes[0].end_frame, 270);
+        // A silent code scene after a fade keeps the length of its motion: 1 s = 30 frames, not T + 1 s = 45.
+        const silent = plain(SM.compile({ scenes: [{ id: 'n', narration: 'Das ist das Ende vom Film.' }, { id: 'c', kind: 'code', transition: 'fade' }] }, {}, catalog, { codeScenes: { c: { duration: 1 } } }).report);
+        assert.equal(silent.scenes[1].end_frame - silent.scenes[1].start_frame, 30);
+    });
+
+    check('compile: a code scene with api.duration keeps that length and warns once when the narration is longer', () => {
+        const short = plain(SM.compile(codeFirst, codeFirstAudio, catalog, { codeScenes: { c: { duration: 3.5, explicit: true } } }).report);
+        assert.equal(short.scenes[0].end_frame, 105);
+        assert.equal(durationWarnings(short).length, 1);
+        assert.equal(durationWarnings(short)[0].severity, 'warning');
+        const fits = plain(SM.compile(codeFirst, codeFirstAudio, catalog, { codeScenes: { c: { duration: 9, explicit: true } } }).report);
+        assert.equal(fits.scenes[0].end_frame, 270);
+        assert.equal(durationWarnings(fits).length, 0);
+    });
+}

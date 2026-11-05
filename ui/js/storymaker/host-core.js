@@ -231,7 +231,7 @@
             var left = Math.max(50, env.limits.sceneBuildDeadlineMs - (env.now() - started));
             var reply = await channel.call({ type: 'build', opts: opts }, left);
             this.sceneChannels[id] = channel;
-            return { duration: reply.duration, needs: reply.needs || [], issues: reply.issues || [] };
+            return { duration: reply.duration, explicit: reply.explicit === true, needs: reply.needs || [], issues: reply.issues || [] };
         } catch (err) {
             if (channel) channel.kill(err);
             var e = asError(err);
@@ -270,7 +270,7 @@
                 self.codeErrors[cid] = built.error.message;
                 env.onError({ code: built.error.code, message: built.error.message, scene_id: cid, line: built.error.line, column: built.error.column });
             } else {
-                codeScenes[cid] = { duration: built.duration };
+                codeScenes[cid] = { duration: built.duration, explicit: built.explicit };
                 sceneNeeds[cid] = built.needs;
                 built.issues.forEach(function (i) { sceneIssues.push(i); });
             }

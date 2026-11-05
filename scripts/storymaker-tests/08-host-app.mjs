@@ -342,3 +342,20 @@ check('host app: an oversized font passes only with a face of the last accepted 
     const base = a.H.Engine.prototype.fontDescriptor(withFaces, 'font:default/400', nine);
     assert.deepEqual([base.family, base.weight_range, base.unicode_range], ['Storymaker Default', undefined, undefined]);
 });
+// Task S3: api.duration travels from the scene function through the scene worker and the engine to compile.
+check('host app: a narrated code scene grows to its narration without api.duration, and keeps api.duration with a warning', async () => {
+    // 16 words / 2.3 = 6.957 s + 0.4 s tail = 7.357 s = 221 frames. The first scene has no entry transition.
+    const film = async source => {
+        const a = makeApp();
+        a.send(a.loadMsg({ story: { ...firewall, scenes: [{ id: 'c', kind: 'code', narration: 'a b c d e f g h i j k l m n o p' }] }, code_bundles: { c: bundleScene(source, 'c') } }));
+        await until(() => a.sent('compiled').length >= 1, 'the report');
+        return plain(a.sent('compiled')[0].report);
+    };
+    const warned = r => r.issues.filter(i => i.code === 'invalid_value' && i.path === '/scenes/0/duration');
+    const auto = await film('export default function scene(api) {}');
+    assert.equal(auto.frame_count, 221);
+    assert.equal(warned(auto).length, 0);
+    const set = await film('export default function scene(api) { api.duration(2); }');
+    assert.equal(set.frame_count, 60);
+    assert.equal(warned(set).length, 1);
+});

@@ -19,6 +19,31 @@
         return best ? 'font:' + best.name + '/' + best.weight : null;
     }
 
+    // cuePrecision(scenes) = the share of cues placed by a span, or null when the film has no cue.
+    function cuePrecision(scenes) {
+        var total = 0, spans = 0;
+        scenes.forEach(function (s) {
+            s.narration.cueList.forEach(function (c) { total++; if (c.placed === 'span') spans++; });
+        });
+        return total ? spans / total : null;
+    }
+
+    // dropPastFilmEnd(events, filmMs, scenes, issues): the audio events that start inside the film. A scene that lost an event
+    // gets one warning; the warning of a duration shorter than the narration already is that one.
+    function dropPastFilmEnd(events, filmMs, scenes, issues) {
+        var kept = [], lost = {};
+        events.forEach(function (e) {
+            if (e.start_ms < filmMs) kept.push(e); else lost[e.scene_id] = true;
+        });
+        scenes.forEach(function (s) {
+            if (!lost[s.id]) return;
+            var path = '/scenes/' + s.index + '/duration';
+            if (issues.some(function (i) { return i.path === path && i.code === 'invalid_value'; })) return;
+            issues.push(SM.plan.issue('warning', s.id, path, 'invalid_value', 'Audio of this scene starts after the end of the film and is not played. Shorten the speech or extend the scene.'));
+        });
+        return kept;
+    }
+
     function compile(story, audioInfo, catalog, opts) {
         opts = opts || {};
         story = story || {};
@@ -90,7 +115,12 @@
                         'The scene duration ' + D + ' s is shorter than its narration (' + (T + n.seconds).toFixed(1) + ' s including the transition).'));
                 }
             } else if (isCode && codeInfo && codeInfo.duration > 0) {
-                D = Math.min(P.MAX_CODE_SECONDS, Math.max(0.5, codeInfo.duration));
+                // With narration and without api.duration the scene also covers that narration. A silent scene keeps the length of its motion. A length the author set stays, with a warning when the speech is longer.
+                D = Math.min(P.MAX_CODE_SECONDS, Math.max(0.5, !codeInfo.explicit && n.seconds > 0 ? Math.max(codeInfo.duration, autoD) : codeInfo.duration));
+                if (codeInfo.explicit && n.seconds > 0 && D < T + n.seconds - 0.05) {
+                    issues.push(P.issue('warning', sc.id, '/scenes/' + i + '/duration', 'invalid_value',
+                        'The code scene sets api.duration(' + D + '), which is shorter than its narration (' + (T + n.seconds).toFixed(1) + ' s including the transition).'));
+                }
             } else D = autoD;
             var dFrames = Math.max(SM.schedule.secondsToFrames(fps, D), plan.tf + 1);
             var prev = scenes.length ? scenes[scenes.length - 1] : null;
@@ -147,6 +177,8 @@
 
         var frameCount = 0;
         scenes.forEach(function (s) { if (s.end_frame > frameCount) frameCount = s.end_frame; });
+        var filmMs = Math.round(frameCount * 1000 / fps);
+        audioEvents = dropPastFilmEnd(audioEvents, filmMs, scenes, issues);
         var schedule = {
             fps: fps, frame_count: frameCount,
             scenes: scenes.map(function (s) { return { id: s.id, kind: s.kind, start_frame: s.start_frame, end_frame: s.end_frame, tf: s.tf, transition: s.transition }; })
@@ -154,8 +186,8 @@
         var report = {
             frame_count: frameCount, fps: fps, width: fmt.width, height: fmt.height,
             duration_ms: Math.round(frameCount * 1000 / fps), catalog_version: cat.version,
-            scenes: scenes.map(function (s) { return { id: s.id, start_frame: s.start_frame, end_frame: s.end_frame, kind: s.kind }; }),
-            audio_events: audioEvents, captions: [], checks: SM.checks.run(scenes), unverified: SM.checks.unverified(scenes), issues: issues
+            scenes: scenes.map(function (s) { return { id: s.id, start_frame: s.start_frame, end_frame: s.end_frame, kind: s.kind, cues: s.narration.cueList }; }),
+            audio_events: audioEvents, captions: [], cue_precision: cuePrecision(scenes), checks: SM.checks.run(scenes), unverified: SM.checks.unverified(scenes), issues: issues
         };
         var timeline = {
             version: 1, fps: fps, width: fmt.width, height: fmt.height, aspect: fmt.aspect, frame_count: frameCount,

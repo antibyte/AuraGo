@@ -113,7 +113,7 @@
         return out;
     }
 
-    // planScene(...) = {tf, T, kind, requested, narration: {plain, words, start, seconds, measured, block, dialogue, cues}}
+    // planScene(...) = {tf, T, kind, requested, narration: {plain, words, start, seconds, measured, block, cueList, dialogue, cues}}
     function planScene(story, audioInfo, cat, fmt, index, issues) {
         var scene = story.scenes[index];
         var tr = transitionFor(scene, index, cat, fmt.fps, issues);
@@ -122,7 +122,7 @@
         var parsed = SM.narration.parse(silent ? '' : scene.narration);
         var info = audioInfo && audioInfo.narration && audioInfo.narration[scene.id];
         var raw = blockById(info, scene.id + ':n');
-        var narration = { plain: parsed.plain, words: parsed.words, start: T, seconds: 0, measured: false, block: null, dialogue: dialogueBlocks(scene, info), cues: {} };
+        var narration = { plain: parsed.plain, words: parsed.words, start: T, seconds: 0, measured: false, block: null, cueList: [], dialogue: dialogueBlocks(scene, info), cues: {} };
         if (parsed.words > 0) {
             if (raw) {
                 narration.measured = true;
@@ -136,6 +136,7 @@
             }
             Object.keys(parsed.cues).forEach(function (k) {
                 narration.cues[k] = T + SM.cuemap.cueMap(narration.block, parsed.cues[k]) / 1000;
+                narration.cueList.push({ marker: parseInt(k, 10), at_ms: Math.round(narration.cues[k] * 1000), placed: narration.block.placed });
             });
         }
         return { index: index, tf: tr.tf, T: T, transition: tr.kind, requested: tr.requested, narration: narration };

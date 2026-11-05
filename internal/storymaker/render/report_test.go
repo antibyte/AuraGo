@@ -3,6 +3,8 @@ package render
 import (
 	"context"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -318,5 +320,31 @@ func TestEgressGuardDecisions(t *testing.T) {
 		if p["block"] != true {
 			t.Errorf("%v does not block", p)
 		}
+	}
+}
+
+// The same file is pinned by scripts/storymaker-tests/04-compile.mjs, so this is the wire check between compile.js and parseReport.
+func TestParseReportAcceptsTheMeasuredFixture(t *testing.T) {
+	body, err := os.ReadFile(filepath.Join("testdata", "report_measured.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	hash := func(c string) string { return strings.Repeat(c, 64) }
+	rep, refusal := parseReport(body, reportExpect{
+		FPS: 30, Width: 1920, Height: 1080, MaxFrames: 27000, CatalogVersion: "mini00000000", SceneIDs: []string{"s1", "s2"},
+		MaxEvents: 3,
+		Blocks: map[string]reportBlock{
+			"s1:n": {SceneID: "s1", Kind: "narration", Hashes: []string{hash("a"), hash("b")}, Text: captionKey("Das Paket kommt heute an. Die Firewall prueft es genau.")},
+			"s2:n": {SceneID: "s2", Kind: "narration", Hashes: []string{hash("c")}, Text: captionKey("Das ist das Ende vom Film.")},
+		},
+	})
+	if refusal != nil {
+		t.Fatalf("the fixture was refused: %+v", refusal)
+	}
+	if len(rep.AudioEvents) != 3 || rep.AudioEvents[1].Piece != 1 || len(rep.Captions) != 2 || rep.Captions[1].BlockID != "s2:n" {
+		t.Fatalf("parsed report = %+v", rep)
+	}
+	if rep.CuePrecision == nil || *rep.CuePrecision != 1 {
+		t.Fatalf("cue_precision = %v", rep.CuePrecision)
 	}
 }

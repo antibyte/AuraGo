@@ -229,7 +229,7 @@
         var motionEnd = SM.camera.end(cam);
         state.entities.forEach(function (e) { var end = S.entityEnd(e); if (end > motionEnd) motionEnd = end; });
         var duration = state.duration !== null ? state.duration : Math.min(MAX_DURATION, Math.max(1, motionEnd + 0.5));
-        return { duration: duration, entities: state.entities, camera: cam, onFrame: state.onFrame, needs: Object.keys(state.needs).sort(), issues: state.issues, stage: stage };
+        return { duration: duration, explicit: state.duration !== null, entities: state.entities, camera: cam, onFrame: state.onFrame, needs: Object.keys(state.needs).sort(), issues: state.issues, stage: stage };
     }
 
     // ---- the restricted 2D facade passed to api.onFrame(fn)
