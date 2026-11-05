@@ -26,6 +26,7 @@
             steer: 0, throttle: 0, brake: 0,
             gear: 1, rpm: 900, slip: 0, surface: 'asphalt',
             damage: 0, disabled: 0, boost: 0, shield: 0,
+            nitro: 1, brakeHold: 0,
             impact: 0, carIndex: carIndex, car: car,
             wallContacts: 0
         };
@@ -37,6 +38,7 @@
         v.steer = 0; v.throttle = 0; v.brake = 0;
         v.gear = 1; v.rpm = 900; v.slip = 0;
         v.damage = 0; v.disabled = 0; v.boost = 0; v.shield = 0;
+        v.nitro = 1; v.brakeHold = 0;
         v.impact = 0; v.wallContacts = 0;
     };
 
@@ -54,22 +56,46 @@
         const power = v.car.power * (1 - 0.32 * clamp(v.damage / 100, 0, 1));
 
         const speed = Math.abs(v.vx);
+        /* Smooth motion direction: a hard Math.sign() flipped the slip-angle
+           sign every substep while braking to a standstill (the solver limits
+           to a ±0.06 m/s chatter loop), which made the steering feel randomly
+           inverted. The linear ramp keeps full response above 0.6 m/s. */
+        const dir = clamp(v.vx / 0.6, -1, 1);
         const steerLimit = MAX_STEER / (1 + speed * 0.018);
         v.steer = AD.smooth(v.steer, clamp(input.steer || 0, -1, 1) * steerLimit, 14, dt);
         const delta = v.steer;
 
         const denom = Math.max(speed, 2.5);
-        const alphaF = Math.atan2(v.vy + A * v.r, denom) - delta * Math.sign(v.vx || 1);
+        const alphaF = Math.atan2(v.vy + A * v.r, denom) - delta * dir;
         const alphaR = Math.atan2(v.vy - B * v.r, denom);
 
         const throttle = disabled ? 0 : clamp(input.throttle || 0, 0, 1);
         const brake = clamp(input.brake || 0, 0, 1);
+        /* Holding the brake at a standstill engages a gentle reverse after a
+           short beat, so cars can unwind from barriers; it never oscillates
+           through zero the way a sign-gated brake force did. The latch keeps
+           reversing until the pedal is released, so it cannot pulse. */
+        if (!disabled && brake > 0.05 && throttle <= 0 && (speed < 1.4 || v.brakeHold > 0.45)) v.brakeHold += dt;
+        else v.brakeHold = 0;
+        const reversing = v.brakeHold > 0.45;
         let drive = throttle * 9500 * power * (1 - 0.55 * clamp(v.vx / 75, 0, 1));
-        if (boost && !disabled) drive *= 1.55;
-        const braking = brake * BRAKE_FORCE + handbrake * 5200;
+        if (reversing) {
+            drive = -2600 * brake * clamp(1 + v.vx / 6.5, 0, 1) * power;
+        } else if (boost && !disabled && v.nitro > 0.02) {
+            drive *= 1.55;
+            v.nitro = Math.max(0, v.nitro - dt * 0.32);
+        }
+        /* Drifting at speed refills the nitro resource (deterministic state). */
+        if (!disabled && speed > 12 && v.slip > 2.0) {
+            v.nitro = Math.min(1, v.nitro + dt * clamp(v.slip * 0.045, 0, 0.2));
+        }
+        /* Brake force fades to zero at standstill: brakes hold a stopped car
+           instead of pumping it backwards against the next substep. */
+        const brakeFade = clamp(speed / 1.2, 0, 1);
+        const braking = reversing ? 0 : (brake * BRAKE_FORCE + handbrake * 5200) * brakeFade;
         const drag = DRAG * v.vx * Math.abs(v.vx);
-        const rolling = roll * M * G * Math.sign(v.vx || 1) * (speed > 0.2 ? 1 : 0);
-        const fx = drive - Math.sign(v.vx || 1) * braking - drag - rolling;
+        const rolling = roll * M * G * dir * brakeFade;
+        const fx = drive - dir * braking - drag - rolling;
 
         const transfer = clamp(M * (fx / M) * CG_HEIGHT / L, -0.35 * M * G, 0.35 * M * G);
         const fzf = Math.max(900, M * G * B / L - transfer);
@@ -106,16 +132,16 @@
         v.slip = Math.abs(v.vy) + Math.abs(alphaF) * 2 + Math.abs(alphaR) * 2;
         v.throttle = throttle;
         v.brake = brake;
-        v.boost = boost;
+        v.boost = (!reversing && boost && !disabled && v.nitro > 0) ? 1 : 0;
 
         /* Gear and engine speed are presentation state derived from velocity. */
         const gearSpeeds = [0, 14, 27, 40, 54, 68, 82];
         let gear = 1;
         for (let i = 1; i < gearSpeeds.length; i++) if (v.vx >= gearSpeeds[i]) gear = i + 1;
-        v.gear = clamp(gear, 1, 6);
-        const low = gearSpeeds[v.gear - 1] || 0;
-        const high = gearSpeeds[v.gear] || 95;
-        v.rpm = 900 + 5900 * clamp((v.vx - low) / Math.max(1, high - low), 0, 1) + throttle * 450;
+        v.gear = reversing || v.vx < -0.5 ? 0 : clamp(gear, 1, 6);
+        const low = v.gear >= 1 ? (gearSpeeds[v.gear - 1] || 0) : 0;
+        const high = v.gear >= 1 ? (gearSpeeds[v.gear] || 95) : 14;
+        v.rpm = 900 + 5900 * clamp((Math.abs(v.vx) - low) / Math.max(1, high - low), 0, 1) + throttle * 450;
 
         if (v.disabled > 0) v.disabled = Math.max(0, v.disabled - dt);
         if (v.shield > 0) v.shield = Math.max(0, v.shield - dt);

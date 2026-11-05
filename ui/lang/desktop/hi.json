@@ -10932,6 +10932,7 @@
   "aura_drift.ready": "जाओ!",
   "aura_drift.lap": "चक्कर",
   "aura_drift.weapon": "हथियार",
+  "aura_drift.nitro": "नाइट्रो",
   "aura_drift.loading": "ट्रैक लोड हो रहा है …",
   "desktop.mc_state_waiting": "प्रतीक्षा में",
   "desktop.mc_error_durable_cancel": "इस मिशन में सहेजे गए रन हैं। जिस रन को रोकना है, उसे EasyDrag में खोलें और वहीं रोकें।",

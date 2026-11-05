@@ -10932,6 +10932,7 @@
   "aura_drift.ready": "Via!",
   "aura_drift.lap": "Giro",
   "aura_drift.weapon": "Arma",
+  "aura_drift.nitro": "Nitro",
   "aura_drift.loading": "Caricamento tracciato …",
   "desktop.mc_state_waiting": "In attesa",
   "desktop.mc_error_durable_cancel": "Questa missione contiene esecuzioni salvate. Apri in EasyDrag l’esecuzione che vuoi arrestare e arrestala da lì.",

@@ -10932,6 +10932,7 @@
   "aura_drift.ready": "Start!",
   "aura_drift.lap": "Okrążenie",
   "aura_drift.weapon": "Broń",
+  "aura_drift.nitro": "Nitro",
   "aura_drift.loading": "Wczytywanie toru …",
   "desktop.mc_state_waiting": "Oczekiwanie",
   "desktop.mc_error_durable_cancel": "Ta misja zawiera zapisane wykonania. Otwórz w EasyDrag wykonanie, które chcesz zatrzymać, i zatrzymaj je tam.",

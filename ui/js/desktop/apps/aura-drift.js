@@ -102,7 +102,7 @@
             newRecord: 'aura_drift.new_record', nextTrack: 'aura_drift.next_track',
             ready: 'aura_drift.ready', lap: 'aura_drift.lap',
             weapon: 'aura_drift.weapon', loading: 'aura_drift.loading',
-            catchup: 'aura_drift.catchup'
+            catchup: 'aura_drift.catchup', nitro: 'aura_drift.nitro'
         };
         const result = {};
         for (const [name, key] of Object.entries(keys)) result[name] = t(key);
@@ -264,8 +264,12 @@
             const key = name => pressed.has(name);
             input.throttle = (key('ArrowUp') || key('KeyW') || touch.throttle) ? 1 : 0;
             input.brake = (key('ArrowDown') || key('KeyS') || touch.brake) ? 1 : 0;
-            input.steer = ((key('ArrowRight') || key('KeyD') || touch.right) ? 1 : 0) -
-                ((key('ArrowLeft') || key('KeyA') || touch.left) ? 1 : 0);
+            /* Arcade steering: the keys always rotate the car nose the way they
+               point. While rolling backwards the physical yaw response inverts,
+               so the input sign flips with it - steering never feels twisted. */
+            const reversing = race.cars[0].v.vx < -0.8;
+            input.steer = (((key('ArrowRight') || key('KeyD') || touch.right) ? 1 : 0) -
+                ((key('ArrowLeft') || key('KeyA') || touch.left) ? 1 : 0)) * (reversing ? -1 : 1);
             input.handbrake = (key('ShiftLeft') || key('ShiftRight') || touch.handbrake) ? 1 : 0;
             input.fire = (key('Space') || touch.fire) ? 1 : 0;
             input.boost = (key('ControlLeft') || key('ControlRight') || touch.boost) ? 1 : 0;
@@ -297,17 +301,32 @@
             if (!race || race.state !== 'running') return;
             const v = race.cars[0].v;
             const speed = Math.max(0, v.vx);
+            const surface = v.surface || 'asphalt';
+            const dustColour =
+                surface === 'sand' ? '#d8b078' :
+                surface === 'gravel' ? '#a89a84' :
+                surface === 'mud' ? '#6b5a42' :
+                surface === 'wet' ? '#9db4c8' :
+                surface === 'ice' ? '#e2edf5' :
+                surface === 'salt' ? '#f2f2ea' :
+                race.track.biome.night ? '#8fa4bd' : '#c9cbd0';
             if (v.slip > 2.4 && speed > 8 && quality.particles > 0 && frameCount % 2 === 0) {
                 const cos = Math.cos(v.psi), sin = Math.sin(v.psi);
                 for (const side of [-1, 1]) {
                     const x = v.x - cos * 1.7 + sin * side * 1.05;
                     const y = v.y - sin * 1.7 - cos * side * 1.05;
-                    renderer.smoke(x, y, race.track.biome.night ? '#8fa4bd' : '#c9cbd0');
+                    renderer.smoke(x, y, dustColour);
                     renderer.addDecal(x, y, v.psi, Math.min(1, v.slip / 9));
                 }
             }
             if (v.boost && speed > 12 && frameCount % 3 === 0) {
                 renderer.burst('boost', v.x - Math.cos(v.psi) * 2.4, v.y - Math.sin(v.psi) * 2.4, 2, '#8ce9ff');
+            }
+            if (v.damage > 62 && speed > 4 && frameCount % 7 === 0) {
+                renderer.smoke(v.x, v.y - 1.2, '#5c5c62');
+            }
+            if (v.impact > 0.55 && quality.particles > 0) {
+                renderer.burst('spark', v.x, v.y, 3, '#ffb347');
             }
         }
 

@@ -25,6 +25,7 @@ uniform float uWet;
 uniform float uImpact;
 uniform float uBoost;
 uniform float uReduced;
+uniform float uSpeed;
 
 vec3 sane(vec3 c) {
     if (!(c.r == c.r)) c.r = 0.0;
@@ -34,6 +35,10 @@ vec3 sane(vec3 c) {
 }
 
 float luma(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
+
+float grain(vec2 p) {
+    return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453) - 0.5;
+}
 
 void main() {
     vec2 uv = vUv;
@@ -45,17 +50,32 @@ void main() {
     base.b = texture(uScene, uv - radial * shift).b;
     base = sane(base);
 
-    /* Bright-pass bloom: eight taps, clamped so a bad frame cannot blow out. */
+    /* Speed streaks: a short radial blur away from the centre, only while
+       really moving, so the racing line stays readable. */
+    if (uSpeed > 0.25 && uReduced < 0.5) {
+        vec3 smear = vec3(0.0);
+        float wsum = 0.0;
+        for (int i = 1; i <= 3; i++) {
+            float d = float(i) * 0.004 * uSpeed;
+            float w = 1.0 / float(i);
+            smear += sane(texture(uScene, uv - radial * d).rgb) * w;
+            wsum += w;
+        }
+        base = mix(base, smear / wsum, clamp(uSpeed * 0.35, 0.0, 0.4));
+    }
+
+    /* Bright-pass bloom: twelve taps on two rings, clamped so a bad frame
+       cannot blow out. */
     vec3 bloom = vec3(0.0);
     if (uBloom > 0.0) {
-        vec2 step = uTexel * 3.0;
-        for (int y = -1; y <= 1; y++) {
-            for (int x = -1; x <= 1; x++) {
-                vec3 s = sane(texture(uScene, uv + vec2(float(x), float(y)) * step).rgb);
-                bloom += max(s - vec3(0.62), vec3(0.0));
-            }
+        for (int i = 0; i < 12; i++) {
+            float ang = float(i) * 0.5236;
+            float rad = (i < 6) ? 2.0 : 5.0;
+            vec2 off = vec2(cos(ang), sin(ang)) * uTexel * rad;
+            vec3 s = sane(texture(uScene, uv + off).rgb);
+            bloom += max(s - vec3(0.62), vec3(0.0));
         }
-        bloom /= 9.0;
+        bloom /= 12.0;
     }
 
     /* Wet asphalt: stretch bright highlights vertically into short reflections. */
@@ -75,6 +95,9 @@ void main() {
     color *= uGrade;
     float vignette = 1.0 - 0.22 * smoothstep(0.35, 0.78, length(radial));
     color *= vignette;
+    if (uReduced < 0.5) {
+        color += grain(uv * 720.0 + fract(uTime) * 41.0) * 0.012;
+    }
     outColor = vec4(sane(min(color, vec3(1.0))), 1.0);
 }`;
 
@@ -158,7 +181,7 @@ void main() {
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
-            for (const name of ['uScene', 'uTexel', 'uGrade', 'uTime', 'uBloom', 'uWet', 'uImpact', 'uBoost', 'uReduced']) {
+            for (const name of ['uScene', 'uTexel', 'uGrade', 'uTime', 'uBloom', 'uWet', 'uImpact', 'uBoost', 'uReduced', 'uSpeed']) {
                 uniforms[name] = gl.getUniformLocation(program, name);
             }
             gl.useProgram(program);
@@ -219,6 +242,7 @@ void main() {
                 gl.uniform1f(uniforms.uImpact, v ? clamp(v.impact, 0, 1) : 0);
                 gl.uniform1f(uniforms.uBoost, v ? v.boost : 0);
                 gl.uniform1f(uniforms.uReduced, reducedMotion ? 1 : 0);
+                gl.uniform1f(uniforms.uSpeed, v ? clamp(Math.max(0, v.vx) / 80, 0, 1) : 0);
                 gl.drawArrays(gl.TRIANGLES, 0, 3);
                 show();
                 return true;

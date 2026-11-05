@@ -10932,6 +10932,7 @@
   "aura_drift.ready": "出发！",
   "aura_drift.lap": "圈",
   "aura_drift.weapon": "武器",
+  "aura_drift.nitro": "氮气",
   "aura_drift.loading": "正在加载赛道 …",
   "desktop.mc_state_waiting": "等待中",
   "desktop.mc_error_durable_cancel": "此任务包含已保存的运行。请在 EasyDrag 中打开要停止的运行，然后在那里停止它。",

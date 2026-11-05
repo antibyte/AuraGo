@@ -1,22 +1,22 @@
 # Aura Drift — top-down racing for the Virtual Desktop
 
-Status: **phases 0–2 and the craft slice of phase 3 implemented** (2026-11-04/05). The
-game is a playable first-party Virtual Desktop app with WebGL2 post-processing, measured
-AI balance and a browser acceptance matrix. Remaining phase-3/4 items are listed below.
-Baseline: working tree inspected on 2026-11-04; reconfirm affected sources before further
-work.
+Status: **phases 0–2 and the craft slice of phase 3 implemented** (2026-11-04/05, quality
+pass 2026-11-05). The game is a playable first-party Virtual Desktop app with WebGL2
+post-processing, measured AI balance and a browser acceptance matrix. Remaining phase-3/4
+items are listed below. Baseline: working tree inspected on 2026-11-04; reconfirm affected
+sources before further work.
 
 ## Implementation status
 
 | Plan area | Delivered | Still open |
 | --- | --- | --- |
 | Platform decision | First-party modular Desktop app (`ui/js/desktop/apps/aura-drift-*.js`), catalog entry, shell registration, 16 locales, icon, DE/EN manuals, operator guide | Game Maker Studio phase-0 feel lab was not needed as a separate prototype; the deterministic harness served that purpose |
-| Physics | Bicycle model at fixed 120 Hz, seeded RNG, surfaces, wall/car collisions, replay-hash and 30/144 FPS equivalence tests | Engineering-grade tyre data, measured handling sessions on reference hardware |
-| Tracks | Six distinct validated spline layouts, 256 m chunk streaming with LRU caps, seeded daily generator with drivability validator, minimap | Track editor, branch shortcuts, moving gates |
-| Graphics | Canvas 2D world with procedural chunks, road/curbs, decals, particles, night lighting, weather, vignette, four quality tiers plus automatic selection, reduced motion; **WebGL2 High/Ultra post pass** (bloom, wet reflections, grade, impact aberration, NaN-guarded, context-loss fallback) | WebGL2 scene geometry (the plan's optional Three.js path), reference-hardware screenshot review |
-| Audio | Fully synthesized engine/tyre/wind/SFX/adaptive music, separate buses, master compressor, mute/volume/focus/dispose | Offline capture with clipping analysis, per-biome authored themes |
+| Physics | Bicycle model at fixed 120 Hz, seeded RNG, surfaces, wall/car collisions, replay-hash and 30/144 FPS equivalence tests; braking holds at standstill (no slip-sign chatter), held brake engages a bounded reverse, player steering flips while rolling backwards, drift-refilled nitro resource | Engineering-grade tyre data, measured handling sessions on reference hardware |
+| Tracks | Six distinct validated spline layouts, 320 m chunk streaming with LRU caps, seeded daily generator with drivability validator, minimap | Track editor, branch shortcuts, moving gates |
+| Graphics | Canvas 2D world with procedural chunks, **world-anchored road markings** (kerbs, dashed centre line, worn racing-line bands, checkered start/finish that never animate with frame time), decals over the road surface, procedural cars with steering front wheels, night headlight cones/lamp posts, particles, weather, vignette, speed streaks, four quality tiers plus automatic selection, reduced motion; **WebGL2 High/Ultra post pass** (bloom, speed streaks, wet reflections, grade, impact aberration, grain, NaN-guarded, context-loss fallback) | WebGL2 scene geometry (the plan's optional Three.js path), reference-hardware screenshot review |
+| Audio | Fully synthesized layered engine/gear-shift/backfire/tyre-slip/surface/wind/SFX, adaptive kick/bass/arp/pad music per biome scale and tempo, separate buses, master compressor, mute/volume/focus/dispose | Offline capture with clipping analysis, fully authored per-biome themes |
 | Weapons | Six counterable weapons, pickups, hazards, projectiles, AI use, weapon-free mode | Formal human balance sessions |
-| AI / balance | Grip- and corridor-aware corner speeds, bounded disclosed 6% catch-up, two-stage recovery with deterministic marshal respawn; `scripts/test-aura-drift-balance.mjs` measures six seeded AI-only laps (89–117 s), finishers, wall contacts, weapon events and reproducibility | Handling sessions on reference hardware |
+| AI / balance | Grip- and corridor-aware corner speeds, bounded disclosed 6% catch-up, nitro spent only on clean straights, two-stage recovery (brief reverse, deterministic marshal respawn); `scripts/test-aura-drift-balance.mjs` measures six seeded AI-only laps (89–117 s), finishers, wall contacts, weapon events and reproducibility | Handling sessions on reference hardware |
 | Modes | Quick race, Time trial with input-tape ghost, Cup, Daily route, local bests, track-driven recommended lap count | Cup aggregate scoring, published daily leaderboard (out of scope offline) |
 | Accessibility | Keyboard-only start, focus-visible outlines, screen-reader control hint, 56 px touch targets, reduced motion, no colour-only HUD state | Full WCAG 2.2 AA audit, NVDA/VoiceOver sessions |
 | Verification | `scripts/test-aura-drift-{physics,tracks,balance}.mjs`, `ui/desktop_aura_drift_test.go`, three headless Chrome tests (drive/dispose, 5-case quality/theme/viewport/reduced-motion matrix, night-harbour wet pass), bundle check, i18n/catalog/asset tests, DOX pass | Reference-hardware acceptance, 30-minute audio/soak run, offline clipping capture, all-tier screenshot review |
@@ -336,18 +336,11 @@ Browser artifacts belong in an ignored `reports/` directory via
 
 ## 13. Immediate next unit
 
-Build the physics lab: a standalone deterministic bicycle-model harness with one oval test
-spline, an input-tape replay hash test, 30/60/144 FPS equivalence and a 60-second playable
-feel check. In parallel, use Game Maker Studio as a cheap steering-feel sandbox; do not treat
-generated code as the shipped engine.
+The physics lab and the Game Maker feel sandbox are done (the deterministic harness served
+as the lab; the Studio prototype was never needed). The 2026-11-05 quality pass fixed the
+world-anchored road markings, the low-speed steering-sign chatter and the reverse steering
+feel, added the drift-refilled nitro resource, start lights and layered adaptive music.
 
-German prompt for that Studio prototype (copy into **New game**, 2D, `topdown` base):
-
-> Baue ein Top-Down-Autorennen mit einem Wagen, zwei wirklich unterschiedlichen Strecken
-> und drei Runden. Steuerung mit Pfeiltasten/WASD, Handbremse mit Shift, Waffe mit Leertaste.
-> Das Auto soll unter Bremsen einlenken, bei zu viel Gas untersteuern und mit der Handbremse
-> kontrolliert driften; Geschwindigkeit, Grip und Bremsweg müssen spürbar unterschiedlich
-> sein. Sammelbare Waffen-Pickups (Ölspur, Mine, Kurzzeit-Boost) mit klarer Ankündigung und
-> kurzer Abklingzeit. Zwei Strecken mit eigenem Layout, eigenem Untergrund und eigener
-> Beleuchtung. Prozeduraler Web-Audio-Motorsound, der mit Drehzahl und Tempo steigt, dazu
-> Reifenquietschen in Kurven. Alles offline, Einzelspieler, keine externen Ressourcen.
+Next unit: fully authored per-biome music themes (replace the scale/tempo layers with
+composed stems), then reference-hardware handling sessions and an offline audio clipping
+capture per the quality gates in section 11.

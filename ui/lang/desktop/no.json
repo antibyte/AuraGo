@@ -10932,6 +10932,7 @@
   "aura_drift.ready": "Kjør!",
   "aura_drift.lap": "Runde",
   "aura_drift.weapon": "Våpen",
+  "aura_drift.nitro": "Nitro",
   "aura_drift.loading": "Laster bane …",
   "desktop.mc_state_waiting": "Venter",
   "desktop.mc_error_durable_cancel": "Dette oppdraget inneholder lagrede kjøringer. Åpne kjøringen du vil stoppe, i EasyDrag, og stopp den der.",

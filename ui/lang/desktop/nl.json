@@ -10932,6 +10932,7 @@
   "aura_drift.ready": "Start!",
   "aura_drift.lap": "Ronde",
   "aura_drift.weapon": "Wapen",
+  "aura_drift.nitro": "Nitro",
   "aura_drift.loading": "Circuit laden …",
   "desktop.mc_state_waiting": "Wachtend",
   "desktop.mc_error_durable_cancel": "Deze missie bevat opgeslagen uitvoeringen. Open de uitvoering die je wilt stoppen in EasyDrag en stop die daar.",

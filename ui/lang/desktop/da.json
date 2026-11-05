@@ -10932,6 +10932,7 @@
   "aura_drift.ready": "Kør!",
   "aura_drift.lap": "Omgang",
   "aura_drift.weapon": "Våben",
+  "aura_drift.nitro": "Nitro",
   "aura_drift.loading": "Indlæser bane …",
   "desktop.mc_state_waiting": "Venter",
   "desktop.mc_error_durable_cancel": "Denne mission indeholder gemte kørsler. Åbn den kørsel, du vil stoppe, i EasyDrag, og stop den der.",

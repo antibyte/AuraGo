@@ -10934,6 +10934,7 @@
   "aura_drift.ready": "Los!",
   "aura_drift.lap": "Runde",
   "aura_drift.weapon": "Waffe",
+  "aura_drift.nitro": "Nitro",
   "aura_drift.loading": "Strecke wird geladen …",
   "aura_drift.catchup": "Rückstandsausgleich: Zurückliegende Gegner erhalten höchstens 6 % mehr Zieltempo, nie mehr Grip.",
   "desktop.mc_state_unknown": "Unbekannt",

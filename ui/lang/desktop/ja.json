@@ -10932,6 +10932,7 @@
   "aura_drift.ready": "スタート！",
   "aura_drift.lap": "ラップ",
   "aura_drift.weapon": "武器",
+  "aura_drift.nitro": "ニトロ",
   "aura_drift.loading": "コースを読み込み中 …",
   "desktop.mc_state_waiting": "待機中",
   "desktop.mc_error_durable_cancel": "このミッションには保存済みの実行があります。停止したい実行を EasyDrag で開き、そこで停止してください。",

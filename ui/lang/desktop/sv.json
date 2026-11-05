@@ -10932,6 +10932,7 @@
   "aura_drift.ready": "Kör!",
   "aura_drift.lap": "Varv",
   "aura_drift.weapon": "Vapen",
+  "aura_drift.nitro": "Nitro",
   "aura_drift.loading": "Laddar bana …",
   "desktop.mc_state_waiting": "Väntar",
   "desktop.mc_error_durable_cancel": "Det här uppdraget innehåller sparade körningar. Öppna körningen du vill stoppa i EasyDrag och stoppa den där.",

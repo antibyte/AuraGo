@@ -10932,6 +10932,7 @@
   "aura_drift.ready": "Já!",
   "aura_drift.lap": "Volta",
   "aura_drift.weapon": "Arma",
+  "aura_drift.nitro": "Nitro",
   "aura_drift.loading": "A carregar pista …",
   "desktop.mc_state_waiting": "Em espera",
   "desktop.mc_error_durable_cancel": "Esta missão contém execuções salvas. Abra no EasyDrag a execução que deseja interromper e interrompa-a por lá.",

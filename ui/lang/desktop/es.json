@@ -10932,6 +10932,7 @@
   "aura_drift.ready": "¡Vamos!",
   "aura_drift.lap": "Vuelta",
   "aura_drift.weapon": "Arma",
+  "aura_drift.nitro": "Nitro",
   "aura_drift.loading": "Cargando circuito …",
   "desktop.mc_state_waiting": "En espera",
   "desktop.mc_error_durable_cancel": "Esta misión contiene ejecuciones guardadas. Abre en EasyDrag la ejecución que quieras detener y detenla allí.",

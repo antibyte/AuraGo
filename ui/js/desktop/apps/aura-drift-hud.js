@@ -21,7 +21,10 @@
         }
 
         function panel(x, y, w, h) {
-            c.fillStyle = 'rgba(10,14,22,0.62)';
+            const g = c.createLinearGradient(x, y, x, y + h);
+            g.addColorStop(0, 'rgba(16,22,34,0.72)');
+            g.addColorStop(1, 'rgba(10,14,22,0.62)');
+            c.fillStyle = g;
             c.strokeStyle = 'rgba(160,190,220,0.16)';
             c.lineWidth = 1;
             c.beginPath();
@@ -51,18 +54,35 @@
                 if (i === 0) c.moveTo(sx, sy); else c.lineTo(sx, sy);
             }
             c.closePath();
-            c.strokeStyle = 'rgba(190,215,240,0.35)';
-            c.lineWidth = Math.max(2, track.width * scale * 0.55);
+            c.strokeStyle = 'rgba(24,32,46,0.9)';
+            c.lineWidth = Math.max(3, track.width * scale * 0.8);
             c.stroke();
-            c.strokeStyle = 'rgba(230,245,255,0.75)'; c.lineWidth = 1; c.stroke();
+            c.strokeStyle = 'rgba(190,215,240,0.55)';
+            c.lineWidth = Math.max(2, track.width * scale * 0.5);
+            c.stroke();
+            /* Start line tick marks the loop origin. */
+            const [s0x, s0y] = toMap(track.samples[0].x, track.samples[0].y);
+            c.fillStyle = 'rgba(240,244,248,0.85)';
+            c.fillRect(s0x - 1.5, s0y - 1.5, 3, 3);
             for (let i = 1; i < race.cars.length; i++) {
                 const [sx, sy] = toMap(race.cars[i].v.x, race.cars[i].v.y);
                 c.fillStyle = race.cars[i].v.car.colour;
                 c.beginPath(); c.arc(sx, sy, 2.6, 0, Math.PI * 2); c.fill();
             }
-            const [px, py] = toMap(race.cars[0].v.x, race.cars[0].v.y);
+            if (race.ghost && race.ghost.active) {
+                const [gx, gy] = toMap(race.ghost.v.x, race.ghost.v.y);
+                c.strokeStyle = 'rgba(159,214,255,0.8)'; c.lineWidth = 1.2;
+                c.beginPath(); c.arc(gx, gy, 3, 0, Math.PI * 2); c.stroke();
+            }
+            const player = race.cars[0].v;
+            const [px, py] = toMap(player.x, player.y);
+            c.save();
+            c.translate(px, py); c.rotate(player.psi);
             c.fillStyle = '#ffffff';
-            c.beginPath(); c.arc(px, py, 3.6, 0, Math.PI * 2); c.fill();
+            c.beginPath();
+            c.moveTo(5, 0); c.lineTo(-3.4, 3.2); c.lineTo(-3.4, -3.2);
+            c.closePath(); c.fill();
+            c.restore();
             c.strokeStyle = '#ff5a4e'; c.lineWidth = 1.5;
             c.beginPath(); c.arc(px, py, 6, 0, Math.PI * 2); c.stroke();
         }
@@ -72,6 +92,22 @@
             c.fillRect(x, y, w, h);
             c.fillStyle = colour;
             c.fillRect(x, y, w * clamp(value, 0, 1), h);
+        }
+
+        function startLights(race) {
+            const total = 5;
+            const lit = clamp(Math.ceil(race.countdown), 0, total);
+            const spacing = 34;
+            const startX = width / 2 - (total - 1) * spacing / 2;
+            for (let i = 0; i < total; i++) {
+                const on = i < lit;
+                const go = race.countdown <= 0.6;
+                c.beginPath();
+                c.arc(startX + i * spacing, height / 2 - 44, 12, 0, Math.PI * 2);
+                c.fillStyle = on ? (go ? '#37e07c' : '#ff4d4d') : 'rgba(255,255,255,0.10)';
+                c.fill();
+                c.strokeStyle = 'rgba(230,240,255,0.35)'; c.lineWidth = 2; c.stroke();
+            }
         }
 
         return {
@@ -96,12 +132,16 @@
                 minimap(race, width - mapSize - pad, pad, mapSize);
 
                 const dialW = compact ? 168 : 216;
-                panel(pad, height - dialW * 0.52 - pad, dialW, dialW * 0.52);
-                text(String(Math.round(AD.vehicleSpeedKmh(v))), pad + 12, height - 34, compact ? 34 : 42, '#ffffff');
-                text('km/h', pad + (compact ? 92 : 118), height - 36, 13, '#9fb8d4');
-                text('G' + v.gear, pad + (compact ? 128 : 166), height - 36, 15, '#ffcf6b');
-                bar(pad + 12, height - 24, dialW - 24, 5, v.rpm / 7200, v.rpm > 6300 ? '#ff8a5c' : '#5eead4');
-                bar(pad + 12, height - 15, dialW - 24, 3, 1 - v.damage / 100, '#7fb2ff');
+                const dialH = dialW * 0.62;
+                panel(pad, height - dialH - pad, dialW, dialH);
+                text(String(Math.max(0, Math.round(AD.vehicleSpeedKmh(v)))), pad + 12, height - 52, compact ? 34 : 42, '#ffffff');
+                text('km/h', pad + (compact ? 92 : 118), height - 54, 13, '#9fb8d4');
+                text(v.gear === 0 ? 'R' : 'G' + v.gear, pad + (compact ? 128 : 166), height - 54, 15, '#ffcf6b');
+                bar(pad + 12, height - 42, dialW - 24, 5, v.rpm / 7200, v.rpm > 6300 ? '#ff8a5c' : '#5eead4');
+                bar(pad + 12, height - 33, dialW - 24, 3, 1 - v.damage / 100, '#7fb2ff');
+                /* Nitro resource: filled by drifting, spent by boost. */
+                text(labels.nitro, pad + 12, height - 21, 10, '#8fa9c4');
+                bar(pad + 12, height - 17, dialW - 24, 5, v.nitro === undefined ? 0 : v.nitro, '#7dd3fc');
 
                 const weaponW = compact ? 150 : 186;
                 panel(width - weaponW - pad, height - 76 - pad, weaponW, 76);
@@ -116,12 +156,13 @@
                 if (v.shield > 0) text('◈', width - weaponW - pad - 18, height - 34 - pad, 18, '#5eead4', 'center');
 
                 if (race.state === 'countdown') {
+                    if (!settings.reducedMotion) startLights(race);
                     const n = Math.ceil(race.countdown);
                     const label = n > 0 ? String(n) : labels.ready;
                     const pulse = settings.reducedMotion ? 0 : Math.sin(race.countdown * 9) * 0.08;
                     c.save();
                     c.globalAlpha = 0.9;
-                    text(label, width / 2, height / 2 + 18, 62 + pulse * 40, '#ffffff', 'center');
+                    text(label, width / 2, height / 2 + 34, 62 + pulse * 40, '#ffffff', 'center');
                     c.restore();
                 }
                 if (messageTime > 0) {

@@ -125,21 +125,23 @@
         input.throttle = speed < target ? 1 : 0;
         input.brake = speed > target + 5 ? clamp((speed - target) / 14, 0, 1) : 0;
         input.handbrake = (curvature > 0.3 && speed > 38 && Math.abs(error) > 0.42) ? 1 : 0;
-        input.boost = 0;
+        /* Same nitro resource as the player: burn it on clean straights only. */
+        input.boost = (v.nitro > 0.55 && curvature < 0.02 && speed > 46) ? 1 : 0;
         input.fire = 0;
 
         if (corridor > 0.5) {
             input.steer = clamp(input.steer - Math.sign(sample.offset) * clamp((corridor - 0.5) * 1.6, 0, 0.85), -1, 1);
         }
-        /* Two-stage recovery: briefly reverse away from the barrier, then let a
-           marshal put the car back on the racing line if it stays pinned. This
-           keeps weapon spins from parking an opponent against a wall forever. */
+        /* Two-stage recovery: hold the brake so the new reverse gear backs the
+           car out straight, then let a marshal put it back on the racing line
+           if it stays pinned. This keeps weapon spins from parking an opponent
+           against a wall forever. */
         car.ai.recover = Math.max(0, car.ai.recover - AD.STEP);
         const pinned = speed < 4 && corridor > 0.65;
         car.ai.stuckTime = pinned ? car.ai.stuckTime + AD.STEP : 0;
         if (car.ai.stuckTime > 4) respawnCar(race, car);
         else if (car.ai.stuckTime > 0.5 && car.ai.recover <= 0) {
-            car.ai.recover = 0.9;
+            car.ai.recover = 1.1;
             car.ai.stuckTime = 0;
         }
         if (car.ai.recover > 0) {
@@ -147,7 +149,8 @@
             input.brake = 1;
             input.handbrake = 0;
             input.fire = 0;
-            input.steer = clamp(Math.sign(sample.offset) * 0.55, -1, 1);
+            input.boost = 0;
+            input.steer = 0;
             return input;
         }
         if (race.weapons && car.weapon && car.cooldown <= 0) {

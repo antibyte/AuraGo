@@ -10932,6 +10932,7 @@
   "aura_drift.ready": "Πάμε!",
   "aura_drift.lap": "Γύρος",
   "aura_drift.weapon": "Όπλο",
+  "aura_drift.nitro": "Νίτρο",
   "aura_drift.loading": "Φόρτωση διαδρομής …",
   "desktop.mc_state_waiting": "Σε αναμονή",
   "desktop.mc_error_durable_cancel": "Αυτή η αποστολή περιέχει αποθηκευμένες εκτελέσεις. Άνοιξε στο EasyDrag την εκτέλεση που θέλεις να σταματήσεις και σταμάτησέ την εκεί.",
