@@ -32,7 +32,7 @@
         },
         storymaker: {
             styles: appStyles('/css/desktop-app-storymaker.css'),
-            scripts: ['/js/desktop/apps/storymaker-core.js', '/js/desktop/apps/storymaker-model.js', '/js/desktop/apps/storymaker-api.js', '/js/desktop/apps/storymaker-assets.js', '/js/desktop/apps/storymaker-player.js', '/js/desktop/apps/storymaker-projects.js', '/js/desktop/apps/storymaker-strip.js', '/js/desktop/apps/storymaker-inspector.js', '/js/desktop/apps/storymaker-code.js', '/js/desktop/apps/storymaker-export.js', '/js/desktop/apps/storymaker.js']
+            scripts: ['/js/desktop/apps/storymaker-core.js', '/js/desktop/apps/storymaker-model.js', '/js/desktop/apps/storymaker-api.js', '/js/desktop/apps/storymaker-assets.js', '/js/desktop/apps/storymaker-player.js', '/js/desktop/apps/storymaker-projects.js', '/js/desktop/apps/storymaker-strip.js', '/js/desktop/apps/storymaker-inspector.js', '/js/desktop/apps/storymaker-code.js', '/js/desktop/apps/storymaker-export.js', '/js/desktop/apps/storymaker-audio.js', '/js/desktop/apps/storymaker.js']
         },
         'minigolf': {
             styles: appStyles('/css/desktop-app-minigolf.css'),
