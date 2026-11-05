@@ -44,6 +44,30 @@ func TestRealCatalogLoadsAndItsFilesExist(t *testing.T) {
 	}
 }
 
+func TestRealCatalogGlyphs(t *testing.T) {
+	cat := loadReal(t)
+	g := cat.Glyphs()
+	if g == nil || cat.GlyphsFile() != "glyphs.json" {
+		t.Fatalf("Glyphs() = %v, GlyphsFile() = %q", g, cat.GlyphsFile())
+	}
+	// The Inter Greek file also holds U+0041, but its unicode_range keeps that out, so Latin falls to Geist.
+	for r, want := range map[rune]string{0x03C9: "sm-greek", 0x0041: "geist"} {
+		i := g.FaceOf(r)
+		if i < 0 || g.Faces[i].ID != want {
+			t.Errorf("FaceOf(%U) = %d, want face %s", r, i, want)
+		}
+	}
+	for _, r := range []rune{0x2026, 0x2028, 0x200D, 0x0001} {
+		if !g.Covered(r) {
+			t.Errorf("Covered(%U) = false", r)
+		}
+	}
+	// No shipped face has Thai: U+0E01 is in neither Geist nor the three Noto cmaps, and Inter Greek is limited to Greek.
+	if g.Covered(0x0E01) {
+		t.Error("Covered(U+0E01) = true")
+	}
+}
+
 func TestRealCatalogValidatesTheFixtureStories(t *testing.T) {
 	cat := loadReal(t)
 	for _, name := range []string{"stories/minimal", "stories/firewall", "player/castsheet"} {

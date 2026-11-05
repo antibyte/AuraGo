@@ -155,6 +155,9 @@ type Catalog struct {
 	version string
 	entries []Entry
 	byID    map[string]int
+
+	glyphs     *Glyphs // nil when the manifest names no glyphs file
+	glyphsFile string
 }
 
 type catalogFile struct {
@@ -162,6 +165,7 @@ type catalogFile struct {
 	Version  string            `json:"version"`
 	Stage    Stage             `json:"stage"`
 	Rig      RigRef            `json:"rig"`
+	Glyphs   *glyphsRef        `json:"glyphs"`
 	Fonts    []Font            `json:"fonts"`
 	Palettes []Palette         `json:"palettes"`
 	Entries  []json.RawMessage `json:"entries"`
@@ -174,7 +178,7 @@ var characterParamNames = []string{"body", "skin", "hair", "hair_color", "eyes",
 // LoadCatalog reads and checks the manifest at path (for the ui tree: "img/storymaker/catalog.json").
 // It validates the manifest only: the schema string, kinds, duplicate IDs, the ID prefix of each
 // kind, the name keys and the required fields of each kind. It does not open the files that
-// entries reference; VerifyFiles does that.
+// entries reference; VerifyFiles does that. It does read the glyphs file the manifest names, from the same folder.
 func LoadCatalog(fsys fs.FS, path string) (*Catalog, error) {
 	f, err := fsys.Open(path)
 	if err != nil {
@@ -269,6 +273,10 @@ func LoadCatalog(fsys fs.FS, path string) (*Catalog, error) {
 			continue
 		}
 		add(e)
+	}
+
+	if m.Glyphs != nil {
+		c.loadGlyphs(fsys, path, m.Glyphs.File, bad)
 	}
 
 	if len(problems) > 0 {
