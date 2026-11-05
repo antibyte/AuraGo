@@ -110,9 +110,9 @@ func (h *c19bFlowRuns) runDepths(missionID string) []int {
 }
 
 // c19bFollower publishes a flow mission that runs when sourceID completes.
-func c19bFollower(t *testing.T, mm *MissionManagerV2, sourceID string) string {
+func c19bFollower(t *testing.T, mm *MissionManagerV2, flowID, sourceID string) string {
 	t.Helper()
-	return publishTestFlow(t, mm, FlowTriggerSpec{NodeID: "n_bbbbbbbb", TriggerType: TriggerMissionCompleted,
+	return publishTestFlowWithID(t, mm, flowID, FlowTriggerSpec{NodeID: "n_bbbbbbbb", TriggerType: TriggerMissionCompleted,
 		TriggerConfig: &TriggerConfig{SourceMissionID: sourceID}})
 }
 
@@ -215,9 +215,9 @@ func TestC19bCompletionChainDepthReadsTheTriggerData(t *testing.T) {
 func TestC19bDependentsRunOneDeeper(t *testing.T) {
 	logs := c07CaptureWarnings(t)
 	mm, hooks, _ := newFlowTestManager(t)
-	source := publishTestFlow(t, mm, FlowTriggerSpec{NodeID: "n_aaaaaaaa", TriggerType: FlowTriggerManual})
+	source := publishTestFlowWithID(t, mm, "flow_c19b00001", FlowTriggerSpec{NodeID: "n_aaaaaaaa", TriggerType: FlowTriggerManual})
 	c08AddPromptDependent(mm, "c19b_prompt", source)
-	follower := c19bFollower(t, mm, source)
+	follower := c19bFollower(t, mm, "flow_c19b00002", source)
 
 	run := mm.FlowRunStarted(source, string(TriggerMissionCompleted), `{"chain_depth":3}`)
 	mm.FlowRunFinishedAtDepth(source, run, MissionResultSuccess, "Fertig.", map[string]any{"x": 1}, 3)
@@ -261,9 +261,9 @@ func TestC19bLinearChainOfMaxLinksRunsWhole(t *testing.T) {
 	logs := c07CaptureWarnings(t)
 	mm, hooks := c19bFlowManager(t)
 	t.Cleanup(mm.Stop)
-	chain := []string{publishTestFlow(t, mm, FlowTriggerSpec{NodeID: "n_aaaaaaaa", TriggerType: FlowTriggerManual})}
+	chain := []string{publishTestFlowWithID(t, mm, "flow_c19b10000", FlowTriggerSpec{NodeID: "n_aaaaaaaa", TriggerType: FlowTriggerManual})}
 	for len(chain) <= maxCompletionChainDepth {
-		chain = append(chain, c19bFollower(t, mm, chain[len(chain)-1]))
+		chain = append(chain, c19bFollower(t, mm, fmt.Sprintf("flow_c19b%05d", len(chain)), chain[len(chain)-1]))
 	}
 	if err := mm.RunNow(chain[0]); err != nil {
 		t.Fatalf("RunNow: %v", err)
@@ -280,7 +280,7 @@ func TestC19bLinearChainOfMaxLinksRunsWhole(t *testing.T) {
 	}
 
 	last := chain[len(chain)-1]
-	extra := c19bFollower(t, mm, last)
+	extra := c19bFollower(t, mm, fmt.Sprintf("flow_c19b%05d", len(chain)), last)
 	if err := mm.RunNow(chain[0]); err != nil {
 		t.Fatalf("RunNow: %v", err)
 	}
@@ -431,8 +431,8 @@ func TestC19bStopNoteKeepsTheLastOutputCap(t *testing.T) {
 func TestC19bRepeatedStopsWarnOncePerWindow(t *testing.T) {
 	logs := c07CaptureLogs(t, slog.LevelDebug)
 	mm, _, _ := newFlowTestManager(t)
-	first := publishTestFlow(t, mm, FlowTriggerSpec{NodeID: "n_aaaaaaaa", TriggerType: FlowTriggerManual})
-	second := publishTestFlow(t, mm, FlowTriggerSpec{NodeID: "n_aaaaaaaa", TriggerType: FlowTriggerManual})
+	first := publishTestFlowWithID(t, mm, "flow_c19b20001", FlowTriggerSpec{NodeID: "n_aaaaaaaa", TriggerType: FlowTriggerManual})
+	second := publishTestFlowWithID(t, mm, "flow_c19b20002", FlowTriggerSpec{NodeID: "n_aaaaaaaa", TriggerType: FlowTriggerManual})
 	c08AddPromptDependent(mm, "c19b_first_dependent", first)
 	c08AddPromptDependent(mm, "c19b_second_dependent", second)
 	stopAt := func(id string) {

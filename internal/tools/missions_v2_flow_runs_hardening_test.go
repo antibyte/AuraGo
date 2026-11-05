@@ -681,8 +681,8 @@ func TestDeleteNotifiesTheFlowServiceOnlyAfterTheSave(t *testing.T) {
 	t.Cleanup(mm.Stop)
 	hooks := newFakeFlowHooks()
 	mm.SetFlowHooks(hooks)
-	failing := publishTestFlow(t, mm, FlowTriggerSpec{NodeID: "n_aaaaaaaa", TriggerType: FlowTriggerSchedule, Schedule: "0 7 * * *"})
-	saved := publishTestFlow(t, mm, FlowTriggerSpec{NodeID: "n_aaaaaaaa", TriggerType: FlowTriggerManual})
+	failing := publishTestFlowWithID(t, mm, "flow_delete_fail", FlowTriggerSpec{NodeID: "n_aaaaaaaa", TriggerType: FlowTriggerSchedule, Schedule: "0 7 * * *"})
+	saved := publishTestFlowWithID(t, mm, "flow_delete_saved", FlowTriggerSpec{NodeID: "n_aaaaaaaa", TriggerType: FlowTriggerManual})
 	mm.FlowRunStarted(failing, "manual", "")
 	deletedCalls := func() []string {
 		hooks.mu.Lock()

@@ -64,10 +64,10 @@ func TestC16FlowMissionsWithoutHooksNeverRunAsAgentMissions(t *testing.T) {
 	if err := setup.Create(&MissionV2{ID: sourceID, Name: "Quelle", Prompt: "c16 source prompt", ExecutionType: ExecutionManual}); err != nil {
 		t.Fatal(err)
 	}
-	startupFlow := publishTestFlow(t, setup,
+	startupFlow := publishTestFlowWithID(t, setup, "flow_c16startup",
 		FlowTriggerSpec{NodeID: "n_aaaaaaaa", TriggerType: FlowTriggerManual},
 		FlowTriggerSpec{NodeID: "n_bbbbbbbb", TriggerType: TriggerSystemStartup})
-	dependentFlow := publishTestFlow(t, setup,
+	dependentFlow := publishTestFlowWithID(t, setup, "flow_c16dependent",
 		FlowTriggerSpec{NodeID: "n_cccccccc", TriggerType: TriggerMissionCompleted, TriggerConfig: &TriggerConfig{SourceMissionID: sourceID}})
 	// The last process stopped while both flows ran and one was queued as an agent item.
 	setup.FlowRunStarted(startupFlow, "manual", "")
@@ -164,7 +164,8 @@ func TestC16RefusedNotifyEventSavesOncePerEvent(t *testing.T) {
 	mm := NewMissionManagerV2(dir, nil) // no SetFlowHooks: EasyDrag is off
 	t.Cleanup(mm.Stop)
 	spec := FlowTriggerSpec{NodeID: "n_aaaaaaaa", TriggerType: TriggerDeviceConnected}
-	first, second := publishTestFlow(t, mm, spec), publishTestFlow(t, mm, spec)
+	first := publishTestFlowWithID(t, mm, "flow_c16event01", spec)
+	second := publishTestFlowWithID(t, mm, "flow_c16event02", spec)
 	// Every save fails while a directory sits where save writes its temporary file, and
 	// each failed save logs once: the log counts the save attempts.
 	if err := os.Mkdir(mm.file+".tmp", 0o700); err != nil {

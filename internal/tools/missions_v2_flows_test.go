@@ -118,14 +118,19 @@ func expectedFlowID(t *testing.T, mm *MissionManagerV2, missionID string) string
 // publishTestFlow creates, publishes and enables a flow mission with the given specs.
 func publishTestFlow(t *testing.T, mm *MissionManagerV2, specs ...FlowTriggerSpec) string {
 	t.Helper()
-	id, err := mm.CreateFlowMission("flow_aaaaaaaaaa", "Morgenbericht")
+	return publishTestFlowWithID(t, mm, "flow_aaaaaaaaaa", specs...)
+}
+
+func publishTestFlowWithID(t *testing.T, mm *MissionManagerV2, flowID string, specs ...FlowTriggerSpec) string {
+	t.Helper()
+	id, err := mm.CreateFlowMission(flowID, "Morgenbericht")
 	if err != nil {
 		t.Fatalf("CreateFlowMission: %v", err)
 	}
 	if err := mm.SyncFlowMission(id, "Morgenbericht", specs); err != nil {
 		t.Fatalf("SyncFlowMission: %v", err)
 	}
-	if err := mm.SetFlowMissionEnabled(id, "flow_aaaaaaaaaa", true); err != nil {
+	if err := mm.SetFlowMissionEnabled(id, flowID, true); err != nil {
 		t.Fatalf("SetFlowMissionEnabled: %v", err)
 	}
 	return id
