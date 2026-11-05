@@ -1,6 +1,6 @@
 // Storymaker app scene strip and transport. The strip lists the scenes with the thumbnails the player renders (the `thumb`
 // message), the narration snippet or id, the duration of the compile report and the add buttons; it moves with the arrow
-// keys. The transport is play/pause, the time and the scrubber: one block per scene of the compile report, a playhead, pointer
+// keys. The transport is play/pause, the time and the scrubber: one block per scene of the compile report, the narration waveform, a playhead, pointer
 // dragging and the keyboard (arrows step a frame, Shift a second, Home/End the ends). The scene texts are untrusted and are
 // set as text only. Classic script, publishes S.createStrip and S.createTransport.
 (function () {
@@ -103,7 +103,7 @@
         return { el: root, paint, dispose() { off.forEach(fn => fn()); } };
     }
 
-    // inst: {t, bus, report, frame, playing, readonly, play(), pause(), seek(frame)}
+    // inst: {t, bus, report, audioInfo, frame, playing, readonly, play(), pause(), seek(frame)}
     function createTransport(inst) {
         const { el, icon } = S;
         const t = inst.t;
@@ -111,11 +111,12 @@
         const clock = el('span', { class: 'stm-clock', dataset: { stm: 'clock' }, role: 'timer', text: '0:00.0' });
         const total = el('span', { class: 'stm-clock stm-clock-total', dataset: { stm: 'clock-total' }, text: '0:00.0' });
         const blocks = el('div', { class: 'stm-scrub-blocks' });
+        const wave = el('canvas', { class: 'stm-scrub-wave', ariaHidden: 'true', dataset: { stm: 'scrub-wave', drawn: 'false' } });
         const head = el('div', { class: 'stm-scrub-head' });
         const scrub = el('div', {
             class: 'stm-scrub', role: 'slider', tabindex: '0', dataset: { stm: 'scrubber' },
             ariaLabel: t('storymaker.timeline'), ariaValuemin: '0', ariaValuemax: '0', ariaValuenow: '0'
-        }, blocks, head);
+        }, blocks, wave, head);
         const root = el('div', { class: 'stm-transport' }, playButton, clock, scrub, total);
         let dragging = false;
 
@@ -167,8 +168,37 @@
             }
         }
 
+        // One bar per column, as tall as the loudest frame under it. The colour comes from the stylesheet, so the wave follows the skin.
+        function paintWave() {
+            const report = inst.report;
+            const count = frameCount();
+            const narration = inst.audioInfo && inst.audioInfo.narration ? inst.audioInfo.narration : null;
+            const width = Math.max(1, Math.round(wave.clientWidth || 300));
+            const height = Math.max(1, Math.round(wave.clientHeight || 24));
+            if (wave.width !== width) wave.width = width;
+            if (wave.height !== height) wave.height = height;
+            const ctx = wave.getContext('2d');
+            if (!ctx) return;
+            ctx.clearRect(0, 0, width, height);
+            wave.dataset.drawn = 'false';
+            if (!report || !count || !narration) return;
+            const levels = S.audioModel.waveform(report, narration);
+            ctx.fillStyle = window.getComputedStyle(wave).color;
+            for (let x = 0; x < width; x++) {
+                const from = Math.floor(x * count / width);
+                const to = Math.max(from + 1, Math.floor((x + 1) * count / width));
+                let peak = 0;
+                for (let frame = from; frame < to && frame < count; frame++) peak = Math.max(peak, levels[frame]);
+                if (!peak) continue;
+                const bar = Math.max(1, Math.round(peak / 255 * height));
+                ctx.fillRect(x, (height - bar) / 2, 1, bar);
+                wave.dataset.drawn = 'true';
+            }
+        }
+
         function paintAll() {
             paintBlocks();
+            paintWave();
             paintTime();
         }
 
@@ -205,6 +235,7 @@
 
         const off = [
             inst.bus.on('report', paintAll),
+            inst.bus.on('audio', paintWave),
             inst.bus.on('selection', paintBlocks),
             inst.bus.on('time', paintTime)
         ];

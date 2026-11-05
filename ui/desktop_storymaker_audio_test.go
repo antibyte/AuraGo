@@ -824,3 +824,118 @@ function makeInst(answer) {
   console.log('storymaker narration status ok');
 })().catch(err => { console.error(err.stack || err); process.exit(1); });
 `
+
+// The scrubber waveform in Node: block levels at block frames, 0 in pauses and between blocks, and a canvas inside the scrubber that
+// paints those levels.
+func TestStorymakerScrubWaveInNode(t *testing.T) {
+	t.Parallel()
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("node not available")
+	}
+	script := filepath.Join(t.TempDir(), "storymaker-scrub-wave.js")
+	if err := os.WriteFile(script, []byte(storymakerScrubWaveScript), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	dir, _ := filepath.Abs(filepath.Join("js", "desktop", "apps"))
+	out, err := exec.Command(node, script, dir).CombinedOutput()
+	if err != nil {
+		t.Fatalf("node check failed: %v\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "storymaker scrub wave ok") {
+		t.Fatalf("unexpected output:\n%s", out)
+	}
+}
+
+const storymakerScrubWaveScript = `
+'use strict';
+const fs = require('fs');
+const vm = require('vm');
+const path = require('path');
+const [dir] = process.argv.slice(2);
+
+class FakeNode {
+  constructor(tag) { this.tag = tag; this.kids = []; this.parent = null; this.attrs = {}; this.dataset = {}; this.handlers = {}; this.style = { setProperty() {} }; this.ownText = ''; this.className = ''; }
+  get firstChild() { return this.kids[0] || null; }
+  appendChild(kid) { if (kid.parent) kid.parent.removeChild(kid); kid.parent = this; this.kids.push(kid); return kid; }
+  removeChild(kid) { this.kids.splice(this.kids.indexOf(kid), 1); kid.parent = null; return kid; }
+  setAttribute(name, value) { this.attrs[name] = String(value); }
+  getAttribute(name) { return name in this.attrs ? this.attrs[name] : null; }
+  get hidden() { return 'hidden' in this.attrs; }
+  set hidden(on) { if (on) this.attrs.hidden = ''; else delete this.attrs.hidden; }
+  get disabled() { return 'disabled' in this.attrs; }
+  set disabled(on) { if (on) this.attrs.disabled = ''; else delete this.attrs.disabled; }
+  get textContent() { return this.kids.length ? this.kids.map(kid => kid.textContent).join('') : this.ownText; }
+  set textContent(next) { this.kids = []; this.ownText = String(next); }
+  addEventListener(type, fn) { (this.handlers[type] = this.handlers[type] || []).push(fn); }
+  find(name) { if (this.dataset.stm === name) return this; for (const kid of this.kids) { const hit = kid.find(name); if (hit) return hit; } return null; }
+  getContext() {
+    if (!this.ctx) this.ctx = { bars: [], fillStyle: '', clearRect() { this.bars = []; }, fillRect(x, y, w, h) { this.bars.push({ x, y, w, h }); } };
+    return this.ctx;
+  }
+}
+const document = {
+  createElement: tag => new FakeNode(tag),
+  createElementNS: (ns, tag) => new FakeNode(tag),
+  createTextNode: text => { const node = new FakeNode('#text'); node.ownText = String(text); return node; },
+  addEventListener() {}, removeEventListener() {},
+  documentElement: { lang: 'en' }
+};
+const context = { console, setTimeout, clearTimeout, document, getComputedStyle: () => ({ color: 'ink' }) };
+context.globalThis = context; context.window = context;
+vm.createContext(context);
+for (const name of ['storymaker-core.js', 'storymaker-model.js', 'storymaker-strip.js', 'storymaker-audio.js']) {
+  vm.runInContext(fs.readFileSync(path.join(dir, name), 'utf8'), context, { filename: name });
+}
+const S = context.StorymakerParts;
+const eq = (a, b, what) => { const x = JSON.stringify(a), y = JSON.stringify(b); if (x !== y) throw new Error(what + ': got ' + x + ', want ' + y); };
+
+// 30 fps: a block starts at frame round(start_ms*30/1000). 100 ms is frame 3, 300 ms is frame 9, 366 ms is 10.98, so frame 11.
+const report = {
+  frame_count: 12, fps: 30,
+  scenes: [{ id: 's1', start_frame: 0, end_frame: 12, kind: 'storyboard' }],
+  audio_events: [
+    { kind: 'narration', ref: 'a', start_ms: 100, scene_id: 's1', block_id: 's1:n', piece: 0 },
+    { kind: 'narration', ref: 'b', start_ms: 200, scene_id: 's1', block_id: 's1:n', piece: 1 },
+    { kind: 'dialogue', ref: 'c', start_ms: 300, scene_id: 's1', block_id: 's1:b2', piece: 0 },
+    { kind: 'narration', ref: 'd', start_ms: 366, scene_id: 's1', block_id: 's1:x', piece: 0 },
+    { kind: 'narration', ref: 'e', start_ms: 0, scene_id: 's1', block_id: 'gone', piece: 0 },
+    { kind: 'sfx', ref: 'sfx.pop', start_ms: 0, scene_id: 's1', take: 0 }
+  ]
+};
+const narration = { s1: { blocks: [
+  { id: 's1:n', kind: 'narration', levels: [10, 0, 30], pieces: [{ hash: 'a', at_ms: 0 }, { hash: 'b', at_ms: 100 }] },
+  { id: 's1:b2', kind: 'dialogue', levels: [40, 50], pieces: [{ hash: 'c', at_ms: 0 }] },
+  { id: 's1:x', kind: 'narration', levels: [60, 70], pieces: [{ hash: 'd', at_ms: 0 }] }
+] } };
+
+// s1:n fills frames 3-5 with its inner pause at 4. Its piece 1 event repeats nothing. s1:b2 fills 9-10. s1:x fills 11, and its second level is past the film.
+// An event of a block that is not in the answer and an sfx event add nothing.
+const levels = S.audioModel.waveform(report, narration);
+eq(Array.from(levels), [0, 0, 0, 10, 0, 30, 0, 0, 0, 40, 50, 60], 'block levels at block frames, 0 in pauses');
+eq(Array.from(S.audioModel.waveform(report, {})), new Array(12).fill(0), 'no answer gives one 0 per frame');
+
+const inst = { t: key => key, bus: S.createBus(), report, frame: 0, playing: false, readonly: false, selected: 0, audioInfo: { narration }, play() {}, pause() {}, seek() {} };
+const transport = S.createTransport(inst);
+const scrub = transport.el.find('scrubber');
+const wave = scrub.find('scrub-wave');
+eq(scrub.kids.map(kid => kid.className), ['stm-scrub-blocks', 'stm-scrub-wave', 'stm-scrub-head'], 'the wave lies between the blocks and the playhead');
+const ctx = wave.getContext('2d');
+// The stand-in has no layout, so the canvas takes its fallback of 300 x 24. 300 columns over 12 frames is 25 columns per frame.
+// Frames 3, 5, 9, 10 and 11 have a level, so 5 * 25 = 125 bars.
+eq(ctx.bars.length, 125, 'one bar per column of a frame with a level');
+eq(ctx.fillStyle, 'ink', 'the colour comes from the stylesheet');
+eq(wave.dataset.drawn, 'true', 'drawn');
+// Column 275 is frame 11 (275*12/300). Level 60 is round(60/255*24) = 6 pixels, centred: (24-6)/2 = 9.
+eq(ctx.bars.find(bar => bar.x === 275), { x: 275, y: 9, w: 1, h: 6 }, 'the height follows the level');
+
+inst.audioInfo = { narration: {} };
+inst.bus.emit('audio');
+eq([ctx.bars.length, wave.dataset.drawn], [0, 'false'], 'a fresh answer repaints');
+inst.audioInfo = { narration };
+inst.bus.emit('report');
+eq(ctx.bars.length, 125, 'a new report repaints');
+
+transport.dispose();
+console.log('storymaker scrub wave ok');
+`

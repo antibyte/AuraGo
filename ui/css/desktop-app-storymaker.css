@@ -134,6 +134,7 @@
 .stm-scrub-block:nth-child(even) { background: color-mix(in srgb, var(--vd-accent) 36%, transparent); }
 .stm-scrub-block[data-kind="code"] { background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--vd-accent) 34%, transparent) 0 6px, color-mix(in srgb, var(--vd-accent) 18%, transparent) 6px 12px); }
 .stm-scrub-block[data-selected="true"] { background: color-mix(in srgb, var(--vd-accent) 55%, transparent); }
+.stm-scrub-wave { position: absolute; left: 2px; top: 2px; width: calc(100% - 4px); height: calc(100% - 4px); color: var(--vd-text); opacity: .55; pointer-events: none; }
 .stm-scrub-head { position: absolute; top: -3px; bottom: -3px; width: 3px; margin-left: -1px; border-radius: 2px; background: var(--vd-text); pointer-events: none; }
 
 /* Side: inspector, library */

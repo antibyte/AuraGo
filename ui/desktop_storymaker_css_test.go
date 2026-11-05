@@ -76,3 +76,16 @@ func TestStorymakerStylesheetUsesOnlyTokens(t *testing.T) {
 		}
 	}
 }
+
+// The waveform is drawn over the scene blocks, and the pointer must reach the scrubber through it.
+func TestStorymakerScrubWaveIgnoresThePointer(t *testing.T) {
+	t.Parallel()
+	css := readDesktopAssetText(t, "css/desktop-app-storymaker.css")
+	rule := regexp.MustCompile(`(?m)^\.stm-scrub-wave \{[^}]*\}`).FindString(css)
+	if rule == "" {
+		t.Fatal("css/desktop-app-storymaker.css has no .stm-scrub-wave rule")
+	}
+	if !strings.Contains(rule, "pointer-events: none") {
+		t.Errorf(".stm-scrub-wave must have pointer-events: none: %s", rule)
+	}
+}
