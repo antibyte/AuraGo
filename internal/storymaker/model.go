@@ -43,6 +43,11 @@ const (
 	CodeLayoutUnverified = "layout_unverified"
 )
 
+// Issue codes of phase 2 that only the player emits. The desktop app localises them as storymaker.issue.<code>.
+const (
+	CodeCueLate = "cue_late" // warning, player
+)
+
 // Issue is one validation finding. Path is a JSON Pointer (RFC 6901) from the story root.
 type Issue struct {
 	Severity  string   `json:"severity"`

@@ -1670,20 +1670,36 @@
         return ease === 'back-out' ? 'quart-out' : ease;
     }
 
+    // isArrival(b): true for a beat that lands. Its lead counts against a cue, and sfx with prev reads its landing.
+    function isArrival(b) {
+        if (b.do === 'enter' || b.do === 'walk' || b.do === 'move') return true;
+        if (b.do === 'show') return (b.entry || 'fade') !== 'none';
+        return b.do === 'camera' && (b.op === 'focus' || (b.op === 'zoom' && !!b.target));
+    }
+
+    // landingEase(b): the ease the landing is read from. A fade reads its alpha, the others their moving track.
+    function landingEase(b) {
+        if (b.do === 'show' && b.entry !== 'slide' && !(b.entry === 'pop' && !isTextShow(b))) return fadeEase(b);
+        return SM.isEase(b.ease) ? b.ease : defaultEase(b);
+    }
+
+    // leadOf(b, dur): the seconds from the start of an arrival to its landing, 0 for every other beat.
+    function leadOf(b, dur) { return isArrival(b) ? leadFraction(landingEase(b)) * dur : 0; }
+
     SM.motion = {
         RHYTHM: RHYTHM, DEFAULTS: DEFAULTS, OVERLAP: OVERLAP, factor: factor, leadFraction: leadFraction, holdSeconds: holdSeconds,
-        defaultEase: defaultEase, fadeEase: fadeEase
+        defaultEase: defaultEase, fadeEase: fadeEase, isArrival: isArrival, leadOf: leadOf
     };
 })(typeof globalThis !== 'undefined' ? globalThis : self);
 
 ;
 /* ui/js/storymaker/beats.js */
 // Storymaker player: storyboard scenes. buildStoryboard turns one scene (actors, props, camera, beats) into entities
-// with tracks. Beats run in order; "with": "prev" starts a beat together with the previous one; "cue": n starts it at
-// narration marker {n}; delay, duration and ease are optional. Timing defaults are owned here (enter 0.6 s, walk from the
-// distance at the catalog's walk speed, ...). Phase-1 support matrix: enter exit walk move pose gesture emote look show
-// (item and text) hide camera wait; the other beats are reported as minor not_supported_yet and ignored. Classic script;
-// publishes StorymakerCore.beats.
+// with tracks. The scheduler: a beat on another target starts at 0.4 of the anchor, a beat on the same target follows it,
+// "with": "prev" runs together with the previous beat, and a cued arrival lands on its marker. Timing defaults and role
+// eases live in motion.js and are scaled by style.rhythm. Beats: enter exit walk move pose gesture emote look show (item
+// and text) hide camera wait; sfx is placed with impact 0; the other beats are reported as minor not_supported_yet and
+// ignored. Classic script; publishes StorymakerCore.beats.
 (function (root) {
     'use strict';
     var SM = root.StorymakerCore || (root.StorymakerCore = {});
@@ -1969,6 +1985,10 @@
                     }
                 }
             },
+            sfx: {
+                dur: function () { return 0; },
+                run: function (b, j) { warn('minor', beatPath(j), 'not_supported_yet', 'Beat "sfx" is not supported yet; it is ignored.'); }
+            },
             wait: {
                 dur: function (b) { return b.seconds >= 0 ? b.seconds : 1; },
                 run: function () {}
@@ -2029,7 +2049,7 @@
         // string that resolves to no instance (a camera on a spot) has none.
         function targetOf(b, j) {
             if (b.do === 'show') return showTarget(b, j);
-            return b.do === 'wait' ? null : find(b.who || b.target);
+            return b.do === 'wait' || b.do === 'sfx' ? null : find(b.who || b.target);
         }
 
         var cursor = plan.T, prev = null, anchor = null, beatsEnd = 0, lastEnd = new Map(), log = [];
@@ -2048,20 +2068,28 @@
             var floor = tgt ? (lastEnd.get(tgt) || 0) : 0;
             // a walk measures its distance from the target's position at floor: only same-target beats move that track
             var dur = typeof b.duration === 'number' && b.duration >= 0 ? b.duration : spec.dur(b, floor);
-            var delay = b.delay > 0 ? b.delay : 0, cueT, byPrev = false, t;
+            // impact stays 0 until the catalog has sfx entries
+            var delay = b.delay > 0 ? b.delay : 0, lead = SM.motion.leadOf(b, dur), impact = 0, cueT, byPrev = false, t;
             if (b.cue !== undefined && b.cue !== null) {
                 cueT = plan.narration.cues[b.cue];
                 if (cueT === undefined) warn('warning', beatPath(j, 'cue'), 'unknown_cue', 'Narration has no cue marker {' + b.cue + '}; the beat follows the previous one.');
             }
-            if (cueT !== undefined) t = cueT + delay;
-            else if (b.with === 'prev' && prev) { byPrev = true; t = prev.start + delay; }
+            if (cueT !== undefined) t = cueT + delay - lead - impact;
+            else if (b.with === 'prev' && prev) {
+                byPrev = true;
+                t = b.do === 'sfx' ? (prev.landing !== null ? prev.landing : prev.start) + delay - impact : prev.start + delay;
+            }
             else if (prev && prev.tgt && tgt && prev.tgt !== tgt) t = anchor.start + SM.motion.OVERLAP * anchor.dur + delay;
             else t = cursor + delay;
             // with prev has no floor: it keeps running together with the previous beat, also on the same target
             var start = byPrev ? Math.max(0, t) : Math.max(0, floor, t), end = start + dur;
+            // floor > 0: a clamp at scene time 0 never warns, only a previous beat on the target does
+            if (cueT !== undefined && floor > 0 && floor > t + 1e-6) {
+                issues.push(P.issue('warning', sid, beatPath(j, 'cue'), 'cue_late', 'The previous beat on this target still runs at marker {' + b.cue + '}; this beat lands at ' + (start + lead).toFixed(2) + ' s.', { at_seconds: start + lead }));
+            }
             spec.run(b, j, start, dur, tgt);
             if (tgt) lastEnd.set(tgt, Math.max(lastEnd.get(tgt) || 0, end));
-            var me = { j: j, kind: b.do, tgt: tgt, start: start, dur: dur, end: end, landing: null, cued: false };
+            var me = { j: j, kind: b.do, tgt: tgt, start: start, dur: dur, end: end, landing: SM.motion.isArrival(b) ? start + lead : null, cued: cueT !== undefined };
             log.push(me);
             cursor = byPrev ? Math.max(cursor, end) : end;
             if (!byPrev || end >= anchor.end) anchor = me;

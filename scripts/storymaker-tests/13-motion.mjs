@@ -199,3 +199,72 @@ check('scheduler: firewall s2: the gesture runs with the walk on the same actor,
     near(startOf(shield), 0.5 + 0.4 * (walk.t1 - walk.t0), 1e-9, 'shield');
     near(s2.camera.zoom.segs[0].t0, shield.alpha.segs[0].t1, 1e-9, 'a camera without a target starts at the cursor');
 });
+
+// ---- cue lead and cue_late
+
+// The marker of LONG sits at 20 / 31 of 16 / 2.3 s, about 4.5 s, so no lead in the table is clamped at 0.
+const LONG = 'a b c d e f g h i j {1}k l m n o p';
+const cueOf = narration => SM.planTiming({ scenes: [{ id: 's', narration }] }, {}, catalog).scenes.s.cues['1'];
+
+// trackReach(tr, level): the first scene time at which the last segment of tr has come level of its way, in 0.1 ms steps.
+function trackReach(tr, level) {
+    const seg = lastSeg(tr);
+    for (let k = 0; ; k++) {
+        const x = seg.t0 + k * 1e-4;
+        if (x > seg.t1) return seg.t1;
+        if ((tr.at(x) - seg.from) / (seg.to - seg.from) >= level) return x;
+    }
+}
+
+const ARRIVALS = [
+    ['enter', { do: 'enter', who: 'anna', to: 'center' }, o => o.anna.x, 0.9],
+    ['walk', { do: 'walk', who: 'anna', to: 'center' }, o => o.anna.x, 0.9],
+    ['move', { do: 'move', who: 'anna', to: 'center' }, o => o.anna.x, 0.9],
+    ['show fade', { do: 'show', item: 'prop.lock', at: 'right', entry: 'fade' }, o => o.item('prop.lock').alpha, 0.9],
+    ['show slide', { do: 'show', item: 'prop.lock', at: 'right', entry: 'slide' }, o => o.item('prop.lock').x, 0.9],
+    // the spring lands on its first crossing of the target
+    ['show pop', { do: 'show', item: 'prop.lock', at: 'right', entry: 'pop' }, o => o.item('prop.lock').scale, 1],
+    ['camera focus', { do: 'camera', op: 'focus', target: 'anna' }, o => o.scene.camera.cx, 0.9],
+    ['camera zoom', { do: 'camera', op: 'zoom', target: 'anna' }, o => o.scene.camera.cx, 0.9]
+];
+
+check('cue lead: an arrival lands on its marker plus delay within 1 ms', () => {
+    const cue = cueOf(LONG);
+    for (const [name, beat, trackOf, level] of ARRIVALS) {
+        for (const delay of [0, 0.3]) {
+            const o = one([{ ...beat, cue: 1, delay }], { narration: LONG });
+            near(trackReach(trackOf(o), level), cue + delay, 0.001, name + ' with delay ' + delay);
+            assert.ok(!o.issues.some(i => i.code === 'cue_late'), name + ' is not late');
+        }
+    }
+});
+
+check('cue lead: a clamp at scene time 0 does not warn, a busy target gives cue_late, a cue beats with', () => {
+    // marker at 0 and a lead of 0.54 s: the beat would start before 0, so it starts at 0 without a warning
+    const early = one([{ do: 'enter', who: 'anna', to: 'center', cue: 1 }], { narration: '{1}a b c d e f g h' });
+    near(lastSeg(early.anna.x).t0, 0, 1e-9, 'clamp');
+    assert.ok(!early.issues.some(i => i.code === 'cue_late'), 'a clamp at 0 never warns');
+    // the walk holds anna until its end; the move on the same target cannot start before that
+    const busy = one([WALK, { do: 'move', who: 'anna', to: 'right', cue: 1 }], { narration: 'a {1}b c d e f g h' });
+    const walkEnd = busy.anna.walks.list[0].t1;
+    near(lastSeg(busy.anna.x).t0, walkEnd, 1e-9, 'the beat waits for the previous beat on its target');
+    const late = busy.issues.filter(i => i.code === 'cue_late');
+    assert.equal(late.length, 1);
+    assert.equal(late[0].severity, 'warning');
+    assert.equal(late[0].path, '/scenes/0/beats/1/cue');
+    assert.equal(late[0].scene_id, 's');
+    // at_seconds is the landing: the start plus 0.4377 of the 0.8 s move
+    near(late[0].at_seconds, walkEnd + 0.4377 * 0.8, 1e-6, 'at_seconds');
+    // a show with entry none has no lead: with a cue it starts on the marker, not with the walk
+    const both = one([WALK, { do: 'show', item: 'prop.lock', at: 'right', entry: 'none', with: 'prev', cue: 1 }], { narration: LONG });
+    near(lastSeg(both.item('prop.lock').alpha).t0, cueOf(LONG), 1e-9, 'a cue beats with');
+});
+
+check('cue lead: an sfx has no target and impact 0: with prev it sits on the landing, with a cue on the marker plus delay', () => {
+    // The show runs with the sfx, so its start shows the sfx start. The id is in no catalog, so its impact stays 0.
+    // enter lasts 0.6 s and is linear, so its landing is 0.9 * 0.6 = 0.54 s
+    const onLanding = one([{ do: 'enter', who: 'anna', to: 'center' }, { do: 'sfx', sound: 'sfx.absent', with: 'prev' }, { do: 'show', item: 'prop.lock', with: 'prev' }]);
+    near(lastSeg(onLanding.item('prop.lock').alpha).t0, 0.54, 1e-9, 'on the landing');
+    const onCue = one([{ do: 'sfx', sound: 'sfx.absent', cue: 1, delay: 0.2 }, { do: 'show', item: 'prop.lock', with: 'prev' }], { narration: LONG });
+    near(lastSeg(onCue.item('prop.lock').alpha).t0, cueOf(LONG) + 0.2, 1e-9, 'on the marker');
+});

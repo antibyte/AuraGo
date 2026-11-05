@@ -55,8 +55,24 @@
         return ease === 'back-out' ? 'quart-out' : ease;
     }
 
+    // isArrival(b): true for a beat that lands. Its lead counts against a cue, and sfx with prev reads its landing.
+    function isArrival(b) {
+        if (b.do === 'enter' || b.do === 'walk' || b.do === 'move') return true;
+        if (b.do === 'show') return (b.entry || 'fade') !== 'none';
+        return b.do === 'camera' && (b.op === 'focus' || (b.op === 'zoom' && !!b.target));
+    }
+
+    // landingEase(b): the ease the landing is read from. A fade reads its alpha, the others their moving track.
+    function landingEase(b) {
+        if (b.do === 'show' && b.entry !== 'slide' && !(b.entry === 'pop' && !isTextShow(b))) return fadeEase(b);
+        return SM.isEase(b.ease) ? b.ease : defaultEase(b);
+    }
+
+    // leadOf(b, dur): the seconds from the start of an arrival to its landing, 0 for every other beat.
+    function leadOf(b, dur) { return isArrival(b) ? leadFraction(landingEase(b)) * dur : 0; }
+
     SM.motion = {
         RHYTHM: RHYTHM, DEFAULTS: DEFAULTS, OVERLAP: OVERLAP, factor: factor, leadFraction: leadFraction, holdSeconds: holdSeconds,
-        defaultEase: defaultEase, fadeEase: fadeEase
+        defaultEase: defaultEase, fadeEase: fadeEase, isArrival: isArrival, leadOf: leadOf
     };
 })(typeof globalThis !== 'undefined' ? globalThis : self);
