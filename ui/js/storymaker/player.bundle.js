@@ -1658,6 +1658,51 @@
 })(typeof globalThis !== 'undefined' ? globalThis : self);
 
 ;
+/* ui/js/storymaker/cuemap.js */
+// Storymaker player: the cue map. One function places cues and caption lines on the audio of a block. With measured pieces
+// whose chars sum to the text length, an offset inside a piece maps proportionally over that piece's used audio from its
+// at_ms, so a marker at a sentence start lands on the onset of that sentence. Otherwise the whole block is proportional over
+// its duration. Offsets are UTF-16 units of the stripped text. Classic script; publishes StorymakerCore.cuemap.
+(function (root) {
+    'use strict';
+    var SM = root.StorymakerCore || (root.StorymakerCore = {});
+
+    // prepare(rawBlock, length) = a copy of the block with length, starts[] (cumulative UTF-16 offsets) and placed.
+    function prepare(rawBlock, length) {
+        var out = {}, k, pieces = Array.isArray(rawBlock.pieces) ? rawBlock.pieces : [], starts = [], sum = 0;
+        for (k in rawBlock) out[k] = rawBlock[k];
+        for (var i = 0; i < pieces.length; i++) {
+            starts.push(sum);
+            sum += pieces[i].chars;
+        }
+        out.pieces = pieces;
+        out.duration_ms = rawBlock.duration_ms > 0 ? rawBlock.duration_ms : 0;
+        out.length = length;
+        out.starts = starts;
+        out.placed = rawBlock.speech_ok === true && pieces.length > 0 && sum === length ? 'span' : 'proportion';
+        return out;
+    }
+
+    // estimated(id, seconds, length) = the block of a text without audio.
+    function estimated(id, seconds, length) {
+        return { id: id, placed: 'proportion', duration_ms: seconds * 1000, length: length, pieces: [], starts: [] };
+    }
+
+    // cueMap(block, utf16Offset) = ms from the block start. An offset equal to the length is the end of the last piece.
+    function cueMap(block, offset) {
+        if (block.placed !== 'span') return offset / Math.max(1, block.length) * block.duration_ms;
+        var pieces = block.pieces, k = pieces.length - 1;
+        for (var i = 0; i < pieces.length; i++) {
+            if (offset < block.starts[i] + pieces[i].chars) { k = i; break; }
+        }
+        var p = pieces[k], share = p.chars > 0 ? (offset - block.starts[k]) / p.chars : 0;
+        return p.at_ms + share * (p.out_ms - p.in_ms);
+    }
+
+    SM.cuemap = { prepare: prepare, estimated: estimated, cueMap: cueMap };
+})(typeof globalThis !== 'undefined' ? globalThis : self);
+
+;
 /* ui/js/storymaker/plan.js */
 // Storymaker player: timing plan. The scene-local timing rule of the spec: scene time 0 is the start of the scene's entry
 // transition; the narration starts when that transition ends; cue and beat times use the same origin. This file computes,
@@ -1755,7 +1800,26 @@
         return out;
     }
 
-    // planScene(...) = {tf, T, kind, requested, narration: {text, plain, words, start, seconds, measured, blocks, cues}}
+    // blockById(info, id): a block of the scene's audio info, found by its id, never by its position.
+    function blockById(info, id) {
+        var list = info && Array.isArray(info.blocks) ? info.blocks : [];
+        for (var i = 0; i < list.length; i++) if (list[i] && list[i].id === id) return list[i];
+        return null;
+    }
+
+    // dialogueBlocks(scene, info) = {<beat index>: prepared block} for the say beats whose block is measured.
+    function dialogueBlocks(scene, info) {
+        var out = {};
+        (scene.beats || []).forEach(function (b, j) {
+            if (!b || b.do !== 'say') return;
+            var parsed = SM.narration.parse(b.text);
+            var raw = parsed.words > 0 ? blockById(info, scene.id + ':b' + j) : null;
+            if (raw) out[j] = SM.cuemap.prepare(raw, parsed.length);
+        });
+        return out;
+    }
+
+    // planScene(...) = {tf, T, kind, requested, narration: {plain, words, start, seconds, measured, block, dialogue, cues}}
     function planScene(story, audioInfo, cat, fmt, index, issues) {
         var scene = story.scenes[index];
         var tr = transitionFor(scene, index, cat, fmt.fps, issues);
@@ -1763,25 +1827,22 @@
         var silent = scene.silent === true;
         var parsed = SM.narration.parse(silent ? '' : scene.narration);
         var info = audioInfo && audioInfo.narration && audioInfo.narration[scene.id];
-        var blocks = info && info.blocks && info.blocks.length ? info.blocks : null;
-        var narration = { plain: parsed.plain, words: parsed.words, start: T, seconds: 0, measured: false, blocks: [], cues: {} };
+        var raw = blockById(info, scene.id + ':n');
+        var narration = { plain: parsed.plain, words: parsed.words, start: T, seconds: 0, measured: false, block: null, dialogue: dialogueBlocks(scene, info), cues: {} };
         if (parsed.words > 0) {
-            if (blocks) {
-                var at = T;
+            if (raw) {
                 narration.measured = true;
-                blocks.forEach(function (b) {
-                    var d = (b.duration_ms > 0 ? b.duration_ms : 0) / 1000;
-                    narration.blocks.push({ hash: b.hash, start: at, seconds: d });
-                    at += d;
-                });
-                narration.seconds = at - T;
-                narration.cues = SM.narration.cueTimes(parsed, T, narration.blocks[0].seconds);
+                narration.seconds = (raw.duration_ms > 0 ? raw.duration_ms : 0) / 1000;
+                narration.block = SM.cuemap.prepare(raw, parsed.length);
             } else {
                 narration.seconds = SM.narration.estimate(parsed.words);
-                narration.cues = SM.narration.cueTimes(parsed, T, narration.seconds);
+                narration.block = SM.cuemap.estimated(scene.id + ':n', narration.seconds, parsed.length);
                 issues.push(issue('warning', scene.id, '/scenes/' + index + '/narration', 'narration_missing',
                     'No narration audio for this scene; the duration is estimated at ' + narration.seconds.toFixed(1) + ' s.'));
             }
+            Object.keys(parsed.cues).forEach(function (k) {
+                narration.cues[k] = T + SM.cuemap.cueMap(narration.block, parsed.cues[k]) / 1000;
+            });
         }
         return { index: index, tf: tr.tf, T: T, transition: tr.kind, requested: tr.requested, narration: narration };
     }
@@ -2590,13 +2651,14 @@
             scenes.push(scene);
             issues.push.apply(issues, SM.lint.scene({ scene: scene, index: i, plan: plan, built: built, stage: stage, cat: cat, fmt: fmt, envChanged: envChanged, factor: rhythmFactor }));
 
-            // narration windows (global seconds) and, with measured audio, the audio events
+            // narration windows (global seconds) and, with measured audio, one audio event per piece
             var base = scene.start_frame / fps;
             if (n.seconds > 0 && !sc.silent) {
                 if (n.measured) {
-                    n.blocks.forEach(function (b) {
-                        narrationEvents.push({ kind: 'narration', scene_id: sc.id, ref: b.hash, start: base + b.start, end: base + b.start + b.seconds });
-                        audioEvents.push({ kind: 'narration', ref: b.hash, start_ms: Math.round((base + b.start) * 1000), gain: 1 });
+                    var blockMs = Math.round((base + n.start) * 1000);
+                    n.block.pieces.forEach(function (p, k) {
+                        narrationEvents.push({ kind: 'narration', scene_id: sc.id, ref: p.hash, start: base + n.start + p.at_ms / 1000, end: base + n.start + (p.at_ms + p.out_ms - p.in_ms) / 1000 });
+                        audioEvents.push({ kind: 'narration', ref: p.hash, start_ms: blockMs + p.at_ms, scene_id: sc.id, block_id: n.block.id, piece: k });
                     });
                 } else {
                     narrationEvents.push({ kind: 'narration', scene_id: sc.id, ref: '', start: base + n.start, end: base + n.start + n.seconds });

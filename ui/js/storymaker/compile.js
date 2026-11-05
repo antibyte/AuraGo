@@ -105,13 +105,14 @@
             scenes.push(scene);
             issues.push.apply(issues, SM.lint.scene({ scene: scene, index: i, plan: plan, built: built, stage: stage, cat: cat, fmt: fmt, envChanged: envChanged, factor: rhythmFactor }));
 
-            // narration windows (global seconds) and, with measured audio, the audio events
+            // narration windows (global seconds) and, with measured audio, one audio event per piece
             var base = scene.start_frame / fps;
             if (n.seconds > 0 && !sc.silent) {
                 if (n.measured) {
-                    n.blocks.forEach(function (b) {
-                        narrationEvents.push({ kind: 'narration', scene_id: sc.id, ref: b.hash, start: base + b.start, end: base + b.start + b.seconds });
-                        audioEvents.push({ kind: 'narration', ref: b.hash, start_ms: Math.round((base + b.start) * 1000), gain: 1 });
+                    var blockMs = Math.round((base + n.start) * 1000);
+                    n.block.pieces.forEach(function (p, k) {
+                        narrationEvents.push({ kind: 'narration', scene_id: sc.id, ref: p.hash, start: base + n.start + p.at_ms / 1000, end: base + n.start + (p.at_ms + p.out_ms - p.in_ms) / 1000 });
+                        audioEvents.push({ kind: 'narration', ref: p.hash, start_ms: blockMs + p.at_ms, scene_id: sc.id, block_id: n.block.id, piece: k });
                     });
                 } else {
                     narrationEvents.push({ kind: 'narration', scene_id: sc.id, ref: '', start: base + n.start, end: base + n.start + n.seconds });

@@ -25,6 +25,7 @@ export const storymakerPlayerParts = [
   'ui/js/storymaker/camera.js',
   'ui/js/storymaker/scene.js',
   'ui/js/storymaker/narration.js',
+  'ui/js/storymaker/cuemap.js',
   'ui/js/storymaker/plan.js',
   'ui/js/storymaker/motion.js',
   'ui/js/storymaker/beats.js',

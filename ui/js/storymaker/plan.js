@@ -94,7 +94,26 @@
         return out;
     }
 
-    // planScene(...) = {tf, T, kind, requested, narration: {text, plain, words, start, seconds, measured, blocks, cues}}
+    // blockById(info, id): a block of the scene's audio info, found by its id, never by its position.
+    function blockById(info, id) {
+        var list = info && Array.isArray(info.blocks) ? info.blocks : [];
+        for (var i = 0; i < list.length; i++) if (list[i] && list[i].id === id) return list[i];
+        return null;
+    }
+
+    // dialogueBlocks(scene, info) = {<beat index>: prepared block} for the say beats whose block is measured.
+    function dialogueBlocks(scene, info) {
+        var out = {};
+        (scene.beats || []).forEach(function (b, j) {
+            if (!b || b.do !== 'say') return;
+            var parsed = SM.narration.parse(b.text);
+            var raw = parsed.words > 0 ? blockById(info, scene.id + ':b' + j) : null;
+            if (raw) out[j] = SM.cuemap.prepare(raw, parsed.length);
+        });
+        return out;
+    }
+
+    // planScene(...) = {tf, T, kind, requested, narration: {plain, words, start, seconds, measured, block, dialogue, cues}}
     function planScene(story, audioInfo, cat, fmt, index, issues) {
         var scene = story.scenes[index];
         var tr = transitionFor(scene, index, cat, fmt.fps, issues);
@@ -102,25 +121,22 @@
         var silent = scene.silent === true;
         var parsed = SM.narration.parse(silent ? '' : scene.narration);
         var info = audioInfo && audioInfo.narration && audioInfo.narration[scene.id];
-        var blocks = info && info.blocks && info.blocks.length ? info.blocks : null;
-        var narration = { plain: parsed.plain, words: parsed.words, start: T, seconds: 0, measured: false, blocks: [], cues: {} };
+        var raw = blockById(info, scene.id + ':n');
+        var narration = { plain: parsed.plain, words: parsed.words, start: T, seconds: 0, measured: false, block: null, dialogue: dialogueBlocks(scene, info), cues: {} };
         if (parsed.words > 0) {
-            if (blocks) {
-                var at = T;
+            if (raw) {
                 narration.measured = true;
-                blocks.forEach(function (b) {
-                    var d = (b.duration_ms > 0 ? b.duration_ms : 0) / 1000;
-                    narration.blocks.push({ hash: b.hash, start: at, seconds: d });
-                    at += d;
-                });
-                narration.seconds = at - T;
-                narration.cues = SM.narration.cueTimes(parsed, T, narration.blocks[0].seconds);
+                narration.seconds = (raw.duration_ms > 0 ? raw.duration_ms : 0) / 1000;
+                narration.block = SM.cuemap.prepare(raw, parsed.length);
             } else {
                 narration.seconds = SM.narration.estimate(parsed.words);
-                narration.cues = SM.narration.cueTimes(parsed, T, narration.seconds);
+                narration.block = SM.cuemap.estimated(scene.id + ':n', narration.seconds, parsed.length);
                 issues.push(issue('warning', scene.id, '/scenes/' + index + '/narration', 'narration_missing',
                     'No narration audio for this scene; the duration is estimated at ' + narration.seconds.toFixed(1) + ' s.'));
             }
+            Object.keys(parsed.cues).forEach(function (k) {
+                narration.cues[k] = T + SM.cuemap.cueMap(narration.block, parsed.cues[k]) / 1000;
+            });
         }
         return { index: index, tf: tr.tf, T: T, transition: tr.kind, requested: tr.requested, narration: narration };
     }

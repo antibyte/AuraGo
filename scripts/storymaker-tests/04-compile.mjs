@@ -54,9 +54,9 @@ check('compile: auto durations, silent scenes, explicit durations and measured a
     const longBeat = SM.compile({ scenes: [{ id: 'a', beats: [{ do: 'wait', seconds: 4 }] }] }, {}, catalog).report;
     assert.equal(longBeat.scenes[0].end_frame, 120);
     // measured audio replaces the estimate and produces audio events
-    const measured = SM.compile(minimal, { narration: { s1: { blocks: [{ hash: 'abc', duration_ms: 2500 }] } } }, catalog);
+    const measured = SM.compile(minimal, { narration: { s1: { blocks: [{ id: 's1:n', kind: 'narration', speaker: 'narrator', duration_ms: 2500, spans: [], levels: [], speech_ok: true, pieces: [{ hash: 'abc', ext: 'wav', at_ms: 0, in_ms: 0, out_ms: 2500, chars: 11 }] }] } } }, catalog);
     assert.equal(measured.report.scenes[0].end_frame, Math.round(2.9 * 30));
-    assert.deepEqual(plain(measured.report.audio_events), [{ kind: 'narration', ref: 'abc', start_ms: 0, gain: 1 }]);
+    assert.deepEqual(plain(measured.report.audio_events), [{ kind: 'narration', ref: 'abc', start_ms: 0, scene_id: 's1', block_id: 's1:n', piece: 0 }]);
     assert.ok(!measured.report.issues.some(i => i.code === 'narration_missing'));
     assert.ok(compiled.report.issues.filter(i => i.code === 'narration_missing').length === 3 && compiled.report.issues.every(i => i.code !== 'narration_missing' || i.severity === 'warning'));
 });
@@ -95,7 +95,7 @@ check('compile: narration windows never overlap (vacuous in phase 1, kept as an 
     for (let i = 1; i < ev.length; i++) assert.ok(ev[i].start >= ev[i - 1].end + 0.38, 'the 0.4 s tail separates the narration blocks');
     const heavy = SM.compile({ scenes: Array.from({ length: 6 }, (_, i) => ({ id: 's' + i, narration: 'ein längerer Satz mit mehreren Worten für Szene ' + i })) }, {}, catalog);
     assert.deepEqual(plain(SM.overlappingNarration(heavy.timeline)), []);
-    const measured = SM.compile({ scenes: [{ id: 'a', narration: 'x y' }, { id: 'b', narration: 'x y' }] }, { narration: { a: { blocks: [{ hash: 'h1', duration_ms: 3000 }] }, b: { blocks: [{ hash: 'h2', duration_ms: 1000 }, { hash: 'h3', duration_ms: 500 }] } } }, catalog);
+    const measured = SM.compile({ scenes: [{ id: 'a', narration: 'x y' }, { id: 'b', narration: 'x y' }] }, { narration: { a: { blocks: [{ id: 'a:n', kind: 'narration', speaker: 'narrator', duration_ms: 3000, spans: [], levels: [], speech_ok: true, pieces: [{ hash: 'h1', ext: 'wav', at_ms: 0, in_ms: 0, out_ms: 3000, chars: 3 }] }] }, b: { blocks: [{ id: 'b:n', kind: 'narration', speaker: 'narrator', duration_ms: 1850, spans: [], levels: [], speech_ok: true, pieces: [{ hash: 'h2', ext: 'wav', at_ms: 0, in_ms: 0, out_ms: 1000, chars: 2 }, { hash: 'h3', ext: 'wav', at_ms: 1350, in_ms: 0, out_ms: 500, chars: 1 }] }] } } }, catalog);
     assert.deepEqual(plain(SM.overlappingNarration(measured.timeline)), []);
     assert.equal(measured.report.audio_events.length, 3);
 });
