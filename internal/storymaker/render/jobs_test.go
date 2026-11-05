@@ -372,3 +372,207 @@ func TestPayloadReachesTheRunFuncAndIsReleased(t *testing.T) {
 		t.Fatalf("%d payloads kept after the job ended", left)
 	}
 }
+
+func noopJobRun(context.Context, Job, any, *Handle) (Output, error) { return Output{}, nil }
+
+func TestEnqueueCoalescesPerProjectAndKind(t *testing.T) {
+	release := make(chan struct{})
+	defer close(release)
+	m, err := NewManager(ManagerOptions{Dir: t.TempDir(), Kinds: []string{KindNarrate, KindMusic}, Run: func(ctx context.Context, job Job, _ any, h *Handle) (Output, error) {
+		select {
+		case <-release:
+		case <-ctx.Done():
+		}
+		return Output{}, nil
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(m.Close)
+
+	// Eight racing calls make one job, and seven of them are told it is a replay.
+	var wg sync.WaitGroup
+	var replays atomic.Int32
+	ids := make([]string, 8)
+	for i := range ids {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			job, replayed, err := m.Enqueue(EnqueueRequest{ProjectID: projA, Coalesce: true})
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			ids[i] = job.ID
+			if replayed {
+				replays.Add(1)
+			}
+		}(i)
+	}
+	wg.Wait()
+	if replays.Load() != 7 {
+		t.Fatalf("%d replays, want 7", replays.Load())
+	}
+	for _, id := range ids {
+		if id != ids[0] {
+			t.Fatalf("two jobs were created: %v", ids)
+		}
+	}
+	if first, _ := m.Get(ids[0]); first.Kind != KindNarrate {
+		t.Fatalf("an empty kind gave %q, want the first of Kinds", first.Kind)
+	}
+
+	// Another kind and another project each get their own job.
+	music, replayed, err := m.Enqueue(EnqueueRequest{ProjectID: projA, Kind: KindMusic, Coalesce: true})
+	if err != nil || replayed || music.ID == ids[0] || music.Kind != KindMusic {
+		t.Fatalf("other kind = %+v, %v, %v", music, replayed, err)
+	}
+	other, replayed, err := m.Enqueue(EnqueueRequest{ProjectID: projB, Coalesce: true})
+	if err != nil || replayed || other.ID == ids[0] {
+		t.Fatalf("other project = %+v, %v, %v", other, replayed, err)
+	}
+	if _, _, err := m.Enqueue(EnqueueRequest{ProjectID: projA, Kind: KindRender}); err == nil {
+		t.Fatal("a kind outside Kinds was accepted")
+	}
+}
+
+func TestManagerLoadsOnlyItsKinds(t *testing.T) {
+	dir := t.TempDir()
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	record := func(id, kind string) string {
+		return `{"id":"` + id + `","project_id":"` + projA + `","kind":"` + kind + `","status":"succeeded","progress":1,"frames_done":0,"frames_total":0,"created_at":"` + now + `","updated_at":"` + now + `","rev":1}`
+	}
+	const renderID, narrateID, musicID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
+	doc := `{"version":1,"jobs":[` + record(renderID, KindRender) + `,` + record(narrateID, KindNarrate) + `,` + record(musicID, KindMusic) + `]}`
+	write := func() {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(dir, "jobs.json"), []byte(doc), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	write()
+	audio, err := NewManager(ManagerOptions{Dir: dir, Kinds: []string{KindNarrate, KindMusic}, Run: noopJobRun})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, gotRender := audio.Get(renderID)
+	_, gotNarrate := audio.Get(narrateID)
+	_, gotMusic := audio.Get(musicID)
+	audio.Close()
+	if gotRender || !gotNarrate || !gotMusic {
+		t.Fatalf("narrate manager loaded render %v, narrate %v, music %v", gotRender, gotNarrate, gotMusic)
+	}
+
+	write()
+	plain := newTestManager(t, dir, noopJobRun)
+	_, gotRender = plain.Get(renderID)
+	_, gotNarrate = plain.Get(narrateID)
+	if !gotRender || gotNarrate {
+		t.Fatalf("default manager loaded render %v, narrate %v", gotRender, gotNarrate)
+	}
+}
+
+func TestManagerRefusesMoreThanOneWorker(t *testing.T) {
+	if _, err := NewManager(ManagerOptions{Dir: t.TempDir(), Run: noopJobRun, Workers: 2}); err == nil {
+		t.Fatal("Workers:2 was accepted")
+	}
+	for _, workers := range []int{0, 1} {
+		m, err := NewManager(ManagerOptions{Dir: t.TempDir(), Run: noopJobRun, Workers: workers})
+		if err != nil {
+			t.Fatalf("Workers:%d = %v", workers, err)
+		}
+		m.Close()
+	}
+}
+
+func TestNarrateJobHasNoOutputKeyAndCountsPieces(t *testing.T) {
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	m, err := NewManager(ManagerOptions{Dir: t.TempDir(), Kinds: []string{KindNarrate}, Run: func(ctx context.Context, job Job, _ any, h *Handle) (Output, error) {
+		h.SetPhase(PhaseSynthesizing)
+		h.SetPieces(1, 4)
+		close(entered)
+		<-release
+		h.SetPieces(4, 4)
+		return Output{}, nil
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(m.Close)
+	job, _, err := m.Enqueue(EnqueueRequest{ProjectID: projA})
+	if err != nil {
+		t.Fatal(err)
+	}
+	<-entered
+	mid, _ := m.Get(job.ID)
+	// 1 of 4 pieces is a progress of 0.25.
+	if mid.PiecesDone != 1 || mid.PiecesTotal != 4 || mid.Progress != 0.25 || mid.Phase != PhaseSynthesizing {
+		t.Fatalf("running job = %+v", mid)
+	}
+	close(release)
+	done := waitJob(t, m, job.ID, terminal)
+	raw, err := json.Marshal(done)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(raw)
+	if done.Status != StatusSucceeded || done.Output != nil || strings.Contains(text, `"output"`) {
+		t.Fatalf("finished job = %s", text)
+	}
+	if !strings.Contains(text, `"pieces_done":4`) || !strings.Contains(text, `"pieces_total":4`) {
+		t.Fatalf("piece counters are missing: %s", text)
+	}
+}
+
+func TestJobMessagesSayThisJob(t *testing.T) {
+	check := func(name string, j Job) {
+		t.Helper()
+		if j.Error == nil {
+			t.Fatalf("%s: no error on %+v", name, j)
+		}
+		msg := strings.ToLower(j.Error.Message)
+		if !strings.Contains(msg, "this job") || strings.Contains(msg, "export") || strings.Contains(msg, "render") {
+			t.Errorf("%s: message = %q", name, j.Error.Message)
+		}
+	}
+
+	dir := t.TempDir()
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	const id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+	doc := `{"version":1,"jobs":[{"id":"` + id + `","project_id":"` + projA + `","kind":"render","status":"running","created_at":"` + now + `","updated_at":"` + now + `","rev":1}]}`
+	if err := os.WriteFile(filepath.Join(dir, "jobs.json"), []byte(doc), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	restarted := newTestManager(t, dir, noopJobRun)
+	j, _ := restarted.Get(id)
+	check("restart", j)
+
+	started := make(chan struct{}, 8)
+	m, err := NewManager(ManagerOptions{Dir: t.TempDir(), Run: func(ctx context.Context, job Job, _ any, h *Handle) (Output, error) {
+		started <- struct{}{}
+		<-ctx.Done()
+		return Output{}, ctx.Err()
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(m.Close)
+	running, _, _ := m.Enqueue(EnqueueRequest{ProjectID: projA})
+	<-started
+	queued, _, _ := m.Enqueue(EnqueueRequest{ProjectID: projA})
+	cancelled, _ := m.Cancel(queued.ID)
+	check("cancel of a queued job", cancelled)
+	m.Cancel(running.ID)
+	check("cancel of a running job", waitJob(t, m, running.ID, terminal))
+
+	running, _, _ = m.Enqueue(EnqueueRequest{ProjectID: projA})
+	<-started
+	queued, _, _ = m.Enqueue(EnqueueRequest{ProjectID: projA})
+	m.Close()
+	j, _ = m.Get(running.ID)
+	check("close with a running job", j)
+	j, _ = m.Get(queued.ID)
+	check("close with a queued job", j)
+}

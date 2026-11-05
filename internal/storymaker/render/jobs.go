@@ -13,6 +13,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"sync"
 	"time"
@@ -23,7 +24,9 @@ import (
 
 // Job kinds, statuses and phases (contract section 5).
 const (
-	KindRender = "render"
+	KindRender  = "render"
+	KindNarrate = "narrate"
+	KindMusic   = "music"
 
 	StatusQueued      = "queued"
 	StatusRunning     = "running"
@@ -32,26 +35,31 @@ const (
 	StatusCancelled   = "cancelled"
 	StatusInterrupted = "interrupted"
 
-	PhaseStarting  = "starting"
-	PhaseCompiling = "compiling"
-	PhaseMixing    = "mixing"
-	PhaseRendering = "rendering"
-	PhaseEncoding  = "encoding"
-	PhaseWriting   = "writing"
+	PhaseStarting     = "starting"
+	PhaseCompiling    = "compiling"
+	PhaseMixing       = "mixing"
+	PhaseRendering    = "rendering"
+	PhaseEncoding     = "encoding"
+	PhaseWriting      = "writing"
+	PhaseSynthesizing = "synthesizing"
 )
 
 // Stable job error codes (spec "Error handling"); interrupted is the code of a job that a restart cut off.
 const (
-	CodeInvalidStory       = "invalid_story"
-	CodeBrowserUnavailable = "browser_unavailable"
-	CodeFFmpegUnavailable  = "ffmpeg_unavailable"
-	CodeRenderFailed       = "render_failed"
-	CodeRenderTimeout      = "render_timeout"
-	CodeCancelled          = "cancelled"
-	CodeDisabled           = "storymaker_disabled"
-	CodeBusy               = "busy"
-	CodeCodeError          = "code_error"
-	CodeInterrupted        = "interrupted"
+	CodeInvalidStory         = "invalid_story"
+	CodeBrowserUnavailable   = "browser_unavailable"
+	CodeFFmpegUnavailable    = "ffmpeg_unavailable"
+	CodeRenderFailed         = "render_failed"
+	CodeRenderTimeout        = "render_timeout"
+	CodeCancelled            = "cancelled"
+	CodeDisabled             = "storymaker_disabled"
+	CodeBusy                 = "busy"
+	CodeCodeError            = "code_error"
+	CodeInterrupted          = "interrupted"
+	CodeNarrationFailed      = "narration_failed"
+	CodeNarrationUnavailable = "narration_unavailable"
+	CodeVoiceRequired        = "voice_required"
+	CodeBudgetExceeded       = "budget_exceeded"
 )
 
 const (
@@ -59,6 +67,8 @@ const (
 	DefaultMaxQueued = 16
 	// DefaultRetention is the number of finished jobs kept in jobs.json.
 	DefaultRetention = 200
+	// MinFreeDiskBytes is the free-space floor of the narrate and music jobs.
+	MinFreeDiskBytes = minFreeStagingByte
 
 	progressNotifyEvery  = 150 * time.Millisecond
 	progressPersistEvery = 3 * time.Second
@@ -103,6 +113,8 @@ type Job struct {
 	Phase       string     `json:"phase,omitempty"`
 	FramesDone  int        `json:"frames_done"`
 	FramesTotal int        `json:"frames_total"`
+	PiecesDone  int        `json:"pieces_done,omitempty"`
+	PiecesTotal int        `json:"pieces_total,omitempty"`
 	Output      *Output    `json:"output,omitempty"`
 	Error       *JobError  `json:"error,omitempty"`
 	CreatedAt   time.Time  `json:"created_at"`
@@ -148,6 +160,10 @@ type RunFunc func(ctx context.Context, job Job, payload any, h *Handle) (Output,
 // EnqueueRequest describes a job to queue.
 type EnqueueRequest struct {
 	ProjectID string
+	// Kind is the job kind; "" means the first of ManagerOptions.Kinds. A kind this manager does not run is an error.
+	Kind string
+	// Coalesce returns a queued or running job of this project and kind, with replayed true, instead of a new one.
+	Coalesce bool
 	// Key is the Idempotency-Key header (optional); Fingerprint identifies the request (project id and
 	// story etag): the same key with another fingerprint is an ErrIdempotencyConflict.
 	Key         string
@@ -166,6 +182,10 @@ type ManagerOptions struct {
 	MaxQueued int
 	Retention int
 	Logger    *slog.Logger
+	// Kinds are the job kinds this manager runs; empty means {KindRender}. load keeps these kinds only.
+	Kinds []string
+	// Workers must be 0 or 1: a manager runs one job at a time.
+	Workers int
 	// NewID and Now are for tests.
 	NewID func() string
 	Now   func() time.Time
@@ -202,6 +222,12 @@ type subscriber struct {
 func NewManager(opts ManagerOptions) (*Manager, error) {
 	if opts.Dir == "" || opts.Run == nil {
 		return nil, errors.New("storymaker: job manager needs a folder and a run function")
+	}
+	if opts.Workers != 0 && opts.Workers != 1 {
+		return nil, fmt.Errorf("storymaker: a job manager has 0 or 1 workers, not %d", opts.Workers)
+	}
+	if len(opts.Kinds) == 0 {
+		opts.Kinds = []string{KindRender}
 	}
 	if opts.MaxQueued <= 0 {
 		opts.MaxQueued = DefaultMaxQueued
@@ -263,13 +289,13 @@ func (m *Manager) load() error {
 			_ = os.Rename(m.path, m.path+".bad")
 		} else {
 			for _, r := range st.Jobs {
-				if r == nil || !validJobID(r.ID) || r.Kind != KindRender {
+				if r == nil || !validJobID(r.ID) || !m.runsKind(r.Kind) {
 					continue
 				}
 				if r.Status == StatusQueued || r.Status == StatusRunning {
 					now := m.opts.Now()
 					r.Status = StatusInterrupted
-					r.Error = &JobError{Code: CodeInterrupted, Message: "The server restarted before this render finished. Start the export again."}
+					r.Error = &JobError{Code: CodeInterrupted, Message: "The server restarted before this job finished. Start it again."}
 					r.FinishedAt = &now
 					r.UpdatedAt = now
 				}
@@ -282,6 +308,9 @@ func (m *Manager) load() error {
 	}
 	return m.persistLocked()
 }
+
+// runsKind reports whether this manager runs jobs of the kind.
+func (m *Manager) runsKind(kind string) bool { return slices.Contains(m.opts.Kinds, kind) }
 
 func validJobID(id string) bool {
 	u, err := uuid.Parse(id)
@@ -355,13 +384,29 @@ func writeAtomic(path string, data []byte, perm os.FileMode) error {
 	return nil
 }
 
-// Enqueue queues a render. With an Idempotency-Key that was seen for this project and request it
-// returns the earlier job and replayed true. ErrBusy when DefaultMaxQueued jobs are waiting.
+// Enqueue queues a job. With an Idempotency-Key that was seen for this project and request it
+// returns the earlier job and replayed true, and with Coalesce the queued or running job of this
+// project and kind. ErrBusy when MaxQueued jobs are waiting. The coalesce check runs under m.mu in
+// the same step as the insert, so two calls cannot create two jobs.
 func (m *Manager) Enqueue(req EnqueueRequest) (job Job, replayed bool, err error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.closed {
 		return Job{}, false, ErrClosed
+	}
+	kind := req.Kind
+	if kind == "" {
+		kind = m.opts.Kinds[0]
+	}
+	if !m.runsKind(kind) {
+		return Job{}, false, fmt.Errorf("storymaker: this job manager does not run %q jobs", kind)
+	}
+	if req.Coalesce {
+		for _, r := range m.jobs {
+			if r.ProjectID == req.ProjectID && r.Kind == kind && !r.Terminal() {
+				return r.Job, true, nil
+			}
+		}
 	}
 	keyHash := ""
 	if req.Key != "" {
@@ -381,7 +426,7 @@ func (m *Manager) Enqueue(req EnqueueRequest) (job Job, replayed bool, err error
 	now := m.opts.Now()
 	r := &record{
 		Job: Job{
-			ID: m.opts.NewID(), ProjectID: req.ProjectID, Kind: KindRender, Status: StatusQueued,
+			ID: m.opts.NewID(), ProjectID: req.ProjectID, Kind: kind, Status: StatusQueued,
 			CreatedAt: now, UpdatedAt: now,
 		},
 		KeyHash: keyHash, Fingerprint: req.Fingerprint,
@@ -539,7 +584,7 @@ func (m *Manager) Cancel(id string) (Job, bool) {
 	case StatusQueued:
 		m.removeFromQueueLocked(id)
 		delete(m.payload, id)
-		m.finishLocked(r, StatusCancelled, &JobError{Code: CodeCancelled, Message: "The export was cancelled."}, nil)
+		m.finishLocked(r, StatusCancelled, &JobError{Code: CodeCancelled, Message: "This job was cancelled."}, nil)
 		_ = m.persistLocked()
 	case StatusRunning:
 		r.cancelRequested = true
@@ -601,7 +646,7 @@ func (m *Manager) Close() {
 	m.cancel()
 	for _, id := range m.queue {
 		if r := m.jobs[id]; r != nil {
-			m.finishLocked(r, StatusInterrupted, &JobError{Code: CodeInterrupted, Message: "The server stopped before this render started."}, nil)
+			m.finishLocked(r, StatusInterrupted, &JobError{Code: CodeInterrupted, Message: "The server stopped before this job started."}, nil)
 		}
 	}
 	m.queue = nil
@@ -667,12 +712,17 @@ func (m *Manager) runJob(id string) {
 	m.active = ""
 	switch {
 	case err == nil:
-		o := out
-		m.finishLocked(r, StatusSucceeded, nil, &o)
+		// A job that published no file, such as a narrate job, has no output key.
+		var published *Output
+		if out.Path != "" {
+			o := out
+			published = &o
+		}
+		m.finishLocked(r, StatusSucceeded, nil, published)
 	case r.cancelRequested && !m.closed:
-		m.finishLocked(r, StatusCancelled, &JobError{Code: CodeCancelled, Message: "The export was cancelled."}, nil)
+		m.finishLocked(r, StatusCancelled, &JobError{Code: CodeCancelled, Message: "This job was cancelled."}, nil)
 	case m.closed && ctx.Err() != nil:
-		m.finishLocked(r, StatusInterrupted, &JobError{Code: CodeInterrupted, Message: "The server stopped before this render finished. Start the export again."}, nil)
+		m.finishLocked(r, StatusInterrupted, &JobError{Code: CodeInterrupted, Message: "The server stopped before this job finished. Start it again."}, nil)
 	default:
 		var je *JobError
 		if !errors.As(err, &je) {
@@ -735,6 +785,17 @@ func (h *Handle) SetFrames(done, total int) {
 			r.Progress = 0.05 + 0.90*float64(done)/float64(total)
 		}
 	}, false)
+}
+
+// SetPieces records the piece counters of a narrate job. It is a state change: it is persisted and
+// announced at once, so the throttle cannot swallow the last step.
+func (h *Handle) SetPieces(done, total int) {
+	h.update(func(r *record) {
+		r.PiecesDone, r.PiecesTotal = done, total
+		if total > 0 {
+			r.Progress = float64(done) / float64(total)
+		}
+	}, true)
 }
 
 // SetPrefixHash stores the hash of the render prefix of this job's listener.
