@@ -1,6 +1,7 @@
 package flows
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"errors"
@@ -17,6 +18,11 @@ var (
 	errCheckpointConflict = errors.New("checkpoint changed elsewhere")
 	errCheckpointCapacity = errors.New("checkpoint capacity exhausted")
 )
+
+// Remaining-byte arithmetic avoids overflowing when existing storage is corrupt.
+func checkpointBytesFit(used int64, size int) bool {
+	return used >= 0 && size >= 0 && used <= maxDurableBytes && int64(size) <= maxDurableBytes-used
+}
 
 // This schema is installed only by the reviewed, backed-up version migration.
 const durableCheckpointSchema = `CREATE TABLE flow_checkpoints (
@@ -46,6 +52,12 @@ type CheckpointKeyProvider interface {
 }
 
 func withCheckpointKey(ctx context.Context, db *sql.DB, provider CheckpointKeyProvider, fn func(*sql.Tx, []byte) error) error {
+	return withCheckpointKeyMode(ctx, db, provider, true, fn)
+}
+
+// Existing generations never create a key, even if a concurrent cancellation
+// removes the last ciphertext before this transaction obtains its write lock.
+func withCheckpointKeyMode(ctx context.Context, db *sql.DB, provider CheckpointKeyProvider, allowCreate bool, fn func(*sql.Tx, []byte) error) error {
 	if provider == nil {
 		return errInvalidCheckpoint
 	}
@@ -65,7 +77,7 @@ func withCheckpointKey(ctx context.Context, db *sql.DB, provider CheckpointKeyPr
 	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM flow_checkpoints`).Scan(&count); err != nil {
 		return fmt.Errorf("read checkpoints: %w", err)
 	}
-	key, err := provider.CheckpointKey(ctx, count == 0)
+	key, err := provider.CheckpointKey(ctx, allowCreate && count == 0)
 	if err != nil {
 		return fmt.Errorf("read checkpoint key: %w", err)
 	}
@@ -79,6 +91,42 @@ func withCheckpointKey(ctx context.Context, db *sql.DB, provider CheckpointKeyPr
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit checkpoint admission: %w", err)
 	}
+	return nil
+}
+
+// authenticateOwnedCheckpointTx proves that the current key still opens the
+// exact leased generation before replacing or removing its ciphertext.
+func authenticateOwnedCheckpointTx(ctx context.Context, tx *sql.Tx, runID string, generation int64, owner string, now time.Time, key []byte) error {
+	if generation <= 0 || owner == "" {
+		return errInvalidCheckpoint
+	}
+	return authenticateCheckpointTx(ctx, tx, runID, generation, owner, now, key)
+}
+
+func authenticateCheckpointTx(ctx context.Context, tx *sql.Tx, runID string, generation int64, owner string, now time.Time, key []byte) error {
+	if generation <= 0 {
+		return errInvalidCheckpoint
+	}
+	var sealed []byte
+	query := `SELECT ciphertext FROM flow_checkpoints WHERE run_id=? AND generation=? AND length(ciphertext)<=?`
+	args := []any{runID, generation, maxCheckpointBytes}
+	if owner != "" {
+		query += ` AND state='claimed' AND lease_owner=? AND lease_until>?`
+		args = append(args, owner, formatTime(now))
+	}
+	err := tx.QueryRowContext(ctx, query, args...).Scan(&sealed)
+	if errors.Is(err, sql.ErrNoRows) {
+		return errCheckpointConflict
+	}
+	if err != nil {
+		return err
+	}
+	plain, err := openCheckpoint(key, runID, uint64(generation), sealed)
+	clear(sealed)
+	if err != nil {
+		return err
+	}
+	clear(plain)
 	return nil
 }
 
@@ -110,7 +158,7 @@ func saveDurableCheckpointTx(ctx context.Context, tx *sql.Tx, rec durableCheckpo
 	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*), COALESCE(SUM(length(ciphertext)), 0) FROM flow_checkpoints WHERE run_id <> ?`, rec.RunID).Scan(&count, &used); err != nil {
 		return fmt.Errorf("read checkpoint capacity: %w", err)
 	}
-	if count >= maxDurableCheckpoints || used+int64(len(rec.Ciphertext)) > maxDurableBytes {
+	if count >= maxDurableCheckpoints || !checkpointBytesFit(used, len(rec.Ciphertext)) {
 		return errCheckpointCapacity
 	}
 	wake := rec.WakeAt.UTC().Truncate(time.Microsecond)
@@ -179,7 +227,7 @@ func (s *Store) saveActiveCheckpointTx(ctx context.Context, tx *sql.Tx, rec dura
 	if err := tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(length(ciphertext)),0) FROM flow_checkpoints WHERE run_id<>?`, rec.RunID).Scan(&used); err != nil {
 		return fmt.Errorf("read checkpoint capacity: %w", err)
 	}
-	if used+int64(len(rec.Ciphertext)) > maxDurableBytes {
+	if !checkpointBytesFit(used, len(rec.Ciphertext)) {
 		return errCheckpointCapacity
 	}
 	result, err := tx.ExecContext(ctx, `UPDATE flow_checkpoints SET generation=?,ciphertext=?,lease_until=?,updated_at=?
@@ -229,7 +277,44 @@ func (s *Store) finishDurableCheckpointTx(ctx context.Context, tx *sql.Tx, runID
 
 // claimDurableCheckpoint permits exactly one lease for a due pure-run generation.
 // Effectful recovery must never reuse this reclaim path without receipts.
-func claimDurableCheckpoint(ctx context.Context, db *sql.DB, runID string, generation int64, owner string, now, leaseUntil time.Time) (bool, error) {
+type durableClaimGuard struct {
+	flowID, missionID string
+	revision          int
+	document          []byte
+}
+
+func lockDurableGuardTx(ctx context.Context, tx *sql.Tx) error {
+	res, err := tx.ExecContext(ctx, `UPDATE flows_meta SET value=value WHERE key='schema_version'`)
+	if err != nil {
+		return err
+	}
+	return requireRow(res, errCheckpointConflict)
+}
+
+func verifyDurableClaimGuard(ctx context.Context, tx *sql.Tx, runID string, g durableClaimGuard) error {
+	var liveRaw, versionRaw string
+	var liveRevision int
+	err := tx.QueryRowContext(ctx, `SELECT f.live_json,(SELECT v.json FROM flow_versions v WHERE v.flow_id=f.id AND v.revision=?),f.live_revision FROM flows f WHERE EXISTS (SELECT 1 FROM flow_runs r WHERE r.id=? AND r.flow_id=f.id AND r.revision=? AND r.durable=1 AND r.durable_mission_id=?) AND f.id=? AND f.kind='flow' AND f.mission_id=? AND f.live_revision>0 AND f.live_json<>'' AND (`+validStoredDocumentSQL("f.draft_json")+`) AND (`+validStoredDocumentSQL("f.live_json")+`)`, g.revision, runID, g.revision, g.missionID, g.flowID, g.missionID).Scan(&liveRaw, &versionRaw, &liveRevision)
+	if errors.Is(err, sql.ErrNoRows) {
+		return errCheckpointConflict
+	}
+	if err != nil {
+		return err
+	}
+	live, e1 := ParseFlow([]byte(liveRaw))
+	version, e2 := ParseFlow([]byte(versionRaw))
+	if e1 != nil || e2 != nil || live.ID != g.flowID || version.ID != g.flowID || live.Kind != KindFlow || version.Kind != KindFlow {
+		return errCheckpointConflict
+	}
+	liveJSON, e1 := live.Marshal()
+	versionJSON, e2 := version.Marshal()
+	if e1 != nil || e2 != nil || (liveRevision == g.revision && !bytes.Equal(liveJSON, g.document)) || !bytes.Equal(versionJSON, g.document) {
+		return errCheckpointConflict
+	}
+	return nil
+}
+
+func claimDurableCheckpoint(ctx context.Context, db *sql.DB, runID string, generation int64, owner string, now, leaseUntil time.Time, guards ...durableClaimGuard) (bool, error) {
 	if runID == "" || len(runID) > 128 || generation <= 0 || owner == "" || len(owner) > 128 || now.IsZero() || !leaseUntil.After(now) {
 		return false, errInvalidCheckpoint
 	}
@@ -238,10 +323,21 @@ func claimDurableCheckpoint(ctx context.Context, db *sql.DB, runID string, gener
 		return false, fmt.Errorf("begin checkpoint claim: %w", err)
 	}
 	defer tx.Rollback()
+	if len(guards) > 1 {
+		return false, errInvalidCheckpoint
+	}
+	if len(guards) == 1 {
+		if err := lockDurableGuardTx(ctx, tx); err != nil {
+			return false, err
+		}
+		if err := verifyDurableClaimGuard(ctx, tx, runID, guards[0]); err != nil {
+			return false, err
+		}
+	}
 	result, err := tx.ExecContext(ctx, `UPDATE flow_checkpoints SET state='claimed',lease_owner=?,lease_until=?,updated_at=?
 		WHERE run_id=? AND generation=? AND wake_at<=? AND deadline>? AND (
-		(state='waiting' AND EXISTS (SELECT 1 FROM flow_runs WHERE id=? AND status='waiting')) OR
-		(state='claimed' AND lease_until<=? AND EXISTS (SELECT 1 FROM flow_runs WHERE id=? AND status IN ('queued','running'))))`,
+		(state='waiting' AND EXISTS (SELECT 1 FROM flow_runs WHERE id=? AND status='waiting' AND durable=1)) OR
+		(state='claimed' AND lease_until<=? AND EXISTS (SELECT 1 FROM flow_runs WHERE id=? AND status IN ('queued','running') AND durable=1)))`,
 		owner, formatTime(leaseUntil), formatTime(now), runID, generation, formatTime(now), formatTime(now), runID, formatTime(now), runID)
 	if err != nil {
 		return false, fmt.Errorf("claim checkpoint: %w", err)

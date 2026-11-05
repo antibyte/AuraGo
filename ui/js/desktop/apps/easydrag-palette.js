@@ -61,6 +61,10 @@
         const G = ED.geometry;
         const info = ed.catalog.types.get(type);
         if (!info || ed.readonly || ed.runView) return null;
+        if (ED.durable && type === ED.durable.TYPE && (!ed.runtime || !ed.runtime.value || !ed.runtime.value.effective || !ed.runtime.value.recovery_available)) {
+            ed.ctx.notify({ title: info.label || type, message: ED.durable.reason(ed.t, ed.runtime && ed.runtime.value && ed.runtime.value.reason), type: 'error' });
+            return null;
+        }
         rememberType(type);
         const pos = { x: G.snap(at.x), y: G.snap(at.y) };
         let id = null;

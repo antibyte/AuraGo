@@ -16,17 +16,18 @@ import (
 
 // MissionRun represents a single mission execution record in the history.
 type MissionRun struct {
-	ID          string     `json:"id"`           // Unique run ID (auto-generated)
-	MissionID   string     `json:"mission_id"`   // Reference to the mission
-	MissionName string     `json:"mission_name"` // Snapshot of mission name at run time
-	TriggerType string     `json:"trigger_type"` // manual, cron, webhook, email, mqtt, daemon_wake, etc.
-	TriggerData string     `json:"trigger_data"` // JSON blob with trigger context
-	Status      string     `json:"status"`       // running, success, error
-	Output      string     `json:"output"`       // Truncated output (max 2000 chars)
-	ErrorMsg    string     `json:"error_msg"`    // Error message if status=error
-	StartedAt   time.Time  `json:"started_at"`
-	CompletedAt *time.Time `json:"completed_at,omitempty"`
-	DurationMS  int64      `json:"duration_ms"` // Duration in milliseconds
+	ID              string     `json:"id"`           // Unique run ID (auto-generated)
+	MissionID       string     `json:"mission_id"`   // Reference to the mission
+	MissionName     string     `json:"mission_name"` // Snapshot of mission name at run time
+	TriggerType     string     `json:"trigger_type"` // manual, cron, webhook, email, mqtt, daemon_wake, etc.
+	TriggerData     string     `json:"trigger_data"` // JSON blob with trigger context
+	Status          string     `json:"status"`       // running, success, error
+	LastKnownStatus string     `json:"last_known_status,omitempty"`
+	Output          string     `json:"output"`    // Truncated output (max 2000 chars)
+	ErrorMsg        string     `json:"error_msg"` // Error message if status=error
+	StartedAt       time.Time  `json:"started_at"`
+	CompletedAt     *time.Time `json:"completed_at,omitempty"`
+	DurationMS      int64      `json:"duration_ms"` // Duration in milliseconds
 }
 
 // MissionHistoryFilter holds structured filter parameters for querying mission history.
@@ -95,8 +96,8 @@ func ReconcileStaleRunningMarks(db *sql.DB, maxAge time.Duration, logger *slog.L
 	result, err := db.Exec(`
 		UPDATE mission_history
 		SET status = 'error', error_msg = 'aborted: server restart', completed_at = ?
-		WHERE status = 'running' AND started_at < ?`,
-		time.Now().Format(time.RFC3339), cutoff)
+		WHERE status = 'running' AND started_at < ? AND substr(id, 1, length(?)) <> ?`,
+		time.Now().Format(time.RFC3339), cutoff, DurableHistoryPrefix, DurableHistoryPrefix)
 	if err != nil {
 		return 0, fmt.Errorf("failed to reconcile stale running entries: %w", err)
 	}
@@ -303,6 +304,7 @@ func QueryMissionHistory(db *sql.DB, filter MissionHistoryFilter) (*MissionHisto
 		run.TriggerData = triggerData.String
 		run.Output = output.String
 		run.ErrorMsg = errorMsg.String
+		scrubDurableHistoryName(run)
 
 		entries = append(entries, run)
 	}
@@ -356,8 +358,17 @@ func GetMissionRun(db *sql.DB, runID string) (*MissionRun, error) {
 	run.TriggerData = triggerData.String
 	run.Output = output.String
 	run.ErrorMsg = errorMsg.String
+	scrubDurableHistoryName(run)
 
 	return run, nil
+}
+
+// Durable names are scrubbed again at read time if a value became sensitive
+// after the historical entry was first written.
+func scrubDurableHistoryName(run *MissionRun) {
+	if strings.HasPrefix(run.ID, DurableHistoryPrefix) {
+		run.MissionName = security.ScrubSecrets(run.MissionName)
+	}
 }
 
 // CleanOldMissionHistory removes history entries older than the specified retention period.

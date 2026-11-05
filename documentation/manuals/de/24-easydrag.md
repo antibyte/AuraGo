@@ -13,6 +13,7 @@ Dieses Kapitel beschreibt den Editor. Wie sich Läufe, Grenzen, Fehler und Gehei
 4. [Testen](#testen)
 5. [Veröffentlichen](#veröffentlichen)
 6. [Läufe und Benachrichtigungen](#läufe-und-benachrichtigungen)
+   - [Lokale Läufe fortsetzen](#lokale-läufe-fortsetzen)
 7. [Decisions-Baustein](#decisions-baustein)
 8. [Wenn ein Schritt scheitert](#wenn-ein-schritt-scheitert)
 9. [Geheimnisse](#geheimnisse)
@@ -361,6 +362,60 @@ Beim Vergleichen wird kein Schritt erneut ausgeführt.
 - Ein *Warten*-Schritt gibt seinen Platz frei, solange er wartet, damit wartende Flows andere nicht aufhalten; danach reiht sich der Lauf wieder für einen freien Platz ein. Höchstens 64 Läufe warten gleichzeitig so; darüber hinaus behält ein Warten seinen Platz.
 - Ein Flow mit Nebenläufigkeit *parallel* belegt höchstens die Hälfte der gleichzeitigen Läufe. Insgesamt warten höchstens 200 Läufe (und 64 MiB ihrer Auslöser-Daten) auf ihren Start; darüber hinaus werden neue Auslöser verworfen, und Mission Control vermerkt das am Flow.
 - Live- und Testläufe werden getrennt aufbewahrt: *Gespeicherte Läufe pro Flow* zählt die Live-Läufe, die neuesten 20 Testläufe bleiben unabhängig davon erhalten. Sehr große Läufe behalten nur die Ein- und Ausgaben ihrer ersten Schritte (4 MiB pro Lauf); spätere Schritte zeigen *Gekürzt*.
+
+### Lokale Läufe fortsetzen
+
+**Lokale Läufe nach Neustart fortsetzen** ist unter **Einstellungen → EasyDrag-Flows**
+standardmäßig ausgeschaltet. Einschalten erfordert einen Neustart. Ausschalten gilt ohne
+Neustart und erhält gespeicherte Läufe. Der beobachtete Verarbeitungsstatus und die Zähler
+beschreiben den Server; ein ungespeicherter Schalter ändert sie nicht. Unbekannte Zähler
+werden als unbekannt angezeigt.
+
+Dieser erste Modus unterstützt einen manuellen Auslöser, Felder setzen, Wenn, Verzweigung,
+Zusammenführen, Stopp und **Fortsetzbare Wartezeit**. Geprüft wird der gesamte Graph, auch
+deaktivierte oder unerreichbare Schritte. Aufrufe, Stapel, Tools, Modelle und externe Effekte
+sind ausgeschlossen. Die fortsetzbare Wartezeit akzeptiert 1–86.400 Sekunden. Sie ist vom
+gewöhnlichen **Warten** getrennt, dessen Verhalten unverändert bleibt. Veröffentliche den
+geeigneten Flow und starte ihn ausdrücklich als Live-Lauf; Entwurfstests und Simulationen
+starten keine Fortsetzung.
+Die Wartezeit muss in die ursprüngliche Gesamtlaufzeit passen. Datumsabhängige Ausdrücke
+werden abgewiesen, wenn die ursprüngliche Zeitzone nicht sicher wiederherstellbar ist.
+
+Die vorhandene Laufansicht unterscheidet **Wartend** und **Fortsetzung blockiert** und zeigt,
+soweit verfügbar, die beobachtete Weckzeit und das ursprüngliche späteste Laufende. Ein
+blockierter Lauf gilt dadurch weder als fehlgeschlagen noch als abgeschlossen. Die Erklärung
+nennt ausgeschaltete Verarbeitung, fehlende Freigabe, nicht verfügbare Schlüssel oder Speicher
+beziehungsweise inkompatiblen Zustand. Verwende bei der Reparatur den passenden Tresor und die
+passende Sicherung; die Oberfläche ersetzt keinen fehlenden Schlüssel und verwirft keinen
+Zwischenstand automatisch.
+
+Ein ausdrücklich verfolgter aktiver Lauf behält bei neuer Verbindung und Fensterwiederherstellung
+seine Lauf-ID. Sein genauer gespeicherter Graph öffnet sich schreibgeschützt; Dein aktueller
+Entwurf bleibt getrennt. Abgeschlossene, bestätigte Schritte bleiben erhalten. Rein lokale
+Berechnungen, die vor einem Absturz noch nicht bestätigt gespeichert waren, können wiederholt
+werden. Die ursprüngliche Laufzeitgrenze gilt weiter; gespeicherte Ausgabevorschauen können
+weiterhin gekürzt sein.
+Eine Veröffentlichung als v2 ersetzt keinen bereits zugelassenen v1-Lauf und verlängert
+dessen ursprüngliche Frist nicht.
+
+**Stoppen** fordert den Abbruch des beobachteten gespeicherten Zustands an. **Wird gestoppt…**
+beweist noch kein Laufende; die Ansicht wartet auf die Serverbestätigung. Hat sich der Zustand
+geändert, lade ihn neu und prüfe ihn vor einem weiteren Stopp. Unsichere Anfragen werden nie
+automatisch erneut gesendet. Du brauchst die aktuelle Stopp-Berechtigung. Für diese fortsetzbaren
+Läufe bleibt Stoppen auch bei schreibgeschützten Missionen, schreibgeschütztem Desktop oder
+gesperrter App erlaubt; die Verarbeitung wird dadurch nicht eingeschaltet. Für gewöhnliche,
+nicht fortsetzbare Läufe gilt die bisherige Missions-Schreibschutzgrenze weiter.
+Ein inkompatibler alter Zwischenstand lässt sich getrennt abbrechen,
+selbst wenn sein historischer Lauf bereits beendet ist; dessen ursprüngliches Ergebnis bleibt.
+Mission Control lehnt einen missionsweiten Stopp mit gespeicherten Läufen ab, bevor ein Lauf
+gestoppt wird. Öffne den gewünschten Lauf in EasyDrag und stoppe ihn dort einzeln.
+
+Dieser Modus startet keine abhängigen Missionen, Planer-Folgeaktionen oder Abschlussbenachrichtigungen.
+Der Missionsverlauf kann den Lauf zeigen, sobald seine Quelle verfügbar ist; der kumulative
+Laufzähler der Mission bleibt in diesem ersten Modus unverändert. Einzelne Bausteinaufrufe
+erhalten keinen eigenen Verlauf.
+Ein aktiver Verlaufseintrag ohne prüfbare Quelle zeigt **Unbekannt**; sein zuletzt erfasster
+Zustand bestätigt keinen aktuellen Fortschritt.
 
 ## Decisions-Baustein
 

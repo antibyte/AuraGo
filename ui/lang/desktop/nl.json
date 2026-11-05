@@ -10873,5 +10873,8 @@
   "codeStudio.promptExplain": "Leg {{target}} in {{path}} uit.",
   "codeStudio.promptComments": "Voeg duidelijke opmerkingen toe aan {{target}} in {{path}}. Geef alleen de gewijzigde code terug.",
   "codeStudio.promptTests": "Maak nuttige tests voor {{path}}. Geef codeblokken terug voor nieuwe of gewijzigde bestanden.",
-  "codeStudio.promptRefactor": "Refactor {{target}} in {{path}}. Geef alleen de gewijzigde code terug."
+  "codeStudio.promptRefactor": "Refactor {{target}} in {{path}}. Geef alleen de gewijzigde code terug.",
+  "desktop.mc_error_durable_cancel": "Deze missie bevat opgeslagen uitvoeringen. Open de uitvoering die je wilt stoppen in EasyDrag en stop die daar.",
+  "desktop.mc_state_unknown": "Onbekend",
+  "desktop.mc_state_waiting": "Wachtend"
 }

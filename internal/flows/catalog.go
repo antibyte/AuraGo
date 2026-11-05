@@ -18,6 +18,9 @@ func RegisterCatalog(reg *Registry, env CatalogEnv) error {
 	if err := RegisterLogicNodes(reg); err != nil {
 		return err
 	}
+	if err := reg.Register(durableWaitDef(false)); err != nil {
+		return err
+	}
 	if err := reg.Register(blockCallDef()); err != nil {
 		return err
 	}

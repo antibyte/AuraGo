@@ -23,7 +23,20 @@ func (s *Service) CancelMissionRuns(ctx context.Context, missionID string) (int,
 	if err != nil {
 		return 0, err
 	}
-	return s.runner.CancelFlowMode(rec.ID, ModeLive), nil
+	r := s.runner
+	r.startMu.Lock()
+	var present int
+	err = s.store.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM flow_runs r LEFT JOIN flow_checkpoints c ON c.run_id=r.id WHERE r.flow_id=? AND ((r.durable=1 AND r.status IN ('queued','running','waiting')) OR c.run_id IS NOT NULL))`, rec.ID).Scan(&present)
+	if err != nil {
+		r.startMu.Unlock()
+		return 0, err
+	}
+	if present != 0 {
+		r.startMu.Unlock()
+		return 0, ErrDurableMissionCancel
+	}
+	r.blockAdmissionTokens.cancelMatching(func(a *blockAdmission) bool { return a.flowID == rec.ID && a.mode == ModeLive })
+	return r.cancelFlowRunsLocked(rec.ID, func(mode RunMode) bool { return mode == ModeLive }, false), nil
 }
 
 // MissionEnabledChanged re-arms or clears the Date/Time timers after Mission Control switched

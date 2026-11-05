@@ -10873,5 +10873,8 @@
   "codeStudio.promptExplain": "Förklara {{target}} i {{path}}.",
   "codeStudio.promptComments": "Lägg till tydliga kommentarer till {{target}} i {{path}}. Returnera endast den ändrade koden.",
   "codeStudio.promptTests": "Skapa användbara tester för {{path}}. Returnera kodblock för nya eller ändrade filer.",
-  "codeStudio.promptRefactor": "Refaktorera {{target}} i {{path}}. Returnera endast den ändrade koden."
+  "codeStudio.promptRefactor": "Refaktorera {{target}} i {{path}}. Returnera endast den ändrade koden.",
+  "desktop.mc_error_durable_cancel": "Det här uppdraget innehåller sparade körningar. Öppna körningen du vill stoppa i EasyDrag och stoppa den där.",
+  "desktop.mc_state_unknown": "Okänd",
+  "desktop.mc_state_waiting": "Väntar"
 }

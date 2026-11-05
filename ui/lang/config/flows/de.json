@@ -19,5 +19,12 @@
   "config.flows.max_parallel_runs_help": "Wie viele Flow-Läufe gleichzeitig laufen dürfen (1 bis 32, Standard 8). Weitere warten.",
   "config.flows.max_parallel_nodes_per_run_help": "Wie viele Schritte eines Laufs parallel ausgeführt werden dürfen (1 bis 16, Standard 4).",
   "config.flows.max_runs_per_flow_help": "Wie viele abgeschlossene Läufe je Flow aufbewahrt werden; ältere werden gelöscht (10 bis 5000, Standard 200).",
-  "config.flows.run_retention_days_help": "Nach so vielen Tagen wird der Verlauf eines Laufs gelöscht (1 bis 365, Standard 30)."
+  "config.flows.run_retention_days_help": "Nach so vielen Tagen wird der Verlauf eines Laufs gelöscht (1 bis 365, Standard 30).",
+  "config.flows.durable_available": "Fortsetzung verfügbar",
+  "config.flows.durable_configured": "Gespeicherte Option",
+  "config.flows.durable_counts": "Wartende Läufe: {{waiting}} · Aktive Läufe: {{running}} · Blockierte Läufe: {{blocked}}",
+  "config.flows.durable_effective": "Verarbeitung aktiv",
+  "config.flows.durable_enabled": "Lokale Läufe nach Neustart fortsetzen",
+  "config.flows.durable_enabled_help": "Standardmäßig aus. Unterstützt nur rein lokale manuelle Flows und gespeicherte Wartezeiten. Einschalten erfordert einen Neustart; Ausschalten gilt ohne Neustart und erhält gespeicherte Läufe. Tools, Modelle, Bausteine und Stapel sind ausgeschlossen.",
+  "config.flows.durable_observed": "Beobachteter Fortsetzungsstatus"
 }

@@ -99,6 +99,7 @@ type RunFinishedInfo struct {
 
 // ServiceConfig tunes the service; zero values use the defaults.
 type ServiceConfig struct {
+	DurableEnabled   bool
 	MaxParallelRuns  int
 	MaxParallelNodes int
 	MaxQueuedPerFlow int
@@ -199,9 +200,14 @@ func NewService(store *Store, reg *Registry, services *Services, bridge MissionB
 	s := &Service{store: store, reg: reg, services: services, bridge: bridge, cfg: cfg, logger: logger,
 		history: map[string]runHistory{}, stop: make(chan struct{}), done: make(chan struct{})}
 	s.bootTime = services.Now()
+	authority, _ := bridge.(DurableAuthority)
+	projector, _ := bridge.(DurableHistoryProjector)
+	if _, ok := reg.Lookup(durableWaitType); ok {
+		reg.Replace(durableWaitDef(cfg.DurableEnabled && authority != nil && services.CheckpointKeys != nil))
+	}
 	s.engine = NewEngine(reg, services, logger, cfg.MaxParallelNodes)
 	s.runner = NewRunner(s.engine, store, RunnerHooks{OnRunStarted: s.onRunStarted, OnRunFinished: s.onRunFinished},
-		RunnerConfig{MaxParallelRuns: cfg.MaxParallelRuns, MaxQueuedPerFlow: cfg.MaxQueuedPerFlow, Gate: s.automaticRunsAllowed}, logger)
+		RunnerConfig{MaxParallelRuns: cfg.MaxParallelRuns, MaxQueuedPerFlow: cfg.MaxQueuedPerFlow, Gate: s.automaticRunsAllowed, DurableEnabled: cfg.DurableEnabled, DurableAuthority: authority, DurableHistory: projector}, logger)
 	// onTimerFired reports a failed start, so the occurrence stays stored and is retried.
 	s.timers = newTimerService(store, services.clock(), s.onTimerFired, s.onTimerMissed, logger)
 	// Yearly timers recur at their local time of day, in the zone the triggers are bound in.
@@ -276,6 +282,8 @@ func (s *Service) Start(ctx context.Context) error {
 	}
 	s.started = true
 	go s.retentionLoop()
+	s.startDurableHistoryReconcile()
+	s.startDurableScheduler()
 	return nil
 }
 

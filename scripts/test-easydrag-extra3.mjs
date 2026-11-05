@@ -6,7 +6,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { webcrypto } from 'node:crypto';
 
-const MODULES = ['easydrag-core.js', 'easydrag-template.js', 'easydrag-model.js', 'easydrag-geometry.js', 'easydrag-groups.js', 'easydrag-saver.js', 'easydrag-canvas.js',
+const MODULES = ['easydrag-core.js', 'easydrag-durable.js', 'easydrag-template.js', 'easydrag-model.js', 'easydrag-geometry.js', 'easydrag-groups.js', 'easydrag-saver.js', 'easydrag-canvas.js',
     'easydrag-wires.js', 'easydrag-interact.js', 'easydrag-palette.js', 'easydrag-fields.js', 'easydrag-forms.js', 'easydrag-blocks.js', 'easydrag-batches.js', 'easydrag-block-fields.js', 'easydrag-transform.js', 'easydrag-mapping.js',
     'easydrag-detail.js', 'easydrag-scenarios.js', 'easydrag-testing.js', 'easydrag-compare.js', 'easydrag-runs.js', 'easydrag-metadata.js', 'easydrag-publish.js', 'easydrag-home.js', 'easydrag-dialogs.js', 'easydrag-history.js', 'easydrag-workspace.js', 'easydrag-authoring.js', 'easydrag-extraction.js', 'easydrag-editor.js', 'easydrag.js'];
 const T1 = 'n_tttttttt';
@@ -1471,6 +1471,7 @@ export async function run(env) {
     await (await import('./test-easydrag-groups.mjs')).run({ sandbox, openEditor, eq, guardAsync, settle });
     await (await import('./test-easydrag-groups-save.mjs')).run({ sandbox, openEditor, eq, guardAsync, settle });
     await (await import('./test-easydrag-extraction.mjs')).run({ sandbox, openEditor, eq, guardAsync, settle });
+    await (await import('./test-easydrag-durable.mjs')).run({ sandbox, openEditor, eq, guardAsync, settle });
     // The FF2 and a1008 checks (test-easydrag-extra5.mjs, -extra6.mjs) build on this sandbox.
     return { sandbox, openEditor, desktopMenus };
 }

@@ -10873,5 +10873,8 @@
   "codeStudio.promptExplain": "Explica {{target}} em {{path}}.",
   "codeStudio.promptComments": "Adiciona comentários claros para {{target}} em {{path}}. Devolve apenas o código alterado.",
   "codeStudio.promptTests": "Cria testes úteis para {{path}}. Devolve blocos de código para ficheiros novos ou alterados.",
-  "codeStudio.promptRefactor": "Refatora {{target}} em {{path}}. Devolve apenas o código alterado."
+  "codeStudio.promptRefactor": "Refatora {{target}} em {{path}}. Devolve apenas o código alterado.",
+  "desktop.mc_error_durable_cancel": "Esta missão contém execuções salvas. Abra no EasyDrag a execução que deseja interromper e interrompa-a por lá.",
+  "desktop.mc_state_unknown": "Desconhecido",
+  "desktop.mc_state_waiting": "Em espera"
 }

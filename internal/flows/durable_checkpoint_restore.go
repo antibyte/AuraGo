@@ -19,7 +19,18 @@ func restoreDurableCoordinator(state durableCheckpointState, services *Services,
 	if err != nil {
 		return nil, err
 	}
-	engine, err := newDurableEngine(services, logger)
+	if state.Version != 2 {
+		return nil, errInvalidCheckpoint
+	}
+	location, err := restoreDurableLocation(state.Flow, state.Location)
+	if err != nil {
+		return nil, err
+	}
+	local := &Services{Location: location}
+	if services != nil {
+		local.Clock = services.Clock
+	}
+	engine, err := newDurableEngine(local, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -53,6 +64,16 @@ func resumeDurableCoordinator(parent context.Context, state durableCheckpointSta
 	s, err := restoreDurableCoordinator(state, services, logger, emit)
 	if err != nil {
 		return RunResult{Status: RunError, ErrorCode: "FLOW_NODE_UNAVAILABLE", ErrorMessage: "the durable checkpoint is invalid", durabilityLost: true}
+	}
+	if control.testWrapSet != nil {
+		def, ok := s.e.reg.Lookup(TypeSet)
+		if !ok || def.Execute == nil {
+			return RunResult{Status: RunError, ErrorCode: "FLOW_NODE_UNAVAILABLE", durabilityLost: true}
+		}
+		def.Execute = control.testWrapSet(def.Execute)
+		if def.Execute == nil {
+			return RunResult{Status: RunError, ErrorCode: "FLOW_NODE_UNAVAILABLE", durabilityLost: true}
+		}
 	}
 	now := s.e.services.Now()
 	if state.WaitingNode != "" && now.Before(state.WakeAt) {

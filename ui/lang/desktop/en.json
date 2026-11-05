@@ -10873,5 +10873,8 @@
   "codeStudio.promptExplain": "Explain the {{target}} in {{path}}.",
   "codeStudio.promptComments": "Add clear comments to the {{target}} in {{path}}. Return only the modified code.",
   "codeStudio.promptTests": "Generate useful tests for {{path}}. Return code blocks for new or changed files.",
-  "codeStudio.promptRefactor": "Refactor the {{target}} in {{path}}. Return only the modified code."
+  "codeStudio.promptRefactor": "Refactor the {{target}} in {{path}}. Return only the modified code.",
+  "desktop.mc_error_durable_cancel": "This mission contains saved runs. Open the run you want to stop in EasyDrag and stop it there.",
+  "desktop.mc_state_unknown": "Unknown",
+  "desktop.mc_state_waiting": "Waiting"
 }

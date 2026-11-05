@@ -19,5 +19,12 @@
   "config.flows.max_parallel_nodes_per_run_help": "Hvor mange trin i ét kørsel der må udføres parallelt (1 til 16, standard 4).",
   "config.flows.max_parallel_runs_help": "Hvor mange flow-kørsler der må køre samtidigt (1 til 32, standard 8). Yderligere venter.",
   "config.flows.max_runs_per_flow_help": "Hvor mange afsluttede kørsler der gemmes pr. flow; ældre slettes (10 til 5000, standard 200).",
-  "config.flows.run_retention_days_help": "Et løbs historik slettes efter så mange dage (1 til 365, standard 30)."
+  "config.flows.run_retention_days_help": "Et løbs historik slettes efter så mange dage (1 til 365, standard 30).",
+  "config.flows.durable_available": "Genoptagelsestjeneste klar",
+  "config.flows.durable_configured": "Gemt indstilling",
+  "config.flows.durable_counts": "Ventende kørsler: {{waiting}} · Aktive kørsler: {{running}} · Blokerede kørsler: {{blocked}}",
+  "config.flows.durable_effective": "Behandling aktiveret",
+  "config.flows.durable_enabled": "Fortsæt lokale kørsler efter genstart",
+  "config.flows.durable_enabled_help": "Slået fra som standard. Understøtter kun rent lokale manuelle forløb og gemte ventetider. Aktivering kræver genstart; deaktivering gælder straks og bevarer gemte kørsler. Værktøjer, modeller, blokke og partier er udelukket.",
+  "config.flows.durable_observed": "Observeret genoptagelsesstatus"
 }

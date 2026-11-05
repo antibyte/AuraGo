@@ -278,7 +278,18 @@ func (s *Server) flowsRunRoute(w http.ResponseWriter, r *http.Request, rest []st
 			s.flowsErrorFrom(w, r, err)
 			return
 		}
-		s.flowsJSONScrubbed(w, http.StatusOK, detail)
+		statusCtx, cancel := context.WithTimeout(r.Context(), flowDurableStatusTimeout)
+		durableStatus, statusErr := s.Flows.DurableRunStatus(statusCtx, runID)
+		cancel()
+		answer := struct {
+			*flows.RunDetail
+			DurableStatus      *flows.DurableRunStatus `json:"durable_status,omitempty"`
+			DurableStatusError string                  `json:"durable_status_error,omitempty"`
+		}{RunDetail: detail, DurableStatus: durableStatus}
+		if statusErr != nil {
+			answer.DurableStatusError = "storage_unavailable"
+		}
+		s.flowsJSONScrubbed(w, http.StatusOK, answer)
 	case len(rest) == 2 && rest[1] == "events":
 		if r.Method != http.MethodGet {
 			flowsMethodNotAllowed(w)
@@ -291,6 +302,12 @@ func (s *Server) flowsRunRoute(w http.ResponseWriter, r *http.Request, rest []st
 			return
 		}
 		s.cancelFlowRun(w, r, runID)
+	case len(rest) == 3 && rest[1] == "durable" && rest[2] == "cancel":
+		if r.Method != http.MethodPost {
+			flowsMethodNotAllowed(w)
+			return
+		}
+		s.cancelDurableFlowRun(w, r, runID)
 	default:
 		flowsError(w, http.StatusNotFound, "FLOW_RUN_NOT_FOUND", "unknown run route")
 	}
@@ -308,6 +325,23 @@ func (s *Server) cancelFlowRun(w http.ResponseWriter, r *http.Request, runID str
 	run, err := s.Flows.RunHeader(ctx, runID)
 	if err != nil {
 		s.flowsErrorFrom(w, r, err)
+		return
+	}
+	if run.Durable {
+		flowsError(w, http.StatusConflict, "FLOW_DURABLE_GENERATION_CONFLICT", "use generation-checked durable cancellation")
+		return
+	}
+	// Old private checkpoint rows have no durable marker; do not permit a
+	// generation-less stop when one is present or its status cannot be read.
+	statusCtx, cancel := context.WithTimeout(ctx, flowDurableStatusTimeout)
+	durableStatus, statusErr := s.Flows.DurableRunStatus(statusCtx, runID)
+	cancel()
+	if statusErr != nil {
+		flowsError(w, http.StatusServiceUnavailable, "FLOW_DURABLE_UNAVAILABLE", "durable run status is unavailable")
+		return
+	}
+	if durableStatus != nil {
+		flowsError(w, http.StatusConflict, "FLOW_DURABLE_GENERATION_CONFLICT", "use generation-checked durable cancellation")
 		return
 	}
 	known, first := false, false

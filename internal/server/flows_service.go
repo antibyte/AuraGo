@@ -75,9 +75,18 @@ func (s *Server) initFlows() {
 		Clock: flows.RealClock(), Location: time.Local, Decisions: flowDecisions{s: s}}
 	limits := s.Cfg.Flows
 	s.Flows = flows.NewService(store, reg, services, flowMissionBridge{s: s}, flows.ServiceConfig{
+		DurableEnabled:  limits.DurableEnabled,
 		MaxParallelRuns: limits.EffectiveMaxParallelRuns(), MaxParallelNodes: limits.EffectiveMaxParallelNodes(),
 		RunRetentionDays: limits.EffectiveRunRetentionDays(), MaxRunsPerFlow: limits.EffectiveMaxRunsPerFlow(),
 	}, s.Logger)
+	svc := s.Flows
+	s.MissionManagerV2.SetDurableHistorySource(func(ctx context.Context, runID, missionID string) (bool, error) {
+		projection, err := svc.DurableProjection(ctx, runID)
+		if err != nil {
+			return false, err
+		}
+		return projection != nil && projection.MissionID == missionID, nil
+	})
 	s.flowsCatalog = env
 	if flowsInitTestHook != nil {
 		flowsInitTestHook()
@@ -297,11 +306,12 @@ func (s *Server) shutdownFlows(ctx context.Context) {
 }
 
 // flowsRuntimeConfigChanged reports whether a flows setting changed that initFlows reads
-// only at boot: the switch and the four limits. The limits are compared as effective
+// only at boot: the switches and the four limits. The limits are compared as effective
 // values, so writing out a default or a value beyond the clamp needs no restart.
 // ai_provider and agent.* are read live.
 func flowsRuntimeConfigChanged(oldCfg, newCfg config.FlowsConfig) bool {
 	return oldCfg.Enabled != newCfg.Enabled ||
+		oldCfg.DurableEnabled != newCfg.DurableEnabled ||
 		oldCfg.EffectiveMaxParallelRuns() != newCfg.EffectiveMaxParallelRuns() ||
 		oldCfg.EffectiveMaxParallelNodes() != newCfg.EffectiveMaxParallelNodes() ||
 		oldCfg.EffectiveRunRetentionDays() != newCfg.EffectiveRunRetentionDays() ||

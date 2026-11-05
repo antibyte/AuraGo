@@ -10873,5 +10873,8 @@
   "codeStudio.promptExplain": "Wyjaśnij {{target}} w {{path}}.",
   "codeStudio.promptComments": "Dodaj czytelne komentarze do następującej zawartości: {{target}} w {{path}}. Zwróć tylko zmieniony kod.",
   "codeStudio.promptTests": "Utwórz przydatne testy dla {{path}}. Zwróć bloki kodu dla nowych lub zmienionych plików.",
-  "codeStudio.promptRefactor": "Zrefaktoryzuj {{target}} w {{path}}. Zwróć tylko zmieniony kod."
+  "codeStudio.promptRefactor": "Zrefaktoryzuj {{target}} w {{path}}. Zwróć tylko zmieniony kod.",
+  "desktop.mc_error_durable_cancel": "Ta misja zawiera zapisane wykonania. Otwórz w EasyDrag wykonanie, które chcesz zatrzymać, i zatrzymaj je tam.",
+  "desktop.mc_state_unknown": "Nieznany",
+  "desktop.mc_state_waiting": "Oczekiwanie"
 }

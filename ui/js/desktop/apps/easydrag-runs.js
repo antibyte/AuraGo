@@ -21,95 +21,12 @@
     const EFFECT_ICONS = { sends_message: 'brand-telegram', writes_files: 'file-pencil', controls_devices: 'home', runs_code: 'api', deletes: 'trash', system_change: 'settings' };
 
     function isFinal(status) { return ['success', 'error', 'cancelled'].includes(status); }
-    // isActive: the run has not ended yet (queued, waiting for a slot, or running).
     function isActive(status) { return ['queued', 'waiting', 'running'].includes(status); }
 
-    function triggers(ed) {
-        return ed.model.doc.nodes.filter(n => { const i = ed.model.info(n.type); return i && i.trigger && !n.settings.disabled; });
-    }
-
-    // realEffects reads the effects of each step's real settings from the publish preview
-    // (CollectEffects: [{effect, node_ids}]) as node id -> effects; null when the answer has none.
-    function realEffects(preview) {
-        if (!preview || !Array.isArray(preview.effects)) return null;
-        const out = new Map();
-        preview.effects.forEach(item => {
-            if (!item || typeof item.effect !== 'string' || !Array.isArray(item.node_ids)) return;
-            item.node_ids.forEach(id => {
-                if (!out.has(id)) out.set(id, []);
-                out.get(id).push(item.effect);
-            });
-        });
-        return out;
-    }
-
-    // runningSteps lists the steps a test runs, in document order. A test of the whole flow counts
-    // every enabled step. A step test (onlyNode) runs what the engine runs
-    // (internal/flows/engine_state.go, run, fireTrigger and collectReady): the step and its
-    // ancestors, and of those only the steps the test's trigger reaches. Other triggers are
-    // skipped, and a disabled step is skipped with what only it feeds. Every wire counts, whatever
-    // its port, so the walk deliberately over-estimates what a branch will run. triggerId is the
-    // test's trigger; without one, every enabled trigger counts.
-    function runningSteps(ed, onlyNode, triggerId) {
-        const doc = ed.model.doc;
-        if (!onlyNode) return doc.nodes.filter(n => !n.settings.disabled);
-        const isTrigger = n => { const i = ed.model.info(n.type); return !!(i && i.trigger); };
-        // Wires to a missing step are ignored, as buildGraph does.
-        const incoming = new Map();
-        const outgoing = new Map();
-        doc.edges.forEach(e => {
-            if (!ed.model.node(e.source.node) || !ed.model.node(e.target.node)) return;
-            if (!incoming.has(e.target.node)) incoming.set(e.target.node, []);
-            if (!outgoing.has(e.source.node)) outgoing.set(e.source.node, []);
-            incoming.get(e.target.node).push(e.source.node);
-            outgoing.get(e.source.node).push(e.target.node);
-        });
-        // The scope: onlyNode and every step with a path to it (graph.ancestors).
-        const scope = new Set([onlyNode]);
-        for (const stack = [onlyNode]; stack.length;) {
-            (incoming.get(stack.pop()) || []).forEach(id => { if (!scope.has(id)) { scope.add(id); stack.push(id); } });
-        }
-        // What runs: the steps of the scope that the trigger reaches through enabled steps.
-        const starts = (triggerId ? [ed.model.node(triggerId)] : triggers(ed)).filter(n => n && isTrigger(n) && !n.settings.disabled).map(n => n.id);
-        const runs = new Set();
-        for (const stack = starts.slice(); stack.length;) {
-            (outgoing.get(stack.pop()) || []).forEach(id => {
-                const n = ed.model.node(id);
-                if (runs.has(id) || !scope.has(id) || n.settings.disabled || isTrigger(n)) return;
-                runs.add(id);
-                stack.push(id);
-            });
-        }
-        return doc.nodes.filter(n => runs.has(n.id));
-    }
-
-    // effects lists the outward effects of the steps a test runs (for the real-effects warning).
-    // Each step counts with its catalog effects, which describe its default settings, and with
-    // the effects of its real settings when the server named them (real: node id -> effects,
-    // from realEffects): an HTTP request with POST sends, while its catalog entry (GET) does not.
-    function effects(ed, onlyNode, triggerId, real) {
-        const out = new Map();
-        runningSteps(ed, onlyNode, triggerId).forEach(n => {
-            const i = ed.model.info(n.type);
-            const kinds = new Set((i && i.effects) || []);
-            ((real && real.get(n.id)) || []).forEach(effect => kinds.add(effect));
-            kinds.forEach(effect => {
-                if (!out.has(effect)) out.set(effect, []);
-                out.get(effect).push(n.label || n.type);
-            });
-        });
-        return out;
-    }
-
-    // unknownEffects reports a step that runs and whose effects nobody could name: its catalog
-    // entry is risky without effects, which is how the catalog marks an effects hook that failed
-    // (internal/flows/catalog.go); CollectEffects leaves such a step out as well.
-    function unknownEffects(ed, onlyNode, triggerId) {
-        return runningSteps(ed, onlyNode, triggerId).some(n => {
-            const i = ed.model.info(n.type);
-            return !!(i && i.risky && !((i.effects || []).length));
-        });
-    }
+    const triggers = (...args) => ED.testing.triggers(...args);
+    const realEffects = (...args) => ED.testing.realEffects(...args);
+    const effects = (...args) => ED.testing.effects(...args);
+    const unknownEffects = (...args) => ED.testing.unknownEffects(...args);
 
     function edgeStates(ed) {
         const edges = new Map();
@@ -145,15 +62,95 @@
         let viewSeq = 0;
         let viewing = null;
         let disposed = false;
+        const durable = run => !!(ED.durable && ED.durable.has(run));
+        const runReads = ED.durable.observeRun({
+            api: ed.api, root: ed.root, ctx: ed.ctx, current: () => ed.run, isFinal,
+            onDetail(detail, current) {
+                snapshot(detail, current, true);
+                if (isFinal(current.status) && !current.view) finish(current.id, detail);
+                else if (!current.view && !source) connect(current.id);
+            },
+            onError: unknownDurable
+        });
+        const { read: readDurable, watch: watchDurable } = runReads;
 
         // noteStep records that a step of run changed (ed.run.changes): the canvas and the wires repaint
         // only those steps on the next run event (F6). A run object without a log is repainted whole.
         function noteStep(run, id) { if (run && Array.isArray(run.changes)) run.changes.push(id); }
 
         function setRun(next) {
+            if (next !== ed.run) runReads.reset();
             ed.run = next;
             if (ed.run) ed.run.edges = edgeStates(ed);
             ed.bus.emit('run', ed.run);
+            watchDurable();
+        }
+
+        function snapshot(detail, current, authoritative) {
+            if (!detail || !detail.run || !current || detail.run.id !== current.id) return false;
+            const wasDurable = durable(current);
+            const keepFinal = isFinal(current.status) && !isFinal(detail.run.status);
+            if (!keepFinal) { current.record = detail.run; current.status = detail.run.status; }
+            if (ED.durable && (authoritative || Object.hasOwn(detail, 'durable_status'))) {
+                current.durableStatus = ED.durable.status(current.record || detail.run, detail.durable_status);
+                current.durableStatusError = detail.durable_status_error === 'storage_unavailable';
+                if (current.durableStatus) current.durableKnown = true;
+                else if (current.durableStatusError && wasDurable) current.durableKnown = true;
+                else if (authoritative && !current.durableStatusError) current.durableKnown = false;
+            }
+            if (authoritative || Object.hasOwn(detail, 'durable_status')) { current.durableUnknown = !!current.durableStatusError; current.durableAccessLost = false; if (authoritative) current.stale = false; }
+            if (Array.isArray(detail.steps) && !keepFinal) {
+                const old = current.steps;
+                if (authoritative || durable(current)) current.steps = new Map();
+                detail.steps.forEach(step => { current.steps.set(step.node_id, step); noteStep(current, step.node_id); announceFailed(step.node_id, step); });
+                old.forEach((_, id) => { if (!current.steps.has(id)) noteStep(current, id); });
+            }
+            if (ed.runView && ed.runView.run.id === current.id) ed.runView.run = current.record;
+            setRun(current);
+            settleDurableStop(detail);
+            return true;
+        }
+
+        function unknownDurable(current, err) {
+            current.durableUnknown = true;
+            if ([401, 403].includes(Number(err && err.status))) {
+                current.durableAccessLost = true; closeStream();
+                current.steps.forEach((_, id) => noteStep(current, id)); current.steps.clear();
+                current.record = { id: current.id, status: current.status, mode: current.mode, durable: !!current.record?.durable };
+                current.durableStatus = null; ed.lastRunData = null;
+                if (ed.runView) ed.runView.data = { runId: current.id, label: t('easydrag.ui.durable_unknown'), roots: {} };
+            }
+            setRun(current);
+        }
+
+        async function reconnect(runId) {
+            if (disposed || !streamed(runId)) return;
+            if (durable(ed.run)) {
+                const current = ed.run;
+                try {
+                    const detail = await readDurable(runId);
+                    if (disposed || ed.run !== current || !streamed(runId)) return;
+                    snapshot(detail, current, true);
+                    if (isFinal(current.status)) { finish(runId, detail); return; }
+                } catch (err) {
+                    if (disposed || ed.run !== current || err.name === 'AbortError') return;
+                    unknownDurable(current, err); if (!current.durableAccessLost) reconnectLater(runId); return;
+                }
+            }
+            connect(runId);
+        }
+
+        async function refreshDurableShown() {
+            const current = ed.run;
+            if (!durable(current) || disposed) return;
+            try {
+                const detail = await readDurable(current.id);
+                if (disposed || ed.run !== current) return;
+                snapshot(detail, current, true);
+                if (isFinal(current.status) && !current.view) finish(current.id, detail);
+            } catch (err) {
+                if (!disposed && ed.run === current && err.name !== 'AbortError') unknownDurable(current, err);
+            }
         }
 
         function rootsFrom(steps, run) {
@@ -174,8 +171,6 @@
         }
 
         function rememberRun(run, steps) { ed.lastRunData = runData(run, steps); }
-
-        // ── stream ──────────────────────────────────────────────────────────────
 
         function closeStream() {
             clearTimeout(reconnectTimer);
@@ -217,21 +212,22 @@
         function streamed(runId) { return !!(ed.run && ed.run.id === runId && !ed.run.view); }
 
         function connect(runId) {
-            if (!streamed(runId)) return;
+            if (!streamed(runId) || source) return;
+            clearTimeout(reconnectTimer);
             const es = new EventSource(ed.api.eventsUrl(runId, lastSeq || undefined));
             source = es;
             // Every message shows the stream works: the next failure waits RETRY_MS again.
             const alive = () => { retryDelay = RETRY_MS; failures = 0; };
             es.addEventListener('snapshot', (event) => {
+                if (disposed || source !== es) return;
                 alive();
                 const detail = JSON.parse(event.data);
                 if (!streamed(runId)) return;
-                ed.run.record = detail.run;
-                ed.run.status = detail.run.status;
-                (detail.steps || []).forEach(s => { ed.run.steps.set(s.node_id, s); noteStep(ed.run, s.node_id); announceFailed(s.node_id, s); });
-                setRun(ed.run);
+                snapshot(detail, ed.run, false);
+                if (durable(ed.run) && !isFinal(ed.run.status) && !Object.hasOwn(detail, 'durable_status')) refreshDurableShown();
             });
             es.addEventListener('event', (event) => {
+                if (disposed || source !== es) return;
                 alive();
                 const ev = JSON.parse(event.data);
                 if (!streamed(runId)) return;
@@ -241,6 +237,7 @@
             // resync: the server dropped this stream (a slow client), but the run goes on. A new
             // stream continues at once after the last event; a finished run answers it with "end".
             es.addEventListener('resync', (event) => {
+                if (disposed || source !== es) return;
                 alive();
                 es.close();
                 if (source === es) source = null;
@@ -248,10 +245,11 @@
                 let after = NaN;
                 try { after = Number(JSON.parse(event.data).after); } catch (err) { /* keep lastSeq */ }
                 if (Number.isFinite(after)) lastSeq = Math.max(lastSeq, after);
-                connect(runId);
+                reconnect(runId);
             });
-            es.addEventListener('end', () => { alive(); es.close(); source = null; finish(runId); });
+            es.addEventListener('end', () => { if (disposed || source !== es) return; alive(); es.close(); source = null; finish(runId); });
             es.onerror = () => {
+                if (disposed || source !== es) return;
                 es.close();
                 source = null;
                 if (!streamed(runId)) return;
@@ -265,7 +263,7 @@
 
         function reconnectLater(runId) {
             clearTimeout(reconnectTimer);
-            reconnectTimer = setTimeout(() => connect(runId), retryDelay);
+            reconnectTimer = setTimeout(() => reconnect(runId), retryDelay);
             retryDelay = Math.min(retryDelay * 2, RETRY_MAX_MS);
         }
 
@@ -278,6 +276,7 @@
             try { detail = await ed.api.run(runId, false); } catch (err) { failure = err; }
             if (disposed || !streamed(runId)) return;
             if (detail && detail.run && isFinal(detail.run.status)) { finish(runId, detail); return; }
+            if (detail && durable(ed.run)) snapshot(detail, ed.run, true);
             const status = Number(failure && failure.status) || 0;
             const code = core.errorCode(failure);
             if (failure && (status === 404 || status === 503 || code === 'FLOW_RUN_NOT_FOUND' || code === 'FLOWS_DISABLED')) {
@@ -298,17 +297,26 @@
         }
 
         // isRunning: a live run is active (not a run view, not one whose stream was given up).
-        function isRunning() { return !!(ed.run && !ed.run.view && !ed.run.stale && !isFinal(ed.run.status)); }
+        function isRunning() { return !!(ed.run && !ed.run.view && (!ed.run.stale || durable(ed.run)) && !isFinal(ed.run.status)); }
 
         function applyEvent(ev) {
-            if (ev.type === 'run_started') ed.run.status = 'running';
+            if (ev.type === 'run_started') { ed.run.status = 'running'; if (durable(ed.run) && ed.run.record) ed.run.record.status = 'running'; }
             else if (ev.type === 'step_started') { ed.run.steps.set(ev.node_id, Object.assign({}, ed.run.steps.get(ev.node_id), { node_id: ev.node_id, status: 'running' })); noteStep(ed.run, ev.node_id); }
-            else if (ev.type === 'step_finished' && ev.step) { ed.run.steps.set(ev.node_id, ev.step); noteStep(ed.run, ev.node_id); announceFailed(ev.node_id, ev.step); }
+            else if (ev.type === 'step_finished' && ev.step) {
+                const before = ed.run.steps.get(ev.node_id);
+                ed.run.steps.set(ev.node_id, ev.step); noteStep(ed.run, ev.node_id); announceFailed(ev.node_id, ev.step);
+                if (durable(ed.run) && (ev.step.status === 'waiting' || before?.status === 'waiting' && ev.step.status === 'success')) {
+                    ed.run.status = ev.step.status === 'waiting' ? 'waiting' : 'running';
+                    if (ed.run.record) ed.run.record.status = ed.run.status;
+                    ed.run.durableStatus = null; refreshDurableShown();
+                }
+            }
             else if (ev.type === 'run_finished' && ev.run) {
                 ed.run.status = ev.run.status;
                 ed.run.error = ev.run.error_message || '';
                 ed.run.errorCode = ev.run.error_code || '';
                 ed.run.duration = ev.run.duration_ms;
+                if (durable(ed.run)) { ed.run.record = ev.run; ed.run.durableStatus = null; }
             }
             setRun(ed.run);
         }
@@ -339,8 +347,15 @@
                 return;
             }
             if (detail && detail.run) {
+                if (durable(current) && !isFinal(detail.run.status)) {
+                    current.finished = false;
+                    snapshot(detail, current, true);
+                    reconnectLater(runId);
+                    return;
+                }
                 current.record = detail.run;
                 current.status = detail.run.status;
+                if (ED.durable) current.durableStatus = ED.durable.status(detail.run, detail.durable_status);
                 (detail.steps || []).forEach(s => { current.steps.set(s.node_id, s); noteStep(current, s.node_id); });
                 rememberRun(detail.run, detail.steps || []);
                 // The finished run is the last run now: the footer keeps naming it once the run
@@ -615,6 +630,14 @@
             if (disposed || ed.runView || starting || startPost || isRunning()) return undefined;
             return trackStart(async () => {
                 try {
+                    if (ED.durable && ED.durable.requires(ed.flow.live)) {
+                        const capability = ed.runtime && await ed.runtime.refresh(true);
+                        if (disposed || ed.readonly || ed.runView) return;
+                        if (!capability || !capability.effective || !capability.recovery_available) {
+                            ed.ctx.notify({ title: t('easydrag.ui.run_now'), message: capability ? ED.durable.reason(t, capability.reason) : t('easydrag.ui.durable_unknown'), type: 'error' });
+                            return;
+                        }
+                    }
                     const res = await ed.api.runNow(ed.flow.id);
                     if (disposed) return;
                     if (res && res.run_id) { attach(res.run_id, { mode: 'live' }); canvas.announce(t('easydrag.ui.announce_run_started')); return; }
@@ -630,7 +653,7 @@
         }
 
         async function cancel() {
-            if (!ed.run || isFinal(ed.run.status)) return;
+            if (!ed.run || isFinal(ed.run.status) && !ED.durable?.info(ed.run)?.cancel_available) return;
             const record = Object.assign({ id: ed.run.id, status: ed.run.status, mode: ed.run.mode || 'test' }, ed.run.record || {});
             return stopRun(record);
         }
@@ -649,6 +672,7 @@
 
         // stopping holds the runs whose stop is being confirmed or sent: one stop per run at a time.
         const stopping = new Set();
+        const durableStopping = new Set();
         // stopPolls holds the timers of followStop.
         const stopPolls = new Set();
 
@@ -694,17 +718,46 @@
         // FLOW_RUN_FINISHED (it ended meanwhile), refresh quietly; other errors are shown.
         // Stop does not undo a step that already ran. A read-only desktop stops runs too.
         async function stopRun(record) {
-            if (disposed || !record || !isActive(record.status) || stopping.has(record.id)) return false;
+            const shown = ed.run && ed.run.id === record?.id ? ed.run : record;
+            const checkpoint = ED.durable && ED.durable.info(shown);
+            const durableRun = !!(record?.durable || checkpoint || shown?.durableKnown || shown?.durableStatusError);
+            if (disposed || !record || !isActive(record.status) && !checkpoint?.cancel_available || stopping.has(record.id) || durableStopping.has(record.id)) return false;
             stopping.add(record.id);
             let pending = false;
             try {
+                let generation;
+                if (durableRun) {
+                    // Refresh before confirming; never manufacture generation zero or infer
+                    // cancellation permission from a display phase or the persisted marker.
+                    const detail = await readDurable(record.id);
+                    if (disposed || !detail?.run || detail.run.id !== record.id) return false;
+                    const state = ED.durable.status(detail.run, detail.durable_status);
+                    if (ed.run?.id === record.id) snapshot(detail, ed.run, true);
+                    if (!state?.cancel_available) return false;
+                    generation = state.generation;
+                    record = detail.run;
+                }
                 if (record.mode !== 'test' && !(await confirmStop(record))) return false;
                 if (disposed) return false;
                 pending = true;
                 setStopPending(record.id, true);
                 let accepted = true;
-                try { await ed.api.cancel(record.id); } catch (err) {
+                try {
+                    if (durableRun) {
+                        const answer = await ed.api.cancelDurable(record.id, generation);
+                        if (!answer || answer.accepted !== true) throw new Error(t('easydrag.ui.durable_unknown'));
+                        durableStopping.add(record.id);
+                        if (ed.run?.id === record.id) { ed.run.durableStopping = true; setRun(ed.run); }
+                        const detail = await readDurable(record.id);
+                        if (!disposed && ed.run?.id === record.id) snapshot(detail, ed.run, true);
+                        settleDurableStop(detail);
+                    } else await ed.api.cancel(record.id);
+                } catch (err) {
+                    if (durableRun && core.errorCode(err) === 'FLOW_DURABLE_GENERATION_CONFLICT') {
+                        try { const detail = await readDurable(record.id); if (!disposed && ed.run?.id === record.id) snapshot(detail, ed.run, true); } catch (_) { /* Preserve unknown state. */ }
+                    }
                     if (core.errorCode(err) !== 'FLOW_RUN_FINISHED') {
+                        if (durableRun && ed.run?.id === record.id) { ed.run.durableUnknown = true; setRun(ed.run); }
                         if (!disposed) ed.ctx.notify({ title: t('easydrag.ui.run_cancel'), message: core.errorText(t, err), type: 'error' });
                         return false;
                     }
@@ -715,9 +768,22 @@
                 // A running run ends a moment after the cancel; only this window's own stream shows it.
                 if (accepted && !streamed(record.id)) followStop(record.id, 0);
                 return true;
+            } catch (err) {
+                if (durableRun && !disposed && ed.run?.id === record.id) unknownDurable(ed.run, err);
+                if (!disposed) ed.ctx.notify({ title: t('easydrag.ui.run_cancel'), message: core.errorText(t, err), type: 'error' });
+                return false;
             } finally {
-                if (pending) setStopPending(record.id, false);
+                if (pending && !durableStopping.has(record.id)) setStopPending(record.id, false);
                 stopping.delete(record.id);
+            }
+        }
+
+        function settleDurableStop(detail) {
+            if (!detail?.run || !durableStopping.has(detail.run.id)) return;
+            const state = ED.durable.status(detail.run, detail.durable_status);
+            if (isFinal(detail.run.status) && !state?.cancel_available) {
+                durableStopping.delete(detail.run.id); setStopPending(detail.run.id, false);
+                if (ed.run?.id === detail.run.id && ed.run.durableStopping) { ed.run.durableStopping = false; setRun(ed.run); }
             }
         }
 
@@ -754,11 +820,12 @@
                 let detail = null;
                 try { detail = await ed.api.run(runId, false); } catch (err) { detail = null; }
                 if (disposed) return;
+                settleDurableStop(detail);
                 if (detail && detail.run && isFinal(detail.run.status)) {
                     if (showsActive(runId)) refreshShown();
                     return;
                 }
-                if (attempt + 1 < STOP_POLL_MS.length) followStop(runId, attempt + 1);
+                if (attempt + 1 < STOP_POLL_MS.length || durableStopping.has(runId)) followStop(runId, Math.min(attempt + 1, STOP_POLL_MS.length - 1));
             }, STOP_POLL_MS[attempt]);
             stopPolls.add(timer);
         }
@@ -834,9 +901,9 @@
 
         function runRow(r) {
             const row = '<button type="button" class="ed-run-row" data-ed-run="' + esc(r.id) + '"><span class="ed-run-dot ed-run-dot--' + esc(r.status) + '"></span>' +
-                '<span class="ed-run-main"><span>' + esc(core.tr(t, 'easydrag.ui.status_' + r.status, r.status)) + ' · ' + esc(triggerLabel(r)) + '</span>' +
+                '<span class="ed-run-main"><span>' + esc(ED.durable ? ED.durable.label(t, r) : core.tr(t, 'easydrag.ui.status_' + r.status, r.status)) + ' · ' + esc(triggerLabel(r)) + '</span>' +
                 '<span class="ed-muted">' + esc(core.fmt.dateTime(r.started_at)) + (r.duration_ms ? ' · ' + esc(core.fmt.duration(r.duration_ms)) : '') + '</span></span>' +
-                '<span class="ed-chip' + (r.mode === 'test' ? ' ed-chip--muted' : '') + '">' + esc(r.mode === 'test' ? t('easydrag.ui.run_mode_test') : t('easydrag.ui.run_mode_live')) + '</span></button>';
+                '<span class="ed-chip' + (r.mode === 'test' ? ' ed-chip--muted' : '') + '">' + (r.durable ? core.icon('repeat') + '<span class="ed-sr-only">' + esc(t('easydrag.ui.durable_title')) + ' · </span>' : '') + esc(r.mode === 'test' ? t('easydrag.ui.run_mode_test') : t('easydrag.ui.run_mode_live')) + '</span></button>';
             // A run that has not ended can be stopped from its row, also on a read-only desktop.
             if (!isActive(r.status)) return row;
             return '<div class="ed-run-item">' + row + '<button type="button" class="ed-btn ed-btn--small ed-btn--danger" data-ed-run-stop="' + esc(r.id) + '" aria-label="' +
@@ -856,6 +923,7 @@
             const list = drawer.querySelector('.ed-runs-list');
             const rows = matchingRuns();
             list.innerHTML = rows.length ? rows.map(runRow).join('') : '<p class="ed-hint">' + esc(t('easydrag.ui.runs_empty')) + '</p>';
+            new Set([...stopping, ...durableStopping]).forEach(id => setStopPending(id, true));
             const more = drawer.querySelector('[data-ed-runs-more]');
             more.hidden = !runsMore;
             more.disabled = runsLoading;
@@ -981,10 +1049,11 @@
             }
         }
 
-        function stepsFrom(steps, record) {
+        function stepsFrom(steps, record, durableStatus, statusError) {
             const map = new Map();
             (steps || []).forEach(s => map.set(s.node_id, s));
-            return { id: record.id, status: record.status, mode: record.mode, steps: map, changes: [], record };
+            const observed = ED.durable ? ED.durable.status(record, durableStatus) : null;
+            return { id: record.id, status: record.status, mode: record.mode, steps: map, changes: [], record, durableStatus: observed, durableKnown: !!observed, durableStatusError: statusError === 'storage_unavailable', durableUnknown: statusError === 'storage_unavailable', durableStopping: durableStopping.has(record.id) };
         }
 
         // applyRunView shows a stored run in the run view, with its own data in the input tree
@@ -993,7 +1062,7 @@
         function applyRunView(detail) {
             if (ed.run && !ed.run.view && !isFinal(ed.run.status) && !ed.run.stale) { parked = { id: ed.run.id, mode: ed.run.mode }; watchParked(); }
             closeStream();
-            const shown = stepsFrom(detail.steps, detail.run);
+            const shown = stepsFrom(detail.steps, detail.run, detail.durable_status, detail.durable_status_error);
             shown.view = true;
             shown.finished = true;
             if (ed.runView) ed.runView.data = runData(detail.run, detail.steps || []);
@@ -1010,6 +1079,8 @@
         }
 
         bag.add(closeStream);
+        bag.add(ed.bus.on('refresh-durable-run', refreshDurableShown));
+        bag.add(() => runReads.dispose());
         bag.add(() => clearTimeout(parkTimer));
         bag.add(() => { stopPolls.forEach(clearTimeout); stopPolls.clear(); });
         bag.add(() => runFinished.cancel());

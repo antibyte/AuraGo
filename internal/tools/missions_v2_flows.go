@@ -291,6 +291,7 @@ func (m *MissionManagerV2) DeleteFlowMission(missionID string) error {
 	m.unregisterFlowTriggersLocked(mission)
 	delete(m.missions, missionID)
 	delete(m.flowActive, missionID)
+	m.forgetDurableFlowRunsLocked(missionID)
 	m.invalidateFlowAdmissionsLocked(missionID)
 	return m.save()
 }

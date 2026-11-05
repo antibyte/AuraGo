@@ -59,6 +59,7 @@ func TestDurableCheckpointCASAndLease(t *testing.T) {
 	if err := s.CreateRun(ctx, run, nil); err != nil {
 		t.Fatal(err)
 	}
+	markDurableTestRun(t, s, run.ID)
 	wake, deadline := storeNow.Add(time.Second), storeNow.Add(time.Hour)
 	rec := durableCheckpointRecord{RunID: run.ID, Generation: 1, WakeAt: wake, Deadline: deadline, Ciphertext: []byte("sealed")}
 	if err := saveDurableCheckpoint(ctx, s.db, rec, 0, "", storeNow); err != nil {
@@ -124,6 +125,7 @@ func TestDurableActiveCheckpointFencesStepAndState(t *testing.T) {
 	if err := s.CreateRun(ctx, run, nil); err != nil {
 		t.Fatal(err)
 	}
+	markDurableTestRun(t, s, run.ID)
 	wake, deadline := storeNow.Add(time.Second), storeNow.Add(time.Hour)
 	rec := durableCheckpointRecord{RunID: run.ID, Generation: 1, WakeAt: wake, Deadline: deadline, Ciphertext: []byte("first")}
 	if err := saveDurableCheckpoint(ctx, s.db, rec, 0, "", storeNow); err != nil {

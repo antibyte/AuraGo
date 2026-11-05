@@ -1282,6 +1282,7 @@ newspaper:
 
 flows:
   enabled: true                                         # EasyDrag visual flows (missions with their own engine)
+  durable_enabled: false                                # pure durable flows; enabling requires a restart
   max_parallel_runs: 8                                  # concurrent flow runs, 1-32
   max_parallel_nodes_per_run: 4                         # parallel branches inside one run, 1-16
   run_retention_days: 30                                # keep finished runs this many days, 1-365

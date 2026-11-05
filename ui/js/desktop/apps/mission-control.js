@@ -378,7 +378,9 @@
                 } catch (err) {
                     // FLOW_NO_ACTIVE_RUN: nothing to cancel here. Runs of a flow mission that is not running (waiting
                     // for a global slot) are cancelled in EasyDrag; while it runs, the cancel takes waiting runs too.
-                    // Every other answer (several flows hold the mission, the flow is gone, ...) stays an error.
+                    // Saved runs require an individual generation-checked Stop, not an aggregate retry.
+                    if (err && err.body && err.body.code === 'FLOW_DURABLE_GENERATION_CONFLICT') { notify(t('desktop.mc_error_durable_cancel'), 'error'); return; }
+                    // Other answers (several flows hold the mission, the flow is gone, ...) stay errors.
                     if (TR.isFlow(m) && err && err.body && err.body.code === 'FLOW_NO_ACTIVE_RUN') { notify(t('desktop.mc_flow_cancel_in_easydrag')); return; }
                     throw err;
                 }

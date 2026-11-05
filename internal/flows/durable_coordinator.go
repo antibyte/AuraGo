@@ -15,8 +15,7 @@ func newDurableEngine(services *Services, logger *slog.Logger) (*Engine, error) 
 	if err := RegisterTriggerNodes(reg); err != nil {
 		return nil, err
 	}
-	if err := reg.Register(&NodeDef{Type: durableWaitType, Version: 1, Category: "logic",
-		Params: []ParamSpec{{Name: "seconds", Kind: ParamNumber, Required: true, Templatable: true}}}); err != nil {
+	if err := reg.Register(durableWaitDef(true)); err != nil {
 		return nil, err
 	}
 	local := &Services{}
@@ -33,11 +32,14 @@ type durableRunControl struct {
 	save         func(context.Context, durableCheckpointState, StepRecord) error
 	checkpoint   func(context.Context, durableCheckpointState, StepRecord) error
 	finish       func(context.Context, RunResult, []RunEvent) error
+	renew        func(context.Context) error
 	active       bool
 	ctx          context.Context
+	ownerCtx     context.Context
 	pending      []RunEvent
 	lost         bool
 	persistedSeq int
+	testWrapSet  func(ExecuteFunc) ExecuteFunc
 }
 
 // suspendDurableNode runs only after the coordinator has drained every worker.

@@ -13,6 +13,7 @@ const (
 // FlowsConfig controls EasyDrag flows: visual missions that run on their own engine.
 type FlowsConfig struct {
 	Enabled                bool             `yaml:"enabled" json:"enabled"`
+	DurableEnabled         bool             `yaml:"durable_enabled" json:"durable_enabled"`
 	MaxParallelRuns        int              `yaml:"max_parallel_runs" json:"max_parallel_runs"`
 	MaxParallelNodesPerRun int              `yaml:"max_parallel_nodes_per_run" json:"max_parallel_nodes_per_run"`
 	RunRetentionDays       int              `yaml:"run_retention_days" json:"run_retention_days"`

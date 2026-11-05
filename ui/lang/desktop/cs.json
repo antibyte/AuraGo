@@ -10873,5 +10873,8 @@
   "codeStudio.promptExplain": "Vysvětli {{target}} v {{path}}.",
   "codeStudio.promptComments": "Přidej srozumitelné komentáře: {{target}} v {{path}}. Vrať pouze upravený kód.",
   "codeStudio.promptTests": "Vytvoř užitečné testy pro {{path}}. Vrať bloky kódu pro nové nebo změněné soubory.",
-  "codeStudio.promptRefactor": "Refaktoruj {{target}} v {{path}}. Vrať pouze upravený kód."
+  "codeStudio.promptRefactor": "Refaktoruj {{target}} v {{path}}. Vrať pouze upravený kód.",
+  "desktop.mc_error_durable_cancel": "Tato mise obsahuje uložené běhy. Otevři požadovaný běh v EasyDrag a zastav ho tam.",
+  "desktop.mc_state_unknown": "Neznámý",
+  "desktop.mc_state_waiting": "Čeká"
 }

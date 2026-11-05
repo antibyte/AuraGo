@@ -451,6 +451,9 @@ func handleMissionCancelV2(s *Server, w http.ResponseWriter, r *http.Request, id
 		defer cancel()
 		n, err := s.Flows.CancelMissionRuns(ctx, id)
 		switch {
+		case errors.Is(err, flows.ErrDurableMissionCancel):
+			flowsError(w, http.StatusConflict, "FLOW_DURABLE_GENERATION_CONFLICT", "stop the durable run individually in EasyDrag")
+			return
 		case errors.Is(err, flows.ErrNotFound):
 			flowsError(w, http.StatusNotFound, "FLOW_NOT_FOUND", "the flow of this mission does not exist")
 			return

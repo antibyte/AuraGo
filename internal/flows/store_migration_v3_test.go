@@ -27,7 +27,7 @@ func blockV2Fixture(t *testing.T, conflict bool) string {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	if _, err := db.Exec(`DROP TABLE flow_version_notes; DROP TABLE flow_library_metadata; DROP TABLE flow_library_folders; DROP TABLE flow_block_run_pins; DROP TABLE flow_block_version_pins; UPDATE flows_meta SET value='2' WHERE key='schema_version'`); err != nil {
+	if _, err := db.Exec(`ALTER TABLE flow_runs DROP COLUMN durable_mission_id; ALTER TABLE flow_runs DROP COLUMN durable; DROP TABLE flow_version_notes; DROP TABLE flow_library_metadata; DROP TABLE flow_library_folders; DROP TABLE flow_block_run_pins; DROP TABLE flow_block_version_pins; UPDATE flows_meta SET value='2' WHERE key='schema_version'`); err != nil {
 		t.Fatal(err)
 	}
 	if conflict {
@@ -65,7 +65,7 @@ func TestFlowsV3MigrationBacksUpAndPreservesData(t *testing.T) {
 	defer s.Close()
 	assertBlockMigrationData(t, s.db)
 	var version string
-	if err := s.db.QueryRow(`SELECT value FROM flows_meta WHERE key='schema_version'`).Scan(&version); err != nil || version != "5" {
+	if err := s.db.QueryRow(`SELECT value FROM flows_meta WHERE key='schema_version'`).Scan(&version); err != nil || version != "6" {
 		t.Fatalf("version = %q, %v", version, err)
 	}
 	paths, err := filepath.Glob(filepath.Join(filepath.Dir(path), ".flows-v2-backup-*", "flows.db"))
@@ -117,7 +117,7 @@ func TestFlowsV3MigrationBacksUpAndPreservesData(t *testing.T) {
 	}
 	defer restored.Close()
 	assertBlockMigrationData(t, restored.db)
-	if err := restored.db.QueryRow(`SELECT value FROM flows_meta WHERE key='schema_version'`).Scan(&version); err != nil || version != "5" {
+	if err := restored.db.QueryRow(`SELECT value FROM flows_meta WHERE key='schema_version'`).Scan(&version); err != nil || version != "6" {
 		t.Fatalf("restored schema = %q, %v", version, err)
 	}
 }
@@ -209,7 +209,7 @@ func TestFlowsV3RefusesIncompletePinSchemaBeforeWriting(t *testing.T) {
 			}
 			var version string
 			var recreated int
-			if err := db.QueryRow(`SELECT value FROM flows_meta WHERE key='schema_version'`).Scan(&version); err != nil || version != "5" {
+			if err := db.QueryRow(`SELECT value FROM flows_meta WHERE key='schema_version'`).Scan(&version); err != nil || version != "6" {
 				t.Fatalf("schema marker changed: %q, %v", version, err)
 			}
 			if err := db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='idx_flows_mission'`).Scan(&recreated); err != nil || recreated != 0 {

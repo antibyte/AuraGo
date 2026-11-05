@@ -19,5 +19,12 @@
   "config.flows.max_parallel_runs_help": "Hoeveel flow-runs tegelijk mogen draaien (1 tot 32, standaard 8). Overige wachten.",
   "config.flows.max_parallel_nodes_per_run_help": "Hoeveel stappen van één run parallel mogen worden uitgevoerd (1 tot 16, standaard 4).",
   "config.flows.max_runs_per_flow_help": "Hoeveel afgeronde runs per flow worden bewaard; oudere worden verwijderd (10 tot 5000, standaard 200).",
-  "config.flows.run_retention_days_help": "De geschiedenis van een run wordt na dit aantal dagen verwijderd (1 tot 365, standaard 30)."
+  "config.flows.run_retention_days_help": "De geschiedenis van een run wordt na dit aantal dagen verwijderd (1 tot 365, standaard 30).",
+  "config.flows.durable_available": "Hervattingsdienst gereed",
+  "config.flows.durable_configured": "Opgeslagen optie",
+  "config.flows.durable_counts": "Wachtend: {{waiting}} · Actief: {{running}} · Geblokkeerd: {{blocked}}",
+  "config.flows.durable_effective": "Verwerking ingeschakeld",
+  "config.flows.durable_enabled": "Lokale uitvoeringen hervatten na een herstart",
+  "config.flows.durable_enabled_help": "Standaard uit. Ondersteunt alleen zuiver lokale handmatige flows en opgeslagen wachttijden. Inschakelen vereist een herstart; uitschakelen geldt direct en behoudt opgeslagen uitvoeringen. Tools, modellen, blokken en batches zijn uitgesloten.",
+  "config.flows.durable_observed": "Waargenomen hervattingsstatus"
 }

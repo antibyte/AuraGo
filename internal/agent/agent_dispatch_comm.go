@@ -1530,7 +1530,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				if filter.Limit <= 0 {
 					filter.Limit = 10
 				}
-				page, err := tools.QueryMissionHistory(historyDB, filter)
+				page, err := missionManagerV2.QueryMissionHistory(ctx, filter)
 				if err != nil {
 					return missionReply("error", "History query failed: "+err.Error())
 				}

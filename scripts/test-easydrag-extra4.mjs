@@ -9,7 +9,7 @@ import vm from 'node:vm';
 import { webcrypto } from 'node:crypto';
 
 const MODULES = ['easydrag-core.js', 'easydrag-template.js', 'easydrag-model.js', 'easydrag-geometry.js', 'easydrag-canvas.js'];
-const UI_MODULES = ['easydrag-core.js', 'easydrag-template.js', 'easydrag-model.js', 'easydrag-fields.js', 'easydrag-forms.js', 'easydrag-runs.js', 'easydrag-home.js'];
+const UI_MODULES = ['easydrag-core.js', 'easydrag-durable.js', 'easydrag-template.js', 'easydrag-model.js', 'easydrag-fields.js', 'easydrag-forms.js', 'easydrag-testing.js', 'easydrag-runs.js', 'easydrag-home.js'];
 const T1 = 'n_tttttttt';
 const T2 = 'n_uuuuuuuu';
 const TG = 'n_telegram';
@@ -97,7 +97,7 @@ export async function run(env) {
         ClockDate.now = () => (clock.now === null ? Date.now() : clock.now);
         const box = vm.createContext({
             window: Object.assign(new EventTarget(), { SYSTEM_LANG: 'en', open: (...args) => { opened.push(args); } }), navigator: { platform: 'Linux' }, crypto: webcrypto, document: dom.document, Date: ClockDate,
-            URLSearchParams, URL, EventSource: class { addEventListener() {} close() {} },
+            URLSearchParams, URL, AbortController, EventSource: class { addEventListener() {} close() {} },
             console: { log() {}, warn() {}, error: (...args) => { logged.push(args.map(String).join(' ')); } },
             localStorage: { getItem: k => (store.has(k) ? store.get(k) : null), setItem: (k, v) => { store.set(k, String(v)); }, removeItem: k => { store.delete(k); } },
             setTimeout: (fn, ms) => { const id = nextId++; timers.set(id, { fn, ms }); return id; },

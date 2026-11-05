@@ -19,5 +19,12 @@
   "config.flows.max_parallel_runs_help": "Ile uruchomień przepływów może działać jednocześnie (od 1 do 32, domyślnie 8). Pozostałe czekają.",
   "config.flows.max_parallel_nodes_per_run_help": "Ile kroków jednego uruchomienia może być wykonywanych równolegle (od 1 do 16, domyślnie 4).",
   "config.flows.max_runs_per_flow_help": "Ile zakończonych uruchomień jest zachowywanych dla przepływu; starsze są usuwane (od 10 do 5000, domyślnie 200).",
-  "config.flows.run_retention_days_help": "Historia uruchomienia jest usuwana po tylu dniach (od 1 do 365, domyślnie 30)."
+  "config.flows.run_retention_days_help": "Historia uruchomienia jest usuwana po tylu dniach (od 1 do 365, domyślnie 30).",
+  "config.flows.durable_available": "Usługa wznawiania gotowa",
+  "config.flows.durable_configured": "Zapisana opcja",
+  "config.flows.durable_counts": "Oczekujące: {{waiting}} · Aktywne: {{running}} · Zablokowane: {{blocked}}",
+  "config.flows.durable_effective": "Przetwarzanie włączone",
+  "config.flows.durable_enabled": "Wznawiaj lokalne wykonania po ponownym uruchomieniu",
+  "config.flows.durable_enabled_help": "Domyślnie wyłączone. Obsługuje tylko czysto lokalne przepływy ręczne i zapisane oczekiwanie. Włączenie wymaga ponownego uruchomienia; wyłączenie działa od razu i zachowuje zapisane wykonania. Narzędzia, modele, bloki i partie są wykluczone.",
+  "config.flows.durable_observed": "Zaobserwowany stan wznawiania"
 }

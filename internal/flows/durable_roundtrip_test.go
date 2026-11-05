@@ -31,6 +31,7 @@ func TestDurablePrivateRoundTripSurvivesCrashAfterCheckpoint(t *testing.T) {
 	if err := store.CreateRun(ctx, run, nil); err != nil {
 		t.Fatal(err)
 	}
+	markDurableTestRun(t, store, run.ID)
 	keys := &checkpointTestKeys{}
 	engine, err := newDurableEngine(&Services{Clock: clock}, discardLogger())
 	if err != nil {

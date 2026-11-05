@@ -76,7 +76,16 @@ func serveMissionHistory(s *Server) http.HandlerFunc {
 			}
 		}
 
-		page, err := tools.QueryMissionHistory(s.MissionHistoryDB, filter)
+		var page *tools.MissionHistoryPage
+		var err error
+		if s.MissionManagerV2 != nil && s.MissionManagerV2.GetHistoryDB() == s.MissionHistoryDB {
+			page, err = s.MissionManagerV2.QueryMissionHistory(r.Context(), filter)
+		} else {
+			page, err = tools.QueryMissionHistory(s.MissionHistoryDB, filter)
+			if err == nil {
+				tools.AnnotateDurableHistory(r.Context(), page.Entries, nil)
+			}
+		}
 		if err != nil {
 			s.Logger.Error("Failed to query mission history", "error", err)
 			jsonError(w, "Failed to query mission history", http.StatusInternalServerError)

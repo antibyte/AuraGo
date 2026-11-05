@@ -10873,5 +10873,8 @@
   "codeStudio.promptExplain": "Erkläre {{target}} in {{path}}.",
   "codeStudio.promptComments": "Ergänze hilfreiche Kommentare für {{target}} in {{path}}. Gib nur den geänderten Code zurück.",
   "codeStudio.promptTests": "Erstelle sinnvolle Tests für {{path}}. Gib Codeblöcke für neue oder geänderte Dateien zurück.",
-  "codeStudio.promptRefactor": "Überarbeite {{target}} in {{path}}. Gib nur den geänderten Code zurück."
+  "codeStudio.promptRefactor": "Überarbeite {{target}} in {{path}}. Gib nur den geänderten Code zurück.",
+  "desktop.mc_error_durable_cancel": "Diese Mission enthält gespeicherte Läufe. Öffne den Lauf, den du stoppen willst, in EasyDrag und stoppe ihn dort.",
+  "desktop.mc_state_unknown": "Unbekannt",
+  "desktop.mc_state_waiting": "Wartet"
 }

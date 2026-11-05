@@ -1420,6 +1420,26 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   repainting it on every live event. Semantic publish review shows bounded before/after changes
   and exact-draft test evidence; a later edit invalidates that evidence. Unknown and omitted
   values remain visible as such. Tests and simulations never silently activate a paused flow.
+- `easydrag-durable.js` validates bounded observed capability and checkpoint metadata; it owns
+  no execution state. Abortable run-metadata reads have a 15-second deadline; their coalescing
+  and visible-window polling lifecycle live here, while snapshot adoption remains in `runs.js`.
+  The descriptor `logic.durable_wait` stays known while boot-disabled;
+  separate no-store runtime reads gate current selection/admission after live disable. Processing
+  remains opt-in and default-off. No checkpoint values/ciphertext, new credentials or automatic
+  activation enter the UI. `runs.js` retains one run identity, authoritative committed snapshots,
+  existing SSE cursors and old-source fences. Only an explicitly followed active durable run
+  persists its `run_id` in window context; restore opens its exact stored RunView, never paints
+  over a newer draft. Waiting/blocked are nonterminal metadata, and a nonterminal end/read never
+  announces completion. Only visible durable work polls at a bounded cadence, not on every step.
+  Stop requires observed generation/cancel_available and the existing administrator/Origin Stop
+  exception. Accepted or uncertain Stop is not a terminal result; stale generations refresh
+  without mutation replay. Incompatible legacy checkpoints can outlive terminal markerless runs:
+  retain their original result, show checkpoint cleanup separately, and preserve known identity
+  as unknown during storage diagnosis errors. Read-authority loss clears protected run data.
+  Mission history labels Waiting separately; mission tile/activity counters retain their existing
+  contract. This initial pure mode promises no completion follow-ups, JSON run-count increment
+  or child invocation history. Verify `test-easydrag-durable.mjs`, Config/Mission Control cases
+  and the durable browser journeys; all16 locale families and chapter24 EN/DE stay aligned.
 - `easydrag-compare.js` compares completed retained runs from the loaded, filtered history.
   Match exact run/flow identities, fence late replies and close its dialog with the editor.
   Compare resolved `params`, outputs and branch/status metadata with bounded work; redacted,
@@ -1559,6 +1579,8 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   other 503 codes (`FLOW_MISSION_CONTROL_UNAVAILABLE`, `FLOW_RUNNER_STOPPED`,
   `FLOW_VAULT_UNAVAILABLE`, `FLOW_REQUEST_CANCELLED`) show their own sentence with Try again
   (`a1008` checks in `scripts/test-easydrag-extra5.mjs`).
+- Pure test scope/effect analysis lives in `testing.js`, loaded before `runs.js`; the public
+  `ED.runs.effects`/`unknownEffects`/`triggers` entry points remain thin deferred delegates.
 - Test effects (`ED.runs.effects`): each step that runs counts with its catalog effects (default
   params) and those of its real params from `GET publish-preview` (`CollectEffects`). Without
   the preview, or with a running step whose catalog entry is risky without effects (a failed
@@ -3167,6 +3189,13 @@ buttons and menu popovers remain excluded from those gestures.
   scopes document shortcuts with `isActive()`. Local running missions can be
   cancelled via `POST /api/missions/v2/{id}/cancel`; `next_run` comes from the
   mission payload. The editor re-validates live after the first failed save.
+- Aggregate Stop refuses saved durable runs before any effect. In this cancel context,
+  `FLOW_DURABLE_GENERATION_CONFLICT` shows `desktop.mc_error_durable_cancel`, directing the
+  user through the existing EasyDrag open action to an individual generation-checked Stop.
+  Never replay cancellation, show raw server text or announce a partial aggregate success.
+- History `status: unknown` is an unverified current state, not Idle or Running. Do not promote
+  `last_known_status` to a current claim or show stale output/error prose and elapsed duration.
+  Use the neutral Unknown label; confirmed terminal history keeps its existing result/output.
 - `.vd-mc [hidden]` forces `display: none` because module display rules
   otherwise beat the UA hidden default; keep the stylesheet theme-native
   (`--vd-theme-*`, `--vd-accent`) and free of dark-only literals. The colour

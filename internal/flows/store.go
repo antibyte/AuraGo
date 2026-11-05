@@ -56,7 +56,7 @@ func parseTime(s string) time.Time {
 // storeSchemaVersion is the flows.db schema this code creates and migrates to; it is
 // stored as flows_meta.schema_version. OpenStore refuses a database with a greater
 // version (a newer AuraGo migrated it), so an older AuraGo never writes into it.
-const storeSchemaVersion = 5
+const storeSchemaVersion = 6
 
 var schemaStatements = []string{
 	`CREATE TABLE IF NOT EXISTS flows_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
@@ -213,6 +213,10 @@ func OpenStore(path string, logger *slog.Logger) (*Store, error) {
 		_ = db.Close()
 		return nil, err
 	}
+	if err := verifyFlowsV6(db); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
 	var existing int
 	if err := db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`).Scan(&existing); err != nil {
 		_ = db.Close()
@@ -229,6 +233,12 @@ func OpenStore(path string, logger *slog.Logger) (*Store, error) {
 	}
 	if versionBeforeWrites == 4 {
 		if err := migrateFlowsV5(db, logger, existing > 0); err != nil {
+			_ = db.Close()
+			return nil, err
+		}
+	}
+	if versionBeforeWrites == 5 {
+		if err := migrateFlowsV6(db, logger, existing > 0); err != nil {
 			_ = db.Close()
 			return nil, err
 		}
@@ -279,6 +289,10 @@ func OpenStore(path string, logger *slog.Logger) (*Store, error) {
 		return nil, err
 	}
 	if err := migrateFlowsV5(db, logger, false); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+	if err := migrateFlowsV6(db, logger, false); err != nil {
 		_ = db.Close()
 		return nil, err
 	}

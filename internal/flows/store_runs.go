@@ -22,7 +22,7 @@ type RunFilter struct {
 
 // runColumnNames are the flow_runs columns scanRun reads, in scan order.
 var runColumnNames = []string{"id", "flow_id", "revision", "mode", "trigger_node", "trigger_type", "trigger_data_json",
-	"status", "error_code", "error_message", "started_at", "finished_at", "duration_ms", "parent_run_id", "parent_node_id"}
+	"status", "error_code", "error_message", "started_at", "finished_at", "duration_ms", "parent_run_id", "parent_node_id", "durable"}
 
 // runSelect builds the column list scanRun reads. alias qualifies the columns when
 // the query joins another table. Without withTrigger the potentially large
@@ -56,7 +56,7 @@ func scanRun(row scanner) (*RunRecord, error) {
 	var r RunRecord
 	var mode, status, triggerJSON, startedAt, finishedAt string
 	if err := row.Scan(&r.ID, &r.FlowID, &r.Revision, &mode, &r.TriggerNode, &r.TriggerType, &triggerJSON, &status,
-		&r.ErrorCode, &r.ErrorMessage, &startedAt, &finishedAt, &r.DurationMS, &r.ParentRunID, &r.ParentNodeID); err != nil {
+		&r.ErrorCode, &r.ErrorMessage, &startedAt, &finishedAt, &r.DurationMS, &r.ParentRunID, &r.ParentNodeID, &r.Durable); err != nil {
 		return nil, err
 	}
 	r.Mode = RunMode(mode)
@@ -115,8 +115,8 @@ func requireRow(res sql.Result, notFound error) error {
 
 // insertRunSQL inserts a run header while its flow exists; the last argument is the flow id again.
 var insertRunSQL = `INSERT INTO flow_runs (id, flow_id, revision, mode, trigger_node, trigger_type,
-	trigger_data_json, status, started_at, parent_run_id, parent_node_id, doc_hash)
-	SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM flows WHERE id = ? AND kind='flow'
+	trigger_data_json, status, started_at, parent_run_id, parent_node_id, doc_hash, durable, durable_mission_id)
+	SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM flows WHERE id = ? AND kind='flow'
 	AND (` + validStoredDocumentSQL("draft_json") + `) AND (live_json='' OR (` + validStoredDocumentSQL("live_json") + `)))`
 
 // CreateRun inserts a run header. It returns ErrNotFound when the flow does not exist
@@ -131,10 +131,11 @@ var insertRunSQL = `INSERT INTO flow_runs (id, flow_id, revision, mode, trigger_
 // The trigger data (a webhook or mail payload of up to MaxOutputBytes) is bounded like a step
 // output: beyond MaxStoredOutputBytes the header keeps {"_preview": ...} instead.
 func (s *Store) CreateRun(ctx context.Context, rec RunRecord, doc *Flow) error {
-	return s.createRunWithBlocks(ctx, rec, doc, nil)
+	rec.Durable = false // external callers cannot opt into durable admission
+	return s.createRunWithBlocks(ctx, rec, doc, nil, "")
 }
 
-func (s *Store) createRunWithBlocks(ctx context.Context, rec RunRecord, doc *Flow, blocks []resolvedBlock) error {
+func (s *Store) createRunWithBlocks(ctx context.Context, rec RunRecord, doc *Flow, blocks []resolvedBlock, missionID string) error {
 	if rec.StartedAt.IsZero() {
 		return errors.New("a run needs a started_at time")
 	}
@@ -158,9 +159,13 @@ func (s *Store) createRunWithBlocks(ctx context.Context, rec RunRecord, doc *Flo
 			docJSON, docHash = string(data), hex.EncodeToString(sum[:])
 		}
 	}
+	owner := ""
+	if rec.Durable {
+		owner = missionID
+	}
 	args := []any{rec.ID, rec.FlowID, rec.Revision, string(rec.Mode), rec.TriggerNode, rec.TriggerType, trigger,
-		string(rec.Status), formatTime(rec.StartedAt), rec.ParentRunID, rec.ParentNodeID, docHash, rec.FlowID}
-	if docHash == "" && len(blocks) == 0 {
+		string(rec.Status), formatTime(rec.StartedAt), rec.ParentRunID, rec.ParentNodeID, docHash, rec.Durable, owner, rec.FlowID}
+	if docHash == "" && len(blocks) == 0 && !rec.Durable {
 		res, err := s.db.ExecContext(ctx, insertRunSQL, args...)
 		if err != nil {
 			return err
@@ -171,7 +176,7 @@ func (s *Store) createRunWithBlocks(ctx context.Context, rec RunRecord, doc *Flo
 	// sees the document without its run. The transaction starts with a write (see Store).
 	var tx *sql.Tx
 	var release func()
-	if len(blocks) > 0 {
+	if len(blocks) > 0 || rec.Durable {
 		if doc == nil {
 			return ErrBlockInvalid
 		}
@@ -186,9 +191,39 @@ func (s *Store) createRunWithBlocks(ctx context.Context, rec RunRecord, doc *Flo
 		defer release()
 	}
 	defer func() { _ = tx.Rollback() }()
-	if len(blocks) > 0 {
+	if len(blocks) > 0 || rec.Durable {
 		var raw string
-		if rec.Mode == ModeTest {
+		if rec.Durable {
+			var reserved int
+			if err := tx.QueryRowContext(ctx, `SELECT (SELECT COUNT(*) FROM flow_checkpoints)+(SELECT COUNT(*) FROM flow_runs r WHERE r.durable=1 AND r.status IN ('queued','running','waiting') AND NOT EXISTS (SELECT 1 FROM flow_checkpoints c WHERE c.run_id=r.id))`).Scan(&reserved); err != nil {
+				return err
+			}
+			if reserved >= maxDurableCheckpoints {
+				return ErrDurableCapacity
+			}
+			if rec.Mode != ModeLive || missionID == "" || !durableGraphAllowed(doc) {
+				return ErrDurableInvalidGraph
+			}
+			var versionRaw string
+			err = tx.QueryRowContext(ctx, `SELECT f.live_json,v.json FROM flows f JOIN flow_versions v ON v.flow_id=f.id AND v.revision=f.live_revision WHERE f.id=? AND f.kind='flow' AND f.mission_id=? AND f.live_revision=? AND f.live_json<>'' AND (`+validStoredDocumentSQL("f.draft_json")+`) AND (`+validStoredDocumentSQL("f.live_json")+`)`, rec.FlowID, missionID, rec.Revision).Scan(&raw, &versionRaw)
+			if err == nil {
+				version, parseErr := ParseFlow([]byte(versionRaw))
+				if parseErr != nil {
+					return ErrRevisionConflict
+				}
+				versionJSON, parseErr := version.Marshal()
+				if parseErr != nil {
+					return parseErr
+				}
+				sourceJSON, parseErr := doc.Marshal()
+				if parseErr != nil {
+					return parseErr
+				}
+				if version.ID != rec.FlowID || version.Kind != KindFlow || sha256.Sum256(versionJSON) != sha256.Sum256(sourceJSON) {
+					return ErrRevisionConflict
+				}
+			}
+		} else if rec.Mode == ModeTest {
 			err = tx.QueryRowContext(ctx, `SELECT draft_json FROM flows WHERE id=? AND draft_revision=?`, rec.FlowID, rec.Revision).Scan(&raw)
 		} else {
 			err = tx.QueryRowContext(ctx, `SELECT json FROM flow_versions WHERE flow_id=? AND revision=?`, rec.FlowID, rec.Revision).Scan(&raw)
@@ -214,7 +249,7 @@ func (s *Store) createRunWithBlocks(ctx context.Context, rec RunRecord, doc *Flo
 		if storedDoc.ID != rec.FlowID || storedDoc.Kind != KindFlow || sha256.Sum256(storedJSON) != sha256.Sum256(requested) {
 			return ErrRevisionConflict
 		}
-		if rec.Mode != ModeTest {
+		if rec.Mode != ModeTest && len(blocks) > 0 {
 			if err := verifyExistingBlockVersionPins(ctx, tx, rec.FlowID, rec.Revision, blocks); err != nil {
 				return err
 			}
@@ -493,10 +528,10 @@ const DefaultMaxTestRunsPerFlow = 20
 
 const (
 	pruneLiveRunsSQL = `DELETE FROM flow_runs WHERE id IN (
-		SELECT id FROM flow_runs WHERE flow_id = ? AND mode != 'test' AND status IN ('success', 'error', 'cancelled')
+		SELECT id FROM flow_runs WHERE flow_id = ? AND mode != 'test' AND status IN ('success', 'error', 'cancelled') AND NOT EXISTS (SELECT 1 FROM flow_checkpoints c WHERE c.run_id=flow_runs.id)
 		ORDER BY started_at DESC, id DESC LIMIT -1 OFFSET ?)`
 	pruneTestRunsSQL = `DELETE FROM flow_runs WHERE id IN (
-		SELECT id FROM flow_runs WHERE flow_id = ? AND mode = 'test' AND status IN ('success', 'error', 'cancelled')
+		SELECT id FROM flow_runs WHERE flow_id = ? AND mode = 'test' AND status IN ('success', 'error', 'cancelled') AND NOT EXISTS (SELECT 1 FROM flow_checkpoints c WHERE c.run_id=flow_runs.id)
 		ORDER BY started_at DESC, id DESC LIMIT -1 OFFSET ?)`
 )
 
@@ -517,7 +552,7 @@ func (s *Store) PruneRunsByMode(ctx context.Context, retentionDays, maxLivePerFl
 	if retentionDays > 0 {
 		cutoff := formatTime(now.AddDate(0, 0, -retentionDays))
 		res, err := s.db.ExecContext(ctx, `DELETE FROM flow_runs WHERE started_at < ?
-			AND status IN ('success', 'error', 'cancelled')`, cutoff)
+			AND status IN ('success', 'error', 'cancelled') AND NOT EXISTS (SELECT 1 FROM flow_checkpoints c WHERE c.run_id=flow_runs.id)`, cutoff)
 		if err != nil {
 			return total, err
 		}

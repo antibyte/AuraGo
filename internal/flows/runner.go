@@ -35,6 +35,9 @@ var (
 
 // RunnerConfig limits concurrent runs. Values of zero or less mean the defaults.
 type RunnerConfig struct {
+	DurableEnabled   bool
+	DurableAuthority DurableAuthority
+	DurableHistory   DurableHistoryProjector
 	// MaxParallelRuns caps the runs that execute at the same time.
 	MaxParallelRuns int
 	// MaxQueuedPerFlow caps a flow's runs queued behind its active run (queue
@@ -98,6 +101,7 @@ type StartRequest struct {
 	blocks       *blockPlan
 	missionID    string
 	enabledCheck func() error
+	durable      bool
 }
 
 // StartStatus tells what Start did.
@@ -125,10 +129,14 @@ type pendingRun struct {
 	counted bool
 	// waited is set when the run joined a queue (its flow's or the global one); only such a
 	// run asks RunnerConfig.Gate before it executes.
-	waited bool
-	size   int      // encoded size of the trigger data (MaxPendingBytes)
-	ticket uint64   // arrival order in the global queue (dispatchLocked)
-	slot   *runSlot // set at launch
+	waited        bool
+	size          int      // encoded size of the trigger data (MaxPendingBytes)
+	ticket        uint64   // arrival order in the global queue (dispatchLocked)
+	slot          *runSlot // set at launch
+	durableCtx    context.Context
+	durableCancel context.CancelFunc
+	durableToken  *blockAdmission
+	durableResume *durableResume
 }
 
 // activeRun is a launched run: its flow and mode, for CancelFlow and CancelFlowMode, and
@@ -137,6 +145,7 @@ type pendingRun struct {
 type activeRun struct {
 	flowID    string
 	mode      RunMode
+	durable   bool
 	cancel    context.CancelFunc
 	cancelled bool
 }
@@ -169,6 +178,7 @@ type Runner struct {
 	slots                int
 	live                 map[string]int
 	durable              map[string]durableReservation
+	durableStarted       bool
 	recoveryErr          error
 	flowSlots            map[string]int // global slots held by counted runs, per flow (MaxSlotsPerFlow)
 	flowQueue            map[string][]*pendingRun
@@ -183,11 +193,16 @@ type Runner struct {
 	blockAdmissionStop   context.CancelFunc
 	blockAdmissions      chan struct{}
 	blockAdmissionTokens blockAdmissionTracker
+	durableActive        blockAdmissionTracker
+	durableDiagnostics   chan struct{}
+	durableSlots         chan struct{}
 	wg                   sync.WaitGroup
 
 	// testOnEvent, when set before the first Start, sees every engine event before
 	// it is published. Tests use it to inject failures into the event sink.
 	testOnEvent func(RunEvent)
+	// testWrapDurableSet is installed only by tests before a recovery worker starts.
+	testWrapDurableSet func(ExecuteFunc) ExecuteFunc
 }
 
 // NewRunner creates a runner. Call Shutdown when done.
@@ -229,6 +244,8 @@ func NewRunner(engine *Engine, store *Store, hooks RunnerHooks, cfg RunnerConfig
 		blockAdmissionCtx:  blockCtx,
 		blockAdmissionStop: blockCancel,
 		blockAdmissions:    make(chan struct{}, 4),
+		durableDiagnostics: make(chan struct{}, 1),
+		durableSlots:       make(chan struct{}, maxDurableCheckpoints),
 	}
 	reservations, err := store.durableReservations(context.Background())
 	if err != nil {
@@ -236,7 +253,9 @@ func NewRunner(engine *Engine, store *Store, hooks RunnerHooks, cfg RunnerConfig
 	} else {
 		for _, reservation := range reservations {
 			r.durable[reservation.RunID] = reservation
-			r.live[reservation.FlowID]++
+			if reservation.Incompatible || !reservation.RunStatus.Terminal() {
+				r.live[reservation.FlowID]++
+			}
 		}
 	}
 	return r
@@ -278,6 +297,52 @@ func (r *Runner) StartContext(ctx context.Context, req StartRequest) (StartResul
 	if closedBeforePlan {
 		return StartResult{}, ErrRunnerClosed
 	}
+	hasDurable := false
+	for _, node := range req.Flow.Nodes {
+		if node.Type == durableWaitType {
+			hasDurable = true
+			break
+		}
+	}
+	if hasDurable {
+		if !r.cfg.DurableEnabled {
+			return StartResult{}, ErrDurableDisabled
+		}
+		r.mu.Lock()
+		ready := r.durableStarted
+		r.mu.Unlock()
+		if !ready {
+			return StartResult{}, ErrDurableUnavailable
+		}
+		if r.cfg.DurableAuthority == nil || r.cfg.DurableHistory == nil || r.engine.services.CheckpointKeys == nil {
+			return StartResult{}, ErrDurableUnavailable
+		}
+		if req.Mode != ModeLive || req.TriggerType != "manual" || req.OnlyNode != "" || req.Revision <= 0 || req.missionID == "" || !durableGraphAllowed(req.Flow) {
+			return StartResult{}, ErrDurableInvalidGraph
+		}
+		trigger := req.Flow.NodeByID(req.TriggerNode)
+		if trigger == nil || trigger.Type != TypeTriggerManual || trigger.Settings.Disabled {
+			return StartResult{}, ErrDurableInvalidGraph
+		}
+		if _, err := durableLocation(req.Flow, r.engine.services.Loc()); err != nil {
+			return StartResult{}, err
+		}
+		req.durable = true
+	}
+	durableSlotOwned := false
+	if hasDurable {
+		select {
+		case r.durableSlots <- struct{}{}:
+			durableSlotOwned = true
+		default:
+			return StartResult{}, ErrDurableCapacity
+		}
+		defer func() {
+			if durableSlotOwned {
+				<-r.durableSlots
+			}
+		}()
+	}
 	admissionCtx := context.Background()
 	var cancel context.CancelFunc
 	var stop func() bool
@@ -294,7 +359,7 @@ func (r *Runner) StartContext(ctx context.Context, req StartRequest) (StartResul
 		}
 	}()
 	for _, n := range req.Flow.Nodes {
-		if n.Type != blockCallType && n.Type != blockEachType {
+		if (!hasDurable && n.Type != blockCallType && n.Type != blockEachType) || (hasDurable && n.Type != durableWaitType) {
 			continue
 		}
 		if ctx == nil {
@@ -314,7 +379,22 @@ func (r *Runner) StartContext(ctx context.Context, req StartRequest) (StartResul
 		default:
 			return StartResult{}, ErrRunnerQueueFull
 		}
-		token = r.blockAdmissionTokens.add(req.Flow.ID, req.missionID, req.Mode, cancel)
+		token = r.blockAdmissionTokens.add(req.Flow.ID, req.missionID, req.Mode, cancel, hasDurable)
+		if hasDurable {
+			enabled, err := r.cfg.DurableAuthority.DurableEnabled(admissionCtx)
+			if err != nil {
+				return StartResult{}, ErrDurableUnavailable
+			}
+			if !enabled {
+				return StartResult{}, ErrDurableDisabled
+			}
+			if err := r.cfg.DurableAuthority.DurableAllowed(admissionCtx); err != nil {
+				return StartResult{}, ErrDurableUnavailable
+			}
+			if err := r.cfg.DurableAuthority.AuthorizeDurable(admissionCtx, req.Flow.ID, req.missionID, req.Revision); err != nil {
+				return StartResult{}, ErrDurableUnavailable
+			}
+		}
 		if req.enabledCheck != nil {
 			if err := req.enabledCheck(); err != nil {
 				return StartResult{}, err
@@ -331,7 +411,9 @@ func (r *Runner) StartContext(ctx context.Context, req StartRequest) (StartResul
 		if err != nil {
 			return StartResult{}, err
 		}
-		req.blocks, err = prepareBlockPlan(admissionCtx, r.store, req.Flow, r.engine.services)
+		if !hasDurable {
+			req.blocks, err = prepareBlockPlan(admissionCtx, r.store, req.Flow, r.engine.services)
+		}
 		if err != nil {
 			if admissionCtx.Err() != nil {
 				return StartResult{}, admissionCtx.Err()
@@ -351,7 +433,7 @@ func (r *Runner) StartContext(ctx context.Context, req StartRequest) (StartResul
 	// Measured before the locks: a waiting run holds its trigger data in memory (MaxPendingBytes).
 	size := triggerDataSize(req.TriggerData)
 	// The gate is external code and must never run under the runner's locks.
-	if req.blocks != nil && req.Gated && req.Mode == ModeLive {
+	if (req.blocks != nil || req.durable) && req.Gated && req.Mode == ModeLive {
 		if err := r.checkGate(""); err != nil {
 			return StartResult{}, err
 		}
@@ -391,7 +473,7 @@ func (r *Runner) StartContext(ctx context.Context, req StartRequest) (StartResul
 		return StartResult{}, ErrRunnerQueueFull
 	}
 
-	if req.blocks != nil {
+	if req.blocks != nil || req.durable {
 		if err := admissionCtx.Err(); err != nil {
 			return StartResult{}, err
 		}
@@ -405,6 +487,11 @@ func (r *Runner) StartContext(ctx context.Context, req StartRequest) (StartResul
 	}
 	var result StartResult
 	accept := func() {
+		if p.rec.Durable {
+			p.durableCtx, p.durableCancel = context.WithCancel(r.baseCtx)
+			p.durableToken = r.durableActive.add(p.rec.FlowID, p.req.missionID, p.rec.Mode, p.durableCancel, true)
+			durableSlotOwned = false // owned by p until it stops or suspends
+		}
 		r.mu.Lock()
 		defer r.mu.Unlock()
 		result = StartResult{RunID: p.rec.ID, Status: StartQueued}
@@ -436,13 +523,13 @@ func (r *Runner) newPending(ctx context.Context, req StartRequest, counted bool,
 	rec := RunRecord{
 		ID: NewRunID(), FlowID: req.Flow.ID, Revision: req.Revision, Mode: req.Mode,
 		TriggerNode: req.TriggerNode, TriggerType: req.TriggerType, TriggerData: req.TriggerData,
-		Status: RunQueued, StartedAt: r.now(), ParentRunID: req.ParentRunID, ParentNodeID: req.ParentNodeID,
+		Status: RunQueued, StartedAt: r.now(), ParentRunID: req.ParentRunID, ParentNodeID: req.ParentNodeID, Durable: req.durable,
 	}
 	var blocks []resolvedBlock
 	if req.blocks != nil {
 		blocks = req.blocks.blocks
 	}
-	if err := r.store.createRunWithBlocks(ctx, rec, req.Flow, blocks); err != nil {
+	if err := r.store.createRunWithBlocks(ctx, rec, req.Flow, blocks, req.missionID); err != nil {
 		return nil, fmt.Errorf("record run: %w", err)
 	}
 	r.bus.Open(rec.ID)
@@ -552,8 +639,12 @@ func (r *Runner) launchLocked(p *pendingRun) {
 		r.flowSlots[p.rec.FlowID]++
 	}
 	p.slot = &runSlot{r: r, flowID: p.rec.FlowID, counted: p.counted, held: true}
-	ctx, cancel := context.WithCancel(r.baseCtx)
-	r.cancels[p.rec.ID] = activeRun{flowID: p.rec.FlowID, mode: p.rec.Mode, cancel: cancel}
+	parent := r.baseCtx
+	if p.durableCtx != nil {
+		parent = p.durableCtx
+	}
+	ctx, cancel := context.WithCancel(parent)
+	r.cancels[p.rec.ID] = activeRun{flowID: p.rec.FlowID, mode: p.rec.Mode, durable: p.rec.Durable, cancel: cancel}
 	r.wg.Add(1)
 	go r.execute(ctx, cancel, p)
 }
@@ -561,11 +652,36 @@ func (r *Runner) launchLocked(p *pendingRun) {
 func (r *Runner) execute(ctx context.Context, cancel context.CancelFunc, p *pendingRun) {
 	defer r.wg.Done()
 	defer cancel()
+	defer r.releaseDurableToken(p)
 	runID := p.rec.ID
-	defer r.bus.Finish(runID) // idempotent; no way out leaves the log open
+	terminal := true
+	defer func() {
+		if terminal {
+			r.bus.Finish(runID)
+		}
+	}()
 	// The log was opened when the run was queued; its leak clock must count the
 	// run's own time only, and a sweep may have forgotten it during a long wait.
 	r.bus.Rearm(runID)
+	if p.rec.Durable && ctx.Err() != nil {
+		if p.durableResume != nil {
+			header, err := r.store.GetRunHeader(context.Background(), runID)
+			if errors.Is(err, ErrRunNotFound) || (err == nil && header.Status.Terminal()) {
+				r.release(p)
+				if err == nil {
+					r.projectDurable(runID)
+				}
+			} else {
+				terminal = false
+				r.releaseDurableSuspended(p)
+			}
+			return
+		}
+		r.recordUnstarted(p, "FLOW_CANCELLED", "durable processing was stopped before the run started")
+		r.release(p)
+		r.projectDurable(runID)
+		return
+	}
 	if reason := r.gateRefusal(p); reason != nil {
 		// Recorded first, then the slots go to the next waiting run (which asks the gate in
 		// turn), then the hook, as for a run that executed.
@@ -574,10 +690,30 @@ func (r *Runner) execute(ctx context.Context, cancel context.CancelFunc, p *pend
 		r.logger.Info("a queued flow run was not started because automatic runs are not allowed",
 			"run", runID, "flow", p.rec.FlowID, "reason", reason.Error())
 		r.release(p)
-		r.callHook(rec, res)
+		if p.rec.Durable {
+			r.projectDurable(runID)
+		} else {
+			r.callHook(rec, res)
+		}
 		return
 	}
 	res := r.runAndRecord(ctx, p)
+	if p.rec.Durable && (res.suspended || res.durabilityLost) {
+		header, err := r.store.GetRunHeader(context.Background(), runID)
+		if errors.Is(err, ErrRunNotFound) || (err == nil && header.Status.Terminal()) {
+			r.release(p)
+			if err == nil {
+				r.projectDurable(runID)
+			}
+			return
+		}
+		terminal = false
+		r.releaseDurableSuspended(p)
+		if res.suspended {
+			r.projectDurable(runID)
+		}
+		return
+	}
 	r.bus.Finish(runID)
 	rec := p.rec
 	rec.Status, rec.ErrorCode, rec.ErrorMessage = res.Status, res.ErrorCode, res.ErrorMessage
@@ -585,7 +721,11 @@ func (r *Runner) execute(ctx context.Context, cancel context.CancelFunc, p *pend
 	rec.FinishedAt = &finished
 	rec.DurationMS = res.DurationMS
 	r.release(p)
-	r.callHook(rec, res)
+	if p.rec.Durable {
+		r.projectDurable(runID)
+	} else {
+		r.callHook(rec, res)
+	}
 }
 
 // gateRefusal asks RunnerConfig.Gate whether p, a gated live run that waited in a queue, may
@@ -624,13 +764,44 @@ func (r *Runner) runAndRecord(ctx context.Context, p *pendingRun) (res RunResult
 	launched := r.now()
 	defer func() {
 		if v := recover(); v != nil {
-			res = r.panicked(p, v, launched, lastSeq, ended)
+			if p.rec.Durable {
+				res = RunResult{Status: RunError, ErrorCode: "FLOW_NODE_UNAVAILABLE", ErrorMessage: "durable processing stopped unexpectedly", durabilityLost: true}
+			} else {
+				res = r.panicked(p, v, launched, lastSeq, ended)
+			}
 		}
 	}()
-	if err := r.store.SetRunStatus(bg, runID, RunRunning); err != nil {
-		r.logStoreError("flow run status not saved", runID, err)
+	if p.durableResume != nil {
+		state, owner, generation, err := p.durableResume.load(ctx)
+		if errors.Is(err, errDurableDeadline) {
+			return RunResult{Status: RunError, ErrorCode: "FLOW_RUN_TIMEOUT", ErrorMessage: "the run took longer than its time limit", StartedAt: p.rec.StartedAt, FinishedAt: r.now()}
+		}
+		if err != nil {
+			return RunResult{Status: RunError, ErrorCode: "FLOW_NODE_UNAVAILABLE", durabilityLost: true}
+		}
+		p.durableResume.state, p.durableResume.owner, p.durableResume.generation = state, owner, generation
 	}
-	if r.hooks.OnRunStarted != nil {
+	var statusErr error
+	if p.rec.Durable {
+		if p.durableResume != nil {
+			doc, err := p.durableResume.state.Flow.Marshal()
+			if err != nil {
+				return RunResult{Status: RunError, ErrorCode: "FLOW_NODE_UNAVAILABLE", durabilityLost: true}
+			}
+			statusErr = r.store.startClaimedDurableRun(ctx, runID, p.durableResume.generation, p.durableResume.owner, durableClaimGuard{flowID: p.rec.FlowID, missionID: p.req.missionID, revision: p.rec.Revision, document: doc}, r.now())
+		} else {
+			statusErr = r.store.startDurableRun(ctx, runID)
+		}
+	} else {
+		statusErr = r.store.SetRunStatus(bg, runID, RunRunning)
+	}
+	if statusErr != nil {
+		r.logStoreError("flow run status not saved", runID, statusErr)
+		if p.rec.Durable {
+			return RunResult{Status: RunError, ErrorCode: "FLOW_NODE_UNAVAILABLE", durabilityLost: true}
+		}
+	}
+	if !p.rec.Durable && r.hooks.OnRunStarted != nil {
 		started := p.rec
 		started.Status = RunRunning
 		func() {
@@ -642,13 +813,42 @@ func (r *Runner) runAndRecord(ctx context.Context, p *pendingRun) (res RunResult
 			r.hooks.OnRunStarted(started, p.req.Flow)
 		}()
 	}
+	var durable *durableRunControl
+	if p.rec.Durable {
+		owner, generation := "", int64(0)
+		if p.durableResume != nil {
+			owner, generation = p.durableResume.owner, p.durableResume.generation
+		}
+		durable = durableControl(r.store, r.engine.services.CheckpointKeys, runID, owner, generation, r.now)
+		durable.testWrapSet = r.testWrapDurableSet
+		seconds := clampInt(p.req.Flow.Settings.MaxRunSeconds, 1, MaxRunSecondsLimit)
+		timeout := time.Duration(seconds) * time.Second
+		if p.req.Timeout > 0 {
+			timeout = min(p.req.Timeout, time.Duration(MaxRunSecondsLimit)*time.Second)
+		}
+		durable.deadline = r.now().Add(timeout)
+	}
+	var terminalEvent *RunEvent
 	sink := func(ev RunEvent) {
+		if p.rec.Durable && ((p.durableCtx != nil && p.durableCtx.Err() != nil) || (durable != nil && durable.ownerCtx != nil && durable.ownerCtx.Err() != nil)) {
+			return
+		}
+		// An expired owner cannot prove ownership until its next checkpoint CAS.
+		// Resume exposes completed steps only after their committed snapshot.
+		if p.durableResume != nil && ev.Type == EventStepStarted {
+			return
+		}
+		if p.rec.Durable && ev.Type == EventRunFinished {
+			event := ev
+			terminalEvent = &event
+			return
+		}
 		if r.testOnEvent != nil {
 			r.testOnEvent(ev)
 		}
 		r.bus.Publish(ev)
 		lastSeq, ended = ev.Seq, ev.Type == EventRunFinished
-		if ev.Type == EventStepFinished && ev.Step != nil {
+		if ev.Type == EventStepFinished && ev.Step != nil && (durable == nil || ev.Seq > durable.persistedSeq) {
 			if err := r.store.SaveStep(bg, runID, ev.Seq, *ev.Step); err != nil {
 				r.logStoreError("flow step not saved", runID, err, "node", ev.NodeID)
 			}
@@ -662,15 +862,76 @@ func (r *Runner) runAndRecord(ctx context.Context, p *pendingRun) (res RunResult
 	if p.req.blocks != nil {
 		scope = &blockRunScope{}
 	}
-	res = r.engine.Execute(ctx, RunRequest{
-		RunID: runID, Flow: p.req.Flow, Revision: p.req.Revision, Mode: p.req.Mode,
-		TriggerNode: p.req.TriggerNode, TriggerType: p.req.TriggerType, TriggerData: p.req.TriggerData,
-		OnlyNode: p.req.OnlyNode, Timeout: p.req.Timeout, Slot: slot, blocks: p.req.blocks, scope: scope,
-	}, sink)
+	engine := r.engine
+	if p.rec.Durable {
+		var err error
+		engine, err = newDurableEngine(r.engine.services, r.logger)
+		if err != nil {
+			return RunResult{Status: RunError, ErrorCode: "FLOW_NODE_UNAVAILABLE", durabilityLost: true}
+		}
+	}
+	if p.durableResume != nil {
+		workerCtx, stopWorker := context.WithCancel(ctx)
+		defer stopWorker()
+		durable.ownerCtx = workerCtx
+		stopHeartbeat := r.startDurableHeartbeat(workerCtx, stopWorker, p, durable)
+		res = resumeDurableCoordinator(workerCtx, p.durableResume.state, r.engine.services, r.logger, durable, slot, sink)
+		stopHeartbeat()
+	} else {
+		res = engine.Execute(ctx, RunRequest{
+			RunID: runID, Flow: p.req.Flow, Revision: p.req.Revision, Mode: p.req.Mode,
+			TriggerNode: p.req.TriggerNode, TriggerType: p.req.TriggerType, TriggerData: p.req.TriggerData,
+			OnlyNode: p.req.OnlyNode, Timeout: p.req.Timeout, Slot: slot, blocks: p.req.blocks, scope: scope, durable: durable,
+		}, sink)
+	}
+	if res.suspended || res.durabilityLost {
+		return res
+	}
+	if p.rec.Durable {
+		if p.durableResume == nil {
+			if err := r.store.finishUncheckpointedDurable(bg, runID, res); err != nil {
+				res.durabilityLost = true
+				return res
+			}
+		}
+		if terminalEvent != nil {
+			r.bus.Publish(*terminalEvent)
+		}
+		return res
+	}
 	if err := r.store.FinishRun(bg, runID, res); err != nil {
 		r.logStoreError("flow run result not saved", runID, err)
 	}
 	return res
+}
+
+func (r *Runner) projectDurable(runID string) {
+	if r.cfg.DurableHistory == nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := r.cfg.DurableHistory.ProjectDurableRun(ctx, runID); err != nil {
+		r.logger.Warn("durable history projection unavailable", "run", runID)
+	}
+}
+
+// releaseDurableSuspended releases only the physical slot; the logical flow
+// reservation survives until a confirmed terminal transition or cancellation.
+func (r *Runner) releaseDurableSuspended(p *pendingRun) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if p.slot == nil || !r.endSlotLocked(p.slot) {
+		r.slots--
+		if p.counted {
+			r.dropFlowSlotLocked(p.rec.FlowID)
+		}
+	} else {
+		r.parked--
+	}
+	delete(r.cancels, p.rec.ID)
+	r.durable[p.rec.ID] = durableReservation{RunID: p.rec.ID, FlowID: p.rec.FlowID, Revision: p.rec.Revision}
+	r.dispatchLocked()
 }
 
 // panicked turns a panic v in the runner's code during a run into the run's result,
@@ -734,6 +995,9 @@ func (r *Runner) release(p *pendingRun) {
 		r.parked-- // the run ended while it waited without a slot (cancelled, shut down)
 	}
 	delete(r.cancels, p.rec.ID)
+	if p.rec.Durable {
+		delete(r.durable, p.rec.ID)
+	}
 	if p.counted {
 		r.releaseFlowLocked(p.rec.FlowID)
 	}
@@ -779,10 +1043,17 @@ func (r *Runner) callHook(rec RunRecord, res RunResult) {
 func (r *Runner) recordUnstarted(p *pendingRun, code, msg string) (RunRecord, RunResult) {
 	now := r.now()
 	res := RunResult{Status: RunCancelled, ErrorCode: code, ErrorMessage: msg, StartedAt: p.rec.StartedAt, FinishedAt: now}
-	if err := r.store.FinishRun(context.Background(), p.rec.ID, res); err != nil {
-		r.logStoreError("cancelled flow run not saved", p.rec.ID, err)
+	var err error
+	if p.rec.Durable {
+		err = r.store.finishQueuedDurable(context.Background(), p.rec.ID, code, msg, now)
+	} else {
+		err = r.store.FinishRun(context.Background(), p.rec.ID, res)
 	}
-	r.endLog(p.rec.ID, 1, res)
+	if err != nil {
+		r.logStoreError("cancelled flow run not saved", p.rec.ID, err)
+	} else {
+		r.endLog(p.rec.ID, 1, res)
+	}
 	rec := p.rec
 	rec.Status, rec.ErrorCode, rec.ErrorMessage = RunCancelled, code, msg
 	rec.FinishedAt = &now
@@ -790,8 +1061,23 @@ func (r *Runner) recordUnstarted(p *pendingRun, code, msg string) (RunRecord, Ru
 }
 
 func (r *Runner) finishUnstarted(p *pendingRun, code, msg string) {
+	defer r.releaseDurableToken(p)
 	rec, res := r.recordUnstarted(p, code, msg)
-	r.callHook(rec, res)
+	if p.rec.Durable {
+		r.projectDurable(p.rec.ID)
+	} else {
+		r.callHook(rec, res)
+	}
+}
+
+func (r *Runner) releaseDurableToken(p *pendingRun) {
+	if p.durableToken == nil {
+		return
+	}
+	r.durableActive.remove(p.durableToken)
+	p.durableCancel()
+	<-r.durableSlots
+	p.durableToken = nil
 }
 
 // IsBusy reports whether the flow has an admitted or queued live run.
@@ -858,6 +1144,10 @@ func (r *Runner) Shutdown(ctx context.Context) error {
 
 	r.baseStop()
 	for _, p := range pending {
+		if p.durableResume != nil {
+			r.releaseDurableToken(p)
+			continue
+		}
 		r.finishUnstarted(p, "FLOW_SHUTDOWN", "AuraGo shut down before the run started")
 	}
 	done := make(chan struct{})

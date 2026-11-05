@@ -19,5 +19,12 @@
   "config.flows.max_parallel_runs_help": "Hvor mange flytkjøringer som kan kjøre samtidig (1 til 32, standard 8). Flere venter.",
   "config.flows.max_parallel_nodes_per_run_help": "Hvor mange trinn av én kjøring som kan utføres parallelt (1 til 16, standard 4).",
   "config.flows.max_runs_per_flow_help": "Hvor mange fullførte kjøringer som beholdes per flyt; eldre slettes (10 til 5000, standard 200).",
-  "config.flows.run_retention_days_help": "Historikken til en kjøring slettes etter dette antallet dager (1 til 365, standard 30)."
+  "config.flows.run_retention_days_help": "Historikken til en kjøring slettes etter dette antallet dager (1 til 365, standard 30).",
+  "config.flows.durable_available": "Gjenopptakingstjenesten er klar",
+  "config.flows.durable_configured": "Lagret valg",
+  "config.flows.durable_counts": "Ventende: {{waiting}} · Aktive: {{running}} · Blokkerte: {{blocked}}",
+  "config.flows.durable_effective": "Behandling aktivert",
+  "config.flows.durable_enabled": "Fortsett lokale kjøringer etter omstart",
+  "config.flows.durable_enabled_help": "Av som standard. Støtter bare rent lokale, manuelle flyter og lagrede ventetider. Aktivering krever omstart; deaktivering gjelder straks og beholder lagrede kjøringer. Verktøy, modeller, blokker og grupper er utelatt.",
+  "config.flows.durable_observed": "Observert gjenopptakingsstatus"
 }

@@ -15,14 +15,38 @@ func (r *Runner) Cancel(runID string) bool {
 // removed by exactly one call, so for it first equals known. A caller that records a cancel
 // (an audit entry) does so only when first is true.
 func (r *Runner) CancelRun(runID string) (known, first bool) {
+	return r.cancelRun(runID, false)
+}
+
+func (r *Runner) cancelRun(runID string, allowDurable bool) (known, first bool) {
 	r.mu.Lock()
 	if run, ok := r.cancels[runID]; ok {
+		if run.durable && !allowDurable {
+			r.mu.Unlock()
+			return false, false
+		}
 		first = !run.cancelled
 		run.cancelled = true
 		r.cancels[runID] = run
 		r.mu.Unlock()
 		run.cancel()
 		return true, first
+	}
+	if !allowDurable {
+		for _, p := range r.waiting {
+			if p.rec.ID == runID && p.rec.Durable {
+				r.mu.Unlock()
+				return false, false
+			}
+		}
+		for _, q := range r.flowQueue {
+			for _, p := range q {
+				if p.rec.ID == runID && p.rec.Durable {
+					r.mu.Unlock()
+					return false, false
+				}
+			}
+		}
 	}
 	p := r.removeQueuedLocked(runID)
 	r.mu.Unlock()
@@ -74,7 +98,7 @@ func (r *Runner) removeQueuedLocked(runID string) *pendingRun {
 // begins later is not affected. A caller that deletes the flow therefore calls CancelFlow
 // again once the flow row is gone: from then on Start cannot record a run of the flow.
 func (r *Runner) CancelFlow(flowID string) int {
-	return r.cancelFlowRuns(flowID, func(RunMode) bool { return true })
+	return r.cancelFlowRuns(flowID, func(RunMode) bool { return true }, true)
 }
 
 // CancelFlowMode is CancelFlow for the flow's runs of one mode: it cancels the runs of
@@ -85,20 +109,25 @@ func (r *Runner) CancelFlow(flowID string) int {
 // flow's next queued run of another mode is admitted. Mission Control's cancel button
 // uses it with ModeLive, so the editor's test runs go on.
 func (r *Runner) CancelFlowMode(flowID string, mode RunMode) int {
-	return r.cancelFlowRuns(flowID, func(m RunMode) bool { return m == mode })
+	return r.cancelFlowRuns(flowID, func(m RunMode) bool { return m == mode }, false)
 }
 
 // cancelFlowRuns cancels the flow's runs whose mode match accepts; see CancelFlow.
-func (r *Runner) cancelFlowRuns(flowID string, match func(RunMode) bool) int {
+func (r *Runner) cancelFlowRuns(flowID string, match func(RunMode) bool, allowDurable bool) int {
 	// Interrupt a block admission before waiting for startMu or SQLite.
 	r.blockAdmissionTokens.cancelMatching(func(a *blockAdmission) bool {
-		return a.flowID == flowID && match(a.mode)
+		return a.flowID == flowID && match(a.mode) && (allowDurable || !a.durable)
 	})
 	r.startMu.Lock()
+	return r.cancelFlowRunsLocked(flowID, match, allowDurable)
+}
+
+// cancelFlowRunsLocked releases startMu before invoking any external callbacks.
+func (r *Runner) cancelFlowRunsLocked(flowID string, match func(RunMode) bool, allowDurable bool) int {
 	r.mu.Lock()
 	var pending, keptQueue []*pendingRun
 	for _, p := range r.flowQueue[flowID] {
-		if match(p.rec.Mode) {
+		if match(p.rec.Mode) && (allowDurable || !p.rec.Durable) {
 			pending = append(pending, p)
 		} else {
 			keptQueue = append(keptQueue, p)
@@ -113,12 +142,12 @@ func (r *Runner) cancelFlowRuns(flowID string, match func(RunMode) bool) int {
 	released := 0
 	kept := r.waiting[:0]
 	for _, p := range r.waiting {
-		if p.rec.FlowID != flowID || !match(p.rec.Mode) {
+		if p.rec.FlowID != flowID || !match(p.rec.Mode) || (!allowDurable && p.rec.Durable) {
 			kept = append(kept, p)
 			continue
 		}
 		pending = append(pending, p)
-		if p.counted {
+		if p.counted && p.durableResume == nil {
 			released++
 		}
 	}
@@ -132,7 +161,7 @@ func (r *Runner) cancelFlowRuns(flowID string, match func(RunMode) bool) int {
 	}
 	var cancels []context.CancelFunc
 	for id, run := range r.cancels {
-		if run.flowID == flowID && !run.cancelled && match(run.mode) {
+		if run.flowID == flowID && !run.cancelled && match(run.mode) && (allowDurable || !run.durable) {
 			run.cancelled = true
 			r.cancels[id] = run
 			cancels = append(cancels, run.cancel)
@@ -145,6 +174,10 @@ func (r *Runner) cancelFlowRuns(flowID string, match func(RunMode) bool) int {
 		cancel()
 	}
 	for _, p := range pending {
+		if p.durableResume != nil {
+			r.releaseDurableToken(p)
+			continue
+		}
 		r.finishUnstarted(p, "FLOW_CANCELLED", "the run was cancelled before it started")
 	}
 	return len(cancels) + len(pending)

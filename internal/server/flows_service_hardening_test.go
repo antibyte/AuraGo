@@ -105,6 +105,7 @@ func TestC16FlowsRuntimeConfigChanged(t *testing.T) {
 	}{
 		{"nothing", func(*config.FlowsConfig) {}, false},
 		{"switched off", func(c *config.FlowsConfig) { c.Enabled = false }, true},
+		{"durable switched on", func(c *config.FlowsConfig) { c.DurableEnabled = true }, true},
 		{"parallel runs", func(c *config.FlowsConfig) { c.MaxParallelRuns = 4 }, true},
 		{"parallel nodes", func(c *config.FlowsConfig) { c.MaxParallelNodesPerRun = 2 }, true},
 		{"retention days", func(c *config.FlowsConfig) { c.RunRetentionDays = 7 }, true},
@@ -178,6 +179,7 @@ func TestC16ConfigSaveAsksForARestartWhenFlowsChange(t *testing.T) {
 	for _, update := range []string{
 		`{"flows":{"max_parallel_runs":4}}`,
 		`{"flows":{"enabled":false}}`,
+		`{"flows":{"durable_enabled":true}}`,
 		`{"flows":{"run_retention_days":7}}`,
 	} {
 		resp := c16SaveConfig(t, base, update)

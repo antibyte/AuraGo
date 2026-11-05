@@ -104,6 +104,7 @@ func (l *flowRateLimiter) allow(key string, now time.Time, limit int, window tim
 }
 
 func registerFlowsRoutes(mux *http.ServeMux, s *Server) {
+	mux.HandleFunc("/api/desktop/flow-runtime", s.handleFlowRuntime)
 	mux.HandleFunc("/api/desktop/flows", s.handleFlows)
 	mux.HandleFunc("/api/desktop/flows/", s.handleFlows)
 	mux.HandleFunc(flowBlocksPath, s.handleFlowBlocks)
@@ -431,17 +432,17 @@ func (s *Server) handleFlows(w http.ResponseWriter, r *http.Request) {
 	// flowsAvailable is the app and API lock. A run cancel stops work that published
 	// triggers can still start until restart, so it passes this lock while the service
 	// exists. It stays FLOWS_DISABLED when the service was never created. Read-only
-	// missions still refuse it below.
+	// missions refuse the legacy stop; the durable stop has its own CAS fence.
 	if !s.flowsAvailable() && !(s.Flows != nil && flowsIsRunCancel(r.Method, parts)) {
 		flowsError(w, http.StatusServiceUnavailable, "FLOWS_DISABLED", "EasyDrag flows are disabled")
 		return
 	}
 	cfg := s.ConfigSnapshot()
 	// A run cancel stops work, so a read-only desktop lets it through like Mission Control's
-	// cancel (desktopStop); read-only missions refuse it as CancelCheck refuses theirs.
+	// cancel (desktopStop). Only the explicit durable stop also bypasses mission readonly.
 	desktopReadOnly := cfg.VirtualDesktop.ReadOnly && !flowsIsRunCancel(r.Method, parts)
 	if r.Method != http.MethodGet && r.Method != http.MethodHead && !flowsReadOnlySafe(r, parts) &&
-		(cfg.Tools.Missions.ReadOnly || desktopReadOnly) {
+		((cfg.Tools.Missions.ReadOnly && !flowsIsDurableRunCancel(r.Method, parts)) || desktopReadOnly) {
 		flowsError(w, http.StatusForbidden, "FLOW_PERMISSION_DENIED", "flows are read-only")
 		return
 	}
@@ -505,9 +506,14 @@ func flowsIsValidate(method string, parts []string) bool {
 	return method == http.MethodPost && len(parts) == 1 && parts[0] == "validate"
 }
 
-// flowsIsRunCancel reports whether a request is POST runs/{run}/cancel.
+// flowsIsRunCancel recognizes both stop routes for Desktop stop admission.
 func flowsIsRunCancel(method string, parts []string) bool {
-	return method == http.MethodPost && len(parts) == 3 && parts[0] == "runs" && parts[2] == "cancel"
+	return method == http.MethodPost && ((len(parts) == 3 && parts[0] == "runs" && parts[2] == "cancel") || flowsIsDurableRunCancel(method, parts))
+}
+
+// Only the explicit durable stop bypasses the Mission Control readonly gate.
+func flowsIsDurableRunCancel(method string, parts []string) bool {
+	return method == http.MethodPost && len(parts) == 4 && parts[0] == "runs" && parts[2] == "durable" && parts[3] == "cancel"
 }
 
 // isFlowsAPIPath reports whether path is /api/desktop/flows or below it.

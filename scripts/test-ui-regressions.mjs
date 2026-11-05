@@ -4273,14 +4273,14 @@ async function testDesktopEventDeliveredTwiceIsHandledOnce() {
 
 // Loads cfg/flows.js with the real config helpers it uses: escaping (utils.js), the provider choice helpers
 // and toggleBool (main.js), the validation rules (catalog.js) and the field metadata (lang/meta.json).
-function configFlowsContext({ flows, tools = {}, providers = [], loaded = true }) {
+function configFlowsContext({ flows, tools = {}, providers = [], loaded = true, durableStatus }) {
   const strings = { ...JSON.parse(read('ui/lang/config/common/en.json')), ...JSON.parse(read('ui/lang/config/flows/en.json')) };
   const meta = JSON.parse(read('ui/lang/meta.json'));
   const main = read('ui/js/config/main.js');
   const context = {
     window: {},
     content: { innerHTML: '' },
-    configData: { flows, tools },
+    configData: { flows, tools, _flows_durable_status: durableStatus },
     providersCache: providers,
     providersLoaded: loaded,
     personalitiesCache: [],
@@ -4745,6 +4745,20 @@ function testConfigFlowsSection() {
   assert.equal(JSON.stringify(state.dirtyPaths()), JSON.stringify(['flows.enabled']));
   assert.match(toggle('flows.agent.read_only'), /class="toggle on cfg-toggle-disabled"/, 'the saved value stays visible');
   assert.match(html, /id="flows-agent-note">The agent options take effect once the agent can work with flows\.</);
+  assert.doesNotMatch(toggle('flows.durable_enabled'), /toggle on/, 'missing durable setting stays off');
+  const observed = { configured: false, effective: false, recovery_available: false, reason: 'disabled', waiting_count: null, claimed_count: null, blocked_count: null };
+  const draftOn = renderConfigFlowsSection({ flows: { ...flows, durable_enabled: true }, durableStatus: observed });
+  assert.match(draftOn, /class="toggle on" data-path="flows\.durable_enabled"/, 'explicit saved true renders as on');
+  assert.match(draftOn, /Saved option: Inactive/, 'an unsaved checkbox never rewrites observed capability');
+  assert.match(draftOn, /Waiting runs: Unknown · Active runs: Unknown · Blocked runs: Unknown/, 'unavailable counts are not zero');
+  const beforeObserved = JSON.stringify(observed);
+  const stateContext = configFlowsContext({ flows: { ...flows, durable_enabled: false }, durableStatus: observed });
+  stateContext.renderFlowsSection(configFlowsSectionMeta);
+  const durableMarkup = (stateContext.content.innerHTML.match(/<div class="toggle[^\"]*" data-path="flows\.durable_enabled"[^>]*>/) || [''])[0];
+  const durableToggle = fakeConfigToggle(durableMarkup); stateContext.toggleBool(durableToggle);
+  state = configStateForTest(); state.init({ flows: { ...flows, durable_enabled: false } }); state.syncFromDOM({ querySelectorAll: () => [durableToggle] });
+  assert.equal(JSON.stringify(state.buildPatch()), JSON.stringify({ flows: { durable_enabled: true } }), 'native Config save carries an explicit Boolean only');
+  assert.equal(JSON.stringify(observed), beforeObserved, 'status metadata remains untouched by local edits');
 }
 
 async function testQuickConnectSFTPMutationsBindDevice() {

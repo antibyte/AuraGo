@@ -139,7 +139,7 @@ the contracts below describe the implemented behavior of each delivered slice.
 ## Boundaries
 - Never import `internal/agent`, `internal/server` or `internal/tools`. Tool calls go through
   `ToolInvoker`, LLM calls through `LLMStepper`, time through `Clock` (`services.go`).
-- Node types live in a `Registry`. `RegisterCatalog(reg, env)` registers the 40 curated types (see Catalog);
+- Node types live in a `Registry`. `RegisterCatalog(reg, env)` registers the 41 curated types (see Catalog);
   the server wiring (`internal/server`, see Integration) supplies the `CatalogEnv` and the `GenericTool` list for
   `RefreshGenericTools`.
 
@@ -439,7 +439,7 @@ the contracts below describe the implemented behavior of each delivered slice.
 ## Store
 - Times are stored as fixed-width UTC text (`timeLayout`) so text order is time order. There is no
   corruption auto-recovery: a failed open is an error, so users' flows never vanish silently.
-- Schema version: `flows_meta.schema_version` holds `storeSchemaVersion` (5). `OpenStore` refuses a database
+- Schema version: `flows_meta.schema_version` holds `storeSchemaVersion` (6). `OpenStore` refuses a database
   with a greater version (or one that is not a number) before any migration runs and leaves the file untouched,
   so an older AuraGo never writes into a schema a newer one migrated. Raise `storeSchemaVersion` with every
   migration a previous release cannot work with.
@@ -449,19 +449,34 @@ the contracts below describe the implemented behavior of each delivered slice.
   version last; an unexpected pre-existing target table fails closed. In-memory databases need no disk backup.
   Version 3 similarly backs up v2 before atomically installing block version/run pin tables and indexes;
   version 4 backs up v3 and atomically installs folders, flow metadata and version notes. Version 5
-  backs up v4 and advances only the compatibility marker so old binaries cannot discard groups.
+  backs up v4 and advances only the compatibility marker so old binaries cannot discard groups. Version 6
+  backs up v5 and adds the checked, admission-owned `flow_runs.durable` marker and immutable
+  `durable_mission_id`; old rows default to false and an empty owner.
   Existing v4 stores complete this migration before baseline schema writes. Incomplete
   or incompatible v3/v4 ownership constraints fail closed before other writes. Verify
-  `TestFlowsV2Migration*`, `TestFlowsV3*`, `TestFlowsV4*`, `TestFlowsV5*` and `TestC16OpenStoreRefusesANewerSchema`.
-- Checkpoint cryptography, complete coordinator snapshots, per-step CAS/lease fencing and private pure-only
-  suspend/resume helpers are implementation groundwork, not a registered node or user-facing recovery feature.
-  `NewRunner` reserves flows with valid checkpoint metadata before accepting live starts; malformed metadata blocks
-  recovery, and `MarkInterruptedRuns` excludes checkpoint rows. No scheduler, cancellation or restart wake-up is
-  wired yet. Do not expose the private path until permission rechecks, queue ownership and crash tests are complete.
-  Treat an uncertain checkpoint commit as lost ownership: never emit terminal success/failure that could
-  contradict a persisted wait. Private engine/store round-trip tests cover reclaim after a committed step
-  without replaying successful work; they do not establish production Runner recovery.
-  A checkpoint is at most 40 MiB, with 64 rows/512 MiB globally; scans reject more than one million JSON values.
+  `TestFlowsV2Migration*`, `TestFlowsV3*`, `TestFlowsV4*`, `TestFlowsV5*`, `TestFlowsV6*` and `TestC16OpenStoreRefusesANewerSchema`.
+- Durable processing defaults off. Its static `logic.durable_wait` descriptor remains visible for stored documents;
+  ordinary execution fails closed. Only an explicitly configured Runner with current authority, a checkpoint key
+  provider and idempotent history projector may admit verified pure manual-trigger graphs. All nodes, including
+  unreachable or disabled ones, must be from the durable allowlist; blocks, batches and effects are excluded.
+  Suspension commits full encrypted coordinator state and releases the worker while retaining its flow reservation.
+  Recovery joins the ordinary ticket queue, authenticates the snapshot, checks the current published mission and
+  its pinned original published revision (a newer publication does not replace that snapshot), and uses
+  fenced leases and checkpoints against the original absolute deadline; an uncertain write loses ownership rather
+  than inventing a terminal result. Named IANA zones are reloaded by name; other zones require the existing
+  zone-independent AST proof. Zone rule versions are not pinned.
+  Global/mission revocation cancels bounded tokens without calling the database or bridge under tracker locks.
+  Every replacement write and automatic terminal transition authenticates the current generation with the current
+  Vault key inside the write transaction; existing generations never create a replacement key. Explicit cancellation
+  uses generation CAS and remains key-free; legacy unmarked checkpoints stay incompatible and explicitly cancellable.
+  The separate history projector rereads authoritative marker-bound metadata and never calls ordinary completion
+  hooks. It retries in bounded pages even while processing is off. SSE remains open during a committed wait.
+  Resumed workers emit step completions only after the corresponding checkpoint commits, and never publish a
+  speculative step-start after an unproven lease. The private local Vault-key provider is the sole callback
+  permitted under the checkpoint admission write lock, to preserve its empty-store key-creation proof.
+  A checkpoint is at most 40 MiB, with 512 MiB of ciphertext globally; admission atomically caps the combined
+  checkpoint rows and pre-checkpoint durable runs at 64. Scans reject more than one million JSON values.
+  Checkpoint status diagnostics are serialized and bounded, and retain checkpoints through ordinary run pruning.
   Scenario and checkpoint keys are separate, agent-hidden Vault entries; backups need their matching Vault keys.
 - Test runs store their document once per flow and content in `flow_test_docs` (sha256 key, written in one
   transaction with the run row) and refer to it through `flow_runs.doc_hash`; rows from before keep `doc_json`.
@@ -535,9 +550,9 @@ the contracts below describe the implemented behavior of each delivered slice.
   overlap keeps its wall-clock time; which of the two instants is not defined.
 
 ## Catalog
-- Counts: `RegisterCatalog(reg, env)` registers 40 curated types, 14 triggers and 26 others: logic 8 (`logic.if`, `switch`, `merge`, `wait`,
-  `set`, `stop`, `component.call`, `component.each`), AI 2 (`ai.step`, `ai.decision`) and actions 16 (web 3, documents 4, notify 5, smart home 2,
-  planner 2); `TestRegisterCatalogCounts` pins the total (40) and the trigger count (14). Generic `tool.<name>` nodes are
+- Counts: `RegisterCatalog(reg, env)` registers 41 curated types, 14 triggers and 27 others: logic 9 (`logic.if`, `switch`, `merge`, `wait`,
+  `durable_wait`, `set`, `stop`, `component.call`, `component.each`), AI 2 (`ai.step`, `ai.decision`) and actions 16 (web 3, documents 4, notify 5, smart home 2,
+  planner 2); `TestRegisterCatalogCounts` pins the total (41) and the trigger count (14). Generic `tool.<name>` nodes are
   separate: `RefreshGenericTools(reg, tools, env)` replaces all of them in one atomic `Registry.ReplaceWhere`
   step (a concurrent `Lookup` never sees a half-built set) and returns how many it registered. Call it again
   when the tool configuration changes.

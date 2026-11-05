@@ -10,6 +10,8 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 
 ## Local Contracts
 
+- `manage_missions` history uses `MissionManagerV2.QueryMissionHistory`: nonterminal durable entries with an unavailable authoritative source report `unknown` and retain `last_known_status` only as an earlier observation. The bounded source check runs outside manager/history locks; terminal and ordinary history keep their existing semantics. Verify `TestManageMissionsDurableHistoryUnavailableSourceIsUnknown`; see `../tools/AGENTS.md`.
+
 - MQTT/Frigate relays have server-owned ingress topics and non-nil native/skill
   scopes. `mqtt_relay_policy.go` checks exact tool/operation/target grants and
   ingress filters against both captured and current authorization snapshots,

@@ -10873,5 +10873,8 @@
   "codeStudio.promptExplain": "{{path}} में {{target}} समझाओ।",
   "codeStudio.promptComments": "{{path}} में {{target}} के लिए स्पष्ट टिप्पणियाँ जोड़ो। केवल बदला हुआ कोड लौटाओ।",
   "codeStudio.promptTests": "{{path}} के लिए उपयोगी परीक्षण बनाओ। नई या बदली हुई फ़ाइलों के लिए कोड ब्लॉक लौटाओ।",
-  "codeStudio.promptRefactor": "{{path}} में {{target}} को रीफ़ैक्टर करो। केवल बदला हुआ कोड लौटाओ।"
+  "codeStudio.promptRefactor": "{{path}} में {{target}} को रीफ़ैक्टर करो। केवल बदला हुआ कोड लौटाओ।",
+  "desktop.mc_error_durable_cancel": "इस मिशन में सहेजे गए रन हैं। जिस रन को रोकना है, उसे EasyDrag में खोलें और वहीं रोकें।",
+  "desktop.mc_state_unknown": "अज्ञात",
+  "desktop.mc_state_waiting": "प्रतीक्षा में"
 }

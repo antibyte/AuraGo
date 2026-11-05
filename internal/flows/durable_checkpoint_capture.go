@@ -31,8 +31,16 @@ func captureDurableState(s *runState, waitingNode string, waitStartedAt, wakeAt,
 		edge := &s.req.Flow.Edges[i]
 		edges[edge.ID] = s.edges[edge]
 	}
+	loc := time.UTC
+	if s.e != nil && s.e.services != nil {
+		loc = s.e.services.Loc()
+	}
+	location, err := durableLocation(s.req.Flow, loc)
+	if err != nil {
+		return durableCheckpointState{}, err
+	}
 	state := durableCheckpointState{
-		Version: 1, RunID: s.req.RunID, Flow: s.req.Flow, Revision: s.req.Revision,
+		Version: 2, Location: location, RunID: s.req.RunID, Flow: s.req.Flow, Revision: s.req.Revision,
 		TriggerNode: s.req.TriggerNode, Trigger: s.trigger, StartedAt: s.started, Deadline: deadline,
 		WakeAt: wakeAt, WaitStartedAt: waitStartedAt, WaitingNode: waitingNode, Statuses: statuses, Edges: edges,
 		Outputs: s.outputs, Untrusted: s.untrusted, OutputBytes: s.outputBytes,

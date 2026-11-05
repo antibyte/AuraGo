@@ -19,5 +19,12 @@
   "config.flows.max_parallel_runs_help": "How many flow runs may run at the same time (1 to 32, default 8). Further ones wait.",
   "config.flows.max_parallel_nodes_per_run_help": "How many steps of one run may execute in parallel (1 to 16, default 4).",
   "config.flows.max_runs_per_flow_help": "How many finished runs are kept per flow; older ones are deleted (10 to 5000, default 200).",
-  "config.flows.run_retention_days_help": "A run's history is deleted after this many days (1 to 365, default 30)."
+  "config.flows.run_retention_days_help": "A run's history is deleted after this many days (1 to 365, default 30).",
+  "config.flows.durable_available": "Recovery service ready",
+  "config.flows.durable_configured": "Saved option",
+  "config.flows.durable_counts": "Waiting runs: {{waiting}} · Active runs: {{running}} · Blocked runs: {{blocked}}",
+  "config.flows.durable_effective": "Processing enabled",
+  "config.flows.durable_enabled": "Resume local runs after restarts",
+  "config.flows.durable_enabled_help": "Off by default. Supports pure manual flows and saved waits only. Switching on requires a restart; switching off applies without a restart and retains saved work. Tools, models, blocks and batches are excluded.",
+  "config.flows.durable_observed": "Observed recovery status"
 }

@@ -16,10 +16,11 @@ type blockAdmission struct {
 	flowID, missionID string
 	mode              RunMode
 	cancel            context.CancelFunc
+	durable           bool
 }
 
-func (t *blockAdmissionTracker) add(flowID, missionID string, mode RunMode, cancel context.CancelFunc) *blockAdmission {
-	a := &blockAdmission{flowID: flowID, missionID: missionID, mode: mode, cancel: cancel}
+func (t *blockAdmissionTracker) add(flowID, missionID string, mode RunMode, cancel context.CancelFunc, durable ...bool) *blockAdmission {
+	a := &blockAdmission{flowID: flowID, missionID: missionID, mode: mode, cancel: cancel, durable: len(durable) > 0 && durable[0]}
 	t.mu.Lock()
 	if t.active == nil {
 		t.active = make(map[*blockAdmission]struct{})
@@ -67,4 +68,12 @@ func (s *Service) InvalidateFlowAdmissions(missionID string) {
 	s.runner.blockAdmissionTokens.cancelMatching(func(a *blockAdmission) bool {
 		return a.missionID == missionID && a.mode != ModeTest
 	})
+	s.runner.durableActive.cancelMatching(func(a *blockAdmission) bool { return a.missionID == missionID })
+}
+
+// InvalidateDurableProcessing is safe from a configuration publication hook:
+// only bounded cancellation signals are sent; no store or bridge call occurs.
+func (s *Service) InvalidateDurableProcessing() {
+	s.runner.blockAdmissionTokens.cancelMatching(func(a *blockAdmission) bool { return a.durable })
+	s.runner.durableActive.cancelMatching(func(*blockAdmission) bool { return true })
 }

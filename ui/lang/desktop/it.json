@@ -10873,5 +10873,8 @@
   "codeStudio.promptExplain": "Spiega {{target}} in {{path}}.",
   "codeStudio.promptComments": "Aggiungi commenti chiari per {{target}} in {{path}}. Restituisci solo il codice modificato.",
   "codeStudio.promptTests": "Genera test utili per {{path}}. Restituisci blocchi di codice per i file nuovi o modificati.",
-  "codeStudio.promptRefactor": "Riorganizza {{target}} in {{path}}. Restituisci solo il codice modificato."
+  "codeStudio.promptRefactor": "Riorganizza {{target}} in {{path}}. Restituisci solo il codice modificato.",
+  "desktop.mc_error_durable_cancel": "Questa missione contiene esecuzioni salvate. Apri in EasyDrag l’esecuzione che vuoi arrestare e arrestala da lì.",
+  "desktop.mc_state_unknown": "Sconosciuto",
+  "desktop.mc_state_waiting": "In attesa"
 }

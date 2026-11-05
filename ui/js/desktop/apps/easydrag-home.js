@@ -113,6 +113,8 @@
             el.insertBefore(button, el.querySelector('.ed-home-toolbar'));
         }
         const tplGrid = el.querySelector('.ed-template-grid');
+        const runtime = ED.durable && ED.durable.supported(app) ? ED.durable.observe(Object.assign({}, app, { root: el })) : null;
+        if (runtime) { el.insertBefore(runtime.el, el.querySelector('.ed-home-toolbar')); bag.add(() => runtime.dispose()); }
         // The grid is no live region (every refresh would read all cards); meaningful changes
         // are announced on their own (a deleted flow).
         const voice = core.announcer(el.querySelector('[data-ed-home-live]'));
@@ -234,7 +236,7 @@
         function lastRun(f) {
             const r = f.last_run;
             if (!r) return '<span class="ed-muted">' + esc(t('easydrag.ui.home_never_ran')) + '</span>';
-            return '<span class="ed-run-dot ed-run-dot--' + esc(r.status) + '"></span><span>' + esc(core.tr(t, 'easydrag.ui.status_' + r.status, r.status)) + ' · ' + esc(core.fmt.relative(r.started_at)) + '</span>';
+            return '<span class="ed-run-dot ed-run-dot--' + esc(r.status) + '"></span><span>' + esc(ED.durable ? ED.durable.label(t, r) : core.tr(t, 'easydrag.ui.status_' + r.status, r.status)) + ' · ' + esc(core.fmt.relative(r.started_at)) + (r.durable ? ' · ' + esc(t('easydrag.ui.durable_title')) : '') + '</span>';
         }
 
         function visibleFlows() {
@@ -818,6 +820,7 @@
         cacheOrganization();
         render();
         reload();
+        if (runtime) runtime.refresh();
         return { el, reload, createOff, dispose() { gone = true; if (ED.metadata) ED.metadata.dispose(el); bag.dispose(); el.remove(); } };
     }
 

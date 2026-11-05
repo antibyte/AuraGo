@@ -28,6 +28,7 @@ func flowsHardeningLoad(t *testing.T, yamlText string) (string, *Config) {
 func TestFlowsConfigSaveRoundTrip(t *testing.T) {
 	want := FlowsConfig{
 		Enabled:                false,
+		DurableEnabled:         true,
 		MaxParallelRuns:        3,
 		MaxParallelNodesPerRun: 2,
 		RunRetentionDays:       7,
@@ -37,6 +38,7 @@ func TestFlowsConfigSaveRoundTrip(t *testing.T) {
 	}
 	path, cfg := flowsHardeningLoad(t, "flows:\n"+
 		"  enabled: false\n"+
+		"  durable_enabled: true\n"+
 		"  max_parallel_runs: 3\n"+
 		"  max_parallel_nodes_per_run: 2\n"+
 		"  run_retention_days: 7\n"+
@@ -103,7 +105,7 @@ func TestFlowsConfigDefaultsSurviveSaveRoundTrip(t *testing.T) {
 	if reloaded.Flows != cfg.Flows {
 		t.Fatalf("defaults changed across Save/Load: %+v vs %+v", reloaded.Flows, cfg.Flows)
 	}
-	if !reloaded.Flows.Enabled || reloaded.Flows.MaxParallelRuns != 8 || reloaded.Flows.MaxRunsPerFlow != 200 {
+	if !reloaded.Flows.Enabled || reloaded.Flows.DurableEnabled || reloaded.Flows.MaxParallelRuns != 8 || reloaded.Flows.MaxRunsPerFlow != 200 {
 		t.Fatalf("defaults lost: %+v", reloaded.Flows)
 	}
 }
@@ -147,7 +149,7 @@ func TestFlowsTemplateMatchesLoadDefaultsAndGetters(t *testing.T) {
 		got = append(got, k)
 	}
 	sort.Strings(got)
-	wantKeys := []string{"agent", "ai_provider", "enabled", "max_parallel_nodes_per_run", "max_parallel_runs", "max_runs_per_flow", "run_retention_days"}
+	wantKeys := []string{"agent", "ai_provider", "durable_enabled", "enabled", "max_parallel_nodes_per_run", "max_parallel_runs", "max_runs_per_flow", "run_retention_days"}
 	if strings.Join(got, ",") != strings.Join(wantKeys, ",") {
 		t.Fatalf("template flows keys = %v, want %v", got, wantKeys)
 	}

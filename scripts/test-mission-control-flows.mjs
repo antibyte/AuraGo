@@ -223,6 +223,26 @@ check('detail: a flow shows its next run', overview.includes('desktop.mc_overvie
 detail.setMission(Object.assign({}, flowLive, { enabled: false, next_run: '' }), { running: false, queuePosition: 0, cancelling: false, busy: '' });
 check('detail: a paused published flow still reads Paused', detail.element.querySelector('[data-mc-hero]').innerHTML.includes('desktop.mc_state_paused') && detail.element.querySelector('[data-mc-panel="overview"]').innerHTML.includes('desktop.mc_overview_paused'));
 detail.setMission(agentPaused, { running: false, queuePosition: 0, cancelling: false, busy: '' });
+const waitingDetail = W.MissionControlDetail.create({ esc, t, lang: 'en', svg, triggers: TR, schedule: S, readonly: false, fmt });
+waitingDetail.setMission(flowLive, { running: true });
+waitingDetail.setHistory({ items: [{ id: 'saved-run', status: 'waiting', started_at: '2026-11-05T12:00:00Z', trigger_type: 'manual' }, { id: 'rule-block', status: 'blocked', started_at: '2026-11-05T11:00:00Z', trigger_type: 'manual' }], total: 2 });
+const waitingHistory = waitingDetail.element.querySelector('[data-mc-panel="history"]').innerHTML;
+check('detail: durable waiting history is Waiting rather than Idle or terminal error', waitingHistory.includes('data-state="waiting">desktop.mc_state_waiting<'));
+check('detail: a terminal action-policy block keeps its separate rule diagnosis', waitingHistory.includes('desktop.mc_action_rule_required') && waitingHistory.includes('data-state="blocked"'));
+waitingDetail.setHistory({ items: [{ id: 'flowdurable_unverified', status: 'unknown', last_known_status: 'running', output: 'Stale running prose', error_msg: 'Stale error prose', duration_ms: 9999, started_at: '2026-11-05T12:00:00Z', trigger_type: 'manual' }, { id: 'flowdurable_terminal', status: 'success', output: 'Retained terminal result', started_at: '2026-11-05T11:00:00Z', trigger_type: 'manual' }, { id: 'flowdurable_error', status: 'error', error_msg: 'Retained terminal error', started_at: '2026-11-05T10:00:00Z', trigger_type: 'manual' }], total: 3 });
+const unknownHistory = waitingDetail.element.querySelector('[data-mc-panel="history"]').innerHTML;
+check('detail: unverified durable history is explicitly Unknown rather than Idle or last-known Running', unknownHistory.includes('data-state="unknown">desktop.mc_state_unknown<') && !unknownHistory.includes('desktop.mc_state_idle') && !unknownHistory.includes('desktop.mc_state_running'));
+check('detail: unknown history suppresses stale output error and elapsed duration', !unknownHistory.includes('Stale running prose') && !unknownHistory.includes('Stale error prose') && !unknownHistory.includes('class="vd-mc-run-duration">' + fmt.duration(9999) + '<'));
+check('detail: confirmed terminal history retains success output and error details', unknownHistory.includes('data-state="ok">desktop.mc_state_ok<') && unknownHistory.includes('Retained terminal result') && unknownHistory.includes('data-state="error">desktop.mc_state_error<') && unknownHistory.includes('Retained terminal error'));
+const cancelledRows = [{ id: 'flowdurable_cancelled', status: 'cancelled', error_msg: 'FLOW_CANCELLED', started_at: '2026-11-05T12:00:00Z', trigger_type: 'manual' }, { id: 'legacy_cancelled', status: 'error', output: 'Cancelled by user', started_at: '2026-11-05T11:00:00Z', trigger_type: 'manual' }, { id: 'flowdurable_queued', status: 'queued', started_at: '2026-11-05T10:00:00Z', trigger_type: 'manual' }];
+waitingDetail.setHistory({ items: cancelledRows, total: cancelledRows.length });
+const cancelledHistory = waitingDetail.element.querySelector('[data-mc-panel="history"]').innerHTML;
+eq('detail: confirmed durable and legacy cancellations both keep the Cancelled label', (cancelledHistory.match(/data-state="cancelled">desktop\.mc_state_cancelled</g) || []).length, 2);
+check('detail: confirmed cancellation has a neutral body rather than a raw error diagnosis', cancelledHistory.includes('class="vd-mc-output">desktop.mc_state_cancelled<') && !cancelledHistory.includes('FLOW_CANCELLED') && !cancelledHistory.includes('class="vd-mc-run-error"'));
+check('detail: queued durable history is Queued rather than Idle', cancelledHistory.includes('data-state="queued">desktop.mc_state_queued<') && !cancelledHistory.includes('desktop.mc_state_idle'));
+waitingDetail.setHistory({ items: cancelledRows, total: cancelledRows.length, filter: 'cancelled' });
+const cancelledOnly = waitingDetail.element.querySelector('[data-mc-panel="history"]').innerHTML;
+check('detail: the Cancelled filter includes confirmed and legacy cancellations only', cancelledOnly.includes('flowdurable_cancelled') && cancelledOnly.includes('legacy_cancelled') && !cancelledOnly.includes('flowdurable_queued'));
 check('detail: a paused agent mission still reads Paused', detail.element.querySelector('[data-mc-hero]').innerHTML.includes('data-state="paused">desktop.mc_state_paused<'));
 detail.setMission(flowOdd, { running: false, queuePosition: 0, cancelling: false, busy: '' });
 hero = detail.element.querySelector('[data-mc-hero]').innerHTML;
@@ -323,7 +343,18 @@ await selectRow('agent-1');
 await menuAction('run');
 eq('shell: agent missions keep the queue toast', lastNotify(), ['desktop.mc_toast_run_queued', 'info']);
 
-// Cancel answered 409: only FLOW_NO_ACTIVE_RUN ("nothing to cancel here") becomes the EasyDrag hint.
+// Aggregate saved-run cancellation has a specific local hint and is never retried.
+await selectRow('flow-1');
+const oldCancel = CANCEL_ANSWERS['flow-1'], stopsBefore = apiCalls('POST', '/cancel').length;
+CANCEL_ANSWERS['flow-1'] = [409, 'raw server text must not be shown', 'FLOW_DURABLE_GENERATION_CONFLICT'];
+await menuAction('cancel-run');
+eq('shell: durable aggregate Stop explains the individual EasyDrag Stop without raw server text', lastNotify(), ['desktop.mc_error_durable_cancel', 'error']);
+eq('shell: durable aggregate refusal sends only one Stop and announces no success', apiCalls('POST', '/cancel').length - stopsBefore, 1);
+await menuAction('edit');
+eq('shell: durable aggregate refusal retains the existing EasyDrag open route', calls.openApp.at(-1), ['easydrag', { flowId: 'f_live' }]);
+CANCEL_ANSWERS['flow-1'] = oldCancel;
+
+// Other 409 answers keep their existing context-specific behavior.
 await selectRow('flow-1');
 await menuAction('cancel-run');
 eq('shell: FLOW_NO_ACTIVE_RUN on a flow cancel shows the EasyDrag hint', lastNotify(), ['desktop.mc_flow_cancel_in_easydrag', 'info']);

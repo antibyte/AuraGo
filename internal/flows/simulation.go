@@ -89,6 +89,11 @@ func (s *Service) Simulate(ctx context.Context, id string, req SimulationRequest
 	if req.BaseRevision > 0 && req.BaseRevision != rec.DraftRevision {
 		return nil, ErrRevisionConflict
 	}
+	for _, node := range rec.Draft.Nodes {
+		if node.Type == durableWaitType {
+			return nil, ErrDurableInvalidGraph
+		}
+	}
 	var plan *blockPlan
 	for _, node := range rec.Draft.Nodes {
 		if node.Type != blockCallType && node.Type != blockEachType {

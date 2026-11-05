@@ -90,7 +90,8 @@ func (s *runState) publish(ev RunEvent) {
 	ev.RunID = s.req.RunID
 	ev.Time = s.e.services.Now()
 	if control := s.req.durable; control != nil && control.active && ev.Type == EventStepFinished && ev.Step != nil {
-		if control.lost {
+		if control.lost || (control.ownerCtx != nil && control.ownerCtx.Err() != nil) {
+			control.lost = true
 			return
 		}
 		if ev.Step.Status == StepWaiting {
@@ -774,7 +775,11 @@ func (s *runState) finish(status RunStatus, code, msg, nodeID string) RunResult 
 		Steps: s.steps, Outputs: s.outputs,
 	}
 	if control := s.req.durable; control != nil && control.active {
-		if control.lost || control.finish == nil || control.finish(context.WithoutCancel(control.ctx), res, control.pending) != nil {
+		finishCtx := context.WithoutCancel(control.ctx)
+		if control.ownerCtx != nil {
+			finishCtx = control.ownerCtx
+		}
+		if control.lost || (control.ownerCtx != nil && control.ownerCtx.Err() != nil) || control.finish == nil || control.finish(finishCtx, res, control.pending) != nil {
 			res.Status = RunError
 			res.ErrorCode = "FLOW_NODE_UNAVAILABLE"
 			res.ErrorMessage = "the durable run could not be finalized"

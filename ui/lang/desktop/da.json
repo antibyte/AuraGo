@@ -10873,5 +10873,8 @@
   "codeStudio.promptExplain": "Forklar {{target}} i {{path}}.",
   "codeStudio.promptComments": "Tilføj tydelige kommentarer til {{target}} i {{path}}. Returnér kun den ændrede kode.",
   "codeStudio.promptTests": "Lav nyttige tests for {{path}}. Returnér kodeblokke til nye eller ændrede filer.",
-  "codeStudio.promptRefactor": "Refaktorér {{target}} i {{path}}. Returnér kun den ændrede kode."
+  "codeStudio.promptRefactor": "Refaktorér {{target}} i {{path}}. Returnér kun den ændrede kode.",
+  "desktop.mc_error_durable_cancel": "Denne mission indeholder gemte kørsler. Åbn den kørsel, du vil stoppe, i EasyDrag, og stop den der.",
+  "desktop.mc_state_unknown": "Ukendt",
+  "desktop.mc_state_waiting": "Venter"
 }

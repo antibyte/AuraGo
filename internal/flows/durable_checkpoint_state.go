@@ -12,6 +12,7 @@ import (
 // Only a quiescent pure-graph coordinator may create one.
 type durableCheckpointState struct {
 	Version       int                       `json:"version"`
+	Location      string                    `json:"location,omitempty"`
 	RunID         string                    `json:"run_id"`
 	Flow          *Flow                     `json:"flow"`
 	Revision      int                       `json:"revision"`
@@ -29,6 +30,19 @@ type durableCheckpointState struct {
 	OutputBytes   int                       `json:"output_bytes"`
 	StoredBytes   int                       `json:"stored_bytes"`
 	EventSeq      int                       `json:"event_seq"`
+}
+
+// Waiting rows round up to the store's microsecond precision so they never
+// become due before the authenticated coordinator's wake time.
+func durableWakeMatches(state durableCheckpointState, wake string) bool {
+	if state.WaitingNode == "" {
+		return true
+	}
+	value := state.WakeAt.UTC().Truncate(time.Microsecond)
+	if value.Before(state.WakeAt) {
+		value = value.Add(time.Microsecond)
+	}
+	return formatTime(value) == wake
 }
 
 // encodeDurableState rejects registered secret values instead of redacting
@@ -98,7 +112,7 @@ func decodeDurableState(data []byte) (durableCheckpointState, error) {
 }
 
 func validDurableState(s durableCheckpointState) bool {
-	if s.Version != 1 || s.RunID == "" || len(s.RunID) > 128 || s.Revision <= 0 || !durableGraphAllowed(s.Flow) || s.Flow.Schema != SchemaVersion || s.Flow.ID == "" ||
+	if (s.Version != 1 && s.Version != 2) || (s.Version == 1 && s.Location != "") || (s.Version == 2 && s.Location == "") || s.RunID == "" || len(s.RunID) > 128 || s.Revision <= 0 || !durableGraphAllowed(s.Flow) || s.Flow.Schema != SchemaVersion || s.Flow.ID == "" ||
 		s.StartedAt.IsZero() || !s.Deadline.After(s.StartedAt) || s.Deadline.Sub(s.StartedAt) > MaxRunSecondsLimit*time.Second ||
 		s.OutputBytes < 0 || s.OutputBytes > MaxRunOutputBytes ||
 		s.StoredBytes < 0 || s.StoredBytes > MaxStoredRunBytes || s.EventSeq < 0 {

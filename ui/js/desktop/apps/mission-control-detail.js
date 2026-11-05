@@ -27,7 +27,7 @@
     }
 
     function isCancelledRun(run) {
-        return run.status === 'error' && (String(run.output || '').trim() === CANCELLED_OUTPUT || String(run.error_msg || '').trim() === CANCELLED_OUTPUT);
+        return run.status === 'cancelled' || run.status === 'error' && (String(run.output || '').trim() === CANCELLED_OUTPUT || String(run.error_msg || '').trim() === CANCELLED_OUTPUT);
     }
 
     function create(deps) {
@@ -77,7 +77,7 @@
             if (mission.last_result === 'success') return 'ok';
             return triggers.lastRunAt(mission) ? 'idle' : 'never';
         }
-        const STATE_KEYS = { blocked: 'desktop.mc_state_blocked', running: 'desktop.mc_state_running', queued: 'desktop.mc_state_queued', paused: 'desktop.mc_state_paused', unpublished: 'desktop.mc_flow_unpublished', error: 'desktop.mc_state_error', ok: 'desktop.mc_state_ok', idle: 'desktop.mc_state_idle', never: 'desktop.mc_state_never_run' };
+        const STATE_KEYS = { blocked: 'desktop.mc_state_blocked', running: 'desktop.mc_state_running', waiting: 'desktop.mc_state_waiting', unknown: 'desktop.mc_state_unknown', queued: 'desktop.mc_state_queued', paused: 'desktop.mc_state_paused', unpublished: 'desktop.mc_flow_unpublished', error: 'desktop.mc_state_error', ok: 'desktop.mc_state_ok', idle: 'desktop.mc_state_idle', never: 'desktop.mc_state_never_run' };
         function pill(state, extraClass) { return `<span class="vd-mc-pill ${extraClass || ''}" data-state="${esc(state)}">${esc(t(STATE_KEYS[state] || state))}</span>`; }
 
         function actionButton(name, labelKey, iconName, opts) {
@@ -234,22 +234,22 @@
 
         function runMarkup(run) {
             const cancelled = isCancelledRun(run);
-            const state = cancelled ? 'cancelled' : run.status === 'blocked' ? 'blocked' : run.status === 'success' ? 'ok' : run.status === 'error' ? 'error' : run.status === 'running' ? 'running' : 'idle';
+            const state = cancelled ? 'cancelled' : run.status === 'blocked' ? 'blocked' : run.status === 'success' ? 'ok' : run.status === 'error' ? 'error' : run.status === 'running' ? 'running' : run.status === 'waiting' ? 'waiting' : run.status === 'queued' ? 'queued' : run.status === 'unknown' ? 'unknown' : 'idle';
             const label = cancelled ? t('desktop.mc_state_cancelled') : t(STATE_KEYS[state] || state);
             const expanded = expandedRuns.has(run.id);
-            const body = state === 'blocked' ? t('desktop.mc_action_rule_required') : extractLastOutput(run.output) || run.error_msg || '';
+            const body = state === 'unknown' ? t('desktop.mc_state_unknown') : state === 'blocked' ? t('desktop.mc_action_rule_required') : extractLastOutput(run.output) || (cancelled ? t('desktop.mc_state_cancelled') : run.error_msg || '');
             return `<div class="vd-mc-run" role="listitem" data-mc-run="${esc(run.id)}">
                 <button type="button" class="vd-mc-run-head" aria-expanded="${expanded}" data-mc-run-toggle title="${esc(t(expanded ? 'desktop.mc_history_collapse' : 'desktop.mc_history_expand'))}">
                     <span class="vd-mc-row-state" data-state="${esc(state)}" aria-hidden="true"></span>
                     <span class="vd-mc-run-started">${esc(fmt.dateTime(run.started_at))}</span>
                     <span class="vd-mc-run-trigger">${esc(triggerLabel(run))}</span>
-                    <span class="vd-mc-run-duration">${esc(run.duration_ms ? fmt.duration(run.duration_ms) : '–')}</span>
+                    <span class="vd-mc-run-duration">${esc(state !== 'unknown' && run.duration_ms ? fmt.duration(run.duration_ms) : '–')}</span>
                     <span class="vd-mc-pill vd-mc-pill--small" data-state="${esc(state)}">${esc(label)}</span>
                     <span class="vd-mc-run-chevron">${ic(expanded ? 'chevronUp' : 'chevronDown')}</span>
                 </button>
                 <div class="vd-mc-run-body" ${expanded ? '' : 'hidden'}>
                     ${state === 'blocked' ? `<a class="vd-mc-link" href="/config#danger" target="_blank" rel="noopener">${esc(t('desktop.mc_action_rules'))}</a>` : ''}
-                    ${run.error_msg && !cancelled && state !== 'blocked' ? `<div class="vd-mc-run-error"><strong>${esc(t('desktop.mc_history_error_label'))}:</strong> ${esc(run.error_msg)}</div>` : ''}
+                    ${run.error_msg && !cancelled && state !== 'blocked' && state !== 'unknown' ? `<div class="vd-mc-run-error"><strong>${esc(t('desktop.mc_history_error_label'))}:</strong> ${esc(run.error_msg)}</div>` : ''}
                     <pre class="vd-mc-output">${esc(body || t('desktop.mc_history_no_output'))}</pre>
                 </div>
             </div>`;

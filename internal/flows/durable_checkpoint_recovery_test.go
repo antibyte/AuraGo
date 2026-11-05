@@ -20,13 +20,14 @@ func TestClaimedDurableStateMatchesRunIdentity(t *testing.T) {
 	if _, err := s.CreateFlow(ctx, f, "mission_7", storeNow); err != nil {
 		t.Fatal(err)
 	}
-	run := RunRecord{ID: "run_g", FlowID: f.ID, Revision: 1, Mode: ModeLive, Status: RunRunning, TriggerNode: f.Nodes[0].ID, StartedAt: storeNow}
+	run := RunRecord{ID: "run_g", FlowID: f.ID, Revision: 1, Mode: ModeLive, Status: RunRunning, TriggerNode: f.Nodes[0].ID, TriggerType: "manual", StartedAt: storeNow}
 	if err := s.CreateRun(ctx, run, nil); err != nil {
 		t.Fatal(err)
 	}
+	markDurableTestRun(t, s, run.ID)
 	trigger := map[string]any{"type": "manual", "node": "start", "fired_at": storeNow.Format(time.RFC3339), "data": map[string]any{}}
 	triggerJSON, _ := json.Marshal(trigger)
-	state := durableCheckpointState{Version: 1, RunID: run.ID, Flow: f, Revision: 1, TriggerNode: run.TriggerNode, Trigger: trigger,
+	state := durableCheckpointState{Version: 2, Location: "iana:UTC", RunID: run.ID, Flow: f, Revision: 1, TriggerNode: run.TriggerNode, Trigger: trigger,
 		StartedAt: storeNow, WaitStartedAt: storeNow, WakeAt: storeNow.Add(time.Second), Deadline: storeNow.Add(time.Hour), WaitingNode: wait.ID,
 		Statuses: map[string]StepStatus{f.Nodes[0].ID: StepSuccess, f.Nodes[1].ID: StepSuccess, wait.ID: StepWaiting},
 		Edges:    map[string]edgeState{"e_1": edgeDelivered, "e_2": edgeDelivered}, Outputs: map[string]map[string]any{"start": trigger, "greet": {"greeting": "hello"}}, OutputBytes: len(triggerJSON) + 20}
@@ -91,8 +92,8 @@ func TestDurableReservationsAndAtomicCancel(t *testing.T) {
 	if _, err := s.db.Exec(`UPDATE flow_checkpoints SET state='claimed' WHERE run_id=?`, run.ID); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.durableReservations(ctx); err == nil {
-		t.Fatal("inconsistent checkpoint released its reservation")
+	if blocked, err := s.durableReservations(ctx); err != nil || len(blocked) != 1 || !blocked[0].Incompatible {
+		t.Fatalf("legacy checkpoint was not retained as incompatible: %+v %v", blocked, err)
 	}
 	if _, err := s.db.Exec(`UPDATE flow_checkpoints SET state='waiting' WHERE run_id=?`, run.ID); err != nil {
 		t.Fatal(err)

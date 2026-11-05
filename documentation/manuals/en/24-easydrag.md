@@ -13,6 +13,7 @@ This chapter covers the editor. How flow runs, limits, failures and secrets beha
 4. [Testing](#testing)
 5. [Publishing](#publishing)
 6. [Runs and Notifications](#runs-and-notifications)
+   - [Resuming local runs](#resuming-local-runs)
 7. [Decisions Node](#decisions-node)
 8. [When a Step Fails](#when-a-step-fails)
 9. [Secrets](#secrets)
@@ -324,6 +325,49 @@ error-message text. Comparing never replays a step.
 - A *Wait* step frees its run slot while it waits, so waiting flows do not hold up others; afterwards the run queues for a free slot. At most 64 runs wait like this at a time; beyond that a wait keeps its slot.
 - A flow set to *parallel* uses at most half of the parallel runs at once. At most 200 runs (and 64 MiB of their trigger data) wait for a start in total; beyond that new triggers are dropped, and Mission Control notes it on the flow.
 - Live and test runs are kept apart: *Runs kept per flow* counts live runs, and the newest 20 test runs are kept on their own. Very large runs keep the inputs and outputs of their first steps only (4 MiB per run); later steps show *Shortened*.
+
+### Resuming local runs
+
+**Resume local runs after restarts** is off by default in **Settings → EasyDrag flows**.
+Switching it on requires a restart. Switching it off takes effect without a restart and keeps
+saved work. The observed processing status and counts describe the server; changing an unsaved
+checkbox does not change them. Unknown counts are shown as unknown.
+
+This initial mode supports a manual trigger, Set fields, If, Switch, Merge, Stop and
+**Persistent wait**. The complete graph is checked, including disabled or unreachable steps.
+Calls, batches, tools, models and external effects are excluded. Persistent wait accepts 1–86,400
+seconds and is distinct from ordinary **Wait**, whose behavior stays unchanged. Publish and
+explicitly start the supported live flow; draft tests and simulations never start recovery.
+The wait must fit within the run's original total time limit. Date-dependent expressions are
+refused when the original timezone cannot be restored safely.
+
+The existing run view shows **Waiting** separately from **Recovery blocked**, with an observed
+wake time and original deadline when available. A blocked run has not been declared failed or
+completed. Its explanation identifies disabled processing, missing authority, an unavailable key
+or storage, or incompatible saved state. Use the matching Vault/backup when repairing saved data;
+the UI never replaces an unavailable key or discards the checkpoint automatically.
+
+An explicitly followed active run keeps its run ID across reconnect and window restore. Its
+exact stored graph opens read-only; your current draft remains separate. Recovery retains
+completed committed steps. Pure computation that was not committed before a crash may repeat.
+The original run deadline still applies, and retained output previews can remain shortened.
+Publishing v2 does not replace an already admitted v1 run or extend its original deadline.
+
+**Stop** requests cancellation of the observed saved state. **Stopping…** is not proof that the
+run ended; the view waits for server confirmation. If that state changed, refresh and review it
+before stopping again. Uncertain requests are never sent again automatically. Current Stop
+permission is required. For these resumable runs, authorized Stop remains available when missions
+or the desktop are read-only, or the app is locked; it does not enable processing. Ordinary
+non-resumable runs keep their existing mission read-only restriction. An incompatible old checkpoint can be
+stopped separately even when its historical run already ended; its original result is preserved.
+Mission Control refuses a mission-wide Stop when saved runs are involved, before stopping any
+run. Open the run you want to stop in EasyDrag and stop that individual run there.
+
+This mode does not start dependent missions, Planner follow-ups or completion notifications.
+Mission history can show the run once its source is available; the mission's cumulative run
+counter is unchanged in this initial mode. No child invocation history is provided.
+An active history entry whose source cannot be verified shows **Unknown**; its last recorded
+state does not confirm current progress.
 
 ## Decisions Node
 

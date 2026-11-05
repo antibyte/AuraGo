@@ -187,40 +187,42 @@ type MissionV2 struct {
 
 // QueueItem represents a mission in the execution queue
 type MissionManagerV2 struct {
-	plannerEvents      map[string]*plannerMissionAdmission
-	mu                 sync.RWMutex
-	saveMu             sync.Mutex // serialises file writes in save()
-	file               string
-	queueFile          string
-	missions           map[string]*MissionV2
-	queue              *MissionQueue
-	cron               *CronManager
-	callback           func(prompt string, missionID string) // agent invocation callback with mission ID
-	ctx                context.Context
-	cancel             context.CancelFunc
-	workMu             sync.Mutex
-	workWG             sync.WaitGroup
-	workClosed         bool
-	started            bool
-	stopParent         func() bool
-	emailWatcher       EmailWatcherInterface
-	webhookMgr         WebhookManagerInterface
-	mqttMgr            MQTTManagerInterface
-	cheatsheetDB       *sql.DB
-	preparedDB         *sql.DB                                  // prepared missions database
-	historyDB          *sql.DB                                  // mission execution history database
-	auditRecorder      func(memory.AuditEvent) error            // central dashboard audit sink
-	activeRunID        map[string]string                        // missionID → history run ID for in-progress tracking
-	activeChainDepth   map[string]int                           // missionID → mission_completed chain depth of the running prompt mission (missing = 0)
-	chainStopWarned    map[string]time.Time                     // source missionID → last warning about a stopped completion chain
-	onMissionComplete  func(completedID, result, output string) // callback for mission completion
-	missionGuards      map[string]context.CancelFunc            // per-mission timeout guardian cancel functions
-	remoteRunGuards    map[string]context.CancelFunc            // remote mission result timeout cancel functions
-	remoteClient       RemoteMissionClient
-	registeredTriggers map[string]string
-	lastTriggerFire    map[string]time.Time
-	flowHooks          FlowHooks      // EasyDrag flow service; nil until wired
-	flowActive         map[string]int // flow missionID → live runs in progress
+	plannerEvents        map[string]*plannerMissionAdmission
+	mu                   sync.RWMutex
+	saveMu               sync.Mutex // serialises file writes in save()
+	file                 string
+	queueFile            string
+	missions             map[string]*MissionV2
+	queue                *MissionQueue
+	cron                 *CronManager
+	callback             func(prompt string, missionID string) // agent invocation callback with mission ID
+	ctx                  context.Context
+	cancel               context.CancelFunc
+	workMu               sync.Mutex
+	workWG               sync.WaitGroup
+	workClosed           bool
+	started              bool
+	stopParent           func() bool
+	emailWatcher         EmailWatcherInterface
+	webhookMgr           WebhookManagerInterface
+	mqttMgr              MQTTManagerInterface
+	cheatsheetDB         *sql.DB
+	preparedDB           *sql.DB                                  // prepared missions database
+	historyDB            *sql.DB                                  // mission execution history database
+	auditRecorder        func(memory.AuditEvent) error            // central dashboard audit sink
+	activeRunID          map[string]string                        // missionID → history run ID for in-progress tracking
+	activeChainDepth     map[string]int                           // missionID → mission_completed chain depth of the running prompt mission (missing = 0)
+	chainStopWarned      map[string]time.Time                     // source missionID → last warning about a stopped completion chain
+	onMissionComplete    func(completedID, result, output string) // callback for mission completion
+	missionGuards        map[string]context.CancelFunc            // per-mission timeout guardian cancel functions
+	remoteRunGuards      map[string]context.CancelFunc            // remote mission result timeout cancel functions
+	remoteClient         RemoteMissionClient
+	registeredTriggers   map[string]string
+	lastTriggerFire      map[string]time.Time
+	flowHooks            FlowHooks         // EasyDrag flow service; nil until wired
+	flowActive           map[string]int    // flow missionID → live runs in progress
+	durableFlowActive    map[string]string // durable run ID → owning mission ID
+	durableHistorySource func(context.Context, string, string) (bool, error)
 	// permanent flow email/plain-MQTT registrations by slot and key (webhooks are keyed)
 	flowRegistered map[string]bool
 	// Notify* flow runs waiting for the event dispatcher; created with the first one
@@ -2410,6 +2412,7 @@ func (m *MissionManagerV2) DeleteWithOptions(id string, opts DeleteMissionOption
 	}
 	if isFlow {
 		m.invalidateFlowAdmissionsLocked(id)
+		m.forgetDurableFlowRunsLocked(id)
 	}
 	// The flow service deletes the flow only once the mission's removal is saved; otherwise
 	// the mission would come back after a restart without its flow.

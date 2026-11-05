@@ -165,6 +165,7 @@ func handleGetConfig(s *Server) http.HandlerFunc {
 		injectFeatureAvailability(rawCfg, s.Cfg.Runtime, s.Cfg.Agent.SudoEnabled)
 		w.Header().Set("Content-Type", "application/json")
 		rawCfg["_config_migrations"] = migrationNotices
+		rawCfg["_flows_durable_status"] = s.flowDurableCapability(r.Context())
 		if started := serverStartedAtMillis(s); started > 0 {
 			rawCfg["_server_started_at"] = started
 		}
@@ -520,6 +521,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		delete(patch, "_effective_tool_policy")
 		delete(patch, "_config_migrations")
 		delete(patch, "_server_started_at")
+		delete(patch, "_flows_durable_status")
 		if _, present := patch["sip"]; present {
 			writeSIPJSONStatus(w, http.StatusBadRequest, map[string]string{
 				"status": "error", "code": "sip_use_dedicated_api",

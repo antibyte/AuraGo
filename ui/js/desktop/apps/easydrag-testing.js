@@ -4,6 +4,94 @@
     const ED = window.EasyDrag = window.EasyDrag || {};
     const MAX_SAMPLE = 2 * 1024 * 1024;
 
+    function triggers(ed) {
+        return ed.model.doc.nodes.filter(n => { const i = ed.model.info(n.type); return i && i.trigger && !n.settings.disabled; });
+    }
+
+    // realEffects reads the effects of each step's real settings from the publish preview
+    // (CollectEffects: [{effect, node_ids}]) as node id -> effects; null when the answer has none.
+    function realEffects(preview) {
+        if (!preview || !Array.isArray(preview.effects)) return null;
+        const out = new Map();
+        preview.effects.forEach(item => {
+            if (!item || typeof item.effect !== 'string' || !Array.isArray(item.node_ids)) return;
+            item.node_ids.forEach(id => {
+                if (!out.has(id)) out.set(id, []);
+                out.get(id).push(item.effect);
+            });
+        });
+        return out;
+    }
+
+    // runningSteps lists the steps a test runs, in document order. A test of the whole flow counts
+    // every enabled step. A step test (onlyNode) runs what the engine runs
+    // (internal/flows/engine_state.go, run, fireTrigger and collectReady): the step and its
+    // ancestors, and of those only the steps the test's trigger reaches. Other triggers are
+    // skipped, and a disabled step is skipped with what only it feeds. Every wire counts, whatever
+    // its port, so the walk deliberately over-estimates what a branch will run. triggerId is the
+    // test's trigger; without one, every enabled trigger counts.
+    function runningSteps(ed, onlyNode, triggerId) {
+        const doc = ed.model.doc;
+        if (!onlyNode) return doc.nodes.filter(n => !n.settings.disabled);
+        const isTrigger = n => { const i = ed.model.info(n.type); return !!(i && i.trigger); };
+        // Wires to a missing step are ignored, as buildGraph does.
+        const incoming = new Map();
+        const outgoing = new Map();
+        doc.edges.forEach(e => {
+            if (!ed.model.node(e.source.node) || !ed.model.node(e.target.node)) return;
+            if (!incoming.has(e.target.node)) incoming.set(e.target.node, []);
+            if (!outgoing.has(e.source.node)) outgoing.set(e.source.node, []);
+            incoming.get(e.target.node).push(e.source.node);
+            outgoing.get(e.source.node).push(e.target.node);
+        });
+        // The scope: onlyNode and every step with a path to it (graph.ancestors).
+        const scope = new Set([onlyNode]);
+        for (const stack = [onlyNode]; stack.length;) {
+            (incoming.get(stack.pop()) || []).forEach(id => { if (!scope.has(id)) { scope.add(id); stack.push(id); } });
+        }
+        // What runs: the steps of the scope that the trigger reaches through enabled steps.
+        const starts = (triggerId ? [ed.model.node(triggerId)] : triggers(ed)).filter(n => n && isTrigger(n) && !n.settings.disabled).map(n => n.id);
+        const runs = new Set();
+        for (const stack = starts.slice(); stack.length;) {
+            (outgoing.get(stack.pop()) || []).forEach(id => {
+                const n = ed.model.node(id);
+                if (runs.has(id) || !scope.has(id) || n.settings.disabled || isTrigger(n)) return;
+                runs.add(id);
+                stack.push(id);
+            });
+        }
+        return doc.nodes.filter(n => runs.has(n.id));
+    }
+
+    // effects lists the outward effects of the steps a test runs (for the real-effects warning).
+    // Each step counts with its catalog effects, which describe its default settings, and with
+    // the effects of its real settings when the server named them (real: node id -> effects,
+    // from realEffects): an HTTP request with POST sends, while its catalog entry (GET) does not.
+    function effects(ed, onlyNode, triggerId, real) {
+        const out = new Map();
+        runningSteps(ed, onlyNode, triggerId).forEach(n => {
+            const i = ed.model.info(n.type);
+            const kinds = new Set((i && i.effects) || []);
+            ((real && real.get(n.id)) || []).forEach(effect => kinds.add(effect));
+            kinds.forEach(effect => {
+                if (!out.has(effect)) out.set(effect, []);
+                out.get(effect).push(n.label || n.type);
+            });
+        });
+        return out;
+    }
+
+    // unknownEffects reports a step that runs and whose effects nobody could name: its catalog
+    // entry is risky without effects, which is how the catalog marks an effects hook that failed
+    // (internal/flows/catalog.go); CollectEffects leaves such a step out as well.
+    function unknownEffects(ed, onlyNode, triggerId) {
+        return runningSteps(ed, onlyNode, triggerId).some(n => {
+            const i = ed.model.info(n.type);
+            return !!(i && i.risky && !((i.effects || []).length));
+        });
+    }
+
+
     function parseSample(text) {
         if (typeof text !== 'string' || text.length > MAX_SAMPLE) throw new Error('sample');
         const value = JSON.parse(text || '{}');
@@ -30,6 +118,7 @@
         const panel = core.el('<section class="ed-simulation-fields" hidden><p class="ed-callout">' + esc(t('easydrag.ui.simulation_hint')) + '</p><details class="ed-details" data-ed-fixtures-advanced><summary>' + esc(t('easydrag.ui.simulation_fixtures')) + '</summary><label class="ed-label">' + esc(t('easydrag.ui.simulation_fixtures')) + '<textarea class="ed-input ed-code" spellcheck="false" rows="7" data-ed-simulation-fixtures>{}</textarea></label><p class="ed-hint">' + esc(t('easydrag.ui.simulation_fixture_hint')) + '</p><ul class="ed-simulation-nodes">' + ed.model.doc.nodes.filter(n => !(ed.model.info(n.type) || {}).trigger).map(n => '<li><strong>' + esc(n.label || n.type) + '</strong> <code>' + esc(n.id) + '</code></li>').join('') + '</ul></details></section>');
         panel.querySelector('textarea').value = '{}';
         dialog.body.insertBefore(mode, dialog.body.firstChild);
+        if (ED.durable && ED.durable.requires(ed.model.doc)) dialog.body.insertBefore(core.el('<p class="ed-hint">' + esc(t('easydrag.ui.durable_live_only')) + '</p>'), mode);
         dialog.body.appendChild(panel);
         const select = mode.querySelector('select');
         let scenarios = null;
@@ -101,12 +190,27 @@
         const core = ED.core, bag = core.bag(), { t, esc } = ed;
         const el = core.el('<details class="ed-run-results" hidden><summary></summary><div class="ed-run-results-body"></div></details>');
         canvas.el.appendChild(el);
-        let signature = '', paintedRun = null;
+        let signature = '', paintedRun = null, durableRunId = '', durablePhaseKnown = false, durableTouched = false;
         function render() {
             const run = ed.run;
-            if (!run || !ED.runs.isFinal(run.status)) { el.hidden = true; return; }
+            if (!run) { el.hidden = true; return; }
+            const durable = ED.durable && ED.durable.has(run);
+            const phase = durable ? JSON.stringify(ED.durable.info(run)) + '|' + !!run.durableUnknown + '|' + !!run.durableStopping : '';
+            if (!ED.runs.isFinal(run.status)) {
+                if (!durable) { el.hidden = true; return; }
+                const next = run.id + '|' + run.status + '|' + phase;
+                if (next === signature && run === paintedRun) return;
+                signature = next; paintedRun = run; el.hidden = false;
+                if (durableRunId !== run.id) { durableRunId = run.id; durablePhaseKnown = false; durableTouched = false; }
+                const status = ED.durable.info(run);
+                if (!durableTouched && !durablePhaseKnown) el.open = status?.state === 'blocked';
+                if (status) durablePhaseKnown = true;
+                el.querySelector('summary').textContent = t('easydrag.ui.durable_title') + ' · ' + ED.durable.label(t, run);
+                el.querySelector('.ed-run-results-body').innerHTML = ED.durable.markup(ed, run);
+                return;
+            }
             const steps = Array.from(run.steps.values()).sort((a, b) => String(a.started_at || '').localeCompare(String(b.started_at || '')));
-            const key = [run.id, run.mode, run.status, run.record && run.record.finished_at, steps.map(step => step.node_id + ':' + step.status).join(',')].join('|');
+            const key = [run.id, run.mode, run.status, run.record && run.record.finished_at, phase, steps.map(step => step.node_id + ':' + step.status).join(',')].join('|');
             if (key === signature && run === paintedRun) return;
             signature = key;
             paintedRun = run;
@@ -119,6 +223,7 @@
             const preview = ed.isBlock && run.outputs ? null : contentResult(ed, complete);
             const label = step => { const n = ed.model.node(step.node_id); return n ? n.label || (ed.model.info(n.type) || {}).label || n.type : step.node_key || step.node_id; };
             el.querySelector('.ed-run-results-body').innerHTML =
+                (durable ? ED.durable.markup(ed, run) : '') +
                 (simulation ? '<p class="ed-hint">' + esc(t(ed.isBlock ? 'easydrag.ui.block_simulation_hint' : 'easydrag.ui.simulation_hint')) + '</p>' : '') +
                 (simulation && ed.isBlock && run.status === 'success' ? ED.blocks.outputMarkup(ed, run.outputs) : '') +
                 (ED.batches ? complete.filter(step => ed.model.node(step.node_id)?.type === 'component.each').map(step => ED.batches.resultMarkup(ed, step, true)).join('') : '') +
@@ -130,6 +235,8 @@
         bag.listen(el, 'pointerdown', event => event.stopPropagation());
         bag.listen(el, 'wheel', event => event.stopPropagation());
         bag.listen(el, 'click', event => {
+            if (event.target.closest('summary')) durableTouched = true;
+            if (event.target.closest('[data-ed-durable-check]')) { ed.bus.emit('refresh-durable-run'); return; }
             const button = event.target.closest('[data-ed-result-node]');
             if (!button) return;
             ed.bus.emit('focus-node', button.dataset.edResultNode);
@@ -138,5 +245,5 @@
         bag.add(ed.bus.on('run', render));
         return { dispose() { bag.dispose(); el.remove(); } };
     }
-    ED.testing = { decorate, createResults, parseSample, contentResult };
+    ED.testing = { decorate, createResults, parseSample, contentResult, triggers, realEffects, effects, unknownEffects };
 })();

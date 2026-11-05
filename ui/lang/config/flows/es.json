@@ -19,5 +19,12 @@
   "config.flows.max_parallel_nodes_per_run_help": "Cuántos pasos de una ejecución pueden ejecutarse en paralelo (1 a 16, por defecto 4).",
   "config.flows.max_parallel_runs_help": "Cuántas ejecuciones de flujos pueden ejecutarse a la vez (1 a 32, por defecto 8). Las demás esperan.",
   "config.flows.max_runs_per_flow_help": "Cuántas ejecuciones terminadas se conservan por flujo; las más antiguas se borran (10 a 5000, por defecto 200).",
-  "config.flows.run_retention_days_help": "El historial de una ejecución se borra tras estos días (1 a 365, por defecto 30)."
+  "config.flows.run_retention_days_help": "El historial de una ejecución se borra tras estos días (1 a 365, por defecto 30).",
+  "config.flows.durable_available": "Servicio de reanudación preparado",
+  "config.flows.durable_configured": "Opción guardada",
+  "config.flows.durable_counts": "Ejecuciones en espera: {{waiting}} · Activas: {{running}} · Bloqueadas: {{blocked}}",
+  "config.flows.durable_effective": "Procesamiento activado",
+  "config.flows.durable_enabled": "Continuar ejecuciones locales tras reiniciar",
+  "config.flows.durable_enabled_help": "Desactivado de forma predeterminada. Solo admite flujos manuales puramente locales y esperas guardadas. Activarlo requiere reiniciar; desactivarlo se aplica de inmediato y conserva las ejecuciones guardadas. Se excluyen herramientas, modelos, bloques y lotes.",
+  "config.flows.durable_observed": "Estado observado de reanudación"
 }

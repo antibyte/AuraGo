@@ -9,20 +9,24 @@ import (
 )
 
 type durableReservation struct {
-	RunID      string
-	FlowID     string
-	Revision   int
-	Generation int64
-	State      string
-	WakeAt     time.Time
-	Deadline   time.Time
+	RunID        string
+	FlowID       string
+	MissionID    string
+	Revision     int
+	Generation   int64
+	State        string
+	WakeAt       time.Time
+	Deadline     time.Time
+	LeaseUntil   time.Time
+	RunStatus    RunStatus
+	Incompatible bool
 }
 
 // durableReservations reads only non-secret scheduler metadata. A malformed
 // row blocks recovery instead of freeing its flow's concurrency reservation.
 func (s *Store) durableReservations(ctx context.Context) ([]durableReservation, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT c.run_id,r.flow_id,r.revision,c.generation,c.state,c.wake_at,c.deadline,r.mode,r.status
-		FROM flow_checkpoints c JOIN flow_runs r ON r.id=c.run_id ORDER BY c.wake_at,c.run_id`)
+	rows, err := s.db.QueryContext(ctx, `SELECT c.run_id,r.flow_id,r.durable_mission_id,CASE WHEN typeof(r.revision)='integer' THEN r.revision ELSE 0 END,CASE WHEN typeof(c.generation)='integer' THEN c.generation ELSE 0 END,c.state,c.wake_at,c.deadline,r.mode,r.status,r.durable,c.lease_until
+		FROM flow_checkpoints c JOIN flow_runs r ON r.id=c.run_id JOIN flows f ON f.id=r.flow_id ORDER BY c.wake_at,c.run_id`)
 	if err != nil {
 		return nil, fmt.Errorf("read durable reservations: %w", err)
 	}
@@ -30,16 +34,29 @@ func (s *Store) durableReservations(ctx context.Context) ([]durableReservation, 
 	var out []durableReservation
 	for rows.Next() {
 		var rec durableReservation
-		var wake, deadline, mode, status string
-		if err := rows.Scan(&rec.RunID, &rec.FlowID, &rec.Revision, &rec.Generation, &rec.State, &wake, &deadline, &mode, &status); err != nil {
+		var wake, deadline, mode, status, lease string
+		var marker int
+		if err := rows.Scan(&rec.RunID, &rec.FlowID, &rec.MissionID, &rec.Revision, &rec.Generation, &rec.State, &wake, &deadline, &mode, &status, &marker, &lease); err != nil {
 			return nil, err
 		}
-		rec.WakeAt, rec.Deadline = parseTime(wake), parseTime(deadline)
-		if rec.RunID == "" || rec.FlowID == "" || rec.Revision <= 0 || rec.Generation <= 0 || rec.WakeAt.IsZero() || rec.Deadline.IsZero() || !rec.WakeAt.Before(rec.Deadline) ||
+		rec.WakeAt, rec.Deadline, rec.LeaseUntil = parseTime(wake), parseTime(deadline), parseTime(lease)
+		rec.RunStatus = RunStatus(status)
+		if rec.RunID == "" || rec.FlowID == "" {
+			return nil, errInvalidCheckpoint
+		}
+		rec.Incompatible = marker != 1
+		if rec.Incompatible {
+			out = append(out, rec)
+			if len(out) > maxDurableCheckpoints {
+				return nil, errCheckpointCapacity
+			}
+			continue
+		}
+		if rec.MissionID == "" || rec.Revision <= 0 || rec.Generation <= 0 || rec.WakeAt.IsZero() || rec.Deadline.IsZero() || !rec.WakeAt.Before(rec.Deadline) ||
 			mode != string(ModeLive) || (rec.State != "waiting" && rec.State != "claimed") ||
 			(rec.State == "waiting" && status != string(RunWaiting)) ||
-			(rec.State == "claimed" && status != string(RunQueued) && status != string(RunRunning)) {
-			return nil, errInvalidCheckpoint
+			(rec.State == "claimed" && status != string(RunQueued) && status != string(RunRunning)) || (rec.State == "claimed" && rec.LeaseUntil.IsZero()) {
+			rec.Incompatible = true
 		}
 		out = append(out, rec)
 		if len(out) > maxDurableCheckpoints {
@@ -68,12 +85,12 @@ func (s *Store) claimedDurableState(ctx context.Context, runID string, generatio
 		return durableCheckpointState{}, errInvalidCheckpoint
 	}
 	var sealed []byte
-	var deadline, flowID, triggerNode, mode, status string
+	var deadline, wake, flowID, triggerNode, triggerType, mode, status, frozenMission, currentMission string
 	var revision int
-	err := s.db.QueryRowContext(ctx, `SELECT c.ciphertext,c.deadline,r.flow_id,r.revision,r.trigger_node,r.mode,r.status
-		FROM flow_checkpoints c JOIN flow_runs r ON r.id=c.run_id
+	err := s.db.QueryRowContext(ctx, `SELECT c.ciphertext,c.deadline,c.wake_at,r.flow_id,r.revision,r.trigger_node,r.trigger_type,r.mode,r.status,r.durable_mission_id,f.mission_id
+		FROM flow_checkpoints c JOIN flow_runs r ON r.id=c.run_id JOIN flows f ON f.id=r.flow_id
 		WHERE c.run_id=? AND c.generation=? AND c.state='claimed' AND c.lease_owner=? AND c.lease_until>? AND length(c.ciphertext)<=?`,
-		runID, generation, owner, formatTime(now), maxCheckpointBytes).Scan(&sealed, &deadline, &flowID, &revision, &triggerNode, &mode, &status)
+		runID, generation, owner, formatTime(now), maxCheckpointBytes).Scan(&sealed, &deadline, &wake, &flowID, &revision, &triggerNode, &triggerType, &mode, &status, &frozenMission, &currentMission)
 	if errors.Is(err, sql.ErrNoRows) {
 		return durableCheckpointState{}, errCheckpointConflict
 	}
@@ -91,7 +108,7 @@ func (s *Store) claimedDurableState(ctx context.Context, runID string, generatio
 	}
 	defer clear(plain)
 	state, err := decodeDurableState(plain)
-	if err != nil || state.RunID != runID || state.Flow.ID != flowID || state.Revision != revision || state.TriggerNode != triggerNode ||
+	if err != nil || state.Version != 2 || state.RunID != runID || state.Flow.ID != flowID || state.Revision != revision || state.TriggerNode != triggerNode || state.Trigger["type"] != "manual" || triggerType != "manual" || frozenMission == "" || frozenMission != currentMission || !durableWakeMatches(state, wake) ||
 		mode != string(ModeLive) || (status != string(RunQueued) && status != string(RunRunning)) || formatTime(state.Deadline) != deadline {
 		return durableCheckpointState{}, errInvalidCheckpoint
 	}

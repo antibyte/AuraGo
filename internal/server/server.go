@@ -694,6 +694,10 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	RegisterLLMSecrets(cfg, s.Vault)
 	s.Cfg = cfg
 	s.cfgSnapshot.Store(cfg)
+	if s.Flows != nil && previous != nil && previous.Flows.DurableEnabled && durableAllowedConfig(previous) &&
+		(!cfg.Flows.DurableEnabled || !durableAllowedConfig(cfg)) {
+		s.Flows.InvalidateDurableProcessing()
+	}
 	if fi := s.fileIndexer(); fi != nil {
 		// The running indexer keeps the pointer it was created with. Every caller
 		// publishes under CfgMu (write), the lock the indexer reads its config under,

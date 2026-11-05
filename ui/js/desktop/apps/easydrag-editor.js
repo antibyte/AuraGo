@@ -128,6 +128,7 @@
             onConflict: () => ED.dialogs.conflict(ed)
         });
         extraction = !isBlock && ED.extraction && ED.extraction.create(ed, canvas);
+        ed.runtime = !isBlock && ED.durable && ED.durable.supported(ed) ? ED.durable.observe(ed) : null;
 
         // ── header and footer ───────────────────────────────────────────────────
 
@@ -231,6 +232,7 @@
             btn('test').classList.toggle('is-busy', running);
             btn('test').classList.toggle('ed-btn--primary', !ed.flow.live && !ro);
             btn('cancel').hidden = !running;
+            btn('cancel').disabled = !!ed.run?.durableStatusError || btn('cancel').getAttribute('aria-busy') === 'true';
             btn('publish').disabled = ro;
             btn('publish').classList.toggle('has-changes', s.cls !== 'ok' && !ro);
             btn('publish').classList.toggle('ed-btn--primary', !!ed.flow.live && !ro);
@@ -252,7 +254,8 @@
             btn('palette').setAttribute('aria-disabled', String(!!ed.runView));
             // flow_id/run_id from a notification are cleared, so a later render does not reopen
             // that run, or a run of another flow after openFlow switched flows.
-            ctx.updateWindowContext && ctx.updateWindowContext(ed.windowId, isBlock ? { blockId: ed.flow.id, flowId: null, flow_id: null, run_id: null } : { blockId: null, flowId: ed.flow.id, flow_id: null, run_id: null });
+            const followed = ED.durable && ED.durable.has(ed.run) && (ED.runs.isActive(ed.run.status) || ED.durable.info(ed.run)?.cancel_available) ? ed.run.id : null;
+            ctx.updateWindowContext && ctx.updateWindowContext(ed.windowId, isBlock ? { blockId: ed.flow.id, flowId: null, flow_id: null, run_id: null } : { blockId: null, flowId: ed.flow.id, flow_id: null, run_id: followed });
         }
 
         // renderSaveState shows the saver's state. A failed or offline save names its error (an
@@ -318,7 +321,7 @@
             dot.className = 'ed-run-dot' + (r ? ' ed-run-dot--' + r.status : '');
             const failed = r && r.status === 'error' && ed.run && ed.run.steps ? Array.from(ed.run.steps.values()).find(s => s.status === 'error') : null;
             const failedNode = failed && ed.model.node(failed.node_id);
-            const head = failedNode ? t('easydrag.ui.run_failed_at', { node: failedNode.label || failedNode.type }) : r ? core.tr(t, 'easydrag.ui.status_' + r.status, r.status) : '';
+            const head = failedNode ? t('easydrag.ui.run_failed_at', { node: failedNode.label || failedNode.type }) : r ? ED.durable ? ED.durable.label(t, ed.run || r) : core.tr(t, 'easydrag.ui.status_' + r.status, r.status) : '';
             text.textContent = r
                 ? head + (r.started_at ? ' · ' + core.fmt.relative(r.started_at) : '') + (r.duration_ms ? ' · ' + core.fmt.duration(r.duration_ms) : '')
                 : t(isBlock ? 'easydrag.ui.block_not_simulated' : 'easydrag.ui.home_never_ran');
@@ -337,7 +340,7 @@
             banner.hidden = !run;
             if (!run) return;
             const text = t('easydrag.ui.run_view_banner', {
-                status: core.tr(t, 'easydrag.ui.status_' + run.status, run.status),
+                status: ED.durable ? ED.durable.label(t, ed.run || run) : core.tr(t, 'easydrag.ui.status_' + run.status, run.status),
                 time: core.fmt.dateTime(run.started_at),
                 revision: run.revision
             });
@@ -345,7 +348,8 @@
             if (node.textContent !== text) node.textContent = text;
             const stop = banner.querySelector('[data-ed-cmd="stop-viewed"]');
             // Stop shows on a read-only desktop too (a stop is no write); nothing else does.
-            const off = !ED.runs.isActive(run.status);
+            const durableStatus = ED.durable && ED.durable.info(ed.run);
+            const off = !!ed.run?.durableStatusError || (durableStatus ? !durableStatus.cancel_available : !!(run.durable) || !ED.runs.isActive(run.status));
             if (off && document.activeElement === stop) banner.querySelector('[data-ed-cmd="exit-run-view"]').focus();
             stop.hidden = off;
             banner.querySelector('[data-ed-cmd="rerun-viewed"]').hidden = !canRerun(run);
@@ -1006,6 +1010,7 @@
             palette.syncLayout();
             placeView();
             ed.initialRender = false;
+            if (ed.runtime) ed.runtime.refresh();
             canvas.el.focus({ preventScroll: true });
         });
         setMenus();
@@ -1027,7 +1032,7 @@
             safely(() => { if (interact) interact.dispose(); });
             safely(() => { if (contentDirty && ed.saver) ed.saver.save(); });
             safely(() => storeView.flush());
-            [extraction, blockTracker, authoring, workspace, wires, canvas, palette, runs, publish, history].forEach(m => { if (m) safely(() => m.dispose()); });
+            [ed.runtime, extraction, blockTracker, authoring, workspace, wires, canvas, palette, runs, publish, history].forEach(m => { if (m) safely(() => m.dispose()); });
             if (emailBinding) safely(() => emailBinding.dispose());
             safely(() => { if (ed.saver) ed.saver.dispose(); });
             safely(() => setMenusSoon.cancel());

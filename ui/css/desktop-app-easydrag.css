@@ -452,7 +452,8 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
     background: color-mix(in srgb, var(--ed-info) 14%, var(--ed-chrome)); border-bottom: 1px solid color-mix(in srgb, var(--ed-info) 35%, var(--ed-border));
     font-weight: 600;
 }
-.ed-runview-banner > span { flex: 1; }
+.ed-runview-banner > [data-ed-runview-text] { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.ed-runview-banner > .ed-btn { flex: none; }
 .ed-runview-banner > .ed-icon { color: var(--ed-info); }
 
 /* ── palette ────────────────────────────────────────────────────────────────── */
@@ -1043,6 +1044,12 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-app .ed-extraction-selection code { color: var(--ed-muted); font-size: 12px; }
 .ed-app .ed-extraction-status { flex-wrap: wrap; }
 .ed-app .ed-extraction-status > span { flex-basis: 20rem; min-width: 0; overflow-wrap: anywhere; }
+.ed-app .ed-durable-capability { flex-wrap: wrap; align-items: center; }
+.ed-app .ed-durable-capability > div { flex: 1 1 22rem; min-width: 0; overflow-wrap: anywhere; }
+.ed-app .ed-durable-capability p { margin: 4px 0; }
+.ed-app .ed-durable-times { display: grid; grid-template-columns: minmax(0, 1fr); gap: 3px; }
+.ed-app .ed-durable-times dt { color: var(--ed-muted); font-size: 12px; }
+.ed-app .ed-durable-times dd { margin: 0 0 6px; overflow-wrap: anywhere; }
 .ed-app .ed-modal-backdrop:has(> .ed-modal--transform) { max-width: 100vw; }
 .ed-app .ed-modal--transform { width: min(720px, 100%); }
 .ed-app .ed-modal-backdrop:has(> .ed-modal--block) { max-width: 100vw; }
@@ -1167,6 +1174,10 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
     .ed-editor:not(.is-inspector) .ed-canvas { min-width: 320px; }
 }
 @container (max-width: 560px) {
+    .ed-runview-banner { flex-wrap: wrap; }
+    .ed-runview-banner > [data-ed-runview-text] { flex: 1 1 calc(100% - 32px); }
+    .ed-runview-banner > .ed-btn { flex: 1 0 auto; max-width: 100%; white-space: normal; }
+    .ed-runview-banner > .ed-btn > span { min-width: 0; overflow-wrap: anywhere; }
     .ed-home-hero, .ed-home-toolbar, .ed-home-section { padding-left: 16px; padding-right: 16px; }
     .ed-home-actions { display: grid; width: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .ed-home-actions .ed-btn { min-height: 44px; }

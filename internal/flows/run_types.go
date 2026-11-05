@@ -138,6 +138,7 @@ type RunResult struct {
 // larger payload is stored as {"_preview": "<start of the encoded JSON>"}.
 type RunRecord struct {
 	ID           string         `json:"id"`
+	Durable      bool           `json:"durable"`
 	FlowID       string         `json:"flow_id"`
 	Revision     int            `json:"revision"`
 	Mode         RunMode        `json:"mode"`

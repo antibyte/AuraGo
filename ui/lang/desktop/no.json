@@ -10873,5 +10873,8 @@
   "codeStudio.promptExplain": "Forklar {{target}} i {{path}}.",
   "codeStudio.promptComments": "Legg til tydelige kommentarer for {{target}} i {{path}}. Returner bare den endrede koden.",
   "codeStudio.promptTests": "Lag nyttige tester for {{path}}. Returner kodeblokker for nye eller endrede filer.",
-  "codeStudio.promptRefactor": "Refaktorer {{target}} i {{path}}. Returner bare den endrede koden."
+  "codeStudio.promptRefactor": "Refaktorer {{target}} i {{path}}. Returner bare den endrede koden.",
+  "desktop.mc_error_durable_cancel": "Dette oppdraget inneholder lagrede kjøringer. Åpne kjøringen du vil stoppe, i EasyDrag, og stopp den der.",
+  "desktop.mc_state_unknown": "Ukjent",
+  "desktop.mc_state_waiting": "Venter"
 }

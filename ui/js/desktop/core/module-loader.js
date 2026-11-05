@@ -204,6 +204,7 @@
             modules: ['/js/vendor/pdf.min.js'],
             scripts: [
                 '/js/desktop/apps/easydrag-core.js',
+                '/js/desktop/apps/easydrag-durable.js',
                 '/js/desktop/apps/easydrag-template.js',
                 '/js/desktop/apps/easydrag-model.js',
                 '/js/desktop/apps/easydrag-geometry.js',

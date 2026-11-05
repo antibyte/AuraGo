@@ -10873,5 +10873,8 @@
   "codeStudio.promptExplain": "{{path}} の{{target}}を説明してください。",
   "codeStudio.promptComments": "{{path}} の{{target}}に分かりやすいコメントを追加してください。変更後のコードのみを返してください。",
   "codeStudio.promptTests": "{{path}} に役立つテストを作成してください。新規または変更したファイルのコードブロックを返してください。",
-  "codeStudio.promptRefactor": "{{path}} の{{target}}をリファクタリングしてください。変更後のコードのみを返してください。"
+  "codeStudio.promptRefactor": "{{path}} の{{target}}をリファクタリングしてください。変更後のコードのみを返してください。",
+  "desktop.mc_error_durable_cancel": "このミッションには保存済みの実行があります。停止したい実行を EasyDrag で開き、そこで停止してください。",
+  "desktop.mc_state_unknown": "不明",
+  "desktop.mc_state_waiting": "待機中"
 }

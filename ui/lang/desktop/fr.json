@@ -10873,5 +10873,8 @@
   "codeStudio.promptExplain": "Explique {{target}} dans {{path}}.",
   "codeStudio.promptComments": "Ajoute des commentaires clairs pour {{target}} dans {{path}}. Renvoie uniquement le code modifié.",
   "codeStudio.promptTests": "Crée des tests utiles pour {{path}}. Renvoie des blocs de code pour les fichiers nouveaux ou modifiés.",
-  "codeStudio.promptRefactor": "Refactorise {{target}} dans {{path}}. Renvoie uniquement le code modifié."
+  "codeStudio.promptRefactor": "Refactorise {{target}} dans {{path}}. Renvoie uniquement le code modifié.",
+  "desktop.mc_error_durable_cancel": "Cette mission contient des exécutions enregistrées. Ouvre dans EasyDrag l’exécution que tu souhaites arrêter, puis arrête-la depuis cette vue.",
+  "desktop.mc_state_unknown": "Inconnu",
+  "desktop.mc_state_waiting": "En attente"
 }
