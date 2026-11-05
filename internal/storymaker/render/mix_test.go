@@ -287,3 +287,107 @@ func TestMixPassStopsAtABlockBoundaryOnCancel(t *testing.T) {
 		t.Fatalf("%d blocks ran, want the 3 before the cancel", blocks)
 	}
 }
+
+// mixTestConstBed builds an input whose bed is a constant 0.5, so the music stem reads the gain directly.
+func mixTestConstBed(t *testing.T, frames int64) *MixInput {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "bed.raw")
+	mixTestWriteRaw(t, path, mixTestConst(int(frames), 16384))
+	return &MixInput{Frames: frames, Bed: &MixBed{Path: path, Frames: frames, Volume: 0.25}}
+}
+
+func mixTestAssertGainDB(t *testing.T, music []float64, n int64, want float64) {
+	t.Helper()
+	got := 20 * math.Log10(music[n*mixChannels]/0.5)
+	if math.Abs(got-want) > 0.02 {
+		t.Errorf("gain at frame %d = %.3f dB, want %.3f", n, got, want)
+	}
+}
+
+// mixTestRMSDB is the RMS level of the left channel over the frames from up to to.
+func mixTestRMSDB(stem []float64, from, to int64) float64 {
+	sum := 0.0
+	for n := from; n < to; n++ {
+		v := stem[n*mixChannels]
+		sum += v * v
+	}
+	return 10 * math.Log10(sum/float64(to-from))
+}
+
+func TestMixDuckReachesDepthAtSpeechAndReleasesOver400ms(t *testing.T) {
+	const (
+		speechStart = int64(3 * MixRate)
+		speechLen   = int64(MixRate)
+		lookahead   = int64(duckLookaheadMS * MixRate / 1000) // 50 ms is 2400 frames
+		release     = int64(duckReleaseMS * MixRate / 1000)   // 400 ms is 19200 frames
+		decayFrames = duckPeakDecayMS * MixRate / 1000        // 20 ms is 960 frames
+	)
+	// The film is 6 s, so the bed is flat from 0.5 s to 6 - 1.5 = 4.5 s, past the end of the release.
+	in := mixTestConstBed(t, 6*MixRate)
+	in.Narration = []MixClip{{Key: "speech", PCM: mixTestConst(MixRate, 16384), Len: speechLen, Start: speechStart}}
+	_, music, _ := mixTestCollect(t, in, mixPass{})
+
+	// The detector sees speech 50 ms early. The attack is a 50 ms ramp, so it ends as speech starts.
+	duckStart := speechStart - lookahead
+	mixTestAssertGainDB(t, music, duckStart-1, 0)
+	mixTestAssertGainDB(t, music, duckStart+lookahead/2-1, -3)
+	mixTestAssertGainDB(t, music, speechStart-1, -6)
+	mixTestAssertGainDB(t, music, speechStart, -6)
+
+	// The detector sees the last speech sample 50 ms early. Its peak then falls from 0.5 by
+	// exp(-k/960) and stays above the -45 dB threshold for hold more frames. Then the 400 ms ramp runs.
+	lastSeen := speechStart + speechLen - 1 - lookahead
+	hold := int64(decayFrames * math.Log(0.5/dbToLin(duckThresholdDB)))
+	releaseStart := lastSeen + hold + 1
+	mixTestAssertGainDB(t, music, releaseStart-1, -6)
+	mixTestAssertGainDB(t, music, releaseStart+release/2-1, -3)
+	mixTestAssertGainDB(t, music, releaseStart+release-1, 0)
+	mixTestAssertGainDB(t, music, releaseStart+release+100, 0)
+}
+
+func TestMixCarveCutsOnlyInsideSpans(t *testing.T) {
+	// The film is 4 s, so the bed is flat from 24000 to 192000 - 72000 = 120000.
+	const frames = int64(4 * MixRate)
+	path := filepath.Join(t.TempDir(), "bed.raw")
+	mixTestWriteRaw(t, path, mixTestSine(int(frames), 0.25, carveHz))
+	in := &MixInput{
+		Frames: frames,
+		Bed:    &MixBed{Path: path, Frames: frames, Volume: 0.25},
+		Spans:  []Span{{From: 60000, To: 72000}},
+	}
+	_, music, _ := mixTestCollect(t, in, mixPass{})
+
+	// 4800 frames hold 220 whole cycles of 2.2 kHz. The RMS of a sine of amplitude a is a/sqrt(2).
+	// A peaking filter has exactly its gain at its centre, so inside the span the level is 5 dB lower.
+	// The ramps reach 20 ms (960 frames) past each edge, and these windows stay clear of them.
+	full := 20 * math.Log10(0.25/math.Sqrt2)
+	for _, c := range []struct {
+		name string
+		from int64
+		want float64
+	}{
+		{"before the span", 40000, full},
+		{"inside the span", 62000, full + carveDB},
+		{"after the span", 90000, full},
+	} {
+		if got := mixTestRMSDB(music, c.from, c.from+4800); math.Abs(got-c.want) > 0.05 {
+			t.Errorf("%s: %.3f dB, want %.3f", c.name, got, c.want)
+		}
+	}
+}
+
+func TestMixImpactDipFollowsAttackHoldReturn(t *testing.T) {
+	// 10 ms is 480 frames, 80 ms is 3840 frames and 0.3 s is 14400 frames. 60000 + 18720 stays inside
+	// the flat part of a 4 s film, which ends at 120000.
+	const at = int64(60000)
+	in := mixTestConstBed(t, 4*MixRate)
+	in.Impacts = []Impact{{At: at, DepthDB: 3}}
+	_, music, _ := mixTestCollect(t, in, mixPass{})
+
+	mixTestAssertGainDB(t, music, at-1, 0)
+	mixTestAssertGainDB(t, music, at+dipAttackFrames/2, -1.5)
+	mixTestAssertGainDB(t, music, at+dipAttackFrames, -3)
+	mixTestAssertGainDB(t, music, at+dipAttackFrames+dipHoldFrames-1, -3)
+	mixTestAssertGainDB(t, music, at+dipAttackFrames+dipHoldFrames+dipReturnFrames/2, -1.5)
+	mixTestAssertGainDB(t, music, at+dipAttackFrames+dipHoldFrames+dipReturnFrames, 0)
+}

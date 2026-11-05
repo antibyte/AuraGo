@@ -435,20 +435,97 @@ func (b *bedLoop) fill(n0 int64, f int, out []float64) error {
 	return nil
 }
 
-// bedShape turns the raw loop into the bed stem: the gain and the fades.
+// biquad is a stateful direct-form-I filter.
+type biquad struct {
+	b0, b1, b2, a1, a2 float64
+	x1, x2, y1, y2     float64
+}
+
+// peakingBiquad is the RBJ peaking filter at the mix rate.
+func peakingBiquad(hz, q, gainDB float64) biquad {
+	a := math.Pow(10, gainDB/40)
+	w := 2 * math.Pi * hz / MixRate
+	alpha := math.Sin(w) / (2 * q)
+	a0 := 1 + alpha/a
+	return biquad{
+		b0: (1 + alpha*a) / a0,
+		b1: -2 * math.Cos(w) / a0,
+		b2: (1 - alpha*a) / a0,
+		a1: -2 * math.Cos(w) / a0,
+		a2: (1 - alpha/a) / a0,
+	}
+}
+
+func (b *biquad) run(x float64) float64 {
+	y := b.b0*x + b.b1*b.x1 + b.b2*b.x2 - b.a1*b.y1 - b.a2*b.y2
+	b.x2, b.x1, b.y2, b.y1 = b.x1, x, b.y1, y
+	return y
+}
+
+// dipGainDB is the impact dip in dB, dt frames after the hit.
+func dipGainDB(dt int64, depth float64) float64 {
+	switch {
+	case dt < 0:
+		return 0
+	case dt < dipAttackFrames:
+		return -depth * float64(dt) / dipAttackFrames
+	case dt < dipAttackFrames+dipHoldFrames:
+		return -depth
+	case dt < dipAttackFrames+dipHoldFrames+dipReturnFrames:
+		return -depth * (1 - float64(dt-dipAttackFrames-dipHoldFrames)/dipReturnFrames)
+	}
+	return 0
+}
+
+// bedShape turns the raw loop into the bed stem: the gain to the reference and the fades, the duck
+// keyed by the narration, the carve inside the speech spans, and the impact dips.
 type bedShape struct {
 	gain    float64
 	film    int64
 	fadeIn  int64
 	fadeOut int64
+
+	lookahead   int
+	attackStep  float64
+	releaseStep float64
+	peakDecay   float64
+	threshold   float64
+	peak        float64
+	duck        float64
+
+	carve    [mixChannels]biquad
+	spans    []Span
+	nextSpan int
+	rampLead int64
+	rampStep float64
+	wet      float64
+
+	impacts    []Impact
+	nextImpact int
+	activeHits []Impact
 }
 
 func newBedShape(in *MixInput, pass mixPass) *bedShape {
+	spans := append([]Span(nil), in.Spans...)
+	sort.Slice(spans, func(i, j int) bool { return spans[i].From < spans[j].From })
+	impacts := append([]Impact(nil), in.Impacts...)
+	sort.Slice(impacts, func(i, j int) bool { return impacts[i].At < impacts[j].At })
+	carve := peakingBiquad(carveHz, carveQ, carveDB)
 	return &bedShape{
-		gain:    dbToLin(pass.bedGainDB),
-		film:    in.Frames,
-		fadeIn:  int64(musicFadeInS * MixRate),
-		fadeOut: int64(musicFadeOutS * MixRate),
+		gain:        dbToLin(pass.bedGainDB),
+		film:        in.Frames,
+		fadeIn:      int64(musicFadeInS * MixRate),
+		fadeOut:     int64(musicFadeOutS * MixRate),
+		lookahead:   int(duckLookaheadMS * MixRate / 1000),
+		attackStep:  1 / (duckAttackMS * MixRate / 1000),
+		releaseStep: 1 / (duckReleaseMS * MixRate / 1000),
+		peakDecay:   math.Exp(-1 / (duckPeakDecayMS * MixRate / 1000)),
+		threshold:   dbToLin(duckThresholdDB),
+		carve:       [mixChannels]biquad{carve, carve},
+		spans:       spans,
+		rampLead:    int64(carveRampMS * MixRate / 1000),
+		rampStep:    1 / (carveRampMS * MixRate / 1000),
+		impacts:     impacts,
 	}
 }
 
@@ -463,13 +540,73 @@ func (s *bedShape) fade(n int64) float64 {
 	return fade
 }
 
-// apply shapes one block of the raw loop in place.
+// apply shapes one block of the raw loop in place. cur and next are the narration of this block and
+// the next one, before the master gain, so the duck is the same in pass 2 and pass 3.
 func (s *bedShape) apply(n0 int64, f int, cur, next, bed []float64) {
 	for i := 0; i < f; i++ {
-		g := s.gain * s.fade(n0+int64(i))
-		bed[i*mixChannels] *= g
-		bed[i*mixChannels+1] *= g
+		n := n0 + int64(i)
+		duckDB := s.stepDuck(i, f, cur, next)
+		dipDB := s.stepDip(n)
+		wet := s.stepCarve(n)
+		g := s.gain * s.fade(n) * dbToLin(duckDB+dipDB)
+		for ch := 0; ch < mixChannels; ch++ {
+			x := bed[i*mixChannels+ch]
+			y := s.carve[ch].run(x)
+			bed[i*mixChannels+ch] = (x + wet*(y-x)) * g
+		}
 	}
+}
+
+// stepDuck is the duck in dB for one frame. The detector reads the narration 50 ms ahead and holds its
+// peak with a 20 ms decay. Attack and release are linear ramps in dB, so the duck starts 50 ms before
+// speech, is at full depth when speech starts, and returns over exactly 400 ms.
+func (s *bedShape) stepDuck(i, f int, cur, next []float64) float64 {
+	j := i + s.lookahead
+	var l, r float64
+	if j < f {
+		l, r = cur[j*mixChannels], cur[j*mixChannels+1]
+	} else if j-f < mixBlockFrames {
+		l, r = next[(j-f)*mixChannels], next[(j-f)*mixChannels+1]
+	}
+	s.peak = math.Max(math.Abs(l+r)*0.5, s.peak*s.peakDecay)
+	if s.peak > s.threshold {
+		s.duck = math.Min(1, s.duck+s.attackStep)
+	} else {
+		s.duck = math.Max(0, s.duck-s.releaseStep)
+	}
+	return -duckDepthDB * s.duck
+}
+
+// stepCarve is the wet share of the carve for one frame: fully wet inside a span, with a 20 ms ramp
+// before it and after it.
+func (s *bedShape) stepCarve(n int64) float64 {
+	for s.nextSpan < len(s.spans) && s.spans[s.nextSpan].To <= n {
+		s.nextSpan++
+	}
+	if s.nextSpan < len(s.spans) && n >= s.spans[s.nextSpan].From-s.rampLead {
+		s.wet = math.Min(1, s.wet+s.rampStep)
+	} else {
+		s.wet = math.Max(0, s.wet-s.rampStep)
+	}
+	return s.wet
+}
+
+// stepDip is the deepest active impact dip in dB for one frame.
+func (s *bedShape) stepDip(n int64) float64 {
+	for s.nextImpact < len(s.impacts) && s.impacts[s.nextImpact].At <= n {
+		s.activeHits = append(s.activeHits, s.impacts[s.nextImpact])
+		s.nextImpact++
+	}
+	deepest := 0.0
+	kept := s.activeHits[:0]
+	for _, hit := range s.activeHits {
+		deepest = math.Min(deepest, dipGainDB(n-hit.At, hit.DepthDB))
+		if n-hit.At < dipAttackFrames+dipHoldFrames+dipReturnFrames {
+			kept = append(kept, hit)
+		}
+	}
+	s.activeHits = kept
+	return deepest
 }
 
 // wavWriter writes a canonical 48 kHz stereo s16 WAV. close writes the header.
