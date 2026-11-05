@@ -1040,9 +1040,8 @@
                     return;
                 }
                 ed.enterRunView(detail);
-                if (gateId && ED.approvals && ed.runView && ed.runView.run.id === runId) {
+                if (gateId && ED.approvals && ed.runView && ed.runView.run.id === runId)
                     ED.approvals.openRunReview(ed, gateId, { runId, flowId: ed.flow.id, revision: ed.runView.run.revision });
-                }
             } catch (err) {
                 if (!disposed && mine === viewSeq) ed.ctx.notify({ title: t('easydrag.ui.runs_title'), message: core.errorText(t, err), type: 'error' });
             } finally {
