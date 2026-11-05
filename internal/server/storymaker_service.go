@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -18,6 +19,9 @@ import (
 
 const storymakerCatalogPath = "img/storymaker/catalog.json"
 
+// storymakerMaxQueuedNarrations is the number of waiting jobs in the narrate queue.
+const storymakerMaxQueuedNarrations = 128
+
 // storymakerRuntime is everything Storymaker keeps alive between requests: the project store, the
 // catalog, the browser resolver, the render job manager and its runner.
 type storymakerRuntime struct {
@@ -28,7 +32,8 @@ type storymakerRuntime struct {
 	browsers *render.Browsers
 	ffmpeg   *storymakerFFmpegCache // the FFmpeg check of the status endpoint
 	runner   *render.Runner
-	jobs     *render.Manager
+	jobs     *render.Manager // the render queue
+	narrate  *render.Manager // the narrate and music queue
 }
 
 // storymakerUIFiles returns the ui tree the catalog and the player bundles are read from: the
@@ -64,7 +69,7 @@ func (s *Server) storymakerRuntime() (*storymakerRuntime, error) {
 		}
 		old := s.storymaker
 		s.storymaker = nil
-		old.jobs.Close()
+		old.close()
 	}
 	rt, err := s.newStorymakerRuntime(dataDir)
 	if err != nil {
@@ -106,12 +111,40 @@ func (s *Server) newStorymakerRuntime(dataDir string) (*storymakerRuntime, error
 	if s.storymakerRunOverride != nil {
 		run = s.storymakerRunOverride
 	}
-	jobs, err := render.NewManager(render.ManagerOptions{Dir: dir, Run: run, Logger: logger})
+	audioRun := func(ctx context.Context, job render.Job, payload any, h *render.Handle) (render.Output, error) {
+		return s.storymakerAudioRun(ctx, rt, job, payload, h)
+	}
+	if s.storymakerAudioRunOverride != nil {
+		audioRun = s.storymakerAudioRunOverride
+	}
+	jobs, narrate, err := openStorymakerManagers(dir, run, audioRun, logger, render.NewManager)
 	if err != nil {
 		return nil, err
 	}
-	rt.jobs = jobs
+	rt.jobs, rt.narrate = jobs, narrate
 	return rt, nil
+}
+
+// openStorymakerManagers opens the render queue and the narrate queue. A failure of the second closes
+// the first, or its worker would stay alive with no owner.
+func openStorymakerManagers(dir string, run, audioRun render.RunFunc, logger *slog.Logger, open func(render.ManagerOptions) (*render.Manager, error)) (*render.Manager, *render.Manager, error) {
+	jobs, err := open(render.ManagerOptions{Dir: dir, Run: run, Logger: logger})
+	if err != nil {
+		return nil, nil, err
+	}
+	narrate, err := open(render.ManagerOptions{
+		Dir:       filepath.Join(dir, "narrate"),
+		Kinds:     []string{render.KindNarrate, render.KindMusic},
+		MaxQueued: storymakerMaxQueuedNarrations,
+		Workers:   1,
+		Run:       audioRun,
+		Logger:    logger,
+	})
+	if err != nil {
+		jobs.Close()
+		return nil, nil, err
+	}
+	return jobs, narrate, nil
 }
 
 // closeStorymaker stops the job manager (a running render ends as interrupted).
@@ -125,8 +158,69 @@ func (s *Server) closeStorymaker() {
 	s.storymaker = nil
 	s.storymakerMu.Unlock()
 	if rt != nil {
-		rt.jobs.Close()
+		rt.close()
 	}
+}
+
+// jobByID finds a job in either queue and returns the manager that holds it.
+func (rt *storymakerRuntime) jobByID(id string) (render.Job, *render.Manager, bool) {
+	if job, ok := rt.jobs.Get(id); ok {
+		return job, rt.jobs, true
+	}
+	if job, ok := rt.narrate.Get(id); ok {
+		return job, rt.narrate, true
+	}
+	return render.Job{}, nil, false
+}
+
+// listJobs merges the jobs of a project from both queues, newest first.
+func (rt *storymakerRuntime) listJobs(projectID string) []render.Job {
+	jobs := append(rt.jobs.List(projectID), rt.narrate.List(projectID)...)
+	sort.Slice(jobs, func(i, j int) bool {
+		if !jobs[i].CreatedAt.Equal(jobs[j].CreatedAt) {
+			return jobs[i].CreatedAt.After(jobs[j].CreatedAt)
+		}
+		return jobs[i].ID > jobs[j].ID
+	})
+	return jobs
+}
+
+// initialJobs is the first list of the event stream, newest first: every unfinished job of both
+// queues plus the merged latest five, so newer narrate jobs cannot push a running export out of it.
+func (rt *storymakerRuntime) initialJobs(projectID string) []render.Job {
+	all := rt.listJobs(projectID)
+	out := make([]render.Job, 0, len(all))
+	for i, job := range all {
+		if i < 5 || !job.Terminal() {
+			out = append(out, job)
+		}
+	}
+	return out
+}
+
+// cancelProject cancels every unfinished job of a project in both queues.
+func (rt *storymakerRuntime) cancelProject(projectID string) {
+	rt.jobs.CancelProject(projectID)
+	rt.narrate.CancelProject(projectID)
+}
+
+// storymakerDeleteWait bounds how long a project delete waits for the project's jobs to stop.
+const storymakerDeleteWait = 15 * time.Second
+
+// waitProject waits until the project has no unfinished job in either queue. A job that was cancelled
+// can still hold a file open or write one, so a delete waits before it removes the folder. A job that
+// outlasts the bound does not block the delete, so the outcome of the wait is not returned.
+func (rt *storymakerRuntime) waitProject(ctx context.Context, projectID string) {
+	ctx, cancel := context.WithTimeout(ctx, storymakerDeleteWait)
+	defer cancel()
+	_ = rt.jobs.WaitProject(ctx, projectID)
+	_ = rt.narrate.WaitProject(ctx, projectID)
+}
+
+// close stops both managers.
+func (rt *storymakerRuntime) close() {
+	rt.jobs.Close()
+	rt.narrate.Close()
 }
 
 // normalizedStorymakerConfig returns a copy of the configuration with the Storymaker section

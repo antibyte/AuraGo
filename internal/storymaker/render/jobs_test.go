@@ -576,3 +576,42 @@ func TestJobMessagesSayThisJob(t *testing.T) {
 	j, _ = m.Get(queued.ID)
 	check("close with a queued job", j)
 }
+
+func TestWaitProjectEndsWithTheJobOrTheContext(t *testing.T) {
+	started := make(chan struct{}, 1)
+	release := make(chan struct{})
+	unblock := sync.OnceFunc(func() { close(release) })
+	defer unblock()
+	// This job ignores its cancel until the test lets it go.
+	m := newTestManager(t, t.TempDir(), func(ctx context.Context, job Job, _ any, h *Handle) (Output, error) {
+		started <- struct{}{}
+		<-release
+		return Output{}, ctx.Err()
+	})
+	job, _, err := m.Enqueue(EnqueueRequest{ProjectID: projA})
+	if err != nil {
+		t.Fatal(err)
+	}
+	<-started
+	m.CancelProject(projA)
+
+	short, cancelShort := context.WithTimeout(context.Background(), 30*time.Millisecond)
+	defer cancelShort()
+	if err := m.WaitProject(short, projA); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("the wait on a job that will not stop = %v", err)
+	}
+	// Another project has nothing to wait for, even with a context that already ended.
+	if err := m.WaitProject(short, projB); err != nil {
+		t.Fatalf("the wait on another project = %v", err)
+	}
+
+	unblock()
+	long, cancelLong := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancelLong()
+	if err := m.WaitProject(long, projA); err != nil {
+		t.Fatalf("the wait after the job stopped = %v", err)
+	}
+	if j, _ := m.Get(job.ID); j.Status != StatusCancelled {
+		t.Fatalf("job when the wait ended = %+v", j)
+	}
+}

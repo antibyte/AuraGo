@@ -372,9 +372,10 @@ type Server struct {
 	storymaker       *storymakerRuntime
 	storymakerClosed bool
 	storymakerUI     fs.FS
-	// Test seams: a ready-made browser resolver and a replacement for the render function.
-	storymakerBrowsers    *render.Browsers
-	storymakerRunOverride render.RunFunc
+	// Test seams: a ready-made browser resolver and replacements for the render and the audio job function.
+	storymakerBrowsers         *render.Browsers
+	storymakerRunOverride      render.RunFunc
+	storymakerAudioRunOverride render.RunFunc
 	// storymakerFrameObserver sees every rendered frame (the parity test hashes them).
 	storymakerFrameObserver func(n int, transport string, data []byte)
 

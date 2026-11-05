@@ -612,6 +612,37 @@ func (m *Manager) CancelProject(projectID string) {
 	}
 }
 
+// WaitProject blocks until the project has no unfinished job, and returns ctx's error if ctx ends
+// first. It cancels nothing. A job turns terminal after its RunFunc has returned, so a nil answer means
+// no job of the project still touches its files.
+func (m *Manager) WaitProject(ctx context.Context, projectID string) error {
+	// Subscribe before the first look, so a job that ends in between still sends its signal.
+	changed, unsubscribe := m.Subscribe(projectID)
+	defer unsubscribe()
+	for {
+		if !m.projectBusy(projectID) {
+			return nil
+		}
+		select {
+		case <-changed:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
+// projectBusy reports whether the project has an unfinished job.
+func (m *Manager) projectBusy(projectID string) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, r := range m.jobs {
+		if r.ProjectID == projectID && !r.Terminal() {
+			return true
+		}
+	}
+	return false
+}
+
 func (m *Manager) removeFromQueueLocked(id string) {
 	for i, q := range m.queue {
 		if q == id {

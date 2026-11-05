@@ -1016,3 +1016,248 @@ func TestStorymakerSettingsRefuseWhenSwitchedOffOrReadOnly(t *testing.T) {
 		t.Fatalf("read-only: %v", err)
 	}
 }
+
+// storymakerBlockingRun is a job function that holds its job until it is cancelled.
+func storymakerBlockingRun(ctx context.Context, job render.Job, payload any, h *render.Handle) (render.Output, error) {
+	<-ctx.Done()
+	return render.Output{}, ctx.Err()
+}
+
+// storymakerQueueFixture makes a server whose jobs run the given functions. Tests put jobs straight
+// on the managers, so no FFmpeg or browser is needed.
+func storymakerQueueFixture(t *testing.T, renderRun, audioRun render.RunFunc) (*Server, *storymakerRuntime, string, apiProject) {
+	t.Helper()
+	s, _, writeToken := storymakerAPIFixture(t)
+	s.storymakerRunOverride = renderRun
+	s.storymakerAudioRunOverride = audioRun
+	p := createStorymakerProject(t, s, writeToken)
+	rt, err := s.storymakerRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return s, rt, writeToken, p
+}
+
+func enqueueStorymakerJob(t *testing.T, m *render.Manager, projectID, kind string) render.Job {
+	t.Helper()
+	job, _, err := m.Enqueue(render.EnqueueRequest{ProjectID: projectID, Kind: kind})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return job
+}
+
+func waitStorymakerManagerJob(t *testing.T, m *render.Manager, id string) render.Job {
+	t.Helper()
+	deadline := time.Now().Add(10 * time.Second)
+	for time.Now().Before(deadline) {
+		if job, ok := m.Get(id); ok && job.Terminal() {
+			return job
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	job, _ := m.Get(id)
+	t.Fatalf("job %s did not end: %+v", id, job)
+	return render.Job{}
+}
+
+// openStorymakerEvents opens the event stream of a project and returns its jobs in the order they arrive.
+func openStorymakerEvents(t *testing.T, s *Server, token, projectID string) <-chan render.Job {
+	t.Helper()
+	srv := httptest.NewServer(handleStorymaker(s))
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, srv.URL+storymakerAPIBase+"/projects/"+projectID+"/events", nil)
+	if err != nil {
+		cancel()
+		srv.Close()
+		t.Fatal(err)
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		cancel()
+		srv.Close()
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		cancel()
+		res.Body.Close()
+		srv.Close()
+	})
+	events := make(chan render.Job, 64)
+	go func() {
+		defer close(events)
+		sc := bufio.NewScanner(res.Body)
+		sc.Buffer(make([]byte, 64<<10), 1<<20)
+		var name string
+		for sc.Scan() {
+			line := sc.Text()
+			switch {
+			case strings.HasPrefix(line, "event: "):
+				name = strings.TrimPrefix(line, "event: ")
+			case strings.HasPrefix(line, "data: ") && name == "job":
+				var d struct {
+					Job render.Job `json:"job"`
+				}
+				if json.Unmarshal([]byte(strings.TrimPrefix(line, "data: ")), &d) == nil {
+					events <- d.Job
+				}
+			}
+		}
+	}()
+	return events
+}
+
+func TestStorymakerRouterServesBothQueues(t *testing.T) {
+	s, rt, token, p := storymakerQueueFixture(t, storymakerBlockingRun, storymakerBlockingRun)
+	// CreatedAt orders the merged list; the pauses keep the three stamps apart on a coarse clock.
+	older := enqueueStorymakerJob(t, rt.jobs, p.Project.ID, "")
+	time.Sleep(20 * time.Millisecond)
+	narrate := enqueueStorymakerJob(t, rt.narrate, p.Project.ID, render.KindNarrate)
+	time.Sleep(20 * time.Millisecond)
+	newer := enqueueStorymakerJob(t, rt.jobs, p.Project.ID, "")
+
+	w := storymakerRequest(s, token, http.MethodGet, "/jobs/"+narrate.ID, nil, nil)
+	var got struct {
+		Job render.Job `json:"job"`
+	}
+	decodeBody(t, w, &got)
+	if w.Code != http.StatusOK || got.Job.ID != narrate.ID || got.Job.Kind != render.KindNarrate {
+		t.Fatalf("GET narrate job = %d %s", w.Code, w.Body.String())
+	}
+
+	w = storymakerRequest(s, token, http.MethodGet, "/projects/"+p.Project.ID+"/jobs", nil, nil)
+	var listed struct {
+		Jobs []render.Job `json:"jobs"`
+	}
+	decodeBody(t, w, &listed)
+	ids := make([]string, 0, len(listed.Jobs))
+	for _, job := range listed.Jobs {
+		ids = append(ids, job.ID)
+	}
+	want := []string{newer.ID, narrate.ID, older.ID}
+	if strings.Join(ids, ",") != strings.Join(want, ",") {
+		t.Fatalf("merged list = %v, want %v", ids, want)
+	}
+
+	if w := storymakerRequest(s, token, http.MethodPost, "/jobs/"+narrate.ID+"/cancel", nil, nil); w.Code != http.StatusOK {
+		t.Fatalf("cancel = %d %s", w.Code, w.Body.String())
+	}
+	if job := waitStorymakerManagerJob(t, rt.narrate, narrate.ID); job.Status != render.StatusCancelled {
+		t.Fatalf("cancelled narrate job = %+v", job)
+	}
+}
+
+func TestStorymakerDeleteProjectCancelsBothQueues(t *testing.T) {
+	started := make(chan struct{}, 2)
+	// The pause after the cancel stands for a job that still holds a file. The delete has to outlast it.
+	run := func(ctx context.Context, job render.Job, payload any, h *render.Handle) (render.Output, error) {
+		started <- struct{}{}
+		<-ctx.Done()
+		time.Sleep(200 * time.Millisecond)
+		return render.Output{}, ctx.Err()
+	}
+	s, rt, token, p := storymakerQueueFixture(t, run, run)
+	renderJob := enqueueStorymakerJob(t, rt.jobs, p.Project.ID, "")
+	narrateJob := enqueueStorymakerJob(t, rt.narrate, p.Project.ID, render.KindNarrate)
+	<-started
+	<-started
+	if w := storymakerRequest(s, token, http.MethodDelete, "/projects/"+p.Project.ID, nil, nil); w.Code != http.StatusNoContent {
+		t.Fatalf("delete = %d %s", w.Code, w.Body.String())
+	}
+	// No polling: both jobs have ended by the time the delete answers.
+	if job, _ := rt.jobs.Get(renderJob.ID); job.Status != render.StatusCancelled {
+		t.Fatalf("render job when the delete answered = %+v", job)
+	}
+	if job, _ := rt.narrate.Get(narrateJob.ID); job.Status != render.StatusCancelled {
+		t.Fatalf("narrate job when the delete answered = %+v", job)
+	}
+}
+
+func TestStorymakerEventsDeliverBothQueues(t *testing.T) {
+	s, rt, token, p := storymakerQueueFixture(t, storymakerBlockingRun, storymakerBlockingRun)
+	events := openStorymakerEvents(t, s, token, p.Project.ID)
+	renderJob := enqueueStorymakerJob(t, rt.jobs, p.Project.ID, "")
+	narrateJob := enqueueStorymakerJob(t, rt.narrate, p.Project.ID, render.KindNarrate)
+	seen := map[string]bool{}
+	timeout := time.After(10 * time.Second)
+	for !seen[renderJob.ID] || !seen[narrateJob.ID] {
+		select {
+		case job, ok := <-events:
+			if !ok {
+				t.Fatal("the event stream ended")
+			}
+			seen[job.ID] = true
+		case <-timeout:
+			t.Fatalf("events seen: %v", seen)
+		}
+	}
+}
+
+func TestStorymakerEventsFirstListKeepsARunningRender(t *testing.T) {
+	started := make(chan struct{}, 1)
+	renderRun := func(ctx context.Context, job render.Job, payload any, h *render.Handle) (render.Output, error) {
+		started <- struct{}{}
+		<-ctx.Done()
+		return render.Output{}, ctx.Err()
+	}
+	audioRun := func(ctx context.Context, job render.Job, payload any, h *render.Handle) (render.Output, error) {
+		return render.Output{}, nil
+	}
+	s, rt, token, p := storymakerQueueFixture(t, renderRun, audioRun)
+	running := enqueueStorymakerJob(t, rt.jobs, p.Project.ID, "")
+	<-started
+	var finished []string
+	for i := 0; i < 6; i++ {
+		time.Sleep(20 * time.Millisecond)
+		job := enqueueStorymakerJob(t, rt.narrate, p.Project.ID, render.KindNarrate)
+		waitStorymakerManagerJob(t, rt.narrate, job.ID)
+		finished = append(finished, job.ID)
+	}
+	// Merged newest first: six finished narrate jobs, then the render. The latest five are the newest
+	// narrate jobs, and the unfinished rule adds the render. The stream sends oldest first, so the
+	// render comes first and the oldest narrate job stays out.
+	want := append([]string{running.ID}, finished[1:]...)
+	events := openStorymakerEvents(t, s, token, p.Project.ID)
+	got := make([]string, 0, len(want))
+	timeout := time.After(10 * time.Second)
+	for len(got) < len(want) {
+		select {
+		case job, ok := <-events:
+			if !ok {
+				t.Fatalf("the event stream ended after %d jobs", len(got))
+			}
+			got = append(got, job.ID)
+		case <-timeout:
+			t.Fatalf("first list so far = %v, want %v", got, want)
+		}
+	}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("first list = %v, want %v", got, want)
+	}
+}
+
+func TestStorymakerFailingSecondManagerClosesTheFirst(t *testing.T) {
+	dir := t.TempDir()
+	// A file where the narrate folder belongs makes os.MkdirAll fail in the second NewManager.
+	if err := os.WriteFile(filepath.Join(dir, "narrate"), []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var opened []*render.Manager
+	open := func(o render.ManagerOptions) (*render.Manager, error) {
+		m, err := render.NewManager(o)
+		if err == nil {
+			opened = append(opened, m)
+		}
+		return m, err
+	}
+	if _, _, err := openStorymakerManagers(dir, storymakerBlockingRun, storymakerBlockingRun, slog.Default(), open); err == nil {
+		t.Fatal("the second manager did not fail")
+	}
+	if len(opened) != 1 {
+		t.Fatalf("%d managers opened, want 1", len(opened))
+	}
+	if _, _, err := opened[0].Enqueue(render.EnqueueRequest{ProjectID: "x"}); !errors.Is(err, render.ErrClosed) {
+		t.Fatalf("the first manager after the failure: %v, want ErrClosed", err)
+	}
+}

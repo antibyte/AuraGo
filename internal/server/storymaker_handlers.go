@@ -345,7 +345,8 @@ func handleStorymakerProject(s *Server, w http.ResponseWriter, r *http.Request, 
 			mapStorymakerError(w, err, "project_not_found")
 			return
 		}
-		acc.rt.jobs.CancelProject(id)
+		acc.rt.cancelProject(id)
+		acc.rt.waitProject(r.Context(), id)
 		if err := acc.rt.projects.Delete(r.Context(), id); err != nil {
 			mapStorymakerError(w, err, "project_not_found")
 			return
@@ -592,7 +593,7 @@ func handleStorymakerJob(s *Server, w http.ResponseWriter, r *http.Request, jobI
 	if !ok {
 		return
 	}
-	job, found := acc.rt.jobs.Get(jobID)
+	job, _, found := acc.rt.jobByID(jobID)
 	if !found {
 		writeStorymakerError(w, http.StatusNotFound, "job_not_found", "Job not found.", nil)
 		return
@@ -611,7 +612,7 @@ func handleStorymakerProjectJobs(s *Server, w http.ResponseWriter, r *http.Reque
 	if !ok {
 		return
 	}
-	jobs := acc.rt.jobs.List(id)
+	jobs := acc.rt.listJobs(id)
 	if jobs == nil {
 		jobs = []render.Job{}
 	}
@@ -629,7 +630,12 @@ func handleStorymakerJobCancel(s *Server, w http.ResponseWriter, r *http.Request
 	if !ok {
 		return
 	}
-	job, found := acc.rt.jobs.Cancel(jobID)
+	_, manager, found := acc.rt.jobByID(jobID)
+	if !found {
+		writeStorymakerError(w, http.StatusNotFound, "job_not_found", "Job not found.", nil)
+		return
+	}
+	job, found := manager.Cancel(jobID)
 	if !found {
 		writeStorymakerError(w, http.StatusNotFound, "job_not_found", "Job not found.", nil)
 		return
@@ -638,8 +644,8 @@ func handleStorymakerJobCancel(s *Server, w http.ResponseWriter, r *http.Request
 }
 
 // handleStorymakerEvents streams job changes of a project as server-sent events: an event "job"
-// with {"job": ...} for every state or progress change. On connect it sends the project's latest jobs
-// so a reloaded app finds a running export.
+// with {"job": ...} for every state or progress change, from both queues. On connect it sends every
+// unfinished job plus the merged latest five, so a reloaded app finds a running export.
 func handleStorymakerEvents(s *Server, w http.ResponseWriter, r *http.Request, id string) {
 	if r.Method != http.MethodGet {
 		writeStorymakerMethodError(w, "GET")
@@ -663,10 +669,12 @@ func handleStorymakerEvents(s *Server, w http.ResponseWriter, r *http.Request, i
 	h.Set("Cache-Control", "no-cache, no-store")
 	h.Set("Connection", "keep-alive")
 	h.Set("X-Accel-Buffering", "no")
-	jobs := acc.rt.jobs
-	events, unsubscribe := jobs.Subscribe(id)
-	defer unsubscribe()
-	rev := jobs.Revision()
+	renderJobs, audioJobs := acc.rt.jobs, acc.rt.narrate
+	renderEvents, unsubscribeRender := renderJobs.Subscribe(id)
+	defer unsubscribeRender()
+	audioEvents, unsubscribeAudio := audioJobs.Subscribe(id)
+	defer unsubscribeAudio()
+	revRender, revAudio := renderJobs.Revision(), audioJobs.Revision()
 	send := func(job render.Job) bool {
 		data, err := json.Marshal(map[string]any{"job": job})
 		if err != nil {
@@ -680,10 +688,7 @@ func handleStorymakerEvents(s *Server, w http.ResponseWriter, r *http.Request, i
 	if _, err := io.WriteString(w, ": storymaker events\n\n"); err != nil {
 		return
 	}
-	initial := jobs.List(id)
-	if len(initial) > 5 {
-		initial = initial[:5]
-	}
+	initial := acc.rt.initialJobs(id)
 	for i := len(initial) - 1; i >= 0; i-- { // oldest first
 		if !send(initial[i]) {
 			return
@@ -696,9 +701,18 @@ func handleStorymakerEvents(s *Server, w http.ResponseWriter, r *http.Request, i
 		select {
 		case <-r.Context().Done():
 			return
-		case <-events:
+		case <-renderEvents:
 			var changed []render.Job
-			changed, rev = jobs.ChangedSince(id, rev)
+			changed, revRender = renderJobs.ChangedSince(id, revRender)
+			for _, job := range changed {
+				if !send(job) {
+					return
+				}
+			}
+			flusher.Flush()
+		case <-audioEvents:
+			var changed []render.Job
+			changed, revAudio = audioJobs.ChangedSince(id, revAudio)
 			for _, job := range changed {
 				if !send(job) {
 					return
