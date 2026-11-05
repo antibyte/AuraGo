@@ -138,6 +138,8 @@ aufbewahrte Einträge von Gesamtzahlen; unbekannte Gesamtzahlen erscheinen als S
 Unvollständige, gekürzte und ältere Verläufe werden ausdrücklich gekennzeichnet. Ein fehlender
 Eintrag beweist nicht, dass ein Schritt übersprungen wurde. Es werden nur vollständige Werte
 bis 16 KiB angezeigt; größere oder bereits gekürzte Werte bleiben vollständig ausgeblendet.
+Nach einem Fehler können auch kleinere, später aufgezeichnete Werte fehlen, weil sie aus
+gekürztem Fehlertext stammen könnten; die Ausführung bleibt unverändert.
 Die Zeiten des letzten Versuchs gelten für den gesamten Schritt einschließlich Wiederholungen.
 
 Beschriftungen stammen aus der genau aufbewahrten Bausteinversion. Ist sie nicht verfügbar,

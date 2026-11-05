@@ -122,7 +122,9 @@ The call list and step list use local pages. Their retained counts differ from t
 recording was shortened; unknown totals appear as a dash. Incomplete, shortened and older
 history are identified explicitly. A missing record does not prove that a step was skipped.
 Only complete values up to 16 KiB are shown; larger or already-shortened values are omitted
-entirely. The final attempt's times describe the whole node lifetime, including retries.
+entirely. After an error, smaller values recorded later may also be omitted because they
+could come from shortened error text; execution is unchanged.
+The final attempt's times describe the whole node lifetime, including retries.
 
 Document labels come from the exact retained block version. If it is unavailable, protected
 or too large, records remain readable without substituting a current version. The same
