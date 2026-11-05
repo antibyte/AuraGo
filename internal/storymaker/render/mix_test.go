@@ -3,6 +3,7 @@ package render
 import (
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"math"
 	"os"
@@ -390,4 +391,255 @@ func TestMixImpactDipFollowsAttackHoldReturn(t *testing.T) {
 	mixTestAssertGainDB(t, music, at+dipAttackFrames+dipHoldFrames-1, -3)
 	mixTestAssertGainDB(t, music, at+dipAttackFrames+dipHoldFrames+dipReturnFrames/2, -1.5)
 	mixTestAssertGainDB(t, music, at+dipAttackFrames+dipHoldFrames+dipReturnFrames, 0)
+}
+
+func mixTestNewMeter(t *testing.T) func(context.Context) (*Meter, error) {
+	t.Helper()
+	ffmpeg := testBinary(t, "ffmpeg")
+	return func(ctx context.Context) (*Meter, error) { return StartMeter(ctx, ffmpeg) }
+}
+
+func mixTestOutputs(dir string) MixOutputs {
+	return MixOutputs{
+		Mix:       filepath.Join(dir, "mix.wav"),
+		Narration: filepath.Join(dir, "stem-narration.wav"),
+		Music:     filepath.Join(dir, "stem-music.wav"),
+		SFX:       filepath.Join(dir, "stem-sfx.wav"),
+	}
+}
+
+func TestMixVoiceMatchLandsTwoVoicesWithinOneDB(t *testing.T) {
+	const seconds = 2 * MixRate
+	// The first half of the quiet clip is silence outside the spans. If it counted, the voice would
+	// read 3 dB lower and its gain would land 3 dB too high.
+	quiet := append(make([]int16, seconds*mixChannels), mixTestSine(seconds, 0.4*dbToLin(-4.5), 220)...)
+	quietStart := int64(seconds + MixRate/2)
+	quietSpeech := quietStart + seconds
+	in := &MixInput{
+		Frames: quietStart + 2*seconds,
+		Narration: []MixClip{
+			{Key: "loud", PCM: mixTestSine(seconds, 0.4, 220), Len: seconds, Start: 0, Voice: "p|loud"},
+			{Key: "quiet", PCM: quiet, Len: 2 * seconds, Start: quietStart, Voice: "p|quiet"},
+		},
+		Spans: []Span{{From: 0, To: seconds}, {From: quietSpeech, To: quietSpeech + seconds}},
+	}
+	gains, err := matchVoices(context.Background(), in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// gain = loudest - voice: 0 for the loud voice and 4.5 dB for the quiet one.
+	if math.Abs(gains["p|loud"]) > 0.05 || math.Abs(gains["p|quiet"]-4.5) > 0.05 {
+		t.Fatalf("gains = %v, want 0 and 4.5", gains)
+	}
+	if in.Narration[1].GainDB != gains["p|quiet"] {
+		t.Fatalf("the clip holds %.3f dB, the voice %.3f dB", in.Narration[1].GainDB, gains["p|quiet"])
+	}
+	narration, _, _ := mixTestCollect(t, in, mixPass{})
+	loudDB := mixTestRMSDB(narration, 0, seconds)
+	quietDB := mixTestRMSDB(narration, quietSpeech, quietSpeech+seconds)
+	if math.Abs(loudDB-quietDB) > 1 {
+		t.Fatalf("the voices land at %.2f and %.2f dB", loudDB, quietDB)
+	}
+}
+
+func TestMixVoiceMatchIsCappedAtSixDB(t *testing.T) {
+	// 0.5 and 0.05 are 20 dB apart, above the +6 dB cap.
+	in := &MixInput{
+		Frames: 2 * MixRate,
+		Narration: []MixClip{
+			{Key: "a", PCM: mixTestSine(MixRate, 0.5, 220), Len: MixRate, Start: 0, Voice: "a"},
+			{Key: "b", PCM: mixTestSine(MixRate, 0.05, 220), Len: MixRate, Start: MixRate, Voice: "b"},
+		},
+		Spans: []Span{{From: 0, To: 2 * MixRate}},
+	}
+	gains, err := matchVoices(context.Background(), in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gains["b"] != voiceMatchCapDB {
+		t.Fatalf("gain = %.3f, want the cap", gains["b"])
+	}
+}
+
+func TestMixLevels(t *testing.T) {
+	silent := &MeterReading{I: math.Inf(-1), TP: math.Inf(-1), Silent: true}
+	twice := 20 * math.Log10(2) // volume 0.5 is 20*log10(0.5/0.25), about +6.02 dB
+	cases := []struct {
+		name        string
+		narrI       float64
+		hasNarr     bool
+		bed         *MeterReading
+		volume      float64
+		wantBedGain float64
+		wantDropped bool
+		wantSFXRef  float64
+	}{
+		// Reference -22-12 = -34; gain -34-(-30) = -4; the sfx reference is the actual bed level.
+		{"narration and bed", -22, true, &MeterReading{I: -30}, 0.25, -4, false, -34},
+		{"volume 0.5 is +6 dB", -22, true, &MeterReading{I: -30}, 0.5, -4 + twice, false, -34 + twice},
+		// Reference -18 without narration; gain -18-(-30) = +12.
+		{"no narration", 0, false, &MeterReading{I: -30}, 0.25, 12, false, -18},
+		// No music: the sfx reference is narration I-12, or -18 without narration.
+		{"no music", -22, true, nil, 0, 0, false, -34},
+		{"no music, no narration", 0, false, nil, 0, 0, false, -18},
+		// Gain -34-(-60) = 26 stops at +24, so the bed really sits at -60+24 = -36.
+		{"quiet bed", -22, true, &MeterReading{I: -60}, 0.25, 24, false, -36},
+		{"silent bed", -22, true, silent, 0.25, 0, true, -34},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := computeMixLevels(MeterReading{I: c.narrI}, c.hasNarr, c.bed, c.volume)
+			if math.Abs(got.bedGainDB-c.wantBedGain) > 1e-9 || got.bedDropped != c.wantDropped || math.Abs(got.sfxRefDB-c.wantSFXRef) > 1e-9 {
+				t.Fatalf("levels = %+v, want bed gain %.3f, dropped %v, sfx reference %.3f", got, c.wantBedGain, c.wantDropped, c.wantSFXRef)
+			}
+		})
+	}
+}
+
+func TestMixMasterGainIsTheMinOfThreeBounds(t *testing.T) {
+	cases := []struct {
+		name string
+		pre  MeterReading
+		peak float64
+		want float64
+	}{
+		// Loudness -16-(-18) = 2; peak -1-(-10) = 9; stem -0.1-(-20) = 19.9.
+		{"loudness binds", MeterReading{I: -18, TP: -10}, 0.1, 2},
+		// Loudness -16-(-20) = 4; peak -1-(-3) = 2; stem -0.1+6.02 = 5.92.
+		{"true peak binds", MeterReading{I: -20, TP: -3}, 0.5, 2},
+		// Loudness 14; peak 19; stem -0.1-20*log10(0.99).
+		{"stem peak binds", MeterReading{I: -30, TP: -20}, 0.99, -0.1 - 20*math.Log10(0.99)},
+		{"silent", MeterReading{I: math.Inf(-1), TP: math.Inf(-1), Silent: true}, 0, 0},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := masterGainDB(c.pre, c.peak); math.Abs(got-c.want) > 1e-9 {
+				t.Fatalf("G = %.4f, want %.4f", got, c.want)
+			}
+		})
+	}
+}
+
+func TestMixPassesApplyTheGains(t *testing.T) {
+	newMeter := mixTestNewMeter(t)
+	dir := t.TempDir()
+	clipPath := filepath.Join(dir, "piece.raw")
+	bedPath := filepath.Join(dir, "bed.raw")
+	mixTestWriteRaw(t, clipPath, mixTestSine(4*MixRate, 0.3, 440))
+	mixTestWriteRaw(t, bedPath, mixTestSine(5*MixRate/2, 0.2, 110))
+	const offset = 22.5 // over_db 4.5 minus l50_lufs -18, the pop of the SFX set
+	frames := int64(6 * MixRate)
+	in := &MixInput{
+		Frames:    frames,
+		Narration: []MixClip{{Key: "piece", Path: clipPath, Len: 4 * MixRate, Start: MixRate, Voice: "p|v"}},
+		SFX:       []MixClip{{Key: "sfx.pop", PCM: mixTestSine(MixRate/5, 0.2, 880), Len: MixRate / 5, Start: 3 * MixRate, LevelOffsetDB: offset}},
+		Bed:       &MixBed{Path: bedPath, Frames: 5 * MixRate / 2, Volume: 0.5},
+		Spans:     []Span{{From: MixRate, To: 5 * MixRate}},
+		Impacts:   []Impact{{At: 3 * MixRate, DepthDB: 3}},
+	}
+	out := mixTestOutputs(dir)
+	last := 0.0
+	res, err := Mix(context.Background(), in, newMeter, out, func(p float64) {
+		if p < last {
+			t.Errorf("progress went back from %.3f to %.3f", last, p)
+		}
+		last = p
+	})
+	if err != nil {
+		t.Fatalf("Mix: %v", err)
+	}
+	if last != 1 {
+		t.Errorf("progress ended at %.3f", last)
+	}
+	if res.Clamps != 0 || res.BedDropped {
+		t.Errorf("clamps %d, dropped %v", res.Clamps, res.BedDropped)
+	}
+	if res.VoiceGainDB["p|v"] != 0 {
+		t.Errorf("a single voice got %.3f dB", res.VoiceGainDB["p|v"])
+	}
+	// Bed gain: the reference narration I-12+20*log10(0.5/0.25), minus the measured bed.
+	wantBed := res.NarrationI + bedBelowNarrLU + 20*math.Log10(2) - res.BedI
+	if math.Abs(res.BedGainDB-wantBed) > 1e-9 {
+		t.Errorf("bed gain %.3f, want %.3f", res.BedGainDB, wantBed)
+	}
+	// Sfx gain: the actual bed level plus LevelOffsetDB.
+	if want := res.BedI + res.BedGainDB + offset; math.Abs(in.SFX[0].GainDB-want) > 1e-9 {
+		t.Errorf("sfx gain %.3f, want %.3f", in.SFX[0].GainDB, want)
+	}
+	// StemPeak is after the master gain, so the pass 2 peak is that value without it.
+	peak := max(res.StemPeak[0], res.StemPeak[1], res.StemPeak[2])
+	prePeakDB := 20*math.Log10(peak) - res.MasterGainDB
+	wantG := min(mixTargetLUFS-res.PreI, mixCeilingDBTP-res.PreTP, mixStemGuardDBFS-prePeakDB)
+	if math.Abs(res.MasterGainDB-wantG) > 0.001 {
+		t.Errorf("G = %.4f, want %.4f", res.MasterGainDB, wantG)
+	}
+	mixTestAssertStemsSum(t, out, frames)
+}
+
+func TestMixSilentNarrationFails(t *testing.T) {
+	newMeter := mixTestNewMeter(t)
+	out := mixTestOutputs(t.TempDir())
+	in := &MixInput{
+		Frames:    2 * MixRate,
+		Narration: []MixClip{{Key: "piece", PCM: make([]int16, MixRate*mixChannels), Len: MixRate, Voice: "p|v"}},
+		Spans:     []Span{{From: 0, To: MixRate}},
+	}
+	_, err := Mix(context.Background(), in, newMeter, out, nil)
+	var jobErr *JobError
+	if !errors.As(err, &jobErr) || jobErr.Code != CodeNarrationFailed {
+		t.Fatalf("err = %v, want %s", err, CodeNarrationFailed)
+	}
+	if _, statErr := os.Stat(out.Mix); !os.IsNotExist(statErr) {
+		t.Fatalf("a failed mix left its file: %v", statErr)
+	}
+}
+
+func TestMixDropsASilentBed(t *testing.T) {
+	newMeter := mixTestNewMeter(t)
+	dir := t.TempDir()
+	bedPath := filepath.Join(dir, "bed.raw")
+	mixTestWriteRaw(t, bedPath, make([]int16, 3*MixRate*mixChannels))
+	in := &MixInput{
+		Frames:    3 * MixRate,
+		Narration: []MixClip{{Key: "piece", PCM: mixTestSine(2*MixRate, 0.3, 440), Len: 2 * MixRate, Voice: "p|v"}},
+		Bed:       &MixBed{Path: bedPath, Frames: 3 * MixRate, Volume: 0.25},
+		Spans:     []Span{{From: 0, To: 2 * MixRate}},
+	}
+	out := mixTestOutputs(dir)
+	res, err := Mix(context.Background(), in, newMeter, out, nil)
+	if err != nil {
+		t.Fatalf("Mix: %v", err)
+	}
+	if !res.BedDropped || res.BedGainDB != 0 || res.StemPeak[1] != 0 {
+		t.Fatalf("result = %+v, want a dropped bed with no gain", res)
+	}
+	if _, statErr := os.Stat(out.Music); !os.IsNotExist(statErr) {
+		t.Fatalf("a dropped bed left a music stem: %v", statErr)
+	}
+	if _, statErr := os.Stat(out.Narration); statErr != nil {
+		t.Fatalf("narration stem: %v", statErr)
+	}
+}
+
+func TestMixSilentFilmKeepsUnityGain(t *testing.T) {
+	newMeter := mixTestNewMeter(t)
+	dir := t.TempDir()
+	bedPath := filepath.Join(dir, "bed.raw")
+	mixTestWriteRaw(t, bedPath, make([]int16, 2*MixRate*mixChannels))
+	in := &MixInput{Frames: 2 * MixRate, Bed: &MixBed{Path: bedPath, Frames: 2 * MixRate, Volume: 0.25}}
+	out := mixTestOutputs(dir)
+	res, err := Mix(context.Background(), in, newMeter, out, nil)
+	if err != nil {
+		t.Fatalf("no narration events, so a silent film must not fail: %v", err)
+	}
+	if res.MasterGainDB != 0 || !res.BedDropped {
+		t.Fatalf("result = %+v, want G 0 and a dropped bed", res)
+	}
+	// The job record stores these fields, and JSON has no -Inf.
+	if _, err := json.Marshal(res); err != nil {
+		t.Fatalf("the result is not valid JSON: %v", err)
+	}
+	if got := len(mixTestReadWAV(t, out.Mix)); got != 2*MixRate*mixChannels {
+		t.Fatalf("mix has %d samples", got)
+	}
 }

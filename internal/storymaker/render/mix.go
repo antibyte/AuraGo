@@ -772,3 +772,303 @@ func (w *stemWriter) close() error {
 	}
 	return err
 }
+
+// mixSilentLUFS is how a silent reading is stored in MixResult, because JSON has no -Inf.
+const mixSilentLUFS = -70.0
+
+func finiteDB(v float64) float64 {
+	if math.IsInf(v, -1) {
+		return mixSilentLUFS
+	}
+	return v
+}
+
+// mixLevels holds the gains that pass 1 decides.
+type mixLevels struct {
+	bedGainDB  float64
+	bedDropped bool
+	sfxRefDB   float64
+}
+
+// computeMixLevels applies the level rules. bed is nil without music. The sfx reference is the actual
+// bed level when music is on, narration I-12 without music, and -18 without narration. A silent bed
+// counts as no music, because its gain would be infinite.
+func computeMixLevels(narration MeterReading, hasNarration bool, bed *MeterReading, volume float64) mixLevels {
+	base := bedNoNarrLUFS
+	if hasNarration {
+		base = narration.I + bedBelowNarrLU
+	}
+	levels := mixLevels{sfxRefDB: base}
+	if bed == nil {
+		return levels
+	}
+	if bed.Silent {
+		levels.bedDropped = true
+		return levels
+	}
+	reference := base + 20*math.Log10(volume/0.25)
+	levels.bedGainDB = math.Min(reference-bed.I, bedMaxGainDB)
+	levels.sfxRefDB = bed.I + levels.bedGainDB
+	return levels
+}
+
+// masterGainDB is G = min(-16-I, -1-TP, -0.1-max stem peak). A silent mix keeps unity gain.
+func masterGainDB(pre MeterReading, stemPeak float64) float64 {
+	if pre.Silent {
+		return 0
+	}
+	g := math.Min(mixTargetLUFS-pre.I, mixCeilingDBTP-pre.TP)
+	if stemPeak > 0 {
+		g = math.Min(g, mixStemGuardDBFS-20*math.Log10(stemPeak))
+	}
+	return g
+}
+
+// matchVoices measures each voice over the speech spans and writes its gain into the clips:
+// gain = loudest RMS - voice RMS, capped at +6 dB. A voice with no speech inside the spans keeps 0 dB.
+func matchVoices(ctx context.Context, in *MixInput) (map[string]float64, error) {
+	type energy struct {
+		sum   float64
+		count int64
+	}
+	voices := map[string]*energy{}
+	for _, c := range usableClips(in.Narration, in.Frames) {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		data, err := loadClipPCM(c)
+		if err != nil {
+			return nil, err
+		}
+		e := voices[c.Voice]
+		if e == nil {
+			e = &energy{}
+			voices[c.Voice] = e
+		}
+		end := c.Start + int64(len(data)/mixChannels)
+		for _, span := range in.Spans {
+			for t := max(span.From, c.Start); t < min(span.To, end); t++ {
+				i := (t - c.Start) * mixChannels
+				l, r := float64(data[i])/mixFullScale, float64(data[i+1])/mixFullScale
+				e.sum += l*l + r*r
+				e.count += mixChannels
+			}
+		}
+	}
+	levels := map[string]float64{}
+	loudest := math.Inf(-1)
+	for voice, e := range voices {
+		if e.sum > 0 {
+			db := 10 * math.Log10(e.sum/float64(e.count))
+			levels[voice] = db
+			loudest = math.Max(loudest, db)
+		}
+	}
+	gains := make(map[string]float64, len(voices))
+	for voice := range voices {
+		gain := 0.0
+		if db, ok := levels[voice]; ok {
+			gain = math.Min(loudest-db, voiceMatchCapDB)
+		}
+		gains[voice] = gain
+	}
+	for i := range in.Narration {
+		in.Narration[i].GainDB = gains[in.Narration[i].Voice]
+	}
+	return gains, nil
+}
+
+// mixProgress reports the share of the three passes that is done.
+type mixProgress struct {
+	report      func(float64)
+	total, done int64
+}
+
+func (p *mixProgress) step(frames int64) {
+	p.done += frames
+	if p.report != nil {
+		p.report(float64(p.done) / float64(p.total))
+	}
+}
+
+func mixFloat32(dst []float32, src []float64) []float32 {
+	dst = dst[:len(src)]
+	for i, v := range src {
+		dst[i] = float32(v)
+	}
+	return dst
+}
+
+// measureMixSources is pass 1: the narration stem and the raw looped bed, each into its own meter.
+// bed is nil without music.
+func measureMixSources(ctx context.Context, in *MixInput, hasNarration bool, newMeter func(context.Context) (*Meter, error), prog *mixProgress) (narration MeterReading, bed *MeterReading, err error) {
+	var narrMeter, bedMeter *Meter
+	defer func() {
+		if narrMeter != nil {
+			_, _ = narrMeter.Close()
+		}
+		if bedMeter != nil {
+			_, _ = bedMeter.Close()
+		}
+	}()
+	if hasNarration {
+		if narrMeter, err = newMeter(ctx); err != nil {
+			return narration, nil, err
+		}
+	}
+	if in.Bed != nil {
+		if bedMeter, err = newMeter(ctx); err != nil {
+			return narration, nil, err
+		}
+	}
+	if narrMeter == nil && bedMeter == nil {
+		prog.step(in.Frames)
+		return narration, nil, nil
+	}
+	scratch := make([]float32, mixBlockFrames*mixChannels)
+	err = runMixPass(ctx, in, mixPass{rawBed: true}, func(b *mixBlock) error {
+		if narrMeter != nil {
+			if err := narrMeter.Write(mixFloat32(scratch, b.narration)); err != nil {
+				return err
+			}
+		}
+		if bedMeter != nil {
+			if err := bedMeter.Write(mixFloat32(scratch, b.music)); err != nil {
+				return err
+			}
+		}
+		prog.step(int64(b.frames))
+		return nil
+	})
+	if err != nil {
+		return narration, nil, err
+	}
+	if narrMeter != nil {
+		if narration, err = narrMeter.Close(); err != nil {
+			return narration, nil, err
+		}
+	}
+	if bedMeter != nil {
+		reading, err := bedMeter.Close()
+		if err != nil {
+			return narration, nil, err
+		}
+		bed = &reading
+	}
+	return narration, bed, nil
+}
+
+// measurePreMix is pass 2: the mix before the master gain into a meter, with the stem peaks.
+func measurePreMix(ctx context.Context, in *MixInput, bedGainDB float64, newMeter func(context.Context) (*Meter, error), prog *mixProgress) (MeterReading, [3]float64, error) {
+	var peak [3]float64
+	m, err := newMeter(ctx)
+	if err != nil {
+		return MeterReading{}, peak, err
+	}
+	defer func() { _, _ = m.Close() }()
+	scratch := make([]float32, mixBlockFrames*mixChannels)
+	err = runMixPass(ctx, in, mixPass{bedGainDB: bedGainDB}, func(b *mixBlock) error {
+		sum := scratch[:b.frames*mixChannels]
+		for i := range sum {
+			narration, music, sfx := b.narration[i], b.music[i], b.sfx[i]
+			sum[i] = float32(narration + music + sfx)
+			peak[0] = max(peak[0], math.Abs(narration))
+			peak[1] = max(peak[1], math.Abs(music))
+			peak[2] = max(peak[2], math.Abs(sfx))
+		}
+		prog.step(int64(b.frames))
+		return m.Write(sum)
+	})
+	if err != nil {
+		return MeterReading{}, peak, err
+	}
+	reading, err := m.Close()
+	return reading, peak, err
+}
+
+// Mix runs the three passes and writes the mix and the stems. It stops on ctx at block boundaries. A
+// stem with no source gets no file, so its StemPeak is 0 and its path stays empty on disk.
+func Mix(ctx context.Context, in *MixInput, newMeter func(context.Context) (*Meter, error), out MixOutputs, progress func(float64)) (res MixResult, err error) {
+	defer func() {
+		// A cancel kills the meters, and their broken pipes must not hide it.
+		if err != nil && ctx.Err() != nil {
+			err = ctx.Err()
+		}
+	}()
+	if in == nil || in.Frames <= 0 || out.Mix == "" {
+		return res, errors.New("storymaker: the mix has no film length or no output")
+	}
+	prog := &mixProgress{report: progress, total: 3 * in.Frames}
+	hasNarration := len(usableClips(in.Narration, in.Frames)) > 0
+
+	// Pass 1: voice match, then the two source meters.
+	if res.VoiceGainDB, err = matchVoices(ctx, in); err != nil {
+		return res, err
+	}
+	narration, bed, err := measureMixSources(ctx, in, hasNarration, newMeter, prog)
+	if err != nil {
+		return res, err
+	}
+	if hasNarration && narration.Silent {
+		return res, Fail(CodeNarrationFailed, "The narration is silent, so the film cannot be mixed. Generate the narration again.")
+	}
+	volume := 0.0
+	if in.Bed != nil {
+		volume = in.Bed.Volume
+	}
+	levels := computeMixLevels(narration, hasNarration, bed, volume)
+
+	// Pass 2: the sfx gains, then the pre-gain mix.
+	working := *in
+	if levels.bedDropped {
+		working.Bed = nil
+	}
+	for i := range working.SFX {
+		working.SFX[i].GainDB = levels.sfxRefDB + working.SFX[i].LevelOffsetDB
+	}
+	pre, peak, err := measurePreMix(ctx, &working, levels.bedGainDB, newMeter, prog)
+	if err != nil {
+		return res, err
+	}
+	master := masterGainDB(pre, max(peak[0], peak[1], peak[2]))
+
+	// Pass 3: the stems and the mix after the master gain.
+	stems := out
+	if !hasNarration {
+		stems.Narration = ""
+	}
+	if working.Bed == nil {
+		stems.Music = ""
+	}
+	if len(usableClips(in.SFX, in.Frames)) == 0 {
+		stems.SFX = ""
+	}
+	writer, err := newStemWriter(stems)
+	if err != nil {
+		return res, err
+	}
+	defer func() { _ = writer.close() }()
+	err = runMixPass(ctx, &working, mixPass{bedGainDB: levels.bedGainDB, masterDB: master}, func(b *mixBlock) error {
+		prog.step(int64(b.frames))
+		return writer.write(b)
+	})
+	if err != nil {
+		return res, err
+	}
+	if err := writer.close(); err != nil {
+		return res, err
+	}
+
+	res.NarrationI, res.BedI = mixSilentLUFS, mixSilentLUFS
+	if hasNarration {
+		res.NarrationI = finiteDB(narration.I)
+	}
+	if bed != nil && !bed.Silent {
+		res.BedI = bed.I
+	}
+	res.PreI, res.PreTP = finiteDB(pre.I), finiteDB(pre.TP)
+	res.BedGainDB, res.MasterGainDB = levels.bedGainDB, master
+	res.BedDropped = levels.bedDropped
+	res.StemPeak, res.Clamps = writer.peak, writer.clamps
+	return res, nil
+}
