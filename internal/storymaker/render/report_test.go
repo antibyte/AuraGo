@@ -1,6 +1,7 @@
 package render
 
 import (
+	"context"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -86,6 +87,190 @@ func TestParseReportRefusals(t *testing.T) {
 	}
 	if _, refusal := parseReport([]byte(`{"frame_count":`), reportExpectation()); refusal == nil || refusal.Code != CodeRenderFailed {
 		t.Errorf("broken JSON: %v", refusal)
+	}
+}
+
+var (
+	pieceHashA = strings.Repeat("a", 64)
+	pieceHashB = strings.Repeat("b", 64)
+	pieceHashC = strings.Repeat("c", 64)
+	pieceHashD = strings.Repeat("d", 64)
+)
+
+// measuredReport is goodReport with a three-piece narration in s1 and a one-piece dialogue in s2.
+// goodReport has 300 frames at 30 fps, so filmMS is round(300*1000/30) = 10000.
+func measuredReport() map[string]any {
+	m := goodReport()
+	m["audio_events"] = []any{
+		map[string]any{"kind": "narration", "ref": pieceHashA, "start_ms": 500, "scene_id": "s1", "block_id": "s1:n", "piece": 0},
+		map[string]any{"kind": "narration", "ref": pieceHashB, "start_ms": 1500, "scene_id": "s1", "block_id": "s1:n", "piece": 1},
+		map[string]any{"kind": "narration", "ref": pieceHashC, "start_ms": 2500, "scene_id": "s1", "block_id": "s1:n", "piece": 2},
+		map[string]any{"kind": "dialogue", "ref": pieceHashD, "start_ms": 5000, "scene_id": "s2", "block_id": "s2:b1", "piece": 0},
+	}
+	m["captions"] = []any{
+		map[string]any{"start_ms": 500, "end_ms": 1500, "lines": []any{"Der erste Satz."}, "scene_id": "s1", "block_id": "s1:n"},
+		map[string]any{"start_ms": 1500, "end_ms": 3500, "lines": []any{"Der zweite Satz.", "Der dritte"}, "scene_id": "s1", "block_id": "s1:n"},
+	}
+	return m
+}
+
+func measuredExpect() reportExpect {
+	want := reportExpectation()
+	want.Blocks = map[string]reportBlock{
+		"s1:n":  {SceneID: "s1", Kind: "narration", Hashes: []string{pieceHashA, pieceHashB, pieceHashC}, Text: captionKey("Der erste Satz. Der zweite Satz. Der dritte Satz.")},
+		"s2:b1": {SceneID: "s2", Kind: "dialogue", Hashes: []string{pieceHashD}, Text: captionKey("Hallo!")},
+	}
+	want.MaxEvents = 4 // three pieces of s1:n plus one of s2:b1
+	return want
+}
+
+func measuredEvents(m map[string]any) []any   { return m["audio_events"].([]any) }
+func measuredCaptions(m map[string]any) []any { return m["captions"].([]any) }
+func measuredEvent(m map[string]any, i int) map[string]any {
+	return measuredEvents(m)[i].(map[string]any)
+}
+func measuredCaption(m map[string]any, i int) map[string]any {
+	return measuredCaptions(m)[i].(map[string]any)
+}
+
+func TestParseReportRefusesBadAudioEventsAndCaptions(t *testing.T) {
+	cases := []struct {
+		name string
+		mut  func(m map[string]any)
+		text string
+	}{
+		{"unknown block", func(m map[string]any) { measuredEvent(m, 0)["block_id"] = "s9:n" }, "unknown block"},
+		{"wrong hash", func(m map[string]any) { measuredEvent(m, 1)["ref"] = pieceHashA }, "does not match"},
+		{"duplicate piece", func(m map[string]any) {
+			measuredEvent(m, 1)["piece"] = 0
+			measuredEvent(m, 1)["ref"] = pieceHashA
+		}, "twice"},
+		{"gap in the piece prefix", func(m map[string]any) {
+			e := measuredEvents(m)
+			m["audio_events"] = []any{e[0], e[2], e[3]}
+		}, "gap"},
+		{"a narration block with no event", func(m map[string]any) { m["audio_events"] = measuredEvents(m)[3:] }, "no audio event"},
+		{"empty audio_events with measured blocks", func(m map[string]any) { m["audio_events"] = []any{} }, "no audio event"},
+		{"unknown kind", func(m map[string]any) { measuredEvent(m, 0)["kind"] = "music" }, "unknown kind"},
+		// filmMS is 10000 and the bound is strict.
+		{"a time at the film end", func(m map[string]any) { measuredEvent(m, 3)["start_ms"] = 10000 }, "outside the film"},
+		// |10002-10000| = 2, over the tolerance of 1.
+		{"duration_ms off by 2", func(m map[string]any) { m["duration_ms"] = 10002 }, "duration_ms"},
+		{"over MaxEvents", func(m map[string]any) {
+			m["audio_events"] = append(measuredEvents(m), map[string]any{"kind": "narration", "ref": pieceHashA, "start_ms": 600, "scene_id": "s1", "block_id": "s1:n", "piece": 0})
+		}, "too many"},
+		{"over 8000 captions", func(m map[string]any) {
+			caps := make([]any, maxReportCaptions+1)
+			for i := range caps {
+				caps[i] = measuredCaption(m, 0)
+			}
+			m["captions"] = caps
+		}, "8001 captions"},
+		{"a caption with 0 lines", func(m map[string]any) { measuredCaption(m, 0)["lines"] = []any{} }, "1 or 2 lines"},
+		{"an empty line", func(m map[string]any) { measuredCaption(m, 0)["lines"] = []any{" \t"} }, "empty line"},
+		// 257 UTF-16 units, one over the cap.
+		{"a long line", func(m map[string]any) { measuredCaption(m, 0)["lines"] = []any{strings.Repeat("a", 257)} }, "256"},
+		{"a caption not in its block", func(m map[string]any) { measuredCaption(m, 0)["lines"] = []any{"Ein fremder Satz."} }, "not in the text"},
+		{"a caption of an unknown block", func(m map[string]any) { measuredCaption(m, 0)["block_id"] = "s9:n" }, "unknown block"},
+		{"a caption past the film", func(m map[string]any) { measuredCaption(m, 1)["end_ms"] = 10001 }, "outside the film"},
+	}
+	for _, tc := range cases {
+		m := measuredReport()
+		tc.mut(m)
+		body, _ := json.Marshal(m)
+		_, refusal := parseReport(body, measuredExpect())
+		if refusal == nil || refusal.Code != CodeRenderFailed || !strings.Contains(refusal.Message, tc.text) {
+			t.Errorf("%s: refusal = %+v", tc.name, refusal)
+		}
+	}
+}
+
+func TestParseReportAcceptsHonestAudioReports(t *testing.T) {
+	accept := func(name string, want reportExpect, mut func(m map[string]any)) compileReport {
+		t.Helper()
+		m := measuredReport()
+		if mut != nil {
+			mut(m)
+		}
+		body, _ := json.Marshal(m)
+		rep, refusal := parseReport(body, want)
+		if refusal != nil {
+			t.Errorf("%s: refused: %v", name, refusal)
+		}
+		return rep
+	}
+	if rep := accept("the full report", measuredExpect(), nil); len(rep.AudioEvents) != 4 || len(rep.Captions) != 2 || rep.AudioEvents[3].BlockID != "s2:b1" {
+		t.Errorf("rep = %+v", rep)
+	}
+	accept("duration_ms off by 1", measuredExpect(), func(m map[string]any) { m["duration_ms"] = 10001 })
+	accept("a dialogue block with no event", measuredExpect(), func(m map[string]any) { m["audio_events"] = measuredEvents(m)[:3] })
+	accept("a film end that dropped the last piece", measuredExpect(), func(m map[string]any) {
+		e := measuredEvents(m)
+		m["audio_events"] = []any{e[0], e[1], e[3]}
+	})
+	accept("a JS gain", measuredExpect(), func(m map[string]any) { measuredEvent(m, 0)["gain"] = 99 })
+
+	withControl := measuredExpect()
+	block := withControl.Blocks["s1:n"]
+	block.Text = captionKey("Der erste\x01 Satz. Der zweite Satz. Der dritte Satz.")
+	withControl.Blocks["s1:n"] = block
+	accept("a narration with U+0001", withControl, func(m map[string]any) {
+		measuredCaption(m, 0)["lines"] = []any{"Der erste\x01 Satz."}
+	})
+
+	estimated := measuredExpect()
+	estimated.CaptionText = map[string]string{"s3:n": captionKey("Noch ohne Audio.")}
+	accept("a caption of an estimated block", estimated, func(m map[string]any) {
+		m["captions"] = append(measuredCaptions(m), map[string]any{"start_ms": 8000, "end_ms": 9000, "lines": []any{"Noch ohne Audio."}, "scene_id": "s3", "block_id": "s3:n"})
+	})
+	// An estimated block still takes no audio event.
+	m := measuredReport()
+	event := measuredEvent(m, 3)
+	event["kind"], event["block_id"], event["scene_id"] = "narration", "s3:n", "s3"
+	body, _ := json.Marshal(m)
+	if _, refusal := parseReport(body, estimated); refusal == nil || !strings.Contains(refusal.Message, "unknown block") {
+		t.Errorf("an event of an estimated block: %+v", refusal)
+	}
+}
+
+func TestCaptionKeyRemovesJSSpaceAndControls(t *testing.T) {
+	// \xc2\xa0 is U+00A0 and \xe3\x80\x80 is U+3000, both JS whitespace.
+	if got := captionKey(" Der\xc2\xa0erste\x01\tSatz\xe3\x80\x80. "); got != "DerersteSatz." {
+		t.Errorf("captionKey = %q", got)
+	}
+}
+
+// The plan's own blocks reach parseReport: a report without events cannot defeat a measured narration.
+func TestRunRefusesAReportThatDropsMeasuredNarration(t *testing.T) {
+	fx := newRunFixture(t)
+	ctx := context.Background()
+	if _, err := fx.projects.SaveStory(ctx, fx.projectID, []byte(narratedStoryJSON), ""); err != nil {
+		t.Fatal(err)
+	}
+	plan, err := fx.runner.Prepare(ctx, fx.projectID, "", fx.settings)
+	if err != nil {
+		t.Fatal(err)
+	}
+	seedPieces(t, fx, plan.Blocks)
+	fx.playing(playOptions{frames: 12}) // the fake page posts an empty audio_events
+	job := fx.render(t)
+	if job.Status != StatusFailed || job.Error == nil || job.Error.Code != CodeRenderFailed || !strings.Contains(job.Error.Message, "no audio event") {
+		t.Fatalf("job = %+v %+v", job, job.Error)
+	}
+}
+
+// The page fills captions for estimated blocks too, and a narrated story without audio still exports silently.
+func TestRunAcceptsCaptionsOfAnEstimatedBlock(t *testing.T) {
+	fx := newRunFixture(t)
+	if _, err := fx.projects.SaveStory(context.Background(), fx.projectID, []byte(narratedStoryJSON), ""); err != nil {
+		t.Fatal(err)
+	}
+	// 12 frames at 30 fps give duration_ms 400, so the caption ends with the film.
+	fx.playing(playOptions{frames: 12, mutateRep: func(rep map[string]any) {
+		rep["captions"] = []any{map[string]any{"start_ms": 0, "end_ms": 400, "lines": []any{"Hallo Welt, das ist der erste Satz."}, "scene_id": "s1", "block_id": "s1:n"}}
+	}})
+	if job := fx.render(t); job.Status != StatusSucceeded {
+		t.Fatalf("job = %+v %+v", job, job.Error)
 	}
 }
 

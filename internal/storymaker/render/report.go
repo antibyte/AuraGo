@@ -3,9 +3,17 @@ package render
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"strings"
+	"unicode"
 
 	"aurago/internal/storymaker"
+)
+
+const (
+	maxReportEvents   = 32768 // absolute ceiling of audio_events
+	maxReportCaptions = 8000
+	maxCaptionUnits   = 256 // UTF-16 units per caption line
 )
 
 // compileReport is the part of the page's compile report Go uses (spec "Compile report and job
@@ -19,6 +27,164 @@ type compileReport struct {
 	CatalogVersion string             `json:"catalog_version"`
 	Scenes         []reportScene      `json:"scenes"`
 	Issues         []storymaker.Issue `json:"issues"`
+	AudioEvents    []reportAudioEvent `json:"audio_events"`
+	Captions       []reportCaption    `json:"captions"`
+	CuePrecision   *float64           `json:"cue_precision"`
+}
+
+// reportAudioEvent is one sound of the film. Kind is narration, dialogue or sfx, and Ref is a piece hash or
+// an sfx id. A JS gain field does not exist here, so any gain in a report is ignored.
+type reportAudioEvent struct {
+	Kind    string `json:"kind"`
+	Ref     string `json:"ref"`
+	StartMS int64  `json:"start_ms"`
+	SceneID string `json:"scene_id"`
+	BlockID string `json:"block_id,omitempty"`
+	Piece   int    `json:"piece,omitempty"`
+	Take    int    `json:"take,omitempty"`
+}
+
+// reportCaption is one caption of the film, for burned captions and subtitle files.
+type reportCaption struct {
+	StartMS int64    `json:"start_ms"`
+	EndMS   int64    `json:"end_ms"`
+	Lines   []string `json:"lines"`
+	SceneID string   `json:"scene_id"`
+	BlockID string   `json:"block_id"`
+}
+
+// reportBlock is what Go knows about a measured block: the hash of each piece and the captionKey of its text.
+type reportBlock struct {
+	SceneID string
+	Kind    string
+	Hashes  []string
+	Text    string
+}
+
+// captionKey removes JS whitespace and control characters. Both sides of the caption check use it, so a
+// narration with U+0001 passes Validate and passes here.
+func captionKey(s string) string {
+	return strings.Map(func(r rune) rune {
+		if storymaker.IsJSSpace(r) || unicode.IsControl(r) {
+			return -1
+		}
+		return r
+	}, s)
+}
+
+// planReportBlocks derives the report expectations from what Go itself computed when the job was queued.
+// A block in AudioInfo is measured and needs events. Any other block of the plan is estimated by the page,
+// which still writes captions for it.
+func planReportBlocks(plan *Plan) (measured map[string]reportBlock, captionText map[string]string, maxEvents int) {
+	captionText = make(map[string]string, len(plan.Blocks))
+	for _, b := range plan.Blocks {
+		captionText[b.ID] = captionKey(b.Text)
+	}
+	measured = map[string]reportBlock{}
+	for sceneID, audio := range plan.AudioInfo.Narration {
+		for _, block := range audio.Blocks {
+			hashes := make([]string, len(block.Pieces))
+			for i, piece := range block.Pieces {
+				hashes[i] = piece.Hash
+			}
+			measured[block.ID] = reportBlock{SceneID: sceneID, Kind: block.Kind, Hashes: hashes, Text: captionText[block.ID]}
+			maxEvents += len(hashes)
+		}
+	}
+	return measured, captionText, maxEvents
+}
+
+// checkAudioEvents returns why the events are refused, or "".
+func checkAudioEvents(events []reportAudioEvent, filmMS int64, want reportExpect) string {
+	if limit := min(want.MaxEvents, maxReportEvents); len(events) > limit {
+		return fmt.Sprintf("it lists too many audio events: %d, the limit is %d", len(events), limit)
+	}
+	seen := make(map[string]map[int]bool, len(want.Blocks))
+	for i, ev := range events {
+		if ev.StartMS < 0 || ev.StartMS >= filmMS {
+			return fmt.Sprintf("audio event %d starts at %d ms, outside the film of %d ms", i, ev.StartMS, filmMS)
+		}
+		switch ev.Kind {
+		case storymaker.BlockKindNarration, storymaker.BlockKindDialogue:
+			b, ok := want.Blocks[ev.BlockID]
+			if !ok {
+				return fmt.Sprintf("audio event %d names the unknown block %q", i, clip(ev.BlockID, 60))
+			}
+			if b.Kind != ev.Kind || b.SceneID != ev.SceneID {
+				return fmt.Sprintf("audio event %d has the wrong kind or scene for block %q", i, ev.BlockID)
+			}
+			if ev.Piece < 0 || ev.Piece >= len(b.Hashes) {
+				return fmt.Sprintf("audio event %d names piece %d of block %q, which has %d", i, ev.Piece, ev.BlockID, len(b.Hashes))
+			}
+			if b.Hashes[ev.Piece] != ev.Ref {
+				return fmt.Sprintf("the hash of audio event %d does not match piece %d of block %q", i, ev.Piece, ev.BlockID)
+			}
+			if seen[ev.BlockID] == nil {
+				seen[ev.BlockID] = map[int]bool{}
+			}
+			if seen[ev.BlockID][ev.Piece] {
+				return fmt.Sprintf("block %q lists piece %d twice", ev.BlockID, ev.Piece)
+			}
+			seen[ev.BlockID][ev.Piece] = true
+		case "sfx":
+			// The catalog has no sound effects yet, so no such event can be valid.
+			return fmt.Sprintf("audio event %d is a sound effect, which the catalog does not have", i)
+		default:
+			return fmt.Sprintf("audio event %d has the unknown kind %q", i, clip(ev.Kind, 40))
+		}
+	}
+	// The pieces of a block form a prefix: compile may drop the events past the film end, never one in the
+	// middle. A scene always starts inside the film, so a narration block has at least piece 0. A far delay can
+	// push a whole dialogue block past the film end, so a dialogue block may have none.
+	for id, b := range want.Blocks {
+		pieces := seen[id]
+		if len(pieces) == 0 {
+			if b.Kind == storymaker.BlockKindNarration {
+				return fmt.Sprintf("the measured block %q has no audio event", id)
+			}
+			continue
+		}
+		for p := 0; p < len(pieces); p++ {
+			if !pieces[p] {
+				return fmt.Sprintf("the events of block %q have a gap at piece %d", id, p)
+			}
+		}
+	}
+	return ""
+}
+
+// checkCaptions returns why the captions are refused, or "".
+func checkCaptions(captions []reportCaption, filmMS int64, want reportExpect) string {
+	if len(captions) > maxReportCaptions {
+		return fmt.Sprintf("it lists %d captions, the limit is %d", len(captions), maxReportCaptions)
+	}
+	for i, c := range captions {
+		text, ok := want.captionText(c.BlockID)
+		if !ok {
+			return fmt.Sprintf("caption %d names the unknown block %q", i, clip(c.BlockID, 60))
+		}
+		if c.StartMS < 0 || c.EndMS <= c.StartMS || c.EndMS > filmMS {
+			return fmt.Sprintf("caption %d runs from %d to %d ms, outside the film of %d ms", i, c.StartMS, c.EndMS, filmMS)
+		}
+		if i > 0 && c.StartMS < captions[i-1].StartMS {
+			return fmt.Sprintf("the captions are not in time order at caption %d", i)
+		}
+		if len(c.Lines) < 1 || len(c.Lines) > 2 {
+			return fmt.Sprintf("caption %d has %d lines, it must have 1 or 2 lines", i, len(c.Lines))
+		}
+		for _, line := range c.Lines {
+			if captionKey(line) == "" {
+				return fmt.Sprintf("caption %d has an empty line", i)
+			}
+			if storymaker.UTF16Len(line) > maxCaptionUnits {
+				return fmt.Sprintf("caption %d has a line over %d UTF-16 units", i, maxCaptionUnits)
+			}
+		}
+		if !strings.Contains(text, captionKey(strings.Join(c.Lines, ""))) {
+			return fmt.Sprintf("caption %d is not in the text of block %q", i, c.BlockID)
+		}
+	}
+	return ""
 }
 
 type reportScene struct {
@@ -44,6 +210,22 @@ type reportExpect struct {
 	MaxFrames      int
 	CatalogVersion string
 	SceneIDs       []string
+	// Blocks holds the measured blocks by id. Only they may have audio events.
+	Blocks map[string]reportBlock
+	// CaptionText holds the captionKey of every other block the plan knows. The page also writes captions for
+	// estimated blocks, and those blocks have no audio events.
+	CaptionText map[string]string
+	// MaxEvents bounds audio_events: the pieces of all measured blocks.
+	MaxEvents int
+}
+
+// captionText returns the captionKey of a block's text, measured or estimated.
+func (e reportExpect) captionText(id string) (string, bool) {
+	if b, ok := e.Blocks[id]; ok {
+		return b.Text, true
+	}
+	text, ok := e.CaptionText[id]
+	return text, ok
 }
 
 // parseReport decodes and validates a compile report: the numbers must agree with the job (fps,
@@ -107,6 +289,17 @@ func parseReport(body []byte, want reportExpect) (compileReport, *reportRefusal)
 	}
 	if maxEnd != rep.FrameCount {
 		return bad("frame_count %d is not the last scene end %d", rep.FrameCount, maxEnd)
+	}
+	// Every bound below uses Go's own film length, never the report's value.
+	filmMS := int64(math.Round(float64(rep.FrameCount) * 1000 / float64(rep.FPS)))
+	if math.Abs(rep.DurationMS-float64(filmMS)) > 1 {
+		return bad("duration_ms %v is not the film length of %d ms", rep.DurationMS, filmMS)
+	}
+	if reason := checkAudioEvents(rep.AudioEvents, filmMS, want); reason != "" {
+		return bad("%s", reason)
+	}
+	if reason := checkCaptions(rep.Captions, filmMS, want); reason != "" {
+		return bad("%s", reason)
 	}
 	return rep, nil
 }

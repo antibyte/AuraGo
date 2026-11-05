@@ -648,7 +648,9 @@ func (run *renderRun) onReport(body []byte) ReportAnswer {
 	for i, sc := range run.plan.Story.Scenes {
 		ids[i] = sc.ID
 	}
-	rep, refusal := parseReport(body, reportExpect{FPS: run.fps, Width: run.width, Height: run.height, MaxFrames: run.frameLimit, CatalogVersion: run.catVersion, SceneIDs: ids})
+	blocks, captionText, maxEvents := planReportBlocks(run.plan)
+	rep, refusal := parseReport(body, reportExpect{FPS: run.fps, Width: run.width, Height: run.height, MaxFrames: run.frameLimit, CatalogVersion: run.catVersion, SceneIDs: ids,
+		Blocks: blocks, CaptionText: captionText, MaxEvents: maxEvents})
 	if refusal != nil {
 		run.mu.Unlock()
 		run.fail(&JobError{Code: refusal.Code, Message: refusal.Message})
