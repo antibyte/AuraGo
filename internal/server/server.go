@@ -382,6 +382,8 @@ type Server struct {
 	storymakerFreeDiskOverride func(path string) (int64, error)
 	// storymakerFrameObserver sees every rendered frame (the parity test hashes them).
 	storymakerFrameObserver func(n int, transport string, data []byte)
+	// storymakerMusicOverride replaces the provider call of a generated music job in tests.
+	storymakerMusicOverride *storymakerMusicSeam
 
 	// Docker Manager: the host registry and its SQLite store (docker_manager.db).
 	// DockerHosts stays nil when the store could not be opened; DockerStacks (the

@@ -7,10 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path"
 	"path/filepath"
 	"reflect"
 	"slices"
@@ -20,9 +23,11 @@ import (
 	"testing"
 	"time"
 
+	"aurago/internal/budget"
 	"aurago/internal/config"
 	"aurago/internal/phonon"
 	"aurago/internal/realtimespeech"
+	"aurago/internal/security"
 	"aurago/internal/storymaker"
 	"aurago/internal/storymaker/render"
 	"aurago/internal/storymaker/storymakertest"
@@ -996,5 +1001,255 @@ func TestStorymakerMusicJobStopsWhenReadOnly(t *testing.T) {
 	}
 	if _, ext, err := rt.projects.MusicInfo(context.Background(), id, key); err != nil || ext != "" {
 		t.Fatalf("a read-only stop stored %q, %v", ext, err)
+	}
+}
+
+type generatedMusicFixture struct {
+	s      *Server
+	token  string
+	id     string
+	key    string
+	rt     *storymakerRuntime
+	seam   *storymakerMusicSeam
+	calls  atomic.Int32
+	params tools.MusicGenParams
+}
+
+func (fx *generatedMusicFixture) audioFile(t *testing.T, name string, seconds float64) string {
+	t.Helper()
+	dir := filepath.Join(fx.s.Cfg.Directories.DataDir, "audio")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(dir, name)
+	if err := os.WriteFile(file, musicRouteWAV(seconds), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return file
+}
+
+// newGeneratedMusicFixture has a configured provider whose stand-in returns a 20 s WAV with no DurationMs.
+func newGeneratedMusicFixture(t *testing.T) *generatedMusicFixture {
+	t.Helper()
+	s, _, token := storymakerAPIFixture(t)
+	s.Cfg.MusicGeneration.Enabled = true
+	s.Cfg.MusicGeneration.APIKey = "test-key"
+	p := createStorymakerProject(t, s, token)
+	musicRouteStory(t, s, token, &p, `{"mode":"generated","mood":"calm-ambient"}`)
+	rt, err := s.storymakerRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	fx := &generatedMusicFixture{s: s, token: token, id: p.Project.ID, key: storymaker.MusicKeyGenerated("calm-ambient", ""), rt: rt}
+	file := fx.audioFile(t, "generated.wav", 20)
+	fx.seam = &storymakerMusicSeam{generate: func(ctx context.Context, cfg *config.Config, params tools.MusicGenParams) tools.MusicGenResult {
+		fx.calls.Add(1)
+		fx.params = params
+		return tools.MusicGenResult{Status: "ok", FilePath: file, CostEstimate: 0.06}
+	}}
+	s.storymakerMusicOverride = fx.seam
+	return fx
+}
+
+func (fx *generatedMusicFixture) post(t *testing.T, body string) render.Job {
+	t.Helper()
+	w := postMusic(fx.s, fx.token, fx.id, body)
+	var got struct {
+		Job render.Job `json:"job"`
+	}
+	decodeBody(t, w, &got)
+	if w.Code != http.StatusAccepted {
+		t.Fatalf("queue: %d %s", w.Code, w.Body.String())
+	}
+	return got.Job
+}
+
+// queue skips POST /music, as queueMusicJob does, and sets the key a Generate click would pin.
+func (fx *generatedMusicFixture) queue(t *testing.T, generateKey string) render.Job {
+	t.Helper()
+	job, _, err := fx.rt.narrate.Enqueue(render.EnqueueRequest{ProjectID: fx.id, Kind: render.KindMusic, Coalesce: true, Payload: storymakerMusicPayload{ProjectID: fx.id, DurationMS: 15000, GenerateKey: generateKey}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return job
+}
+
+func musicTestTracker(t *testing.T, limit float64, enforcement string) *budget.Tracker {
+	t.Helper()
+	cfg := &config.Config{}
+	cfg.Budget.Enabled = true
+	cfg.Budget.DailyLimitUSD = limit
+	cfg.Budget.Enforcement = enforcement
+	cfg.Budget.WarningThreshold = 0.8
+	tracker := budget.NewTracker(cfg, slog.Default(), t.TempDir())
+	t.Cleanup(tracker.Flush)
+	return tracker
+}
+
+func TestStorymakerMusicSeconds(t *testing.T) {
+	for _, row := range []struct {
+		durationMS, profileMax int
+		want                   float64
+	}{
+		{15000, 0, 17},     // ceil(15) + 2
+		{1000, 0, 10},      // 1 + 2 = 3, raised to the 10 s minimum
+		{300000, 240, 240}, // 300 + 2 = 302, cut to the profile limit
+		{900000, 0, 600},   // 900 + 2 = 902, cut to 600 without a profile
+		{900000, 900, 600}, // a profile above 600 does not raise the limit
+	} {
+		if got := storymakerMusicSeconds(row.durationMS, row.profileMax); got != row.want {
+			t.Errorf("storymakerMusicSeconds(%d, %d) = %v, want %v", row.durationMS, row.profileMax, got, row.want)
+		}
+	}
+}
+
+func TestStorymakerMusicGeneratedAsksForTheProfileLimitAndProbesTheResult(t *testing.T) {
+	fx := newGeneratedMusicFixture(t)
+	fx.s.Cfg.MusicGeneration.Provider = config.LocalMusicProviderID
+	fx.seam.profileMax = 240
+	// A 300 s film asks for 300 + 2 = 302 s, which is above the 240 s profile limit.
+	done := waitStorymakerMusicJob(t, fx.rt, fx.post(t, `{"duration_ms":300000,"generate":true}`).ID)
+	if done.Status != render.StatusSucceeded {
+		t.Fatalf("job = %+v %+v", done, done.Error)
+	}
+	if fx.params.DurationSeconds != 240 || !fx.params.Instrumental || fx.params.Prompt != storymaker.MusicPrompt("calm-ambient", "") {
+		t.Fatalf("params = %+v", fx.params)
+	}
+	// The result has no DurationMs, so the meta comes from ProbeAudio over the 20 s file.
+	meta, ext, err := fx.rt.projects.MusicInfo(context.Background(), fx.id, fx.key)
+	if err != nil || ext != "wav" || meta != (storymaker.MusicMeta{V: 1, Ext: "wav", DurationMS: 20000}) {
+		t.Fatalf("music info = %+v %q %v", meta, ext, err)
+	}
+}
+
+func TestStorymakerMusicGeneratedRefusedByTheBudget(t *testing.T) {
+	fx := newGeneratedMusicFixture(t)
+	tracker := musicTestTracker(t, 1, "full")
+	tracker.RecordCostForCategory("chat", 2) // 2 USD over a limit of 1 USD: exceeded, and "full" blocks every category
+	fx.s.BudgetTracker = tracker
+	w := postMusic(fx.s, fx.token, fx.id, `{"duration_ms":15000,"generate":true}`)
+	if w.Code != http.StatusConflict || !strings.Contains(w.Body.String(), `"code":"budget_exceeded"`) {
+		t.Fatalf("route: %d %s", w.Code, w.Body.String())
+	}
+	done := waitStorymakerMusicJob(t, fx.rt, fx.queue(t, fx.key).ID)
+	if done.Status != render.StatusFailed || done.Error == nil || done.Error.Code != render.CodeBudgetExceeded {
+		t.Fatalf("job = %+v %+v", done, done.Error)
+	}
+	if fx.calls.Load() != 0 {
+		t.Fatalf("the provider was called %d times", fx.calls.Load())
+	}
+}
+
+func TestStorymakerMusicGeneratedNeverPaysWithoutAClickOnThisKey(t *testing.T) {
+	fx := newGeneratedMusicFixture(t)
+	// No click: the route queues nothing, also with a provider configured.
+	w := postMusic(fx.s, fx.token, fx.id, `{"duration_ms":15000}`)
+	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"job":null`) {
+		t.Fatalf("no click: %d %s", w.Code, w.Body.String())
+	}
+	// A file job that finds a generated story when it runs has no key. A click whose mood or prompt changed while it waited
+	// has an older one.
+	for _, generateKey := range []string{"", strings.Repeat("a", 64)} {
+		done := waitStorymakerMusicJob(t, fx.rt, fx.queue(t, generateKey).ID)
+		if done.Status != render.StatusFailed || done.Error == nil || done.Error.Code != render.CodeMusicFailed || !strings.Contains(done.Error.Message, "Click Generate") {
+			t.Fatalf("key %q: job = %+v %+v", generateKey, done, done.Error)
+		}
+	}
+	if fx.calls.Load() != 0 {
+		t.Fatalf("the provider was called %d times", fx.calls.Load())
+	}
+}
+
+func TestStorymakerMusicGeneratedStopsWhenReadOnly(t *testing.T) {
+	fx := newGeneratedMusicFixture(t)
+	started := make(chan struct{})
+	fx.seam.generate = func(ctx context.Context, cfg *config.Config, params tools.MusicGenParams) tools.MusicGenResult {
+		close(started)
+		<-ctx.Done()
+		return tools.MusicGenResult{Status: "error", Error: ctx.Err().Error()}
+	}
+	job := fx.post(t, `{"duration_ms":15000,"generate":true}`)
+	select {
+	case <-started:
+	case <-time.After(20 * time.Second):
+		t.Fatal("the provider call did not start")
+	}
+	ro := *fx.s.ConfigSnapshot()
+	ro.VirtualDesktop.ReadOnly = true
+	fx.s.replaceConfigSnapshot(&ro)
+	// The check right before a provider call sees the new state.
+	if je := fx.s.storymakerMusicPreflight(); je == nil || je.Code != render.CodeMusicFailed || !strings.Contains(je.Message, "read-only") {
+		t.Fatalf("preflight = %+v", je)
+	}
+	// The call in flight is cancelled and stores nothing.
+	done := waitStorymakerMusicJob(t, fx.rt, job.ID)
+	if done.Status != render.StatusFailed || done.Error == nil || done.Error.Code != render.CodeMusicFailed || !strings.Contains(done.Error.Message, "read-only") {
+		t.Fatalf("job = %+v %+v", done, done.Error)
+	}
+	if _, ext, err := fx.rt.projects.MusicInfo(context.Background(), fx.id, fx.key); err != nil || ext != "" {
+		t.Fatalf("stored %q, %v", ext, err)
+	}
+}
+
+func TestStorymakerMusicRerunReadsPendingWithoutAProviderCall(t *testing.T) {
+	fx := newGeneratedMusicFixture(t)
+	ctx := context.Background()
+	fx.audioFile(t, "left.wav", 5)
+	target, err := fx.rt.projects.AudioPath(fx.id, "music", fx.key+".wav")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pending := path.Join(path.Dir(target), fx.key+".pending.json")
+	if err := fx.rt.store.WriteBytes(ctx, pending, []byte(`{"path":"left.wav"}`)); err != nil {
+		t.Fatal(err)
+	}
+	done := waitStorymakerMusicJob(t, fx.rt, fx.post(t, `{"duration_ms":15000,"generate":true}`).ID)
+	if done.Status != render.StatusSucceeded {
+		t.Fatalf("job = %+v %+v", done, done.Error)
+	}
+	if fx.calls.Load() != 0 {
+		t.Fatalf("the provider was called %d times", fx.calls.Load())
+	}
+	// 5000 is the 5 s of left.wav, not the 20 s the stand-in would return.
+	meta, _, err := fx.rt.projects.MusicInfo(ctx, fx.id, fx.key)
+	if err != nil || meta.DurationMS != 5000 {
+		t.Fatalf("meta = %+v, %v", meta, err)
+	}
+	if _, _, err := fx.rt.store.ReadFile(ctx, pending); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("the pending file stayed: %v", err)
+	}
+}
+
+func TestStorymakerMusicGeneratedScrubsTheProviderFailure(t *testing.T) {
+	fx := newGeneratedMusicFixture(t)
+	const sentinel = "sm-music-sentinel-0123456789abcdef"
+	defer security.RegisterScopedSensitiveExact(sentinel)()
+	// The sentinel crosses the 300-rune cut, so a scrub after the clip would no longer match it and would leave its head.
+	fx.seam.generate = func(ctx context.Context, cfg *config.Config, params tools.MusicGenParams) tools.MusicGenResult {
+		return tools.MusicGenResult{Status: "error", Error: strings.Repeat("x", 280) + sentinel + " echoed by the provider"}
+	}
+	done := waitStorymakerMusicJob(t, fx.rt, fx.post(t, `{"duration_ms":15000,"generate":true}`).ID)
+	if done.Status != render.StatusFailed || done.Error == nil || done.Error.Code != render.CodeMusicFailed {
+		t.Fatalf("job = %+v %+v", done, done.Error)
+	}
+	if msg := done.Error.Message; strings.Contains(msg, sentinel[:8]) || !strings.Contains(msg, "The music provider failed: ") || !strings.Contains(msg, "[redacted]") {
+		t.Fatalf("message = %q", msg)
+	}
+}
+
+func TestStorymakerMusicGeneratedRecordsItsCostOnce(t *testing.T) {
+	fx := newGeneratedMusicFixture(t)
+	tracker := musicTestTracker(t, 100, "warn")
+	fx.s.BudgetTracker = tracker
+	done := waitStorymakerMusicJob(t, fx.rt, fx.post(t, `{"duration_ms":15000,"generate":true}`).ID)
+	if done.Status != render.StatusSucceeded {
+		t.Fatalf("job = %+v %+v", done, done.Error)
+	}
+	if w := postMusic(fx.s, fx.token, fx.id, `{"duration_ms":15000,"generate":true}`); w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"job":null`) {
+		t.Fatalf("a second call: %d %s", w.Code, w.Body.String())
+	}
+	// The stand-in reports 0.06 USD, and the second call queued nothing.
+	if got := tracker.CategorySpendUSD("music_generation"); got != 0.06 || fx.calls.Load() != 1 {
+		t.Fatalf("spend = %v after %d calls", got, fx.calls.Load())
 	}
 }

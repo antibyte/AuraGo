@@ -9,12 +9,14 @@ import (
 	"io/fs"
 	"log/slog"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"sync"
 	"time"
 	"unicode/utf8"
 
+	"aurago/internal/acestep"
 	"aurago/internal/config"
 	"aurago/internal/desktop"
 	"aurago/internal/fileutil"
@@ -707,7 +709,7 @@ func (s *Server) storymakerMusicStore(ctx context.Context, rt *storymakerRuntime
 // storymakerCopyMusicSource copies the story's source to the key's file and returns its format.
 func (s *Server) storymakerCopyMusicSource(ctx context.Context, rt *storymakerRuntime, cfg *config.Config, p storymakerMusicPayload, key string, m *storymaker.Music, h *render.Handle) (string, error) {
 	if m.Mode == "generated" {
-		return "", &storymakerMusicRefusal{message: "Generated music cannot run yet."}
+		return s.storymakerGenerateMusic(ctx, rt, cfg, p, key, m, h)
 	}
 	h.SetPhase(render.PhaseWriting)
 	src, info, err := s.storymakerMusicSourceOpen(ctx, rt, cfg, m)
@@ -756,7 +758,189 @@ func storymakerFinishMusic(ctx context.Context, rt *storymakerRuntime, id, key, 
 		if err := rt.store.Remove(ctx, target); err != nil {
 			return err
 		}
+		if err := storymakerRemoveMusicPending(ctx, rt, id, key); err != nil {
+			return err
+		}
 		return &storymakerMusicRefusal{message: "The music must be readable audio that lasts between 1 second and 1 hour."}
 	}
-	return rt.projects.WriteMusicMeta(ctx, id, key, storymaker.MusicMeta{V: 1, Ext: ext, DurationMS: durationMS})
+	if err := rt.projects.WriteMusicMeta(ctx, id, key, storymaker.MusicMeta{V: 1, Ext: ext, DurationMS: durationMS}); err != nil {
+		return err
+	}
+	return storymakerRemoveMusicPending(ctx, rt, id, key)
+}
+
+// storymakerMusicSeam replaces the provider call and the ACE-Step profile limit in tests.
+type storymakerMusicSeam struct {
+	generate   func(ctx context.Context, cfg *config.Config, params tools.MusicGenParams) tools.MusicGenResult
+	profileMax int
+}
+
+// storymakerMusicPending is <key>.pending.json: where a paid result sits, relative to DataDir/audio.
+type storymakerMusicPending struct {
+	Path string `json:"path"`
+}
+
+func storymakerMusicPendingPath(rt *storymakerRuntime, id, key string) (string, error) {
+	audio, err := rt.projects.AudioPath(id, "music", key+".wav")
+	if err != nil {
+		return "", err
+	}
+	return path.Join(path.Dir(audio), key+".pending.json"), nil
+}
+
+func storymakerRemoveMusicPending(ctx context.Context, rt *storymakerRuntime, id, key string) error {
+	pendingPath, err := storymakerMusicPendingPath(rt, id, key)
+	if err != nil {
+		return err
+	}
+	return rt.store.Remove(ctx, pendingPath)
+}
+
+// storymakerReadMusicPending returns the stored result path, or "" without a usable file. It is an ordinary workspace
+// file, so its path is not trusted.
+func storymakerReadMusicPending(ctx context.Context, rt *storymakerRuntime, pendingPath string) (string, error) {
+	data, _, err := rt.store.ReadFile(ctx, pendingPath)
+	if errors.Is(err, fs.ErrNotExist) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	var pending storymakerMusicPending
+	if json.Unmarshal(data, &pending) != nil || !filepath.IsLocal(filepath.FromSlash(pending.Path)) {
+		return "", nil
+	}
+	return pending.Path, nil
+}
+
+// storymakerMusicSeconds asks for the film plus 2 s, at least 10 s and at most 600 s or the ACE-Step limit. A value above
+// that limit fails instead of shortening, and the mix loops the track for the rest of a longer film.
+func storymakerMusicSeconds(durationMS, profileMax int) float64 {
+	limit := 600
+	if profileMax > 0 && profileMax < limit {
+		limit = profileMax
+	}
+	seconds := (durationMS+999)/1000 + 2
+	if seconds < 10 {
+		seconds = 10
+	}
+	if seconds > limit {
+		seconds = limit
+	}
+	return float64(seconds)
+}
+
+// storymakerMusicProfileMax is the ACE-Step profile limit, 0 when there is none.
+func (s *Server) storymakerMusicProfileMax(cfg *config.Config) int {
+	if !cfg.UsesLocalMusic() {
+		return 0
+	}
+	if s.storymakerMusicOverride != nil {
+		return s.storymakerMusicOverride.profileMax
+	}
+	manager := acestep.Default()
+	if manager == nil {
+		return 0
+	}
+	if profile := manager.Status().Profile; profile != nil {
+		return profile.MaxDuration
+	}
+	return 0
+}
+
+// storymakerMusicPreflight reads the configuration again right before a paid call.
+func (s *Server) storymakerMusicPreflight() *render.JobError {
+	cfg := s.ConfigSnapshot()
+	if cfg == nil || cfg.VirtualDesktop.ReadOnly {
+		return storymakerMusicStopped()
+	}
+	if !cfg.UsesLocalMusic() && s.BudgetTracker.IsBlocked("music_generation") {
+		return render.Fail(render.CodeBudgetExceeded, "The daily budget is used up, so no music was generated.")
+	}
+	return nil
+}
+
+func (s *Server) storymakerCallMusicProvider(ctx context.Context, cfg *config.Config, params tools.MusicGenParams) tools.MusicGenResult {
+	if seam := s.storymakerMusicOverride; seam != nil && seam.generate != nil {
+		return seam.generate(ctx, cfg, params)
+	}
+	return tools.GenerateMusicResult(ctx, cfg, s.MediaRegistryDB, s.storymakerMusicLogger(), params)
+}
+
+func storymakerMusicClip(text string) string {
+	runes := []rune(text)
+	if len(runes) > 300 {
+		return string(runes[:300]) + "..."
+	}
+	return text
+}
+
+// storymakerCopyGeneratedMusic copies a result below the Music mount to the key's file and returns its format.
+func storymakerCopyGeneratedMusic(ctx context.Context, rt *storymakerRuntime, cfg *config.Config, id, key, rel string) (string, error) {
+	src, info, err := rt.store.Open(ctx, "Music/"+rel)
+	if err != nil {
+		return "", err
+	}
+	defer src.Close()
+	ext, err := storymakerCheckMusicSource(src, info.Size, cfg.VirtualDesktop.WorkspaceDir)
+	if err != nil {
+		return "", err
+	}
+	return ext, storymakerStoreMusic(ctx, rt, id, key, ext, src)
+}
+
+// storymakerGenerateMusic runs the provider once and copies the result. The pending file comes right after the call, so a
+// failed copy or a restart does not pay again while the result sits in DataDir/audio.
+func (s *Server) storymakerGenerateMusic(ctx context.Context, rt *storymakerRuntime, cfg *config.Config, p storymakerMusicPayload, key string, m *storymaker.Music, h *render.Handle) (string, error) {
+	pendingPath, err := storymakerMusicPendingPath(rt, p.ProjectID, key)
+	if err != nil {
+		return "", err
+	}
+	rel, err := storymakerReadMusicPending(ctx, rt, pendingPath)
+	if err != nil {
+		return "", err
+	}
+	if rel != "" {
+		h.SetPhase(render.PhaseWriting)
+		ext, err := storymakerCopyGeneratedMusic(ctx, rt, cfg, p.ProjectID, key, rel)
+		if !errors.Is(err, fs.ErrNotExist) {
+			return ext, err
+		}
+		// The result is gone, so only a new call can bring it back.
+	}
+	// A paid call needs the click that named this mood and prompt. A file job that finds a generated story has no key, and a
+	// click whose story changed while the job waited has an older one. A pending result above is already paid for.
+	if p.GenerateKey != key {
+		return "", &storymakerMusicRefusal{message: "The music settings changed while the job waited, so nothing was generated. Click Generate to start it."}
+	}
+	if je := s.storymakerMusicPreflight(); je != nil {
+		return "", je
+	}
+	h.SetPhase(render.PhaseGenerating)
+	result := s.storymakerCallMusicProvider(ctx, cfg, tools.MusicGenParams{
+		Prompt:          storymaker.MusicPrompt(m.Mood, m.Prompt),
+		Instrumental:    true,
+		DurationSeconds: storymakerMusicSeconds(p.DurationMS, s.storymakerMusicProfileMax(cfg)),
+	})
+	if result.Status != "ok" {
+		if err := ctx.Err(); err != nil {
+			return "", err
+		}
+		// The body can echo a key. Scrub first, because a clip through a secret would no longer match it.
+		return "", &storymakerMusicRefusal{message: "The music provider failed: " + storymakerMusicClip(security.Scrub(result.Error))}
+	}
+	s.BudgetTracker.RecordCostForCategory("music_generation", result.CostEstimate)
+	rel, err = storymakerMusicAudioRel(cfg, result.FilePath)
+	if err != nil {
+		return "", err
+	}
+	pending, err := json.Marshal(storymakerMusicPending{Path: rel})
+	if err != nil {
+		return "", err
+	}
+	if err := rt.store.WriteBytes(ctx, pendingPath, pending); err != nil {
+		return "", err
+	}
+	h.SetPhase(render.PhaseWriting)
+	return storymakerCopyGeneratedMusic(ctx, rt, cfg, p.ProjectID, key, rel)
 }
