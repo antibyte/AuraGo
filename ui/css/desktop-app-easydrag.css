@@ -1516,3 +1516,31 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
     .ed-app .ed-group-controls .ed-icon-btn { min-width: 44px; min-height: 44px; }
     .ed-app .ed-group-title { min-height: 44px; }
 }
+
+.ed-app .ed-pack-status { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 14px 28px 0; padding: 12px 14px; border: 1px solid var(--ed-border); border-radius: var(--ed-radius); background: var(--ed-panel); }
+.ed-app .ed-pack-status p { flex: 1 1 260px; min-width: 0; margin: 0; color: var(--ed-text); font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; }
+.ed-app .ed-modal--pack { width: min(780px, calc(100% - 24px)); }
+.ed-app .ed-modal--pack .ed-modal-foot { flex-wrap: wrap; }
+.ed-app .ed-modal--pack .ed-modal-foot .ed-btn { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+.ed-app .ed-pack-warning { margin-top: 8px; }
+.ed-app .ed-pack-doc-list { min-width: 0; margin-top: 14px; padding: 12px 14px; border: 1px solid var(--ed-border); border-radius: var(--ed-radius); background: var(--ed-panel); }
+.ed-app .ed-pack-doc-list h3 { margin: 12px 0 6px; font-size: 13px; }
+.ed-app .ed-pack-doc-list p { margin: 0; font-weight: 700; overflow-wrap: anywhere; }
+.ed-app .ed-pack-doc-list ul { display: grid; gap: 6px; margin: 0; padding-inline-start: 20px; }
+.ed-app .ed-pack-doc-list li { overflow-wrap: anywhere; }
+.ed-app .ed-pack-content { display: grid; gap: 8px; min-width: 0; margin-top: 14px; }
+.ed-app .ed-pack-content .ed-label { margin: 0; }
+.ed-app .ed-pack-content .ed-input { width: 100%; min-width: 0; }
+.ed-app .ed-pack-content .ed-seg { display: flex; flex-wrap: wrap; }
+.ed-app .ed-pack-document { min-width: 0; max-height: min(38vh, 420px); overflow: auto; padding: 10px; border: 1px solid var(--ed-border); border-radius: var(--ed-radius); background: var(--ed-well-color); }
+.ed-app .ed-pack-document .ed-json-tree { overflow-wrap: anywhere; }
+.ed-app .ed-pack-document .ed-output-json { max-height: 36vh; overflow: auto; }
+.ed-app .ed-pack-result h3 { margin: 0 0 10px; }
+.ed-app .ed-pack-result > p { overflow-wrap: anywhere; }
+@container (max-width: 460px) {
+    .ed-app .ed-pack-status { margin-inline: 12px; }
+    .ed-app .ed-modal--pack .ed-modal-body { padding-inline: 12px; }
+    .ed-app .ed-pack-doc-list { padding-inline: 10px; }
+    .ed-app .ed-modal--pack .ed-modal-foot .ed-btn { flex: 1 1 100%; }
+    .ed-app .ed-pack-document { max-height: 34vh; }
+}

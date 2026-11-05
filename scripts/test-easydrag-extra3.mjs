@@ -8,7 +8,7 @@ import { webcrypto } from 'node:crypto';
 
 const MODULES = ['easydrag-core.js', 'easydrag-durable.js', 'easydrag-template.js', 'easydrag-model.js', 'easydrag-geometry.js', 'easydrag-groups.js', 'easydrag-saver.js', 'easydrag-canvas.js',
     'easydrag-wires.js', 'easydrag-interact.js', 'easydrag-palette.js', 'easydrag-fields.js', 'easydrag-forms.js', 'easydrag-blocks.js', 'easydrag-batches.js', 'easydrag-block-fields.js', 'easydrag-transform.js', 'easydrag-mapping.js',
-    'easydrag-detail.js', 'easydrag-scenarios.js', 'easydrag-testing.js', 'easydrag-child-history.js', 'easydrag-compare.js', 'easydrag-runs.js', 'easydrag-metadata.js', 'easydrag-publish.js', 'easydrag-library-pause.js', 'easydrag-home.js', 'easydrag-dialogs.js', 'easydrag-history.js', 'easydrag-workspace.js', 'easydrag-authoring.js', 'easydrag-extraction.js', 'easydrag-editor.js', 'easydrag.js'];
+    'easydrag-detail.js', 'easydrag-scenarios.js', 'easydrag-testing.js', 'easydrag-child-history.js', 'easydrag-compare.js', 'easydrag-runs.js', 'easydrag-metadata.js', 'easydrag-publish.js', 'easydrag-library-pause.js', 'easydrag-pack.js', 'easydrag-home.js', 'easydrag-dialogs.js', 'easydrag-history.js', 'easydrag-workspace.js', 'easydrag-authoring.js', 'easydrag-extraction.js', 'easydrag-editor.js', 'easydrag.js'];
 const T1 = 'n_tttttttt';
 const A = 'n_aaaaaaaa';
 const B = 'n_bbbbbbbb';
@@ -663,7 +663,8 @@ export async function run(env) {
         states.push(shown());
         eq('c1d07 a failed list load clears the cards, keeps its card on repaints and the templates, and pauses search until a load succeeds',
             states, [[true, false, false, true, false], [false, true, false, true, true], [false, false, true, true, true], [true, false, false, true, false]]);
-        // Import: a file over the 4 MiB document limit is not read.
+        // Generic JSON is read once to distinguish a portable pack from a legacy document.
+        // Oversized legacy documents still stop before creating a flow.
         let read = 0;
         const file = size => ({ size, text: async () => { read++; return '{"schema":1,"name":"X","nodes":[],"edges":[]}'; } });
         const input = home.el.querySelector('[data-ed-import-file]');
@@ -673,7 +674,7 @@ export async function run(env) {
         const big = [read, posts(), h.notes.map(n => n.message)];
         input.fire('change', { target: { files: [file(1024)], value: 'small.json' } });
         await settle();
-        eq('c1d07 an import over 4 MiB is refused unread; a small one is read and sent', [big, read, posts()], [[0, 0, ['error_flow_too_large']], 1, 1]);
+        eq('c1d07 a generic JSON import over 4 MiB is classified then refused; a small one is read and sent', [big, read, posts()], [[1, 0, ['error_flow_too_large']], 2, 1]);
         // While that create runs, a held Enter and a second click on a template create nothing more.
         const card = home.el.querySelector('[data-ed-template="t1"]');
         card.fire('keydown', { key: 'Enter', repeat: true });

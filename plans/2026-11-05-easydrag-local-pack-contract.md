@@ -86,9 +86,13 @@ metadata covers only some of these. This slice must not advertise general resour
   `blocks[{source_id, source_revision, local_id, hash}]`.
 - Admin-authorized `POST /api/desktop/flows/packs/import` accepts `{pack, proposal}` and
   acknowledges `{status: "applied", flow, blocks}` only after the complete import commits.
+  Records are compact summaries, not full documents: identity, kind, name, optional mission ID,
+  draft/live/published revisions, remapped hash and exact pin summaries. Source hashes differ
+  from hashes recomputed after new IDs and typed references are assigned.
 - Read-authorized `POST /api/desktop/flows/packs/reconcile` accepts `{proposal}` and returns
   `{status: "applied_state_confirmed", flow, blocks}` only for complete matching evidence;
-  otherwise return `{status: "unknown"}` without records. These read-only POST routes must
+  a confirmed empty closure uses `blocks: []`. Otherwise return `{status: "unknown", blocks: null}`
+  without records. These read-only POST routes must
   retain the existing authentication, origin and availability contracts.
 - Bound raw requests to 32 MiB, each canonical document to 2 MiB and the canonical parent plus
   child documents to 18 MiB. The existing tighter graph and closure limits also apply.

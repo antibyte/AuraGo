@@ -12,7 +12,7 @@ var easyDragModules = []string{
 	"easydrag-core.js", "easydrag-durable.js", "easydrag-template.js", "easydrag-model.js", "easydrag-geometry.js", "easydrag-groups.js", "easydrag-saver.js",
 	"easydrag-canvas.js", "easydrag-wires.js", "easydrag-interact.js", "easydrag-palette.js", "easydrag-fields.js",
 	"easydrag-forms.js", "easydrag-blocks.js", "easydrag-batches.js", "easydrag-block-fields.js", "easydrag-transform.js", "easydrag-mapping.js", "easydrag-detail.js", "easydrag-scenarios.js", "easydrag-testing.js", "easydrag-child-history.js", "easydrag-compare.js", "easydrag-runs.js", "easydrag-metadata.js", "easydrag-publish.js",
-	"easydrag-library-pause.js", "easydrag-home.js", "easydrag-dialogs.js", "easydrag-history.js", "easydrag-workspace.js", "easydrag-authoring.js", "easydrag-extraction.js", "easydrag-editor.js", "easydrag.js",
+	"easydrag-library-pause.js", "easydrag-pack.js", "easydrag-home.js", "easydrag-dialogs.js", "easydrag-history.js", "easydrag-workspace.js", "easydrag-authoring.js", "easydrag-extraction.js", "easydrag-editor.js", "easydrag.js",
 }
 
 func TestEasyDragAssetsLoadInDependencyOrder(t *testing.T) {
@@ -159,6 +159,8 @@ func TestEasyDragUIKeysExistInAllLocales(t *testing.T) {
 		"easydrag.ui.home_filter_":       {"all", "active", "inactive", "drafts", "errors"},
 		"easydrag.ui.home_bulk_":         {"loading", "status_enabled", "status_disabled", "status_missing", "status_mismatch", "status_unavailable"},
 		"easydrag.ui.home_bulk_outcome_": {"confirmed", "save_uncertain", "active", "unresolved", "not_attempted"},
+		"easydrag.ui.pack_":              {"export", "import", "intro", "warning", "parent", "blocks", "block_version", "content", "preview", "import_action", "success", "success_detail", "open", "unknown", "reconcile", "unconfirmed", "invalid", "too_large", "finish_status", "finish_status_text"},
+		"easydrag.ui.error_flow_pack_":   {"too_large", "invalid", "unsupported", "conflict"},
 		"easydrag.ui.runs_filter_":       {"all", "errors", "tests", "live"},
 		"easydrag.ui.recipe_step_":       {"build", "test", "result"},
 		"easydrag.ui.detail_":            {"input", "parameters", "output"},

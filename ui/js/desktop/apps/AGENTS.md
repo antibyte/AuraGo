@@ -1619,6 +1619,25 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   immediately before `easydrag-home.js`, which owns selection and modal composition; keep the
   1,100-line home-module limit. The home module exposes `pauseOps` as a test seam. The canonical UI
   module list and every Node/browser fixture loader must retain this dependency order.
+- `easydrag-pack.js` owns the bounded local-pack reader/review/import/reconciliation and attachment
+  export. The loader places it after `easydrag-library-pause.js` and before `easydrag-home.js`;
+  preserve that order and the 1,100-line home-module limit. The home page keeps plain v1/v2 flow
+  import/export as separate actions. A `.easydrag-pack.json` suffix or exact format marker enters the
+  pack path; recognized malformed/unsupported packs never fall through to legacy flow creation.
+  Preview is read-only and shows the flow, each source block/revision and one escaped, bounded
+  document at a time, with clear truncation. Require explicit Import to create a new inactive draft.
+  Only an `applied` acknowledgement or matching read-only reconciliation can show Open draft;
+  never auto-open, retry Import, publish or run. An ambiguous Import retains its proposal and
+  compact local pin expectations in window memory keyed to the live app instance, not pack documents;
+  closing the Desktop window or reloading the page releases that state. It offers read-only status checks. Closing aborts/fences UI work but cannot undo a
+  server mutation that already completed. If status remains unconfirmed, a second explicit finish
+  confirmation clears only the local proposal; it does not alter server state. Tell the user to
+  inspect the flow library and Mission Control before importing another pack. Editor export flushes
+  and validates pending edits, fetches one bounded attachment, then checks the exported source
+  revision and unchanged model before download. Verify `test-easydrag-pack.mjs` and
+  `TestDesktopEasyDragPackBrowser` at desktop and 320/390 px in Standard dark and Fruity light/dark,
+  including hostile literal text, preview-only behavior, one Import, uncertain reconciliation,
+  close fencing, pending-save export and unchanged legacy journeys.
 - Strings: `easydrag.ui.*`, `easydrag.decision.*`, `easydrag.availability.*` in
   `ui/lang/easydrag/<16>.json` (shared with the server's catalog keys); built keys (`core.tr`)
   belong to a family of `TestEasyDragUIKeysExistInAllLocales`.

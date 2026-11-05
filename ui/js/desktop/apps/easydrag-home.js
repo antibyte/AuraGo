@@ -89,9 +89,12 @@
             '<header class="ed-home-hero"><div class="ed-home-brand"><span class="ed-logo" aria-hidden="true">' + core.icon('git-branch') + '</span>' +
             '<div><h1>EasyDrag</h1><p>' + esc(t('easydrag.ui.home_tagline')) + '</p></div></div>' +
             '<div class="ed-home-actions"><button type="button" class="ed-btn" data-ed-import>' + core.icon('upload') + '<span>' + esc(t('easydrag.ui.home_import')) + '</span></button>' +
+            '<button type="button" class="ed-btn" data-ed-pack-import>' + core.icon('upload') + '<span>' + esc(t('easydrag.ui.pack_import')) + '</span></button>' +
             '<button type="button" class="ed-btn" data-ed-authoring>' + core.icon('sparkles') + '<span>' + esc(t('easydrag.ui.authoring_title')) + '</span></button>' +
             '<button type="button" class="ed-btn ed-btn--primary" data-ed-new>' + core.icon('plus') + '<span>' + esc(t('easydrag.ui.home_new')) + '</span></button>' +
-            '<input type="file" accept=".json,.easydrag.json,application/json" hidden data-ed-import-file></div></header>' +
+            '<input type="file" accept=".json,.easydrag.json,application/json" hidden data-ed-import-file>' +
+            '<input type="file" accept=".easydrag-pack.json,.json,application/json" hidden data-ed-pack-import-file></div></header>' +
+            '<div class="ed-pack-status" data-ed-pack-status hidden role="status" aria-live="polite"></div>' +
             '<div class="ed-home-toolbar"><div class="ed-search">' + core.icon('search') + '<input type="search" maxlength="4000" placeholder="' + esc(t('easydrag.ui.home_search')) + '" aria-label="' + esc(t('easydrag.ui.home_search')) + '" enterkeyhint="search" inputmode="search" data-ed-home-search></div>' +
             '<div class="ed-seg ed-seg--small" role="radiogroup" aria-label="' + esc(t('easydrag.ui.home_filter')) + '">' +
             ['all', 'active', 'inactive', 'drafts', 'errors'].map(f => '<button type="button" role="radio" data-ed-filter="' + f + '" aria-checked="' + (f === filter) + '">' + esc(t('easydrag.ui.home_filter_' + f)) + '</button>').join('') + '</div>' +
@@ -111,6 +114,8 @@
             '<div class="ed-sr-only" aria-live="polite" data-ed-home-live></div>' +
             '</div>');
         const grid = el.querySelector('.ed-flow-grid');
+        const packUI = ED.pack && ED.pack.createHome(app, el, { canWrite: () => mayChange(), onChanged: () => reload() });
+        if (packUI) bag.add(() => packUI.dispose());
         const organization = hasOrganization ? core.el('<details class="ed-details ed-library-organization"><summary>' + esc(t('easydrag.ui.organization_filters')) + '</summary><div class="ed-library-organization-controls"><label class="ed-label">' + esc(t('easydrag.ui.folder')) + '<select class="ed-input" data-ed-folder-filter></select></label><label class="ed-label">' + esc(t('easydrag.ui.tags')) + '<select class="ed-input" data-ed-tag-filter></select></label><button type="button" class="ed-btn" data-ed-folders-manage>' + core.icon('folder') + esc(t('easydrag.ui.folders_manage')) + '</button></div><p class="ed-hint" data-ed-folder-error hidden></p></details>') : null;
         if (organization) grid.parentElement.insertBefore(organization, grid);
         if (ED.blocks && app.openBlock) {
@@ -423,7 +428,7 @@
         // list (FLOWS_DISABLED, or the session can no longer read). staleError keeps the last list
         // in memory only. Nothing is written to storage for either.
         let loadError = null;
-        let staleError = null;
+        let staleError = null, importSelectionGeneration = 0;
         let timersRunning = true;  // GET /flows timers_running; false while Date & time triggers do not fire
         let listed = false;
         let spoken = '';
@@ -569,7 +574,7 @@
             const categoryOptions = '<option value="">' + esc(t('easydrag.ui.template_all')) + '</option>' + Array.from(new Set(templates.flatMap(tp => tp.categories || []))).sort().map(c => '<option value="' + esc(c) + '">' + esc(core.tr(t, 'easydrag.category.' + c, c)) + '</option>').join('');
             if (categories.innerHTML !== categoryOptions) { categories.innerHTML = categoryOptions; categories.value = templateCategory; }
             el.querySelectorAll('[data-ed-new]').forEach(b => { b.disabled = off; });
-            el.querySelectorAll('[data-ed-import]').forEach(b => { b.disabled = off; });
+            el.querySelectorAll('[data-ed-import], [data-ed-pack-import]').forEach(b => { b.disabled = off; });
             el.querySelectorAll('[data-ed-authoring]').forEach(b => { b.disabled = off; });
             el.querySelector('[data-ed-home-search]').disabled = !!loadError;
             const sortSel = el.querySelector('[data-ed-home-sort]');
@@ -717,19 +722,47 @@
             create({ name: String(name).trim() || t('easydrag.ui.new_flow_name') });
         }
 
-        // importFile reads a flow file; one over the server's request-body limit is not read at all.
-        async function importFile(file) {
+        // Pack suffixes are classified before parsing. Generic JSON is read once (up to the 32 MiB
+        // pack cap) so a format marker cannot fall through to legacy flow creation.
+        async function importFile(file, packOnly) {
+            const selection = ++importSelectionGeneration;
+            const current = () => selection === importSelectionGeneration && !gone && mayChange();
             if (!mayChange() || !file) return;
+            if (packUI) {
+                const result = await packUI.readImportFile(file);
+                if (!current() || !result || result.kind === 'cancelled') return;
+                if (result.kind === 'pack') { packUI.review(result.pack, result.name); return; }
+                if (result.kind === 'pack-invalid' || result.kind === 'pack-too-large' || result.kind === 'pack-unsupported') {
+                    const key = result.kind === 'pack-invalid' ? 'pack_invalid' : result.kind === 'pack-too-large' ? 'pack_too_large' : 'error_flow_pack_unsupported';
+                    ctx.notify({ title: t('easydrag.ui.pack_import'), message: t('easydrag.ui.' + key), type: 'error' });
+                    return;
+                }
+                if (result.kind === 'legacy-too-large') {
+                    const key = packOnly ? 'pack_too_large' : 'error_flow_too_large';
+                    ctx.notify({ title: t(packOnly ? 'easydrag.ui.pack_import' : 'easydrag.ui.home_import'), message: t('easydrag.ui.' + key), type: 'error' });
+                    return;
+                }
+                if (packOnly) {
+                    ctx.notify({ title: t('easydrag.ui.pack_import'), message: t('easydrag.ui.pack_invalid'), type: 'error' });
+                    return;
+                }
+                if (result.kind === 'legacy-invalid') {
+                    ctx.notify({ title: t('easydrag.ui.home_import'), message: t('easydrag.ui.import_invalid'), type: 'error' });
+                    return;
+                }
+                create({ import: result.doc });
+                return;
+            }
             if (Number(file.size) > IMPORT_MAX_BYTES) {
                 ctx.notify({ title: t('easydrag.ui.home_import'), message: t('easydrag.ui.error_flow_too_large'), type: 'error' });
                 return;
             }
             let doc;
             try { doc = JSON.parse(await file.text()); } catch (err) {
-                if (!gone) ctx.notify({ title: t('easydrag.ui.home_import'), message: t('easydrag.ui.import_invalid'), type: 'error' });
+                if (current()) ctx.notify({ title: t('easydrag.ui.home_import'), message: t('easydrag.ui.import_invalid'), type: 'error' });
                 return;
             }
-            if (!mayChange()) return;
+            if (!current()) return;
             create({ import: doc });
         }
 
@@ -810,6 +843,7 @@
                 { icon: 'play', label: t('easydrag.ui.run_now'), disabled: locked || !f.published || paused || runsPending.has(f.id), disabledHint: why || (paused && !app.readonly ? t('easydrag.ui.error_flow_disabled') : ''), action: () => runNow(f) },
                 { icon: 'copy', label: t('easydrag.ui.home_duplicate'), disabled: locked, disabledHint: why, action: () => duplicate(f.id) },
                 { icon: 'download', label: t('easydrag.ui.home_export'), action: () => download(f.id, f.name) },
+                { icon: 'download', label: t('easydrag.ui.pack_export'), action: () => packUI && packUI.exportStored(f.id, f.name) },
                 { icon: 'list', label: t('easydrag.ui.home_mission_control'), action: () => ctx.openApp && ctx.openApp('mission-control') },
                 { separator: true },
                 { icon: 'trash', label: t('easydrag.ui.home_delete'), disabled: locked, disabledHint: why, action: () => remove(f) }
@@ -872,6 +906,7 @@
             if (event.target.closest('[data-ed-home-clear-filter]')) { clearFilter(); return; }
             if (event.target.closest('[data-ed-new]')) { newFlow(); return; }
             if (event.target.closest('[data-ed-authoring]')) { if (authoring) authoring.open(); return; }
+            if (event.target.closest('[data-ed-pack-import]')) { el.querySelector('[data-ed-pack-import-file]').click(); return; }
             if (event.target.closest('[data-ed-import]')) { el.querySelector('[data-ed-import-file]').click(); return; }
             const f = event.target.closest('[data-ed-filter]');
             if (f) {
@@ -945,6 +980,13 @@
             const file = event.target.files && event.target.files[0];
             event.target.value = '';
             if (file) importFile(file);
+            else importSelectionGeneration++;
+        });
+        bag.listen(el.querySelector('[data-ed-pack-import-file]'), 'change', (event) => {
+            const file = event.target.files && event.target.files[0];
+            event.target.value = '';
+            if (file) importFile(file, true);
+            else importSelectionGeneration++;
         });
         bag.listen(el, 'dragover', (event) => {
             if (createOff()) return;

@@ -1134,6 +1134,7 @@ await (await import('./test-easydrag-kv-editor.mjs')).run({ apps, types, t, mini
 
 // ── b5: fix batch 5, editor UX, accessibility and i18n (test-easydrag-ux-batch5.mjs, on the c1d07 sandbox) ──
 await (await import('./test-easydrag-flagship.mjs')).run({ sandbox: editorHarness.sandbox, openEditor: editorHarness.openEditor, eq, guardAsync, settle });
+await (await import('./test-easydrag-pack.mjs')).run({ pack: editorHarness.sandbox().ED.pack, eq });
 await (await import('./test-easydrag-ux-batch5.mjs')).run({ apps, types, t, miniDom, check, eq, guardAsync, settle, sandbox: editorHarness.sandbox, openEditor: editorHarness.openEditor, saverHarness });
 
 // ── start page preview and shortcut table ──

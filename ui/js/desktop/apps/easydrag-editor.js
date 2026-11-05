@@ -96,6 +96,7 @@
             dragging: false, initialRender: true, effectsConfirmed: new Set(), publishIncomplete: '', bus: core.emitter(), saver: null,
             enterRunView, exitRunView
         };
+        bag.add(() => { if (ed.packExportControl) ed.packExportControl.abort(); });
 
         canvas = ED.canvas.create(ed);
         if (ED.groups) { ed.groups = ED.groups.create(ed, canvas); bag.add(() => ed.groups.dispose()); }
@@ -483,6 +484,8 @@
             a.remove();
         }
 
+        function exportLocalPack() { if (ED.pack) return ED.pack.exportEditor(ed); }
+
         // deleteFlow deletes the flow; while the request runs, its own "deleted" broadcast is not
         // news (deleting).
         async function deleteFlow() {
@@ -632,6 +635,7 @@
                 ...(ed.publishIncomplete === 'FLOW_MISSION_MISSING' || ed.liveIssues.some(issue => issue.code === 'FLOW_MISSION_MISSING') ? [{ icon: 'link', label: t('easydrag.ui.repair_mission'), disabled: ro, action: repairMission }] : []),
                 { icon: 'copy', label: t('easydrag.ui.home_duplicate'), disabled: !!ed.readonly, action: duplicateFlow },
                 { icon: 'download', label: t('easydrag.ui.home_export'), action: exportFlow },
+                { icon: 'download', label: t('easydrag.ui.pack_export'), disabled: restoring || (!!ed.readonly && ed.saver.isDirty()), action: exportLocalPack },
                 { icon: 'mail', label: t('desktop.email_export'), disabled: !!ed.readonly || !emailBinding, action: () => emailBinding && emailBinding.activate() },
                 { icon: 'list', label: t('easydrag.ui.home_mission_control'), action: () => ctx.openApp && ctx.openApp('mission-control') },
                 { separator: true },
@@ -698,6 +702,7 @@
                         { type: 'separator' },
                         { id: 'settings', labelKey: 'easydrag.ui.flow_settings', icon: 'settings', disabled: restoring, action: unlessModal(() => ED.dialogs.flowSettings(ed)) },
                         { id: 'export', labelKey: 'easydrag.ui.home_export', icon: 'download', action: exportFlow },
+                        { id: 'export-pack', labelKey: 'easydrag.ui.pack_export', icon: 'download', disabled: restoring || (!!ed.readonly && ed.saver.isDirty()), action: exportLocalPack },
                         { id: 'delete', labelKey: 'easydrag.ui.home_delete', icon: 'trash', disabled: !!ed.readonly || restoring, action: unlessModal(deleteFlow) }
                     ]
                 },

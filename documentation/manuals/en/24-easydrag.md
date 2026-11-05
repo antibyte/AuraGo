@@ -435,6 +435,35 @@ state does not confirm current progress.
 - The email, device and camera examples start with broad filters: they match eligible messages from the watched inbox, device disconnects or armed camera detections from configured sources. Set the desired subject/sender, device, camera or zone filters before publishing if the flow should respond more narrowly.
 - **Export** downloads the draft as `<name>.easydrag.json`. **Import** on the start page creates a new flow from such a file (at most 2 MiB). Vault references carry secret names. Credential headers (*Authorization*, *X-Api-Key*, *Cookie*, ...) are exported as `[redacted]`; registered secrets in group titles and notes are masked. If masking exceeds a group text limit, the text is shortened with an ellipsis. Other ordinary fields are exported as typed and may contain sensitive values. An export with visual groups requires a current AuraGo version that supports them; older versions refuse it instead of silently dropping the groups.
 
+### Share a local flow with its blocks
+
+**Export local pack** downloads a `.easydrag-pack.json` file containing the flow and
+the exact pure block versions it uses, including nested calls. This format supports
+manually started flows with local Set, If, Switch, Merge and Call block steps. Waits,
+batches, AI, tools, integrations and secret references are not supported. Ordinary
+`.easydrag.json` import and export remain available.
+
+Import the pack from the library, review the flow, block versions and included content,
+then choose **Import as inactive draft**. You get a new unpublished flow and independent
+local block copies; existing flows are not overwritten, and nothing runs or activates.
+Open the new draft and enter sample input explicitly before using **Simulation**. Keep
+its imported blocks while the draft uses them; deleting an unpinned block can make the
+draft invalid.
+
+Run history and private scenarios are excluded. Export clears manual sample input and
+redacts known secrets, but ordinary literal text can still contain private data. Review
+the contents before sharing or importing. Files are limited to 32 MiB, each flow document
+to 2 MiB and combined flow/block content to 18 MiB; dependency limits also apply.
+
+If the import reply is lost, use **Check import status**. This only checks existing state;
+it does not repeat the import. An incomplete or changed result stays uncertain. Check the
+library and Mission Control before starting another import. A request already sent may
+finish even if you close the dialog.
+The check is kept in the current EasyDrag window. **Finish status check** requires your
+confirmation and only discards that local check; it does not change server data or prove
+that the import failed. After reloading the page, check the library and Mission Control
+before importing the same pack again.
+
 ## Mission Control, the Missions Page and the Dashboard
 
 - In Mission Control, flows carry the *EasyDrag* badge, and the filter *Flows* shows only them. **Open in EasyDrag** replaces *Edit*; **New flow** opens EasyDrag's start page. Schedules read like "weekdays at 07:00 AM" (times follow your language's format), and a mission that never ran shows *Never run*.
