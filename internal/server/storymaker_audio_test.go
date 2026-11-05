@@ -80,6 +80,102 @@ func storymakerAudioProject(t *testing.T, s *Server, token, narration string, vo
 	return p.Project.ID
 }
 
+func TestStorymakerAudioRoutes(t *testing.T) {
+	s, readToken, writeToken := storymakerAPIFixture(t)
+	id := createStorymakerProject(t, s, writeToken).Project.ID
+	rt, err := s.storymakerRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	hash := strings.Repeat("a", 64)
+	data := make([]byte, 1000)
+	for i := range data {
+		data[i] = byte(i)
+	}
+	env := storymaker.Envelope{V: 1, DurationMS: 100, Rate: 100, Levels: make(storymaker.Levels, 10)}
+	if err := rt.projects.WritePiece(ctx, id, hash, "wav", data, env); err != nil {
+		t.Fatal(err)
+	}
+	folder := filepath.Join(s.ConfigSnapshot().VirtualDesktop.WorkspaceDir, "Documents", "Storymaker", id, "audio", "narration")
+	base := "/projects/" + id + "/audio/"
+
+	// The whole file, with the fixed headers of the route.
+	w := storymakerRequest(s, readToken, http.MethodGet, base+"narration/"+hash+".wav", nil, nil)
+	if w.Code != http.StatusOK || !bytes.Equal(w.Body.Bytes(), data) {
+		t.Fatalf("full GET = %d, %d bytes", w.Code, w.Body.Len())
+	}
+	for header, want := range map[string]string{
+		"Content-Type":            "audio/wav",
+		"X-Content-Type-Options":  "nosniff",
+		"Content-Security-Policy": "sandbox; default-src 'none'",
+		"Cache-Control":           "private, max-age=86400, immutable",
+	} {
+		if got := w.Header().Get(header); got != want {
+			t.Errorf("%s = %q, want %q", header, got, want)
+		}
+	}
+
+	// A range.
+	w = storymakerRequest(s, readToken, http.MethodGet, base+"narration/"+hash+".wav", nil, map[string]string{"Range": "bytes=10-19"})
+	if w.Code != http.StatusPartialContent || !bytes.Equal(w.Body.Bytes(), data[10:20]) || w.Header().Get("Content-Range") != "bytes 10-19/1000" {
+		t.Errorf("range GET = %d %q, %d bytes", w.Code, w.Header().Get("Content-Range"), w.Body.Len())
+	}
+
+	// HEAD sends the length and no body.
+	w = storymakerRequest(s, readToken, http.MethodHead, base+"narration/"+hash+".wav", nil, nil)
+	if w.Code != http.StatusOK || w.Body.Len() != 0 || w.Header().Get("Content-Length") != "1000" {
+		t.Errorf("HEAD = %d, %d bytes, length %q", w.Code, w.Body.Len(), w.Header().Get("Content-Length"))
+	}
+
+	// A file over the 50 MB limit of Store.ReadFile still serves, through Store.Open.
+	big := strings.Repeat("c", 64)
+	f, err := os.Create(filepath.Join(folder, big+".mp3"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Truncate(51 << 20); err != nil { // 51 MiB is 53477376 bytes
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := rt.store.ReadFile(ctx, "Documents/Storymaker/"+id+"/audio/narration/"+big+".mp3"); err == nil {
+		t.Fatal("ReadFile took the big file, so this case proves nothing")
+	}
+	// The last 6 bytes: 53477376 - 6 = 53477370.
+	w = storymakerRequest(s, readToken, http.MethodGet, base+"narration/"+big+".mp3", nil, map[string]string{"Range": "bytes=53477370-53477375"})
+	if w.Code != http.StatusPartialContent || w.Body.Len() != 6 || w.Header().Get("Content-Type") != "audio/mpeg" {
+		t.Errorf("big file = %d, %d bytes, %q", w.Code, w.Body.Len(), w.Header().Get("Content-Type"))
+	}
+
+	// Only wav and mp3 files with a lower-case hash name, in two folders. The envelope exists on
+	// disk, so its 404 comes from the route rule.
+	if _, err := os.Stat(filepath.Join(folder, hash+".env.json")); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{
+		"exports/" + hash + ".wav",
+		"narration/" + hash + ".env.json",
+		"narration/" + hash + ".meta.json",
+		"narration/" + hash + ".pending.json",
+		"narration/" + strings.ToUpper(hash) + ".wav",
+		"narration/" + hash + ".ogg",
+		"narration/" + strings.Repeat("b", 64) + ".wav",
+		"music/" + hash + ".mp3",
+	} {
+		w := storymakerRequest(s, readToken, http.MethodGet, base+path, nil, nil)
+		if w.Code != http.StatusNotFound || !strings.Contains(w.Body.String(), `"code":"audio_not_found"`) {
+			t.Errorf("%s = %d %s", path, w.Code, w.Body.String())
+		}
+	}
+
+	w = storymakerRequest(s, writeToken, http.MethodPost, base+"narration/"+hash+".wav", nil, nil)
+	if w.Code != http.StatusMethodNotAllowed || w.Header().Get("Allow") != "GET, HEAD" {
+		t.Errorf("POST = %d, Allow %q", w.Code, w.Header().Get("Allow"))
+	}
+}
+
 func TestStorymakerNarrationAnswer(t *testing.T) {
 	s, readToken, writeToken := storymakerAPIFixture(t)
 	id := storymakerAudioProject(t, s, writeToken, "This is a short story about a firewall.", &storymaker.Voice{Provider: "sanotts", Language: "de"})

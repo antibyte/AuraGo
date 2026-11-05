@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -34,6 +35,44 @@ const storymakerCodeVoiceUnknown = "voice_unknown"
 
 // storymakerMaxVoiceAlternatives is the cap of contract line 60.
 const storymakerMaxVoiceAlternatives = 5
+
+// storymakerAudioFilePattern is the only file name the audio routes serve. By construction it leaves
+// out env.json, meta.json and pending.json.
+var storymakerAudioFilePattern = regexp.MustCompile(`^([0-9a-f]{64})\.(wav|mp3)$`)
+
+// storymakerAudioTypes gives each served extension its fixed Content-Type.
+var storymakerAudioTypes = map[string]string{"wav": "audio/wav", "mp3": "audio/mpeg"}
+
+// handleStorymakerAudio serves GET and HEAD /projects/{id}/audio/{narration|music}/{name}. These are
+// inert files: nosniff and a sandbox stop a browser that navigates to the URL from running anything.
+// It goes through Store.Open, because Store.ReadFile stops at 50 MB and music can be larger.
+func handleStorymakerAudio(s *Server, w http.ResponseWriter, r *http.Request, id, folder, file string) {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		writeStorymakerMethodError(w, "GET, HEAD")
+		return
+	}
+	acc, ok := storymakerAuthorize(s, w, r, desktopScopeRead, desktopRead, true)
+	if !ok {
+		return
+	}
+	match := storymakerAudioFilePattern.FindStringSubmatch(file)
+	if (folder != "narration" && folder != "music") || match == nil {
+		writeStorymakerError(w, http.StatusNotFound, "audio_not_found", "Audio file not found.", nil)
+		return
+	}
+	content, info, err := acc.rt.projects.OpenAudio(r.Context(), id, folder, file)
+	if err != nil {
+		mapStorymakerError(w, err, "audio_not_found")
+		return
+	}
+	defer content.Close()
+	h := w.Header()
+	h.Set("Content-Type", storymakerAudioTypes[match[2]])
+	h.Set("X-Content-Type-Options", "nosniff")
+	h.Set("Content-Security-Policy", "sandbox; default-src 'none'")
+	h.Set("Cache-Control", "private, max-age=86400, immutable")
+	http.ServeContent(w, r, file, info.ModTime, content)
+}
 
 // writeStorymakerErrorWith is writeStorymakerError with extra fields next to the fixed three.
 func writeStorymakerErrorWith(w http.ResponseWriter, status int, code, message string, extra map[string]any) {
