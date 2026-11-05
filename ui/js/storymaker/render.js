@@ -117,7 +117,7 @@
         var expr = cat.expressions[st.expression] || cat.expressions.neutral || {};
         return {
             view: view, offsets: rg.addBones(bones, cd.bones, gd.bones), hands: handsOut, expr: expr,
-            mouth: null, blink: ((t + st.phase * 3) % 3.6) < 0.12,
+            mouth: st.mouth || null, blink: ((t + st.phase * 3) % 3.6) < 0.12,
             offsetY: drop + (cd.offset_y || 0) + (gd.offset_y || 0)
         };
     }

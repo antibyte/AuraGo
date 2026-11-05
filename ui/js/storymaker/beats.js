@@ -131,6 +131,12 @@
             register(S.createProp({ id: instanceId(p.item, p.id), item: p.item, x: pos.x, y: pos.y, scale: p.scale, layer: p.layer, depth: pos.depth }), p.item);
         });
 
+        // ---- a cast speaker lip-syncs the scene narration; say beats add their own speech intervals when they run
+        var speakerActor = scene.speaker && scene.speaker !== 'narrator' ? find(scene.speaker) : null, spoken = plan.narration.block;
+        if (speakerActor && speakerActor.type === 'actor' && spoken && spoken.levels && spoken.levels.length) {
+            speakerActor.speech.add(plan.narration.start, plan.narration.start + plan.narration.seconds, { block: spoken });
+        }
+
         // ---- camera start
         var framing = scene.camera && SM.camera.FRAMING[scene.camera.framing] ? scene.camera.framing : 'wide';
 

@@ -27,6 +27,7 @@ export const storymakerPlayerParts = [
   'ui/js/storymaker/narration.js',
   'ui/js/storymaker/cuemap.js',
   'ui/js/storymaker/captions.js',
+  'ui/js/storymaker/lipsync.js',
   'ui/js/storymaker/plan.js',
   'ui/js/storymaker/motion.js',
   'ui/js/storymaker/bubble.js',

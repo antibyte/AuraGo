@@ -127,6 +127,8 @@
             s.look = e.look.at(t);
             s.walkTime = walk ? t - walk.t0 : null;
             s.phase = e.phase;
+            var speaking = e.speech ? e.speech.active(t) : null;
+            s.mouth = speaking ? SM.lipsync.mouthAt(speaking, t) : null;
             if (g) {
                 var span = g.t1 - g.t0, count = g.data.count > 0 ? g.data.count : 1;
                 var u = span > 0 ? (t - g.t0) / span * count : 1;
