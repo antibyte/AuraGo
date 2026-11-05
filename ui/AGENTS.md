@@ -21,9 +21,20 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
 
 ## Ownership
 
+- Aura Drift (`aura-drift`, category `games`) is a first-party offline top-down racer.
+  Its nine lazy-loaded modules, stylesheet, icon and `aura_drift.*` keys in all sixteen
+  `lang/desktop/*.json` bundles are owned by `js/desktop/apps/AGENTS.md`; the catalog
+  entry belongs to `../internal/desktop/AGENTS.md`; the technical guide is
+  `../documentation/aura-drift.md` and the roadmap `../plans/2026-11-04-aura-drift-racing-plan.md`.
+  It ships no external resources, no backend and no config switch. Keep
+  `TestAuraDrift*`, `node scripts/test-aura-drift-physics.mjs` and
+  `node scripts/test-aura-drift-tracks.mjs` green; regenerate `js/desktop/bundles/main.bundle.js`
+  whenever the shell registration changes.
+
 - AgentMail exposes default-off `allow_delete` separately from readonly. Connection
   tests render only translated fixed error codes, with all sixteen email/AgentMail
   locale sets aligned. HTTPS help matches the backend base-URL and redirect rules.
+
 - MQTT configuration uses explicit `relay_topics` and typed `relay_grants` rows
   with action dropdowns and concrete targets. Missing permissions pause relays;
   show the saved pause reason, queue/drop diagnostics and binary metadata.
@@ -76,6 +87,15 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
 
 - Ollama config displays a derived read-only URL in managed mode. Connection tests and Recreate require saved settings; Recreate confirms interruption and polls its receipt through slow image/model downloads. Docker read-only disables lifecycle mutations, not observation. Polls end on terminal state/navigation and ignore detached or stale responses. Embeddings show managed Ollama model state. All operation labels and help remain translated in all 16 locales. Verify `TestOllamaManagedLifecycleBrowser` and `TestOllamaOperationLocalesAreComplete`.
 
+- EasyDrag's optional resumable processing uses the existing Config flows group and native
+  Boolean save path. `flows.durable_enabled` is false unless explicitly set; enabling requires
+  restart, live disable retains saved work. `_flows_durable_status` is observed GET-only data,
+  independent of the checkbox draft; null counters remain unknown. The Desktop reads the
+  no-store `/api/desktop/flow-runtime` separately from the static node catalog/ETag. Status and
+  cancellation views belong to the EasyDrag Apps contract; never enable the runtime, resubmit
+  a start/Stop after uncertainty, or expose checkpoint payloads from UI actions. Verify Config
+  flows cases in `scripts/test-ui-regressions.mjs`, the durable EasyDrag Node/native cases and
+  all16 Config/flows, EasyDrag and Desktop locale values.
 - Action-policy settings mount inside the Danger Zone's `.cfg-section` and use
   the Config topic heading/body, native checkbox switch and standard controls.
   The additional policy defaults off in Config, the loader and installation
