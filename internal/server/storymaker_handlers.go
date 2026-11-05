@@ -135,6 +135,10 @@ func handleStorymaker(s *Server) http.HandlerFunc {
 				handleStorymakerEvents(s, w, r, id)
 			case len(parts) == 3 && parts[2] == "jobs":
 				handleStorymakerProjectJobs(s, w, r, id)
+			case len(parts) == 3 && parts[2] == "narration":
+				handleStorymakerNarration(s, w, r, id)
+			case len(parts) == 3 && parts[2] == "narrate":
+				handleStorymakerNarrate(s, w, r, id)
 			case len(parts) == 5 && parts[2] == "scenes" && parts[4] == "code":
 				handleStorymakerCode(s, w, r, id, parts[3])
 			case len(parts) == 5 && parts[2] == "scenes" && parts[4] == "bundle":

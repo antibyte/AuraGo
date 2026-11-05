@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"sort"
 	"strings"
@@ -14,6 +15,7 @@ import (
 	"aurago/internal/realtimespeech"
 	"aurago/internal/speechlab"
 	"aurago/internal/storymaker"
+	"aurago/internal/storymaker/render"
 	"aurago/internal/tools"
 )
 
@@ -26,6 +28,232 @@ var storymakerPhononLanguages = []string{"de", "en", "es", "fr", "pt"}
 // storymakerSanoLanguages are the languages sanotts.Voice has a voice for. hi, ne and zh fall back
 // to English there (internal/sanotts/sanotts.go:46-65), so they are left out.
 var storymakerSanoLanguages = []string{"ar", "cs", "de", "en", "es", "fr", "id", "it", "pt", "ro", "ru", "tr", "vi"}
+
+// storymakerCodeVoiceUnknown answers a voice that is not on its provider's list or cannot run here.
+const storymakerCodeVoiceUnknown = "voice_unknown"
+
+// storymakerMaxVoiceAlternatives is the cap of contract line 60.
+const storymakerMaxVoiceAlternatives = 5
+
+// writeStorymakerErrorWith is writeStorymakerError with extra fields next to the fixed three.
+func writeStorymakerErrorWith(w http.ResponseWriter, status int, code, message string, extra map[string]any) {
+	body := make(map[string]any, len(extra)+3)
+	for key, value := range extra {
+		body[key] = value
+	}
+	body["error"], body["code"], body["message"] = code, code, message
+	writeStorymakerJSON(w, status, body)
+}
+
+// storymakerMusicKey resolves the key of the story's music. Batch 2B has no music, so nothing is to
+// be played. A15 writes the full rule.
+func (s *Server) storymakerMusicKey(ctx context.Context, m *storymaker.Music) (string, error) {
+	return "", nil
+}
+
+// handleStorymakerNarration answers GET /projects/{id}/narration. It works while the desktop is read-only.
+func handleStorymakerNarration(s *Server, w http.ResponseWriter, r *http.Request, id string) {
+	if r.Method != http.MethodGet {
+		writeStorymakerMethodError(w, "GET")
+		return
+	}
+	acc, ok := storymakerAuthorize(s, w, r, desktopScopeRead, desktopRead, true)
+	if !ok {
+		return
+	}
+	_, answer, ok := s.storymakerStoryAudio(w, r, acc, id)
+	if !ok {
+		return
+	}
+	writeStorymakerJSON(w, http.StatusOK, answer)
+}
+
+// handleStorymakerNarrate answers POST /projects/{id}/narrate: 200 {job:null} when nothing is
+// missing, the refusals in their fixed order, then 202 for a new job and 200 for the job of this
+// project that is already queued or running.
+func handleStorymakerNarrate(s *Server, w http.ResponseWriter, r *http.Request, id string) {
+	if r.Method != http.MethodPost {
+		writeStorymakerMethodError(w, "POST")
+		return
+	}
+	acc, ok := storymakerAuthorize(s, w, r, desktopScopeWrite, desktopWrite, true)
+	if !ok {
+		return
+	}
+	story, answer, ok := s.storymakerStoryAudio(w, r, acc, id)
+	if !ok {
+		return
+	}
+	if len(answer.Missing) == 0 {
+		writeStorymakerJSON(w, http.StatusOK, map[string]any{"job": nil})
+		return
+	}
+	if storymakerNarrateRefused(r.Context(), w, s, acc, storymakerBlocksToSynthesize(story, answer), answer) {
+		return
+	}
+	job, replayed, err := acc.rt.narrate.Enqueue(render.EnqueueRequest{
+		ProjectID: id,
+		Kind:      render.KindNarrate,
+		Coalesce:  true,
+		Payload:   storymakerNarratePayload{ProjectID: id},
+	})
+	switch {
+	case errors.Is(err, render.ErrBusy):
+		writeStorymakerError(w, http.StatusTooManyRequests, render.CodeBusy, "128 narration jobs are already waiting. Try again when one has finished.", nil)
+	case err != nil:
+		writeStorymakerError(w, http.StatusInternalServerError, "job_failed", "The narration job could not be queued.", nil)
+	case replayed:
+		writeStorymakerJSON(w, http.StatusOK, map[string]any{"job": job})
+	default:
+		writeStorymakerJSON(w, http.StatusAccepted, map[string]any{"job": job})
+	}
+}
+
+// storymakerStoryAudio reads the story with its defaults applied, the way a render job sees it, and
+// its audio answer. On a failure it has answered the request and returns false.
+func (s *Server) storymakerStoryAudio(w http.ResponseWriter, r *http.Request, acc *storymakerAccess, id string) (*storymaker.Story, storymaker.AudioAnswer, bool) {
+	ctx := r.Context()
+	data, _, err := acc.rt.projects.LoadStory(ctx, id)
+	if err != nil {
+		mapStorymakerError(w, err, "project_not_found")
+		return nil, storymaker.AudioAnswer{}, false
+	}
+	story, _, err := storymaker.DecodeStory(data, storymakerLimits(acc.cfg))
+	if err != nil {
+		mapStorymakerError(w, err, "project_not_found")
+		return nil, storymaker.AudioAnswer{}, false
+	}
+	storymaker.ApplyDefaults(&story)
+	answer, err := acc.rt.projects.AudioAnswer(ctx, id, &story, s.storymakerMusicKey)
+	if err != nil {
+		mapStorymakerError(w, err, "project_not_found")
+		return nil, storymaker.AudioAnswer{}, false
+	}
+	return &story, answer, true
+}
+
+// storymakerBlocksToSynthesize keeps the blocks with missing pieces. Only they call a provider, so
+// a provider that went away cannot block a story whose other blocks need it no more.
+func storymakerBlocksToSynthesize(story *storymaker.Story, answer storymaker.AudioAnswer) []storymaker.NarrationBlock {
+	missing := make(map[string]bool, len(answer.Missing))
+	for _, m := range answer.Missing {
+		missing[m.BlockID] = true
+	}
+	var out []storymaker.NarrationBlock
+	for _, b := range storymaker.Blocks(story) {
+		if missing[b.ID] {
+			out = append(out, b)
+		}
+	}
+	return out
+}
+
+// storymakerNarrateRefused answers the first refusal in the order voice_required,
+// narration_unavailable, voice_unknown, budget_exceeded, and reports whether it answered.
+func storymakerNarrateRefused(ctx context.Context, w http.ResponseWriter, s *Server, acc *storymakerAccess, blocks []storymaker.NarrationBlock, answer storymaker.AudioAnswer) bool {
+	for _, b := range blocks {
+		if b.Voice.Provider == "" {
+			writeStorymakerError(w, http.StatusConflict, render.CodeVoiceRequired, fmt.Sprintf("Block %s has no voice. Choose a voice for the story first.", b.ID), nil)
+			return true
+		}
+	}
+	rows := make(map[string]storymaker.VoiceProvider)
+	for _, row := range s.storymakerVoiceProviders(ctx) {
+		rows[row.ID] = row
+	}
+	for _, b := range blocks {
+		row, offered := rows[b.Voice.Provider]
+		if !offered {
+			writeStorymakerError(w, http.StatusConflict, render.CodeNarrationUnavailable, fmt.Sprintf("The voice provider %s is not offered here. Block %s needs it.", b.Voice.Provider, b.ID), nil)
+			return true
+		}
+		if !row.Ready {
+			writeStorymakerError(w, http.StatusConflict, render.CodeNarrationUnavailable, fmt.Sprintf("The voice provider %s is not ready. Block %s needs it.", b.Voice.Provider, b.ID), nil)
+			return true
+		}
+	}
+	for _, b := range blocks {
+		row := rows[b.Voice.Provider]
+		if !storymakerVoiceOnList(row, b.Voice.Voice) {
+			writeStorymakerErrorWith(w, http.StatusConflict, storymakerCodeVoiceUnknown,
+				fmt.Sprintf("The voice %s of %s is not available here. Block %s uses it.", b.Voice.Voice, b.Voice.Provider, b.ID),
+				map[string]any{"alternatives": storymakerVoiceAlternatives(row, b.Voice.Language)})
+			return true
+		}
+	}
+	cloud := make(map[string]bool, len(blocks))
+	for _, b := range blocks {
+		cloud[b.ID] = !storymaker.LocalVoiceProvider(b.Voice.Provider)
+	}
+	chars := 0
+	for _, m := range answer.Missing {
+		if cloud[m.BlockID] {
+			chars += m.Chars
+		}
+	}
+	if chars == 0 {
+		return false
+	}
+	caps := acc.cfg.Storymaker.Narration
+	// today turns a damaged file into a full count, so the route refuses as the job would. A read
+	// error counts as 0 here, because the job loop holds the real guard.
+	used, err := acc.rt.usage.today(caps.MaxDailyChars)
+	if err != nil {
+		used = 0
+	}
+	var limit int
+	switch {
+	case chars > caps.MaxJobChars:
+		limit = caps.MaxJobChars
+	case used+chars > caps.MaxDailyChars:
+		limit = caps.MaxDailyChars
+	default:
+		return false
+	}
+	writeStorymakerErrorWith(w, http.StatusConflict, render.CodeBudgetExceeded,
+		fmt.Sprintf("This narration needs %d characters from a paid provider and the limit is %d.", chars, limit),
+		map[string]any{"limit": limit, "missing": chars})
+	return true
+}
+
+// storymakerVoiceOnList is the list check of POST /narrate. An empty id means the provider's
+// default, and a free-text provider or one without a list has nothing to check against. A listed
+// voice that cannot run counts as off the list, so the refusal comes before the job.
+func storymakerVoiceOnList(row storymaker.VoiceProvider, voice string) bool {
+	if voice == "" || row.FreeText || len(row.Voices) == 0 {
+		return true
+	}
+	for _, option := range row.Voices {
+		if option.ID == voice {
+			return storymakerVoiceUsable(row, option)
+		}
+	}
+	return false
+}
+
+// storymakerVoiceUsable says whether a listed voice can run. A Phonon voice that is not installed
+// fails in the job, because nothing downloads it on the way (phonon.VoicePath). Settings offers every
+// Piper voice (ui/cfg/tts.js:593-601), so that flag decides nothing.
+func storymakerVoiceUsable(row storymaker.VoiceProvider, option storymaker.VoiceOption) bool {
+	return row.ID != "phonon" || option.Installed == nil || *option.Installed
+}
+
+// storymakerVoiceAlternatives names at most five voices of the provider, those of the language first.
+func storymakerVoiceAlternatives(row storymaker.VoiceProvider, language string) []string {
+	base := storymaker.LanguageBase(language)
+	out := make([]string, 0, storymakerMaxVoiceAlternatives)
+	for _, sameLanguage := range []bool{true, false} {
+		for _, option := range row.Voices {
+			if len(out) == storymakerMaxVoiceAlternatives {
+				return out
+			}
+			if storymakerVoiceUsable(row, option) && (storymaker.LanguageBase(option.Language) == base) == sameLanguage {
+				out = append(out, option.ID)
+			}
+		}
+	}
+	return out
+}
 
 func handleStorymakerVoices(s *Server, w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
