@@ -1295,5 +1295,9 @@
   "easydrag.ui.group_unlock": "Sblocca disposizione",
   "easydrag.ui.group_view_hint": "I gruppi organizzano l’area di lavoro. Non cambiano l’esecuzione del flusso.",
   "easydrag.ui.groups": "Gruppi visivi",
-  "easydrag.ui.issue_group_invalid": "Controlla titolo, colore, nota, limiti e passaggi del gruppo."
+  "easydrag.ui.issue_group_invalid": "Controlla titolo, colore, nota, limiti e passaggi del gruppo.",
+  "easydrag.ui.block_dependencies_hint": "Sono considerati i flussi e i blocchi che usano questo blocco direttamente o indirettamente, anche tramite versioni ed esecuzioni salvate.",
+  "easydrag.ui.block_nested_hint": "Le chiamate usano versioni pubblicate precise. I cicli non sono consentiti; la profondità massima delle chiamate è 8. Se la convalida non riesce, scegli un’altra versione o accorcia la catena di chiamate. La simulazione mostra i passaggi di questo blocco senza una cronologia delle esecuzioni dei blocchi figli.",
+  "easydrag.ui.block_nested_title": "Chiamate a blocchi annidati",
+  "easydrag.ui.block_self_reference": "Questo blocco non può chiamare sé stesso. Scegli un altro blocco pubblicato."
 }

@@ -71,15 +71,18 @@ func prepareBlockPlan(ctx context.Context, store *Store, doc *Flow, services *Se
 func prepareDraftBlockPlan(ctx context.Context, store *Store, doc *Flow, revision int, services *Services) (*blockPlan, error) {
 	var plan *blockPlan
 	err := blockReadSnapshot(ctx, store.db, func(tx *sql.Tx) error {
-		var raw, kind string
+		var raw, kind, mission string
 		var current int
-		if err := tx.QueryRowContext(ctx, `SELECT draft_json,draft_revision,kind FROM flows WHERE id=?`, doc.ID).Scan(&raw, &current, &kind); err != nil {
+		var draftValid, liveValid bool
+		query := `SELECT draft_json,draft_revision,kind,mission_id, (` + validStoredDocumentSQL("draft_json") + `),
+			(live_json='' OR (` + validStoredDocumentSQL("live_json") + `)) FROM flows WHERE id=?`
+		if err := tx.QueryRowContext(ctx, query, doc.ID).Scan(&raw, &current, &kind, &mission, &draftValid, &liveValid); err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				return ErrNotFound
 			}
 			return err
 		}
-		if kind != string(KindFlow) {
+		if kind != string(doc.Kind) || (doc.Kind != KindFlow && doc.Kind != KindBlock) || (doc.Kind == KindBlock && mission != "") || !draftValid || !liveValid {
 			return ErrWrongFlowKind
 		}
 		if current != revision {
@@ -97,7 +100,7 @@ func prepareDraftBlockPlan(ctx context.Context, store *Store, doc *Flow, revisio
 		if err != nil {
 			return err
 		}
-		if stored.ID != doc.ID || stored.Kind != KindFlow || sha256.Sum256(storedJSON) != sha256.Sum256(requested) {
+		if stored.ID != doc.ID || stored.Kind != doc.Kind || sha256.Sum256(storedJSON) != sha256.Sum256(requested) {
 			return ErrRevisionConflict
 		}
 		plan, err = prepareBlockPlanTx(ctx, tx, doc, services)
@@ -107,7 +110,7 @@ func prepareDraftBlockPlan(ctx context.Context, store *Store, doc *Flow, revisio
 }
 
 func prepareBlockPlanTx(ctx context.Context, tx *sql.Tx, doc *Flow, services *Services) (*blockPlan, error) {
-	if doc == nil || doc.Kind != KindFlow || len(doc.Nodes) > MaxNodes || len(doc.Edges) > MaxEdges {
+	if doc == nil || (doc.Kind != KindFlow && doc.Kind != KindBlock) || len(doc.Nodes) > MaxNodes || len(doc.Edges) > MaxEdges {
 		return nil, ErrBlockInvalid
 	}
 	data, err := doc.Marshal()
@@ -138,15 +141,72 @@ func prepareBlockPlanTx(ctx context.Context, tx *sql.Tx, doc *Flow, services *Se
 	}
 	blocks, err := resolveBlockDependencies(ctx, doc, loader)
 	if err != nil {
+		if errors.Is(err, errBlockContract) {
+			return nil, fmt.Errorf("%w: invalid block dependency: %w", ErrBlockInvalid, err)
+		}
 		return nil, fmt.Errorf("resolve block: %w", err)
 	}
 	byRef := make(map[blockRef]resolvedBlock, len(blocks))
+	buildFrame := func(frame *Flow) (*blockPlan, error) {
+		plan := &blockPlan{byNode: make(map[string]resolvedBlock)}
+		seenIDs := make(map[string]bool, len(frame.Nodes))
+		seenRefs := make(map[blockRef]bool)
+		for _, node := range frame.Nodes {
+			if node.ID == "" || seenIDs[node.ID] {
+				return nil, ErrBlockInvalid
+			}
+			seenIDs[node.ID] = true
+			if node.Type != blockCallType && node.Type != blockEachType {
+				continue
+			}
+			if node.Settings.Retry.Count != 0 || (frame.Kind == KindBlock && node.Type == blockEachType) {
+				return nil, ErrBlockInvalid
+			}
+			ref, err := blockReference(node)
+			if err != nil {
+				return nil, ErrBlockInvalid
+			}
+			child, ok := byRef[ref]
+			if !ok {
+				return nil, ErrBlockUnavailable
+			}
+			if checkBlockBindings(node, child.Contract) != nil {
+				return nil, ErrBlockInvalid
+			}
+			plan.byNode[node.ID] = child
+			if child.plan != nil {
+				for _, descendant := range child.plan.blocks {
+					if !seenRefs[descendant.Ref] {
+						seenRefs[descendant.Ref] = true
+						plan.blocks = append(plan.blocks, descendant)
+					}
+				}
+			}
+			if !seenRefs[ref] {
+				seenRefs[ref] = true
+				plan.blocks = append(plan.blocks, child)
+			}
+		}
+		return plan, nil
+	}
 	for _, block := range blocks {
+		frame, err := buildFrame(block.Document)
+		if err != nil {
+			return nil, err
+		}
+		if len(frame.byNode) > 0 {
+			block.plan = frame
+		}
 		byRef[block.Ref] = block
 	}
-	plan := &blockPlan{byNode: make(map[string]resolvedBlock), blocks: blocks}
-	nodes, edges, bytes := len(doc.Nodes), len(doc.Edges), len(data)
-	work := blockWorstAttempts(doc)
+	plan, err := buildFrame(doc)
+	if err != nil {
+		return nil, err
+	}
+	if err := verifyBlockPinsTx(ctx, tx, plan.blocks); err != nil {
+		return nil, err
+	}
+	nodes, edges, bytes, work := 0, 0, 0, 0
 	hasBatch := false
 	firstBatchID := ""
 	for _, n := range doc.Nodes {
@@ -156,53 +216,59 @@ func prepareBlockPlanTx(ctx context.Context, tx *sql.Tx, doc *Flow, services *Se
 			break
 		}
 	}
-	seenIDs := make(map[string]bool, len(doc.Nodes))
-	for _, n := range doc.Nodes {
-		if n.ID == "" || seenIDs[n.ID] {
-			return nil, ErrBlockInvalid
+	var measure func(*Flow, *blockPlan, int, string) error
+	measure = func(frame *Flow, framePlan *blockPlan, multiplier int, culprit string) error {
+		if err := ctx.Err(); err != nil {
+			return err
 		}
-		seenIDs[n.ID] = true
-		if n.Type != blockCallType && n.Type != blockEachType {
-			continue
+		encoded, err := frame.Marshal()
+		if err != nil || len(frame.Nodes) > MaxNodes-nodes || len(frame.Edges) > MaxEdges-edges || len(encoded) > MaxDocumentBytes-bytes {
+			return ErrBlockInvalid
 		}
-		if n.Settings.Retry.Count != 0 {
-			return nil, ErrBlockInvalid
-		}
-		ref, err := blockReference(n)
-		if err != nil {
-			return nil, ErrBlockInvalid
-		}
-		child, ok := byRef[ref]
-		if !ok {
-			return nil, ErrBlockUnavailable
-		}
-		if err := checkBlockBindings(n, child.Contract); err != nil {
-			return nil, ErrBlockInvalid
-		}
-		encoded, err := child.Document.Marshal()
-		if err != nil {
-			return nil, ErrBlockInvalid
-		}
-		nodes, edges, bytes = nodes+len(child.Document.Nodes), edges+len(child.Document.Edges), bytes+len(encoded)
-		if nodes > MaxNodes || edges > MaxEdges || bytes > MaxDocumentBytes {
-			return nil, ErrBlockInvalid
-		}
+		nodes += len(frame.Nodes)
+		edges += len(frame.Edges)
+		bytes += len(encoded)
 		if hasBatch {
-			multiplier := 1
-			if n.Type == blockEachType {
-				multiplier = int(n.Params["max_items"].(float64))
-			}
-			childWork := blockWorstAttempts(child.Document)
-			if childWork > 0 && (work > maxBatchStepAttempts || multiplier > (maxBatchStepAttempts-work)/childWork) {
-				id := firstBatchID
-				if n.Type == blockEachType {
-					id = n.ID
+			attempts := blockWorstAttempts(frame)
+			if attempts > 0 && (work > maxBatchStepAttempts || multiplier > (maxBatchStepAttempts-work)/attempts) {
+				if culprit == "" {
+					culprit = firstBatchID
 				}
-				return nil, &batchWorkError{NodeID: id}
+				return &batchWorkError{NodeID: culprit}
 			}
-			work += multiplier * childWork
+			work += multiplier * attempts
 		}
-		plan.byNode[n.ID] = child
+		for _, node := range frame.Nodes {
+			child, ok := framePlan.byNode[node.ID]
+			if !ok {
+				continue
+			}
+			next := multiplier
+			nextCulprit := culprit
+			if node.Type == blockEachType {
+				raw, ok := node.Params["max_items"].(float64)
+				if !ok || !(raw >= 1 && raw <= maxBatchItems) || raw != float64(int(raw)) {
+					return ErrBlockInvalid
+				}
+				limit := int(raw)
+				nextCulprit = node.ID
+				if hasBatch && (next > maxBatchStepAttempts/limit) {
+					return &batchWorkError{NodeID: node.ID}
+				}
+				next *= limit
+			}
+			childPlan := child.plan
+			if childPlan == nil {
+				childPlan = &blockPlan{}
+			}
+			if err := measure(child.Document, childPlan, next, nextCulprit); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	if err := measure(doc, plan, 1, ""); err != nil {
+		return nil, err
 	}
 	return plan, nil
 }

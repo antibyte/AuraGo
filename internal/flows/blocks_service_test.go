@@ -154,7 +154,7 @@ func TestBlockServiceRejectsImpureAndCorruptDocuments(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, typ := range []string{TypeWait, TypeStop, TypeHTTPRequest, blockCallType, blockEachType} {
+	for _, typ := range []string{TypeWait, TypeStop, TypeHTTPRequest, blockEachType} {
 		doc, err := block.Draft.Clone()
 		if err != nil {
 			t.Fatal(err)

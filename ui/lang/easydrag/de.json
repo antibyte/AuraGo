@@ -1295,5 +1295,9 @@
   "easydrag.ui.group_unlock": "Anordnung entsperren",
   "easydrag.ui.group_view_hint": "Gruppen ordnen die Arbeitsfläche. Sie ändern nicht, wie der Flow läuft.",
   "easydrag.ui.groups": "Visuelle Gruppen",
-  "easydrag.ui.issue_group_invalid": "Prüfe Titel, Farbe, Notiz, Grenzen und Schrittzuordnung der visuellen Gruppe."
+  "easydrag.ui.issue_group_invalid": "Prüfe Titel, Farbe, Notiz, Grenzen und Schrittzuordnung der visuellen Gruppe.",
+  "easydrag.ui.block_dependencies_hint": "Berücksichtigt werden Flows und Bausteine, die diesen Baustein direkt oder indirekt verwenden – auch über gespeicherte Versionen und Läufe.",
+  "easydrag.ui.block_nested_hint": "Aufrufe nutzen feste veröffentlichte Versionen. Zyklen sind unzulässig; die maximale Aufruftiefe ist 8. Wähle bei einem Validierungsfehler eine andere Version oder verkürze die Aufrufkette. Die Simulation zeigt die Schritte dieses Bausteins ohne eigene Laufhistorie der Kindbausteine.",
+  "easydrag.ui.block_nested_title": "Verschachtelte Baustein-Aufrufe",
+  "easydrag.ui.block_self_reference": "Dieser Baustein kann sich nicht selbst aufrufen. Wähle einen anderen veröffentlichten Baustein."
 }

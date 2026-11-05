@@ -222,7 +222,7 @@ func TestFlowBlockCatalogAndValidation(t *testing.T) {
 	if answer.Code != http.StatusOK {
 		t.Fatalf("catalog: %d %s", answer.Code, answer.Body.String())
 	}
-	allowed := map[string]bool{"block.input": true, "block.output": true, "logic.set": true, "logic.if": true, "logic.switch": true, "logic.merge": true}
+	allowed := map[string]bool{"block.input": true, "block.output": true, "logic.set": true, "logic.if": true, "logic.switch": true, "logic.merge": true, "component.call": true}
 	seen := map[string]bool{}
 	for _, raw := range flowsBody(t, answer)["node_types"].([]any) {
 		node := raw.(map[string]any)

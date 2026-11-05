@@ -165,7 +165,7 @@ func executeBlockEach(ctx context.Context, in ExecInput) (ExecResult, error) {
 		if checkBlockValues(in.block.Contract.Inputs, inputs) != nil {
 			code = "FLOW_PARAM_INVALID"
 		} else {
-			result := executePureBlock(ctx, in.block.Document, inputs, services, in.Logger, in.Run.Mode, in.block.Ref.Revision, in.Run.ID, in.scope)
+			result := executePureBlockPlanned(ctx, in.block.Document, inputs, services, in.Logger, in.Run.Mode, in.block.Ref.Revision, in.Run.ID, in.scope, in.block.plan)
 			if err := ctx.Err(); err != nil {
 				return ExecResult{}, err
 			}

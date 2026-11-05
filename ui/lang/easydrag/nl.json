@@ -1295,5 +1295,9 @@
   "easydrag.ui.group_unlock": "Indeling ontgrendelen",
   "easydrag.ui.group_view_hint": "Groepen ordenen het canvas. Ze veranderen de uitvoering van de flow niet.",
   "easydrag.ui.groups": "Visuele groepen",
-  "easydrag.ui.issue_group_invalid": "Controleer titel, kleur, notitie, limieten en stappen van de groep."
+  "easydrag.ui.issue_group_invalid": "Controleer titel, kleur, notitie, limieten en stappen van de groep.",
+  "easydrag.ui.block_dependencies_hint": "Er wordt rekening gehouden met flows en blokken die dit blok direct of indirect gebruiken, ook via opgeslagen versies en uitvoeringen.",
+  "easydrag.ui.block_nested_hint": "Aanroepen gebruiken specifieke gepubliceerde versies. Cycli zijn niet toegestaan; de maximale aanroepdiepte is 8. Kies bij een validatiefout een andere versie of verkort de aanroepketen. De simulatie toont de stappen van dit blok zonder uitvoeringsgeschiedenis van onderliggende blokken.",
+  "easydrag.ui.block_nested_title": "Geneste blokaanroepen",
+  "easydrag.ui.block_self_reference": "Dit blok kan zichzelf niet aanroepen. Kies een ander gepubliceerd blok."
 }

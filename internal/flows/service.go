@@ -629,7 +629,7 @@ func (s *Service) PublishPreview(ctx context.Context, id string) (*PublishPrevie
 		if issue, ok := batchWorkIssue(err); ok {
 			issues = append(issues, issue)
 		} else {
-			issues = append(issues, Issue{Code: IssueParamInvalid, Severity: SeverityError, Message: "a referenced block revision is invalid or unavailable"})
+			issues = append(issues, blockDependencyIssue(err))
 		}
 	}
 	if issues == nil {

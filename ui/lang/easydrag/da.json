@@ -1295,5 +1295,9 @@
   "easydrag.ui.group_unlock": "Lås placering op",
   "easydrag.ui.group_view_hint": "Grupper organiserer arbejdsfladen. De ændrer ikke, hvordan flowet kører.",
   "easydrag.ui.groups": "Visuelle grupper",
-  "easydrag.ui.issue_group_invalid": "Kontrollér gruppens titel, farve, note, grænser og trinmedlemskab."
+  "easydrag.ui.issue_group_invalid": "Kontrollér gruppens titel, farve, note, grænser og trinmedlemskab.",
+  "easydrag.ui.block_dependencies_hint": "Flows og blokke, der bruger denne blok direkte eller indirekte, medregnes også via gemte versioner og kørsler.",
+  "easydrag.ui.block_nested_hint": "Kald bruger præcise udgivne versioner. Cyklusser er ikke tilladt; den maksimale kaldedybde er 8. Hvis valideringen mislykkes, skal du vælge en anden version eller forkorte kæden af kald. Simuleringen viser denne bloks trin uden kørselshistorik for underblokke.",
+  "easydrag.ui.block_nested_title": "Indlejrede blokkald",
+  "easydrag.ui.block_self_reference": "Denne blok kan ikke kalde sig selv. Vælg en anden udgivet blok."
 }

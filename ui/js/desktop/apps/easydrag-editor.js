@@ -103,7 +103,7 @@
         interact = ED.interact.create(ed, canvas, wires);
         palette = ED.palette.createPanel(ed, canvas);
         if (!ed.catalog.blockContracts) ed.catalog.blockContracts = new Map();
-        if (!isBlock && ED.blockFields && ed.blockApi) blockTracker = ED.blockFields.track(ed);
+        if (ED.blockFields && ed.blockApi) blockTracker = ED.blockFields.track(ed);
         el.classList.toggle('is-block-editor', isBlock);
         runs = isBlock ? ED.blocks.runController(ed, canvas) : ED.runs.create(ed, canvas);
         publish = ED.publish.create(ed);

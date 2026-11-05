@@ -1295,5 +1295,9 @@
   "easydrag.ui.group_unlock": "Unlock layout",
   "easydrag.ui.group_view_hint": "Groups organize the canvas. They do not change how the flow runs.",
   "easydrag.ui.groups": "Visual groups",
-  "easydrag.ui.issue_group_invalid": "Check the visual group’s title, color, note, limits and step membership."
+  "easydrag.ui.issue_group_invalid": "Check the visual group’s title, color, note, limits and step membership.",
+  "easydrag.ui.block_dependencies_hint": "Flows and blocks can use this block directly or indirectly, through saved versions and runs.",
+  "easydrag.ui.block_nested_hint": "Calls use exact published versions. Cycles are not allowed; the maximum call depth is 8. If validation fails, choose another version or shorten the call chain. Simulation shows this block’s steps without child-run history.",
+  "easydrag.ui.block_nested_title": "Nested block calls",
+  "easydrag.ui.block_self_reference": "This block cannot call itself. Choose another published block."
 }

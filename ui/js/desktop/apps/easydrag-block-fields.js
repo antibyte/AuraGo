@@ -223,12 +223,23 @@
         let node = env.node, form = null, batch = null, bindingShape = null, boundItem, bindingBag = core.bag(), closed = false, versionSeq = 0, bindingSeq = 0, reviewSeq = 0, listSeq = 0, listRows = [], listCursor = '', versionRows = [], versionCursor = 0, versionBusy = false, stagedId = node.params.flow_id || '', stagedRevision = Number(node.params.revision) || 0;
         const each = node.type === 'component.each';
         const el = core.el('<div class="ed-block-call"><p class="ed-hint">' + ed.esc(ed.t('easydrag.ui.block_pins_hint')) + '</p><label class="ed-label">' + ed.esc(ed.t('easydrag.ui.blocks_title')) + '<select class="ed-input" data-ed-call-block></select></label><label class="ed-label">' + ed.esc(ed.t('easydrag.ui.block_revision')) + '<select class="ed-input" data-ed-call-version></select></label><button type="button" class="ed-btn" data-ed-call-apply>' + ed.esc(ed.t('easydrag.ui.block_use_version')) + '</button><p class="ed-error" role="alert" hidden></p><div data-ed-batch-options></div><div data-ed-call-inputs></div></div>');
-        const blockSelect = el.querySelector('[data-ed-call-block]'), versionSelect = el.querySelector('[data-ed-call-version]'), apply = el.querySelector('[data-ed-call-apply]');
+        const blockSelect = el.querySelector('[data-ed-call-block]'), versionSelect = el.querySelector('[data-ed-call-version]'), apply = el.querySelector('[data-ed-call-apply]'), errorBox = el.querySelector('.ed-error');
+        const selfWarning = core.el('<p class="ed-error" role="alert" data-ed-call-self hidden>' + ed.esc(ed.t('easydrag.ui.block_self_reference')) + '</p>');
+        selfWarning.id = core.randomID('ed-call-self-', 8);
+        el.insertBefore(selfWarning, blockSelect.closest('label'));
+        if (ed.isBlock) el.insertBefore(core.el('<details class="ed-details" data-ed-nested-call-help><summary>' + ed.esc(ed.t('easydrag.ui.block_nested_title')) + '</summary><p class="ed-hint">' + ed.esc(ed.t('easydrag.ui.block_nested_hint')) + '</p></details>'), selfWarning);
         const more = core.el('<button type="button" class="ed-btn" data-ed-call-more hidden>' + ed.esc(ed.t('easydrag.ui.block_load_more')) + '</button>'); el.insertBefore(more, versionSelect.closest('label'));
         const versionMore = core.el('<button type="button" class="ed-btn" data-ed-call-version-more hidden>' + ed.esc(ed.t('easydrag.ui.block_load_more')) + '</button>'); el.insertBefore(versionMore, apply);
         function current() { return !closed && ed.model.node(id) === node; }
-        function fail(err) { const box = el.querySelector('.ed-error'); box.hidden = false; box.textContent = err ? core.errorText(ed.t, err) : ed.t('easydrag.ui.block_contract_unavailable'); }
-        function options(select, rows, value) { select.innerHTML = '<option value="">' + ed.esc(ed.t('easydrag.ui.option_none')) + '</option>' + rows.map(row => '<option value="' + ed.esc(row.value) + '">' + ed.esc(row.label) + '</option>').join(''); select.value = String(value || ''); select.disabled = !!(ed.readonly || ed.runView); }
+        const selfChoice = () => !!ed.isBlock && stagedId === ed.flow.id;
+        function applyState() { const self = selfChoice(); selfWarning.hidden = !self; blockSelect.setAttribute('aria-invalid', String(self)); if (self) blockSelect.setAttribute('aria-describedby', selfWarning.id); else blockSelect.removeAttribute('aria-describedby'); apply.disabled = !current() || !!(ed.readonly || ed.runView || !stagedRevision || self); }
+        function blockChoices() {
+            const rows = listRows.filter(row => !ed.isBlock || row.id !== ed.flow.id).map(row => ({ value: row.id, label: row.name }));
+            if (stagedId && !rows.some(row => row.value === stagedId)) rows.push({ value: stagedId, label: stagedId, disabled: selfChoice() });
+            options(blockSelect, rows, stagedId); applyState();
+        }
+        function fail(err) { errorBox.hidden = false; errorBox.textContent = err ? core.errorText(ed.t, err) : ed.t('easydrag.ui.block_contract_unavailable'); }
+        function options(select, rows, value) { select.innerHTML = '<option value="">' + ed.esc(ed.t('easydrag.ui.option_none')) + '</option>' + rows.map(row => '<option value="' + ed.esc(row.value) + '"' + (row.disabled ? ' disabled' : '') + '>' + ed.esc(row.label) + '</option>').join(''); select.value = String(value || ''); select.disabled = !!(ed.readonly || ed.runView); }
         if (each) { batch = ED.batches.options(env); el.querySelector('[data-ed-batch-options]').appendChild(batch.el); }
         function renderBindings(shape) {
             bindingBag.dispose(); bindingBag = core.bag();
@@ -252,7 +263,14 @@
             if (append && versionBusy) return;
             const mine = ++versionSeq, selectedId = stagedId; apply.disabled = true;
             versionBusy = true; versionMore.disabled = true;
-            try { const res = await ed.blockApi.versions(selectedId, append ? versionCursor : 0, controller.signal); if (!current() || mine !== versionSeq || selectedId !== stagedId) return; versionRows = Array.from(new Map((append ? versionRows.concat(res.versions || []) : res.versions || []).map(row => [row.revision, row])).values()); versionCursor = res.next_cursor || 0; const rows = versionRows.map(row => ({ value: row.revision, label: 'v' + row.revision })); if (stagedRevision && !rows.some(row => Number(row.value) === stagedRevision)) rows.push({ value: stagedRevision, label: 'v' + stagedRevision }); options(versionSelect, rows, stagedRevision); versionMore.hidden = !versionCursor; apply.disabled = !!(ed.readonly || ed.runView || !stagedRevision); }
+            try {
+                const res = await ed.blockApi.versions(selectedId, append ? versionCursor : 0, controller.signal);
+                if (!current() || mine !== versionSeq || selectedId !== stagedId) return;
+                versionRows = Array.from(new Map((append ? versionRows.concat(res.versions || []) : res.versions || []).map(row => [row.revision, row])).values()); versionCursor = res.next_cursor || 0;
+                const rows = versionRows.map(row => ({ value: row.revision, label: 'v' + row.revision }));
+                if (stagedRevision && !rows.some(row => Number(row.value) === stagedRevision)) rows.push({ value: stagedRevision, label: 'v' + stagedRevision });
+                options(versionSelect, rows, stagedRevision); versionMore.hidden = !versionCursor; applyState();
+            }
             catch (err) { if (current() && mine === versionSeq) fail(err); }
             finally { if (mine === versionSeq) { versionBusy = false; versionMore.disabled = false; } }
         }
@@ -269,11 +287,11 @@
                 bindingShape = shape; renderBindings(shape);
             } catch (err) { if (current() && mine === bindingSeq) { fail(err); ed.bus.emit('schema'); } }
         }
-        bag.listen(blockSelect, 'change', () => { if (!current() || ed.readonly || ed.runView) return; stagedId = blockSelect.value; stagedRevision = 0; options(versionSelect, [], ''); if (stagedId) versions(); });
-        bag.listen(versionSelect, 'change', () => { stagedRevision = Number(versionSelect.value); apply.disabled = !stagedRevision || !!(ed.readonly || ed.runView); });
+        bag.listen(blockSelect, 'change', () => { if (!current() || ed.readonly || ed.runView) return; stagedId = blockSelect.value; stagedRevision = 0; options(versionSelect, [], ''); applyState(); if (stagedId) versions(); });
+        bag.listen(versionSelect, 'change', () => { stagedRevision = Number(versionSelect.value); applyState(); });
         bag.listen(versionMore, 'click', () => { if (versionCursor) versions(true); });
         bag.listen(apply, 'click', async () => {
-            if (!current() || ed.readonly || ed.runView || !stagedId || !stagedRevision || ed.flushPendingEdits() === false) return;
+            if (!current() || ed.readonly || ed.runView || !stagedId || !stagedRevision || selfChoice() || ed.flushPendingEdits() === false) return;
             const observed = ed.model.version, refId = stagedId, revision = stagedRevision, review = ++reviewSeq;
             apply.disabled = true;
             try {
@@ -285,24 +303,25 @@
                 const removed = Object.keys(node.params.inputs || {}).filter(name => !shape.inputs.some(field => field.name === name));
                 const dialog = core.modal(ed.root, { title: ed.t('easydrag.ui.block_use_version'), closeLabel: ed.t('easydrag.ui.close'), className: 'ed-modal--block', body: '<p>' + ed.esc(ed.t('easydrag.ui.block_upgrade_hint')) + '</p><p><code>' + ed.esc(refId) + ' · v' + revision + '</code></p>' + (before ? '<h3>' + ed.esc(ed.t('easydrag.ui.publish_change_before')) + '</h3>' + ED.blocks.contractMarkup(ed, before) : '') + '<h3>' + ed.esc(ed.t('easydrag.ui.publish_change_after')) + '</h3>' + ED.blocks.contractMarkup(ed, shape) + (each && node.params.item_field && !shape.inputs.some(field => field.name === node.params.item_field) ? '<p class="ed-callout ed-callout--warn">' + ed.esc(ed.t('easydrag.ui.batch_item_missing', { field: typeof node.params.item_field === 'string' ? node.params.item_field.slice(0, 80) : ED.template.describe(node.params.item_field, ed.t, core.fmt.number) })) + '</p>' : '') + (removed.length ? '<p class="ed-callout">' + ed.esc(ed.t('easydrag.ui.block_removed_bindings', { fields: removed.join(', ') })) + '</p>' : '') + '<p class="ed-hint">' + ed.esc(ed.t('easydrag.ui.block_dependencies')) + ': ' + ed.esc((deps.items || []).length) + (deps.next_cursor ? '+' : '') + '</p>', actions: [{ id: 'cancel', label: ed.t('easydrag.ui.cancel') }, { id: 'apply', label: ed.t('easydrag.ui.block_use_version'), primary: true }], onAction: action => {
                     if (action !== 'apply') return true;
-                    if (!current() || review !== reviewSeq || refId !== stagedId || revision !== stagedRevision || ed.model.version !== observed || ed.readonly || ed.runView || ed.flushPendingEdits() === false || ed.model.version !== observed) return false;
+                    if (!current() || review !== reviewSeq || refId !== stagedId || revision !== stagedRevision || ed.model.version !== observed || ed.readonly || ed.runView || selfChoice() || ed.flushPendingEdits() === false || ed.model.version !== observed) return false;
                     ed.catalog.blockContracts.set(refId + ':' + revision, shape);
                     ed.model.change('block-reference', rec => { const next = rec.node(id); next.params = Object.assign({}, each ? next.params : {}, { flow_id: refId, revision, inputs: retained }); next.settings.retry = { count: 0 }; });
                     const latest = ed.model.node(id); if (node !== latest) { node = latest; bindings(); } return true;
                 } });
+                dialog.body.appendChild(core.el('<p class="ed-hint" data-ed-block-dependencies-hint>' + ed.esc(ed.t('easydrag.ui.block_dependencies_hint')) + '</p>'));
                 bag.add(() => dialog.close(null));
             } catch (err) { if (current() && err.name !== 'AbortError') fail(err); }
-            finally { if (current()) apply.disabled = !!(ed.readonly || ed.runView || !stagedRevision); }
+            finally { if (current()) applyState(); }
         });
         async function loadList(append) {
             const mine = ++listSeq; more.disabled = true;
-            try { const res = await ed.blockApi.list(append ? listCursor : '', controller.signal); if (!current() || mine !== listSeq) return; listRows = Array.from(new Map((append ? listRows.concat(res.blocks || []) : res.blocks || []).map(row => [row.id, row])).values()); listCursor = res.next_cursor || ''; const rows = listRows.map(row => ({ value: row.id, label: row.name })); if (stagedId && !rows.some(row => row.value === stagedId)) rows.push({ value: stagedId, label: stagedId }); options(blockSelect, rows, stagedId); more.hidden = !listCursor; }
+            try { const res = await ed.blockApi.list(append ? listCursor : '', controller.signal); if (!current() || mine !== listSeq) return; listRows = Array.from(new Map((append ? listRows.concat(res.blocks || []) : res.blocks || []).map(row => [row.id, row])).values()); listCursor = res.next_cursor || ''; blockChoices(); more.hidden = !listCursor; }
             catch (err) { if (current() && mine === listSeq && err.name !== 'AbortError') fail(err); }
             finally { if (current() && mine === listSeq) more.disabled = false; }
         }
         bag.listen(more, 'click', () => { if (listCursor) loadList(true); });
         loadList(false); if (stagedId) versions(); bindings();
-        apply.disabled = true;
+        applyState(); apply.disabled = true;
         const owner = name => batch && !name.startsWith('inputs.') ? batch : form;
         return {
             el, insert: (name, ref) => owner(name) && owner(name).insert(name, ref),
@@ -313,7 +332,7 @@
             refresh(next, roots) {
                 const refChanged = next.params.flow_id !== node.params.flow_id || next.params.revision !== node.params.revision;
                 node = next; env.roots = roots; if (batch) batch.refresh(next, roots);
-                if (refChanged) { reviewSeq++; stagedId = node.params.flow_id || ''; stagedRevision = Number(node.params.revision) || 0; blockSelect.value = stagedId; versions(); bindings(); }
+                if (refChanged) { reviewSeq++; stagedId = node.params.flow_id || ''; stagedRevision = Number(node.params.revision) || 0; blockChoices(); versions(); bindings(); }
                 else if (each && bindingShape && boundItem !== node.params.item_field) renderBindings(bindingShape);
                 else if (form) form.refresh(node.params.inputs || {}, roots);
             },

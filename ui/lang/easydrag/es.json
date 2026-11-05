@@ -1295,5 +1295,9 @@
   "easydrag.ui.group_unlock": "Desbloquear disposición",
   "easydrag.ui.group_view_hint": "Los grupos organizan el lienzo. No cambian la ejecución del flujo.",
   "easydrag.ui.groups": "Grupos visuales",
-  "easydrag.ui.issue_group_invalid": "Revisa el título, color, nota, límites y pasos del grupo."
+  "easydrag.ui.issue_group_invalid": "Revisa el título, color, nota, límites y pasos del grupo.",
+  "easydrag.ui.block_dependencies_hint": "Se tienen en cuenta los flujos y bloques que usan este bloque directa o indirectamente, también a través de versiones y ejecuciones guardadas.",
+  "easydrag.ui.block_nested_hint": "Las llamadas usan versiones publicadas concretas. No se permiten ciclos; la profundidad máxima de llamadas es 8. Si falla la validación, elige otra versión o acorta la cadena de llamadas. La simulación muestra los pasos de este bloque sin un historial de ejecuciones de los bloques secundarios.",
+  "easydrag.ui.block_nested_title": "Llamadas a bloques anidados",
+  "easydrag.ui.block_self_reference": "Este bloque no puede llamarse a sí mismo. Elige otro bloque publicado."
 }

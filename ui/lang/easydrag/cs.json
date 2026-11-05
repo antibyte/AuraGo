@@ -1295,5 +1295,9 @@
   "easydrag.ui.group_unlock": "Odemknout rozložení",
   "easydrag.ui.group_view_hint": "Skupiny uspořádají plochu. Nemění průběh flow.",
   "easydrag.ui.groups": "Vizuální skupiny",
-  "easydrag.ui.issue_group_invalid": "Zkontroluj název, barvu, poznámku, limity a přiřazení kroků skupiny."
+  "easydrag.ui.issue_group_invalid": "Zkontroluj název, barvu, poznámku, limity a přiřazení kroků skupiny.",
+  "easydrag.ui.block_dependencies_hint": "Zohledňují se toky a bloky, které tento blok používají přímo nebo nepřímo, také prostřednictvím uložených verzí a běhů.",
+  "easydrag.ui.block_nested_hint": "Volání používají přesné publikované verze. Cykly nejsou povoleny; maximální hloubka volání je 8. Pokud ověření selže, vyber jinou verzi nebo zkrať řetězec volání. Simulace zobrazuje kroky tohoto bloku bez historie běhů podřízených bloků.",
+  "easydrag.ui.block_nested_title": "Vnořená volání bloků",
+  "easydrag.ui.block_self_reference": "Tento blok nemůže volat sám sebe. Vyber jiný publikovaný blok."
 }

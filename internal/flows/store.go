@@ -601,6 +601,9 @@ func (s *Store) publishKindWithBlocksNote(ctx context.Context, id string, baseRe
 			return nil, ErrRevisionConflict
 		}
 		if len(blocks) > 0 {
+			if err := verifyBlockPinsTx(ctx, tx, blocks); err != nil {
+				return nil, err
+			}
 			if err := verifyExistingBlockVersionPins(ctx, tx, id, current.LiveRevision, blocks); err != nil {
 				return nil, err
 			}

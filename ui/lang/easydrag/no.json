@@ -1295,5 +1295,9 @@
   "easydrag.ui.group_unlock": "Lås opp plassering",
   "easydrag.ui.group_view_hint": "Grupper organiserer arbeidsflaten. De endrer ikke hvordan flyten kjøres.",
   "easydrag.ui.groups": "Visuelle grupper",
-  "easydrag.ui.issue_group_invalid": "Kontroller gruppens tittel, farge, notat, grenser og trinnmedlemskap."
+  "easydrag.ui.issue_group_invalid": "Kontroller gruppens tittel, farge, notat, grenser og trinnmedlemskap.",
+  "easydrag.ui.block_dependencies_hint": "Flyter og blokker som bruker denne blokken direkte eller indirekte, tas med, også gjennom lagrede versjoner og kjøringer.",
+  "easydrag.ui.block_nested_hint": "Kall bruker bestemte publiserte versjoner. Sykluser er ikke tillatt; maksimal kalldybde er 8. Hvis valideringen mislykkes, velg en annen versjon eller forkort kjeden av kall. Simuleringen viser trinnene i denne blokken uten kjøringshistorikk for underblokker.",
+  "easydrag.ui.block_nested_title": "Nestede blokkall",
+  "easydrag.ui.block_self_reference": "Denne blokken kan ikke kalle seg selv. Velg en annen publisert blokk."
 }

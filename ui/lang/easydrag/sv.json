@@ -1295,5 +1295,9 @@
   "easydrag.ui.group_unlock": "Lås upp placering",
   "easydrag.ui.group_view_hint": "Grupper ordnar arbetsytan. De ändrar inte hur flödet körs.",
   "easydrag.ui.groups": "Visuella grupper",
-  "easydrag.ui.issue_group_invalid": "Kontrollera gruppens titel, färg, anteckning, gränser och stegtillhörighet."
+  "easydrag.ui.issue_group_invalid": "Kontrollera gruppens titel, färg, anteckning, gränser och stegtillhörighet.",
+  "easydrag.ui.block_dependencies_hint": "Flöden och block som använder det här blocket direkt eller indirekt räknas med, även via sparade versioner och körningar.",
+  "easydrag.ui.block_nested_hint": "Anrop använder bestämda publicerade versioner. Cykler är inte tillåtna; det maximala anropsdjupet är 8. Välj en annan version eller förkorta anropskedjan om valideringen misslyckas. Simuleringen visar stegen i det här blocket utan körningshistorik för underblock.",
+  "easydrag.ui.block_nested_title": "Nästlade blockanrop",
+  "easydrag.ui.block_self_reference": "Det här blocket kan inte anropa sig självt. Välj ett annat publicerat block."
 }

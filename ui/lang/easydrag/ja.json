@@ -1295,5 +1295,9 @@
   "easydrag.ui.group_unlock": "配置のロックを解除",
   "easydrag.ui.group_view_hint": "グループはキャンバスを整理します。フローの実行方法は変わりません。",
   "easydrag.ui.groups": "ビジュアルグループ",
-  "easydrag.ui.issue_group_invalid": "グループのタイトル、色、メモ、上限、ステップの所属を確認してください。"
+  "easydrag.ui.issue_group_invalid": "グループのタイトル、色、メモ、上限、ステップの所属を確認してください。",
+  "easydrag.ui.block_dependencies_hint": "フローやブロックは、保存済みのバージョンや実行を通じて、このブロックを直接または間接的に使用できます。",
+  "easydrag.ui.block_nested_hint": "呼び出しでは特定の公開済みバージョンを使用します。循環は許可されず、呼び出しの深さは最大8です。検証に失敗した場合は、別のバージョンを選ぶか呼び出しチェーンを短くしてください。シミュレーションにはこのブロックのステップが表示され、子ブロックの実行履歴は含まれません。",
+  "easydrag.ui.block_nested_title": "入れ子になったブロック呼び出し",
+  "easydrag.ui.block_self_reference": "このブロックは自分自身を呼び出せません。別の公開済みブロックを選んでください。"
 }

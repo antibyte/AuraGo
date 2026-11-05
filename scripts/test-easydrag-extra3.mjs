@@ -126,7 +126,7 @@ export async function run(env) {
             emit(type, data) { if (!this.closed) (this.listeners[type] || []).slice().forEach(fn => fn({ type, data: JSON.stringify(data) })); }
         }
         const box = vm.createContext({
-            window: { SYSTEM_LANG: 'en', location: { origin: 'https://aurago.test' }, open() {}, addEventListener: (type, fn) => { (winListeners[type] = winListeners[type] || []).push(fn); },
+            window: { SYSTEM_LANG: 'en', crypto: webcrypto, location: { origin: 'https://aurago.test' }, open() {}, addEventListener: (type, fn) => { (winListeners[type] = winListeners[type] || []).push(fn); },
                 removeEventListener: (type, fn) => { const list = winListeners[type] || []; if (list.includes(fn)) list.splice(list.indexOf(fn), 1); } }, navigator: { platform: platform || 'Linux' }, crypto: webcrypto, document: dom.document,
             EventSource, Event: class { constructor(type, options) { this.type = type; Object.assign(this, options); } }, URLSearchParams, URL: DownloadURL, Blob, AbortController,
             console: { log() {}, warn() {}, error: (...args) => { logged.push(args.map(String).join(' ')); } },
@@ -1465,6 +1465,7 @@ export async function run(env) {
     await (await import('./test-easydrag-library.mjs')).run({ sandbox, eq, guardAsync, settle });
     await (await import('./test-easydrag-transform.mjs')).run({ sandbox, openEditor, eq, guardAsync, settle });
     await (await import('./test-easydrag-blocks.mjs')).run({ sandbox, openEditor, eq, guardAsync, settle });
+    await (await import('./test-easydrag-nested.mjs')).run({ sandbox, openEditor, eq, guardAsync, settle });
     await (await import('./test-easydrag-metadata.mjs')).run({ sandbox, openEditor, eq, guardAsync, settle });
     await (await import('./test-easydrag-batches.mjs')).run({ sandbox, openEditor, eq, guardAsync, settle });
     await (await import('./test-easydrag-groups.mjs')).run({ sandbox, openEditor, eq, guardAsync, settle });

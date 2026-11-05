@@ -1293,7 +1293,7 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   list expression and shared bindings use template semantics. Reuse ordinary caret/IME mappings.
   New Add/Insert operations explicitly initialize [], 100 items, concurrency 1 and stop; loading
   damaged documents never supplies missing required values. A longer list fails before any item;
-  never truncate input. Pure batches run serially with retry zero and no nested or durable work.
+  never truncate input. Pure batches run serially with retry zero and no nested batching or durable work.
   Direct JSON editing preflights 2 MiB UTF-8, 200,000 values and 64 levels; the whole document still
   obeys its existing bound. Keep invalid raw edits visible and decline actions until repaired.
   Stable `BATCH_WORK_LIMIT` issues target `max_items` with localized reduction guidance. Stop
@@ -1342,7 +1342,15 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   exact block ID/revision. Metadata requests patch changed call IDs, never traverse on run ticks.
   Choosing a newer version requires contract review and one undoable Apply; publication never
   upgrades callers. Call retries stay zero: retain invalid imported counts through unrelated edits,
-  and offer an explicit reset. No nested calls, external steps, batching or child-run history.
+  and offer an explicit reset. Block editors reuse the same call picker and contract tracker;
+  new choices exclude their own ID while invalid stored self-references remain visible for repair.
+  Nested pure calls pin exact published versions. The backend rejects Flow-ID cycles and call
+  depth over eight edges; never infer dependency validity from a locally loaded contract alone.
+  Generic dependency issues remain safe; use node/field navigation only when the server supplies
+  it, with local cycle/depth guidance instead of parsing free error text. Simulation shows only
+  the displayed block's steps, with no child-run history. No external steps or batching in blocks.
+  Dependency owners may be flows or blocks and include indirect pins; kind published/run is the
+  pin type, not the document kind or proof of a direct call. Keep deletion/upgrade wording neutral.
   Block/version/dependency lists retain cursor pagination; retained run pins are not published
   parent versions. Verify `test-easydrag-blocks.mjs` and `TestDesktopEasyDragBlocksBrowser`.
 - `easydrag-workspace.js` owns panel resizing, the visible step outline and path framing.

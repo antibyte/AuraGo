@@ -1295,5 +1295,9 @@
   "easydrag.ui.group_unlock": "Déverrouiller la disposition",
   "easydrag.ui.group_view_hint": "Les groupes organisent le canevas. Ils ne changent pas l’exécution du flux.",
   "easydrag.ui.groups": "Groupes visuels",
-  "easydrag.ui.issue_group_invalid": "Vérifie le titre, la couleur, la note, les limites et les étapes du groupe."
+  "easydrag.ui.issue_group_invalid": "Vérifie le titre, la couleur, la note, les limites et les étapes du groupe.",
+  "easydrag.ui.block_dependencies_hint": "Sont pris en compte les flux et les blocs qui utilisent ce bloc directement ou indirectement, y compris via des versions et des exécutions enregistrées.",
+  "easydrag.ui.block_nested_hint": "Les appels utilisent des versions publiées précises. Les cycles sont interdits ; la profondeur maximale des appels est de 8. Si la validation échoue, choisis une autre version ou raccourcis la chaîne d’appels. La simulation affiche les étapes de ce bloc sans historique d’exécution des blocs enfants.",
+  "easydrag.ui.block_nested_title": "Appels de blocs imbriqués",
+  "easydrag.ui.block_self_reference": "Ce bloc ne peut pas s’appeler lui-même. Choisis un autre bloc publié."
 }

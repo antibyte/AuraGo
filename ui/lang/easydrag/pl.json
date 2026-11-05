@@ -1295,5 +1295,9 @@
   "easydrag.ui.group_unlock": "Odblokuj układ",
   "easydrag.ui.group_view_hint": "Grupy porządkują obszar roboczy. Nie zmieniają działania przepływu.",
   "easydrag.ui.groups": "Grupy wizualne",
-  "easydrag.ui.issue_group_invalid": "Sprawdź tytuł, kolor, notatkę, limity i przynależność kroków grupy."
+  "easydrag.ui.issue_group_invalid": "Sprawdź tytuł, kolor, notatkę, limity i przynależność kroków grupy.",
+  "easydrag.ui.block_dependencies_hint": "Uwzględniane są przepływy i bloki korzystające z tego bloku bezpośrednio lub pośrednio, także poprzez zapisane wersje i uruchomienia.",
+  "easydrag.ui.block_nested_hint": "Wywołania korzystają z konkretnych opublikowanych wersji. Cykle są niedozwolone; maksymalna głębokość wywołań wynosi 8. Jeśli walidacja się nie powiedzie, wybierz inną wersję lub skróć łańcuch wywołań. Symulacja pokazuje kroki tego bloku bez historii uruchomień bloków podrzędnych.",
+  "easydrag.ui.block_nested_title": "Zagnieżdżone wywołania bloków",
+  "easydrag.ui.block_self_reference": "Ten blok nie może wywoływać samego siebie. Wybierz inny opublikowany blok."
 }

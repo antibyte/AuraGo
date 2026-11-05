@@ -85,10 +85,12 @@ with the typed controls; objects and lists use JSON. Simulation performs only lo
 creates no run history, timer or mission. Samples stay in the open dialog. **Preview notes** lists
 the sample limits: 64 KiB in total, 10,000 values and 32 nested levels. Closing the dialog cancels
 its pending request. Review the declared contract and then **Publish** to create an immutable
-version. Blocks support Set fields, If, Switch and Merge only; they cannot call another block,
-wait, stop, use AI, access secrets or invoke external tools.
+version. Blocks support Set fields, If, Switch, Merge and calls to published pure block versions.
+The maximum call depth is eight; circular references are refused. Each call remains bound
+to its chosen version. Blocks cannot contain a batch, wait, stop, use AI, access secrets or
+invoke external tools. Simulation shows the parent call step, not a separate child-step history.
 
-In a normal flow, add **Call block**, select a block and a published version, then choose
+In a flow or another block, add **Call block**, select a block and a published version, then choose
 **Use selected version**. Review the old and new contracts before applying the reference. Fill the
 named input fields or map upstream data to them. Outputs are direct fields, for example
 `{{greet.greeting}}` for a call whose data name is `greet`. Publishing a new block version leaves
@@ -134,7 +136,8 @@ succeeded or failed. There is no separate child-run history.
 Simulation uses the same pinned pure block. Publishing a later block version never
 upgrades this step: review the version change explicitly. If its per-item field disappears,
 the previous choice stays visibly unavailable until you choose another one. The batch's
-retry count remains zero; it cannot invoke nested blocks, external tools or durable waits.
+retry count remains zero. Its chosen block may call other pure blocks; external tools and durable
+waits remain unavailable.
 
 ## The Editor
 

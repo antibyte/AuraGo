@@ -1295,5 +1295,9 @@
   "easydrag.ui.group_unlock": "解锁布局",
   "easydrag.ui.group_view_hint": "分组用于整理画布，不会改变流程的运行方式。",
   "easydrag.ui.groups": "可视分组",
-  "easydrag.ui.issue_group_invalid": "请检查分组的标题、颜色、备注、限制和步骤成员。"
+  "easydrag.ui.issue_group_invalid": "请检查分组的标题、颜色、备注、限制和步骤成员。",
+  "easydrag.ui.block_dependencies_hint": "流程和模块可以直接或间接使用此模块，也可通过已保存的版本和运行记录使用。",
+  "easydrag.ui.block_nested_hint": "调用使用指定的已发布版本。不允许循环调用，最大调用深度为8。验证失败时，请选择其他版本或缩短调用链。模拟仅显示此模块的步骤，不包含子模块的运行历史。",
+  "easydrag.ui.block_nested_title": "嵌套模块调用",
+  "easydrag.ui.block_self_reference": "此模块不能调用自身。请选择其他已发布的模块。"
 }

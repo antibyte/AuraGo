@@ -11,8 +11,7 @@ import (
 	"regexp"
 )
 
-// Only component.call is registered in the normal catalog. Boundary nodes are
-// available in the pure block registry; component.each is not executable.
+// Boundary nodes and nested calls use the isolated pure block registry.
 const (
 	blockInputType     = "block.input"
 	blockOutputType    = "block.output"
@@ -78,6 +77,7 @@ type resolvedBlock struct {
 	Document *Flow
 	Contract blockContract
 	Hash     [32]byte
+	plan     *blockPlan
 }
 
 // blockFields accepts only a bounded static declaration. Inputs and outputs
@@ -273,6 +273,25 @@ func checkBlockBindings(node Node, contract blockContract) error {
 	return nil
 }
 
+// blockDependencyError identifies the call in the root document, not a node
+// with a potentially identical ID in a nested block.
+type blockDependencyError struct {
+	nodeID string
+	err    error
+}
+
+func (e *blockDependencyError) Error() string { return e.err.Error() }
+func (e *blockDependencyError) Unwrap() error { return e.err }
+
+func blockDependencyIssue(err error) Issue {
+	issue := Issue{Code: IssueParamInvalid, Severity: SeverityError, Message: "a referenced block revision is invalid or unavailable"}
+	var dependency *blockDependencyError
+	if errors.As(err, &dependency) {
+		issue.NodeID, issue.Param = dependency.nodeID, "flow_id"
+	}
+	return issue
+}
+
 // resolveBlockDependencies walks even disabled or unreachable nodes. The
 // returned child-before-parent list is deterministic for a fixed document.
 // The caller must pin these exact versions atomically before publication or use.
@@ -286,6 +305,7 @@ func resolveBlockDependencies(ctx context.Context, root *Flow, load func(context
 	var result []resolvedBlock
 	var totalBytes int
 	var references int
+	var rootNodeID string
 	var walk func(*Flow, int) error
 	walk = func(doc *Flow, depth int) error {
 		if err := ctx.Err(); err != nil {
@@ -297,6 +317,9 @@ func resolveBlockDependencies(ctx context.Context, root *Flow, load func(context
 		for _, node := range doc.Nodes {
 			if node.Type != blockCallType && node.Type != blockEachType {
 				continue
+			}
+			if depth == 0 {
+				rootNodeID = node.ID
 			}
 			references++
 			if references > maxBlockReferences || depth == maxBlockDepth {
@@ -372,6 +395,9 @@ func resolveBlockDependencies(ctx context.Context, root *Flow, load func(context
 		return nil
 	}
 	if err := walk(root, 0); err != nil {
+		if rootNodeID != "" {
+			return nil, &blockDependencyError{nodeID: rootNodeID, err: err}
+		}
 		return nil, err
 	}
 	return result, nil

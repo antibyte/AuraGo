@@ -1295,5 +1295,9 @@
   "easydrag.ui.group_unlock": "Desbloquear disposição",
   "easydrag.ui.group_view_hint": "Os grupos organizam a área de trabalho. Não alteram a execução do fluxo.",
   "easydrag.ui.groups": "Grupos visuais",
-  "easydrag.ui.issue_group_invalid": "Verifica o título, a cor, a nota, os limites e os passos do grupo."
+  "easydrag.ui.issue_group_invalid": "Verifica o título, a cor, a nota, os limites e os passos do grupo.",
+  "easydrag.ui.block_dependencies_hint": "São considerados os fluxos e blocos que usam este bloco direta ou indiretamente, também através de versões e execuções guardadas.",
+  "easydrag.ui.block_nested_hint": "As chamadas usam versões publicadas específicas. Não são permitidos ciclos; a profundidade máxima de chamadas é 8. Se a validação falhar, escolhe outra versão ou encurta a cadeia de chamadas. A simulação mostra os passos deste bloco sem histórico de execução dos blocos subordinados.",
+  "easydrag.ui.block_nested_title": "Chamadas de blocos aninhados",
+  "easydrag.ui.block_self_reference": "Este bloco não pode chamar a si próprio. Escolhe outro bloco publicado."
 }

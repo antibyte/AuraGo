@@ -137,6 +137,12 @@ func (s *Service) BlockPublishPreview(ctx context.Context, id string) (*BlockPre
 		return nil, err
 	}
 	issues := s.ValidateBlock(rec.Draft, ModePublish)
+	if _, err := prepareDraftBlockPlan(ctx, s.store, rec.Draft, rec.DraftRevision, s.services); err != nil {
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) || errors.Is(err, ErrRevisionConflict) {
+			return nil, err
+		}
+		issues = append(issues, blockDependencyIssue(err))
+	}
 	if issues == nil {
 		issues = []Issue{}
 	}
@@ -173,7 +179,15 @@ func (s *Service) PublishBlockWithNote(ctx context.Context, id string, baseRevis
 	if HasErrors(issues) {
 		return nil, issues, &ValidationError{Issues: issues}
 	}
-	result, err := s.store.publishKindWithBlocksNote(ctx, id, baseRevision, s.now(), KindBlock, nil, note)
+	plan, err := prepareBlockPlan(ctx, s.store, rec.Draft, s.services)
+	if err != nil {
+		return nil, issues, err
+	}
+	var blocks []resolvedBlock
+	if plan != nil {
+		blocks = plan.blocks
+	}
+	result, err := s.store.publishKindWithBlocksNote(ctx, id, baseRevision, s.now(), KindBlock, blocks, note)
 	return result, issues, err
 }
 

@@ -92,11 +92,14 @@ Die Simulation verarbeitet ausschließlich lokale Logik und erzeugt keinen Laufv
 und keine Mission. Beispiele bleiben im geöffneten Dialog. **Vorschauhinweise** nennt die
 Grenzen: insgesamt 64 KiB, 10.000 Werte und 32 Verschachtelungsebenen. Das Schließen des
 Dialogs bricht seine ausstehende Anfrage ab. Prüfe den Feldvertrag und wähle **Veröffentlichen**,
-um eine unveränderliche Version anzulegen. Unterstützt werden nur Felder setzen, Wenn,
-Fallunterscheidung und Zusammenführen. Verschachtelte Bausteine, Warten, Stoppen, KI,
-Geheimnisse und externe Werkzeuge sind ausgeschlossen.
+um eine unveränderliche Version anzulegen. Unterstützt werden Felder setzen, Wenn,
+Fallunterscheidung, Zusammenführen und Aufrufe veröffentlichter reiner Bausteinversionen.
+Die maximale Aufruftiefe beträgt acht; kreisförmige Verweise werden abgelehnt. Jeder Aufruf
+bleibt an seine gewählte Version gebunden. Stapelverarbeitung, Warten, Stoppen, KI,
+Geheimnisse und externe Werkzeuge sind innerhalb eines Bausteins ausgeschlossen. Die
+Simulation zeigt den Aufrufschritt, aber keinen getrennten Verlauf der Unterschritte.
 
-Füge in einem normalen Flow **Baustein aufrufen** hinzu. Wähle einen Baustein und eine
+Füge in einem Flow oder einem anderen Baustein **Baustein aufrufen** hinzu. Wähle einen Baustein und eine
 veröffentlichte Version und klicke auf **Gewählte Version verwenden**. Prüfe vor dem Übernehmen
 den bisherigen und den neuen Feldvertrag. Fülle benannte Eingaben aus oder ordne Daten aus
 vorherigen Schritten zu. Ausgaben liegen direkt am Aufruf, etwa `{{greet.greeting}}`, wenn
@@ -149,8 +152,9 @@ scheiterten. Einen getrennten Verlauf der Bausteinläufe gibt es nicht.
 Die Simulation verwendet denselben festgelegten reinen Baustein. Eine spätere
 Veröffentlichung aktualisiert diesen Schritt nie automatisch: Prüfe den Versionswechsel
 ausdrücklich. Fällt sein Eingabefeld pro Eintrag weg, bleibt die bisherige Auswahl sichtbar
-nicht verfügbar, bis Du ein anderes wählst. Die Wiederholungszahl bleibt null; verschachtelte
-Bausteine, externe Werkzeuge und dauerhaft wartende Verarbeitung sind ausgeschlossen.
+nicht verfügbar, bis Du ein anderes wählst. Die Wiederholungszahl bleibt null. Der gewählte
+Baustein darf weitere reine Bausteine aufrufen; externe Werkzeuge und dauerhaft wartende
+Verarbeitung bleiben ausgeschlossen.
 
 ## Der Editor
 

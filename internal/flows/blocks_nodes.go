@@ -6,7 +6,7 @@ import "context"
 // effectful definitions are never inherited by a reusable block.
 func blockRegistry() *Registry {
 	r := NewRegistry()
-	for _, def := range []*NodeDef{ifNodeDef(), switchNodeDef(), mergeNodeDef(), setNodeDef(),
+	for _, def := range []*NodeDef{ifNodeDef(), switchNodeDef(), mergeNodeDef(), setNodeDef(), blockCallDef(),
 		{Type: blockInputType, Version: 1, Category: "logic", Icon: "upload", Trigger: true, UntrustedOutput: true,
 			LabelKey: "easydrag.node.block_input.label", DescriptionKey: "easydrag.node.block_input.description",
 			Params: []ParamSpec{{Name: "fields", Kind: ParamJSON}}, OutputFields: []FieldSpec{{Name: "data", Type: "object", Primary: true}}},
@@ -72,7 +72,7 @@ func blockCallDef() *NodeDef {
 				return ExecResult{}, NewNodeError("FLOW_PARAM_INVALID", "block inputs do not match the declared contract")
 			}
 			services := &Services{Clock: in.Services.Clock, Location: in.Services.Location}
-			result := executePureBlock(ctx, in.block.Document, inputs, services, in.Logger, in.Run.Mode, in.block.Ref.Revision, in.Run.ID, in.scope)
+			result := executePureBlockPlanned(ctx, in.block.Document, inputs, services, in.Logger, in.Run.Mode, in.block.Ref.Revision, in.Run.ID, in.scope, in.block.plan)
 			if ctx.Err() != nil {
 				return ExecResult{}, ctx.Err()
 			}
@@ -110,7 +110,7 @@ func blockDocumentAllowed(doc *Flow) bool {
 			return false
 		}
 		switch n.Type {
-		case blockInputType, blockOutputType, TypeIf, TypeSwitch, TypeMerge, TypeSet:
+		case blockInputType, blockOutputType, TypeIf, TypeSwitch, TypeMerge, TypeSet, blockCallType:
 		default:
 			return false
 		}

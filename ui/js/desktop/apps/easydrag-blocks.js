@@ -60,8 +60,8 @@
     }
     function dependentsMarkup(ed, items) {
         return '<ul class="ed-block-dependents">' + items.map(item => {
-            const parent = item.kind === 'published' ? ed.t('easydrag.ui.state_published') + ' · ' + item.flow_id + ' · v' + item.revision : ed.t('easydrag.ui.runs_title') + ' · ' + (item.run_id || '—') + ' · ' + item.flow_id;
-            return '<li>' + ed.esc(parent) + (Number.isInteger(item.block_revision) && item.block_revision > 0 ? '<br><span class="ed-hint">' + ed.esc(ed.t('easydrag.ui.block_revision') + ' · v' + item.block_revision) + '</span>' : '') + '</li>';
+            const owner = item.kind === 'published' ? ed.t('easydrag.ui.state_published') + ' · ' + item.flow_id + ' · v' + item.revision : ed.t('easydrag.ui.runs_title') + ' · ' + (item.run_id || '—') + ' · ' + item.flow_id;
+            return '<li>' + ed.esc(owner) + (Number.isInteger(item.block_revision) && item.block_revision > 0 ? '<br><span class="ed-hint">' + ed.esc(ed.t('easydrag.ui.block_revision') + ' · v' + item.block_revision) + '</span>' : '') + '</li>';
         }).join('') + '</ul>';
     }
     function library(app) {
@@ -211,7 +211,7 @@
             catch (err) { const box = view.body.querySelector('.ed-error'); box.hidden = false; box.textContent = ED.core.errorText(ed.t, err); return false; }
         } });
         function paint() {
-            dialog.body.querySelector('[data-ed-block-dependents]').innerHTML = '<h4>' + ed.esc(ed.t('easydrag.ui.block_dependencies')) + '</h4>' + (!items.length ? '<p>' + ed.esc(ed.t('easydrag.ui.block_dependencies_none')) + '</p>' : dependentsMarkup(ed, items));
+            dialog.body.querySelector('[data-ed-block-dependents]').innerHTML = '<h4>' + ed.esc(ed.t('easydrag.ui.block_dependencies')) + '</h4><p class="ed-hint" data-ed-block-dependencies-hint>' + ed.esc(ed.t('easydrag.ui.block_dependencies_hint')) + '</p>' + (!items.length ? '<p>' + ed.esc(ed.t('easydrag.ui.block_dependencies_none')) + '</p>' : dependentsMarkup(ed, items));
             dialog.body.querySelector('[data-ed-block-more]').hidden = !cursor;
             dialog.el.querySelector('[data-ed-action="delete"]').disabled = !!items.length || !!ed.readonly;
         }

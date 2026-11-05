@@ -48,11 +48,18 @@ the contracts below describe the implemented behavior of each delivered slice.
   `node internal/flows/testdata/collection_filters_test.cjs` against shared JSON vectors.
 - Typed reusable blocks execute synchronously through `component.call` in the parent run;
   block drafts can also be simulated without runs, pins, events or external services. Only
-  `block.input`, `block.output`, `logic.set`, `logic.if`, `logic.switch` and `logic.merge`
-  are allowed in a block. Nested calls, batches, waits, stops, tools, models and secrets are
-  excluded. Calls require retry count zero. Child frames use the parent's deadline,
+  `block.input`, `block.output`, `logic.set`, `logic.if`, `logic.switch`, `logic.merge` and
+  pinned pure `component.call` are allowed in a block. Batches inside blocks, waits, stops,
+  tools, models and secrets are excluded. Calls require retry count zero. Child frames use the parent's deadline,
   cancellation, taint fences and shared output/log budgets, with no second Runner.
   Inputs use the boundary node key's `data` object; call outputs expose declared fields directly.
+- Nested calls use frame-local node identities and immutable transitive snapshots. Resolution rejects
+  cycles by flow ID, depth over 8 and more than 32 block versions or 4096 references. Graph limits
+  count each expanded call occurrence; batches multiply nested worst-case attempts. Each published
+  block and parent pins its exact transitive revisions and hashes, rechecked before execution.
+  Block simulation resolves the exact draft and all children in one read snapshot and records no run.
+  Older C8 code can open the same store but refuses a nested block during admission rather than
+  executing it with an incomplete dependency plan.
 - `component.each` invokes the same pinned pure block serially for at most 1,000 items, with
   an explicitly selected input, shared inputs, concurrency one and retry count zero. Stop mode
   fails without partial output; collect mode returns ordered item outputs or bounded error codes.

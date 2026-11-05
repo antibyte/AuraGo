@@ -758,8 +758,12 @@ Server-owned HTTP and cross-component integration contracts.
   observed draft revision and creates no run, mission, timer or event. Create, publish and
   delete audit only fixed text and the block ID. There are no block enable or run routes.
   Ordinary flow routes and block routes enforce distinct document kinds, including corrupt rows.
-  Goal-only AI proposals exclude block calls: users choose published versions in the editor.
-  Verify `TestFlowBlock*` and `TestFlowAIProposalRejectsInventedBlockReferences`.
+  Pure blocks may call immutable published pure block versions; nested calls share the parent
+  execution and bounds. Preview and simulation resolve the observed draft and child versions;
+  dependency pages include transitive pin owners without exposing inputs or outputs. Batch nodes
+  remain unavailable inside blocks. Goal-only AI proposals exclude block calls: users choose
+  published versions in the editor. Verify `TestFlowBlock*`, `TestFlowNestedBlocksHTTP` and
+  `TestFlowAIProposalRejectsInventedBlockReferences`.
 - Normal flow exports with visual groups use wire schema 2; group-free exports remain schema 1.
   The create/import endpoint accepts either and stores schema 1 after validation. Draft PUT,
   version snapshots and AI proposals retain the strict internal schema; no block import/export

@@ -81,10 +81,14 @@ func verifyBlockPinsTx(ctx context.Context, tx *sql.Tx, blocks []resolvedBlock) 
 	}
 	seen := make(map[blockRef]bool, len(blocks))
 	for _, block := range blocks {
-		if !blockFlowID.MatchString(block.Ref.FlowID) || block.Ref.Revision <= 0 || seen[block.Ref] {
+		if !blockFlowID.MatchString(block.Ref.FlowID) || block.Ref.Revision <= 0 || seen[block.Ref] || block.Document == nil {
 			return errBlockPinConflict
 		}
 		seen[block.Ref] = true
+		snapshot, err := json.Marshal(block.Document)
+		if err != nil || sha256.Sum256(snapshot) != block.Hash {
+			return errBlockPinConflict
+		}
 		var raw string
 		query := `SELECT v.json FROM flow_versions v JOIN flows f ON f.id=v.flow_id
 			WHERE v.flow_id=? AND v.revision=? AND f.kind='block' AND f.mission_id='' AND length(CAST(v.json AS BLOB))<=?
@@ -102,6 +106,50 @@ func verifyBlockPinsTx(ctx context.Context, tx *sql.Tx, blocks []resolvedBlock) 
 		}
 		canonical, err := json.Marshal(doc)
 		if err != nil || sha256.Sum256(canonical) != block.Hash {
+			return errBlockPinConflict
+		}
+	}
+	// Every published intermediate block owns the exact transitive hashes it
+	// was published with; a fresh lookup must not silently substitute a child.
+	byRef := make(map[blockRef]resolvedBlock, len(blocks))
+	for _, block := range blocks {
+		byRef[block.Ref] = block
+	}
+	for _, block := range blocks {
+		seen := make(map[blockRef]bool)
+		var descendants []resolvedBlock
+		var visit func(*Flow) error
+		visit = func(doc *Flow) error {
+			for _, node := range doc.Nodes {
+				if node.Type != blockCallType && node.Type != blockEachType {
+					continue
+				}
+				ref, err := blockReference(node)
+				if err != nil || ref == block.Ref {
+					return errBlockPinConflict
+				}
+				child, ok := byRef[ref]
+				if !ok {
+					return errBlockPinConflict
+				}
+				if seen[ref] {
+					continue
+				}
+				seen[ref] = true
+				if err := visit(child.Document); err != nil {
+					return err
+				}
+				descendants = append(descendants, child)
+			}
+			return nil
+		}
+		if err := visit(block.Document); err != nil {
+			return err
+		}
+		if err := verifyExistingBlockVersionPins(ctx, tx, block.Ref.FlowID, block.Ref.Revision, descendants); err != nil {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
 			return errBlockPinConflict
 		}
 	}
