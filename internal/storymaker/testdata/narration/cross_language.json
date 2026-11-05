@@ -7,7 +7,14 @@
     },
     "chars_total": 22,
     "width": 22,
-    "words": 4
+    "words": 4,
+    "pieces": [
+      {
+        "text": "Anna kommt heute spät.",
+        "chars": 22,
+        "join": ""
+      }
+    ]
   },
   {
     "input": "　Das ist gut.　　{2}　Ja und nein, sagt sie.　",
@@ -17,7 +24,14 @@
     },
     "chars_total": 35,
     "width": 35,
-    "words": 8
+    "words": 8,
+    "pieces": [
+      {
+        "text": "Das ist gut. Ja und nein, sagt sie.",
+        "chars": 35,
+        "join": ""
+      }
+    ]
   },
   {
     "input": "今日は天気がいいです。{1}明日は雨が降るでしょう。",
@@ -27,7 +41,19 @@
     },
     "chars_total": 23,
     "width": 46,
-    "words": 12
+    "words": 12,
+    "pieces": [
+      {
+        "text": "今日は天気がいいです。",
+        "chars": 11,
+        "join": "sentence"
+      },
+      {
+        "text": "明日は雨が降るでしょう。",
+        "chars": 12,
+        "join": ""
+      }
+    ]
   },
   {
     "input": "आज मौसम बहुत अच्छा है। कल बारिश होगी और हवा भी चलेगी।",
@@ -35,7 +61,19 @@
     "cues": {},
     "chars_total": 53,
     "width": 53,
-    "words": 12
+    "words": 12,
+    "pieces": [
+      {
+        "text": "आज मौसम बहुत अच्छा है।",
+        "chars": 23,
+        "join": "sentence"
+      },
+      {
+        "text": "कल बारिश होगी और हवा भी चलेगी।",
+        "chars": 30,
+        "join": ""
+      }
+    ]
   },
   {
     "input": "Η μέρα είναι όμορφη σήμερα; Ναι, πολύ όμορφη σήμερα.",
@@ -43,7 +81,19 @@
     "cues": {},
     "chars_total": 52,
     "width": 52,
-    "words": 9
+    "words": 9,
+    "pieces": [
+      {
+        "text": "Η μέρα είναι όμορφη σήμερα;",
+        "chars": 28,
+        "join": "sentence"
+      },
+      {
+        "text": "Ναι, πολύ όμορφη σήμερα.",
+        "chars": 24,
+        "join": ""
+      }
+    ]
   },
   {
     "input": "Er sagte ganz laut und deutlich: „Das ist gut.“ {1}Dann ging er langsam nach Hause.",
@@ -53,7 +103,19 @@
     },
     "chars_total": 80,
     "width": 80,
-    "words": 15
+    "words": 15,
+    "pieces": [
+      {
+        "text": "Er sagte ganz laut und deutlich: „Das ist gut.“",
+        "chars": 48,
+        "join": "sentence"
+      },
+      {
+        "text": "Dann ging er langsam nach Hause.",
+        "chars": 32,
+        "join": ""
+      }
+    ]
   },
   {
     "input": "𠮷{1}野家😀 ok",
@@ -63,7 +125,14 @@
     },
     "chars_total": 9,
     "width": 10,
-    "words": 4
+    "words": 4,
+    "pieces": [
+      {
+        "text": "𠮷野家😀 ok",
+        "chars": 9,
+        "join": ""
+      }
+    ]
   },
   {
     "input": "Hallo ﻿Welt {3}",
@@ -73,7 +142,14 @@
     },
     "chars_total": 10,
     "width": 10,
-    "words": 2
+    "words": 2,
+    "pieces": [
+      {
+        "text": "Hallo Welt",
+        "chars": 10,
+        "join": ""
+      }
+    ]
   },
   {
     "input": "  {1}  ",
@@ -83,6 +159,7 @@
     },
     "chars_total": 0,
     "width": 0,
-    "words": 0
+    "words": 0,
+    "pieces": []
   }
 ]
