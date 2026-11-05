@@ -10,8 +10,18 @@ import (
 // document). Enabled defaults to true in the loader; the app shows capability states for
 // export when FFmpeg or a browser is missing.
 type StorymakerConfig struct {
-	Enabled bool                   `yaml:"enabled" json:"enabled"`
-	Render  StorymakerRenderConfig `yaml:"render" json:"render"`
+	Enabled   bool                      `yaml:"enabled" json:"enabled"`
+	Render    StorymakerRenderConfig    `yaml:"render" json:"render"`
+	Narration StorymakerNarrationConfig `yaml:"narration" json:"narration"`
+}
+
+// StorymakerNarrationConfig caps the characters narrate jobs send to cloud TTS providers. Local
+// providers are exempt.
+type StorymakerNarrationConfig struct {
+	// MaxDailyChars is the limit per local day.
+	MaxDailyChars int `yaml:"max_daily_chars" json:"max_daily_chars"`
+	// MaxJobChars is the limit per narrate job.
+	MaxJobChars int `yaml:"max_job_chars" json:"max_job_chars"`
 }
 
 // StorymakerRenderConfig bounds the server-side render that turns a story into an MP4.
@@ -30,11 +40,14 @@ type StorymakerRenderConfig struct {
 const (
 	storymakerDefaultTimeoutSeconds     = 3600
 	storymakerDefaultMaxDurationSeconds = 900
+	storymakerDefaultMaxDailyChars      = 100000
+	storymakerDefaultMaxJobChars        = 20000
 )
 
 // NormalizeStorymakerConfig applies defaults for unset (zero) values and rejects values outside
 // their range: timeout 60 to 14400 seconds, maximum duration 10 to 3600 seconds, a browser path
-// that is absolute, and a known frame transport. It does not change Enabled.
+// that is absolute, a known frame transport, 1000 to 100000000 daily narration characters and
+// 100 to 10000000 narration characters per job. It does not change Enabled.
 func NormalizeStorymakerConfig(c *StorymakerConfig) error {
 	r := &c.Render
 	if r.TimeoutSeconds == 0 {
@@ -62,6 +75,19 @@ func NormalizeStorymakerConfig(c *StorymakerConfig) error {
 	case "", "png", "webp", "raw", "screenshot":
 	default:
 		return fmt.Errorf("storymaker: render.transport must be empty, png, webp, raw or screenshot")
+	}
+	n := &c.Narration
+	if n.MaxDailyChars == 0 {
+		n.MaxDailyChars = storymakerDefaultMaxDailyChars
+	}
+	if n.MaxJobChars == 0 {
+		n.MaxJobChars = storymakerDefaultMaxJobChars
+	}
+	if n.MaxDailyChars < 1000 || n.MaxDailyChars > 100000000 {
+		return fmt.Errorf("storymaker: narration.max_daily_chars must be 1000–100000000")
+	}
+	if n.MaxJobChars < 100 || n.MaxJobChars > 10000000 {
+		return fmt.Errorf("storymaker: narration.max_job_chars must be 100–10000000")
 	}
 	return nil
 }

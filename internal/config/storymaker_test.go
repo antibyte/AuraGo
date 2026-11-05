@@ -19,7 +19,11 @@ func loadStorymakerYAML(t *testing.T, content string) (*Config, error) {
 }
 
 func TestStorymakerDefaultsOn(t *testing.T) {
-	want := StorymakerConfig{Enabled: true, Render: StorymakerRenderConfig{TimeoutSeconds: 3600, MaxDurationSeconds: 900}}
+	want := StorymakerConfig{
+		Enabled:   true,
+		Render:    StorymakerRenderConfig{TimeoutSeconds: 3600, MaxDurationSeconds: 900},
+		Narration: StorymakerNarrationConfig{MaxDailyChars: 100000, MaxJobChars: 20000},
+	}
 	for name, content := range map[string]string{
 		"empty file":   "{}\n",
 		"null section": "storymaker:\n",
@@ -105,6 +109,9 @@ func TestStorymakerTemplateMatchesLoadDefaults(t *testing.T) {
 	if err := dec.Decode(&tpl); err != nil {
 		t.Fatalf("template block does not decode into StorymakerConfig: %v", err)
 	}
+	if tpl.Narration.MaxDailyChars != 100000 || tpl.Narration.MaxJobChars != 20000 {
+		t.Fatalf("the template must write the narration caps: %+v", tpl.Narration)
+	}
 	if err := NormalizeStorymakerConfig(&tpl); err != nil {
 		t.Fatalf("template values rejected: %v", err)
 	}
@@ -114,5 +121,30 @@ func TestStorymakerTemplateMatchesLoadDefaults(t *testing.T) {
 	}
 	if tpl != cfg.Storymaker {
 		t.Fatalf("template %+v differs from loader defaults %+v", tpl, cfg.Storymaker)
+	}
+}
+
+func TestNormalizeStorymakerNarrationRanges(t *testing.T) {
+	for _, n := range []StorymakerNarrationConfig{
+		{}, {MaxDailyChars: 1000}, {MaxDailyChars: 100000000}, {MaxJobChars: 100}, {MaxJobChars: 10000000},
+	} {
+		c := StorymakerConfig{Narration: n}
+		if err := NormalizeStorymakerConfig(&c); err != nil {
+			t.Errorf("%+v rejected: %v", n, err)
+		}
+		if c.Narration.MaxDailyChars == 0 || c.Narration.MaxJobChars == 0 {
+			t.Errorf("%+v: defaults not applied: %+v", n, c.Narration)
+		}
+	}
+	for _, n := range []StorymakerNarrationConfig{
+		{MaxDailyChars: 999}, {MaxDailyChars: 100000001}, {MaxDailyChars: -1}, {MaxJobChars: 99}, {MaxJobChars: 10000001},
+	} {
+		c := StorymakerConfig{Narration: n}
+		if NormalizeStorymakerConfig(&c) == nil {
+			t.Errorf("%+v accepted", n)
+		}
+	}
+	if _, err := loadStorymakerYAML(t, "storymaker:\n  narration:\n    max_daily_chars: 999\n"); err == nil {
+		t.Error("Load accepted 999 daily characters")
 	}
 }

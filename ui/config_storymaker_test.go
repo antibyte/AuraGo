@@ -9,13 +9,13 @@ import (
 )
 
 // The Storymaker block of the Virtual Desktop configuration page: storymaker.enabled and storymaker.render.{timeout_seconds,
-// max_duration_seconds, browser_path, transport}, the export-readiness check against /api/desktop/storymaker/status, and the
+// max_duration_seconds, browser_path, transport}, storymaker.narration.{max_daily_chars, max_job_chars}, the export-readiness check against /api/desktop/storymaker/status, and the
 // sixteen-language texts in lang/config/common.
 
 var storymakerConfigKeys = []string{
 	"title", "help", "enabled", "timeout", "timeout_help", "max_duration", "max_duration_help", "browser_path", "browser_path_help",
 	"transport", "transport_help", "transport_auto", "check", "checking", "unavailable", "save_first", "ready", "missing", "disabled",
-	"part_ffmpeg", "part_browser",
+	"part_ffmpeg", "part_browser", "max_daily_chars", "max_daily_chars_help", "max_job_chars", "max_job_chars_help",
 }
 
 func TestConfigStorymakerBlockIsWired(t *testing.T) {
@@ -34,6 +34,10 @@ func TestConfigStorymakerBlockIsWired(t *testing.T) {
 		`min="10" max="3600"`,
 		`data-path="storymaker.render.browser_path"`,
 		`data-path="storymaker.render.transport"`,
+		`data-path="storymaker.narration.max_daily_chars"`,
+		`min="1000" max="100000000"`,
+		`data-path="storymaker.narration.max_job_chars"`,
+		`min="100" max="10000000"`,
 		"'storymaker.enabled'",
 		"fetch('/api/desktop/storymaker/status'",
 		"hasUnsavedConfigChanges()",
@@ -52,7 +56,7 @@ func TestConfigStorymakerBlockIsWired(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, limit := range []string{"60", "14400", "10", "3600"} {
+	for _, limit := range []string{"60", "14400", "10", "3600", "1000", "100000000", "100", "10000000"} {
 		if !strings.Contains(string(normalize), limit) {
 			t.Errorf("internal/config/storymaker.go no longer mentions the limit %s the form promises", limit)
 		}

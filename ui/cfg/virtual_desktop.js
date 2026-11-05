@@ -265,6 +265,7 @@ function vdCfgStorymaker() {
     const data = configData.storymaker || (configData.storymaker = {});
     if (typeof data.enabled !== 'boolean') data.enabled = true;
     const render = data.render || (data.render = {});
+    const narration = data.narration || (data.narration = {});
     const prefix = 'config.storymaker.';
     let html = '<h3>' + t(prefix + 'title') + '</h3><p class="field-help">' + t(prefix + 'help') + '</p>';
     html += '<div class="field-grid two-cols">';
@@ -275,6 +276,8 @@ function vdCfgStorymaker() {
     html += vdCfgField(prefix + 'browser_path', prefix + 'browser_path_help', '<input class="field-input" type="text" spellcheck="false" autocomplete="off" value="' + escapeAttr(render.browser_path || '') + '" data-path="storymaker.render.browser_path">');
     const transports = { '': t(prefix + 'transport_auto'), png: 'PNG', webp: 'WebP', raw: 'RGBA', screenshot: 'Screenshot' };
     html += vdCfgField(prefix + 'transport', prefix + 'transport_help', '<select class="field-select" data-path="storymaker.render.transport">' + Object.keys(transports).map(value => '<option value="' + value + '"' + ((render.transport || '') === value ? ' selected' : '') + '>' + escapeAttr(transports[value]) + '</option>').join('') + '</select>');
+    html += vdCfgField(prefix + 'max_daily_chars', prefix + 'max_daily_chars_help', '<input class="field-input" type="number" min="1000" max="100000000" value="' + escapeAttr(String(narration.max_daily_chars || 100000)) + '" data-path="storymaker.narration.max_daily_chars">');
+    html += vdCfgField(prefix + 'max_job_chars', prefix + 'max_job_chars_help', '<input class="field-input" type="number" min="100" max="10000000" value="' + escapeAttr(String(narration.max_job_chars || 20000)) + '" data-path="storymaker.narration.max_job_chars">');
     html += '</div><div class="field-group"><button type="button" id="vd-storymaker-btn" class="btn-save dc-test-btn" data-config-action-draft="false" onclick="vdCfgTestStorymaker(this)">' + t(prefix + 'check') + '</button>' + cfgActionResult.html('vd-storymaker-result') + '</div>';
     return html;
 }

@@ -2379,6 +2379,9 @@ storymaker:
         max_duration_seconds: 900   # longest video a render accepts (10-3600)
         browser_path: ""            # optional absolute path of Chrome/Chromium; empty = system browser, then pinned download
         transport: ""               # frame transport: empty = automatic, or png, webp, raw, screenshot
+    narration:
+        max_daily_chars: 100000     # cloud TTS characters per local day (1000-100000000); local providers are exempt
+        max_job_chars: 20000        # cloud TTS characters per narrate job (100-10000000); local providers are exempt
 
 journal:
     auto_entries: true                      # matches loader default; tools.journal controls tool access
