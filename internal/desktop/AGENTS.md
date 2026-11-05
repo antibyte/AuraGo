@@ -24,6 +24,8 @@ The Service owns authorization, read-only state, mutation locks and cache invali
 
 - Storymaker (`storymaker`, category `creative`, `open_maximized`) is a built-in explainer-video app behind the `storymaker` capability (`Requires`, the `storymaker.enabled` switch; the capability case lives in `../server/bluetooth_live.go`). Its icon is app-owned artwork, `logo_path` `/img/desktop-icons/storymaker.svg`, and its `Icon` value `storymaker` is deliberately absent from `desktopPreferredIconNames` and every icon theme (as for ECalc). Its routes are `/api/desktop/storymaker/*` (`../server/AGENTS.md`), its projects live in `Documents/Storymaker/`. Verify `TestBuiltinStorymakerApp*` and `go test ./ui -run TestDesktopStorymaker`.
 
+- `WriteStorymakerVideo` is the only desktop write into the read-only `Videos` mount. It takes a slug (`^[A-Za-z0-9-]{1,80}$`) and builds the path itself, `Videos/Storymaker/<slug>.mp4` with `-2`, `-3` on collision. It refuses read-only, checks read-only again under the lock, and needs free space of size plus 64 MiB. It creates `Storymaker` on the first copy and skips `RegisterMedia`. Verify `go test ./internal/desktop -run WriteStorymakerVideo`.
+
 - Desktop cloud transfers use `StatStoragePath` for fresh rooted metadata,
   `CreateStorageDirectory` for exclusive directory creation,
   `WriteFileStreamConditional` for bounded publication, and

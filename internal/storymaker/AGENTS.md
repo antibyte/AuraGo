@@ -54,6 +54,10 @@ JavaScript (`ui/js/storymaker/`); Go never recomputes the timeline.
   bundle built from older source: a render loads the bundle of every scene whose status is ok.
 - Slugs for file names: ASCII letters, digits and dashes, umlauts transliterated, Windows device names refused, 80 characters.
 
+- Music (`music.go`): `MusicMoods`, `MusicPrompt`, the keys `generated|mood|prompt`, `file|path|size|mtime` and `track|id|size|mtime`, with length excluded. `MusicMeta` is written after the audio file, and a file without valid meta counts as missing. Its optional `loudness_i` is the job's best-effort measurement for the preview's bed gain; the mix measures for itself. `auto_sfx` and the `sfx` beat left "not supported yet" in 2C, and a mood outside the presets is an error.
+- Catalog `sfx` entries carry `takes`, `impact_ms`, `align`, `hit?`, `pattern?` and `source`, and have no thumb. `render.snapshot` skips them, because the page never reads WAVs.
+- `storymakertest/seed.go` (`SeedNarration`, `SeedMusic`) gives fixtures audio, because the `narration_incomplete` and `music_incomplete` gates refuse a story without it.
+
 ## Work Guidance
 
 - Keep one responsibility per file. New issue codes or fields need the model, the validator, the hint text
