@@ -84,12 +84,6 @@ func writeStorymakerErrorWith(w http.ResponseWriter, status int, code, message s
 	writeStorymakerJSON(w, status, body)
 }
 
-// storymakerMusicKey resolves the key of the story's music. Batch 2B has no music, so nothing is to
-// be played. A15 writes the full rule.
-func (s *Server) storymakerMusicKey(ctx context.Context, m *storymaker.Music) (string, error) {
-	return "", nil
-}
-
 // handleStorymakerNarration answers GET /projects/{id}/narration. It works while the desktop is read-only.
 func handleStorymakerNarration(s *Server, w http.ResponseWriter, r *http.Request, id string) {
 	if r.Method != http.MethodGet {

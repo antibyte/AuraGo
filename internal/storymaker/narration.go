@@ -621,6 +621,35 @@ func limitAudioBlock(b *AudioBlock, total *int, perBlock, all int) {
 // has audio and a valid envelope; otherwise it enters Missing and JS estimates it. A missing music
 // source sets MusicIssue and keeps the narration; any other resolver error is returned.
 func (p *ProjectStore) AudioAnswer(ctx context.Context, id string, s *Story, resolve MusicKeyResolver) (AudioAnswer, error) {
+	key := ""
+	capture := resolve
+	if resolve != nil {
+		capture = func(ctx context.Context, m *Music) (string, error) {
+			k, err := resolve(ctx, m)
+			if err == nil {
+				key = k
+			}
+			return k, err
+		}
+	}
+	answer, err := p.narrationAnswer(ctx, id, s, capture)
+	if err != nil || key == "" {
+		return answer, err
+	}
+	// Music stays null unless the key's audio file and a valid meta file both exist. Only the meta
+	// is read, so this answer never decodes a track.
+	meta, audioExt, err := p.MusicInfo(ctx, id, key)
+	if err != nil {
+		return AudioAnswer{}, err
+	}
+	if meta.V != 0 && audioExt != "" {
+		answer.Music = &MusicRef{Key: key, Ext: audioExt, DurationMS: meta.DurationMS}
+	}
+	return answer, nil
+}
+
+// narrationAnswer collects the narration part of the answer and the music issue.
+func (p *ProjectStore) narrationAnswer(ctx context.Context, id string, s *Story, resolve MusicKeyResolver) (AudioAnswer, error) {
 	files, err := p.PieceFiles(ctx, id)
 	if err != nil {
 		return AudioAnswer{}, err
@@ -655,8 +684,8 @@ func (p *ProjectStore) AudioAnswer(ctx context.Context, id string, s *Story, res
 		scene.Blocks = append(scene.Blocks, block)
 		ans.Narration[b.SceneID] = scene
 	}
-	// Only the resolver's error counts here, so a key leaves Music null. Batch 2C wraps this body with
-	// the lookup of the key's audio and meta files.
+	// Only the resolver's error counts here. AudioAnswer looks up the key's audio and meta files and
+	// sets Music.
 	if resolve != nil {
 		if _, err := resolve(ctx, s.Music); err != nil {
 			if !errors.Is(err, ErrMusicSourceMissing) {

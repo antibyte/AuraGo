@@ -109,6 +109,7 @@ type Plan struct {
 	StoryJSON []byte
 	Bundles   map[string][]byte
 	StoryETag string
+	Music     *storymaker.MusicRef // nil unless the key's file and meta exist; volume 0 has no key
 	Blocks    []storymaker.NarrationBlock
 	AudioInfo storymaker.AudioInfo
 	// AudioJSON is AudioInfo marshalled once. boot.audio_info serves these bytes, so app and render compile the same input.
@@ -201,7 +202,7 @@ func (r *Runner) Prepare(ctx context.Context, projectID, ifMatch string, st Sett
 	if err != nil {
 		return nil, err
 	}
-	return &Plan{ProjectID: projectID, Story: story, StoryJSON: storyJSON, Bundles: bundles, StoryETag: etag, Blocks: storymaker.Blocks(&story), AudioInfo: audioInfo, AudioJSON: audioJSON}, nil
+	return &Plan{ProjectID: projectID, Story: story, StoryJSON: storyJSON, Bundles: bundles, StoryETag: etag, Music: answer.Music, Blocks: storymaker.Blocks(&story), AudioInfo: audioInfo, AudioJSON: audioJSON}, nil
 }
 
 // CanvasSize returns the export size of an aspect: 1920x1080, 1080x1920 or 1080x1080.
