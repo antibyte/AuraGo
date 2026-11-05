@@ -298,6 +298,8 @@
         else if (e.code === 'story_unreadable') key = 'storymaker.error.story_unreadable';
         else if (e.code === 'narration_unavailable') key = 'storymaker.error.narration_unavailable';
         else if (e.code === 'voice_unknown') key = 'storymaker.error.voice_unknown';
+        else if (e.code === 'invalid_music_file') key = 'storymaker.error.invalid_music_file';
+        else if (e.code === 'music_unavailable') key = 'storymaker.error.music_unavailable';
         else if (e.code === 'invalid_story' || e.status === 422) key = 'storymaker.error.invalid_story';
         else if (e.status === 412) key = 'storymaker.error.conflict';
         else if (e.status === 428) key = 'storymaker.error.required';

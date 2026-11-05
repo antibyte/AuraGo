@@ -140,8 +140,21 @@
                 }
             },
 
-            async startRender(id, etag, key) {
-                const body = await json('POST', '/projects/' + encodeURIComponent(id) + '/render', { headers: { 'If-Match': etag, 'Idempotency-Key': key || S.uuid() } });
+            // generate is true only from the music panel's Generate button. Without it the server starts no paid generation.
+            music(id, durationMs, generate) {
+                const body = { duration_ms: durationMs };
+                if (generate) body.generate = true;
+                return json('POST', '/projects/' + encodeURIComponent(id) + '/music', { headers: jsonHeaders(), body: JSON.stringify(body) });
+            },
+            noisemakerTracks() { return json('GET', '/api/desktop/noisemaker/tracks', { raw: true }); },
+
+            async startRender(id, etag, key, options) {
+                const spec = { headers: { 'If-Match': etag, 'Idempotency-Key': key || S.uuid() } };
+                if (options) {
+                    spec.headers['Content-Type'] = 'application/json';
+                    spec.body = JSON.stringify(options);
+                }
+                const body = await json('POST', '/projects/' + encodeURIComponent(id) + '/render', spec);
                 return body.job || body;
             },
             async getJob(id) {

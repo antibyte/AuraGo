@@ -90,6 +90,34 @@ async function rejects(promise, check, what) {
   const job = await api.startRender(id, '"b"', 'key-1');
   call = calls.pop();
   eq([job.id, call.headers['If-Match'], call.headers['Idempotency-Key']], ['j1', '"b"', 'key-1'], 'render start');
+  eq([call.body === undefined, 'Content-Type' in call.headers], [true, false], 'a render without options sends no body');
+  const renderOptions = { burn_in_captions: true, srt: true, vtt: false, stems: true, quality: 'high' };
+  await api.startRender(id, '"b"', 'key-2', renderOptions);
+  call = calls.pop();
+  eq([call.headers['If-Match'], call.headers['Idempotency-Key'], call.headers['Content-Type'], JSON.parse(call.body)], ['"b"', 'key-2', 'application/json', renderOptions], 'a render with options sends them as JSON');
+
+  // music: the duration goes out as JSON, the answer stays {job}
+  answers['POST ' + base + '/projects/' + id + '/music'] = json({ job: { id: 'm1', kind: 'music', status: 'queued' } }, 202);
+  const musicAnswer = await api.music(id, 61000);
+  call = calls.pop();
+  eq([musicAnswer.job.id, call.method, call.headers['Content-Type'], JSON.parse(call.body)], ['m1', 'POST', 'application/json', { duration_ms: 61000 }], 'music start');
+  await api.music(id, 61000, true);
+  call = calls.pop();
+  eq(JSON.parse(call.body), { duration_ms: 61000, generate: true }, 'only the Generate button asks for a generation');
+  answers['POST ' + base + '/projects/' + id + '/music'] = json({ job: null });
+  eq(await api.music(id, 61000), { job: null }, 'nothing to do answers job null');
+
+  // Noisemaker tracks come from their own route, outside the Storymaker base
+  answers['GET /api/desktop/noisemaker/tracks'] = json({ status: 'ok', items: [{ id: 7, title: 'Rain' }], total: 1 });
+  const tracks = await api.noisemakerTracks();
+  call = calls.pop();
+  eq([call.url, call.method, tracks.items.length], ['/api/desktop/noisemaker/tracks', 'GET', 1], 'tracks');
+
+  // musicUrl, which E1a added, refuses everything but its one URL form with an empty string
+  const musicKey = 'a'.repeat(64);
+  for (const [badKey, badExt] of [[musicKey.toUpperCase(), 'mp3'], ['abc', 'mp3'], ['../' + musicKey, 'mp3'], [musicKey, 'ogg']]) {
+    eq(api.musicUrl(id, badKey, badExt), '', 'musicUrl refuses ' + badKey + '.' + badExt);
+  }
 
   // the flat error shape
   answers['PUT ' + base + '/projects/' + id + '/story'] = json({ error: 'invalid_story', code: 'invalid_story', message: 'The story has errors.', issues: [{ severity: 'error', code: 'invalid_json', path: '', message: 'm' }] }, 422);
@@ -110,6 +138,8 @@ async function rejects(promise, check, what) {
   eq(S.errors.describe(t, { status: 422, code: 'invalid_story' }), 'storymaker.error.invalid_story', 'a refused save names the story');
   eq(S.errors.describe(t, { status: 422, code: 'invalid_story' }, 'render'), 'storymaker.job_error.invalid_story', 'a refused export names the story');
   eq(S.errors.describe(t, { status: 422, code: 'code_error' }, 'render'), 'storymaker.job_error.code_error', 'a refused export names the code scene');
+  eq(S.errors.describe(t, { status: 422, code: 'invalid_music_file' }), 'storymaker.error.invalid_music_file', 'a refused music file has its own sentence');
+  eq(S.errors.describe(t, { status: 409, code: 'music_unavailable' }), 'storymaker.error.music_unavailable', 'missing music generation has its own sentence');
 
   // a missing bundle is null, not an error
   answers['GET ' + base + '/projects/' + id + '/scenes/s3/bundle'] = json({ error: 'not_found' }, 404);
