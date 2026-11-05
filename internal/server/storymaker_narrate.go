@@ -703,7 +703,7 @@ func (s *Server) storymakerMusicStore(ctx context.Context, rt *storymakerRuntime
 			return err
 		}
 	}
-	return storymakerFinishMusic(ctx, rt, p.ProjectID, key, ext)
+	return storymakerFinishMusic(ctx, rt, cfg, p.ProjectID, key, ext)
 }
 
 // storymakerCopyMusicSource copies the story's source to the key's file and returns its format.
@@ -741,7 +741,7 @@ func storymakerStoreMusic(ctx context.Context, rt *storymakerRuntime, id, key, e
 
 // storymakerFinishMusic probes the stored copy on every path, because not every provider reports a duration. A copy of
 // the wrong length is removed. The meta comes after the file, so a file without meta counts as missing.
-func storymakerFinishMusic(ctx context.Context, rt *storymakerRuntime, id, key, ext string) error {
+func storymakerFinishMusic(ctx context.Context, rt *storymakerRuntime, cfg *config.Config, id, key, ext string) error {
 	file := key + "." + ext
 	r, _, err := rt.projects.OpenAudio(ctx, id, "music", file)
 	if err != nil {
@@ -763,7 +763,11 @@ func storymakerFinishMusic(ctx context.Context, rt *storymakerRuntime, id, key, 
 		}
 		return &storymakerMusicRefusal{message: "The music must be readable audio that lasts between 1 second and 1 hour."}
 	}
-	if err := rt.projects.WriteMusicMeta(ctx, id, key, storymaker.MusicMeta{V: 1, Ext: ext, DurationMS: durationMS}); err != nil {
+	loudness := storymakerMeasureMusic(ctx, rt, cfg, id, file)
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if err := rt.projects.WriteMusicMeta(ctx, id, key, storymaker.MusicMeta{V: 1, Ext: ext, DurationMS: durationMS, LoudnessI: loudness}); err != nil {
 		return err
 	}
 	return storymakerRemoveMusicPending(ctx, rt, id, key)

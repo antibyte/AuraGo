@@ -551,6 +551,8 @@ type MusicRef struct {
 	Key        string `json:"key"`
 	Ext        string `json:"ext"`
 	DurationMS int    `json:"duration_ms"`
+	// LoudnessI is MusicMeta.LoudnessI, for the preview's bed gain. Absent without a measurement.
+	LoudnessI *float64 `json:"loudness_i,omitempty"`
 }
 
 // AudioAnswer is the body of GET /projects/{id}/narration.
@@ -643,7 +645,7 @@ func (p *ProjectStore) AudioAnswer(ctx context.Context, id string, s *Story, res
 		return AudioAnswer{}, err
 	}
 	if meta.V != 0 && audioExt != "" {
-		answer.Music = &MusicRef{Key: key, Ext: audioExt, DurationMS: meta.DurationMS}
+		answer.Music = &MusicRef{Key: key, Ext: audioExt, DurationMS: meta.DurationMS, LoudnessI: meta.LoudnessI}
 	}
 	return answer, nil
 }

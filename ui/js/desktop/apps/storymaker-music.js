@@ -272,6 +272,7 @@
                 return;
             }
             if (answer && answer.music) status.appendChild(el('p', { class: 'stm-hint', text: t('storymaker.music.ready', { seconds: S.format.seconds(answer.music.duration_ms / 1000) }) }));
+            if (answer && answer.music && !Number.isFinite(answer.music.loudness_i)) status.appendChild(el('p', { class: 'stm-hint', dataset: { stm: 'music-level-note' }, text: t('storymaker.music.preview_level_note') }));
         }
 
         function paint() {

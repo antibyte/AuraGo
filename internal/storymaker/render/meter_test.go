@@ -1,7 +1,9 @@
 package render
 
 import (
+	"bytes"
 	"context"
+	"encoding/binary"
 	"math"
 	"reflect"
 	"testing"
@@ -140,5 +142,45 @@ func TestMeterRealGraph(t *testing.T) {
 	silent := runMeterOnSine(t, ffmpeg, 5, 0)
 	if !silent.Silent {
 		t.Fatalf("silence reading = %+v, want silent", silent)
+	}
+}
+
+// meterToneWAV is a 48 kHz stereo PCM16 WAV of a 1 kHz sine at amplitude 0.1.
+func meterToneWAV(seconds int) []byte {
+	const rate = 48000
+	frames := seconds * rate
+	data := make([]byte, 44+frames*4)
+	copy(data, "RIFF")
+	binary.LittleEndian.PutUint32(data[4:], uint32(36+frames*4))
+	copy(data[8:], "WAVEfmt ")
+	binary.LittleEndian.PutUint32(data[16:], 16)
+	binary.LittleEndian.PutUint16(data[20:], 1)
+	binary.LittleEndian.PutUint16(data[22:], 2)
+	binary.LittleEndian.PutUint32(data[24:], rate)
+	binary.LittleEndian.PutUint32(data[28:], rate*4)
+	binary.LittleEndian.PutUint16(data[32:], 4)
+	binary.LittleEndian.PutUint16(data[34:], 16)
+	copy(data[36:], "data")
+	binary.LittleEndian.PutUint32(data[40:], uint32(frames*4))
+	for i := 0; i < frames; i++ {
+		v := int16(0.1 * 32767 * math.Sin(2*math.Pi*1000*float64(i)/rate))
+		binary.LittleEndian.PutUint16(data[44+i*4:], uint16(v))
+		binary.LittleEndian.PutUint16(data[46+i*4:], uint16(v))
+	}
+	return data
+}
+
+func TestMeterStoredReadsAFileFromItsInput(t *testing.T) {
+	ffmpeg := testBinary(t, "ffmpeg")
+	// The same reading as TestMeterRealGraph: amplitude 0.1 reads -20 LUFS.
+	reading, err := MeterStored(context.Background(), ffmpeg, bytes.NewReader(meterToneWAV(5)))
+	if err != nil {
+		t.Fatalf("MeterStored: %v", err)
+	}
+	if reading.Silent || math.Abs(reading.I+20) > 0.5 {
+		t.Fatalf("reading = %+v, want about -20 LUFS", reading)
+	}
+	if _, err := MeterStored(context.Background(), ffmpeg, bytes.NewReader([]byte("this is not audio"))); err == nil {
+		t.Fatal("bytes that are no audio were measured")
 	}
 }

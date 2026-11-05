@@ -177,3 +177,32 @@ func TestValidateAcceptsSFXBeat(t *testing.T) {
 		t.Fatalf("an sfx beat is played now:%s", dump(issues))
 	}
 }
+
+func TestMusicMetaKeepsTheMeasuredLevel(t *testing.T) {
+	ctx := context.Background()
+	mem := NewMemStore()
+	ps := NewProjectStore(mem, "Documents/Storymaker")
+	proj, _, _, err := ps.Create(ctx, "T", "", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	key := MusicKeyGenerated("lo-fi", "")
+	if err := ps.WriteMusic(ctx, proj.ID, key, "mp3", []byte("ID3")); err != nil {
+		t.Fatal(err)
+	}
+	level := -14.25
+	if err := ps.WriteMusicMeta(ctx, proj.ID, key, MusicMeta{V: 1, Ext: "mp3", DurationMS: 61000, LoudnessI: &level}); err != nil {
+		t.Fatal(err)
+	}
+	resolve := func(context.Context, *Music) (string, error) { return key, nil }
+	answer, err := ps.AudioAnswer(ctx, proj.ID, &Story{}, resolve)
+	if err != nil || answer.Music == nil || answer.Music.LoudnessI == nil || *answer.Music.LoudnessI != level {
+		t.Fatalf("answer = %+v, %v", answer.Music, err)
+	}
+	if _, err := mem.WriteFile(ctx, ps.musicFile(proj.ID, key+".meta.json"), []byte(`{"v":1,"ext":"mp3","duration_ms":1000,"loudness_i":999}`), ""); err != nil {
+		t.Fatal(err)
+	}
+	if meta, _, err := ps.MusicInfo(ctx, proj.ID, key); err != nil || meta.V != 0 {
+		t.Fatalf("a level of 999: %+v, %v", meta, err)
+	}
+}

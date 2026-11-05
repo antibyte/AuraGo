@@ -135,6 +135,7 @@ const answerWith = narration => ({ narration, missing: [], chars: { total: 5, mi
   a.pending[1].resolve(answerWith(blocks));
   await flush();
   eq(a.loads.length, 2, 'the same narration does not reload');
+  eq(a.spy.fed.length, 2, 'a fresh answer feeds the audio, because music alone starts no compile');
 
   // A narrate job on every terminal status refreshes once. A running job, a repeat of the same event and a render job do not.
   ['succeeded', 'failed', 'cancelled', 'interrupted'].forEach((status, i) => {
@@ -644,6 +645,7 @@ class FakeNode {
   focus() {}
   find(name) { if (this.dataset.stm === name) return this; for (const kid of this.kids) { const hit = kid.find(name); if (hit) return hit; } return null; }
   play() { return Promise.resolve(); }
+  load() { this.loaded = true; }
   pause() {}
 }
 const document = {
@@ -821,6 +823,7 @@ function makeInst(answer) {
   exporter.dispose();
   panel.dispose();
   quiet.dispose();
+  eq(f('voice-audio').loaded, true, 'dispose lets the audition file go');
   console.log('storymaker narration status ok');
 })().catch(err => { console.error(err.stack || err); process.exit(1); });
 `
@@ -1181,6 +1184,218 @@ function makeInst(overrides) {
   find(panel.el, 'music-retry').click();
   await flush();
   eq(inst.calls.music.length, 2, 'retry prepares it again');
+  // the level note: only for stored music that the server could not measure
+  const ready = emptyAnswer();
+  ready.music = { key: 'k', ext: 'mp3', duration_ms: 61000 };
+  inst = makeInst({ story: { scenes: [{ id: 's1' }], music: { mode: 'generated', mood: 'calm-ambient' } }, audioInfo: ready });
+  panel = S.createMusicPanel(inst);
+  eq(!!find(panel.el, 'music-level-note'), true, 'no measured level: the note shows');
+  ready.music.loudness_i = -14;
+  inst.bus.emit('audio');
+  eq(!!find(panel.el, 'music-level-note'), false, 'a measured level: no note');
   console.log('storymaker music panel ok');
+})().catch(err => { console.error(err.stack || err); process.exit(1); });
+`
+
+// The music bed and the SFX of the preview in Node, on a fake AudioContext: one <audio> element through MediaElementSource, a
+// duck that follows the stored levels, SFX scheduled from audio_events, and URLs that come only from the catalog and the answer.
+func TestStorymakerPreviewMusicAndSFXInNode(t *testing.T) {
+	t.Parallel()
+	source := readDesktopAssetText(t, "js/desktop/apps/storymaker-audio.js")
+	if !strings.Contains(source, "S.createAudio(") {
+		t.Error("bindAudio must create its engine through S.createAudio, or it misses the music and SFX layer")
+	}
+	if strings.Count(source, "S.audioModel.infoFor(inst)") < 2 {
+		t.Error("bindAudio must feed createAudio.load with S.audioModel.infoFor(inst)")
+	}
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("node not available")
+	}
+	script := filepath.Join(t.TempDir(), "storymaker-preview-sound.js")
+	if err := os.WriteFile(script, []byte(storymakerPreviewSoundScript), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	dir, _ := filepath.Abs(filepath.Join("js", "desktop", "apps"))
+	out, err := exec.Command(node, script, dir).CombinedOutput()
+	if err != nil {
+		t.Fatalf("node check failed: %v\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "storymaker preview sound ok") {
+		t.Fatalf("unexpected output:\n%s", out)
+	}
+}
+
+const storymakerPreviewSoundScript = `
+'use strict';
+const fs = require('fs');
+const vm = require('vm');
+const path = require('path');
+const [dir] = process.argv.slice(2);
+
+const created = [];
+const mediaSources = [];
+const sources = [];
+const fetched = [];
+const urlOf = new WeakMap();
+
+class FakeParam {
+  constructor() { this.value = 1; this.targets = []; }
+  setTargetAtTime(value) { this.targets.push(value); this.value = value; }
+  setValueAtTime(value) { this.value = value; }
+  linearRampToValueAtTime(value) { this.value = value; }
+  cancelScheduledValues() {}
+}
+class FakeAudioContext {
+  constructor() { this.currentTime = 0; this.destination = { name: 'destination' }; this.state = 'running'; }
+  createGain() { return { gain: new FakeParam(), connect(target) { return target; }, disconnect() {} }; }
+  createBufferSource() {
+    return { buffer: null, target: null, connect(target) { this.target = target; return target; }, disconnect() {}, start(when) { this.when = when; sources.push(this); }, stop() { this.stopped = true; } };
+  }
+  createMediaElementSource(element) {
+    const node = { element, target: null, connect(target) { node.target = target; return target; }, disconnect() {} };
+    mediaSources.push(node);
+    return node;
+  }
+  decodeAudioData(data) { return Promise.resolve({ url: urlOf.get(data) || '', duration: 1, numberOfChannels: 1, sampleRate: 48000 }); }
+  resume() { return Promise.resolve(); }
+  suspend() { return Promise.resolve(); }
+  close() { return Promise.resolve(); }
+}
+const document = {
+  documentElement: { lang: 'en' },
+  createElement(tag) {
+    const element = { tag, src: '', currentTime: 0, paused: true, play() { this.paused = false; return Promise.resolve(); }, pause() { this.paused = true; }, load() { this.emptied = !this.src; }, removeAttribute(name) { if (name === 'src') this.src = ''; }, setAttribute(name, value) { this[name] = value; }, addEventListener() {}, removeEventListener() {} };
+    created.push(element);
+    return element;
+  }
+};
+function fakeFetch(url) {
+  fetched.push(String(url));
+  return Promise.resolve({
+    ok: true, status: 200, headers: { get() { return null; } },
+    arrayBuffer() { const data = new ArrayBuffer(8); urlOf.set(data, String(url)); return Promise.resolve(data); },
+    json() { return Promise.resolve({}); },
+    text() { return Promise.resolve(''); }
+  });
+}
+const context = { console, document, setTimeout, clearTimeout, AbortController, AudioContext: FakeAudioContext, fetch: fakeFetch };
+context.globalThis = context; context.window = context;
+vm.createContext(context);
+for (const name of ['storymaker-core.js', 'storymaker-model.js', 'storymaker-api.js', 'storymaker-audio.js']) {
+  vm.runInContext(fs.readFileSync(path.join(dir, name), 'utf8'), context, { filename: name });
+}
+const S = context.StorymakerParts;
+const eq = (a, b, what) => { const x = JSON.stringify(a), y = JSON.stringify(b); if (x !== y) throw new Error(what + ': got ' + x + ', want ' + y); };
+const near = (a, b, tolerance, what) => { if (Math.abs(a - b) > tolerance) throw new Error(what + ': got ' + a + ', want ' + b); };
+const flush = () => new Promise(resolve => setImmediate(resolve));
+
+const id = '11111111-2222-4333-8444-555555555555';
+const key = 'a'.repeat(64);
+const otherKey = 'b'.repeat(64);
+const hash = 'c'.repeat(64);
+const catalog = { byId: {
+  'sfx.pop': { id: 'sfx.pop', kind: 'sfx', hit: { over_db: 4.5, dip_db: 3 }, takes: [{ file: 'sfx/pop_1.wav', l50_lufs: -18 }, { file: 'sfx/pop_2.wav', l50_lufs: -18 }, { file: 'sfx/pop_3.wav', l50_lufs: -20 }] },
+  'sfx.evil': { id: 'sfx.evil', kind: 'sfx', takes: [{ file: '../../secret.wav' }] },
+  'prop.lock': { id: 'prop.lock', kind: 'prop', file: 'props/lock.json' }
+} };
+// A block of 30 frames at level byte 140 whose first piece starts at 1000 ms: at 30 fps it covers frames 30 to 59.
+const narration = { s1: { blocks: [{ id: 's1:n', kind: 'narration', speaker: 'narrator', duration_ms: 1000, spans: [[0, 1000]], speech_ok: true, levels: new Array(30).fill(140), pieces: [{ hash, ext: 'wav', at_ms: 0, in_ms: 0, out_ms: 1000, chars: 10 }] }] } };
+const events = [
+  { kind: 'narration', ref: hash, start_ms: 1000, scene_id: 's1', block_id: 's1:n', piece: 0 },
+  { kind: 'sfx', ref: 'sfx.pop', start_ms: 1836, scene_id: 's1', take: 2 },
+  { kind: 'sfx', ref: '/etc/passwd', start_ms: 1900, scene_id: 's1', take: 0 },
+  { kind: 'sfx', ref: 'sfx.pop', start_ms: 1950, scene_id: 's1', take: 9 },
+  { kind: 'sfx', ref: 'prop.lock', start_ms: 1960, scene_id: 's1', take: 0 },
+  { kind: 'sfx', ref: 'sfx.evil', start_ms: 1970, scene_id: 's1', take: 0 }
+];
+const info = { fps: 30, frame_count: 300, narration, music: { key, ext: 'mp3', duration_ms: 61000, loudness_i: -14 }, volume: 0.5, catalog };
+// The levels of computeMixLevels in mix.go: level byte 140 is -27.06 dB, and the reference is that minus 12 LU plus 6.02 dB for volume 0.5.
+const speechDb = 140 * 60 / 255 - 60;
+const referenceDb = speechDb - 12 + 20 * Math.log10(0.5 / 0.25);
+
+(async () => {
+  // The duck rule: -6 dB from 50 ms before speech, a 50 ms attack ahead of that, a 400 ms release after it. Frames are 33.33 ms at 30 fps.
+  const M = S.audioModel;
+  const speech = M.speechFrames(events, narration, 30, 300);
+  eq([speech[29], speech[30], speech[59], speech[60]], [0, 1, 1, 0], 'frames 30 to 59 speak');
+  const full = Math.pow(10, -6 / 20);
+  near(M.duckAt(speech, 40, 30), full, 1e-9, 'inside speech');
+  near(M.duckAt(speech, 29, 30), full, 1e-9, 'frame 29 is 33 ms before speech, inside the 50 ms look-ahead');
+  near(M.duckAt(speech, 28, 30), Math.pow(10, -4 / 20), 1e-9, 'frame 28 is 66.7 ms before speech: depth (100-66.7)/50 = 2/3 of 6 dB');
+  near(M.duckAt(speech, 20, 30), 1, 1e-9, 'frame 20 is 333 ms before speech: no duck');
+  near(M.duckAt(speech, 65, 30), Math.pow(10, -3 / 20), 1e-9, 'frame 65 is 200 ms after frame 59: half of the 400 ms release');
+  near(M.duckAt(speech, 72, 30), 1, 1e-9, 'frame 72 is 433 ms after frame 59: released');
+
+  // Nothing exists before the first play; then one <audio> through MediaElementSource.
+  const api = S.createApi({ fetch: fakeFetch });
+  const audio = S.createAudio({ api, projectId: id });
+  audio.load(info, events);
+  eq([created.length, mediaSources.length], [0, 0], 'nothing before the first play');
+  audio.play(0);
+  await flush();
+  const beds = created.filter(item => item.tag === 'audio');
+  eq([beds.length, mediaSources.length], [1, 1], 'the bed is one audio element through MediaElementSource');
+  eq(beds[0].src, '/api/desktop/storymaker/projects/' + id + '/audio/music/' + key + '.mp3', 'the bed plays the key of the answer');
+  eq(beds[0].paused, false, 'the bed plays');
+
+  // SFX: take 2 is the third take, at the event time; the anchor is currentTime 0 minus frame 0, the anchor of the narration.
+  const sfx = sources.filter(node => node.buffer && String(node.buffer.url).indexOf('/img/storymaker/') === 0);
+  eq(sfx.map(node => node.buffer.url), ['/img/storymaker/sfx/pop_3.wav'], 'one sound, from the catalog take');
+  near(sfx[0].when, 1.836, 1e-9, 'the sound starts at its event time');
+  const spoken = sources.find(node => node.buffer && String(node.buffer.url).includes(hash));
+  near(spoken.when, 1, 1e-9, 'the narration piece at 1000 ms has the same anchor');
+  // The level of the export: reference + over_db - the L50 of the take, through a gain node on the way to the destination.
+  near(sfx[0].target.gain.value, Math.pow(10, (referenceDb + 4.5 + 20) / 20), 1e-9, 'the sound plays at the level of the export');
+
+  // No URL comes from message text: an unknown ref, a take out of range, a non-sfx entry and a bad file name fetch nothing.
+  eq(fetched.filter(url => url.indexOf('/img/storymaker/') === 0), ['/img/storymaker/sfx/pop_3.wav'], 'only the catalog take is fetched');
+  eq(fetched.some(url => url.includes('passwd') || url.includes('secret') || url.includes('lock.json')), false, 'nothing else is requested');
+
+  // The duck follows the levels, on top of the export's bed gain: the reference minus the measured level of the track.
+  const bedGain = Math.pow(10, (referenceDb + 14) / 20);
+  const targets = mediaSources[0].target.gain.targets;
+  audio.sync(40);
+  near(targets[targets.length - 1], bedGain * full, 1e-9, 'ducked during speech');
+  audio.sync(72);
+  near(targets[targets.length - 1], bedGain, 1e-9, 'released after speech');
+
+  // A very quiet track stops at the +24 dB cap of the export.
+  audio.load(Object.assign({}, info, { music: Object.assign({}, info.music, { loudness_i: -90 }) }), events);
+  audio.sync(72);
+  near(targets[targets.length - 1], Math.pow(10, 24 / 20), 1e-9, 'the cap of the export');
+
+  // Without a measured level the bed plays the raw file at the story volume.
+  audio.load(Object.assign({}, info, { music: { key, ext: 'mp3', duration_ms: 61000 } }), events);
+  audio.sync(72);
+  near(targets[targets.length - 1], 0.5, 1e-9, 'no measured level');
+
+  // A new key keeps the one element.
+  audio.load(Object.assign({}, info, { music: { key: otherKey, ext: 'wav', duration_ms: 1000 } }), events);
+  eq(created.filter(item => item.tag === 'audio').length, 1, 'still one audio element');
+  eq(beds[0].src, '/api/desktop/storymaker/projects/' + id + '/audio/music/' + otherKey + '.wav', 'the element takes the new key');
+  // Removing src ends the download only with a load() after it, for a bed that loses its source and on dispose.
+  eq(beds[0].emptied, false, 'the bed holds its file');
+  audio.load(Object.assign({}, info, { volume: 0 }), events);
+  eq([beds[0].src, beds[0].emptied], ['', true], 'without a source the element lets the file go');
+  audio.load(Object.assign({}, info, { music: { key: otherKey, ext: 'wav', duration_ms: 1000 } }), events);
+  eq(beds[0].emptied, false, 'the next source loads');
+  audio.dispose();
+  eq([beds[0].src, beds[0].emptied], ['', true], 'dispose lets the file go');
+
+  // A sound a little behind the clock plays at once, like a late narration piece. One further behind stays silent.
+  const heard = sources.length;
+  const lateAudio = S.createAudio({ api, projectId: id });
+  lateAudio.load({ fps: 30, frame_count: 300, narration: {}, music: null, volume: 0.25, catalog }, [
+    { kind: 'sfx', ref: 'sfx.pop', start_ms: 1000, scene_id: 's1', take: 0 },
+    { kind: 'sfx', ref: 'sfx.pop', start_ms: 500, scene_id: 's1', take: 1 }
+  ]);
+  lateAudio.play(31);
+  await flush();
+  const late = sources.slice(heard);
+  eq(late.map(node => node.buffer.url), ['/img/storymaker/sfx/pop_1.wav'], 'frame 31 is 33 ms after the first sound and 533 ms after the second');
+  near(late[0].when, 0, 1e-9, 'a late sound starts at once');
+  lateAudio.dispose();
+  process.stdout.write('storymaker preview sound ok\n', () => process.exit(0));
 })().catch(err => { console.error(err.stack || err); process.exit(1); });
 `

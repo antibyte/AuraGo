@@ -75,9 +75,15 @@ type MusicMeta struct {
 	V          int    `json:"v"`           // 1
 	Ext        string `json:"ext"`         // wav or mp3
 	DurationMS int    `json:"duration_ms"` // 1..3600000
+	// LoudnessI is the integrated loudness of the file in LUFS, for the preview's bed gain. The music job measures it. It is
+	// nil without FFmpeg, after a failed meter or for a silent file. The mix measures for itself.
+	LoudnessI *float64 `json:"loudness_i,omitempty"`
 }
 
 func validMusicMeta(m MusicMeta) bool {
+	if m.LoudnessI != nil && (*m.LoudnessI < -100 || *m.LoudnessI > 20) {
+		return false
+	}
 	return m.V == 1 && validMusicExt(m.Ext) && m.DurationMS >= 1 && m.DurationMS <= 3600000
 }
 

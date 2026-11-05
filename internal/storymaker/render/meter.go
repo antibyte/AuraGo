@@ -107,6 +107,23 @@ func (m *Meter) Close() (MeterReading, error) {
 	return m.result, m.err
 }
 
+// MeterStored measures a stored WAV or MP3 with the graph of Meter. FFmpeg reads the file from src on its stdin, so it sees
+// only these bytes. ctx ends it.
+func MeterStored(ctx context.Context, ffmpegPath string, src io.Reader) (MeterReading, error) {
+	cmd := exec.CommandContext(ctx, ffmpegPath,
+		"-hide_banner", "-nostdin", "-nostats", "-loglevel", "info",
+		"-protocol_whitelist", "file,pipe", "-format_whitelist", "wav,mp3", "-i", "pipe:0",
+		"-map", "0:a:0", "-ar", "48000", "-ac", "2", "-t", "3600",
+		"-af", meterFilter, "-f", "null", "-")
+	cmd.Stdin = src
+	stderr := &tailBuffer{limit: ffmpegStderrKeep}
+	cmd.Stderr = stderr
+	if err := cmd.Run(); err != nil {
+		return MeterReading{}, fmt.Errorf("storymaker: the FFmpeg meter failed: %w", err)
+	}
+	return parseMeterOutput(stderr.String())
+}
+
 // parseMeterOutput reads I from the last I: line of ebur128's summary and TP from the loudnorm JSON
 // between the last { and the last }. The JSON values are strings.
 func parseMeterOutput(stderr string) (MeterReading, error) {

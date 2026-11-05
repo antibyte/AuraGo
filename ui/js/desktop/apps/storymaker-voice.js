@@ -469,6 +469,7 @@
                 off.forEach(fn => fn());
                 player.pause();
                 player.removeAttribute('src');
+                player.load();
             }
         };
     }

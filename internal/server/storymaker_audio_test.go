@@ -599,7 +599,8 @@ func TestStorymakerVoiceNotesHoldFactsOnly(t *testing.T) {
 	assertStorymakerVoiceNotesAreFacts(t, rows)
 }
 
-// musicRouteWAV builds a silent 8 kHz mono PCM16 WAV. The route and the job read its header only.
+// musicRouteWAV builds a silent 8 kHz mono PCM16 WAV. The route reads its header only. The job's meter reads silence, so
+// the meta keeps no level, and the tests that compare a whole MusicMeta hold with or without FFmpeg.
 func musicRouteWAV(seconds float64) []byte {
 	const rate = 8000
 	frames := int(seconds * rate)
@@ -1251,5 +1252,60 @@ func TestStorymakerMusicGeneratedRecordsItsCostOnce(t *testing.T) {
 	// The stand-in reports 0.06 USD, and the second call queued nothing.
 	if got := tracker.CategorySpendUSD("music_generation"); got != 0.06 || fx.calls.Load() != 1 {
 		t.Fatalf("spend = %v after %d calls", got, fx.calls.Load())
+	}
+}
+
+// musicToneWAV is musicRouteWAV with a 1 kHz square wave in it, so that the meter reads a level.
+func musicToneWAV(seconds float64) []byte {
+	data := musicRouteWAV(seconds)
+	for i := 44; i+1 < len(data); i += 2 {
+		sample := int16(8192)
+		if (i-44)/2%8 >= 4 {
+			sample = -8192
+		}
+		binary.LittleEndian.PutUint16(data[i:], uint16(sample))
+	}
+	return data
+}
+
+// The music job measures the stored copy for the preview, and the /narration answer carries the level.
+func TestStorymakerMusicJobMeasuresTheStoredCopy(t *testing.T) {
+	s, readToken, token := storymakerAPIFixture(t)
+	s.Cfg.VideoStudio.FFmpegPath = storymakerTestFFmpeg(t)
+	p := createStorymakerProject(t, s, token)
+	writeMusicSource(t, s, "Documents/theme.wav", musicToneWAV(2))
+	musicRouteStory(t, s, token, &p, `{"mode":"file","file":"Documents/theme.wav"}`)
+	rt, err := s.storymakerRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := waitStorymakerMusicJob(t, rt, queueMusicJob(t, rt, p.Project.ID).ID)
+	if done.Status != render.StatusSucceeded {
+		t.Fatalf("job = %+v %+v", done, done.Error)
+	}
+	answer := musicKeyAnswer(t, s, readToken, p.Project.ID)
+	if answer.Music == nil || answer.Music.LoudnessI == nil || *answer.Music.LoudnessI > -3 || *answer.Music.LoudnessI < -40 {
+		t.Fatalf("music = %+v, want a measured level", answer.Music)
+	}
+}
+
+// The export measures for itself, so a missing FFmpeg costs the preview its level and never the job.
+func TestStorymakerMusicJobSurvivesAMissingMeter(t *testing.T) {
+	s, readToken, token := storymakerAPIFixture(t)
+	s.Cfg.VideoStudio.FFmpegPath = filepath.Join(t.TempDir(), "no-ffmpeg")
+	p := createStorymakerProject(t, s, token)
+	writeMusicSource(t, s, "Documents/theme.wav", musicToneWAV(2))
+	musicRouteStory(t, s, token, &p, `{"mode":"file","file":"Documents/theme.wav"}`)
+	rt, err := s.storymakerRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := waitStorymakerMusicJob(t, rt, queueMusicJob(t, rt, p.Project.ID).ID)
+	if done.Status != render.StatusSucceeded {
+		t.Fatalf("job = %+v %+v", done, done.Error)
+	}
+	answer := musicKeyAnswer(t, s, readToken, p.Project.ID)
+	if answer.Music == nil || answer.Music.LoudnessI != nil {
+		t.Fatalf("music = %+v, want stored music without a level", answer.Music)
 	}
 }
