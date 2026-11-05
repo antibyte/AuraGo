@@ -61,7 +61,8 @@ check('host app: ready, load, compile report, first frame drawn, target origin',
     assert.equal(a.parent.messages[0].origin, BASE, 'posts go to the origin of data-sm-base');
     await loaded(a);
     const rep = plain(a.sent('compiled')[0].report);
-    assert.equal(rep.frame_count, 354); assert.equal(rep.width, 480); assert.equal(rep.height, 270);
+    // 341 frames: s1 0..129, s2 114..206 (0.5 s + 5 words / 2.3 + 0.4 s tail = 92 frames), s3 191..341 (206 - 15, then api.duration(5) = 150 frames)
+    assert.equal(rep.frame_count, 341); assert.equal(rep.width, 480); assert.equal(rep.height, 270);
     assert.deepEqual(rep.scenes.map(s => s.kind), ['storyboard', 'storyboard', 'code']);
     assert.equal(rep.issues.filter(i => i.severity === 'error').length, 0);
     assert.deepEqual(plain(a.sent('time')[0]), { sm: 1, type: 'time', frame: 0, playing: false });
@@ -134,7 +135,7 @@ check('host app: seek, play with frame dropping, pause and the end of the video'
     await until(() => a.sent('time').some(m => m.frame === 100), 'seek');
     assert.equal(renders(), r0 + 1);
     a.send({ type: 'seek', frame: 99999 });
-    await until(() => a.sent('time').some(m => m.frame === 353), 'seek clamps to the last frame');
+    await until(() => a.sent('time').some(m => m.frame === 340), 'seek clamps to the last frame, 341 - 1');
     a.send({ type: 'seek', frame: 0 });
     await until(() => a.sent('time').filter(m => m.frame === 0).length >= 2, 'seek back');
     a.send({ type: 'play' });
@@ -153,7 +154,7 @@ check('host app: seek, play with frame dropping, pause and the end of the video'
     a.clock.t = 2000; a.step(50000); await settle(8);
     a.clock.t = 2100; a.step(90000); await settle(8);
     assert.equal(a.app.state.playing, false, 'playback ends at the last frame');
-    assert.equal(a.sent('time').at(-1).frame, 353); assert.equal(a.sent('time').at(-1).playing, false);
+    assert.equal(a.sent('time').at(-1).frame, 340); assert.equal(a.sent('time').at(-1).playing, false);
 });
 
 check('host app: thumbnails come back as bitmaps of the requested width', async () => {
@@ -224,8 +225,10 @@ check('host app: a code scene that fails to build is reported, its scene shows a
         assert.equal(errs[0].code, 'code_error'); assert.equal(errs[0].scene_id, 's3'); assert.match(errs[0].message, pattern);
         const rep = plain(a.sent('compiled')[0].report);
         assert.ok(rep.issues.some(i => i.code === 'code_error' && i.severity === 'error' && i.scene_id === 's3'));
-        a.send({ type: 'seek', frame: 300 });
-        await until(() => a.sent('time').some(m => m.frame === 300), 'a frame inside the failed code scene');
+        // s3 is 191..296 here: the failed scene has no built duration, so it takes its narration (see Edit 4)
+        const inside = rep.scenes[2].start_frame + 20;
+        a.send({ type: 'seek', frame: inside });
+        await until(() => a.sent('time').some(m => m.frame === inside), 'a frame inside the failed code scene');
         assert.equal(a.sent('error').length, 1, 'the placeholder frame renders without another error');
     }
     const a = makeApp();
@@ -239,15 +242,16 @@ check('host app: a code scene that fails at frame time is reported once and repl
     const src = 'export default function scene(api) { api.duration(4); api.onFrame((t, g) => { if (t > 1) throw new Error("late failure"); g.rect(0, 0, 10, 10); }); }';
     a.send(a.loadMsg({ code_bundles: { s3: bundleScene(src, 'late') } }));
     await until(() => a.sent('time').length >= 1, 'the first frame');
-    a.send({ type: 'seek', frame: 204 + 15 });
-    await until(() => a.sent('time').some(m => m.frame === 219), 'the early code scene frame');
+    // s3 starts at 191 (206 - 15, s2 ends at 206) and lasts api.duration(4) = 120 frames, so it ends at 311
+    a.send({ type: 'seek', frame: 191 + 15 });
+    await until(() => a.sent('time').some(m => m.frame === 206), 'the early code scene frame');
     assert.equal(a.sent('error').length, 0);
-    a.send({ type: 'seek', frame: 204 + 60 });
+    a.send({ type: 'seek', frame: 191 + 60 });
     await until(() => a.sent('error').length === 1, 'the late failure');
     const e = a.sent('error')[0];
     assert.equal(e.code, 'code_error'); assert.equal(e.scene_id, 's3'); assert.match(e.message, /late failure/); assert.equal(typeof e.line, 'number');
-    a.send({ type: 'seek', frame: 204 + 70 });
-    await until(() => a.sent('time').some(m => m.frame === 274), 'the next frame still renders');
+    a.send({ type: 'seek', frame: 191 + 70 });
+    await until(() => a.sent('time').some(m => m.frame === 261), 'the next frame still renders');
     assert.equal(a.sent('error').length, 1);
 });
 
@@ -261,7 +265,9 @@ check('host app: without workers the storyboard renders in the host realm and co
     await until(() => a.sent('time').length >= 1, 'the first frame');
     assert.equal(a.workers.length, 0);
     const rep = plain(a.sent('compiled')[0].report);
-    assert.equal(rep.scenes.length, 3); assert.ok(rep.frame_count > 300);
+    // 296 frames: s1 0..129, s2 114..206 (0.5 s + 5 words / 2.3 + 0.4 s tail = 92 frames), s3 191..296. Without workers the code scene
+    // is not built, so it takes its narration: 0.5 s + 6 words / 2.3 + 0.4 s tail = 3.509 s = 105 frames
+    assert.equal(rep.scenes.length, 3); assert.equal(rep.frame_count, 296);
     assert.equal(rep.issues.filter(i => i.severity === 'error').length, 0);
     assert.ok(a.canvas.ctx.log.some(l => /^drawImage\(canvas\d+,0,0\)$/.test(l)));
     a.send({ type: 'seek', frame: 120 });

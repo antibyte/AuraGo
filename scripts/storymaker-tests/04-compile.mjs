@@ -70,7 +70,8 @@ check('compile: beat scheduling with "with: prev", cue, delay and duration', () 
     // walk duration from the distance at the catalog speed: left 30% -> centre 50% = 384 px at 12% of 1920 px/s x depth 0.973
     near(walk.t1 - walk.t0, 384 / (0.12 * 1920 * (0.82 + 0.23 * (16 / 24))), 0.02, 'walk duration');
     const shield = s2.entities.find(e => e.item === 'prop.shield');
-    near(shield.alpha.segs[0].t0, walk.t1, 1e-9, 'the next plain beat follows the longest of the group');
+    // the shield's target differs from the gesture's, so it starts at 0.4 of the anchor; the anchor stays on the walk, the longest beat of the with-prev group
+    near(shield.alpha.segs[0].t0, walk.t0 + 0.4 * (walk.t1 - walk.t0), 1e-9, 'the next beat on another target overlaps the anchor');
     const custom = SM.compile({ scenes: [{ id: 'a', transition: 'cut', narration: 'eins zwei drei {1}vier fünf sechs', actors: [], beats: [
         { do: 'wait', seconds: 1 },
         { do: 'wait', seconds: 2, delay: 0.5 },

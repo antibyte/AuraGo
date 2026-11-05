@@ -40,7 +40,10 @@ check('player worker: hello, plan, compile, assets, render, in that protocol', a
     const before = await c.call({ type: 'render', n: 0, codeFrames: {}, codeErrors: {} });
     assert.equal(before.ok, false); assert.equal(before.error.code, 'code_error', 'render before compile is an error reply');
     const comp = await c.call({ type: 'compile', story: firewall, catalog, audioInfo: {}, opts: { codeScenes: { s3: { duration: 5 } } } });
-    assert.equal(comp.ok, true); assert.equal(comp.report.frame_count, 354);
+    // s1 is 129 frames: 9 words / 2.3 + 0.4 s tail = 4.313 s. s2 starts at 129 - 15 = 114. Its narration decides its length:
+    // 0.5 s + 5 words / 2.3 + 0.4 s tail = 3.074 s = 92 frames, so it ends at 206. Its beats end earlier: walk 1.712 s from 0.5 s,
+    // shield at 0.5 + 0.4 * 1.712 = 1.185 s for 0.5 s, camera 0.8 s until 2.485 s. s3 starts at 206 - 15 = 191 and lasts api.duration(5) = 150 frames: 341.
+    assert.equal(comp.ok, true); assert.equal(comp.report.frame_count, 341);
     assert.equal(comp.schedule.scenes.length, 3);
     assert.ok(comp.missing.includes('catalog:rig/human.json'), 'nothing is loaded yet');
     const loaded = await c.call({ type: 'assets', assets: allAssets(), fonts: [font] });

@@ -91,10 +91,11 @@ check('render mode: boot.json, report, then every frame in order (png)', async (
     assert.equal(r.canvas.style.display, 'block', 'no inline-canvas gap below the canvas');
     assert.deepEqual(r.server.posts.map(p => p.path).slice(0, 2), ['/report', '/frame?n=0']);
     const rep = r.server.posts[0].report;
-    assert.equal(rep.frame_count, 354); assert.equal(rep.width, 192); assert.equal(rep.height, 108);
+    // 341 frames: s1 0..129, s2 114..206 (0.5 s + 5 words / 2.3 + 0.4 s tail = 92 frames), s3 191..341 (206 - 15, then api.duration(5) = 150 frames)
+    assert.equal(rep.frame_count, 341); assert.equal(rep.width, 192); assert.equal(rep.height, 108);
     assert.equal(rep.issues.filter(i => i.severity === 'error').length, 0);
     assert.equal(r.server.posts[0].headers['Content-Type'], 'application/json');
-    assert.equal(r.frames.length, 354);
+    assert.equal(r.frames.length, 341);
     r.frames.forEach((f, i) => {
         assert.equal(f.path, '/frame?n=' + i); assert.equal(f.headers['Content-Type'], 'text/plain', 'a CORS-simple request: no preflight per frame');
         assert.equal(f.headers['X-SM-Frame'], undefined); assert.equal(f.body.type, 'image/png');

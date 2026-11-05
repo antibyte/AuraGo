@@ -275,11 +275,14 @@ func TestStorymakerPlayerGateBrowser(t *testing.T) {
 	for _, e := range res.Errors {
 		t.Errorf("player error %s (scene %q): %s", e.Code, e.SceneID, e.Message)
 	}
-	// compiled report: scene ranges and frame count (s1 129 frames, s2 114..219, s3 204..324 with api.duration(4))
-	if res.Report.FrameCount != 324 || res.Report.FPS != 30 || res.Report.Width != 640 || res.Report.Height != 360 {
-		t.Errorf("report = %+v, want 324 frames at 30 fps, 640x360", res.Report)
+	// compiled report: scene ranges and frame count. s1: 9 words / 2.3 + 0.4 s tail = 4.313 s = 129 frames. s2 starts 15 frames
+	// earlier, at 114. Its narration decides its length, 0.5 s + 5 words / 2.3 + 0.4 s tail = 3.074 s = 92 frames, so it ends at 206.
+	// Its beats end earlier: walk 1.712 s from 0.5 s, shield at 0.5 + 0.4 * 1.712 = 1.185 s for 0.5 s, camera 0.8 s until 2.485 s.
+	// s3 starts at 206 - 15 = 191 and lasts api.duration(4) = 120 frames, so it ends at 311.
+	if res.Report.FrameCount != 311 || res.Report.FPS != 30 || res.Report.Width != 640 || res.Report.Height != 360 {
+		t.Errorf("report = %+v, want 311 frames at 30 fps, 640x360", res.Report)
 	}
-	want := [][3]int{{0, 129, 0}, {114, 219, 0}, {204, 324, 0}}
+	want := [][3]int{{0, 129, 0}, {114, 206, 0}, {191, 311, 0}}
 	if len(res.Report.Scenes) != 3 {
 		t.Fatalf("report scenes = %+v", res.Report.Scenes)
 	}
@@ -631,8 +634,9 @@ func TestStorymakerFirewallRenderBrowser(t *testing.T) {
 		if len(in.errors) != 0 {
 			t.Fatalf("page errors: %v", in.errors)
 		}
-		if in.report == nil || int(in.report["frame_count"].(float64)) != 354 || len(in.frames) != 354 {
-			t.Fatalf("report = %v, frames = %d, want 354", in.report, len(in.frames))
+		// s1 0..129, s2 114..206 (0.5 s + 5 words / 2.3 + 0.4 s tail = 92 frames), s3 191..341 (206 - 15, then api.duration(5) = 150 frames)
+		if in.report == nil || int(in.report["frame_count"].(float64)) != 341 || len(in.frames) != 341 {
+			t.Fatalf("report = %v, frames = %d, want 341", in.report, len(in.frames))
 		}
 	}
 	if fmt.Sprint(first.hashes) != fmt.Sprint(second.hashes) {
@@ -647,7 +651,7 @@ func TestStorymakerFirewallRenderBrowser(t *testing.T) {
 		distinct[h] = true
 	}
 	if len(distinct) < 200 {
-		t.Errorf("only %d distinct frames out of 354: the story barely moves", len(distinct))
+		t.Errorf("only %d distinct frames out of 341: the story barely moves", len(distinct))
 	}
 }
 
