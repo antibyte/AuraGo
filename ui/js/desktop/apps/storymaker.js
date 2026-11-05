@@ -242,13 +242,14 @@
             addProp: entry => addProp(inst, entry),
             setEnvironment: id => { const scene = currentScene(inst); if (scene) editScene(inst, scene.id, (draft, story) => S.model.setEnvironment(story, draft, id), { immediate: true }); },
             actorInScene: entry => actorInScene(inst, entry),
-            play: () => { if (inst.player) inst.player.play(); },
+            play: () => { if (!inst.player || inst.compiling) return; inst.player.play(); if (inst.audio) inst.audio.play(inst.frame); },
             pause: () => { if (inst.player) inst.player.pause(); },
             seek: frame => seek(inst, frame),
             flushEdits: () => flushEdits(inst),
             saveStoryText: text => saveStoryText(inst, text),
             saveCodeScene: (sceneId, text, etag) => saveCodeScene(inst, sceneId, text, etag),
-            showIssues: () => toggleIssues(inst, true)
+            showIssues: () => toggleIssues(inst, true),
+            reloadPlayer: () => reloadPlayer(inst)
         });
 
         const aspect = inst.story.format && inst.story.format.aspect ? inst.story.format.aspect : '16:9';
@@ -261,6 +262,7 @@
             resolve: keys => inst.assets.resolve(keys, inst.story, inst.projectId)
         });
         bindPlayer(inst, stageNote);
+        inst.parts.audio = S.bindAudio(inst);
 
         const strip = S.createStrip(inst);
         const transport = S.createTransport(inst);
@@ -388,7 +390,7 @@
             const aspect = ['16:9', '9:16', '1:1'].indexOf(format.aspect) >= 0 ? format.aspect : '16:9';
             const fps = [24, 25, 30].indexOf(format.fps) >= 0 ? format.fps : 30;
             inst.player.load({
-                story: inst.story, catalog: prepared.catalog, audio_info: {}, assets: prepared.assets, fonts: prepared.fonts,
+                story: inst.story, catalog: prepared.catalog, audio_info: { narration: inst.audioInfo ? inst.audioInfo.narration : {} }, assets: prepared.assets, fonts: prepared.fonts,
                 code_bundles: prepared.code_bundles, format: { aspect, fps, width: S.model.previewWidth(aspect) }
             });
         } catch (err) {
@@ -770,6 +772,7 @@
         inst.bus.emit('story');
         inst.bus.emit('issues');
         if (inst.parts.code) inst.parts.code.storyChanged();
+        if (inst.refreshAudio) inst.refreshAudio();
         schedulePreview(inst);
         paintSave(inst);
     }

@@ -2,7 +2,8 @@
 // plays the narration pieces of the project's /narration answer next to it, on the schedule of report.audio_events. Pieces are
 // decoded in a sliding window, 2 s behind to 20 s ahead of the playhead. The owner calls sync(frame) on each time message while
 // playing, and a drift above 120 ms reschedules. Audio URLs come only from api.narrationUrl with values of the parent's own
-// answer, never from message text. Classic script, publishes S.audioModel and S.createAudio.
+// answer, never from message text. bindAudio joins it to the editor. Classic script, publishes S.audioModel, S.createAudio and
+// S.bindAudio.
 (function () {
     'use strict';
 
@@ -189,5 +190,86 @@
     }
 
     S.audioModel = { waveform, windowFor };
+    const AUDIO_JOB_KINDS = ['narrate', 'music'];
+    const JOB_DONE = ['succeeded', 'failed', 'cancelled', 'interrupted'];
+
+    // bindAudio(inst) -> {refresh(), dispose()} joins the preview audio to the editor. It sets inst.audio, inst.audioInfo and
+    // inst.refreshAudio, and emits bus event audio on each fresh answer. It asks for the /narration answer on project open, after a
+    // successful save (afterStorySaved calls inst.refreshAudio), and once per narrate or music job on its terminal status. When the
+    // narration of a fresh answer differs from the one last sent, the player compiles again and the next report feeds
+    // createAudio.load. inst.loadSeq inside reloadPlayer makes the newest load win. An older answer, or one for another project,
+    // is ignored. A failed request keeps the last answer and sets inst.audioError, and a fresh answer clears it. Only without a last
+    // answer does the failure emit audio, because that event also clears the export's refusal and the music start issue.
+    function bindAudio(inst) {
+        const audio = S.createAudio({ api: inst.api, projectId: inst.projectId });
+        const finished = new Set();
+        let seq = 0, disposed = false, sent = '{}';
+
+        async function refresh() {
+            const projectId = inst.projectId;
+            const mine = ++seq;
+            let answer;
+            try {
+                answer = await inst.api.narration(projectId);
+            } catch (err) {
+                if (disposed || mine !== seq || inst.projectId !== projectId || (err && err.aborted)) return null;
+                inst.audioError = err;
+                if (!inst.audioInfo) inst.bus.emit('audio');
+                return null; // the last answer stays, and the next trigger asks again
+            }
+            if (disposed || mine !== seq || inst.projectId !== projectId) return null;
+            inst.audioInfo = answer;
+            inst.audioError = null;
+            inst.bus.emit('audio');
+            const narration = JSON.stringify(answer && answer.narration ? answer.narration : {});
+            if (narration !== sent) {
+                sent = narration;
+                inst.reloadPlayer();
+            }
+            return answer;
+        }
+
+        const off = [
+            inst.bus.on('report', () => {
+                const report = inst.report;
+                if (!report) return;
+                const answer = inst.audioInfo || {};
+                // volume stays 1 until the story has music
+                audio.load({ fps: report.fps, frame_count: report.frame_count, narration: answer.narration || {}, music: answer.music || null, volume: 1, catalog: inst.catalog }, report.audio_events);
+            }),
+            inst.bus.on('job', job => {
+                if (!job || AUDIO_JOB_KINDS.indexOf(job.kind) < 0 || JOB_DONE.indexOf(job.status) < 0 || finished.has(job.id)) return;
+                finished.add(job.id);
+                refresh();
+            }),
+            inst.player.on('loading', () => audio.pause()),
+            inst.player.on('time', ({ frame, playing }) => {
+                if (playing) audio.sync(frame);
+                else audio.pause();
+            })
+        ];
+
+        inst.audio = audio;
+        inst.audioError = null;
+        inst.audioInfo = null;
+        inst.refreshAudio = refresh;
+        refresh();
+
+        return {
+            refresh,
+            dispose() {
+                if (disposed) return;
+                disposed = true;
+                off.forEach(fn => fn());
+                audio.dispose();
+                inst.audio = null;
+                inst.audioInfo = null;
+                inst.audioError = null;
+                inst.refreshAudio = null;
+            }
+        };
+    }
+
     S.createAudio = createAudio;
+    S.bindAudio = bindAudio;
 })();

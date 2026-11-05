@@ -299,6 +299,8 @@ func (f *storymakerFixture) project(w http.ResponseWriter, r *http.Request, rout
 		f.saveStory(w, r, id, raw)
 	case strings.HasPrefix(rest, "scenes/"):
 		f.codeScene(w, r, id, strings.TrimPrefix(rest, "scenes/"), raw)
+	case rest == "narration" && r.Method == http.MethodGet:
+		f.narration(w, ctx, id)
 	case rest == "render" && r.Method == http.MethodPost:
 		f.render(w, r, id)
 	case rest == "events" && r.Method == http.MethodGet:
@@ -403,6 +405,28 @@ func (f *storymakerFixture) codeScene(w http.ResponseWriter, r *http.Request, id
 	default:
 		f.fail(w, http.StatusNotFound, "not_found", "No such route.", nil)
 	}
+}
+
+// narration answers GET /projects/{id}/narration through the real ProjectStore.AudioAnswer.
+func (f *storymakerFixture) narration(w http.ResponseWriter, ctx context.Context, id string) {
+	data, _, err := f.projects.LoadStory(ctx, id)
+	if err != nil {
+		f.notFound(w, err)
+		return
+	}
+	story, _, err := storymaker.DecodeStory(data, f.limits)
+	if err != nil {
+		f.fail(w, http.StatusUnprocessableEntity, "invalid_story", err.Error(), nil)
+		return
+	}
+	storymaker.ApplyDefaults(&story)
+	answer, err := f.projects.AudioAnswer(ctx, id, &story, nil)
+	if err != nil {
+		f.fail(w, http.StatusInternalServerError, "internal", err.Error(), nil)
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	f.writeJSON(w, http.StatusOK, answer)
 }
 
 func (f *storymakerFixture) render(w http.ResponseWriter, r *http.Request, id string) {
