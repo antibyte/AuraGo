@@ -591,7 +591,7 @@
         'appearance.wallpaper': 'groupshoot',
         'appearance.wallpaper_by_space': '{}',
         'appearance.theme': 'standard',
-        'appearance.accent': 'teal',
+        'appearance.accent': 'theme',
         'appearance.density': 'comfortable',
         'appearance.icon_theme': 'papirus',
         'appearance.tela_folder_color': 'standard',

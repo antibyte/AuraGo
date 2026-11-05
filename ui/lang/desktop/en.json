@@ -3124,6 +3124,7 @@
   "desktop.settings_accent_green": "Green",
   "desktop.settings_accent_orange": "Orange",
   "desktop.settings_accent_teal": "Teal",
+  "desktop.settings_accent_theme": "Theme color",
   "desktop.settings_accent_violet": "Violet",
   "desktop.settings_agent_provider": "Agent provider",
   "desktop.settings_agent_provider_default": "Chat default",

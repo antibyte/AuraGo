@@ -70,6 +70,7 @@ func TestDesktopCSSDefinesAccentRGBVariables(t *testing.T) {
 		"--vd-accent-r: 39;",
 		"--vd-accent-g: 199;",
 		"--vd-accent-b: 166;",
+		".desktop-body[data-accent=\"teal\"]",
 		".desktop-body[data-accent=\"orange\"]",
 		"--vd-accent-r: 255;",
 		"--vd-accent-g: 157;",

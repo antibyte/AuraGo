@@ -467,7 +467,7 @@
     --vd-amber: #f59e0b;
     --vd-shadow: 0 18px 52px rgba(0, 0, 0, 0.5), 0 4px 14px rgba(0, 0, 0, 0.28);
     --vd-shadow-window: var(--vd-shell-shadow-window);
-    --vd-accent-glow: rgba(233, 84, 32, 0.08);
+    --vd-accent-glow: rgba(var(--vd-accent-r), var(--vd-accent-g), var(--vd-accent-b), 0.08);
     --vd-inner-glow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
     --vd-control-bg: rgba(255, 255, 255, 0.06);
     --vd-control-hover: rgba(255, 255, 255, 0.1);
@@ -506,13 +506,13 @@
     --ds-color-border-subtle: rgba(255, 255, 255, 0.12);
     --ds-color-border-default: rgba(255, 255, 255, 0.18);
     --ds-color-border-strong: rgba(255, 255, 255, 0.28);
-    --ds-color-border-focus: #E95420;
+    --ds-color-border-focus: var(--vd-accent);
 
-    --ds-color-accent-500: #E95420;
+    --ds-color-accent-500: var(--vd-accent);
     --ds-color-accent-600: #c7431a;
     --ds-color-accent-coral: #f97362;
     --ds-color-accent-amber: #f59e0b;
-    --ds-color-accent-glow: rgba(233, 84, 32, 0.08);
+    --ds-color-accent-glow: rgba(var(--vd-accent-r), var(--vd-accent-g), var(--vd-accent-b), 0.08);
 
     --ds-color-control-bg: rgba(255, 255, 255, 0.06);
     --ds-color-control-hover: rgba(255, 255, 255, 0.1);
@@ -636,11 +636,14 @@
     --vd-text: #192334;
     --vd-muted: #43516a;
     --vd-accent: #0a84ff;
+    --vd-accent-r: 10;
+    --vd-accent-g: 132;
+    --vd-accent-b: 255;
     --vd-coral: #ff5f57;
     --vd-amber: #ffbd2e;
     --vd-shadow: 0 28px 66px rgba(24, 38, 60, 0.3);
     --vd-inner-glow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
-    --vd-accent-glow: rgba(10, 132, 255, 0.14);
+    --vd-accent-glow: rgba(var(--vd-accent-r), var(--vd-accent-g), var(--vd-accent-b), 0.14);
     --fruity-window-close: #ff5f57;
     --fruity-window-minimize: #ffbd2e;
     --fruity-window-maximize: #28c840;
@@ -668,21 +671,21 @@
     --ds-color-border-subtle: rgba(49, 66, 94, 0.24);
     --ds-color-border-default: rgba(49, 66, 94, 0.38);
     --ds-color-border-strong: rgba(49, 66, 94, 0.56);
-    --ds-color-border-focus: #0a84ff;
+    --ds-color-border-focus: var(--vd-accent);
 
-    --ds-color-accent-500: #0a84ff;
+    --ds-color-accent-500: var(--vd-accent);
     --ds-color-accent-600: #0066cc;
-    --ds-color-accent-glow: rgba(10, 132, 255, 0.14);
+    --ds-color-accent-glow: rgba(var(--vd-accent-r), var(--vd-accent-g), var(--vd-accent-b), 0.14);
 
     --ds-color-control-bg: #fafcff;
     --ds-color-control-hover: #e2e9f3;
-    --ds-color-control-active: rgba(10, 132, 255, 0.2);
+    --ds-color-control-active: rgba(var(--vd-accent-r), var(--vd-accent-g), var(--vd-accent-b), 0.2);
     --ds-color-inner-highlight: rgba(255, 255, 255, 0.6);
 
     --ds-elevation-1: 0 1px 2px rgba(52, 64, 84, 0.08);
     --ds-elevation-2: 0 4px 12px rgba(52, 64, 84, 0.12);
     --ds-elevation-3: 0 12px 28px rgba(52, 64, 84, 0.16);
-    --ds-elevation-4: 0 28px 72px rgba(52, 64, 84, 0.22), 0 0 0 1px rgba(10, 132, 255, 0.12);
+    --ds-elevation-4: 0 28px 72px rgba(52, 64, 84, 0.22), 0 0 0 1px rgba(var(--vd-accent-r), var(--vd-accent-g), var(--vd-accent-b), 0.12);
     --ds-elevation-5: 0 32px 88px rgba(52, 64, 84, 0.28);
 
     --ds-blur-fine: blur(40px) saturate(1.3);
@@ -1010,14 +1013,14 @@
     border-color: rgba(22, 101, 190, 0.56);
     background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(226, 243, 255, 0.82)),
-        linear-gradient(135deg, rgba(10, 132, 255, 0.48), rgba(52, 211, 153, 0.5));
+        linear-gradient(135deg, rgba(var(--vd-accent-r), var(--vd-accent-g), var(--vd-accent-b), 0.48), rgba(52, 211, 153, 0.5));
     color: #0b4f7a;
     font-size: 0.68rem;
     font-weight: 850;
     line-height: 1;
     box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.95),
-        0 2px 8px rgba(10, 132, 255, 0.32);
+        0 2px 8px rgba(var(--vd-accent-r), var(--vd-accent-g), var(--vd-accent-b), 0.32);
 }
 
 .desktop-body[data-theme="fruity"] .vd-window-button,
@@ -1069,10 +1072,10 @@
     border-color: rgba(22, 101, 190, 0.72);
     background:
         linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(231, 246, 255, 0.9)),
-        linear-gradient(135deg, rgba(10, 132, 255, 0.62), rgba(52, 211, 153, 0.58));
+        linear-gradient(135deg, rgba(var(--vd-accent-r), var(--vd-accent-g), var(--vd-accent-b), 0.62), rgba(52, 211, 153, 0.58));
     box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 1),
-        0 4px 12px rgba(10, 132, 255, 0.38);
+        0 4px 12px rgba(var(--vd-accent-r), var(--vd-accent-g), var(--vd-accent-b), 0.38);
 }
 
 .desktop-body[data-theme="fruity"] .vd-window .vd-window-ai-button-icon {
@@ -1167,8 +1170,8 @@
 .desktop-body[data-theme="fruity"] .vd-window-menu.open > .vd-window-menu-button,
 .desktop-body[data-theme="fruity"] .vd-window-menu-button:hover,
 .desktop-body[data-theme="fruity"] .vd-window-menu-button:focus-visible {
-    border-color: rgba(10, 132, 255, 0.18);
-    background: rgba(10, 132, 255, 0.12);
+    border-color: rgba(var(--vd-accent-r), var(--vd-accent-g), var(--vd-accent-b), 0.18);
+    background: rgba(var(--vd-accent-r), var(--vd-accent-g), var(--vd-accent-b), 0.12);
 }
 
 .desktop-body[data-theme="fruity"] .vd-window-menu-popover {
@@ -1181,7 +1184,7 @@
 
 .desktop-body[data-theme="fruity"] .vd-window-menu-item:hover:not(:disabled),
 .desktop-body[data-theme="fruity"] .vd-window-menu-item:focus-visible:not(:disabled) {
-    background: rgba(10, 132, 255, 0.12);
+    background: rgba(var(--vd-accent-r), var(--vd-accent-g), var(--vd-accent-b), 0.12);
 }
 
 .desktop-body[data-theme="fruity"] .vd-window-content {
@@ -1204,13 +1207,13 @@
 .desktop-body[data-theme="fruity"] .vd-agent-button:hover,
 .desktop-body[data-theme="fruity"] .vd-tool-button:hover,
 .desktop-body[data-theme="fruity"] .vd-chat-send:hover {
-    background: rgba(10, 132, 255, 0.12);
+    background: rgba(var(--vd-accent-r), var(--vd-accent-g), var(--vd-accent-b), 0.12);
     color: var(--ds-color-fg-primary);
 }
 
 .desktop-body[data-theme="fruity"] .vd-button-primary {
-    background: rgba(10, 132, 255, 0.16);
-    border-color: rgba(10, 132, 255, 0.34);
+    background: rgba(var(--vd-accent-r), var(--vd-accent-g), var(--vd-accent-b), 0.16);
+    border-color: rgba(var(--vd-accent-r), var(--vd-accent-g), var(--vd-accent-b), 0.34);
 }
 
 .desktop-body[data-theme="fruity"] .vd-panel,
@@ -1224,7 +1227,7 @@
 
 /* The Settings app (sidebar, navigation, selects) paints from the app materials. */
 .desktop-body[data-theme="fruity"] .vd-context-item:hover:not(:disabled) {
-    background: rgba(10, 132, 255, 0.1);
+    background: rgba(var(--vd-accent-r), var(--vd-accent-g), var(--vd-accent-b), 0.1);
 }
 
 /* Fruity: file dialog */
@@ -1250,7 +1253,7 @@
 
 .desktop-body[data-theme="fruity"] .vd-file-dialog-sidebar-item:hover,
 .desktop-body[data-theme="fruity"] .vd-file-dialog-sidebar-item.active {
-    background: rgba(10, 132, 255, 0.1);
+    background: rgba(var(--vd-accent-r), var(--vd-accent-g), var(--vd-accent-b), 0.1);
 }
 
 .desktop-body[data-theme="fruity"] .vd-file-dialog-search,
@@ -1269,7 +1272,7 @@
 
 .desktop-body[data-theme="fruity"] .vd-file-dialog-row:hover,
 .desktop-body[data-theme="fruity"] .vd-file-dialog-row.selected {
-    background: rgba(10, 132, 255, 0.12);
+    background: rgba(var(--vd-accent-r), var(--vd-accent-g), var(--vd-accent-b), 0.12);
 }
 
 /* Fruity: shortcuts modal */
@@ -1847,14 +1850,14 @@
     100% {
         box-shadow:
             0 16px 34px rgba(52, 64, 84, 0.22),
-            0 0 0 0 rgba(10, 132, 255, 0.0),
+            0 0 0 0 rgba(var(--vd-accent-r), var(--vd-accent-g), var(--vd-accent-b), 0.0),
             inset 0 1px 0 rgba(255, 255, 255, 0.72),
             inset 0 -10px 22px rgba(32, 38, 53, 0.08);
     }
     50% {
         box-shadow:
             0 20px 42px rgba(52, 64, 84, 0.28),
-            0 0 0 9px rgba(10, 132, 255, 0.08),
+            0 0 0 9px rgba(var(--vd-accent-r), var(--vd-accent-g), var(--vd-accent-b), 0.08),
             inset 0 1px 0 rgba(255, 255, 255, 0.82),
             inset 0 -10px 22px rgba(32, 38, 53, 0.1);
     }
@@ -2073,6 +2076,14 @@
     }
 }
 
+/* appearance.accent: the value theme has no rule here, so the active theme keeps its own colour. */
+.desktop-body[data-accent="teal"] {
+    --vd-accent: #27c7a6;
+    --vd-accent-r: 39;
+    --vd-accent-g: 199;
+    --vd-accent-b: 166;
+}
+
 .desktop-body[data-accent="orange"] {
     --vd-accent: #ff9d4d;
     --vd-accent-r: 255;
@@ -2101,9 +2112,17 @@
     --vd-accent-b: 151;
 }
 
+/* A picked accent also replaces the darker step a theme pairs with its own colour. Fixed-accent skins have the same
+   specificity and load later, so they keep theirs. */
+.desktop-body:is([data-accent="teal"], [data-accent="orange"], [data-accent="blue"], [data-accent="violet"], [data-accent="green"]) {
+    --ds-color-accent-600: color-mix(in srgb, var(--vd-accent) 78%, #000);
+}
+
 /* Text colour that sits on the accent: white by default (Standard, Fruity and the user accents); fixed-accent skins override it. */
 .desktop-body {
     --vd-accent-contrast: #fff;
+    /* Declared here, not on :root, so it follows the accent on this element. Black Gloss uses it; Standard and Fruity set their own strength. */
+    --vd-accent-glow: rgba(var(--vd-accent-r), var(--vd-accent-g), var(--vd-accent-b), 0.22);
     /* Backdrop blur of the app modal overlays (desktop-app-common.css); a skin sets none for a flat screen. */
     --vd-theme-overlay-blur: blur(10px) saturate(1.08);
 }

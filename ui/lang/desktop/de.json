@@ -3123,6 +3123,7 @@
   "desktop.settings_accent_green": "Grün",
   "desktop.settings_accent_orange": "Orange",
   "desktop.settings_accent_teal": "Türkis",
+  "desktop.settings_accent_theme": "Themenfarbe",
   "desktop.settings_accent_violet": "Violett",
   "desktop.settings_agent_provider": "Agent-Provider",
   "desktop.settings_agent_provider_default": "Chat-Standard",

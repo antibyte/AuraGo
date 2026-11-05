@@ -3123,6 +3123,7 @@
   "desktop.settings_accent_green": "Verde",
   "desktop.settings_accent_orange": "Arancione",
   "desktop.settings_accent_teal": "Verde acqua",
+  "desktop.settings_accent_theme": "Colore del tema",
   "desktop.settings_accent_violet": "Viola",
   "desktop.settings_agent_provider": "Provider agente",
   "desktop.settings_agent_provider_default": "Predefinito chat",

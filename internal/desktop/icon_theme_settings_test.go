@@ -42,7 +42,7 @@ func TestDesktopAdditionalIconSettingsPersistAndRejectInvalidWrites(t *testing.T
 			t.Fatalf("reopened %s = %q; want %q", key, boot.Settings[key], value)
 		}
 	}
-	if boot.Settings["appearance.accent"] != "teal" {
+	if boot.Settings["appearance.accent"] != "theme" {
 		t.Fatal("failed atomic settings write changed another setting")
 	}
 	for _, theme := range []string{"papirus", "whitesur", "windows_xp", "tela", "candy", "fluent", "buuf_nestort"} {

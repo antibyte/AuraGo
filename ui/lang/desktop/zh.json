@@ -3123,6 +3123,7 @@
   "desktop.settings_accent_green": "绿色",
   "desktop.settings_accent_orange": "橙色",
   "desktop.settings_accent_teal": "蓝绿色",
+  "desktop.settings_accent_theme": "主题颜色",
   "desktop.settings_accent_violet": "紫色",
   "desktop.settings_agent_provider": "智能体提供商",
   "desktop.settings_agent_provider_default": "聊天默认值",

@@ -135,8 +135,8 @@
 }
 
 .desktop-body[data-theme="standard"] .vd-window.vd-window-file-drop-target {
-    border-color: rgba(233, 84, 32, 0.5);
-    box-shadow: var(--vd-shadow), 0 0 0 2px rgba(233, 84, 32, 0.15);
+    border-color: rgba(var(--vd-accent-r), var(--vd-accent-g), var(--vd-accent-b), 0.5);
+    box-shadow: var(--vd-shadow), 0 0 0 2px rgba(var(--vd-accent-r), var(--vd-accent-g), var(--vd-accent-b), 0.15);
 }
 
 .desktop-body[data-theme="standard"] .vd-window-menu-button:hover,

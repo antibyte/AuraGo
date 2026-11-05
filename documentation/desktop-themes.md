@@ -23,7 +23,7 @@ This page covers choosing a theme, accessibility and the developer contract. The
 | Orbit | Taskbar | Dark | Papirus | Fixed ice cyan | A live 3D orbit behind the shell: a ringed gas giant, a space station, a shuttle and asteroids, with smoked-glass windows that fly in and out in 3D. |
 | Minimal | Taskbar | Light or dark | Papirus | Fixed ink | Paper or graphite, hairlines and typography, nothing else. |
 
-"Your accent" means the Accent color setting applies. Fruity's and Minimal's schemes follow their own Light/Dark setting.
+"Your accent" means the Accent color setting applies. Its default, Theme color, keeps the theme's own colour: orange on Standard, blue on Fruity and teal on Black Gloss. Fruity's and Minimal's schemes follow their own Light/Dark setting.
 
 ## Choosing a Theme
 
@@ -31,7 +31,7 @@ This page covers choosing a theme, accessibility and the developer contract. The
 - A theme also sets the **Icon theme** (Papirus, WhiteSur or Windows XP). You can change the icon set afterwards; picking a theme pairs its icon set again.
 - The wallpaper follows the theme while it is still the previous theme's suggestion, or the default *Group Shot*, in every space. Suggestions: Amiga *Slate*, Cyberpunk *City Rain*, Black Gloss *Midnight*, Crazy *Fractal Trip (animated)*, Lollipop *Paper Waves*, Organic *Forest*, Electronic Dreams *Electronic Dreams*, Windows XP *Windows XP Bliss*, Green Slime *Green Slime*, Voxel World *Voxel World*, Orbit *Orbit* and Minimal *Minimal*. Standard and Fruity use *Group Shot*. A wallpaper you picked yourself is never changed.
 - **Fruity appearance** and **Minimal appearance** (Light or Dark) appear only while their theme is selected. Minimal starts in Light. The other themes have a fixed scheme.
-- **Accent color** (teal, orange, blue, violet or green) applies to Standard, Fruity and Black Gloss. The other eleven themes use their fixed accent and hide the row.
+- **Accent color** (theme color, teal, orange, blue, violet or green) applies to Standard, Fruity and Black Gloss. Theme color is the default. The other choices are the same colour on all three themes. The other eleven themes use their fixed accent and hide the row.
 - The settings are `appearance.theme`, `appearance.icon_theme`, `appearance.fruity_mode`, `appearance.minimal_mode`, `appearance.accent`, `appearance.wallpaper` and `appearance.wallpaper_by_space`. The UI saves them through `PUT /api/desktop/settings`.
 
 Organic's *Forest* wallpaper is a misty conifer forest at dusk, with a low amber sun right of centre and the left edge kept dark for the desktop icons. It is the vector file `/img/wallpapers/themes/forest.svg` (set in `css/desktop-wallpaper-themes.css`), written by the deterministic generator `assets/desktop-wallpaper-forest/generate.mjs` (`node assets/desktop-wallpaper-forest/generate.mjs`); edit the generator, not the SVG.
@@ -156,7 +156,7 @@ Layering in `ui/css/desktop-shell.bundle.css`: the shared shell files (`desktop-
 | `data-scheme` | `light`, `dark` | apps (Code Studio editor, CYD Creator code, Layerling, Leafy) |
 | `data-polish` | `on`, `off` | `desktop-polish.css` gate, from `glassPolish` |
 | `data-fruity-mode` | `light`, `dark` | Fruity rules |
-| `data-accent` | `teal`, `orange`, `blue`, `violet`, `green` | accent palette in `desktop-base.css` |
+| `data-accent` | `theme`, `teal`, `orange`, `blue`, `violet`, `green` | accent palette in `desktop-base.css`; `theme` has no rule, so the theme's own colour applies |
 | `data-animations` | `true`, `false` | every theme animation and the effects (*Window animations*) |
 | `data-orbit-quality` | `0` to `4`, only while Orbit's scene runs | Orbit skin: from quality 2 the window frames drop their backdrop blur and get a more opaque fill |
 
@@ -196,7 +196,7 @@ Every skin root (`.desktop-body[data-theme="<id>"]`) defines:
 - The `--ds-*` colour, blur, surface and elevation tokens.
 - `--vd-accent-contrast`: the text colour on the accent, required on every theme root and at least 4.5:1 on a fixed accent.
 - App interiors: an app that paints on the accent exposes a token on its root and a fixed-accent skin overrides it in an "App tokens" rule of its skin file: Video Studio `--vs-accent-strong` and `--vs-accent-hover` on `.vs-app` (cyberpunk sets both), Code Studio `--cs-accent-contrast` on `.code-studio` (amiga, cyberpunk, crazy and lollipop set it to their `--vd-accent-contrast`). Mission Control needs no skin rule; it mixes `--mc-accent-ink` and `--mc-danger-ink` from the accent, the danger red and `--vd-text`, with the danger share lowered under `[data-scheme="light"]`.
-- For `accent: "fixed"`: `--vd-accent`, `--vd-accent-r`, `--vd-accent-g`, `--vd-accent-b` and `--vd-accent-glow`. User-accent themes must not set them.
+- For `accent: "fixed"`: `--vd-accent`, `--vd-accent-r`, `--vd-accent-g`, `--vd-accent-b` and `--vd-accent-glow`. Skins of user-accent themes must not set them. Standard and Fruity hold their own colour in `desktop-base.css`; the `data-accent` rules that follow them there replace it.
 - Contrast: `--vd-text` on `--vd-theme-app-bg` and `--vd-theme-panel-bg`, and `--vd-theme-muted` on `--vd-theme-app-bg`, at least 4.5:1, with opaque `#rrggbb` app and panel backgrounds.
 - Dark root rule, for a theme with a `schemeSetting`: the skin also has a plain rule `.desktop-body[data-theme="<id>"][data-scheme="dark"]` that sets `color-scheme: dark`. That rule may set the root-only tokens (`color-scheme`, `--vd-theme-app-bg`, `--vd-theme-panel-bg`, `--vd-text`, `--vd-theme-muted`, `--vd-accent` and `--vd-accent-contrast`). The contract merges it over the root rule and measures its contrast and scheme the same way. Those tokens set in any other rule fail the contract. Minimal is the skin with this rule; Fruity has no skin file.
 

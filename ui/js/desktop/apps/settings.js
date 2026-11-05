@@ -43,7 +43,7 @@
                         ['light', 'desktop.settings_fruity_mode_light'], ['dark', 'desktop.settings_fruity_mode_dark']
                     ]) : null,
                     showAccent ? settingSelect('appearance.accent', 'desktop.settings_accent', 'desktop.settings_accent_desc', [
-                        ['teal', 'desktop.settings_accent_teal'], ['orange', 'desktop.settings_accent_orange'], ['blue', 'desktop.settings_accent_blue'], ['violet', 'desktop.settings_accent_violet'], ['green', 'desktop.settings_accent_green']
+                        ['theme', 'desktop.settings_accent_theme'], ['teal', 'desktop.settings_accent_teal'], ['orange', 'desktop.settings_accent_orange'], ['blue', 'desktop.settings_accent_blue'], ['violet', 'desktop.settings_accent_violet'], ['green', 'desktop.settings_accent_green']
                     ]) : null,
                     settingSelect('appearance.density', 'desktop.settings_density', 'desktop.settings_density_desc', [
                         ['comfortable', 'desktop.settings_density_comfortable'], ['compact', 'desktop.settings_density_compact']
