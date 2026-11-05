@@ -751,13 +751,19 @@ Server-owned HTTP and cross-component integration contracts.
   need `desktop:read`; all POST/PUT/DELETE need `desktop:admin`. Only `POST validate` is
   readonly-safe. List and version history are bounded keyset pages; editable draft/version
   documents use the ordinary raw editor response, while preview and synchronous simulation
-  are scrubbed. Publish and deletion require observed revisions; dependencies return only
+  are scrubbed. `POST {id}/versions` restores the requested immutable block version as a full
+  draft replacement with the observed draft revision; it changes no mission, timer or version.
+  Publish and deletion require observed revisions; dependencies return only
   bounded identities and deletion rechecks pins transactionally. Simulation requires the
   observed draft revision and creates no run, mission, timer or event. Create, publish and
   delete audit only fixed text and the block ID. There are no block enable or run routes.
   Ordinary flow routes and block routes enforce distinct document kinds, including corrupt rows.
   Goal-only AI proposals exclude block calls: users choose published versions in the editor.
   Verify `TestFlowBlock*` and `TestFlowAIProposalRejectsInventedBlockReferences`.
+- Normal flow exports with visual groups use wire schema 2; group-free exports remain schema 1.
+  The create/import endpoint accepts either and stores schema 1 after validation. Draft PUT,
+  version snapshots and AI proposals retain the strict internal schema; no block import/export
+  HTTP route is implied. Verify `TestFlowGroupsHTTPImportAndBoundaries`.
 - Flagship routes remain under the existing Desktop origin, grant and cancellation gates.
   `POST {id}/simulate` returns a bounded synchronous simulation result from the isolated flow
   service; it cannot invoke production tools or create a run. Validate fixture data and the

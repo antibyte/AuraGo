@@ -125,7 +125,7 @@ func TestFlowsV4MigrationPreservesWALPinsAndRestorableBackup(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer s.Close()
-	assertData(s.db, "4")
+	assertData(s.db, "5")
 	if err := s.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -149,7 +149,7 @@ func TestFlowsV4MigrationPreservesWALPinsAndRestorableBackup(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertData(reopened.db, "4")
+	assertData(reopened.db, "5")
 	if err := reopened.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -169,7 +169,7 @@ func TestFlowsV4MigrationPreservesWALPinsAndRestorableBackup(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer restored.Close()
-	assertData(restored.db, "4")
+	assertData(restored.db, "5")
 }
 
 func TestFlowsV4MigrationFailureRollsBackBeforeVersionAdvance(t *testing.T) {
@@ -231,7 +231,7 @@ func TestFlowsV4RefusesInvalidLibrarySchemaBeforeAnyWrites(t *testing.T) {
 			}
 			var version string
 			var recreated int
-			if err := db.QueryRow(`SELECT value FROM flows_meta WHERE key='schema_version'`).Scan(&version); err != nil || version != "4" {
+			if err := db.QueryRow(`SELECT value FROM flows_meta WHERE key='schema_version'`).Scan(&version); err != nil || version != "5" {
 				t.Fatalf("schema changed: %q, %v", version, err)
 			}
 			if err := db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE name='idx_flows_mission'`).Scan(&recreated); err != nil || recreated != 0 {

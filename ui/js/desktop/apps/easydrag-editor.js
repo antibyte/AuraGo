@@ -72,6 +72,7 @@
             '<button type="button" class="ed-icon-btn" data-ed-cmd="palette" aria-pressed="true" title="' + esc(t('easydrag.ui.palette_title')) + ' (' + core.shortcut('Ctrl+K') + ')" aria-label="' + esc(t('easydrag.ui.palette_title')) + '">' + core.icon('plus') + '</button>' +
             '<button type="button" class="ed-icon-btn" data-ed-cmd="home" title="' + esc(t('easydrag.ui.back_home')) + '" aria-label="' + esc(t('easydrag.ui.back_home')) + '">' + core.icon('grid') + '</button>' +
             '<button type="button" class="ed-icon-btn" data-ed-cmd="templates" title="' + esc(t('easydrag.ui.home_templates')) + '" aria-label="' + esc(t('easydrag.ui.home_templates')) + '">' + core.icon('sparkles') + '</button>' +
+            '<button type="button" class="ed-icon-btn" data-ed-cmd="groups" title="' + esc(t('easydrag.ui.groups')) + '" aria-label="' + esc(t('easydrag.ui.groups')) + '">' + core.icon('grid') + '</button>' +
             '<span class="ed-rail-spacer"></span>' +
             '<button type="button" class="ed-icon-btn" data-ed-cmd="keys" title="' + esc(t('easydrag.ui.keys_title')) + ' (?)" aria-label="' + esc(t('easydrag.ui.keys_title')) + '">' + core.icon('keyboard') + '</button>' +
             '</nav></div>' +
@@ -97,6 +98,7 @@
         };
 
         canvas = ED.canvas.create(ed);
+        if (ED.groups) { ed.groups = ED.groups.create(ed, canvas); bag.add(() => ed.groups.dispose()); }
         wires = ED.wires.create(ed, canvas);
         interact = ED.interact.create(ed, canvas, wires);
         palette = ED.palette.createPanel(ed, canvas);
@@ -774,6 +776,7 @@
         bag.add(ed.bus.on('quick-add', req => { if (!ed.readonly && !ed.runView) { ED.palette.openQuickAdd(ed, canvas, req); setMenus(); } }));
         bag.add(ed.bus.on('open-detail', req => {
             if (!ed.flushPendingEdits()) return;
+            if (ed.groups) ed.groups.expandFor(req.nodeId);
             ED.detail.open(ed, req.nodeId, { param: req.param, column: req.column });
             setMenus();
         }));
@@ -850,6 +853,7 @@
             else if (cmd === 'keys') ED.dialogs.shortcuts(ed);
             else if (cmd === 'palette') togglePalette();
             else if (cmd === 'templates') goHome({ section: 'templates' });
+            else if (cmd === 'groups' && ed.groups) ed.groups.openList();
             else if (cmd === 'save') saveNow();
         });
 
@@ -960,7 +964,8 @@
                 restoring = false;
                 if (choice === 'discard') ED.saver.dropEmergencyCopy(ed.flow.id);
                 if (disposed) return;
-                if (choice === 'restore') draftModel.replaceDoc(copy.doc);
+                // This explicit replacement must also clear groups absent from an older copy.
+                if (choice === 'restore') draftModel.replaceDoc(Object.assign({}, copy.doc, { groups: copy.doc.groups == null ? [] : copy.doc.groups }));
                 setMenus();
             } else if (copy) {
                 ED.saver.dropEmergencyCopy(ed.flow.id);

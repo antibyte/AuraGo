@@ -419,13 +419,13 @@
             const posId = 'ed-pos-' + ed.windowId + '-' + id;
             const place = core.el('<div class="ed-field" data-ed-position><div class="ed-field-head"><label id="' + esc(posId) + '">' + esc(t('easydrag.ui.settings_position')) + '</label></div>' +
                 '<div class="ed-input-unit ed-input-unit--pair" role="group" aria-labelledby="' + esc(posId) + '">' +
-                '<label>' + esc(t('easydrag.ui.settings_position_x')) + ' <input type="number" step="1" class="ed-input" data-ed-pos="x" value="' + esc(pos.x) + '"' + (ro ? ' disabled' : '') + '></label>' +
-                '<label>' + esc(t('easydrag.ui.settings_position_y')) + ' <input type="number" step="1" class="ed-input" data-ed-pos="y" value="' + esc(pos.y) + '"' + (ro ? ' disabled' : '') + '></label></div>' +
+                '<label>' + esc(t('easydrag.ui.settings_position_x')) + ' <input type="number" step="1" class="ed-input" data-ed-pos="x" value="' + esc(pos.x) + '"' + (ro || ed.groups && !ed.groups.movable([id]).length ? ' disabled' : '') + '></label>' +
+                '<label>' + esc(t('easydrag.ui.settings_position_y')) + ' <input type="number" step="1" class="ed-input" data-ed-pos="y" value="' + esc(pos.y) + '"' + (ro || ed.groups && !ed.groups.movable([id]).length ? ' disabled' : '') + '></label></div>' +
                 '<p class="ed-hint">' + esc(t('easydrag.ui.settings_position_hint')) + '</p></div>');
             place.addEventListener('change', () => {
                 const input = k => place.querySelector('[data-ed-pos="' + k + '"]');
                 const current = ed.model.node(id);
-                if (!current || ed.readonly || ed.runView) return;
+                if (!current || ed.readonly || ed.runView || ed.groups && !ed.groups.movable([id]).length) return;
                 const x = Number(input('x').value);
                 const y = Number(input('y').value);
                 if (input('x').value === '' || input('y').value === '' || !Number.isFinite(x) || !Number.isFinite(y)) {

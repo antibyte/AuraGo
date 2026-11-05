@@ -27,6 +27,24 @@
 
     function newNodeID() { return 'n_' + randomSuffix(8); }
     function newEdgeID() { return 'e_' + randomSuffix(8); }
+    function newGroupID() { return 'g_' + randomSuffix(8); }
+    const GROUP_COLORS = ['neutral', 'blue', 'green', 'amber', 'rose', 'violet'];
+    function groupText(value, max, bytes, multiline) {
+        if (typeof value !== 'string' || value.length > max * 2) return false;
+        let length = 0, size = 0;
+        for (const char of value) { const cp = char.codePointAt(0); if (cp >= 0xD800 && cp <= 0xDFFF || (cp < 32 || cp >= 127 && cp <= 159) && !(multiline && [9, 10, 13].includes(cp))) return false; size += cp < 128 ? 1 : cp < 2048 ? 2 : cp < 65536 ? 3 : 4; if (++length > max || size > bytes) return false; }
+        return true;
+    }
+    function validGroups(groups, nodeIds) {
+        if (groups === undefined || groups === null) return true;
+        if (!Array.isArray(groups) || groups.length > 100) return false;
+        const seen = new Set(), members = new Set();
+        return groups.every(group => {
+            if (!isPlainObject(group) || typeof group.id !== 'string' || !/^g_[a-z2-7]{8}$/.test(group.id) || seen.has(group.id) || !GROUP_COLORS.includes(group.color) || !groupText(group.title, 80, 320) || !ED.template.applyFilter('trim', group.title, []) || group.note !== undefined && !groupText(group.note, 2048, 8192, true) || !Array.isArray(group.members) || !group.members.length || group.members.length > 500) return false;
+            seen.add(group.id);
+            return group.members.every(id => { if (typeof id !== 'string' || members.has(id) || !nodeIds.has(id)) return false; members.add(id); return true; });
+        });
+    }
 
     const UMLAUTS = { 'ä': 'ae', 'ö': 'oe', 'ü': 'ue', 'ß': 'ss', 'Ä': 'ae', 'Ö': 'oe', 'Ü': 'ue' };
 
@@ -363,6 +381,12 @@
                         const after = v.after === undefined ? v.before : v.after;
                         if (!same(v.before, after)) nodeList.push({ id, before: v.before, after, index: v.index });
                     });
+                    const removed = new Set(nodeList.filter(entry => entry.after === null).map(entry => entry.id));
+                    const groups = meta && Object.prototype.hasOwnProperty.call(meta.after, 'groups') ? meta.after.groups : state.doc.groups;
+                    if (removed.size && Array.isArray(groups) && validGroups(groups, new Set(state.doc.nodes.map(n => n.id)))) {
+                        const next = groups.map(group => Object.assign({}, group, { members: group.members.filter(id => !removed.has(id)) })).filter(group => group.members.length);
+                        if (!same(next, groups)) rec.meta({ groups: next });
+                    }
                     const edgeList = [];
                     edges.forEach((v, id) => {
                         const after = v.after === undefined ? v.before : v.after;
@@ -403,7 +427,7 @@
             setItems(state.doc.edges, dir === 'after' ? set.edges : set.edges.slice().reverse(), pick);
             if (set.meta) {
                 const meta = dir === 'after' ? set.meta.after : set.meta.before;
-                Object.keys(meta).forEach(key => { if (meta[key] === undefined) delete state.doc[key]; else state.doc[key] = clone(meta[key]); });
+                Object.keys(meta).forEach(key => { if (key === 'groups' && meta[key] == null) state.doc.groups = []; else if (meta[key] === undefined) delete state.doc[key]; else state.doc[key] = clone(meta[key]); });
             }
         }
 
@@ -589,7 +613,7 @@
             }
             if (!dx && !dy) return;
             const present = new Set(state.doc.nodes.map(n => n.id));
-            const list = (ids || []).filter(id => present.has(id));
+            const list = Array.from(new Set(ids || [])).filter(id => present.has(id));
             change('move', rec => {
                 list.forEach(id => {
                     const n = rec.node(id);
@@ -700,6 +724,31 @@
             }, { coalesce: 'settings:' + id + ':' + Object.keys(patch).join(',') });
         }
 
+        function group(id) { return Array.isArray(state.doc.groups) ? state.doc.groups.find(item => item && item.id === id) || null : null; }
+        function setGroups(groups) {
+            if (!Array.isArray(groups) || !validGroups(groups, new Set(state.doc.nodes.map(n => n.id)))) return false;
+            return change('groups', rec => { rec.meta({ groups }); return true; }) === true;
+        }
+        function setGroup(id, patch) {
+            const before = group(id);
+            if (!before || !isPlainObject(patch) || !validGroups(state.doc.groups, new Set(state.doc.nodes.map(n => n.id)))) return false;
+            const next = Object.assign({}, before, Object.fromEntries(Object.entries(patch).filter(([key]) => ['title', 'color', 'note', 'members'].includes(key))));
+            if (Array.isArray(next.members) && !next.members.length) return ungroup(id);
+            if (!validGroups([next], new Set(state.doc.nodes.map(n => n.id)))) return false;
+            const picked = new Set(next.members || []);
+            const groups = state.doc.groups.map(item => item.id === id ? next : Object.assign({}, item, { members: item.members.filter(member => !picked.has(member)) })).filter(item => item.members.length);
+            return setGroups(groups);
+        }
+        function createGroup(ids, title, color = 'neutral', note = '') {
+            const members = Array.from(new Set(ids || [])), old = state.doc.groups == null ? [] : state.doc.groups;
+            if (!members.length || !Array.isArray(old) || !validGroups(old, new Set(state.doc.nodes.map(n => n.id)))) return null;
+            const taken = new Set(old.map(item => item.id)); let id; do { id = newGroupID(); } while (taken.has(id));
+            const picked = new Set(members), groups = old.map(item => Object.assign({}, item, { members: item.members.filter(member => !picked.has(member)) })).filter(item => item.members.length);
+            groups.push({ id, title, color, note, members });
+            return setGroups(groups) ? id : null;
+        }
+        function ungroup(id) { return group(id) ? setGroups(state.doc.groups.filter(item => item.id !== id)) : false; }
+
         function toggleDisabled(ids) {
             const list = (ids || []).map(node).filter(Boolean);
             if (!list.length) return;
@@ -720,11 +769,16 @@
 
         function fragment(ids) {
             const set = new Set(ids || []);
-            return {
+            const result = {
                 easydrag: 1,
                 nodes: state.doc.nodes.filter(n => set.has(n.id)).map(clone),
                 edges: state.doc.edges.filter(e => set.has(e.source.node) && set.has(e.target.node)).map(clone)
             };
+            if (Array.isArray(state.doc.groups) && validGroups(state.doc.groups, new Set(state.doc.nodes.map(n => n.id)))) {
+                const groups = state.doc.groups.filter(group => group.members.every(id => set.has(id))).map(clone);
+                if (groups.length) result.groups = groups;
+            }
+            return result;
         }
 
         // sanitizeFragment keeps what paste can trust from clipboard JSON: at most 500 object
@@ -779,7 +833,9 @@
                 next.get(a).push(b);
                 edges.push({ a, port: e.source.port, b, inPort: e.target.port });
             });
-            return { nodes, edges };
+            const groups = frag.groups === undefined ? [] : frag.groups;
+            if (!validGroups(groups, new Set(nodes.map(n => n.ref)))) return null;
+            return { nodes, edges, groups: groups || [] };
         }
 
         // paste inserts a clipboard fragment with fresh ids and keys; references between
@@ -787,6 +843,7 @@
         function paste(frag, at) {
             const clean = sanitizeFragment(frag);
             if (!clean || !clean.nodes.length) return [];
+            if (clean.groups.length && (!validGroups(state.doc.groups, new Set(state.doc.nodes.map(n => n.id))) || (state.doc.groups || []).length + clean.groups.length > 100)) return [];
             const min = minPosition(clean.nodes);
             const ax = finite(at && at.x);
             const ay = finite(at && at.y);
@@ -818,6 +875,11 @@
                 clean.edges.forEach(e => {
                     rec.addEdge({ id: newEdgeID(), source: { node: e.a.newId, port: e.port }, target: { node: e.b.newId, port: e.inPort } });
                 });
+                if (clean.groups.length) {
+                    const remap = new Map(clean.nodes.map(n => [n.ref, n.newId])), old = Array.isArray(state.doc.groups) ? state.doc.groups : [], taken = new Set(old.map(group => group.id));
+                    const groups = clean.groups.map(group => { let id; do { id = newGroupID(); } while (taken.has(id)); taken.add(id); return Object.assign({}, group, { id, members: group.members.map(member => remap.get(member)) }); });
+                    rec.meta({ groups: old.concat(groups) });
+                }
             });
             return clean.nodes.map(n => n.newId);
         }
@@ -851,9 +913,9 @@
             toJSON: () => clone(state.doc),
             repairs: () => ({ droppedNodes }),
             addNode, removeNodes, moveNodes, connect, disconnect, insertOnEdge, setParam, setLabel, setKey, setSettings,
-            toggleDisabled, setFlow, fragment, paste, duplicate, replaceDoc
+            toggleDisabled, setFlow, fragment, paste, duplicate, replaceDoc, group, createGroup, setGroup, setGroups, ungroup
         };
     }
 
-    ED.model = { create, keyFromLabel, keyProblem, newNodeID, newEdgeID, RESERVED };
+    ED.model = { create, keyFromLabel, keyProblem, newNodeID, newEdgeID, newGroupID, validGroups, GROUP_COLORS, RESERVED };
 })();

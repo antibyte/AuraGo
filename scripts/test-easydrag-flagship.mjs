@@ -180,7 +180,7 @@ export async function run({ sandbox, openEditor, eq, guardAsync, settle }) {
         await settle();
         const request = h.requests.find(req => req.url.endsWith('/ai-proposal'));
         eq('flagship AI proposal transmits no draft, fixtures or run data and writes nothing before Apply', [request.body, h.puts().length, editor.ed.model.doc.name, dialog.el.querySelector('[data-ed-action="apply"]').hidden], [{ goal: 'Create a local greeting', base_revision: 3 }, 0, 'Flow', false]);
-        const before = JSON.stringify(editor.ed.model.toJSON());
+        const before = JSON.stringify(Object.assign({}, editor.ed.model.toJSON(), { groups: [] }));
         dialog.el.querySelector('[data-ed-action="apply"]').fire('click');
         await settle();
         const name = editor.ed.model.doc.name;

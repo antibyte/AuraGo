@@ -523,16 +523,26 @@ function wireWindow(win, id) {
     }
 
     function clampWindowsAfterViewportResize() {
-        if (useMobileDesktopMode()) return;
+        const mobile = useMobileDesktopMode();
         let changed = false;
         state.windows.forEach(item => {
             const win = item && item.element;
             if (!win || !win.isConnected || item.isGadget) return;
-            if (win.classList.contains('vd-mobile-forced-maximized')) {
+            if (!mobile && win.classList.contains('vd-mobile-forced-maximized')) {
                 win.classList.remove('vd-mobile-forced-maximized');
                 if (!item.maximized) win.classList.remove('maximized');
             }
-            if (item.maximized) return;
+            // Maximized bounds are derived from the current workspace, while
+            // restoreBounds retains the user's original desktop geometry.
+            if (item.maximized || (mobile && win.classList.contains('vd-mobile-forced-maximized'))) {
+                const bounds = windowLayoutLimits(win);
+                if (item.maximized) {
+                    win.style.width = bounds.width + 'px';
+                    win.style.height = bounds.height + 'px';
+                }
+                return;
+            }
+            if (mobile) return;
             const bounds = windowBounds(win);
             if (!bounds.width) bounds.width = parseFloat(win.style.width) || WINDOW_MIN_W;
             if (!bounds.height) bounds.height = parseFloat(win.style.height) || WINDOW_MIN_H;

@@ -423,10 +423,16 @@ func (s *Service) Validate(doc *Flow, mode ValidationMode) []Issue {
 // SaveDraft validates (draft rules) and stores a new draft revision. The returned issues
 // include warnings for the editor's hint panel.
 func (s *Service) SaveDraft(ctx context.Context, id string, doc *Flow, baseRevision int) (int, []Issue, error) {
+	return s.saveDraft(ctx, id, doc, baseRevision, KindFlow, false)
+}
+
+// saveDraft applies legacy-client group preservation only to ordinary edits.
+// The lock and store CAS cover both the read and replacement.
+func (s *Service) saveDraft(ctx context.Context, id string, doc *Flow, baseRevision int, kind Kind, replace bool) (int, []Issue, error) {
 	if doc == nil {
 		return 0, nil, errors.New("a flow document is required")
 	}
-	if doc.Kind == KindBlock {
+	if kind == KindBlock && doc.Kind != KindBlock || kind == KindFlow && doc.Kind == KindBlock {
 		return 0, nil, ErrWrongFlowKind
 	}
 	f, err := doc.Clone()
@@ -434,9 +440,14 @@ func (s *Service) SaveDraft(ctx context.Context, id string, doc *Flow, baseRevis
 		return 0, nil, err
 	}
 	f.ID = id
-	f.Kind = KindFlow
+	f.Kind = kind
 	f.Normalize()
-	issues := Validate(f, s.reg, s.vc(ModeDraft))
+	var issues []Issue
+	if kind == KindBlock {
+		issues = s.ValidateBlock(f, ModeDraft)
+	} else {
+		issues = Validate(f, s.reg, s.vc(ModeDraft))
+	}
 	if HasErrors(issues) {
 		return 0, issues, &ValidationError{Issues: issues}
 	}
@@ -445,6 +456,30 @@ func (s *Service) SaveDraft(ctx context.Context, id string, doc *Flow, baseRevis
 		return 0, issues, err
 	}
 	defer unlock()
+	var rec *FlowRecord
+	if kind == KindBlock {
+		rec, err = s.GetBlock(ctx, id)
+	} else {
+		rec, err = s.requireFlow(ctx, id)
+	}
+	if err != nil {
+		return 0, nil, err
+	}
+	if rec.DraftRevision != baseRevision {
+		return 0, nil, ErrRevisionConflict
+	}
+	if !replace && f.Groups == nil {
+		f.Groups = rec.Draft.Groups
+		// Only inherited groups changed after validation; do not call node hooks
+		// while holding the draft lock.
+		v := newValidator(f, s.reg, s.vc(ModeDraft))
+		v.groupChecks()
+		v.finish()
+		if HasErrors(v.issues) {
+			issues = append(issues, v.issues...)
+			return 0, issues, &ValidationError{Issues: issues}
+		}
+	}
 	rev, err := s.store.SaveDraft(ctx, id, f, baseRevision, s.now())
 	return rev, issues, err
 }
@@ -550,7 +585,7 @@ func (s *Service) RestoreVersion(ctx context.Context, id string, revision, baseR
 	if err != nil {
 		return nil, nil, err
 	}
-	if _, issues, err := s.SaveDraft(ctx, id, doc, baseRevision); err != nil {
+	if _, issues, err := s.saveDraft(ctx, id, doc, baseRevision, KindFlow, true); err != nil {
 		return nil, issues, err
 	} else {
 		rec, err := s.requireFlow(ctx, id)

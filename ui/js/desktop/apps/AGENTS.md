@@ -1270,6 +1270,23 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   Backend: `internal/desktop/looper.go`, `internal/server/looper_service.go`.
 
 ## EasyDrag
+- `easydrag-groups.js` owns flat visual groups, their inspector and device-local collapsed/locked
+  view state. Executable selection contains node IDs only. Group commands reuse model recorder,
+  undo and saver; membership transfers and node deletion remove empty groups in the same command.
+  Copy complete groups with remapped IDs; partial copies contain ordinary nodes. Layout locks
+  constrain drag, alignment and position controls, not configuration or execution.
+  Collapse retains real geometry/edges and draws boundary endpoints; Fit, minimap and outline use
+  the visible presentation. Navigation expands before opening a hidden member. Run ticks patch
+  affected counters through the append-only run change journal; never rebuild frames or outline.
+  Invalid stored group data remains untouched behind a bounded review and explicit clear action.
+  Readonly/history views can inspect, expand and lock locally, but cannot edit group metadata.
+- Omitted/null groups preserve existing server metadata on ordinary draft PUT. Legacy load does
+  not inject groups. Intentional removal (including acknowledged-save undo), reviewed AI document
+  replacement, emergency-copy restore and conflict Keep local send explicit `[]` when group-free.
+  Version restore replaces the complete document for both flow and block kinds; an old group-free
+  version clears groups. Grouped export files use schema 2, group-free exports schema 1; stored
+  drafts stay schema 1. Verify `test-easydrag-groups.mjs`, `test-easydrag-groups-save.mjs` and
+  `TestDesktopEasyDragGroupsBrowser`, including mixed selection, local locks, collapse and readonly.
 - `easydrag-batches.js` extends the existing pinned block form for `component.each`: one whole
   item goes to an explicitly selected typed input; shared bindings resolve once. Items in literal
   arrays remain data during field previews, key renames and clipboard rewrites. Only a top-level
@@ -1405,8 +1422,8 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   record (`refreshRecord`: chip, Active switch, Run now), `deleted` goes home with a notice
   (`goneElsewhere`). An event without an id and reason `deleted` or `enabled` is "maybe mine": the
   record is read again and `FLOW_NOT_FOUND` means deleted. Every delete (editor, start-page card,
-  elsewhere, a broadcast on the start page) calls `core.forgetFlow(id)`, which drops the four
-  per-flow keys (`core.FLOW_KEYS`: emergency copy, view, effects-ok, test-trigger).
+  elsewhere, a broadcast on the start page) calls `core.forgetFlow(id)`, which drops the five
+  per-flow keys (`core.FLOW_KEYS`: emergency copy, view, effects-ok, test-trigger, group-view).
 - `flows_changed` with reason `checked` (no flow id) follows the server's start-up check: the start page reloads and
   the editor re-reads its record. `live_issues` shows `state_live_outdated` (`.ed-chip--risk`, `live_outdated_hint`
   as title and `.ed-sr-only` text) on the card and in the header, the latter only while `ed.flow.live_revision` is

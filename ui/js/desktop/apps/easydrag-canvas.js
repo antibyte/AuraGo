@@ -193,7 +193,7 @@
             ed.bus.emit('view', ed.view);
         }
 
-        function allRects() { return ed.model.doc.nodes.map(n => G.nodeRect(n.position, outCount(n))); }
+        function allRects() { return ed.groups ? ed.groups.rects() : ed.model.doc.nodes.map(n => G.nodeRect(n.position, outCount(n))); }
 
         // visibleArea is the part of the canvas that the run drawer (right) and a palette floating over
         // the canvas (left, narrow windows) leave free; with too little left, the whole canvas. The
@@ -224,7 +224,8 @@
         function fit(opts) {
             const area = visibleArea();
             const box = G.bounds(allRects());
-            const v = G.fit(box, { w: area.w, h: area.h }, 72, 1);
+            const pad = area.w < 600 ? Math.min(36, Math.max(18, area.w * 0.06)) : 72;
+            const v = G.fit(box, { w: area.w, h: area.h }, pad, 1);
             if (opts && opts.readable && box && v.zoom < READABLE_ZOOM) { setView(readable(box, area), opts); return; }
             setView({ x: v.x + area.left, y: v.y, zoom: v.zoom }, opts);
         }
@@ -246,7 +247,7 @@
             const nodes = ed.model.doc.nodes;
             const triggers = nodes.filter(n => { const i = info(n); return i && i.trigger && !(n.settings && n.settings.disabled); });
             const pick = (triggers.length ? triggers : nodes).slice().sort((a, b) => a.position.x - b.position.x)[0];
-            return pick ? G.nodeRect(pick.position, outCount(pick)) : null;
+            return pick ? ed.groups ? ed.groups.visualRect(pick.id) : G.nodeRect(pick.position, outCount(pick)) : null;
         }
 
         // center is the world point in the middle of the canvas and the zoom: stored that way, a view
@@ -290,6 +291,7 @@
 
         // centerOn puts a step in the middle of the free part of the canvas, at a readable zoom.
         function centerOn(id, opts) {
+            if (ed.groups) ed.groups.expandFor(id);
             const rect = nodeRect(id);
             if (!rect) return;
             const a = visibleArea();
@@ -300,7 +302,8 @@
         // Panel changes move only an obscured selection, retaining the user's zoom and context.
         function ensureSelected() {
             if (ed.selection.size !== 1 || ed.root.classList.contains('is-inspector')) return;
-            const rect = nodeRect(ed.selection.values().next().value);
+            const id = ed.selection.values().next().value;
+            const rect = ed.groups ? ed.groups.visualRect(id) : nodeRect(id);
             if (!rect) return;
             const a = visibleArea(), v = ed.view, pad = 24;
             const left = rect.x * v.zoom + v.x, top = rect.y * v.zoom + v.y;
@@ -320,7 +323,7 @@
             add(ed.selection, id => ed.model.incoming(id), 'source');
             add(ed.selection, id => ed.model.outgoing(id), 'target');
             const a = visibleArea();
-            const v = G.fit(G.bounds(Array.from(ids, nodeRect).filter(Boolean)), { w: a.w, h: a.h }, 48, 1);
+            const v = G.fit(G.bounds(Array.from(ids, id => ed.groups ? ed.groups.visualRect(id) : nodeRect(id)).filter(Boolean)), { w: a.w, h: a.h }, Math.min(48, Math.max(18, a.w * 0.06)), 1);
             setView({ x: v.x + a.left, y: v.y, zoom: v.zoom }, { animate: true });
         }
 
@@ -526,6 +529,7 @@
             }
             const i = info(n);
             card.className = classesFor(n) + (card.classList.contains('is-new') ? ' is-new' : '');
+            card.hidden = !!(ed.groups && ed.groups.hidden(n.id));
             card.dataset.cat = core.catOf(i);
             card.style.transform = 'translate(' + n.position.x + 'px,' + n.position.y + 'px)';
             card.style.height = G.nodeHeight(outCount(n)) + 'px';
@@ -662,30 +666,30 @@
             minimap.dataset.oy = oy;
             // Cards stay at least 2 px; that size only matters when the scale is tiny.
             const minSize = 2 / scale;
-            const key = ed.model.version + ':' + (minSize > G.NODE_H ? minSize.toFixed(1) : '');
+            const key = ed.model.version + ':' + (ed.groups ? ed.groups.version : 0) + ':' + (minSize > G.NODE_H ? minSize.toFixed(1) : '');
             const rebuilt = minimapModel !== ed.model || key !== minimapKey;
             if (rebuilt) {
                 minimapModel = ed.model;
                 minimapKey = key;
                 const byId = new Map(ed.model.doc.nodes.map(n => [n.id, n]));
                 const wires = ed.model.doc.edges.map(e => {
+                    if (ed.groups && !ed.groups.edgeVisible(e)) return '';
                     const src = byId.get(e.source && e.source.node);
                     const dst = byId.get(e.target && e.target.node);
                     if (!src || !dst) return '';
-                    const x1 = src.position.x + G.NODE_W;
-                    const y1 = src.position.y + G.NODE_H / 2;
-                    const x2 = dst.position.x;
-                    const y2 = dst.position.y + G.NODE_H / 2;
-                    return '<line class="ed-minimap-wire" x1="' + x1.toFixed(1) + '" y1="' + y1.toFixed(1) + '" x2="' + x2.toFixed(1) + '" y2="' + y2.toFixed(1) + '"></line>';
+                    let a = { x: src.position.x + G.NODE_W, y: src.position.y + G.NODE_H / 2 }, b = { x: dst.position.x, y: dst.position.y + G.NODE_H / 2 };
+                    if (ed.groups) { a = ed.groups.endpoint(src.id, 'out', a); b = ed.groups.endpoint(dst.id, 'in', b); }
+                    return '<line class="ed-minimap-wire" x1="' + a.x.toFixed(1) + '" y1="' + a.y.toFixed(1) + '" x2="' + b.x.toFixed(1) + '" y2="' + b.y.toFixed(1) + '"></line>';
                 }).join('');
                 const rectsMarkup = ed.model.doc.nodes.map(n => {
+                    if (ed.groups && ed.groups.hidden(n.id)) return '';
                     const rc = G.nodeRect(n.position, outCount(n));
                     const st = statusOf(n.id);
                     return '<rect x="' + rc.x + '" y="' + rc.y + '" width="' + Math.max(minSize, rc.w).toFixed(1) + '" height="' + Math.max(minSize, rc.h).toFixed(1) +
-                        '" rx="12" data-cat="' + esc(core.catOf(info(n))) + '"' +
+                        '" rx="12" data-node-id="' + esc(n.id) + '" data-cat="' + esc(core.catOf(info(n))) + '"' +
                         (st ? ' data-status="' + esc(st) + '"' : '') +
                         (ed.selection.has(n.id) ? ' class="is-selected"' : '') + '></rect>';
-                }).join('');
+                }).join('') + (ed.groups ? ed.groups.list().filter(group => ed.groups.collapsed.has(group.id)).map(group => { const rc = ed.groups.bounds(group); return '<rect x="' + rc.x + '" y="' + rc.y + '" width="' + Math.max(minSize, rc.w).toFixed(1) + '" height="' + Math.max(minSize, rc.h).toFixed(1) + '" rx="12" data-group-id="' + esc(group.id) + '" data-cat="logic"></rect>'; }).join('') : '');
                 minimapWires.innerHTML = wires;
                 minimapNodes.innerHTML = rectsMarkup;
             }
@@ -693,16 +697,14 @@
             // same tick, so it only moves the matrix and the view rectangle below.
             if (rebuilt || minimapMarks !== selectionTick) {
                 const rects = minimapNodes.querySelectorAll('rect');
-                const nodes = ed.model.doc.nodes;
-                const count = rects.length < nodes.length ? rects.length : nodes.length;
-                for (let i = 0; i < count; i++) {
-                    const st = statusOf(nodes[i].id);
-                    const rect = rects[i];
+                for (const rect of rects) {
+                    const group = rect.dataset.groupId && ed.groups && ed.groups.group(rect.dataset.groupId), ids = group ? group.members : [rect.dataset.nodeId];
+                    const statuses = ids.map(statusOf), st = ['error', 'running', 'queued', 'success'].find(value => statuses.includes(value)) || '';
                     if ((rect.getAttribute('data-status') || '') !== st) {
                         if (st) rect.setAttribute('data-status', st);
                         else rect.removeAttribute('data-status');
                     }
-                    const selected = ed.selection.has(nodes[i].id);
+                    const selected = ids.some(id => ed.selection.has(id));
                     if (rect.classList.contains('is-selected') !== selected) rect.classList.toggle('is-selected', selected);
                 }
                 minimapMarks = selectionTick;
@@ -795,13 +797,14 @@
                     y = sy + G.nodeHeight(outCount(n)) + 48;
                 });
             });
+            if (ed.groups) Object.keys(positions).forEach(id => { if (!ed.groups.movable([id]).length) delete positions[id]; });
             ed.model.moveNodes(positions, 'auto-layout:' + Date.now());
             fit({ animate: true });
         }
 
         function alignSelection(axis) {
             if (ed.readonly || ed.runView) return;
-            const ids = Array.from(ed.selection);
+            const ids = ed.groups ? ed.groups.movable(ed.selection) : Array.from(ed.selection);
             if (ids.length < 2) return;
             const sel = ids.map(id => ed.model.node(id)).filter(Boolean);
             if (sel.length < 2) return;
@@ -831,11 +834,12 @@
                 if (!leadsTo.has(e.source.node)) leadsTo.set(e.source.node, []);
                 leadsTo.get(e.source.node).push(other.label || (info(other) && info(other).label) || other.type);
             });
-            listEl.innerHTML = ed.model.doc.nodes.map(n => {
+            const nodeMarkup = n => {
                 const targets = leadsTo.get(n.id) || [];
                 const text = (n.label || (info(n) && info(n).label) || n.type) + (targets.length ? ' → ' + targets.join(', ') : '');
                 return '<li><button type="button" tabindex="' + (ed.outlineOpen ? '0' : '-1') + '" aria-current="' + (ed.selection.has(n.id) ? 'step' : 'false') + '" data-ed-focus-node="' + esc(n.id) + '">' + esc(text) + '</button></li>';
-            }).join('');
+            };
+            listEl.innerHTML = (ed.groups ? ed.groups.list().map(group => '<li class="ed-outline-group"><button type="button" tabindex="' + (ed.outlineOpen ? '0' : '-1') + '" data-ed-outline-group="' + esc(group.id) + '"><strong>' + esc(group.title) + '</strong><small data-ed-outline-count="' + esc(group.id) + '">' + esc(ed.groups.countText(group)) + '</small></button><ul>' + group.members.map(id => byId.get(id)).filter(Boolean).map(nodeMarkup).join('') + '</ul></li>').join('') : '') + ed.model.doc.nodes.filter(node => !ed.groups || !ed.groups.memberOf(node.id)).map(nodeMarkup).join('');
         }
 
         // announce speaks text through the canvas's live region (core.announcer). ed.announce lets the
@@ -844,6 +848,8 @@
         ed.announce = announce;
 
         bag.listen(listEl, 'click', (event) => {
+            const group = event.target.closest('[data-ed-outline-group]');
+            if (group && ed.groups) { ed.groups.select(group.dataset.edOutlineGroup); ed.groups.open(group.dataset.edOutlineGroup); return; }
             const btn = event.target.closest('[data-ed-focus-node]');
             if (btn) ed.bus.emit('focus-node', btn.dataset.edFocusNode);
         });
@@ -879,6 +885,7 @@
             else renderNodes(change.nodes.concat(affectedByEdges(change.edges)));
         }));
         bag.add(ed.bus.on('selection', refreshSelection));
+        bag.add(ed.bus.on('group-view', () => { selectionTick++; minimapFrame.request(); }));
         bag.add(ed.bus.on('run', onRun));
         bag.add(ed.bus.on('issues', onIssues));
 

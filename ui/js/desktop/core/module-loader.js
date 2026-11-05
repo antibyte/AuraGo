@@ -207,6 +207,7 @@
                 '/js/desktop/apps/easydrag-template.js',
                 '/js/desktop/apps/easydrag-model.js',
                 '/js/desktop/apps/easydrag-geometry.js',
+                '/js/desktop/apps/easydrag-groups.js',
                 '/js/desktop/apps/easydrag-saver.js',
                 '/js/desktop/apps/easydrag-canvas.js',
                 '/js/desktop/apps/easydrag-wires.js',

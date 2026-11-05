@@ -65,7 +65,7 @@ func TestFlowsV3MigrationBacksUpAndPreservesData(t *testing.T) {
 	defer s.Close()
 	assertBlockMigrationData(t, s.db)
 	var version string
-	if err := s.db.QueryRow(`SELECT value FROM flows_meta WHERE key='schema_version'`).Scan(&version); err != nil || version != "4" {
+	if err := s.db.QueryRow(`SELECT value FROM flows_meta WHERE key='schema_version'`).Scan(&version); err != nil || version != "5" {
 		t.Fatalf("version = %q, %v", version, err)
 	}
 	paths, err := filepath.Glob(filepath.Join(filepath.Dir(path), ".flows-v2-backup-*", "flows.db"))
@@ -117,7 +117,7 @@ func TestFlowsV3MigrationBacksUpAndPreservesData(t *testing.T) {
 	}
 	defer restored.Close()
 	assertBlockMigrationData(t, restored.db)
-	if err := restored.db.QueryRow(`SELECT value FROM flows_meta WHERE key='schema_version'`).Scan(&version); err != nil || version != "4" {
+	if err := restored.db.QueryRow(`SELECT value FROM flows_meta WHERE key='schema_version'`).Scan(&version); err != nil || version != "5" {
 		t.Fatalf("restored schema = %q, %v", version, err)
 	}
 }
@@ -209,7 +209,7 @@ func TestFlowsV3RefusesIncompletePinSchemaBeforeWriting(t *testing.T) {
 			}
 			var version string
 			var recreated int
-			if err := db.QueryRow(`SELECT value FROM flows_meta WHERE key='schema_version'`).Scan(&version); err != nil || version != "4" {
+			if err := db.QueryRow(`SELECT value FROM flows_meta WHERE key='schema_version'`).Scan(&version); err != nil || version != "5" {
 				t.Fatalf("schema marker changed: %q, %v", version, err)
 			}
 			if err := db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='idx_flows_mission'`).Scan(&recreated); err != nil || recreated != 0 {

@@ -82,16 +82,26 @@ var (
 
 // Flow is the EasyDrag flow document.
 type Flow struct {
-	Schema      int          `json:"schema"`
-	ID          string       `json:"id"`
-	Kind        Kind         `json:"kind"`
-	Name        string       `json:"name"`
-	Description string       `json:"description,omitempty"`
-	Nodes       []Node       `json:"nodes"`
-	Edges       []Edge       `json:"edges"`
-	Settings    FlowSettings `json:"settings"`
-	Notes       []StickyNote `json:"notes,omitempty"`
-	Viewport    *Viewport    `json:"viewport,omitempty"`
+	Schema      int            `json:"schema"`
+	ID          string         `json:"id"`
+	Kind        Kind           `json:"kind"`
+	Name        string         `json:"name"`
+	Description string         `json:"description,omitempty"`
+	Nodes       []Node         `json:"nodes"`
+	Edges       []Edge         `json:"edges"`
+	Settings    FlowSettings   `json:"settings"`
+	Notes       []StickyNote   `json:"notes,omitempty"`
+	Viewport    *Viewport      `json:"viewport,omitempty"`
+	Groups      *[]VisualGroup `json:"groups,omitempty"`
+}
+
+// VisualGroup is a flat, non-executable canvas annotation.
+type VisualGroup struct {
+	ID      string   `json:"id"`
+	Title   string   `json:"title"`
+	Color   string   `json:"color"`
+	Note    string   `json:"note,omitempty"`
+	Members []string `json:"members"`
 }
 
 // Node is one placed node on the canvas.
@@ -179,6 +189,33 @@ func ParseFlow(data []byte) (*Flow, error) {
 		return nil, fmt.Errorf("%w: %d", ErrUnsupportedSchema, f.Schema)
 	}
 	f.Normalize()
+	return &f, nil
+}
+
+// ParseFlowImport accepts the group-aware export format without changing the
+// schema used by stored documents, draft updates or pinned versions.
+func ParseFlowImport(data []byte) (*Flow, error) {
+	if len(data) > MaxDocumentBytes {
+		return nil, ErrDocumentTooLarge
+	}
+	var f Flow
+	if err := json.Unmarshal(data, &f); err != nil {
+		return nil, fmt.Errorf("decode flow: %w", err)
+	}
+	if f.Schema != SchemaVersion && f.Schema != 2 {
+		return nil, fmt.Errorf("%w: %d", ErrUnsupportedSchema, f.Schema)
+	}
+	if f.Schema == 2 && (f.Groups == nil || len(*f.Groups) == 0) {
+		return nil, &ValidationError{Issues: []Issue{{Code: IssueGroupInvalid, Severity: SeverityError, Param: "groups", Message: "visual groups are invalid"}}}
+	}
+	f.Schema = SchemaVersion
+	f.Normalize()
+	v := newValidator(&f, nil, ValidateContext{})
+	v.groupChecks()
+	v.finish()
+	if HasErrors(v.issues) {
+		return nil, &ValidationError{Issues: v.issues}
+	}
 	return &f, nil
 }
 

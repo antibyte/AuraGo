@@ -4,6 +4,9 @@ import (
 	"maps"
 	"sort"
 	"strings"
+	"unicode/utf8"
+
+	"aurago/internal/security"
 )
 
 // credentialHeaderName reports whether a request header of this name carries a credential: the
@@ -107,8 +110,46 @@ func RedactCredentials(f *Flow) (*Flow, error) {
 	if err != nil {
 		return nil, err
 	}
+	if c.Groups != nil {
+		for i := range *c.Groups {
+			group := &(*c.Groups)[i]
+			group.Title = security.ScrubSecrets(group.Title)
+			group.Note = security.ScrubSecrets(group.Note)
+		}
+	}
 	for i := range c.Nodes {
 		c.Nodes[i].Params = redactCredentialHeaders(c.Nodes[i].Params, true)
 	}
 	return c, nil
+}
+
+// ExportFlow marks nonempty visual groups so older importers fail closed.
+// This marker is confined to export files; live and persisted schemas stay 1.
+func ExportFlow(f *Flow) (*Flow, error) {
+	copy, err := RedactCredentials(f)
+	if err != nil || copy == nil {
+		return copy, err
+	}
+	if copy.Groups != nil && len(*copy.Groups) > 0 {
+		// Scrubbing can expand a secret into a longer marker. Keep the complete
+		// scrub before truncation, then retain valid import bounds with an ellipsis.
+		for i := range *copy.Groups {
+			group := &(*copy.Groups)[i]
+			if utf8.RuneCountInString(group.Title) > 80 {
+				group.Title = truncateRunes(group.Title, 79)
+			}
+			if utf8.RuneCountInString(group.Note) > 2048 {
+				group.Note = truncateRunes(group.Note, 2047)
+			}
+		}
+		copy.Schema = 2
+	}
+	encoded, err := copy.Marshal()
+	if err != nil {
+		return nil, err
+	}
+	if len(encoded) > MaxDocumentBytes {
+		return nil, ErrDocumentTooLarge
+	}
+	return copy, nil
 }

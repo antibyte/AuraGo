@@ -104,29 +104,24 @@ func (s *Service) GetBlock(ctx context.Context, id string) (*FlowRecord, error) 
 
 // SaveBlockDraft changes a block only when its kind and draft revision match.
 func (s *Service) SaveBlockDraft(ctx context.Context, id string, doc *Flow, baseRevision int) (int, []Issue, error) {
-	if doc == nil {
-		return 0, nil, errors.New("a block document is required")
+	return s.saveDraft(ctx, id, doc, baseRevision, KindBlock, false)
+}
+
+// RestoreBlockVersion replaces the draft with the exact published block version.
+func (s *Service) RestoreBlockVersion(ctx context.Context, id string, revision, baseRevision int) (*FlowRecord, []Issue, error) {
+	if _, err := s.GetBlock(ctx, id); err != nil {
+		return nil, nil, err
 	}
-	if doc.Kind != KindBlock {
-		return 0, nil, ErrWrongFlowKind
-	}
-	f, err := doc.Clone()
+	doc, err := s.store.GetVersion(ctx, id, revision)
 	if err != nil {
-		return 0, nil, err
+		return nil, nil, err
 	}
-	f.ID, f.Kind = id, KindBlock
-	f.Normalize()
-	issues := s.ValidateBlock(f, ModeDraft)
-	if HasErrors(issues) {
-		return 0, issues, &ValidationError{Issues: issues}
+	if _, issues, err := s.saveDraft(ctx, id, doc, baseRevision, KindBlock, true); err != nil {
+		return nil, issues, err
+	} else {
+		rec, err := s.GetBlock(ctx, id)
+		return rec, issues, err
 	}
-	unlock, err := s.draftLocks.lock(ctx, id)
-	if err != nil {
-		return 0, issues, err
-	}
-	defer unlock()
-	rev, err := s.store.SaveDraft(ctx, id, f, baseRevision, s.now())
-	return rev, issues, err
 }
 
 // BlockPreview pairs publish checks and the optional contract of the same draft.

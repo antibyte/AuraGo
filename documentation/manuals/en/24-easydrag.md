@@ -8,6 +8,7 @@ This chapter covers the editor. How flow runs, limits, failures and secrets beha
 
 1. [Your First Flow](#your-first-flow)
 2. [The Editor](#the-editor)
+   - [Visual groups](#visual-groups)
 3. [Saving](#saving)
 4. [Testing](#testing)
 5. [Publishing](#publishing)
@@ -99,7 +100,10 @@ explicitly reset to zero before publishing or running.
 Under **More**, inspect published versions or review a block's dependents before deletion.
 Published parent versions and retained runs can keep a block version in use; deletion then
 remains blocked. **Load more** retrieves older versions or additional dependencies. Version
-inspection is read-only; **Open current draft** returns to editing. The parent run shows the
+inspection is read-only; **Open current draft** returns to editing. **Restore as draft** asks
+for confirmation and replaces the current block draft with the selected version. The live block
+changes only when you publish; callers keep their pinned version until explicitly upgraded.
+The parent run shows the
 call's block ID and version, without a separate child-run history.
 
 ### Process a list with a block
@@ -175,6 +179,25 @@ to check execution with its real data.
 - Runs that were already waiting in a queue when missions became read-only or EasyDrag was switched off do not start later either: when their turn comes they end as *Stopped* (automatic runs are paused), and Mission Control notes it on the flow mission. A run you started yourself with *Run now* still runs.
 - When AuraGo cannot start the flow store (a locked or damaged `flows.db`), it keeps trying in the background. Until it works, the start page shows *Date & time triggers are not running* and the header a chip with the same words; the notice names Date & time triggers because they depend on these timers.
 - In a list of keys and values (the headers of an HTTP request, for example), two rows with the same key are marked, and nothing in that list is saved until each key is unique. Numbers and yes/no values from an imported flow keep their type until you edit them.
+
+### Visual groups
+
+Use **Visual groups** in the left toolbar to open the group list. Select steps on the canvas,
+then choose **Group selected steps**. Groups organize the canvas only: they do not add a step
+or change connections, settings or execution. A step can belong to at most one group. A flow
+or block can have up to 100 groups; a title has 1–80 characters and a note up to 2,048.
+
+Click a group header to select its steps; double-click it or press Enter to open the group
+inspector. There you can change the title, note and color, add or remove members, move the
+group with position controls, or ungroup while keeping its steps. Deleting the last member
+also removes the empty group. Each change can be undone. Copying a whole group carries its
+group metadata; copying only some members copies those steps without the group.
+
+Collapse and layout lock are local view choices on this device. A lock prevents moving and
+aligning the group's steps, not editing their settings or running the flow. The outline still
+lists members of a collapsed group; choosing a member or an error expands the group before
+focusing it. In a read-only run or version, expanding a group changes only your view.
+Group edits change the draft revision, so test the new revision before publishing.
 
 ### Collection expressions
 
@@ -313,7 +336,7 @@ error-message text. Comparing never replays a step.
 - The start page offers twelve templates, including *Your first local result*, email and device notifications, a camera detection notification, an MQTT temperature warning and a manual note as PDF. In the editor, steps whose integration is not set up yet carry a badge, and their detail view links to the settings (*Open settings*); in the building blocks panel such blocks offer *Set up*.
 - The new notification recipes select Web Push by default; configure it or choose another channel before publishing. For the temperature warning, select an MQTT topic and review the threshold. Missing or nonnumeric temperatures stop the run with an error; a successful simulation with sample values does not prove that the sensor or notification channel is working. The camera example sends text without attaching an image. Simulated notification and PDF results do not send a message or create a file.
 - The email, device and camera examples start with broad filters: they match eligible messages from the watched inbox, device disconnects or armed camera detections from configured sources. Set the desired subject/sender, device, camera or zone filters before publishing if the flow should respond more narrowly.
-- **Export** downloads the draft as `<name>.easydrag.json`. **Import** on the start page creates a new flow from such a file (at most 2 MiB). A flow file carries secret names, never their values; credential headers (*Authorization*, *X-Api-Key*, *Cookie*, ...) are exported as `[redacted]`; other values typed into ordinary fields are exported as typed.
+- **Export** downloads the draft as `<name>.easydrag.json`. **Import** on the start page creates a new flow from such a file (at most 2 MiB). Vault references carry secret names. Credential headers (*Authorization*, *X-Api-Key*, *Cookie*, ...) are exported as `[redacted]`; registered secrets in group titles and notes are masked. If masking exceeds a group text limit, the text is shortened with an ellipsis. Other ordinary fields are exported as typed and may contain sensitive values. An export with visual groups requires a current AuraGo version that supports them; older versions refuse it instead of silently dropping the groups.
 
 ## Mission Control, the Missions Page and the Dashboard
 

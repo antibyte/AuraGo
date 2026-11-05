@@ -74,6 +74,7 @@
         // ── selection ───────────────────────────────────────────────────────────
 
         function select(ids, opts) {
+            if (ed.groups) ed.groups.clearActive();
             const next = opts && opts.toggle ? new Set(ed.selection) : new Set();
             (ids || []).forEach(id => {
                 if (opts && opts.toggle && next.has(id)) next.delete(id); else next.add(id);
@@ -93,7 +94,7 @@
             const radius = SNAP_RADIUS / ed.view.zoom;
             let best = null;
             ed.model.doc.nodes.forEach(n => {
-                if (n.id === except) return;
+                if (n.id === except || ed.groups && ed.groups.hidden(n.id)) return;
                 const ports = side === 'in' ? ed.model.inputs(n) : ed.model.outputs(n);
                 const outCount = ed.model.outputs(n).length;
                 ports.forEach((port, idx) => {
@@ -121,12 +122,8 @@
             let best = null;
             ed.model.doc.edges.forEach(e => {
                 if (e.source.node === exceptNode || e.target.node === exceptNode) return;
-                const src = byId.get(e.source.node);
-                const dst = byId.get(e.target.node);
-                if (!src || !dst) return;
-                const outs = ed.model.outputs(src);
-                const a = G.portPoint(src.position, 'out', Math.max(0, outs.indexOf(e.source.port)), outs.length);
-                const b = G.portPoint(dst.position, 'in', 0, ed.model.outputs(dst).length);
+                const geo = wires.ends(e, byId); if (!geo) return;
+                const { a, b } = geo;
                 const box = G.wireBounds(a, b);
                 if (worldPoint.x < box.x - reach || worldPoint.x > box.x + box.w + reach || worldPoint.y < box.y - reach || worldPoint.y > box.y + box.h + reach) return;
                 const d = G.distanceToWire(worldPoint, a, b);
@@ -154,6 +151,12 @@
             }
             const portEl = event.target.closest('.ed-port');
             const nodeEl = event.target.closest('.ed-node');
+            const groupHandle = event.target.closest('[data-ed-group-drag]');
+            if (groupHandle && ed.groups && event.button === 0 && !spaceDown) {
+                const id = groupHandle.dataset.edGroupDrag, item = ed.groups.group(id); if (!item) return;
+                ed.groups.select(id, event.shiftKey || core.isMod(event) || item.members.every(member => ed.selection.has(member)));
+                const first = ed.groups.movable(item.members)[0]; if (first) startNodeDrag(event, first, true); return;
+            }
             const panGesture = event.button === 1 || spaceDown || (event.pointerType === 'touch' && !nodeEl);
             if (panGesture) { startPan(event); return; }
             if (event.button !== 0) return;
@@ -213,12 +216,15 @@
             if (pointers.size < 2 && pinch) pinch = null;
         }
 
-        function startNodeDrag(event, nodeId) {
+        function startNodeDrag(event, nodeId, selectionReady) {
             const additive = event.shiftKey || core.isMod(event);
-            if (additive) select([nodeId], { toggle: true });
-            else if (!ed.selection.has(nodeId)) select([nodeId]);
+            if (!selectionReady) { if (additive) select([nodeId], { toggle: true });
+            else if (!ed.selection.has(nodeId)) select([nodeId]); }
             if (readonly() || additive) return;
-            const ids = Array.from(ed.selection);
+            const ids = ed.groups ? ed.groups.movable(ed.selection) : Array.from(ed.selection);
+            if (!ids.includes(nodeId)) return;
+            const groupedGesture = !!(selectionReady || ed.groups && ed.groups.active);
+            if (groupedGesture) ed.model.endCoalescing();
             const origin = new Map(ids.map(id => [id, Object.assign({}, ed.model.node(id).position)]));
             const start = { x: event.clientX, y: event.clientY };
             const primary = ed.model.node(nodeId);
@@ -226,7 +232,8 @@
             let applied = { x: 0, y: 0 };
             let dropEdge = null;
             if (event.pointerType === 'touch') {
-                longPress = setTimeout(() => { if (!moved) openNodeMenu(nodeId, start.x, start.y); }, 550);
+                const groupId = selectionReady && ed.groups && ed.groups.memberOf(nodeId);
+                longPress = setTimeout(() => { if (!moved) { if (groupId) { if (gesture) gesture.abort(); pointers.delete(event.pointerId); ed.groups.open(groupId); } else openNodeMenu(nodeId, start.x, start.y); } }, 550);
             }
             capture(event, ev => {
                 const dx = (ev.clientX - start.x) / ed.view.zoom;
@@ -254,11 +261,12 @@
                 hideGuides();
                 wires.markDropTarget(null);
                 if (!moved) return;
-                if (cancelled) { ed.model.moveNodes(ids, -applied.x, -applied.y); return; }
+                if (cancelled) { ed.model.moveNodes(ids, -applied.x, -applied.y); if (groupedGesture) ed.model.endCoalescing(); return; }
                 const n = ed.model.node(nodeId);
                 const grid = { x: G.snap(n.position.x) - n.position.x, y: G.snap(n.position.y) - n.position.y };
                 ed.model.moveNodes(ids, grid.x, grid.y);
                 if (dropEdge) ed.model.insertOnEdge(dropEdge, nodeId, null);
+                if (groupedGesture) ed.model.endCoalescing();
             });
         }
 
@@ -271,7 +279,7 @@
             let gx = null;
             let gy = null;
             ed.model.doc.nodes.forEach(n => {
-                if (skip.has(n.id)) return;
+                if (skip.has(n.id) || ed.groups && ed.groups.hidden(n.id)) return;
                 const nh = G.nodeHeight(ed.model.outputs(n).length);
                 if (gx === null && Math.abs(n.position.x - pos.x) < GUIDE_RADIUS / ed.view.zoom) { x = n.position.x; gx = x; }
                 const cy = n.position.y + nh / 2;
@@ -384,7 +392,7 @@
                 selectBox.style.height = box.h + 'px';
                 const worldBox = G.normalizeRect(G.toWorld(ed.view, a), G.toWorld(ed.view, b));
                 // Rects come from the nodes themselves; the selection changes only when the hit set does.
-                const hit = ed.model.doc.nodes.filter(n => G.intersects(worldBox, G.nodeRect(n.position, ed.model.outputs(n).length))).map(n => n.id);
+                const hit = ed.model.doc.nodes.filter(n => G.intersects(worldBox, ed.groups ? ed.groups.visualRect(n.id) : G.nodeRect(n.position, ed.model.outputs(n).length))).map(n => n.id);
                 const key = hit.join(' ');
                 if (key === lastHit) return;
                 lastHit = key;
@@ -418,6 +426,8 @@
             const hit = event.target === el ? document.elementFromPoint(event.clientX, event.clientY) : event.target;
             if (!hit || !el.contains(hit)) return;
             const target = hit;
+            const group = target.closest('[data-ed-group]');
+            if (group) { if (ed.groups && target.closest('[data-ed-group-drag]')) ed.groups.open(group.dataset.edGroup); return; }
             const nodeEl = target.closest('.ed-node');
             if (nodeEl && !target.closest('.ed-node-tools, .ed-port')) { ed.bus.emit('open-detail', { nodeId: nodeEl.dataset.nodeId }); return; }
             if (!nodeEl && !readonly() && target.closest('.ed-canvas') && !target.closest('.ed-zoom, .ed-minimap, .ed-empty, .ed-port-tip, .ed-edge, .ed-wire-actions')) {
@@ -504,6 +514,7 @@
                 { separator: true },
                 { icon: 'copy', label: t('easydrag.ui.node_duplicate'), disabled: ro, action: () => duplicateSteps(Array.from(ed.selection)) },
                 { icon: 'copy', label: t('easydrag.ui.menu_copy'), action: () => copySelection() },
+                ...(ed.groups ? [{ icon: 'grid', label: t('easydrag.ui.group_create'), disabled: ro, action: () => ed.groups.createFromSelection() }] : []),
                 { icon: 'pause', label: n && n.settings.disabled ? t('easydrag.ui.node_enable') : t('easydrag.ui.node_disable'), disabled: ro, action: () => toggleSteps(Array.from(ed.selection)) }
             ];
             if (ed.selection.size >= 2) {
@@ -537,6 +548,8 @@
         function onContextMenu(event) {
             if (event.target.closest('.ed-zoom, .ed-minimap, .ed-port-tip')) return;
             event.preventDefault();
+            const group = event.target.closest('[data-ed-group]');
+            if (group && ed.groups) { ed.groups.open(group.dataset.edGroup); return; }
             const nodeEl = event.target.closest('.ed-node');
             if (nodeEl) openNodeMenu(nodeEl.dataset.nodeId, event.clientX, event.clientY);
             else openCanvasMenu(event.clientX, event.clientY);
@@ -646,6 +659,11 @@
             if (mod && key.toLowerCase() === 'd') { if (!readonly() && ed.selection.size) duplicateSteps(Array.from(ed.selection)); return true; }
             if (mod && key === '0') { const s = canvas.size(); canvas.setView(G.zoomAt(ed.view, 1, { x: s.w / 2, y: s.h / 2 }), { animate: true }); return true; }
             if (mod) return false;
+            if (ed.groups && ed.groups.active && (key === 'Delete' || key === 'Backspace' || key === 'Enter')) {
+                if (key === 'Enter') ed.groups.open(ed.groups.active);
+                else if (!event.repeat && !readonly() && (!ed.flushPendingEdits || ed.flushPendingEdits())) { ed.model.ungroup(ed.groups.active); select([]); }
+                return true;
+            }
             if (key === 'Delete' || key === 'Backspace') { removeSelection(); return true; }
             if (key === 'Escape') { select([]); wires.highlight(null); return true; }
             if (key === '!' || (key === '1' && event.shiftKey)) { canvas.fit({ animate: true }); return true; }
@@ -658,7 +676,7 @@
                 if (event.shiftKey && ed.selection.size && !readonly()) {
                     const d = event.altKey ? 1 : G.GRID;
                     const delta = { ArrowLeft: [-d, 0], ArrowRight: [d, 0], ArrowUp: [0, -d], ArrowDown: [0, d] }[key];
-                    movedIds = Array.from(ed.selection);
+                    movedIds = ed.groups ? ed.groups.movable(ed.selection) : Array.from(ed.selection);
                     ed.model.moveNodes(movedIds, delta[0], delta[1]);
                     movedSoon();
                     return true;

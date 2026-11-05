@@ -265,6 +265,27 @@ func (s *Server) flowBlockPublish(w http.ResponseWriter, r *http.Request, id str
 }
 
 func (s *Server) flowBlockVersions(w http.ResponseWriter, r *http.Request, id string, rest []string) {
+	if r.Method == http.MethodPost && len(rest) == 0 {
+		var body struct {
+			Revision     *int `json:"revision"`
+			BaseRevision *int `json:"base_revision"`
+		}
+		if !flowsDecode(w, r, &body, flowsSmallBodyLimit, false) {
+			return
+		}
+		if body.Revision == nil || *body.Revision <= 0 || body.BaseRevision == nil || *body.BaseRevision <= 0 {
+			flowsError(w, http.StatusBadRequest, "FLOW_BAD_REQUEST", "positive version and draft revisions are required")
+			return
+		}
+		block, issues, err := s.Flows.RestoreBlockVersion(r.Context(), id, *body.Revision, *body.BaseRevision)
+		if err != nil {
+			s.flowBlockError(w, r, err)
+			return
+		}
+		s.broadcastFlowsChanged(id, "saved")
+		flowsJSON(w, http.StatusOK, map[string]any{"block": block, "issues": nonNilIssues(issues)})
+		return
+	}
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		flowsMethodNotAllowed(w)
 		return

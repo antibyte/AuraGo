@@ -8,6 +8,7 @@ Dieses Kapitel beschreibt den Editor. Wie sich Läufe, Grenzen, Fehler und Gehei
 
 1. [Der erste Flow](#der-erste-flow)
 2. [Der Editor](#der-editor)
+   - [Visuelle Gruppen](#visuelle-gruppen)
 3. [Speichern](#speichern)
 4. [Testen](#testen)
 5. [Veröffentlichen](#veröffentlichen)
@@ -110,7 +111,10 @@ Unter **Mehr** kannst Du veröffentlichte Versionen ansehen und vor dem Löschen
 prüfen. Veröffentlichte Elternversionen und aufbewahrte Läufe können eine Bausteinversion
 weiter verwenden; dann bleibt das Löschen gesperrt. **Mehr laden** zeigt ältere Versionen
 oder weitere Abhängigkeiten. Die Versionsansicht ist schreibgeschützt; **Aktuellen Entwurf
-öffnen** führt zur Bearbeitung zurück. Der Elternlauf zeigt Baustein-ID und Version des
+öffnen** führt zur Bearbeitung zurück. **Als Entwurf wiederherstellen** ersetzt nach einer
+Rückfrage den aktuellen Bausteinentwurf durch die gewählte Version. Der laufende Baustein
+ändert sich erst beim Veröffentlichen; aufrufende Flows behalten ihre gebundene Version, bis
+Du sie ausdrücklich aktualisierst. Der Elternlauf zeigt Baustein-ID und Version des
 Aufrufs, jedoch keinen eigenen Verlauf der untergeordneten Schritte.
 
 ### Eine Liste mit einem Baustein verarbeiten
@@ -192,6 +196,28 @@ in der Eingabe und eine gewählte Zeitzone. Teste den Flow mit seinen tatsächli
 - Läufe, die schon in einer Warteschlange standen, als Missionen schreibgeschützt wurden oder EasyDrag abgeschaltet wurde, starten auch später nicht: Wenn sie an der Reihe sind, enden sie als *Gestoppt* (automatische Läufe sind pausiert), und Mission Control vermerkt es an der Flow-Mission. Ein Lauf, den du selbst mit *Jetzt ausführen* gestartet hast, läuft trotzdem.
 - Kann AuraGo den Flow-Speicher nicht starten (eine gesperrte oder beschädigte `flows.db`), versucht es das im Hintergrund weiter. Bis dahin zeigt die Startseite *Auslöser „Datum & Uhrzeit“ laufen nicht* und der Kopf einen Chip mit denselben Worten; sie nennt Datum & Uhrzeit, weil diese Auslöser von den Timern abhängen.
 - In einer Liste aus Schlüsseln und Werten (etwa den Headern einer HTTP-Anfrage) werden zwei Zeilen mit demselben Schlüssel markiert, und aus dieser Liste wird nichts gespeichert, bis jeder Schlüssel eindeutig ist. Zahlen und Ja/Nein-Werte aus einem importierten Flow behalten ihren Typ, bis du sie bearbeitest.
+
+### Visuelle Gruppen
+
+Mit **Visuelle Gruppen** in der linken Werkzeugleiste öffnest Du die Gruppenliste. Wähle
+Schritte auf der Fläche aus und klicke auf **Ausgewählte Schritte gruppieren**. Gruppen ordnen
+nur die Fläche: Sie fügen keinen Schritt hinzu und ändern weder Verbindungen noch Einstellungen
+oder Ausführung. Ein Schritt gehört höchstens einer Gruppe an. Ein Flow oder Baustein kann bis
+zu 100 Gruppen enthalten; ein Titel hat 1–80 Zeichen, eine Notiz bis zu 2.048.
+
+Ein Klick auf den Gruppenkopf wählt seine Schritte aus; ein Doppelklick oder Enter öffnet den
+Gruppeninspektor. Dort änderst Du Titel, Notiz und Farbe, fügst Mitglieder hinzu oder entfernst
+sie, verschiebst die Gruppe über Positionsfelder oder löst sie auf, ohne Schritte zu löschen.
+Löschst Du das letzte Mitglied, verschwindet auch die leere Gruppe. Jede Änderung lässt sich
+rückgängig machen. Kopierst Du eine vollständige Gruppe, werden ihre Gruppendaten mitkopiert;
+bei einer Teilauswahl werden nur die gewählten Schritte ohne Gruppe kopiert.
+
+Einklappen und Anordnungssperre gelten nur für Deine Ansicht auf diesem Gerät. Die Sperre
+verhindert das Verschieben und Ausrichten der Gruppenschritte, nicht das Bearbeiten ihrer
+Einstellungen oder die Ausführung. Die Schrittliste zeigt auch Mitglieder eingeklappter
+Gruppen; wählst Du ein Mitglied oder einen Fehler, wird die Gruppe vor dem Fokussieren
+ausgeklappt. In schreibgeschützten Läufen und Versionen ändert Ausklappen nur Deine Ansicht.
+Gruppenänderungen erhöhen die Entwurfsrevision; teste die neue Revision vor der Veröffentlichung.
 
 ### Ausdrücke für Listen und Objekte
 
@@ -343,7 +369,7 @@ Beim Vergleichen wird kein Schritt erneut ausgeführt.
 - Die Startseite bietet zwölf Vorlagen, darunter *Dein erstes lokales Ergebnis*, E-Mail- und Gerätebenachrichtigungen, einen Hinweis bei Personenerkennung, eine MQTT-Temperaturwarnung und eine manuelle Notiz als PDF. Im Editor tragen Schritte, deren Integration noch nicht eingerichtet ist, ein Abzeichen, und ihre Detailansicht verweist auf die Einstellungen (*Einstellungen öffnen*); in der Bausteine-Leiste bieten solche Bausteine *Einrichten* an.
 - Die neuen Benachrichtigungsvorlagen wählen standardmäßig Web Push; richte es ein oder wähle vor der Veröffentlichung einen anderen Kanal. Wähle für die Temperaturwarnung ein MQTT-Topic und prüfe den Schwellenwert. Fehlende oder nichtnumerische Temperaturen stoppen den Lauf mit einem Fehler; eine erfolgreiche Simulation mit Beispieldaten beweist nicht, dass Sensor oder Benachrichtigungskanal funktionieren. Das Kamerabeispiel sendet Text ohne Bildanhang. Simulierte Benachrichtigungs- und PDF-Ergebnisse senden keine Nachricht und erzeugen keine Datei.
 - Die E-Mail-, Geräte- und Kamerabeispiele starten mit breiten Filtern: Sie erfassen passende Nachrichten aus dem überwachten Posteingang, das Trennen von Geräten oder Personenerkennungen scharfgeschalteter Kameras aus den eingerichteten Quellen. Setze vor der Veröffentlichung die gewünschten Filter für Betreff/Absender, Gerät, Kamera oder Zone, wenn der Flow enger reagieren soll.
-- **Exportieren** lädt den Entwurf als `<name>.easydrag.json` herunter. **Importieren** auf der Startseite legt aus so einer Datei einen neuen Flow an (höchstens 2 MiB). Eine Flow-Datei enthält die Namen von Geheimnissen, nie ihre Werte; Zugangs-Header (*Authorization*, *X-Api-Key*, *Cookie*, ...) werden als `[redacted]` exportiert; andere Werte in gewöhnlichen Feldern so, wie du sie eingegeben hast.
+- **Exportieren** lädt den Entwurf als `<name>.easydrag.json` herunter. **Importieren** auf der Startseite legt aus so einer Datei einen neuen Flow an (höchstens 2 MiB). Vault-Verweise enthalten Geheimnisnamen. Zugangs-Header (*Authorization*, *X-Api-Key*, *Cookie*, ...) werden als `[redacted]` exportiert; registrierte Geheimnisse in Gruppentiteln und -notizen werden maskiert. Überschreitet der maskierte Text die Längenbegrenzung, wird er mit Auslassungspunkten gekürzt. Andere gewöhnliche Felder werden wie eingegeben exportiert und können sensible Werte enthalten. Ein Export mit visuellen Gruppen braucht eine aktuelle AuraGo-Version, die sie unterstützt; ältere Versionen lehnen ihn ab, statt die Gruppen stillschweigend zu entfernen.
 
 ## Mission Control, Missionsseite und Dashboard
 

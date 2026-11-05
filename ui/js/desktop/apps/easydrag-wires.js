@@ -35,6 +35,7 @@
         function nodeMap() { return new Map(ed.model.doc.nodes.map(n => [n.id, n])); }
 
         function ends(e, byId) {
+            if (ed.groups && !ed.groups.edgeVisible(e)) return null;
             const src = byId ? byId.get(e.source.node) : ed.model.node(e.source.node);
             const dst = byId ? byId.get(e.target.node) : ed.model.node(e.target.node);
             if (!src || !dst) return null;
@@ -42,18 +43,19 @@
             const ins = ed.model.inputs(dst);
             const idx = outs.indexOf(e.source.port);
             const inIdx = Math.max(0, ins.indexOf(e.target.port));
-            const b = G.portPoint(dst.position, 'in', inIdx, ed.model.outputs(dst).length, ins.length);
+            const point = (id, side, fallback) => ed.groups ? ed.groups.endpoint(id, side, fallback) : fallback;
+            const b = point(dst.id, 'in', G.portPoint(dst.position, 'in', inIdx, ed.model.outputs(dst).length, ins.length));
             // An output the node type does not have is drawn under the card, so the
             // edge can be selected and deleted. portPoint would sit on the only real
             // output when the step has one. A missing step is still not drawn.
             // New connections and paste still refuse that port on their own.
             if (idx < 0) {
                 return {
-                    a: { x: src.position.x + G.NODE_W, y: src.position.y + G.nodeHeight(outs.length) + 8 },
+                    a: point(src.id, 'out', { x: src.position.x + G.NODE_W, y: src.position.y + G.nodeHeight(outs.length) + 8 }),
                     b, src, dst, broken: true
                 };
             }
-            return { a: G.portPoint(src.position, 'out', idx, outs.length), b, src, dst };
+            return { a: point(src.id, 'out', G.portPoint(src.position, 'out', idx, outs.length)), b, src, dst };
         }
 
         function edgeState(e) {
@@ -224,6 +226,7 @@
                 hideActions(true);
                 return;
             }
+            if (ed.groups) { const edge = ed.model.edge(edgeId); if (edge) { ed.groups.expandFor(edge.source.node); ed.groups.expandFor(edge.target.node); } }
             ED.palette.requestInsert(ed, edgeId, btn);
             hideActions(true);
         });
@@ -289,11 +292,12 @@
             else renderFor(change.nodes);
         }));
         bag.add(ed.bus.on('run', onRun));
+        bag.add(ed.bus.on('group-view', () => { hideActions(true); render(); }));
         bag.add(ed.bus.on('selection', () => { if (ed.selection.size) { ed.selectedEdge = null; } markSelected(); }));
         bag.add(ed.bus.on('view', () => { if (hoverEdge) placeActions(hoverEdge); }));
 
         return {
-            render, renderFor, highlight, preview, markDropTarget,
+            render, renderFor, highlight, preview, markDropTarget, ends,
             hideActions: () => hideActions(true),
             dispose() { clearTimeout(hideTimer); bag.dispose(); actions.remove(); }
         };

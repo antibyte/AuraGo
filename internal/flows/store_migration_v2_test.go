@@ -47,7 +47,7 @@ func TestFlowsV2MigrationBacksUpExistingData(t *testing.T) {
 		t.Fatal(err)
 	}
 	var version string
-	if err := s.db.QueryRow(`SELECT value FROM flows_meta WHERE key='schema_version'`).Scan(&version); err != nil || version != "4" {
+	if err := s.db.QueryRow(`SELECT value FROM flows_meta WHERE key='schema_version'`).Scan(&version); err != nil || version != "5" {
 		t.Fatalf("migrated version = %q %v", version, err)
 	}
 	backups, err := filepath.Glob(filepath.Join(filepath.Dir(path), ".flows-v1-backup-*", "flows.db"))

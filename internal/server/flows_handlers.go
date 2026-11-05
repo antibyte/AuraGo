@@ -560,9 +560,14 @@ func (s *Server) flowsCollection(w http.ResponseWriter, r *http.Request) {
 		}
 		req := flows.CreateRequest{Name: body.Name, Template: body.Template, Translate: flowsTranslator(s.flowsLang(r))}
 		if len(body.Import) > 0 && string(body.Import) != "null" {
-			doc, err := flows.ParseFlow(body.Import)
+			doc, err := flows.ParseFlowImport(body.Import)
 			if err != nil {
-				flowsDocumentError(w, err)
+				var validation *flows.ValidationError
+				if errors.As(err, &validation) && validation != nil {
+					s.flowsErrorFrom(w, r, err)
+				} else {
+					flowsDocumentError(w, err)
+				}
 				return
 			}
 			req.Import = doc
@@ -736,7 +741,7 @@ func (s *Server) flowRoute(w http.ResponseWriter, r *http.Request, id string, re
 			return
 		}
 		w.Header().Set("Content-Disposition", `attachment; filename="`+flowExportName(rec.Name)+`"`)
-		doc, err := flows.RedactCredentials(rec.Draft)
+		doc, err := flows.ExportFlow(rec.Draft)
 		if err != nil {
 			s.flowsErrorFrom(w, r, err)
 			return

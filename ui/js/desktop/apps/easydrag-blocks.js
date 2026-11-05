@@ -22,6 +22,7 @@
             remove: (id, revision, liveRevision) => transport(path(id), json('DELETE', { base_revision: revision, base_live_revision: liveRevision })),
             versions: (id, before, signal) => transport(path(id) + '/versions?limit=50' + (before ? '&before_revision=' + enc(before) : ''), { signal }),
             version: (id, revision, signal) => transport(path(id) + '/versions/' + enc(revision), { signal }),
+            restoreVersion: (id, revision, baseRevision, signal) => transport(path(id) + '/versions', Object.assign(json('POST', { revision, base_revision: baseRevision }), { signal })).then(normalize),
             dependents: (id, cursor, signal) => transport(path(id) + '/dependents?limit=100' + (cursor ? '&cursor=' + encodeURIComponent(cursor) : ''), { signal }),
             simulate: (id, body, signal) => transport(path(id) + '/simulate', Object.assign(json('POST', body), { signal })),
             nodeTypes: () => transport(base + '/node-types?lang=' + encodeURIComponent(ED.core.lang())),
@@ -165,9 +166,24 @@
         if (!ed.root.isConnected) return;
         let rows = res.versions || [], cursor = res.next_cursor;
         const dialog = ED.core.modal(ed.root, { title: ed.t('easydrag.ui.versions_title'), closeLabel: ed.t('easydrag.ui.close'), className: 'ed-modal--block', body: '<p class="ed-hint">' + ed.esc(ed.t('easydrag.ui.block_pins_hint')) + '</p><div class="ed-block-versions" data-ed-block-versions></div><button type="button" class="ed-btn" data-ed-block-versions-more>' + ed.esc(ed.t('easydrag.ui.block_load_more')) + '</button><p class="ed-error" role="alert" hidden></p>', actions: [{ id: 'close-dialog', label: ed.t('easydrag.ui.close') }] });
-        function paint() { dialog.body.querySelector('[data-ed-block-versions]').innerHTML = rows.map(row => '<article class="ed-block-version-row"><button type="button" class="ed-btn" data-ed-block-version="' + ed.esc(row.revision) + '">v' + ed.esc(row.revision) + ' · ' + ed.esc(ED.core.fmt.dateTime(row.published_at)) + '</button>' + (ED.metadata ? ED.metadata.noteMarkup(ed, row) : '') + '</article>').join(''); dialog.body.querySelector('[data-ed-block-versions-more]').hidden = !cursor; }
+        function paint() { dialog.body.querySelector('[data-ed-block-versions]').innerHTML = rows.map(row => '<article class="ed-block-version-row"><button type="button" class="ed-btn" data-ed-block-version="' + ed.esc(row.revision) + '">v' + ed.esc(row.revision) + ' · ' + ed.esc(ED.core.fmt.dateTime(row.published_at)) + '</button>' + (ED.metadata ? ED.metadata.noteMarkup(ed, row) : '') + (!ed.readonly && !ed.runView ? '<button type="button" class="ed-btn" data-ed-block-restore="' + ed.esc(row.revision) + '">' + ed.esc(ed.t('easydrag.ui.versions_restore')) + '</button>' : '') + '</article>').join(''); dialog.body.querySelector('[data-ed-block-versions-more]').hidden = !cursor; }
         if (ED.metadata) ED.metadata.bindNotes(ed, dialog, () => rows, paint);
         dialog.body.addEventListener('click', async event => {
+            const restore = event.target.closest('[data-ed-block-restore]');
+            if (restore && !restore.disabled && !ed.readonly && !ed.runView && rows.some(row => String(row.revision) === restore.dataset.edBlockRestore)) {
+                restore.disabled = true;
+                try {
+                    const rev = Number(restore.dataset.edBlockRestore), ok = await ed.ctx.confirmDialog(ed.t('easydrag.ui.versions_title'), ed.t('easydrag.ui.versions_confirm', { revision: rev }));
+                    if (!ok || controller.signal.aborted || !ed.root.isConnected || ed.readonly || ed.runView || !ed.flushPendingEdits()) return;
+                    if (ed.saver.isDirty() && !(await ed.saver.flush())) { ed.ctx.notify({ title: ed.t('easydrag.ui.versions_title'), message: ed.t('easydrag.ui.versions_unsaved'), type: 'error' }); return; }
+                    if (controller.signal.aborted || !ed.root.isConnected || ed.readonly || ed.runView) return;
+                    const res = await ed.api.restoreVersion(ed.flow.id, rev, ed.saver.revision, controller.signal);
+                    if (controller.signal.aborted || !ed.root.isConnected) return;
+                    dialog.close('restored'); ed.bus.emit('restored', res); ed.ctx.notify({ title: ed.t('easydrag.ui.versions_title'), message: ed.t('easydrag.ui.versions_restored', { revision: rev }) });
+                } catch (err) { if (!controller.signal.aborted) { const error = dialog.body.querySelector('.ed-error'); error.hidden = false; error.textContent = ED.core.errorText(ed.t, err); } }
+                finally { restore.disabled = false; }
+                return;
+            }
             const button = event.target.closest('[data-ed-block-version]');
             if (button && rows.some(row => String(row.revision) === button.dataset.edBlockVersion)) { dialog.close(null); app.openBlock(ed.flow.id, { revision: Number(button.dataset.edBlockVersion) }); return; }
             const more = event.target.closest('[data-ed-block-versions-more]'); if (!more || !cursor || more.disabled) return;

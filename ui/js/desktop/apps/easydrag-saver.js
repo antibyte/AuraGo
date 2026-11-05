@@ -295,6 +295,8 @@
             }
             revision = server.flow.draft_revision;
             if (choice === 'keep') {
+                // "Keep local" replaces the remote draft. Omission would retain remote groups.
+                if (o.model.doc.groups == null) o.model.setGroups([]);
                 writeEmergency(); // the kept draft now builds on the server's revision
                 savedVersion = -1;
                 setState('dirty');

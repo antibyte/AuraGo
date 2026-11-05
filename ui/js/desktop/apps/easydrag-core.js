@@ -288,7 +288,7 @@
     // FLOW_KEYS are the localStorage prefixes of what this browser keeps per flow: the emergency
     // copy (saver), the stored view (editor), the confirmed test effects and the last test
     // trigger (runs).
-    const FLOW_KEYS = ['aurago.easydrag.draft.', 'aurago.easydrag.view.', 'aurago.easydrag.effects-ok.', 'aurago.easydrag.test-trigger.'];
+    const FLOW_KEYS = ['aurago.easydrag.draft.', 'aurago.easydrag.view.', 'aurago.easydrag.effects-ok.', 'aurago.easydrag.test-trigger.', 'aurago.easydrag.group-view.'];
 
     // forgetFlow drops all of it for a flow that was deleted (here or elsewhere).
     function forgetFlow(flowId) { FLOW_KEYS.forEach(prefix => storage.remove(prefix + flowId)); }

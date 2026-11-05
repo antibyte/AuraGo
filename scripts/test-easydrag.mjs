@@ -493,6 +493,8 @@ function saverHarness(responses, opts = {}) {
     let doc = { schema: 1, name: 'v1', nodes: [], edges: [] };
     const model = {
         get version() { return version; },
+        get doc() { return doc; },
+        setGroups(groups) { doc.groups = JSON.parse(JSON.stringify(groups)); version++; return true; },
         toJSON: () => JSON.parse(JSON.stringify(doc)),
         replaceDoc(next) { doc = JSON.parse(JSON.stringify(next)); version++; }
     };

@@ -269,4 +269,19 @@ export async function run({ sandbox, openEditor, eq, guardAsync, settle }) {
         eq('blocks results do not claim external fixture/model execution or expose technical boundary types', [result.includes('Block input'), result.includes('Block output'), result.includes(editor.ed.t('easydrag.ui.block_simulation_hint')), result.includes('block.input'), result.includes('>' + editor.ed.t('easydrag.ui.simulation_hint') + '<')], [true, true, true, false, false]);
         editor.dispose();
     });
+    await guardAsync('blocks version restore replaces a grouped draft through confirmation and the observed CAS', async () => {
+        let revision = 3, historical;
+        const { h, editor } = fixture(req => {
+            if (req.method === 'PUT' && req.url === '/api/desktop/flow-blocks/f1') return { draft_revision: ++revision, issues: [] };
+            if (req.method === 'GET' && req.url.startsWith('/api/desktop/flow-blocks/f1/versions?')) return { versions: [{ revision: 1, node_count: 2, edge_count: 1 }] };
+            if (req.method === 'POST' && req.url === '/api/desktop/flow-blocks/f1/versions') return { block: { id: 'f1', draft_revision: ++revision, draft: Object.assign({}, historical, { groups: [] }) }, issues: [] };
+        }, { block: true });
+        historical = editor.ed.model.toJSON(); editor.ed.model.createGroup([A, B], 'Current group'); await editor.ed.saver.flush(); h.confirmAnswer = true;
+        const dialog = await h.ED.blocks.versions(editor.ed, { openBlock() {} }); dialog.body.querySelector('[data-ed-block-restore="1"]').fire('click'); await settle();
+        const requests = h.requests.filter(req => req.method === 'POST' && req.url.endsWith('/versions'));
+        eq('blocks restoring a legacy version sends the current revision and clears groups without Mission effects', [requests.map(req => req.body), editor.ed.model.doc.groups, editor.ed.model.doc.nodes.length, editor.ed.saver.state, h.requests.some(req => /enabled|\/run$|repair-mission/.test(req.url))], [[{ revision: 1, base_revision: 4 }], [], 2, 'saved', false]);
+        editor.dispose();
+        const read = fixture(req => req.url.includes('/versions?') ? { versions: [{ revision: 1 }] } : undefined, { block: true, readonly: true });
+        const view = await read.h.ED.blocks.versions(read.editor.ed, { openBlock() {} }); eq('blocks readonly version history retains inspection and omits restore writes', [!!view.body.querySelector('[data-ed-block-version]'), !!view.body.querySelector('[data-ed-block-restore]')], [true, false]); read.editor.dispose();
+    });
 }

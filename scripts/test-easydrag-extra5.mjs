@@ -571,7 +571,7 @@ export async function run(env) {
     });
 
     await guardAsync('ff2 M9 a deleted flow leaves no copy, view, confirmed effects or test trigger in this browser', async () => {
-        const seed = store => ['draft', 'view', 'effects-ok', 'test-trigger'].forEach(k => store.set('aurago.easydrag.' + k + '.f1', JSON.stringify(k === 'effects-ok' ? ['sends_message'] : 'x')));
+        const seed = store => ['draft', 'view', 'effects-ok', 'test-trigger', 'group-view'].forEach(k => store.set('aurago.easydrag.' + k + '.f1', JSON.stringify(k === 'effects-ok' ? ['sends_message'] : 'x')));
         const left = store => Array.from(store.keys()).filter(k => k.endsWith('.f1')).sort();
         const outcomes = [];
         // Deleted in the editor, and deleted elsewhere while it is open.
@@ -613,15 +613,16 @@ export async function run(env) {
             outcomes.push([how, left(h.store), h.store.has('aurago.easydrag.draft.f2')]);
             home.dispose();
         }
-        eq('ff2 M9 every way a flow is deleted drops its four local keys and nothing of another flow',
+        eq('ff2 M9 every way a flow is deleted drops its five local keys and nothing of another flow',
             outcomes, [['editor', [], 1], ['elsewhere', [], 1], ['card', [], true], ['broadcast', [], true]]);
         // core.forgetFlow's prefixes are the ones the modules write.
         const src = name => fs.readFileSync(path.join(apps, name), 'utf8');
         eq('ff2 M9 forgetFlow knows every per-flow key prefix',
             [src('easydrag-saver.js').includes("'aurago.easydrag.draft.'"), src('easydrag-editor.js').includes("'aurago.easydrag.view.'"),
                 src('easydrag-runs.js').includes("'aurago.easydrag.effects-ok.'"), src('easydrag-runs.js').includes("'aurago.easydrag.test-trigger.'"),
+                src('easydrag-groups.js').includes("'aurago.easydrag.group-view.'"),
                 (src('easydrag-core.js').match(/const FLOW_KEYS = \[([^\]]*)\]/) || [])[1]],
-            [true, true, true, true, "'aurago.easydrag.draft.', 'aurago.easydrag.view.', 'aurago.easydrag.effects-ok.', 'aurago.easydrag.test-trigger.'"]);
+            [true, true, true, true, true, "'aurago.easydrag.draft.', 'aurago.easydrag.view.', 'aurago.easydrag.effects-ok.', 'aurago.easydrag.test-trigger.', 'aurago.easydrag.group-view.'"]);
     });
 
     // ── FF2 review follow-up ──

@@ -859,6 +859,9 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   overrides and `--vd-fruity-dock-reserve` in step with the bar/dock geometry.
   The touch phone layout keeps its own `--vd-mobile-taskbar-reserve`. Verify
   `TestDesktopMaximizedWindowClearsTaskbarBrowser`.
+- On viewport resize, recompute maximized window workspace bounds and reachable inline minimums
+  without changing stored restore geometry; normal desktop minimums return on a wider workspace.
+  Verify `TestDesktopMaximizedWindowFollowsViewportResizeBrowser`.
 - The start menu is categorized: `AppManifest.Category` (set for every builtin
   and copied from `CatalogEntry.Category` for Store apps,
   `desktop.DesktopAppCategories()` in display order; only apps without a known

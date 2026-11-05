@@ -455,7 +455,7 @@ export async function run(env) {
         h.canvas.dispose();
         const listening = elements.filter(node => Object.values(node.listeners).some(list => list.length)).map(node => node.className || node.localName);
         eq('c1d04 dispose cancels a drag and leaves no listeners, timeouts, frames or bus subscriptions',
-            [busy, h.pos(B), listening, h.timers.size, h.frames.size, h.subscriptions.size, h.observers], [[true, true, 8], origin, [], 0, 0, 0, { observed: 1, disconnected: 1 }]);
+            [busy, h.pos(B), listening, h.timers.size, h.frames.size, h.subscriptions.size, h.observers], [[true, true, 10], origin, [], 0, 0, 0, { observed: 1, disconnected: 1 }]);
         eq('c1d04 the dispose checks log no errors', h.logged, []);
     });
 

@@ -8,12 +8,13 @@
         const checked = ED.model.create(doc, { types: new Map() });
         if (checked.repairs().droppedNodes) return false;
         const next = checked.toJSON();
+        if (!ED.model.validGroups(next.groups, new Set(next.nodes.map(node => node.id)))) return false;
         model.change(label, rec => {
             model.doc.edges.forEach(edge => rec.removeEdge(edge.id));
             model.doc.nodes.forEach(node => rec.removeNode(node.id));
             next.nodes.forEach(node => rec.addNode(node));
             next.edges.forEach(edge => rec.addEdge(edge));
-            rec.meta({ name: next.name, description: next.description || '', settings: next.settings || {} });
+            rec.meta({ name: next.name, description: next.description || '', settings: next.settings || {}, groups: next.groups || [] });
         });
         return true;
     }

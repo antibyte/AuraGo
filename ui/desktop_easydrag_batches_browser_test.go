@@ -21,6 +21,12 @@ func TestDesktopEasyDragBatchesBrowser(t *testing.T) {
 		t.Helper()
 		p.MustEval(`(selector,value)=>{const e=document.querySelector(selector);if(!e)throw Error('Missing '+selector);e.value=value;e.dispatchEvent(new Event('change',{bubbles:true}));}`, selector, value)
 	}
+	closeDetail := func() {
+		t.Helper()
+		// The outgoing inspector remains in the DOM for its close transition.
+		p.MustElement(`.ed-detail-backdrop:not(.is-closing) [data-ed-detail-close]`).MustClick()
+		s.wait(`()=>!document.querySelector('.ed-detail')`)
+	}
 	// Setup supplies a published pure block; reference choice and item mapping are exercised below.
 	blockID := p.MustEval(`async()=>{
 		const api='/api/desktop/flow-blocks', call=async(path,method,body)=>{const r=await fetch(path,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});if(!r.ok)throw Error(await r.text());return r.json();};
@@ -61,8 +67,7 @@ func TestDesktopEasyDragBatchesBrowser(t *testing.T) {
 	}
 	p.MustSetViewport(1440, 900, 1, false)
 	p.MustEval(`()=>fixtureTheme('standard')`)
-	p.MustElement(`[data-ed-detail-close]`).MustClick()
-	s.wait(`()=>!document.querySelector('.ed-detail')`)
+	closeDetail()
 	simulate := func(data string) {
 		t.Helper()
 		p.MustEval(`()=>window.__batchRequestCount=edBatchFixture.requests.length`)
@@ -82,12 +87,12 @@ func TestDesktopEasyDragBatchesBrowser(t *testing.T) {
 	s.wait(`()=>!!document.querySelector('[data-ed-batch-results]')`)
 	s.shot("batch-collect-result")
 	p.MustEval(`()=>{const item=edFixture.editor().run.steps.get('n_batchstep1').output.items;if(item[0].output.greeting!=='Ada hello'||item[1].status!=='error'||item[2].output.greeting!=='Lin hello')throw Error('Batch item order or output');}`)
-	p.MustElement(`[data-ed-detail-close]`).MustClick()
+	closeDetail()
 	p.MustElement(`.ed-node[data-node-id="n_batchstep1"] .ed-node-label`).MustDoubleClick()
 	s.wait(`()=>!!document.querySelector('.ed-field[data-param="on_item_error"] select')`)
 	selectValue(`.ed-field[data-param="on_item_error"] select`, "stop")
 	s.wait(`()=>edFixture.editor().model.doc.nodes.find(n=>n.id==='n_batchstep1').params.on_item_error==='stop'`)
-	p.MustElement(`[data-ed-detail-close]`).MustClick()
+	closeDetail()
 	simulate(`{"items":["Ada",5,"Lin"]}`)
 	s.wait(`()=>{const r=edFixture.editor().run,step=r && r.steps.get('n_batchstep1');return step && step.status==='error' && step.error_code==='FLOW_BATCH_ITEM_FAILED' && !step.output;}`)
 	s.shot("batch-stop-result")
@@ -95,7 +100,7 @@ func TestDesktopEasyDragBatchesBrowser(t *testing.T) {
 	s.wait(`()=>!!document.querySelector('.ed-field[data-param="on_item_error"] select')`)
 	selectValue(`.ed-field[data-param="on_item_error"] select`, "collect")
 	s.wait(`()=>edFixture.editor().model.doc.nodes.find(n=>n.id==='n_batchstep1').params.on_item_error==='collect'`)
-	p.MustElement(`[data-ed-detail-close]`).MustClick()
+	closeDetail()
 	simulate(`{"items":[]}`)
 	s.wait(`()=>{const r=edFixture.editor().run,step=r && r.steps.get('n_batchstep1');return step && step.output && step.output.count===0 && step.output.items.length===0;}`)
 
@@ -110,7 +115,7 @@ func TestDesktopEasyDragBatchesBrowser(t *testing.T) {
 	s.wait(`()=>!!document.querySelector('[data-ed-action="apply"]')`)
 	p.MustElement(`[data-ed-action="apply"]`).MustClick()
 	s.wait(`()=>edFixture.editor().model.doc.nodes.find(n=>n.id==='n_batchstep1').params.revision===2`)
-	p.MustElement(`[data-ed-detail-close]`).MustClick()
+	closeDetail()
 	p.MustElement(`[data-ed-history="undo"]`).MustClick()
 	s.wait(`()=>edFixture.editor().model.doc.nodes.find(n=>n.id==='n_batchstep1').params.revision===1`)
 
@@ -120,7 +125,7 @@ func TestDesktopEasyDragBatchesBrowser(t *testing.T) {
 	p.MustEval(`()=>edFixture.editor().bus.emit('open-detail',{nodeId:'n_batchstep1',column:'output'})`)
 	s.wait(`()=>{const d=document.querySelector('.ed-detail');return d && d.textContent.includes(edFixture.editor().t('easydrag.ui.batch_result_incomplete'));}`)
 	s.shot("batch-run-truncated")
-	p.MustElement(`[data-ed-detail-close]`).MustClick()
+	closeDetail()
 	p.MustElement(`.ed-node[data-node-id="n_batchstep1"] .ed-node-label`).MustDoubleClick()
 	s.wait(`()=>{const e=document.querySelector('[data-ed-batch-item-field]');return e && e.disabled;}`)
 	s.noRawKeys("batch journey")
