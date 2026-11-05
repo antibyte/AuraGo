@@ -36,7 +36,10 @@ JavaScript (`ui/js/storymaker/`); Go never recomputes the timeline.
   `standard`, `lively` or absent, and Go never writes a default.
 - `ApplyDefaults` fills only the static defaults of the spec and the show-beat instance id; timing (`delay`, `duration`,
   `ease`) is never defaulted: the player's compile step owns it. It is idempotent. The default transition is `cut` on scene 1,
-  `wipe` when the environment differs from the previous scene's, else `fade`; a stored value stays.
+  `wipe` when the environment differs from the previous scene's, else `fade`; a stored value stays. The editor saves a new scene
+  at once with the fade of the environment it copied, so its environment edits go through `S.model.setEnvironment`
+  (`ui/js/desktop/apps/storymaker-model.js`): a stored fade that now crosses into another environment becomes a wipe, on that
+  scene and on the next. Other transitions stay, and `fade_between_worlds` still flags a fade the user picks afterwards.
 - `LoadCatalog` checks the manifest only; `VerifyFiles` checks that referenced files exist. The catalog is immutable after
   loading. Search is term scoring over id, name and tags (default 6 results, cap 12).
 - `BundleCodeScene`: esbuild `Transform` (IIFE, global `__smSceneModule`, ES2020, no legal comments) plus the appended
