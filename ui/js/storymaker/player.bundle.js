@@ -1651,7 +1651,29 @@
         return { base: base, scaled: base * Math.max(1, opts.factor > 0 ? opts.factor : 1) };
     }
 
-    SM.motion = { RHYTHM: RHYTHM, DEFAULTS: DEFAULTS, OVERLAP: OVERLAP, factor: factor, leadFraction: leadFraction, holdSeconds: holdSeconds };
+    function isTextShow(b) { return b.text !== undefined && b.text !== null && b.item === undefined; }
+
+    // defaultEase(b): the ease by role of a beat that sets no explicit ease. Walking (enter, exit, walk) is linear.
+    function defaultEase(b) {
+        if (b.do === 'move') return 'quart-out';
+        if (b.do === 'hide') return 'ease-in';
+        if (b.do === 'camera') return b.op === 'focus' ? 'expo-out' : 'ease-in-out';
+        if (b.do === 'show') return b.entry === 'pop' && !isTextShow(b) ? 'spring' : 'quart-out';
+        return 'linear';
+    }
+
+    // fadeEase(b): the ease of a show's opacity. Opacity never overshoots, and canvas ignores a globalAlpha above 1. So a
+    // pop fades on quart-out whatever eases its scale, and an explicit back-out falls back to quart-out.
+    function fadeEase(b) {
+        if (b.entry === 'pop' && !isTextShow(b)) return 'quart-out';
+        var ease = SM.isEase(b.ease) ? b.ease : 'quart-out';
+        return ease === 'back-out' ? 'quart-out' : ease;
+    }
+
+    SM.motion = {
+        RHYTHM: RHYTHM, DEFAULTS: DEFAULTS, OVERLAP: OVERLAP, factor: factor, leadFraction: leadFraction, holdSeconds: holdSeconds,
+        defaultEase: defaultEase, fadeEase: fadeEase
+    };
 })(typeof globalThis !== 'undefined' ? globalThis : self);
 
 ;
@@ -1681,6 +1703,8 @@
         var cam = SM.camera.create(1, stage.vis.x + stage.vis.w / 2, stage.vis.y + stage.vis.h / 2);
         var beats = scene.beats || [];
         var placed = 0;
+        // f scales compile defaults only; explicit durations, delays, wait and cue times stay as written.
+        var f = SM.motion.factor(c.story && c.story.style), DEF = SM.motion.DEFAULTS;
 
         function warn(severity, path, code, message) { issues.push(P.issue(severity, sid, path, code, message)); }
         function beatPath(j, field) { return '/scenes/' + index + '/beats/' + j + (field ? '/' + field : ''); }
@@ -1797,7 +1821,7 @@
             return Math.max(0.3, dist / (speed / 100 * SM.stage.DESIGN_W * depth));
         }
 
-        function easeOf(b, fallback) { return SM.isEase(b.ease) ? b.ease : fallback; }
+        function easeOf(b) { return SM.isEase(b.ease) ? b.ease : SM.motion.defaultEase(b); }
 
         function moveTo(e, t0, t1, to, ease) {
             e.x.add(t0, t1, to.x, ease);
@@ -1810,22 +1834,22 @@
         }
 
         function entryAnim(e, b, t0, dur, pos) {
-            var entry = b.entry || 'fade';
+            var entry = b.entry || 'fade', fade = SM.motion.fadeEase(b);
             if (entry === 'none' || dur <= 0) { e.alpha.add(t0, t0, 1, 'linear'); return; }
             if (entry === 'pop' && e.type !== 'text') {
-                e.alpha.add(t0, t0 + dur, 1, 'ease-out');
-                e.scale.add(t0, t0 + dur, 1, 'back-out', 0.6);
+                e.alpha.add(t0, t0 + dur, 1, fade);
+                e.scale.add(t0, t0 + dur, 1, easeOf(b), 0.6);
             } else if (entry === 'slide') {
-                e.alpha.add(t0, t0 + dur, 1, 'ease-out');
-                e.x.add(t0, t0 + dur, pos.x, 'ease-out', pos.x - 140);
+                e.alpha.add(t0, t0 + dur, 1, fade);
+                e.x.add(t0, t0 + dur, pos.x, easeOf(b), pos.x - 140);
             } else {
-                e.alpha.add(t0, t0 + dur, 1, 'ease-out');
+                e.alpha.add(t0, t0 + dur, 1, fade);
             }
         }
 
         var kinds = {
             enter: {
-                dur: function () { return 0.6; },
+                dur: function () { return DEF.enter * f; },
                 run: function (b, j, t0, dur) {
                     var a = actorOf(b.who, beatPath(j, 'who'));
                     if (!a) return;
@@ -1833,8 +1857,8 @@
                     if (b.from === 'right') from = { x: stage.offRight(), y: to.y };
                     else if (b.from === 'door') { var d = stage.spot('door'); from = d ? { x: d.x, y: d.y } : { x: stage.offRight(), y: to.y }; }
                     else from = { x: stage.offLeft(), y: to.y };
-                    a.x.add(t0, t0 + dur, to.x, easeOf(b, 'ease-out'), from.x);
-                    a.y.add(t0, t0 + dur, to.y, easeOf(b, 'ease-out'), from.y);
+                    a.x.add(t0, t0 + dur, to.x, easeOf(b), from.x);
+                    a.y.add(t0, t0 + dur, to.y, easeOf(b), from.y);
                     a.alpha.add(t0, t0, 1, 'linear');
                     a.facing.set(t0, to.x >= from.x ? 1 : -1);
                     a.look.set(t0, null);
@@ -1844,14 +1868,14 @@
                 }
             },
             exit: {
-                dur: function () { return 0.6; },
+                dur: function () { return DEF.exit * f; },
                 run: function (b, j, t0, dur) {
                     var a = actorOf(b.who, beatPath(j, 'who'));
                     if (!a) return;
                     var to = b.to ? resolveAt(b.to, beatPath(j, 'to'), 'door') : { x: stage.offRight(), y: a.y.at(t0) };
                     faceToward(a, t0, to.x);
                     a.look.set(t0, null);
-                    moveTo(a, t0, t0 + dur, to, easeOf(b, 'ease-in'));
+                    moveTo(a, t0, t0 + dur, to, easeOf(b));
                     a.walks.add(t0, t0 + dur, {});
                     a.alpha.add(t0 + dur - Math.min(0.2, dur), t0 + dur, 0, 'ease-in');
                 }
@@ -1860,17 +1884,17 @@
                 dur: function (b, t0) {
                     var e = find(b.who || b.target);
                     var to = b.to !== undefined ? stage.resolve(b.to) : null;
-                    if (!e || !to) return 0.6;
-                    return walkSeconds({ x: e.x.at(t0), y: e.y.at(t0) }, to);
+                    if (!e || !to) return 0.6 * f;
+                    return walkSeconds({ x: e.x.at(t0), y: e.y.at(t0) }, to) * f;
                 },
                 run: function (b, j, t0, dur) { moveBeat(b, j, t0, dur, true); }
             },
             move: {
-                dur: function () { return 0.8; },
+                dur: function () { return DEF.move * f; },
                 run: function (b, j, t0, dur) { moveBeat(b, j, t0, dur, false); }
             },
             pose: {
-                dur: function () { return 0.3; },
+                dur: function () { return DEF.pose * f; },
                 run: function (b, j, t0, dur) {
                     var a = actorOf(b.who, beatPath(j, 'who'));
                     if (!a || !b.pose) return;
@@ -1880,7 +1904,7 @@
             gesture: {
                 dur: function (b) {
                     var entry = cat.gestures[b.gesture], count = clamp(Math.round(b.count || 1), 1, 5);
-                    return (entry && entry.duration > 0 ? entry.duration : 0.5) * count;
+                    return (entry && entry.duration > 0 ? entry.duration : 0.5) * count * f;
                 },
                 run: function (b, j, t0, dur) {
                     var a = actorOf(b.who, beatPath(j, 'who'));
@@ -1893,7 +1917,7 @@
                 }
             },
             emote: {
-                dur: function () { return 0.25; },
+                dur: function () { return DEF.emote * f; },
                 run: function (b, j, t0) {
                     var a = actorOf(b.who, beatPath(j, 'who'));
                     if (!a || !b.expression) return;
@@ -1901,7 +1925,7 @@
                 }
             },
             look: {
-                dur: function () { return 0.3; },
+                dur: function () { return DEF.look * f; },
                 run: function (b, j, t0) {
                     var a = actorOf(b.who, beatPath(j, 'who'));
                     if (!a) return;
@@ -1912,7 +1936,7 @@
                 }
             },
             show: {
-                dur: function (b) { return (b.entry || 'fade') === 'none' ? 0 : 0.5; },
+                dur: function (b) { return (b.entry || 'fade') === 'none' ? 0 : DEF.show * f; },
                 run: function (b, j, t0, dur) {
                     if (b.chart || b.icon) {
                         warn('minor', beatPath(j), 'not_supported_yet', 'Show with ' + (b.chart ? 'a chart' : 'an icon') + ' is not supported yet; the beat is ignored.');
@@ -1940,17 +1964,17 @@
                 }
             },
             hide: {
-                dur: function () { return 0.3; },
+                dur: function () { return DEF.hide * f; },
                 run: function (b, j, t0, dur) {
                     var e = find(b.target);
                     if (!e) { warn('warning', beatPath(j, 'target'), 'unknown_name', 'Nothing named "' + b.target + '" to hide.'); return; }
-                    e.alpha.add(t0, t0 + dur, 0, easeOf(b, 'ease-in'));
+                    e.alpha.add(t0, t0 + dur, 0, easeOf(b));
                 }
             },
             camera: {
-                dur: function (b) { return b.op === 'shake' ? 0.5 : 0.8; },
+                dur: function (b) { return (b.op === 'shake' ? DEF.shake : DEF.camera) * f; },
                 run: function (b, j, t0, dur) {
-                    var ease = easeOf(b, 'ease-in-out'), z = cam.zoom.at(t0), f = b.target ? focusOf(b.target, t0) : null;
+                    var ease = easeOf(b), z = cam.zoom.at(t0), f = b.target ? focusOf(b.target, t0) : null;
                     if (b.op === 'zoom') {
                         SM.camera.addZoom(cam, t0, t0 + dur, z * (b.amount > 0 ? b.amount : 1.25), ease);
                         if (f) SM.camera.addPan(cam, t0, t0 + dur, f.x, f.y, ease);
@@ -1991,7 +2015,7 @@
             var ref = b.who || b.target, e = find(ref);
             if (!e) { warn('warning', beatPath(j, b.who ? 'who' : 'target'), 'unknown_name', 'Nothing named "' + ref + '" to move.'); return; }
             var to = resolveAt(b.to, beatPath(j, 'to'), 'center');
-            var ease = easeOf(b, walking ? 'linear' : 'ease-in-out');
+            var ease = easeOf(b);
             if (e.type === 'actor' && walking) {
                 faceToward(e, t0, to.x);
                 e.look.set(t0, null);

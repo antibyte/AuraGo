@@ -36,5 +36,27 @@
         return { base: base, scaled: base * Math.max(1, opts.factor > 0 ? opts.factor : 1) };
     }
 
-    SM.motion = { RHYTHM: RHYTHM, DEFAULTS: DEFAULTS, OVERLAP: OVERLAP, factor: factor, leadFraction: leadFraction, holdSeconds: holdSeconds };
+    function isTextShow(b) { return b.text !== undefined && b.text !== null && b.item === undefined; }
+
+    // defaultEase(b): the ease by role of a beat that sets no explicit ease. Walking (enter, exit, walk) is linear.
+    function defaultEase(b) {
+        if (b.do === 'move') return 'quart-out';
+        if (b.do === 'hide') return 'ease-in';
+        if (b.do === 'camera') return b.op === 'focus' ? 'expo-out' : 'ease-in-out';
+        if (b.do === 'show') return b.entry === 'pop' && !isTextShow(b) ? 'spring' : 'quart-out';
+        return 'linear';
+    }
+
+    // fadeEase(b): the ease of a show's opacity. Opacity never overshoots, and canvas ignores a globalAlpha above 1. So a
+    // pop fades on quart-out whatever eases its scale, and an explicit back-out falls back to quart-out.
+    function fadeEase(b) {
+        if (b.entry === 'pop' && !isTextShow(b)) return 'quart-out';
+        var ease = SM.isEase(b.ease) ? b.ease : 'quart-out';
+        return ease === 'back-out' ? 'quart-out' : ease;
+    }
+
+    SM.motion = {
+        RHYTHM: RHYTHM, DEFAULTS: DEFAULTS, OVERLAP: OVERLAP, factor: factor, leadFraction: leadFraction, holdSeconds: holdSeconds,
+        defaultEase: defaultEase, fadeEase: fadeEase
+    };
 })(typeof globalThis !== 'undefined' ? globalThis : self);
