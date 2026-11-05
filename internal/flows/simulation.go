@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"time"
 )
 
@@ -214,9 +215,35 @@ func validateSimulationFixtures(doc *Flow, reg *Registry, fixtures map[string]Si
 
 func simulationValueMatches(typ string, value any) bool {
 	switch typ {
-	case "text", "file":
+	case "text":
 		_, ok := value.(string)
 		return ok
+	case "file":
+		if _, ok := value.(string); ok {
+			return true
+		}
+		ref, ok := value.(map[string]any)
+		if !ok {
+			return false
+		}
+		if _, ok := ref["path"].(string); !ok {
+			return false
+		}
+		for _, key := range []string{"$type", "name", "mime", "web_path"} {
+			if field, present := ref[key]; present {
+				text, ok := field.(string)
+				if !ok || (key == "$type" && text != "file") {
+					return false
+				}
+			}
+		}
+		if size, present := ref["size"]; present {
+			n, ok := size.(float64)
+			if !ok || math.IsNaN(n) || math.IsInf(n, 0) || n < 0 || math.Trunc(n) != n {
+				return false
+			}
+		}
+		return true
 	case "number":
 		_, ok := value.(float64)
 		return ok

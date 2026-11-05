@@ -96,7 +96,7 @@ export async function run(env) {
         const ClockDate = class extends Date {};
         ClockDate.now = () => (clock.now === null ? Date.now() : clock.now);
         const box = vm.createContext({
-            window: { SYSTEM_LANG: 'en', open: (...args) => { opened.push(args); } }, navigator: { platform: 'Linux' }, crypto: webcrypto, document: dom.document, Date: ClockDate,
+            window: Object.assign(new EventTarget(), { SYSTEM_LANG: 'en', open: (...args) => { opened.push(args); } }), navigator: { platform: 'Linux' }, crypto: webcrypto, document: dom.document, Date: ClockDate,
             URLSearchParams, URL, EventSource: class { addEventListener() {} close() {} },
             console: { log() {}, warn() {}, error: (...args) => { logged.push(args.map(String).join(' ')); } },
             localStorage: { getItem: k => (store.has(k) ? store.get(k) : null), setItem: (k, v) => { store.set(k, String(v)); }, removeItem: k => { store.delete(k); } },

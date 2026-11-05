@@ -214,6 +214,7 @@
                 '/js/desktop/apps/easydrag-palette.js',
                 '/js/desktop/apps/easydrag-fields.js',
                 '/js/desktop/apps/easydrag-forms.js',
+                '/js/desktop/apps/easydrag-transform.js',
                 '/js/desktop/apps/easydrag-mapping.js',
                 '/js/desktop/apps/easydrag-detail.js',
                 '/js/desktop/apps/easydrag-scenarios.js',

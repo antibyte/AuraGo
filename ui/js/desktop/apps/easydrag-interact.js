@@ -413,9 +413,14 @@
         }
 
         function onDoubleClick(event) {
-            const nodeEl = event.target.closest('.ed-node');
-            if (nodeEl && !event.target.closest('.ed-node-tools, .ed-port')) { ed.bus.emit('open-detail', { nodeId: nodeEl.dataset.nodeId }); return; }
-            if (!nodeEl && !readonly() && event.target.closest('.ed-canvas') && !event.target.closest('.ed-zoom, .ed-minimap, .ed-empty, .ed-port-tip')) {
+            // Pointer capture retargets native click/dblclick to the canvas after a card press.
+            // Only that retargeted case needs a fresh hit test; ordinary DOM targets stay intact.
+            const hit = event.target === el ? document.elementFromPoint(event.clientX, event.clientY) : event.target;
+            if (!hit || !el.contains(hit)) return;
+            const target = hit;
+            const nodeEl = target.closest('.ed-node');
+            if (nodeEl && !target.closest('.ed-node-tools, .ed-port')) { ed.bus.emit('open-detail', { nodeId: nodeEl.dataset.nodeId }); return; }
+            if (!nodeEl && !readonly() && target.closest('.ed-canvas') && !target.closest('.ed-zoom, .ed-minimap, .ed-empty, .ed-port-tip, .ed-edge, .ed-wire-actions')) {
                 ed.bus.emit('quick-add', { x: event.clientX, y: event.clientY });
             }
         }

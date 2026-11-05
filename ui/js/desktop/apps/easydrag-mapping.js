@@ -33,8 +33,14 @@
         const { t, esc } = env.ed;
         const expanded = new Set();
         const pages = new Map();
+        const offered = new Map();
+        const refIds = new Map(), rawRefs = new Map();
+        function refAttribute(ref) {
+            if (!refIds.has(ref)) { const id = 'ref_' + refIds.size; refIds.set(ref, id); rawRefs.set(id, ref); }
+            return refIds.get(ref);
+        }
         const el = core.el('<div class="ed-inputs"><div class="ed-col-head"><h3>' + esc(t('easydrag.ui.detail_input')) + '</h3><select class="ed-input ed-input--small" aria-label="' + esc(t('easydrag.ui.input_source')) + '"></select></div>' +
-            '<div class="ed-tree" role="tree" aria-label="' + esc(t('easydrag.ui.detail_input')) + '"></div><p class="ed-tree-hint">' + esc(t('easydrag.ui.input_hint')) + '</p></div>');
+            '<div class="ed-tree" role="tree" aria-label="' + esc(t('easydrag.ui.detail_input')) + '"></div>' + (ED.transform && env.onTransform ? '<button type="button" class="ed-btn ed-tree-transform-selected" data-ed-transform-selected aria-keyshortcuts="Shift+F10">' + core.icon('filter') + esc(t('easydrag.ui.transform_title')) + '<kbd>' + esc(core.shortcut('Shift+F10')) + '</kbd></button>' : '') + '<p class="ed-tree-hint">' + esc(t('easydrag.ui.input_hint')) + '</p></div>');
         const select = el.querySelector('select');
         const tree = el.querySelector('.ed-tree');
         // The tree is one tab stop (roving tabindex): stop is the key of the row or "more"
@@ -51,6 +57,8 @@
             const target = node || items.find(n => keyOf(n) === stop) || items[0] || null;
             if (target) stop = keyOf(target);
             items.forEach(n => n.setAttribute('tabindex', n === target ? '0' : '-1'));
+            const transform = el.querySelector('[data-ed-transform-selected]');
+            if (transform) { transform.hidden = !!env.ed.readonly || !env.onTransform; transform.disabled = !target || !offered.has(target.dataset.ref); }
             return target;
         }
 
@@ -77,16 +85,25 @@
             return out;
         }
 
-        function rowMarkup(label, ref, value, depth, canExpand) {
+        function transformButton(ref, label) {
+            return ED.transform && env.onTransform && !env.ed.readonly ? '<button type="button" class="ed-icon-btn ed-tree-transform" tabindex="-1" draggable="false" data-ed-transform-ref="' + refAttribute(ref) + '" title="' + esc(t('easydrag.ui.transform_named', { name: label })) + '" aria-label="' + esc(t('easydrag.ui.transform_named', { name: label })) + '">' + core.icon('filter') + '</button>' : '';
+        }
+        function openTransform(ref) {
+            if (env.ed.readonly || !env.onTransform || !offered.has(ref)) return;
+            const source = env.sources.find(item => item.id === env.sourceId) || env.sources[0];
+            env.onTransform(Object.assign({ ref, sourceLabel: source && source.label }, offered.get(ref)));
+        }
+        function rowMarkup(label, ref, value, depth, canExpand, hasValue) {
             const ty = typeOf(value);
             const open = expanded.has(ref);
-            return '<div class="ed-tree-row" role="treeitem" aria-level="' + (depth + 1) + '"' + (canExpand ? ' aria-expanded="' + open + '"' : '') + ' draggable="' + (!env.ed.readonly) + '" tabindex="-1" data-ref="' + esc(ref) + '" style="--depth:' + depth + '">' +
-                (canExpand ? '<button type="button" class="ed-tree-toggle" data-ed-toggle="' + esc(ref) + '" tabindex="-1" aria-hidden="true">' + core.icon(open ? 'chevron-down' : 'chevron-right') + '</button>' : '<span class="ed-tree-spacer"></span>') +
+            offered.set(ref, { value, hasValue });
+            return '<div class="ed-tree-row" role="treeitem" aria-level="' + (depth + 1) + '"' + (canExpand ? ' aria-expanded="' + open + '"' : '') + ' draggable="' + (!env.ed.readonly) + '" tabindex="-1" data-ref="' + refAttribute(ref) + '" style="--depth:' + depth + '">' +
+                (canExpand ? '<button type="button" class="ed-tree-toggle" data-ed-toggle="' + refAttribute(ref) + '" tabindex="-1" aria-hidden="true">' + core.icon(open ? 'chevron-down' : 'chevron-right') + '</button>' : '<span class="ed-tree-spacer"></span>') +
                 '<span class="ed-tree-key">' + esc(label) + '</span><span class="ed-type ed-type--' + ty + '">' + esc(core.tr(t, 'easydrag.ui.type_' + ty, ty)) + '</span>' +
-                '<span class="ed-tree-value">' + esc(preview(value)) + '</span></div>';
+                '<span class="ed-tree-value">' + esc(preview(value)) + '</span>' + transformButton(ref, label) + '</div>';
         }
 
-        function children(ref, value, depth) {
+        function children(ref, value, depth, hasValue) {
             if (!expanded.has(ref)) return '';
             const ty = typeOf(value);
             if (ty !== 'list' && ty !== 'object' && ty !== 'file') return '';
@@ -96,15 +113,17 @@
                 const childRef = ED.template.pathJoin(ref, k);
                 const vt = typeOf(v);
                 const expandable = vt === 'list' || vt === 'object' || vt === 'file';
-                return rowMarkup(typeof k === 'number' ? '[' + k + ']' : k, childRef, v, depth + 1, expandable) + (expandable ? children(childRef, v, depth + 1) : '');
+                return rowMarkup(typeof k === 'number' ? '[' + k + ']' : k, childRef, v, depth + 1, expandable, hasValue) + (expandable ? children(childRef, v, depth + 1, hasValue) : '');
             }).join('');
             if (entries.length > limit) {
-                html += '<button type="button" class="ed-tree-more" tabindex="-1" data-ed-more="' + esc(ref) + '" style="--depth:' + (depth + 1) + '">' + esc(t('easydrag.ui.tree_more', { count: entries.length - limit })) + '</button>';
+                html += '<button type="button" class="ed-tree-more" tabindex="-1" data-ed-more="' + refAttribute(ref) + '" style="--depth:' + (depth + 1) + '">' + esc(t('easydrag.ui.tree_more', { count: entries.length - limit })) + '</button>';
             }
             return html;
         }
 
         function render() {
+            offered.clear();
+            refIds.clear(); rawRefs.clear();
             select.innerHTML = env.sources.map(s => '<option value="' + esc(s.id) + '"' + (s.id === env.sourceId ? ' selected' : '') + '>' + esc(s.label) + '</option>').join('');
             select.hidden = env.sources.length < 2;
             const roots = currentRoots();
@@ -113,22 +132,34 @@
             groups.forEach(u => {
                 const hasData = Object.prototype.hasOwnProperty.call(roots, u.key) && roots[u.key] !== undefined;
                 const value = hasData ? roots[u.key] : schemaExample(u);
+                offered.set(u.key, { value, hasValue: hasData });
                 if (!expanded.has(u.key) && !expanded.has('!' + u.key)) expanded.add(u.key);
                 const open = expanded.has(u.key);
                 blocks.push('<div class="ed-tree-group" data-cat="' + esc(u.cat) + '">' +
-                    '<div class="ed-tree-row ed-tree-root" role="treeitem" aria-level="1" aria-expanded="' + open + '" draggable="' + (!env.ed.readonly) + '" tabindex="-1" data-ref="' + esc(u.key) + '">' +
-                    '<button type="button" class="ed-tree-toggle" data-ed-toggle="' + esc(u.key) + '" tabindex="-1" aria-hidden="true">' + core.icon(open ? 'chevron-down' : 'chevron-right') + '</button>' +
+                    '<div class="ed-tree-row ed-tree-root" role="treeitem" aria-level="1" aria-expanded="' + open + '" draggable="' + (!env.ed.readonly) + '" tabindex="-1" data-ref="' + refAttribute(u.key) + '">' +
+                    '<button type="button" class="ed-tree-toggle" data-ed-toggle="' + refAttribute(u.key) + '" tabindex="-1" aria-hidden="true">' + core.icon(open ? 'chevron-down' : 'chevron-right') + '</button>' +
                     '<span class="ed-tree-tile">' + core.icon(u.icon) + '</span><span class="ed-tree-key">' + esc(u.label) + '</span>' +
-                    (hasData ? '' : '<span class="ed-chip ed-chip--muted">' + esc(t('easydrag.ui.input_example')) + '</span>') + '</div>' +
-                    children(u.key, value, 0) + '</div>');
+                    (hasData ? '' : '<span class="ed-chip ed-chip--muted">' + esc(t('easydrag.ui.input_example')) + '</span>') + transformButton(u.key, u.label) + '</div>' +
+                    children(u.key, value, 0, hasData) + '</div>');
             });
             tree.innerHTML = blocks.length ? blocks.join('') : '<p class="ed-tree-empty">' + esc(t('easydrag.ui.input_none')) + '</p>';
+            // HTML parsing normalizes NUL/CR. Assign every original reference through the DOM
+            // after parsing so insert, drag, expand, paging and transforms use identical bytes.
+            tree.querySelectorAll('[data-ref], [data-ed-toggle], [data-ed-more], [data-ed-transform-ref]').forEach(element => {
+                ['data-ref', 'data-ed-toggle', 'data-ed-more', 'data-ed-transform-ref'].forEach(attribute => {
+                    const id = element.getAttribute(attribute);
+                    if (rawRefs.has(id)) element.setAttribute(attribute, rawRefs.get(id));
+                });
+            });
             setStop(null);
         }
 
         el.addEventListener('click', (event) => {
+            const transform = event.target.closest('[data-ed-transform-ref], [data-ed-transform-selected]');
+            if (transform) { event.stopPropagation(); if (el.contains(transform)) openTransform(transform.dataset.edTransformRef || (setStop(null) || {}).dataset?.ref); return; }
             const toggle = event.target.closest('[data-ed-toggle]');
             if (toggle) {
+                if (!tree.contains(toggle) || !offered.has(toggle.dataset.edToggle)) return;
                 const ref = toggle.dataset.edToggle;
                 if (expanded.has(ref)) { expanded.delete(ref); if (!ref.includes('.') && !ref.includes('[')) expanded.add('!' + ref); }
                 else { expanded.add(ref); expanded.delete('!' + ref); }
@@ -137,21 +168,23 @@
             }
             const more = event.target.closest('[data-ed-more]');
             if (more) {
+                if (!tree.contains(more)) return;
                 const at = navItems().indexOf(more);
                 pages.set(more.dataset.edMore, (pages.get(more.dataset.edMore) || PAGE) + PAGE * 4);
                 redraw(null, at);
                 return;
             }
             const row = event.target.closest('.ed-tree-row');
-            if (row && !env.ed.readonly) env.onInsert(row.dataset.ref);
+            if (row && tree.contains(row) && offered.has(row.dataset.ref) && !env.ed.readonly) env.onInsert(row.dataset.ref);
         });
         tree.addEventListener('focusin', (event) => {
             const item = event.target.closest('.ed-tree-row, .ed-tree-more');
-            if (item && item.getAttribute('tabindex') !== '0') setStop(item);
+            if (item && tree.contains(item) && item.getAttribute('tabindex') !== '0') setStop(item);
         });
         el.addEventListener('keydown', (event) => {
             const item = event.target.closest('.ed-tree-row, .ed-tree-more');
-            if (!item) return;
+            if (!item || !tree.contains(item)) return;
+            if (!env.ed.readonly && (event.key === 'ContextMenu' || event.key === 'F10' && event.shiftKey) && env.onTransform) { event.preventDefault(); event.stopPropagation(); openTransform(item.dataset.ref); return; }
             const items = navItems();
             const idx = items.indexOf(item);
             const go = node => { event.preventDefault(); setStop(node); node.focus(); };
@@ -166,8 +199,9 @@
             } else if (event.key === 'Enter' && !env.ed.readonly) { event.preventDefault(); env.onInsert(item.dataset.ref); }
         });
         el.addEventListener('dragstart', (event) => {
+            if (event.target.closest('[data-ed-transform-ref]')) { event.preventDefault(); return; }
             const row = event.target.closest('.ed-tree-row');
-            if (!row) return;
+            if (!row || !tree.contains(row) || !offered.has(row.dataset.ref)) return;
             event.dataTransfer.setData('application/x-easydrag-ref', row.dataset.ref);
             event.dataTransfer.setData('text/plain', '{{' + row.dataset.ref + '}}');
             event.dataTransfer.effectAllowed = 'copy';

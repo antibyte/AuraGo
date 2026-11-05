@@ -7,6 +7,17 @@ testing and runtime expansion. Its phases and acceptance gates describe planned 
 the contracts below describe the implemented behavior of each delivered slice.
 
 ## Flagship authoring and testing
+- Collection template filters `pick`, `rename`, `where`, `sort`, `unique` and `sum`
+  use literal field names and strict JSON scalar types; they never mutate input or execute
+  supplied code. Missing values stay distinct from null; sorted null/missing values are
+  stable and last. Per operation accept at most 10,000 list items, 256 fields per object,
+  100,000 values, 32 nesting levels and 2 MiB of string/key bytes. The browser mirrors
+  these limits and Unicode code-point ordering. Before JSON-key normalization the
+  browser additionally bounds raw previews to 200,000 values, 100,000 keys per object,
+  64 levels and 8 MiB of text/key bytes; it can therefore refuse pathological input
+  that loses data during normalization before the server's semantic check.
+  Verify `TestCollectionFilter*` and
+  `node internal/flows/testdata/collection_filters_test.cjs` against shared JSON vectors.
 - `blocks_contract.go` and `blocks_pins.go` are private, unregistered and uninstalled
   phase-4 prototypes, not a usable subflow or batch feature. Typed boundaries, bounded
   dependency validation and version/run pin helpers do not provide execution, migration,
@@ -15,7 +26,8 @@ the contracts below describe the implemented behavior of each delivered slice.
 - `simulation.go` owns synchronous, nonpersistent draft simulation. Construct a fresh built-in
   registry and an engine with no production tool, LLM, secret or notification service. Only the
   explicit pure-logic allowlist executes; other known steps require bounded, typed fixtures.
-  Unknown types and invalid ports fail closed. A production engine refuses `ModeSimulation`.
+  Unknown types and invalid ports fail closed. File fixtures accept path strings or typed
+  FileRef objects; these references are never opened by simulation. A production engine refuses `ModeSimulation`.
   Snapshot requests, validate the exact draft revision, and freeze one explicit simulation time
   (`at`, otherwise current time); return it as `started_at`. Never derive resumable state from
   these results or store them as real runs. Verify `TestSimulation*`.
@@ -32,6 +44,11 @@ the contracts below describe the implemented behavior of each delivered slice.
   `logic.set`, then a name check. It needs no account or model. `DescribeTemplates` derives effects
   from actual definitions and marks local execution only for the manual/pure allowlist; absent
   metadata means unknown, never configured or reachable. All recipe text remains localized.
+- The email, MQTT temperature, device disconnect, person detection and manual PDF recipes use
+  registered nodes only. The four notification examples choose Web Push rather than fan out to
+  every enabled channel. The temperature comparison is explicitly numeric and stops on missing
+  or nonnumeric input. Simulated notification/PDF fixtures are samples, not real delivery or files;
+  validate each recipe and its sample/error paths in all locales.
 - `logic.set` publishes dynamic output fields only for unique, static field names with
   `keep_input: false`. Templated names or retained input leave the shape unknown; the editor
   mirrors this conservative rule. Verify `TestSetOutputFieldsAreConservative`.

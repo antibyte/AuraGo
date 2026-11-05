@@ -1286,6 +1286,19 @@ after the built-in installers and before the markup exists. DOM work belongs in 
 - Mapping has an explicit target selector. Never fall back to an arbitrary first field; preserve
   the selected field/caret and pending IME edits. Wide inspectors can show source and target
   together. Result text stays plain text and bounded; tree/table/JSON remain available.
+- `easydrag-transform.js` builds up to eight registered template filters from explicit source
+  and target choices. Reuse the lexer/evaluator; preserve its quoting rules, including raw CR
+  and NUL field names. Mapping attributes receive original references through DOM APIs after
+  parsing opaque IDs, for insert, drag and transform alike. Ignore detached/stale rows.
+  Local samples have explicit provenance; absent data differs from JSON `null`. Keep sample
+  edits window-local, preflight raw JSON and expansion before parsing/evaluating, bound input
+  and intermediate JSON to 64 KiB and displayed output to 8 KiB. Explain preview limitations;
+  date preview needs an explicit offset and timezone. Apply only the expression through the
+  existing caret-aware form insertion, fenced by node, model version, target, IME and readonly
+  state. End parameter coalescing around this single undo command. Closing disposes timers
+  and drops sample state. Verify `test-easydrag-transform.mjs` and the native browser journey.
+- Native canvas double-clicks can be retargeted by pointer capture. Re-hit-test only an exact
+  canvas target; preserve port/tool/background actions and readonly inspection boundaries.
 - Form refresh compares parameter/settings/key content, including same-object mutations. Data
   and validation-only refreshes retain existing controls, focus and caret; real content changes
   still update the form. Verify the flagship regression and Decisions browser journey.
@@ -1297,6 +1310,8 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   real test endpoint or SSE. Label results as simulated. Refuse edited test data containing exact
   redaction/omission sentinels before real execution; ordinary text containing similar words is
   valid. An unchanged remembered sample can still use the server's authoritative data.
+  Simulated FileRefs stay inert text: never open links, render media or fetch PDF thumbnails.
+  Simulated failures never claim that external effects or model usage occurred.
 - `easydrag-scenarios.js` owns structured sample fields, private scenario selection and result
   assertions. Stored snapshots are read-only in the client: replay sends only ID/version and
   draft revision; rename sends only the new name/version. Never resubmit scrubbed display data.
@@ -1355,7 +1370,7 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   and a card's menu, with `disabledHint` (`error_flow_disabled`), a menu-item field the desktop
   draws as the disabled item's tooltip; a stale click gets the server's 409 `FLOW_DISABLED`.
 - Undo affordances live in `easydrag-history.js` (`ED.history.create(ed, {host, toastHost, undo, redo, focusCanvas})`): the header group `[data-ed-history-host]` holds Undo/Redo (`data-ed-history`, `aria-disabled`, never `disabled`, hidden on a read-only desktop) and `.ed-toast` offers Undo after `interact.removeSteps` emits `steps-deleted` ({names}); the toast is no live region (the canvas announced the delete), closes after 8 s or on any other model change, and its Undo acts only on the version right after the delete. No delete confirmation.
-- At an editor width of 560 px or less (`@container`), Runs, Test and Run now are hidden in the header and `moreMenu` lists Runs and Test first (`headerNarrow`). The state chip goes, but the Paused chip (`[data-ed-paused]`), "Republish needed" (`[data-ed-live-outdated]`) and the timers warning (`[data-ed-timers-off]`) stay: the CSS exception lists all three. A skipped Run now (202 `{status: "skipped"}`) notifies `run_now_skipped`. The run view hides the revision line and a "Saved" chip; its banner offers `rerun-viewed` (Test again with this data: the run's `trigger_data` prefills the test dialog, which still lists effects and asks; nothing is remembered unless ticked). `canRerun` hides that button for stub trigger data (the store keeps oversized data as `{_preview}` or `{_preview: "", _omitted}`: a test would run real effects on the stub) and while a run is going (the viewed run is active, or a live run is parked: `runs.hasParked()`); a click that still finds a run going keeps the run view and notifies `run_going`. `GET runs/{id}?include=doc` without `doc` carries `doc_missing` (`version_pruned` shows `run_view_pruned`).
+- At an editor width of 560 px or less (`@container`), Runs and Run now are hidden in the header, Test stays visible, and `moreMenu` lists Runs and Test first (`headerNarrow`). The state chip goes, but the Paused chip (`[data-ed-paused]`), "Republish needed" (`[data-ed-live-outdated]`) and the timers warning (`[data-ed-timers-off]`) stay: the CSS exception lists all three. A skipped Run now (202 `{status: "skipped"}`) notifies `run_now_skipped`. The run view hides the revision line and a "Saved" chip; its banner offers `rerun-viewed` (Test again with this data: the run's `trigger_data` prefills the test dialog, which still lists effects and asks; nothing is remembered unless ticked). `canRerun` hides that button for stub trigger data (the store keeps oversized data as `{_preview}` or `{_preview: "", _omitted}`: a test would run real effects on the stub) and while a run is going (the viewed run is active, or a live run is parked: `runs.hasParked()`); a click that still finds a run going keeps the run view and notifies `run_going`. `GET runs/{id}?include=doc` without `doc` carries `doc_missing` (`version_pruned` shows `run_view_pruned`).
 - The JSON editor (`fields.jsonEditor`) keeps `aria-invalid` live on every input but writes the `role="alert"` text only when the error appears and never rewrites identical text (a screen reader would read it on every keystroke); change and blur announce a standing error afresh.
 - The editor builds in two steps: `create` makes the shell and `build(app, loaded, opts, guard)` fills it. A build aborted by a dispose, a failure or a newer open cleans up what it made so far.
 - Run events repaint in place without markup: `runs.js` logs touched steps in `ed.run.changes`, the canvas (`paintCard`) and wires (`onRun`, `syncPill`) follow that log; a new run object repaints all states. `ed.renderStats` ({cards, paints, wires}) is guarded by the b5 F6 check (300 steps, 1000 events: no card render). `model.incoming/outgoing/edge` use an adjacency index rebuilt on `docGen` and return copies.

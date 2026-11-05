@@ -1037,6 +1037,24 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-modal-foot { display: flex; flex: none; flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding: 12px 18px 16px; border-top: 1px solid var(--ed-border); background: color-mix(in srgb, var(--ed-chrome) 60%, transparent); }
 .ed-app .ed-modal-foot > .ed-btn { min-width: 0; max-width: 100%; white-space: normal; }
 .ed-app .ed-modal-foot > .ed-btn > span { overflow-wrap: anywhere; }
+.ed-app .ed-modal-backdrop:has(> .ed-modal--transform) { max-width: 100vw; }
+.ed-app .ed-modal--transform { width: min(720px, 100%); }
+.ed-app .ed-modal--transform code { overflow-wrap: anywhere; white-space: normal; }
+.ed-app .ed-transform-context { margin: 8px 0 12px; }
+.ed-app .ed-transform-context p { margin: 3px 0; }
+.ed-app .ed-transform-chain { display: grid; gap: 12px; margin: 10px 0; padding: 0; list-style-position: inside; }
+.ed-app .ed-transform-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; padding: 12px 0; border-bottom: 1px solid var(--ed-border); }
+.ed-app .ed-transform-row > label:first-child, .ed-app .ed-transform-row-actions { grid-column: 1 / -1; }
+.ed-app .ed-transform-row-actions { display: flex; justify-content: flex-end; gap: 6px; }
+.ed-app .ed-transform-row textarea { min-height: 64px; }
+.ed-app .ed-tree-transform { flex: none; color: var(--ed-accent); }
+.ed-app .ed-tree-transform-selected { align-self: start; margin-top: 10px; max-width: 100%; white-space: normal; }
+.ed-app .ed-tree-transform-selected kbd { margin-left: 8px; }
+@container (max-width: 760px) {
+    .ed-app .ed-tree-transform, .ed-app .ed-tree-transform-selected, .ed-app .ed-transform-row-actions > button { min-height: 44px; min-width: 44px; }
+    .ed-app .ed-modal--transform button, .ed-app .ed-modal--transform select, .ed-app .ed-modal--transform input { min-height: 44px; }
+    .ed-app .ed-transform-row { grid-template-columns: minmax(0, 1fr); }
+}
 .ed-modal--keys { width: min(720px, 100%); }
 .ed-modal--test textarea { min-height: 180px; }
 .ed-app .ed-sample-fields, .ed-app .ed-scenario-fields, .ed-app .ed-assertions { display: grid; gap: 10px; min-width: 0; }

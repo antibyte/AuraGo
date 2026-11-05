@@ -446,6 +446,10 @@
             return result;
         }
 
+        // Explicit commands separate their undo step from typing before and after them.
+        // This changes history grouping only, without a document event or save.
+        function endCoalescing() { const top = undoStack[undoStack.length - 1]; if (top) top.coalesce = null; }
+
         // mergeInto folds a coalesced change into the top undo step; top keeps its own (earliest) order
         // snapshot. The entries of top are looked up by id in a Map, not one scan per entry.
         function mergeInto(top, set) {
@@ -822,7 +826,7 @@
             get doc() { return state.doc; },
             get version() { return state.version; },
             info, node, edge, byKey, inputs, outputs, fieldsOf, incoming, outgoing, upstream, downstream, keys, canConnect,
-            change, undo, redo,
+            change, undo, redo, endCoalescing,
             canUndo: () => undoStack.length > 0,
             canRedo: () => redoStack.length > 0,
             on(fn) { listeners.add(fn); return () => listeners.delete(fn); },

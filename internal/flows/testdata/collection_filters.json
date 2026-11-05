@@ -1,0 +1,781 @@
+[
+  {
+    "name": "pick fields and null",
+    "filter": "pick",
+    "input": {
+      "a": 1,
+      "b": null,
+      "c": 2
+    },
+    "args": [
+      "b",
+      "missing",
+      "a"
+    ],
+    "want": {
+      "a": 1,
+      "b": null
+    }
+  },
+  {
+    "name": "pick empty result",
+    "filter": "pick",
+    "input": {
+      "a": 1
+    },
+    "args": [
+      "missing"
+    ],
+    "want": {}
+  },
+  {
+    "name": "pick proto key",
+    "filter": "pick",
+    "input": {
+      "__proto__": 4,
+      "constructor": 5
+    },
+    "args": [
+      "__proto__",
+      "constructor"
+    ],
+    "want": {
+      "__proto__": 4,
+      "constructor": 5
+    }
+  },
+  {
+    "name": "unpaired surrogate value",
+    "filter": "pick",
+    "input": {
+      "a": "\ud800"
+    },
+    "args": [
+      "a"
+    ],
+    "want": {
+      "a": "\ufffd"
+    }
+  },
+  {
+    "name": "unpaired surrogate key and argument",
+    "filter": "pick",
+    "input": {
+      "\ud800": 1
+    },
+    "args": [
+      "\ud800"
+    ],
+    "want": {
+      "\ufffd": 1
+    }
+  },
+  {
+    "name": "surrogate normalized key collision last wins",
+    "filter": "pick",
+    "input": {
+      "\ud800": 1,
+      "\ufffd": 2
+    },
+    "args": [
+      "\ud800"
+    ],
+    "want": {
+      "\ufffd": 2
+    }
+  },
+  {
+    "name": "surrogate in where literal",
+    "filter": "where",
+    "input": [
+      {
+        "v": "\ud800"
+      }
+    ],
+    "args": [
+      "v",
+      "eq",
+      "\ud800"
+    ],
+    "want": [
+      {
+        "v": "\ufffd"
+      }
+    ]
+  },
+  {
+    "name": "rename",
+    "filter": "rename",
+    "input": {
+      "a": 1,
+      "b": null
+    },
+    "args": [
+      "a",
+      "z"
+    ],
+    "want": {
+      "z": 1,
+      "b": null
+    }
+  },
+  {
+    "name": "rename same",
+    "filter": "rename",
+    "input": {
+      "a": 1
+    },
+    "args": [
+      "a",
+      "a"
+    ],
+    "want": {
+      "a": 1
+    }
+  },
+  {
+    "name": "rename collision",
+    "filter": "rename",
+    "input": {
+      "a": 1,
+      "b": 2
+    },
+    "args": [
+      "a",
+      "b"
+    ],
+    "error": true
+  },
+  {
+    "name": "rename missing",
+    "filter": "rename",
+    "input": {},
+    "args": [
+      "a",
+      "b"
+    ],
+    "error": true
+  },
+  {
+    "name": "where missing and null",
+    "filter": "where",
+    "input": [
+      {
+        "v": null
+      },
+      {},
+      {
+        "v": 1
+      }
+    ],
+    "args": [
+      "v",
+      "eq",
+      null
+    ],
+    "want": [
+      {
+        "v": null
+      }
+    ]
+  },
+  {
+    "name": "where strict inequality",
+    "filter": "where",
+    "input": [
+      {
+        "v": 0
+      },
+      {
+        "v": "0"
+      },
+      {},
+      {
+        "v": null
+      }
+    ],
+    "args": [
+      "v",
+      "ne",
+      0
+    ],
+    "want": [
+      {
+        "v": "0"
+      },
+      {
+        "v": null
+      }
+    ]
+  },
+  {
+    "name": "where numeric ordering",
+    "filter": "where",
+    "input": [
+      {
+        "v": 1
+      },
+      {
+        "v": 3
+      }
+    ],
+    "args": [
+      "v",
+      "ge",
+      2
+    ],
+    "want": [
+      {
+        "v": 3
+      }
+    ]
+  },
+  {
+    "name": "where invalid ordering type",
+    "filter": "where",
+    "input": [
+      {
+        "v": "2"
+      }
+    ],
+    "args": [
+      "v",
+      "gt",
+      1
+    ],
+    "error": true
+  },
+  {
+    "name": "where object rejected",
+    "filter": "where",
+    "input": [
+      {
+        "v": {}
+      }
+    ],
+    "args": [
+      "v",
+      "eq",
+      null
+    ],
+    "error": true
+  },
+  {
+    "name": "sort stable null missing desc",
+    "filter": "sort",
+    "input": [
+      {
+        "id": "a",
+        "v": 2
+      },
+      {
+        "id": "n",
+        "v": null
+      },
+      {
+        "id": "m"
+      },
+      {
+        "id": "b",
+        "v": 2
+      },
+      {
+        "id": "c",
+        "v": 1
+      }
+    ],
+    "args": [
+      "v",
+      "desc"
+    ],
+    "want": [
+      {
+        "id": "a",
+        "v": 2
+      },
+      {
+        "id": "b",
+        "v": 2
+      },
+      {
+        "id": "c",
+        "v": 1
+      },
+      {
+        "id": "n",
+        "v": null
+      },
+      {
+        "id": "m"
+      }
+    ]
+  },
+  {
+    "name": "sort unicode codepoints",
+    "filter": "sort",
+    "input": [
+      "\ud83d\ude00",
+      "\ue000",
+      "a"
+    ],
+    "args": [],
+    "want": [
+      "a",
+      "\ue000",
+      "\ud83d\ude00"
+    ]
+  },
+  {
+    "name": "sort direct descending",
+    "filter": "sort",
+    "input": [
+      1,
+      3,
+      2
+    ],
+    "args": [
+      "",
+      "desc"
+    ],
+    "want": [
+      3,
+      2,
+      1
+    ]
+  },
+  {
+    "name": "sort mixed fails",
+    "filter": "sort",
+    "input": [
+      1,
+      "2"
+    ],
+    "args": [],
+    "error": true
+  },
+  {
+    "name": "sort bool fails",
+    "filter": "sort",
+    "input": [
+      true
+    ],
+    "args": [],
+    "error": true
+  },
+  {
+    "name": "sort empty",
+    "filter": "sort",
+    "input": [],
+    "args": [],
+    "want": []
+  },
+  {
+    "name": "unique typed primitives",
+    "filter": "unique",
+    "input": [
+      0,
+      0,
+      "0",
+      null,
+      null,
+      true,
+      true
+    ],
+    "args": [],
+    "want": [
+      0,
+      "0",
+      null,
+      true
+    ]
+  },
+  {
+    "name": "unique missing differs null",
+    "filter": "unique",
+    "input": [
+      {},
+      {
+        "v": null
+      },
+      {},
+      {
+        "v": null
+      },
+      {
+        "v": 1
+      },
+      {
+        "v": 1
+      }
+    ],
+    "args": [
+      "v"
+    ],
+    "want": [
+      {},
+      {
+        "v": null
+      },
+      {
+        "v": 1
+      }
+    ]
+  },
+  {
+    "name": "unique object fails",
+    "filter": "unique",
+    "input": [
+      {}
+    ],
+    "args": [],
+    "error": true
+  },
+  {
+    "name": "unique empty",
+    "filter": "unique",
+    "input": [],
+    "args": [],
+    "want": []
+  },
+  {
+    "name": "sum direct",
+    "filter": "sum",
+    "input": [
+      1,
+      -2,
+      3.5
+    ],
+    "args": [],
+    "want": 2.5
+  },
+  {
+    "name": "sum field",
+    "filter": "sum",
+    "input": [
+      {
+        "n": 1
+      },
+      {
+        "n": 2
+      }
+    ],
+    "args": [
+      "n"
+    ],
+    "want": 3
+  },
+  {
+    "name": "sum empty",
+    "filter": "sum",
+    "input": [],
+    "args": [],
+    "want": 0
+  },
+  {
+    "name": "sum missing",
+    "filter": "sum",
+    "input": [
+      {}
+    ],
+    "args": [
+      "n"
+    ],
+    "error": true
+  },
+  {
+    "name": "sum null",
+    "filter": "sum",
+    "input": [
+      null
+    ],
+    "args": [],
+    "error": true
+  },
+  {
+    "name": "input type mismatch",
+    "filter": "pick",
+    "input": [],
+    "args": [
+      "a"
+    ],
+    "error": true
+  },
+  {
+    "name": "invalid argument",
+    "filter": "sum",
+    "input": [],
+    "args": [
+      3
+    ],
+    "error": true
+  },
+  {
+    "name": "surrogate collision before field limit",
+    "filter": "pick",
+    "input": {
+      "\ud800": 0,
+      "\ud801": 1,
+      "\ud802": 2,
+      "\ud803": 3,
+      "\ud804": 4,
+      "\ud805": 5,
+      "\ud806": 6,
+      "\ud807": 7,
+      "\ud808": 8,
+      "\ud809": 9,
+      "\ud80a": 10,
+      "\ud80b": 11,
+      "\ud80c": 12,
+      "\ud80d": 13,
+      "\ud80e": 14,
+      "\ud80f": 15,
+      "\ud810": 16,
+      "\ud811": 17,
+      "\ud812": 18,
+      "\ud813": 19,
+      "\ud814": 20,
+      "\ud815": 21,
+      "\ud816": 22,
+      "\ud817": 23,
+      "\ud818": 24,
+      "\ud819": 25,
+      "\ud81a": 26,
+      "\ud81b": 27,
+      "\ud81c": 28,
+      "\ud81d": 29,
+      "\ud81e": 30,
+      "\ud81f": 31,
+      "\ud820": 32,
+      "\ud821": 33,
+      "\ud822": 34,
+      "\ud823": 35,
+      "\ud824": 36,
+      "\ud825": 37,
+      "\ud826": 38,
+      "\ud827": 39,
+      "\ud828": 40,
+      "\ud829": 41,
+      "\ud82a": 42,
+      "\ud82b": 43,
+      "\ud82c": 44,
+      "\ud82d": 45,
+      "\ud82e": 46,
+      "\ud82f": 47,
+      "\ud830": 48,
+      "\ud831": 49,
+      "\ud832": 50,
+      "\ud833": 51,
+      "\ud834": 52,
+      "\ud835": 53,
+      "\ud836": 54,
+      "\ud837": 55,
+      "\ud838": 56,
+      "\ud839": 57,
+      "\ud83a": 58,
+      "\ud83b": 59,
+      "\ud83c": 60,
+      "\ud83d": 61,
+      "\ud83e": 62,
+      "\ud83f": 63,
+      "\ud840": 64,
+      "\ud841": 65,
+      "\ud842": 66,
+      "\ud843": 67,
+      "\ud844": 68,
+      "\ud845": 69,
+      "\ud846": 70,
+      "\ud847": 71,
+      "\ud848": 72,
+      "\ud849": 73,
+      "\ud84a": 74,
+      "\ud84b": 75,
+      "\ud84c": 76,
+      "\ud84d": 77,
+      "\ud84e": 78,
+      "\ud84f": 79,
+      "\ud850": 80,
+      "\ud851": 81,
+      "\ud852": 82,
+      "\ud853": 83,
+      "\ud854": 84,
+      "\ud855": 85,
+      "\ud856": 86,
+      "\ud857": 87,
+      "\ud858": 88,
+      "\ud859": 89,
+      "\ud85a": 90,
+      "\ud85b": 91,
+      "\ud85c": 92,
+      "\ud85d": 93,
+      "\ud85e": 94,
+      "\ud85f": 95,
+      "\ud860": 96,
+      "\ud861": 97,
+      "\ud862": 98,
+      "\ud863": 99,
+      "\ud864": 100,
+      "\ud865": 101,
+      "\ud866": 102,
+      "\ud867": 103,
+      "\ud868": 104,
+      "\ud869": 105,
+      "\ud86a": 106,
+      "\ud86b": 107,
+      "\ud86c": 108,
+      "\ud86d": 109,
+      "\ud86e": 110,
+      "\ud86f": 111,
+      "\ud870": 112,
+      "\ud871": 113,
+      "\ud872": 114,
+      "\ud873": 115,
+      "\ud874": 116,
+      "\ud875": 117,
+      "\ud876": 118,
+      "\ud877": 119,
+      "\ud878": 120,
+      "\ud879": 121,
+      "\ud87a": 122,
+      "\ud87b": 123,
+      "\ud87c": 124,
+      "\ud87d": 125,
+      "\ud87e": 126,
+      "\ud87f": 127,
+      "\ud880": 128,
+      "\ud881": 129,
+      "\ud882": 130,
+      "\ud883": 131,
+      "\ud884": 132,
+      "\ud885": 133,
+      "\ud886": 134,
+      "\ud887": 135,
+      "\ud888": 136,
+      "\ud889": 137,
+      "\ud88a": 138,
+      "\ud88b": 139,
+      "\ud88c": 140,
+      "\ud88d": 141,
+      "\ud88e": 142,
+      "\ud88f": 143,
+      "\ud890": 144,
+      "\ud891": 145,
+      "\ud892": 146,
+      "\ud893": 147,
+      "\ud894": 148,
+      "\ud895": 149,
+      "\ud896": 150,
+      "\ud897": 151,
+      "\ud898": 152,
+      "\ud899": 153,
+      "\ud89a": 154,
+      "\ud89b": 155,
+      "\ud89c": 156,
+      "\ud89d": 157,
+      "\ud89e": 158,
+      "\ud89f": 159,
+      "\ud8a0": 160,
+      "\ud8a1": 161,
+      "\ud8a2": 162,
+      "\ud8a3": 163,
+      "\ud8a4": 164,
+      "\ud8a5": 165,
+      "\ud8a6": 166,
+      "\ud8a7": 167,
+      "\ud8a8": 168,
+      "\ud8a9": 169,
+      "\ud8aa": 170,
+      "\ud8ab": 171,
+      "\ud8ac": 172,
+      "\ud8ad": 173,
+      "\ud8ae": 174,
+      "\ud8af": 175,
+      "\ud8b0": 176,
+      "\ud8b1": 177,
+      "\ud8b2": 178,
+      "\ud8b3": 179,
+      "\ud8b4": 180,
+      "\ud8b5": 181,
+      "\ud8b6": 182,
+      "\ud8b7": 183,
+      "\ud8b8": 184,
+      "\ud8b9": 185,
+      "\ud8ba": 186,
+      "\ud8bb": 187,
+      "\ud8bc": 188,
+      "\ud8bd": 189,
+      "\ud8be": 190,
+      "\ud8bf": 191,
+      "\ud8c0": 192,
+      "\ud8c1": 193,
+      "\ud8c2": 194,
+      "\ud8c3": 195,
+      "\ud8c4": 196,
+      "\ud8c5": 197,
+      "\ud8c6": 198,
+      "\ud8c7": 199,
+      "\ud8c8": 200,
+      "\ud8c9": 201,
+      "\ud8ca": 202,
+      "\ud8cb": 203,
+      "\ud8cc": 204,
+      "\ud8cd": 205,
+      "\ud8ce": 206,
+      "\ud8cf": 207,
+      "\ud8d0": 208,
+      "\ud8d1": 209,
+      "\ud8d2": 210,
+      "\ud8d3": 211,
+      "\ud8d4": 212,
+      "\ud8d5": 213,
+      "\ud8d6": 214,
+      "\ud8d7": 215,
+      "\ud8d8": 216,
+      "\ud8d9": 217,
+      "\ud8da": 218,
+      "\ud8db": 219,
+      "\ud8dc": 220,
+      "\ud8dd": 221,
+      "\ud8de": 222,
+      "\ud8df": 223,
+      "\ud8e0": 224,
+      "\ud8e1": 225,
+      "\ud8e2": 226,
+      "\ud8e3": 227,
+      "\ud8e4": 228,
+      "\ud8e5": 229,
+      "\ud8e6": 230,
+      "\ud8e7": 231,
+      "\ud8e8": 232,
+      "\ud8e9": 233,
+      "\ud8ea": 234,
+      "\ud8eb": 235,
+      "\ud8ec": 236,
+      "\ud8ed": 237,
+      "\ud8ee": 238,
+      "\ud8ef": 239,
+      "\ud8f0": 240,
+      "\ud8f1": 241,
+      "\ud8f2": 242,
+      "\ud8f3": 243,
+      "\ud8f4": 244,
+      "\ud8f5": 245,
+      "\ud8f6": 246,
+      "\ud8f7": 247,
+      "\ud8f8": 248,
+      "\ud8f9": 249,
+      "\ud8fa": 250,
+      "\ud8fb": 251,
+      "\ud8fc": 252,
+      "\ud8fd": 253,
+      "\ud8fe": 254,
+      "\ud8ff": 255,
+      "\ud900": 256
+    },
+    "args": [
+      "\ufffd"
+    ],
+    "want": {
+      "\ufffd": 256
+    }
+  }
+]

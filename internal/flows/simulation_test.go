@@ -69,6 +69,55 @@ func TestSimulationFixturesAndTemplate(t *testing.T) {
 	}
 }
 
+func TestSimulationFileFixtures(t *testing.T) {
+	s, _ := newServiceFixture(t, nil)
+	ctx := context.Background()
+	b := newFlow("File fixture")
+	start := b.node("start", TypeTriggerManual, nil)
+	pdf := b.node("pdf", TypePDFCreate, map[string]any{"content": "fixture"})
+	b.edge(start, PortOut, pdf)
+	rec, err := s.CreateFlow(ctx, CreateRequest{Import: b.build()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	spy := &fakeTools{}
+	s.services.Tools = spy
+	for _, tc := range []struct {
+		name  string
+		file  any
+		valid bool
+	}{
+		{"file reference", FileRef("/simulated/report.pdf", "", "", "/files/report.pdf", 123), true},
+		{"path object", map[string]any{"path": "/simulated/report.pdf"}, true},
+		{"path string", "/simulated/report.pdf", true},
+		{"missing path", map[string]any{"$type": "file"}, false},
+		{"wrong path type", map[string]any{"path": 123}, false},
+		{"wrong marker", map[string]any{"path": "report.pdf", "$type": "other"}, false},
+		{"wrong metadata type", map[string]any{"path": "report.pdf", "mime": false}, false},
+		{"negative size", map[string]any{"path": "report.pdf", "size": -1}, false},
+		{"fractional size", map[string]any{"path": "report.pdf", "size": 1.5}, false},
+		{"wrong value type", []any{"report.pdf"}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			res, err := s.Simulate(ctx, rec.ID, SimulationRequest{Fixtures: map[string]SimulationFixture{
+				pdf: {Output: map[string]any{"file": tc.file}},
+			}})
+			if !tc.valid {
+				if !errors.Is(err, ErrInvalidSimulationFixture) {
+					t.Fatalf("expected invalid fixture, got %+v, %v", res, err)
+				}
+				return
+			}
+			if err != nil || res.Status != RunSuccess {
+				t.Fatalf("file fixture: %+v, %v", res, err)
+			}
+		})
+	}
+	if spy.count() != 0 {
+		t.Fatalf("simulation invoked tools %d times", spy.count())
+	}
+}
+
 func TestDiffDetailsRedactsAndBounds(t *testing.T) {
 	live := simpleFlow("before")
 	draft, _ := live.Clone()

@@ -654,6 +654,133 @@
         return args[i];
     }
 
+    // Collection filters only accept bounded JSON and never mutate the input.
+    function collectionError() { return tplError('TPL_WRONG_VALUE', 'invalid or oversized collection'); }
+    function collectionUnicode(s) {
+        let out = '';
+        for (let i = 0; i < s.length; i++) {
+            const c = s.charCodeAt(i);
+            if (c >= 0xD800 && c <= 0xDBFF) {
+                if (i + 1 < s.length && s.charCodeAt(i + 1) >= 0xDC00 && s.charCodeAt(i + 1) <= 0xDFFF) out += s[i] + s[++i];
+                else out += '\uFFFD';
+            } else if (c >= 0xDC00 && c <= 0xDFFF) out += '\uFFFD';
+            else out += s[i];
+        }
+        return out;
+    }
+    function checkCollection(value, raw) {
+        const stack = [[value, 0]];
+        const valueLimit = raw ? 200000 : 100000, byteLimit = (raw ? 8 : 2) * 1024 * 1024;
+        let count = 0, size = 0;
+        while (stack.length) {
+            const [v, depth] = stack.pop();
+            if (++count > valueLimit || depth > (raw ? 64 : 32)) throw collectionError();
+            if (v === null || typeof v === 'boolean') continue;
+            if (typeof v === 'number') { if (!Number.isFinite(v)) throw collectionError(); continue; }
+            if (typeof v === 'string') { if (v.length > byteLimit) throw collectionError(); size += utf8Len(collectionUnicode(v)); }
+            else if (Array.isArray(v)) {
+                if (v.length > 10000 || count + stack.length + v.length > valueLimit) throw collectionError();
+                for (let i = 0; i < v.length; i++) { if (!Object.prototype.hasOwnProperty.call(v, i)) throw collectionError(); stack.push([v[i], depth + 1]); }
+            } else if (v && typeof v === 'object' && (Object.getPrototypeOf(v) === Object.prototype || Object.getPrototypeOf(v) === null)) {
+                const keys = [];
+                for (const k in v) if (Object.prototype.hasOwnProperty.call(v, k)) { keys.push(k); if (keys.length > (raw ? 100000 : 256)) throw collectionError(); }
+                if (count + stack.length + keys.length > valueLimit) throw collectionError();
+                keys.forEach(k => { if (k.length > byteLimit) throw collectionError(); size += utf8Len(collectionUnicode(k)); stack.push([v[k], depth + 1]); });
+            } else throw collectionError();
+            if (size > byteLimit) throw collectionError();
+        }
+    }
+    function collectionField(args, i) {
+        const s = args[i];
+        if (typeof s !== 'string' || utf8Len(s) > 2 * 1024 * 1024) throw collectionError();
+        return s;
+    }
+    // encoding/json replaces lone UTF-16 surrogates while reading requests.
+    // Mirror that behavior on a bounded copy so preview agrees with the server.
+    function normalizeCollection(value) {
+        if (typeof value === 'string') return collectionUnicode(value);
+        if (Array.isArray(value)) return value.map(normalizeCollection);
+        if (value && typeof value === 'object') {
+            const out = {};
+            Object.keys(value).forEach(k => setOwn(out, collectionUnicode(k), normalizeCollection(value[k])));
+            return out;
+        }
+        return value;
+    }
+    function collectionFilter(fn) {
+        return (value, args) => {
+            // Bound raw preview data before copying, even if JSON key normalization
+            // would later discard some values. This may conservatively refuse it.
+            checkCollection(value, true); checkCollection(args, true);
+            const normalized = normalizeCollection(value), normalizedArgs = normalizeCollection(args);
+            checkCollection(normalized); checkCollection(normalizedArgs);
+            return fn(normalized, normalizedArgs);
+        };
+    }
+    function collectionList(value) { checkCollection(value); if (!Array.isArray(value)) throw collectionError(); return value; }
+    function collectionObject(value) { return value !== null && typeof value === 'object' && !Array.isArray(value); }
+    function collectionPrimitive(value) { return value === null || typeof value === 'string' || typeof value === 'boolean' || (typeof value === 'number' && Number.isFinite(value)); }
+    const collectionMissing = Symbol('missing');
+    function collectionItem(item, field) {
+        if (!field) return item;
+        if (!collectionObject(item)) throw collectionError();
+        return Object.prototype.hasOwnProperty.call(item, field) ? item[field] : collectionMissing;
+    }
+    function collectionCompare(a, b) {
+        if (typeof a !== typeof b || (typeof a !== 'string' && typeof a !== 'number') || !collectionPrimitive(a) || !collectionPrimitive(b)) throw collectionError();
+        return typeof a === 'string' ? byCodePoint(a, b) : (a < b ? -1 : a > b ? 1 : 0);
+    }
+    function collectionPick(value, args) {
+        checkCollection(value); if (!collectionObject(value)) throw collectionError();
+        const out = {};
+        args.forEach((_, i) => { const key = collectionField(args, i); if (Object.prototype.hasOwnProperty.call(value, key)) setOwn(out, key, value[key]); });
+        return out;
+    }
+    function collectionRename(value, args) {
+        checkCollection(value); if (!collectionObject(value)) throw collectionError();
+        const from = collectionField(args, 0), to = collectionField(args, 1);
+        if (!Object.prototype.hasOwnProperty.call(value, from) || (from !== to && Object.prototype.hasOwnProperty.call(value, to))) throw collectionError();
+        const out = {}; Object.keys(value).forEach(k => { if (k !== from) setOwn(out, k, value[k]); }); setOwn(out, to, value[from]);
+        checkCollection(out); return out;
+    }
+    function collectionWhere(value, args) {
+        const list = collectionList(value), field = collectionField(args, 0), op = collectionField(args, 1), wanted = args[2];
+        if (!collectionPrimitive(wanted) || !['eq', 'ne', 'lt', 'le', 'gt', 'ge'].includes(op)) throw collectionError();
+        checkCollection(wanted);
+        return list.filter(item => {
+            if (!collectionObject(item)) throw collectionError();
+            if (!Object.prototype.hasOwnProperty.call(item, field)) return false;
+            const v = item[field]; if (!collectionPrimitive(v)) throw collectionError();
+            if (op === 'eq') return v === wanted; if (op === 'ne') return v !== wanted;
+            const c = collectionCompare(v, wanted);
+            return op === 'lt' ? c < 0 : op === 'le' ? c <= 0 : op === 'gt' ? c > 0 : c >= 0;
+        });
+    }
+    function collectionSort(value, args) {
+        const list = collectionList(value), field = args.length ? collectionField(args, 0) : '', dir = args.length > 1 ? collectionField(args, 1) : 'asc';
+        if (dir !== 'asc' && dir !== 'desc') throw collectionError();
+        let first = null;
+        const rows = list.map((item, index) => {
+            const key = collectionItem(item, field);
+            if (key !== collectionMissing && key !== null) { collectionCompare(key, key); if (first === null) first = key; else collectionCompare(first, key); }
+            return { item, index, key };
+        });
+        rows.sort((a, b) => {
+            const an = a.key === null || a.key === collectionMissing, bn = b.key === null || b.key === collectionMissing;
+            if (an || bn) return an === bn ? a.index - b.index : an ? 1 : -1;
+            const c = collectionCompare(a.key, b.key); return c ? (dir === 'desc' ? -c : c) : a.index - b.index;
+        });
+        return rows.map(row => row.item);
+    }
+    function collectionUnique(value, args) {
+        const list = collectionList(value), field = args.length ? collectionField(args, 0) : '', seen = new Set();
+        return list.filter(item => { const key = collectionItem(item, field); if (key !== collectionMissing && !collectionPrimitive(key)) throw collectionError(); if (seen.has(key)) return false; seen.add(key); return true; });
+    }
+    function collectionSum(value, args) {
+        const list = collectionList(value), field = args.length ? collectionField(args, 0) : '';
+        let sum = 0; list.forEach(item => { const n = collectionItem(item, field); if (typeof n !== 'number' || !Number.isFinite(n)) throw collectionError(); sum += n; if (!Number.isFinite(sum)) throw collectionError(); }); return sum;
+    }
+
     const FILTERS = {
         default: { min: 1, max: 1, hint: '(value)', fn: (v, a) => (v === null || v === undefined || v === '') ? a[0] : v },
         truncate: { min: 1, max: 1, hint: '(100)', fn: (v, a) => { const n = intArg(a, 0, 0, 1); const chars = Array.from(stringify(v)); return chars.length <= n ? chars.join('') : chars.slice(0, n).join('') + '…'; } },
@@ -666,6 +793,12 @@
         last: { min: 0, max: 0, hint: '', fn: v => Array.isArray(v) ? (v.length ? v[v.length - 1] : null) : (typeof v === 'string' ? Array.from(v).pop() || '' : null) },
         count: { min: 0, max: 0, hint: '', fn: v => v === null || v === undefined ? 0 : Array.isArray(v) ? v.length : typeof v === 'object' ? Object.keys(v).length : typeof v === 'string' ? Array.from(v).length : 1 },
         pluck: { min: 1, max: 1, hint: '("title")', fn: (v, a) => { const f = strArg(a, 0, ''); return Array.isArray(v) ? v.map(item => item && typeof item === 'object' && !Array.isArray(item) && Object.prototype.hasOwnProperty.call(item, f) ? item[f] : null) : []; } },
+        pick: { min: 1, max: 16, hint: '("name", "title")', fn: collectionFilter(collectionPick) },
+        rename: { min: 2, max: 2, hint: '("old", "new")', fn: collectionFilter(collectionRename) },
+        where: { min: 3, max: 3, hint: '("field", "eq", "value")', fn: collectionFilter(collectionWhere) },
+        sort: { min: 0, max: 2, hint: '("field", "asc")', fn: collectionFilter(collectionSort) },
+        unique: { min: 0, max: 1, hint: '("field")', fn: collectionFilter(collectionUnique) },
+        sum: { min: 0, max: 1, hint: '("field")', fn: collectionFilter(collectionSum) },
         json: { min: 0, max: 0, hint: '', fn: v => { try { return goJSON(v); } catch (err) { throw tplError('TPL_WRONG_VALUE', 'value cannot be serialized as JSON'); } } },
         date: { min: 1, max: 2, hint: '("DD.MM.YYYY")', fn: (v, a) => { const d = toDate(v); if (!d) throw tplError('TPL_WRONG_VALUE', 'not a date'); return formatDate(d, strArg(a, 0, ''), a.length > 1 ? strArg(a, 1, '') : undefined); } },
         round: { min: 0, max: 1, hint: '(2)', fn: (v, a) => roundHalfAway(v, intArg(a, 0, 0, 0)) },

@@ -10,6 +10,7 @@ Owners: `internal/flows/AGENTS.md`, `internal/server/AGENTS.md`, `ui/AGENTS.md`,
 | Area | Current implementation boundary |
 | --- | --- |
 | Daily editing | Resizable workspace, step outline, selected-path focus, explicit mapping target, local introductory recipe, readable results and semantic publication review implemented. Cards/compact list, device-local favorites and saved filters are implemented. Automated theme/phone journeys pass; human usability acceptance remains open. |
+| Recipes and data | Twelve curated recipes include email, MQTT temperature, device, camera and PDF examples with zero-effect outcome/failure tests. Six pure collection filters have 34 shared Go/JavaScript cases. The visual helper supports the existing 22 filters, exact expressions, typed local examples, explicit insertion targets and one isolated undo action. Automated browser/regression gates pass; local preview budgets are deliberately conservative and legacy date/HTML/case/rounding differences are disclosed when applicable. |
 | Testing | Isolated backend simulation, encrypted private named scenarios, structured input, exact output/branch assertions and bounded retained-run comparison implemented. Scenario replay uses exact scenario version and current draft revision; automated browser acceptance passes. |
 | Lifecycle | Paginated run history and explicit disabled Mission Control repair implemented. Test evidence requires the exact preview draft revision. |
 | AI | Goal-only proposal API and review/apply UI implemented for new and existing flows. Apply creates a new draft or one undoable revision-bound edit. Automated policy/shape/revision cases pass; real-provider task-quality evaluation remains open. No automatic publish, activation or execution. |
@@ -310,7 +311,7 @@ Use the existing checks, adding focused tests for new semantics rather than dupl
 - UI packaging: syntax, locale parity, `npm run build:ui -- --check` and version-bound asset verification for implementation releases.
 - Every phase updates the nearest owning guides, English/German user manuals and all changed UI locales. New permanent child owners are justified by a real boundary, not a feature-count target.
 
-This planning change adds only the roadmap and an ownership pointer. Existing runtime and UI guides remain authoritative for shipped behavior; they must change with implementation, not preemptively advertise proposed features.
+Existing runtime and UI guides remain authoritative for shipped behavior. The checkpoint table separates implemented slices from unfinished work; guides must change with implementation rather than preemptively advertise proposed features.
 
 ## 11. External pattern references
 
@@ -325,4 +326,4 @@ These references informed proposed interactions; they are not claims that a comp
 
 ## 12. Immediate next implementation unit
 
-Begin with the phase-0 reference designs and a single complete morning-briefing editing journey. The first implementation should improve workspace space allocation, selected-step visibility, source-to-field mapping, a structured test-data chooser and result presentation together. Keep live behavior unchanged until simulation has a backend contract. Use the measured usability result to finalize the next phase's detailed tickets.
+Implement a complete synchronous pure-block slice: typed inputs/outputs, immutable published revisions, atomic version/run pins, bounded shared execution and simulation, and usable block authoring. This work does not activate durable execution. Durable Runner integration remains behind the outstanding explicit clarification. Human usability, assistive-technology and reference-hardware acceptance remain separate release gates.

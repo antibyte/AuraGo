@@ -11,8 +11,8 @@ func TestTemplatesBuildValidDrafts(t *testing.T) {
 	reg := catalogRegistry(t, fullEnv())
 	tr := func(key string) string { return "T(" + key + ")" }
 	infos := Templates()
-	if len(infos) != 7 {
-		t.Fatalf("templates = %d, want 7", len(infos))
+	if len(infos) != 12 {
+		t.Fatalf("templates = %d, want 12", len(infos))
 	}
 	vc := ValidateContext{Now: time.Date(2026, 10, 3, 7, 0, 0, 0, time.UTC), Location: time.UTC}
 	for _, info := range infos {

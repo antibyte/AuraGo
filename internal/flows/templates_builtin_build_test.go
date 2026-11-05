@@ -16,7 +16,7 @@ import (
 // The gallery lists the templates in order, each with categories of the
 // catalog; the list is a copy that a caller may modify.
 func TestTemplatesListInGalleryOrder(t *testing.T) {
-	want := []string{"local_first_result", "ai_news_pdf_telegram", "webhook_summary_email", "appointment_reminder", "leaving_home", "budget_guard", "rss_digest"}
+	want := []string{"local_first_result", "ai_news_pdf_telegram", "webhook_summary_email", "appointment_reminder", "leaving_home", "budget_guard", "rss_digest", "email_push", "mqtt_temperature", "device_offline", "camera_person", "manual_pdf"}
 	var ids []string
 	for _, info := range Templates() {
 		ids = append(ids, info.ID)

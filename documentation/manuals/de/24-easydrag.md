@@ -73,6 +73,19 @@ Wähle beim Einfügen von Eingabedaten zuerst **Daten einfügen in**. EasyDrag r
 Zielfeld mehr. Das gewählte Feld und die Einfügeposition bleiben erhalten; ein breiter
 Inspektor kann Quelldaten und Parameter nebeneinander anzeigen.
 
+Um einen Quellwert vor dem Einfügen zu bearbeiten, nutze seinen Knopf **Wert aufbereiten**
+oder drücke **Umschalt+F10** auf der fokussierten Quellzeile. Wähle und ordne bis zu acht
+Operationen; **In gewähltes Feld einfügen** ersetzt die Auswahl an der gemerkten Cursorposition als eine
+rückgängig machbare Änderung. Die Quellenangabe zeigt, woher die Vorschaudaten stammen.
+Auch ohne tatsächliches Beispiel kannst Du einen gültigen Ausdruck bauen; fehlende
+Daten unterscheiden sich vom ausdrücklichen JSON-Wert `null`. Ein frisches JSON-Beispiel
+gilt nur für diese Vorschau und wird weder gespeichert noch in den Flow eingefügt.
+Lokale Vorschauen begrenzen Eingaben und JSON-Zwischenergebnisse auf 64 KiB und angezeigte
+Ergebnisse auf 8 KiB. Unter **Vorschaugrenzen und Hinweise** stehen die Einzelheiten.
+Bei Datum, HTML, Unicode-Groß-/Kleinschreibung und Rundung kann die Browserdarstellung
+von der Ausführung abweichen. Die Datumsvorschau braucht einen ausdrücklichen Zeitversatz
+in der Eingabe und eine gewählte Zeitzone. Teste den Flow mit seinen tatsächlichen Daten.
+
 - Der Kopf zeigt Name und Stand des Flows, mit denselben Wörtern wie Mission Control und die Missionsseite: *Noch nicht veröffentlicht* (nie veröffentlicht), *Veröffentlicht* oder *Unveröffentlichte Änderungen*, daneben *Pausiert*, solange ein veröffentlichter Flow ausgeschaltet ist. Er enthält **Rückgängig** und **Wiederholen**, **Läufe**, **Testen**, **Veröffentlichen**, den Schalter **Aktiv** und das Menü **⋯**: *Jetzt ausführen*, *Versionsverlauf*, *Flow-Einstellungen*, *Duplizieren*, *Exportieren*, *In Mission Control zeigen* und *Löschen*. In einem Editor, der 560 px oder schmaler ist (auf dem Handy), wandert **Läufe** ins Menü ⋯; **Testen** bleibt direkt erreichbar, und *Pausiert* bleibt neben dem Namen sichtbar; ebenso *Neu veröffentlichen nötig* und die Warnung „Auslöser „Datum & Uhrzeit“ laufen nicht“. Die Fußzeile zeigt den letzten Lauf, Probleme und Hinweise sowie den Speicherstand. „Entwurf“ meint immer die Version, die du bearbeitest, im Unterschied zur veröffentlichten.
 - **Rückgängig** und **Wiederholen** im Kopf nehmen die letzte Änderung zurück oder wiederholen sie, auch auf Touchscreens (auf der Fläche tun Strg+Z und Strg+Umschalt+Z dasselbe). Löschst du Schritte, erscheint für einige Sekunden ein Hinweis wie „Alpha gelöscht“ mit **Rückgängig**; eine Rückfrage vor dem Löschen gibt es nicht.
 - **Schritt im Flow suchen** (Strg+F, auch im Menü *Ansicht* und im Kontextmenü der Fläche) sucht Schritte nach Name, Datenname, Typ oder Text in den Parametern; Enter springt zum ersten Treffer.
@@ -91,6 +104,26 @@ Inspektor kann Quelldaten und Parameter nebeneinander anzeigen.
 - Läufe, die schon in einer Warteschlange standen, als Missionen schreibgeschützt wurden oder EasyDrag abgeschaltet wurde, starten auch später nicht: Wenn sie an der Reihe sind, enden sie als *Gestoppt* (automatische Läufe sind pausiert), und Mission Control vermerkt es an der Flow-Mission. Ein Lauf, den du selbst mit *Jetzt ausführen* gestartet hast, läuft trotzdem.
 - Kann AuraGo den Flow-Speicher nicht starten (eine gesperrte oder beschädigte `flows.db`), versucht es das im Hintergrund weiter. Bis dahin zeigt die Startseite *Auslöser „Datum & Uhrzeit“ laufen nicht* und der Kopf einen Chip mit denselben Worten; sie nennt Datum & Uhrzeit, weil diese Auslöser von den Timern abhängen.
 - In einer Liste aus Schlüsseln und Werten (etwa den Headern einer HTTP-Anfrage) werden zwei Zeilen mit demselben Schlüssel markiert, und aus dieser Liste wird nichts gespeichert, bis jeder Schlüssel eindeutig ist. Zahlen und Ja/Nein-Werte aus einem importierten Flow behalten ihren Typ, bis du sie bearbeitest.
+
+### Ausdrücke für Listen und Objekte
+
+Diese Filter verwenden in der Vorschau und bei der Ausführung dieselbe Ausdruckssprache.
+Feldnamen bezeichnen direkte Felder, keine verschachtelten Pfade. Beispielsweise summiert
+`{{items | where("status", "eq", "ready") | sum("amount")}}` die Beträge bereiter Einträge.
+
+| Filter | Wirkung |
+| --- | --- |
+| `pick("name", "value")` | Behält 1–16 benannte Objektfelder. Fehlende Felder werden ausgelassen, `null` bleibt erhalten. |
+| `rename("title", "name")` | Benennt ein vorhandenes Feld um. Ein bereits belegtes anderes Zielfeld führt zu einem Fehler. |
+| `where("status", "eq", "ready")` | Behält passende Objekte. Operatoren: `eq`, `ne`, `lt`, `le`, `gt`, `ge`. Fehlende Felder passen nie. Gleichheit unterscheidet Datentypen; Größenvergleiche verlangen gleiche Zahlen- oder Texttypen. |
+| `sort("score", "desc")` | Sortiert Zahlen numerisch und Text nach Unicode-Codepunkten, jeweils stabil; fehlende Werte und `null` bleiben zuletzt. `sort()` sortiert einfache Werte, `sort("", "desc")` absteigend. Gemischte Typen und Wahrheitswerte führen zu Fehlern. |
+| `unique("id")` | Behält den ersten Eintrag je typisiertem Feldwert; fehlend ist etwas anderes als `null`. Für einfache Werte nutzt Du `unique()`. |
+| `sum("amount")` | Addiert endliche Zahlen; leere Listen ergeben `0`. Fehlende Werte, `null` und Text führen zu Fehlern. Für eine Zahlenliste nutzt Du `sum()`. |
+
+Die Filter verändern ihre Eingabe nicht. Jede Operation ist auf 10.000 Einträge pro Liste,
+256 Felder pro Objekt, 32 Verschachtelungsebenen, 100.000 Werte und 2 MiB Text-/Schlüsselbytes
+begrenzt. Zu große Daten führen zu einem klaren Fehler. Die bisherigen Flow-Grenzen gelten
+weiter; die lokale visuelle Vorschau darf für flüssige Bedienung kleinere Grenzen setzen.
 
 ## Speichern
 
@@ -116,6 +149,9 @@ sowie optional `ports` oder einen unterstützten `error_code` für einen Fehlerf
 Ohne Speichern bleiben sie im geöffneten Fenster. Ergebnisse sind ausdrücklich
 als simuliert markiert und erscheinen nicht als echte Läufe in der Historie. Ergänze
 ausgeblendete oder ausgelassene Werte in bearbeiteten Testdaten vor einem echten Test.
+Dateireferenzen in simulierten Ausgaben bleiben Text: Sie öffnen keine Dateien und
+laden keine Medienvorschau. Ein erfolgreicher simulierter Schritt bedeutet nicht,
+dass eine externe Aktion stattgefunden hat.
 
 Einfache Text-, Zahlen- und Ja/Nein-Felder lassen sich direkt bearbeiten; verschachtelte
 Werte bleiben unter **Erweitertes Beispiel-JSON** erreichbar. In der Simulation
@@ -202,7 +238,9 @@ Beim Vergleichen wird kein Schritt erneut ausgeführt.
 
 ## Vorlagen, Import und Export
 
-- Die Startseite bietet sieben Vorlagen: *Dein erstes lokales Ergebnis*, *KI-News als PDF per Telegram*, *Webhook per E-Mail zusammenfassen*, *Terminerinnerung*, *Licht aus beim Verlassen*, *Budgetwächter* und *Täglicher RSS-Überblick*. Im Editor tragen Schritte, deren Integration noch nicht eingerichtet ist, ein Abzeichen, und ihre Detailansicht verweist auf die Einstellungen (*Einstellungen öffnen*); in der Bausteine-Leiste bieten solche Bausteine *Einrichten* an.
+- Die Startseite bietet zwölf Vorlagen, darunter *Dein erstes lokales Ergebnis*, E-Mail- und Gerätebenachrichtigungen, einen Hinweis bei Personenerkennung, eine MQTT-Temperaturwarnung und eine manuelle Notiz als PDF. Im Editor tragen Schritte, deren Integration noch nicht eingerichtet ist, ein Abzeichen, und ihre Detailansicht verweist auf die Einstellungen (*Einstellungen öffnen*); in der Bausteine-Leiste bieten solche Bausteine *Einrichten* an.
+- Die neuen Benachrichtigungsvorlagen wählen standardmäßig Web Push; richte es ein oder wähle vor der Veröffentlichung einen anderen Kanal. Wähle für die Temperaturwarnung ein MQTT-Topic und prüfe den Schwellenwert. Fehlende oder nichtnumerische Temperaturen stoppen den Lauf mit einem Fehler; eine erfolgreiche Simulation mit Beispieldaten beweist nicht, dass Sensor oder Benachrichtigungskanal funktionieren. Das Kamerabeispiel sendet Text ohne Bildanhang. Simulierte Benachrichtigungs- und PDF-Ergebnisse senden keine Nachricht und erzeugen keine Datei.
+- Die E-Mail-, Geräte- und Kamerabeispiele starten mit breiten Filtern: Sie erfassen passende Nachrichten aus dem überwachten Posteingang, das Trennen von Geräten oder Personenerkennungen scharfgeschalteter Kameras aus den eingerichteten Quellen. Setze vor der Veröffentlichung die gewünschten Filter für Betreff/Absender, Gerät, Kamera oder Zone, wenn der Flow enger reagieren soll.
 - **Exportieren** lädt den Entwurf als `<name>.easydrag.json` herunter. **Importieren** auf der Startseite legt aus so einer Datei einen neuen Flow an (höchstens 2 MiB). Eine Flow-Datei enthält die Namen von Geheimnissen, nie ihre Werte; Zugangs-Header (*Authorization*, *X-Api-Key*, *Cookie*, ...) werden als `[redacted]` exportiert; andere Werte in gewöhnlichen Feldern so, wie du sie eingegeben hast.
 
 ## Mission Control, Missionsseite und Dashboard

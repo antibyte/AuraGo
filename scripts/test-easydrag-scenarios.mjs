@@ -1,5 +1,22 @@
 // Named scenarios use immutable server snapshots; fresh cases alone send editable sample data.
 export async function run({ sandbox, openEditor, eq, guardAsync, settle }) {
+    await guardAsync('flagship simulation file fixtures remain inert and never claim completed effects', async () => {
+        const h = sandbox(() => undefined), editor = openEditor(h); await settle();
+        let pdfRequests = 0;
+        h.win.pdfjsLib = { getDocument() { pdfRequests++; throw new Error('Unexpected PDF request'); } };
+        const files = { image: { $type: 'file', path: 'sample.png', web_path: '/files/sample.png', mime: 'image/png' }, pdf: { $type: 'file', path: 'sample.pdf', web_path: '/files/sample.pdf', mime: 'application/pdf' }, audio: { $type: 'file', path: 'sample.mp3', web_path: '/files/sample.mp3', mime: 'audio/mpeg' }, tokens: { input: 100, output: 200 } };
+        const steps = new Map([['n_aaaaaaaa', { node_id: 'n_aaaaaaaa', status: 'success', output: files }], ['n_bbbbbbbb', { node_id: 'n_bbbbbbbb', status: 'error', error_code: 'FLOW_NODE_FAILED' }]]);
+        editor.ed.run = { id: 'simulation', mode: 'simulation', status: 'error', steps, record: {} };
+        editor.ed.bus.emit('run', editor.ed.run);
+        editor.ed.bus.emit('open-detail', { nodeId: 'n_aaaaaaaa', column: 'output' }); await settle();
+        const out = editor.el.querySelector('.ed-output');
+        eq('flagship simulated files show labeled text without links, media, token usage or PDF requests', [out.querySelectorAll('a, img, audio, iframe, canvas').length, out.html.includes('/files/sample.pdf'), editor.el.querySelector('.ed-output-status').html.includes('simulation_title'), editor.el.querySelector('.ed-output-status').html.includes('output_tokens'), pdfRequests, editor.el.querySelector('.ed-run-results-body').html.includes('run_completed_effects')], [0, true, true, false, 0, false]);
+        editor.ed.detail.close(); editor.ed.run.mode = 'test'; editor.ed.run = Object.assign({}, editor.ed.run);
+        editor.ed.bus.emit('run', editor.ed.run);
+        eq('flagship real-run diagnosis still names completed effects', editor.el.querySelector('.ed-run-results-body').html.includes('run_completed_effects'), true);
+        editor.dispose();
+    });
+
     await guardAsync('flagship scenarios replay protected snapshots without resending redacted data', async () => {
         const scenario = { id: 'sc_one', name: 'Private sample', version: 2, draft_revision: 3, stale: false, trigger_node: 'n_tttttttt', trigger_data: { credential: '[redacted]' }, fixtures: {}, assertions: [{ node_id: 'n_aaaaaaaa', output: { text: 'expected' } }] };
         const h = sandbox(req => {

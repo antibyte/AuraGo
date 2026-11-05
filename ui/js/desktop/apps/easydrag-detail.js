@@ -174,6 +174,7 @@
         let sourceId = 'last';
         let form = null;
         let mapping = null;
+        let transformDialog = null;
         let lastField = null;
         // What the columns show: run events re-render the output only for a new step object of
         // this node (step_started and step_finished replace it), the input and the form
@@ -277,7 +278,25 @@
             const env = {
                 ed: locked && !ed.readonly ? Object.assign(Object.create(ed), { readonly: true }) : ed, sources: sources(), sourceId, upstream: upstreamList(),
                 onSource: id => { sourceId = id; if (form) form.refresh(node, roots()); },
+                onTransform: locked ? null : source => {
+                    if (closed || ed.readonly || ed.runView || transformDialog) return;
+                    const target = mappingTargets().find(param => param.name === lastField);
+                    if (!form || !target) { const select = el.querySelector('[data-ed-mapping-target]'); if (select) select.focus(); core.say(ed, t('easydrag.ui.mapping_choose_target')); return; }
+                    if (flushPendingEdits() === false) return;
+                    const model = ed.model, version = model.version, id = node.id, capturedNode = node, capturedForm = form, field = lastField, original = JSON.stringify(node.params[field]);
+                    const current = () => !closed && !ed.readonly && !ed.runView && ed.model === model && model.version === version && node === capturedNode && model.node(id) === capturedNode && JSON.stringify(capturedNode.params[field]) === original && form === capturedForm && lastField === field && mappingTargets().some(param => param.name === field);
+                    transformDialog = ED.transform.open(ed, Object.assign({}, source, { targetLabel: target.label || field, isCurrent: current, apply: expression => {
+                        if (!current() || flushPendingEdits() === false || !current()) return false;
+                        model.endCoalescing();
+                        try { capturedForm.insert(field, expression); } finally { model.endCoalescing(); }
+                        narrowTab = 'params'; applyNarrow();
+                        requestAnimationFrame(() => { if (!closed && node.id === id && form === capturedForm) capturedForm.focus(field); });
+                        return true;
+                    } }));
+                    if (transformDialog) { const owned = transformDialog; owned.done.then(() => { if (transformDialog === owned) transformDialog = null; }); }
+                },
                 onInsert: locked ? () => {} : ref => {
+                    if (closed) return;
                     if (!form || !mappingTargets().some(p => p.name === lastField)) {
                         const target = el.querySelector('[data-ed-mapping-target]');
                         if (target) target.focus();
@@ -539,6 +558,7 @@
 
         function renderOutput() {
             const step = currentStep();
+            const simulation = !!(ed.run && ed.run.mode === 'simulation');
             const status = el.querySelector('.ed-output-status');
             const out = el.querySelector('.ed-output');
             const hasParams = !!(step && step.params != null && typeof step.params === 'object');
@@ -561,8 +581,9 @@
                 return;
             }
             const parts = ['<span class="ed-status-pill ed-status-pill--' + esc(step.status) + '">' + esc(core.tr(t, 'easydrag.ui.status_' + step.status, step.status)) + '</span>'];
+            if (simulation) parts.push('<span class="ed-chip ed-chip--muted">' + esc(t('easydrag.ui.simulation_title')) + '</span>');
             if (step.duration_ms) parts.push(esc(core.fmt.duration(step.duration_ms)));
-            if (step.output && step.output.tokens) parts.push(esc(t('easydrag.ui.output_tokens', { count: (step.output.tokens.input || 0) + (step.output.tokens.output || 0) })));
+            if (!simulation && step.output && step.output.tokens) parts.push(esc(t('easydrag.ui.output_tokens', { count: (step.output.tokens.input || 0) + (step.output.tokens.output || 0) })));
             if (step.item_count) parts.push(esc(t('easydrag.ui.output_items', { count: step.item_count })));
             if (step.output_truncated) parts.push('<span class="ed-chip ed-chip--warn">' + esc(t('easydrag.ui.output_truncated')) + '</span>');
             if (step.effect_uncertain) parts.push('<span class="ed-chip ed-chip--warn" title="' + esc(t('easydrag.ui.step_effect_uncertain_hint')) + '">' + esc(t('easydrag.ui.step_effect_uncertain')) + '</span>');
@@ -573,7 +594,9 @@
             }
             const payload = outputSubject === 'params' && hasParams ? step.params : (step.output || {});
             const text = outputSubject === 'output' && outputView !== 'json' ? previewText(payload, ed.model.fieldsOf(node)) : '';
-            const fileList = outputSubject === 'output' ? files(payload) : [];
+            // A fixture can name any existing file. Simulation presents its metadata as inert
+            // JSON only; never resolve it into a real file link or thumbnail/media request.
+            const fileList = outputSubject === 'output' && !simulation ? files(payload) : [];
             let html = text ? '<section class="ed-result-preview"><h4>' + esc(t('easydrag.ui.output_preview')) + '</h4><p>' + esc(text) + '</p></section>' : '';
             html += fileList.map(f => {
                 const mime = String(f.mime || '');
@@ -648,6 +671,7 @@
             const next = list[idx + delta];
             if (!next) return;
             if (flushPendingEdits() === false) return;
+            if (transformDialog) { transformDialog.close(); transformDialog = null; }
             node = next;
             lastField = null;
             mapping = null;
@@ -789,6 +813,7 @@
             close: () => {
                 if (closed) return;
                 closed = true;
+                if (transformDialog) { transformDialog.close(); transformDialog = null; }
                 try { flushPendingEdits(); } catch (err) { console.error('EasyDrag inspector flush failed', err); }
                 bag.dispose();
                 ed.root.classList.remove('is-inspector');

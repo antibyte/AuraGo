@@ -171,6 +171,53 @@ var starterTemplates = []templateDef{
 			}, chainEdges("schedule", "feed", "summary", "mail")
 		},
 	},
+	{
+		info: newTemplateInfo("email_push", 1, "trigger", "notify"),
+		build: func(text func(int) string) ([]templateNode, []templateEdge) {
+			return []templateNode{
+				{"email", TypeTriggerEmail, map[string]any{}, templateCol(0), 200},
+				{"push", TypePush, map[string]any{"channel": "push", "message": text(1) + ": {{trigger.data.subject | truncate(200)}}"}, templateCol(1), 200},
+			}, chainEdges("email", "push")
+		},
+	},
+	{
+		info: newTemplateInfo("mqtt_temperature", 1, "trigger", "logic", "smart_home", "notify"),
+		build: func(text func(int) string) ([]templateNode, []templateEdge) {
+			return []templateNode{
+				{"sensor", TypeTriggerMQTT, map[string]any{"topic": ""}, templateCol(0), 200},
+				{"check", TypeIf, map[string]any{"condition": map[string]any{"match": "all", "rows": []any{
+					map[string]any{"left": "{{trigger.data.json.temperature}}", "op": "gt", "right": 30.0, "type": "number"}}}}, templateCol(1), 200},
+				{"push", TypePush, map[string]any{"channel": "push", "message": text(1) + ": {{trigger.data.json.temperature}}"}, templateCol(2), 160},
+			}, []templateEdge{{"sensor", PortOut, "check"}, {"check", PortTrue, "push"}}
+		},
+	},
+	{
+		info: newTemplateInfo("device_offline", 1, "trigger", "notify"),
+		build: func(text func(int) string) ([]templateNode, []templateEdge) {
+			return []templateNode{
+				{"device", TypeTriggerDevice, map[string]any{"event": "disconnected"}, templateCol(0), 200},
+				{"push", TypePush, map[string]any{"channel": "push", "message": text(1) + ": {{trigger.data.device_name | truncate(200)}}"}, templateCol(1), 200},
+			}, chainEdges("device", "push")
+		},
+	},
+	{
+		info: newTemplateInfo("camera_person", 1, "trigger", "notify"),
+		build: func(text func(int) string) ([]templateNode, []templateEdge) {
+			return []templateNode{
+				{"camera", TypeTriggerPersonDetected, map[string]any{}, templateCol(0), 200},
+				{"push", TypePush, map[string]any{"channel": "push", "message": text(1) + ": {{trigger.data.camera_name | truncate(200)}}"}, templateCol(1), 200},
+			}, chainEdges("camera", "push")
+		},
+	},
+	{
+		info: newTemplateInfo("manual_pdf", 2, "trigger", "documents"),
+		build: func(text func(int) string) ([]templateNode, []templateEdge) {
+			return []templateNode{
+				{"start", TypeTriggerManual, map[string]any{"data": map[string]any{"text": text(1)}}, templateCol(0), 200},
+				{"pdf", TypePDFCreate, map[string]any{"title": text(2), "content": "{{trigger.data.text}}"}, templateCol(1), 200},
+			}, chainEdges("start", "pdf")
+		},
+	},
 }
 
 // Templates lists the starter templates in gallery order. The result is a copy.

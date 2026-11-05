@@ -506,8 +506,8 @@ func TestFilterErrorsDoNotEchoLongInput(t *testing.T) {
 
 func TestFilterNamesSorted(t *testing.T) {
 	names := FilterNames()
-	if len(names) != 16 {
-		t.Fatalf("FilterNames() has %d entries, want 16: %v", len(names), names)
+	if len(names) != 22 {
+		t.Fatalf("FilterNames() has %d entries, want 22: %v", len(names), names)
 	}
 	for i := 1; i < len(names); i++ {
 		if names[i-1] >= names[i] {

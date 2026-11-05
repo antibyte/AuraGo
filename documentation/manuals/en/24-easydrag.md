@@ -69,6 +69,19 @@ When inserting input data, choose **Insert data into** first. EasyDrag never gue
 the first available field. It retains the selected field and insertion position;
 a wide inspector can show the source data beside the parameter form.
 
+To transform a source value before inserting it, use its **Transform value** button or
+press **Shift+F10** on the focused source row. Choose and arrange up to eight operations;
+**Insert into chosen field** replaces the selection at the remembered cursor position
+as one undoable edit.
+The source label identifies where the preview data came from. Without an actual sample,
+you can still build a valid expression; an absent sample and explicit JSON `null` are
+different. You may enter a fresh JSON sample for this preview only; it is not saved or
+inserted into the flow. Local previews limit input and intermediate JSON to 64 KiB and
+displayed results to 8 KiB. Expand **Preview limits and notes** for details. Browser
+formatting can differ from execution for dates, HTML, Unicode case and rounding; date
+previews require an explicit offset in the input and an explicit timezone. Test the flow
+to check execution with its real data.
+
 - The header shows the flow's name and state, in the same words as Mission Control and the missions page: *Not published yet* (never published), *Published* or *Unpublished changes*, and *Paused* next to it while a published flow is switched off. It holds **Undo** and **Redo**, **Runs**, **Test**, **Publish**, the **Active** switch and the **⋯** menu: *Run now*, *Version history*, *Flow settings*, *Duplicate*, *Export*, *Show in Mission Control* and *Delete*. In an editor 560 px wide or narrower (a phone), **Runs** moves into the ⋯ menu; **Test** remains directly accessible, and *Paused* stays next to the name; so do *Republish needed* and the warning about stopped Date & time triggers. The footer shows the last run, problems and hints, and the save state. "Draft" always means the version you edit, as opposed to the published one.
 - **Undo** and **Redo** in the header take back or repeat the last change, also on touch screens (Ctrl+Z and Ctrl+Shift+Z do the same on the canvas). Deleting steps shows a note such as "Alpha deleted" with **Undo** for a few seconds; deleting asks no question first.
 - **Find step in flow** (Ctrl+F, also in the *View* menu and the canvas context menu) searches the steps by name, data name, type or parameter text; Enter jumps to the first match.
@@ -87,6 +100,26 @@ a wide inspector can show the source data beside the parameter form.
 - Runs that were already waiting in a queue when missions became read-only or EasyDrag was switched off do not start later either: when their turn comes they end as *Stopped* (automatic runs are paused), and Mission Control notes it on the flow mission. A run you started yourself with *Run now* still runs.
 - When AuraGo cannot start the flow store (a locked or damaged `flows.db`), it keeps trying in the background. Until it works, the start page shows *Date & time triggers are not running* and the header a chip with the same words; the notice names Date & time triggers because they depend on these timers.
 - In a list of keys and values (the headers of an HTTP request, for example), two rows with the same key are marked, and nothing in that list is saved until each key is unique. Numbers and yes/no values from an imported flow keep their type until you edit them.
+
+### Collection expressions
+
+These filters use the same expression language in the preview and during execution.
+Field names refer to direct fields, not nested paths. For example,
+`{{items | where("status", "eq", "ready") | sum("amount")}}` totals ready items.
+
+| Filter | Effect |
+| --- | --- |
+| `pick("name", "value")` | Keep 1–16 named object fields; absent fields are omitted and `null` is retained. |
+| `rename("title", "name")` | Rename a present field; an existing different destination is an error. |
+| `where("status", "eq", "ready")` | Keep matching objects. Operators are `eq`, `ne`, `lt`, `le`, `gt`, `ge`; missing fields never match. Equality preserves types; ordering requires matching number or text types. |
+| `sort("score", "desc")` | Stable numeric or Unicode code-point text ordering; missing and `null` values stay last. Use `sort()` for primitive values or `sort("", "desc")` for descending order. Mixed types and booleans are errors. |
+| `unique("id")` | Keep the first item for each typed field value; missing differs from `null`. Use `unique()` for primitive values. |
+| `sum("amount")` | Add finite numbers; empty lists total zero. Missing, `null` and text are errors. Use `sum()` for a list of numbers. |
+
+The filters preserve their input. Each collection operation is bounded to 10,000 items
+per list, 256 fields per object, 32 nested levels, 100,000 values and 2 MiB of text/key
+bytes. Oversized data fails clearly. Existing flow limits still apply; the local visual
+preview can impose smaller limits to stay responsive.
 
 ## Saving
 
@@ -109,6 +142,8 @@ Sample outputs are JSON keyed by step ID, with `output` and optional `ports`, or
 supported `error_code` to simulate failure. Unless saved, they stay in the open window.
 Results are explicitly marked as simulated and are not live-run
 history. Edited real-test data with redacted or omitted values must be completed first.
+File references in simulated outputs remain text: they do not open files or load media
+previews. A successful simulated step does not mean an external action occurred.
 
 Edit simple text, number and boolean fields directly; nested values remain accessible
 in the advanced JSON section. In Simulation, save inputs, fixture outputs and
@@ -190,7 +225,9 @@ error-message text. Comparing never replays a step.
 
 ## Templates, Import and Export
 
-- The start page offers seven templates: *Your first local result*, *AI news as PDF via Telegram*, *Summarise a webhook by email*, *Appointment reminder*, *Lights off when leaving*, *Budget guard* and *Daily RSS digest*. In the editor, steps whose integration is not set up yet carry a badge, and their detail view links to the settings (*Open settings*); in the building blocks panel such blocks offer *Set up*.
+- The start page offers twelve templates, including *Your first local result*, email and device notifications, a camera detection notification, an MQTT temperature warning and a manual note as PDF. In the editor, steps whose integration is not set up yet carry a badge, and their detail view links to the settings (*Open settings*); in the building blocks panel such blocks offer *Set up*.
+- The new notification recipes select Web Push by default; configure it or choose another channel before publishing. For the temperature warning, select an MQTT topic and review the threshold. Missing or nonnumeric temperatures stop the run with an error; a successful simulation with sample values does not prove that the sensor or notification channel is working. The camera example sends text without attaching an image. Simulated notification and PDF results do not send a message or create a file.
+- The email, device and camera examples start with broad filters: they match eligible messages from the watched inbox, device disconnects or armed camera detections from configured sources. Set the desired subject/sender, device, camera or zone filters before publishing if the flow should respond more narrowly.
 - **Export** downloads the draft as `<name>.easydrag.json`. **Import** on the start page creates a new flow from such a file (at most 2 MiB). A flow file carries secret names, never their values; credential headers (*Authorization*, *X-Api-Key*, *Cookie*, ...) are exported as `[redacted]`; other values typed into ordinary fields are exported as typed.
 
 ## Mission Control, the Missions Page and the Dashboard

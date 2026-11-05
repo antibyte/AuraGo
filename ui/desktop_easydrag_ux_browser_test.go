@@ -176,6 +176,61 @@ func TestDesktopEasyDragUXBrowser(t *testing.T) {
 	s.shot("ux-scenario-result-390")
 	s.noRawKeys("goal-first authoring and private scenarios")
 	s.failOnPageErrors("goal-first authoring and private scenarios")
+
+	page.MustElement(`.ed-run-results > summary`).MustClick()
+	page.MustSetViewport(1280, 900, 1, false)
+	page.MustEval(`()=>fixtureTheme('standard')`)
+	target := page.MustEval(`()=>{const ed=edFixture.editor();const id=ed.model.addNode('notify.telegram',{x:1000,y:400},{message:'Before AFTER'},{node:'n_greeting',port:'out'});ed.bus.emit('focus-node',id);return id;}`).Str()
+	s.wait(`()=>{const ed=edFixture.editor(),id=ed.model.doc.nodes.find(n=>n.type==='notify.telegram').id,n=document.querySelector('.ed-node[data-node-id="'+id+'"] .ed-node-label');if(!n)return false;const r=n.getBoundingClientRect();return r.left>0 && r.right<innerWidth;}`)
+	page.MustElement(`.ed-node[data-node-id="` + target + `"] .ed-node-label`).MustDoubleClick()
+	s.wait(`()=>!!document.querySelector('.ed-detail') && !document.querySelector('.ed-quick')`)
+	page.MustElement(`.ed-detail .ed-field[data-param="message"] .ed-tpl-view`).MustClick()
+	page.MustEval(`()=>document.querySelector('.ed-field[data-param="message"] textarea').setSelectionRange(7,12)`)
+	page.MustElement(`.ed-detail [data-ed-narrow="input"]`).MustClick()
+	page.MustEval(`()=>{const s=document.querySelector('[data-ed-mapping-target]');s.value='message';s.dispatchEvent(new Event('change',{bubbles:true}));}`)
+	page.MustElement(`[data-ed-transform-ref="greeting.greeting"]`).MustClick()
+	s.wait(`()=>!!document.querySelector('.ed-modal--transform') && document.querySelector('[data-ed-transform-preview]').textContent==='Hallo Welt'`)
+	page.MustSetViewport(1280, 720, 1, false)
+	s.wait(`()=>{const p=document.querySelector('[data-ed-transform-preview]'),r=p.getBoundingClientRect();return r.top>0 && r.bottom<document.querySelector('.ed-modal-foot').getBoundingClientRect().top && !document.querySelector('[data-ed-transform-parity]').getClientRects().length;}`)
+	s.shot("ux-transform-trim-laptop")
+	page.MustSetViewport(1280, 900, 1, false)
+	page.MustElement(`[data-ed-transform-action="add"]`).MustClick()
+	page.MustEval(`()=>{const s=document.querySelectorAll('[data-ed-transform-filter]')[1];s.value='upper';s.dispatchEvent(new Event('change',{bubbles:true}));}`)
+	s.wait(`()=>document.querySelector('[data-ed-transform-preview]').textContent==='HALLO WELT'`)
+	page.MustElement(`.ed-modal--transform details:first-of-type > summary`).MustClick()
+	if name := s.axName(`[data-ed-transform-sample]`); name == "" {
+		t.Error("transform sample has no accessible name")
+	}
+	page.MustElement(`[data-ed-transform-sample]`).MustSelectAllText()
+	page.Keyboard.MustType(input.Backspace)
+	s.wait(`()=>document.querySelector('[data-ed-transform-preview-error]').textContent===edFixture.editor().t('easydrag.ui.transform_no_sample') && !document.querySelector('[data-ed-action="apply"]').disabled`)
+	page.MustElement(`[data-ed-transform-sample]`).MustSelectAllText().MustInput("null")
+	s.wait(`()=>document.querySelector('[data-ed-transform-sample]').value==='null' && document.querySelector('[data-ed-transform-preview-error]').hidden`)
+	page.MustElement(`[data-ed-transform-sample]`).MustSelectAllText().MustInput(`" Hallo Welt "`)
+	s.wait(`()=>document.querySelector('[data-ed-transform-preview]').textContent==='HALLO WELT'`)
+	for _, theme := range []string{"standard", "fruity-light", "fruity-dark"} {
+		for _, width := range []int{320, 390, 1024} {
+			page.MustSetViewport(width, 900, 1, width < 760)
+			page.MustEval(`theme=>fixtureTheme(theme)`, theme)
+			s.shot(fmt.Sprintf("ux-transform-%s-%d", theme, width))
+			s.wait(`()=>{const d=document.querySelector('.ed-modal--transform'),r=d.getBoundingClientRect(),b=d.querySelector('.ed-modal-body');return r.left>=-1 && r.right<=innerWidth+1 && b.scrollWidth<=b.clientWidth+1 && [...d.querySelectorAll('.ed-modal-foot button')].every(e=>{const x=e.getBoundingClientRect();return x.left>=r.left && x.right<=r.right && x.height>=30;});}`)
+			if width < 760 {
+				s.wait(`()=>[...document.querySelectorAll('.ed-modal--transform button,.ed-modal--transform select')].every(e=>e.hidden || getComputedStyle(e).display==='none' || e.getBoundingClientRect().height>=44)`)
+			}
+		}
+	}
+	page.MustSetViewport(1280, 900, 1, false)
+	page.MustEval(`()=>fixtureTheme('standard')`)
+	page.MustElement(`.ed-modal--transform [data-ed-action="apply"]`).MustClick()
+	s.wait(`()=>!document.querySelector('.ed-modal--transform') && edFixture.editor().model.doc.nodes.find(n=>n.type==='notify.telegram').params.message==='Before {{greeting.greeting | trim | upper}}'`)
+	page.MustElement(`[data-ed-history="undo"]`).MustClick()
+	s.wait(`()=>edFixture.editor().model.doc.nodes.find(n=>n.type==='notify.telegram').params.message==='Before AFTER'`)
+	s.noRawKeys("guided transform helper")
+	s.failOnPageErrors("guided transform helper")
+	page.MustEval(`()=>{const ed=edFixture.editor();ed.run.steps.set('n_greeting',{node_id:'n_greeting',status:'success',output:{image:{$type:'file',path:'fixture.png',web_path:'/files/fixture.png',mime:'image/png'},pdf:{$type:'file',path:'fixture.pdf',web_path:'/files/fixture.pdf',mime:'application/pdf'}}});ed.bus.emit('run',ed.run);ed.bus.emit('open-detail',{nodeId:'n_greeting',column:'output'});}`)
+	s.wait(`()=>{const o=document.querySelector('.ed-output');return o && !o.querySelector('a,img,audio,iframe,canvas') && o.textContent.includes('/files/fixture.pdf') && document.querySelector('.ed-output-status').textContent.includes(edFixture.editor().t('easydrag.ui.simulation_title'));}`)
+	s.shot("ux-simulated-files-inert")
+	s.failOnPageErrors("inert simulated file references")
 }
 
 // axName returns the accessible name Chrome computes for the first element that matches selector.

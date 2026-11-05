@@ -1151,4 +1151,5 @@ if (failures) {
 }
 await import('./test-easydrag-authoring.mjs');
 await import('./test-easydrag-compare.mjs');
+await import('../internal/flows/testdata/collection_filters_test.cjs');
 console.log('all EasyDrag checks passed');
