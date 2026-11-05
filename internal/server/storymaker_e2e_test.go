@@ -237,6 +237,9 @@ func TestStorymakerExportEndToEnd(t *testing.T) {
 		t.Fatalf("the saved project has errors: %s", body)
 	}
 
+	// The render gate needs stored narration.
+	seedStoryNarrationForRender(t, s, id)
+
 	// Follow the export on the event stream, opened before the render starts.
 	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Minute)
 	defer cancel()

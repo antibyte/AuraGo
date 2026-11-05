@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"aurago/internal/storymaker"
+	"aurago/internal/storymaker/storymakertest"
 
 	"github.com/go-rod/rod/lib/launcher"
 	gnet "github.com/shirou/gopsutil/v4/net"
@@ -93,6 +94,27 @@ func (fx *runFixture) loadFirewall(t *testing.T) {
 	}
 	if _, res, err := fx.projects.SaveCodeScene(ctx, fx.projectID, "s3", lf(src), ""); err != nil || len(res.Errors) != 0 {
 		t.Fatalf("SaveCodeScene: %v %+v", err, res)
+	}
+	fx.seedStoredNarration(t)
+}
+
+// seedStoredNarration stores generated audio for every missing piece of the project's story, because Prepare refuses
+// a narrated story without it. With 2 s per piece firewall.json stays above the 250 frames TestRealRenderOfTheFirewallStory pins:
+// s1 139 frames, s2 at least 85, s3 150, minus two 15-frame transition overlaps.
+func (fx *runFixture) seedStoredNarration(t *testing.T) {
+	t.Helper()
+	ctx := context.Background()
+	data, _, err := fx.projects.LoadStory(ctx, fx.projectID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	story, _, err := storymaker.DecodeStory(data, fx.settings.Limits)
+	if err != nil {
+		t.Fatal(err)
+	}
+	storymaker.ApplyDefaults(&story)
+	if err := storymakertest.SeedNarration(ctx, fx.projects, fx.projectID, &story, 2); err != nil {
+		t.Fatal(err)
 	}
 }
 

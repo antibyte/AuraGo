@@ -857,17 +857,22 @@ func TestBootCarriesThePlanAudioInfo(t *testing.T) {
 	if _, err := fx.projects.SaveStory(ctx, fx.projectID, []byte(narratedStoryJSON), ""); err != nil {
 		t.Fatal(err)
 	}
-	unsynthesised, err := fx.runner.Prepare(ctx, fx.projectID, "", fx.settings, RenderOptions{})
+	// The gate refuses the story while its pieces have no audio.
+	_, err := fx.runner.Prepare(ctx, fx.projectID, "", fx.settings, RenderOptions{})
+	var pe *PrepareError
+	if !errors.As(err, &pe) || pe.Code != CodeNarrationIncomplete {
+		t.Fatalf("Prepare without audio = %v, want %s", err, CodeNarrationIncomplete)
+	}
+	story, _, err := storymaker.DecodeStory([]byte(narratedStoryJSON), fx.settings.Limits)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(unsynthesised.AudioJSON) != `{"narration":{}}` {
-		t.Errorf("AudioJSON without audio = %s", unsynthesised.AudioJSON)
+	storymaker.ApplyDefaults(&story)
+	blocks := storymaker.Blocks(&story)
+	if len(blocks) != 1 || blocks[0].ID != "s1:n" {
+		t.Fatalf("Blocks = %+v", blocks)
 	}
-	if len(unsynthesised.Blocks) != 1 || unsynthesised.Blocks[0].ID != "s1:n" {
-		t.Fatalf("Blocks = %+v", unsynthesised.Blocks)
-	}
-	seedPieces(t, fx, unsynthesised.Blocks)
+	seedPieces(t, fx, blocks)
 
 	plan, err := fx.runner.Prepare(ctx, fx.projectID, "", fx.settings, RenderOptions{})
 	if err != nil {
@@ -952,6 +957,7 @@ func TestPrepareCollectsCodeSceneBundles(t *testing.T) {
 	if _, res, err := fx.projects.SaveCodeScene(ctx, fx.projectID, "s3", bytes.ReplaceAll(src, []byte("\r\n"), []byte("\n")), ""); err != nil || len(res.Errors) != 0 {
 		t.Fatalf("SaveCodeScene: %v %+v", err, res)
 	}
+	fx.seedStoredNarration(t)
 	plan, err := fx.runner.Prepare(ctx, fx.projectID, "", fx.settings, RenderOptions{})
 	if err != nil {
 		t.Fatalf("Prepare: %v", err)

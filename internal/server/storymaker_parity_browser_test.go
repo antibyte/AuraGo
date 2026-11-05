@@ -174,6 +174,9 @@ func TestStorymakerParityAppPlayerAndRenderPage(t *testing.T) {
 	}
 	decodeBody(t, w, &current)
 
+	// The render gate needs stored narration.
+	seedStoryNarrationForRender(t, s, p.Project.ID)
+
 	// The export.
 	w = storymakerRequest(s, token, http.MethodPost, "/projects/"+p.Project.ID+"/render", nil, map[string]string{"If-Match": current.ETag})
 	var accepted struct {

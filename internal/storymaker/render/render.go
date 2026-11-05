@@ -132,6 +132,12 @@ type PrepareError struct {
 	Issues  []storymaker.Issue
 	// Stale is true when the story changed since the caller read it (HTTP 412).
 	Stale bool
+	// Missing and Chars go with CodeNarrationIncomplete.
+	Missing []storymaker.MissingBlock
+	Chars   storymaker.CharCounts
+	// MusicKey and MusicIssue go with CodeMusicIncomplete. A moved source has no key and the issue "source_missing".
+	MusicKey   string
+	MusicIssue string
 }
 
 func (e *PrepareError) Error() string { return e.Code + ": " + e.Message }
@@ -197,13 +203,27 @@ func (r *Runner) prepareStory(ctx context.Context, projectID, ifMatch string, st
 		}
 		return nil, &PrepareError{Code: CodeInvalidStory, Message: clip(first.Message, 300), Issues: issues}
 	}
-	answer, err := r.deps.Projects.AudioAnswer(ctx, projectID, &story, r.deps.MusicKey)
+	// The gate names the music key in its refusal, and the answer has no key while Music is null. Keep what the one
+	// resolve of this answer returned.
+	musicKey := ""
+	resolve := r.deps.MusicKey
+	if resolve != nil {
+		resolve = func(ctx context.Context, m *storymaker.Music) (string, error) {
+			key, err := r.deps.MusicKey(ctx, m)
+			musicKey = key
+			return key, err
+		}
+	}
+	answer, err := r.deps.Projects.AudioAnswer(ctx, projectID, &story, resolve)
 	if err != nil {
 		return nil, err
 	}
 	audioInfo := answer.Info()
 	audioJSON, err := json.Marshal(audioInfo)
 	if err != nil {
+		return nil, err
+	}
+	if err := checkAudioGates(answer, musicKey); err != nil {
 		return nil, err
 	}
 	bundles := map[string][]byte{}
@@ -222,6 +242,28 @@ func (r *Runner) prepareStory(ctx context.Context, projectID, ifMatch string, st
 		return nil, err
 	}
 	return &Plan{ProjectID: projectID, Story: story, StoryJSON: storyJSON, Bundles: bundles, StoryETag: etag, Music: answer.Music, Blocks: storymaker.Blocks(&story), AudioInfo: audioInfo, AudioJSON: audioJSON}, nil
+}
+
+// checkAudioGates refuses a story whose stored audio is not complete: narration first, then music. It reads nothing
+// itself and judges the answer the plan is built from, so a music job that ends during Prepare cannot pass this gate
+// and leave the plan without music. musicKey is what the resolver returned for that answer.
+// Volume 0 has one owner, the resolver: it returns "", so that music needs nothing.
+func checkAudioGates(answer storymaker.AudioAnswer, musicKey string) error {
+	if len(answer.Missing) > 0 {
+		return &PrepareError{
+			Code:    CodeNarrationIncomplete,
+			Message: fmt.Sprintf("%d narration blocks have no audio yet. Generate the narration first.", len(answer.Missing)),
+			Missing: answer.Missing,
+			Chars:   answer.Chars,
+		}
+	}
+	if answer.MusicIssue != "" {
+		return &PrepareError{Code: CodeMusicIncomplete, Message: "The music source no longer exists. Choose another file.", MusicIssue: answer.MusicIssue}
+	}
+	if answer.Music != nil || musicKey == "" {
+		return nil
+	}
+	return &PrepareError{Code: CodeMusicIncomplete, Message: "The background music is not stored yet. Generate it first.", MusicKey: musicKey}
 }
 
 // CanvasSize returns the export size of an aspect: 1920x1080, 1080x1920 or 1080x1080.

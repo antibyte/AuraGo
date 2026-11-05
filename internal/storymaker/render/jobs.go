@@ -75,6 +75,12 @@ const (
 	jobsFileVersion      = 1
 )
 
+// Codes of the audio gates on POST /render.
+const (
+	CodeNarrationIncomplete = "narration_incomplete"
+	CodeMusicIncomplete     = "music_incomplete"
+)
+
 // ErrBusy means the render queue already holds DefaultMaxQueued waiting jobs.
 var ErrBusy = errors.New("storymaker: the render queue is full")
 

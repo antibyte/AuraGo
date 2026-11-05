@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"aurago/internal/storymaker"
+
 	"github.com/go-rod/rod/lib/proto"
 )
 
@@ -249,29 +251,15 @@ func TestRunRefusesAReportThatDropsMeasuredNarration(t *testing.T) {
 	if _, err := fx.projects.SaveStory(ctx, fx.projectID, []byte(narratedStoryJSON), ""); err != nil {
 		t.Fatal(err)
 	}
-	plan, err := fx.runner.Prepare(ctx, fx.projectID, "", fx.settings, RenderOptions{})
+	story, _, err := storymaker.DecodeStory([]byte(narratedStoryJSON), fx.settings.Limits)
 	if err != nil {
 		t.Fatal(err)
 	}
-	seedPieces(t, fx, plan.Blocks)
+	storymaker.ApplyDefaults(&story)
+	seedPieces(t, fx, storymaker.Blocks(&story))
 	fx.playing(playOptions{frames: 12}) // the fake page posts an empty audio_events
 	job := fx.render(t)
 	if job.Status != StatusFailed || job.Error == nil || job.Error.Code != CodeRenderFailed || !strings.Contains(job.Error.Message, "no audio event") {
-		t.Fatalf("job = %+v %+v", job, job.Error)
-	}
-}
-
-// The page fills captions for estimated blocks too, and a narrated story without audio still exports silently.
-func TestRunAcceptsCaptionsOfAnEstimatedBlock(t *testing.T) {
-	fx := newRunFixture(t)
-	if _, err := fx.projects.SaveStory(context.Background(), fx.projectID, []byte(narratedStoryJSON), ""); err != nil {
-		t.Fatal(err)
-	}
-	// 12 frames at 30 fps give duration_ms 400, so the caption ends with the film.
-	fx.playing(playOptions{frames: 12, mutateRep: func(rep map[string]any) {
-		rep["captions"] = []any{map[string]any{"start_ms": 0, "end_ms": 400, "lines": []any{"Hallo Welt, das ist der erste Satz."}, "scene_id": "s1", "block_id": "s1:n"}}
-	}})
-	if job := fx.render(t); job.Status != StatusSucceeded {
 		t.Fatalf("job = %+v %+v", job, job.Error)
 	}
 }

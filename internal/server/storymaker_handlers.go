@@ -631,6 +631,14 @@ func handleStorymakerRender(s *Server, w http.ResponseWriter, r *http.Request, i
 					w.Header().Set("ETag", current)
 				}
 				writeStorymakerError(w, http.StatusPreconditionFailed, "precondition_failed", pe.Message, nil)
+			case pe.Code == render.CodeNarrationIncomplete:
+				writeStorymakerErrorWith(w, http.StatusConflict, render.CodeNarrationIncomplete, pe.Message, map[string]any{"missing": pe.Missing, "chars": pe.Chars})
+			case pe.Code == render.CodeMusicIncomplete:
+				extra := map[string]any{"key": pe.MusicKey}
+				if pe.MusicIssue != "" {
+					extra["music_issue"] = pe.MusicIssue
+				}
+				writeStorymakerErrorWith(w, http.StatusConflict, render.CodeMusicIncomplete, pe.Message, extra)
 			case pe.Code == render.CodeCodeError:
 				writeStorymakerError(w, http.StatusUnprocessableEntity, render.CodeCodeError, pe.Message, pe.Issues)
 			default:

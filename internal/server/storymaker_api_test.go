@@ -22,6 +22,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/storymaker"
 	"aurago/internal/storymaker/render"
+	"aurago/internal/storymaker/storymakertest"
 )
 
 // storymakerTestFFmpeg finds a usable ffmpeg for the render pre-checks (it is not started for a render).
@@ -612,6 +613,7 @@ func TestStorymakerRenderEndpointChecksAndQueue(t *testing.T) {
 	s.Cfg.Storymaker.Render.BrowserPath = ""
 
 	// A valid request queues a job; the same Idempotency-Key returns it again.
+	seedStoryNarrationForRender(t, s, p.Project.ID)
 	headers := map[string]string{"If-Match": saved.ETag, "Idempotency-Key": "export-1"}
 	w = storymakerRequest(s, token, http.MethodPost, path, nil, headers)
 	var accepted struct {
@@ -1403,4 +1405,119 @@ func TestStorymakerRenderOptions(t *testing.T) {
 	if o.BurnInCaptions == nil || *o.BurnInCaptions || !o.SRT || !o.VTT || !o.Stems || o.Quality != "high" || plan.Story.Style.Captions {
 		t.Errorf("plan options = %+v, captions %v", o, plan.Story.Style.Captions)
 	}
+}
+
+// seedStoryNarrationForRender stores generated audio for every missing piece of the project's story, because
+// POST /render refuses a narrated story without it. With 2 s per piece firewall.json stays above the 250 frames the
+// real renders pin: s1 139 frames, s2 at least 85, s3 150, minus two 15-frame transition overlaps.
+func seedStoryNarrationForRender(t *testing.T, s *Server, id string) {
+	t.Helper()
+	ctx := context.Background()
+	rt, err := s.storymakerRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, _, err := rt.projects.LoadStory(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	story, _, err := storymaker.DecodeStory(data, storymaker.DefaultLimits())
+	if err != nil {
+		t.Fatal(err)
+	}
+	storymaker.ApplyDefaults(&story)
+	if err := storymakertest.SeedNarration(ctx, rt.projects, id, &story, 2); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestStorymakerRenderRefusesMissingAudio(t *testing.T) {
+	s, token, p := renderFixture(t, func(ctx context.Context, job render.Job, payload any, h *render.Handle) (render.Output, error) {
+		return render.Output{}, nil
+	})
+	id := p.Project.ID
+	etag := p.ETag
+	save := func(doc string) {
+		t.Helper()
+		w := storymakerRequest(s, token, http.MethodPut, "/projects/"+id+"/story", strings.NewReader(doc), map[string]string{"If-Match": etag})
+		var saved struct {
+			ETag string `json:"etag"`
+		}
+		decodeBody(t, w, &saved)
+		if w.Code != http.StatusOK {
+			t.Fatalf("save: %d %s", w.Code, w.Body.String())
+		}
+		etag = saved.ETag
+	}
+	post := func() *httptest.ResponseRecorder {
+		return storymakerRequest(s, token, http.MethodPost, "/projects/"+id+"/render", nil, map[string]string{"If-Match": etag})
+	}
+	type refusal struct {
+		Code       string                    `json:"code"`
+		Missing    []storymaker.MissingBlock `json:"missing"`
+		Chars      storymaker.CharCounts     `json:"chars"`
+		Key        *string                   `json:"key"`
+		MusicIssue string                    `json:"music_issue"`
+	}
+	refused := func(want string) refusal {
+		t.Helper()
+		w := post()
+		var got refusal
+		decodeBody(t, w, &got)
+		if w.Code != http.StatusConflict || got.Code != want {
+			t.Fatalf("render = %d %s, want 409 %s", w.Code, w.Body.String(), want)
+		}
+		return got
+	}
+	accepted := func() {
+		t.Helper()
+		if w := post(); w.Code != http.StatusAccepted {
+			t.Fatalf("render = %d %s, want 202", w.Code, w.Body.String())
+		}
+	}
+
+	// A narrated story without audio. "Hallo." is one piece of 6 code points in block s1:n.
+	save(`{"schema":"storymaker/1","title":"Gate","scenes":[{"id":"s1","narration":"Hallo."}]}`)
+	got := refused("narration_incomplete")
+	if len(got.Missing) != 1 || got.Missing[0] != (storymaker.MissingBlock{SceneID: "s1", BlockID: "s1:n", Chars: 6}) {
+		t.Fatalf("missing = %+v", got.Missing)
+	}
+	if got.Chars != (storymaker.CharCounts{Total: 6, Missing: 6}) {
+		t.Fatalf("chars = %+v", got.Chars)
+	}
+
+	// Seeded, the same story passes.
+	seedStoryNarrationForRender(t, s, id)
+	accepted()
+
+	// A silent scene has no narration block, so its text needs no audio.
+	save(`{"schema":"storymaker/1","title":"Gate","scenes":[{"id":"s1","silent":true,"narration":"Diese Szene bleibt stumm."}]}`)
+	accepted()
+
+	// Music on without its file names the key.
+	key := storymaker.MusicKeyGenerated("calm-ambient", "")
+	save(`{"schema":"storymaker/1","title":"Gate","music":{"mode":"generated","mood":"calm-ambient"},"scenes":[{"id":"s1"}]}`)
+	got = refused("music_incomplete")
+	if got.Key == nil || *got.Key != key || got.MusicIssue != "" {
+		t.Fatalf("music refusal = %+v", got)
+	}
+	rt, err := s.storymakerRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := storymakertest.SeedMusic(context.Background(), rt.projects, id, key, 2); err != nil {
+		t.Fatal(err)
+	}
+	accepted()
+
+	// A moved source has no key, and says why.
+	save(`{"schema":"storymaker/1","title":"Gate","music":{"mode":"file","file":"Documents/gone.wav"},"scenes":[{"id":"s1"}]}`)
+	got = refused("music_incomplete")
+	if got.Key == nil || *got.Key != "" || got.MusicIssue != "source_missing" {
+		t.Fatalf("moved source refusal = %+v", got)
+	}
+
+	// Volume 0 plays nothing, so it needs no file. This mood has no stored file under the key of "dramatic".
+	save(`{"schema":"storymaker/1","title":"Gate","music":{"mode":"generated","mood":"dramatic","volume":0},"scenes":[{"id":"s1"}]}`)
+	accepted()
 }
