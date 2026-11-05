@@ -26,6 +26,7 @@ const storymakerMaxQueuedNarrations = 128
 // catalog, the browser resolver, the render job manager and its runner.
 type storymakerRuntime struct {
 	dataDir  string
+	voices   *storymakerVoiceCache
 	store    *storymakerStore
 	projects *storymaker.ProjectStore
 	catalog  *storymaker.Catalog
@@ -99,6 +100,7 @@ func (s *Server) newStorymakerRuntime(dataDir string) (*storymakerRuntime, error
 		catalog:  catalog,
 		browsers: render.NewBrowsers(dir),
 		ffmpeg:   newStorymakerFFmpegCache(),
+		voices:   newStorymakerVoiceCache(),
 		usage:    newStorymakerNarrationUsage(filepath.Join(dir, "narrate")),
 	}
 	if s.storymakerBrowsers != nil {

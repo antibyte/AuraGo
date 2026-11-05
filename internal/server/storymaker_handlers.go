@@ -114,6 +114,8 @@ func handleStorymaker(s *Server) http.HandlerFunc {
 			handleStorymakerStatus(s, w, r)
 		case len(parts) == 1 && parts[0] == "player":
 			handleStorymakerPlayer(s, w, r)
+		case len(parts) == 1 && parts[0] == "voices":
+			handleStorymakerVoices(s, w, r)
 		case len(parts) == 1 && parts[0] == "projects":
 			handleStorymakerProjects(s, w, r)
 		case len(parts) >= 2 && parts[0] == "projects":

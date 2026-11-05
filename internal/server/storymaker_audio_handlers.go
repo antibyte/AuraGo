@@ -3,12 +3,15 @@ package server
 import (
 	"context"
 	"errors"
+	"net/http"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"aurago/internal/config"
 	"aurago/internal/phonon"
+	"aurago/internal/realtimespeech"
 	"aurago/internal/speechlab"
 	"aurago/internal/storymaker"
 	"aurago/internal/tools"
@@ -23,6 +26,162 @@ var storymakerPhononLanguages = []string{"de", "en", "es", "fr", "pt"}
 // storymakerSanoLanguages are the languages sanotts.Voice has a voice for. hi, ne and zh fall back
 // to English there (internal/sanotts/sanotts.go:46-65), so they are left out.
 var storymakerSanoLanguages = []string{"ar", "cs", "de", "en", "es", "fr", "id", "it", "pt", "ro", "ru", "tr", "vi"}
+
+func handleStorymakerVoices(s *Server, w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeStorymakerMethodError(w, "GET")
+		return
+	}
+	if _, ok := storymakerAuthorize(s, w, r, desktopScopeRead, desktopRead, false); !ok {
+		return
+	}
+	writeStorymakerJSON(w, http.StatusOK, map[string]any{"providers": s.storymakerVoiceProviders(r.Context())})
+}
+
+// storymakerCloudVoiceIDs are the cloud ids, sorted. google joins only when it is the active provider.
+var storymakerCloudVoiceIDs = []string{"elevenlabs", "google", "minimax", "mistral", "openai", "resemble", "stepfun", "xai"}
+
+// storymakerXAIVoiceTTL is how long a fetched xAI list stays valid.
+const storymakerXAIVoiceTTL = 5 * time.Minute
+
+// storymakerVoiceCache holds the xAI voice list, the only list that costs a network call to a
+// provider. A failed fetch is cached too, so the voice panel cannot hammer the endpoint.
+type storymakerVoiceCache struct {
+	mu      sync.Mutex
+	client  *realtimespeech.Client
+	now     func() time.Time
+	key     string
+	fetched time.Time
+	voices  []realtimespeech.Voice
+	err     error
+}
+
+func newStorymakerVoiceCache() *storymakerVoiceCache {
+	return &storymakerVoiceCache{client: realtimespeech.NewClient(), now: time.Now}
+}
+
+// xai returns the list for this API key. A caller that went away does not fill the cache, because
+// its cancelled request says nothing about xAI.
+func (c *storymakerVoiceCache) xai(ctx context.Context, apiKey string) ([]realtimespeech.Voice, error) {
+	if c == nil {
+		return nil, errors.New("the voice cache is not available")
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.key == apiKey && !c.fetched.IsZero() && c.now().Sub(c.fetched) < storymakerXAIVoiceTTL {
+		return c.voices, c.err
+	}
+	fetchCtx, cancel := context.WithTimeout(ctx, storymakerVoiceListTimeout)
+	defer cancel()
+	voices, err := c.client.FetchXAIVoices(fetchCtx, apiKey)
+	if err != nil && ctx.Err() != nil {
+		return nil, err
+	}
+	c.key, c.fetched, c.voices, c.err = apiKey, c.now(), voices, err
+	return voices, err
+}
+
+// storymakerConfiguredVoice is the configured voice, or the provider's built-in default.
+func storymakerConfiguredVoice(configured, fallback string) string {
+	if voice := strings.TrimSpace(configured); voice != "" {
+		return voice
+	}
+	return fallback
+}
+
+// storymakerCloudVoiceRow builds one cloud row. The fallbacks are the defaults of the synthesis code
+// in internal/tools (tts.go:478, tts.go:793, tts_cloud.go:21-24, tts_cloud.go:37).
+func storymakerCloudVoiceRow(ctx context.Context, cfg *config.Config, id string, cache *storymakerVoiceCache) storymaker.VoiceProvider {
+	row := storymakerVoiceRow(cfg, id)
+	switch id {
+	case "elevenlabs":
+		row.FreeText, row.DefaultVoice = true, storymakerConfiguredVoice(cfg.TTS.ElevenLabs.VoiceID, "21m00Tcm4TlvDq8ikWAM")
+	case "minimax":
+		row.FreeText, row.DefaultVoice = true, storymakerConfiguredVoice(cfg.TTS.MiniMax.VoiceID, "English_expressive_narrator")
+	case "mistral":
+		row.FreeText, row.DefaultVoice = true, storymakerConfiguredVoice(cfg.TTS.Mistral.VoiceID, "")
+		if !row.Ready {
+			row.Note = "Needs an API key and a voice id."
+		}
+	case "resemble":
+		row.FreeText, row.DefaultVoice = true, storymakerConfiguredVoice(cfg.TTS.Resemble.VoiceID, "")
+		if !row.Ready {
+			row.Note = "Needs an API key and a voice id."
+		}
+	case "stepfun":
+		row.FreeText, row.DefaultVoice = true, storymakerConfiguredVoice(cfg.TTS.StepFun.VoiceID, "jingdiannvsheng")
+	case "openai":
+		row.DefaultVoice = storymakerConfiguredVoice(cfg.TTS.OpenAI.VoiceID, "coral")
+		for _, voice := range tools.OpenAITTSVoices() {
+			row.Voices = append(row.Voices, storymaker.VoiceOption{ID: voice, Name: voice})
+		}
+		row.Note = "The default model gpt-4o-mini-tts shuts down on 2027-01-06."
+	case "xai":
+		row.DefaultVoice = storymakerConfiguredVoice(cfg.TTS.XAI.VoiceID, "eve")
+		if !row.Ready {
+			break
+		}
+		voices, err := cache.xai(ctx, strings.TrimSpace(cfg.TTS.XAI.APIKey))
+		if err != nil {
+			row.Ready = false
+			row.Note = "The xAI voice list could not be read."
+			break
+		}
+		for _, voice := range voices {
+			row.Voices = append(row.Voices, storymaker.VoiceOption{ID: voice.ID, Name: voice.Label})
+		}
+	case "google":
+		row.Note = "Language only, with no voice choice. It uses an unofficial endpoint."
+	}
+	if !row.Ready && row.Note == "" {
+		row.Note = "Needs an API key."
+	}
+	return row
+}
+
+// storymakerActiveVoiceProvider is the provider the tool route would use, as a list id.
+func storymakerActiveVoiceProvider(cfg *config.Config) string {
+	id := storymaker.NormalizeProvider(tools.BuildTTSConfig(cfg, tools.TTSRouteTool, "").Provider)
+	if id == "s2s" || id == "s2s-lab" {
+		return "speech_lab"
+	}
+	return id
+}
+
+// storymakerVoiceProviders is the one provider list behind GET /voices, POST /projects and
+// POST /narrate: the active provider first, then the local ids, then the cloud ids sorted. Keeping
+// local ahead of cloud means voice resolution never picks a paid provider ahead of a free one.
+func (s *Server) storymakerVoiceProviders(ctx context.Context) []storymaker.VoiceProvider {
+	cfg := s.ConfigSnapshot()
+	if cfg == nil {
+		return []storymaker.VoiceProvider{}
+	}
+	var cache *storymakerVoiceCache
+	if rt, err := s.storymakerRuntime(); err == nil {
+		cache = rt.voices
+	}
+	active := storymakerActiveVoiceProvider(cfg)
+	rows := s.storymakerLocalVoiceRows(ctx, cfg)
+	for _, id := range storymakerCloudVoiceIDs {
+		if id == "google" && active != "google" {
+			continue
+		}
+		rows = append(rows, storymakerCloudVoiceRow(ctx, cfg, id, cache))
+	}
+	out := make([]storymaker.VoiceProvider, 0, len(rows))
+	for _, row := range rows {
+		if row.ID == active {
+			row.Active = true
+			out = append(out, row)
+		}
+	}
+	for _, row := range rows {
+		if row.ID != active {
+			out = append(out, row)
+		}
+	}
+	return out
+}
 
 // storymakerVoiceRow is the part of a row that every provider shares. Readiness runs on a copy of
 // the config with this provider selected, on the tool route, because the chat route forces

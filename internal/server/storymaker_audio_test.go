@@ -4,14 +4,19 @@ import (
 	"context"
 	"errors"
 	"net"
+	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"slices"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"aurago/internal/config"
 	"aurago/internal/phonon"
+	"aurago/internal/realtimespeech"
 	"aurago/internal/storymaker"
 	"aurago/internal/tools"
 )
@@ -49,6 +54,113 @@ func assertStorymakerVoiceNotesAreFacts(t *testing.T, rows []storymaker.VoicePro
 				t.Errorf("%s: the note %q judges the sound (%q)", row.ID, row.Note, word)
 			}
 		}
+	}
+}
+
+func TestStorymakerVoicesEndpoint(t *testing.T) {
+	t.Setenv("AURAGO_PHONON_DIR", t.TempDir())
+	s, readToken, _ := storymakerAPIFixture(t)
+
+	var fetches atomic.Int32
+	xai := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fetches.Add(1)
+		_, _ = w.Write([]byte(`{"voices":[{"voice_id":"eve","name":"Eve"}]}`))
+	}))
+	t.Cleanup(xai.Close)
+
+	const openAIKey, xaiKey = "sk-fixture-openai-secret", "xai-fixture-secret"
+	s.Cfg.TTS.Provider = "openai"
+	s.Cfg.TTS.OpenAI.APIKey = openAIKey
+	s.Cfg.TTS.XAI.APIKey = xaiKey
+
+	rt, err := s.storymakerRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Date(2026, 11, 4, 12, 0, 0, 0, time.UTC)
+	rt.voices.client = &realtimespeech.Client{HTTPClient: xai.Client(), XAIBaseURL: xai.URL}
+	rt.voices.now = func() time.Time { return now }
+
+	get := func() ([]storymaker.VoiceProvider, *httptest.ResponseRecorder) {
+		t.Helper()
+		w := storymakerRequest(s, readToken, http.MethodGet, "/voices", nil, nil)
+		if w.Code != http.StatusOK {
+			t.Fatalf("GET /voices = %d %s", w.Code, w.Body.String())
+		}
+		var body struct {
+			Providers []storymaker.VoiceProvider `json:"providers"`
+		}
+		decodeBody(t, w, &body)
+		return body.Providers, w
+	}
+
+	rows, w := get()
+	// The active provider, then the local ids in list order, then the cloud ids sorted.
+	// google is absent, because it is not the active provider.
+	want := []string{"openai", "phonon", "piper", "sanotts", "supertonic", "speech_lab", "elevenlabs", "minimax", "mistral", "resemble", "stepfun", "xai"}
+	if got := storymakerVoiceIDs(rows); !reflect.DeepEqual(got, want) {
+		t.Fatalf("provider order = %v", got)
+	}
+	if w.Header().Get("Cache-Control") != "no-store" {
+		t.Errorf("Cache-Control = %q", w.Header().Get("Cache-Control"))
+	}
+	for _, secret := range []string{openAIKey, xaiKey} {
+		if strings.Contains(w.Body.String(), secret) {
+			t.Errorf("the answer holds the secret %q", secret)
+		}
+	}
+	for i, row := range rows {
+		if row.TestedLanguages == nil {
+			t.Errorf("%s: tested_languages is null", row.ID)
+		}
+		if row.Active != (i == 0) {
+			t.Errorf("%s: active = %v", row.ID, row.Active)
+		}
+	}
+	assertStorymakerVoiceNotesAreFacts(t, rows)
+
+	// 13 is the length of the frozen list in tools.OpenAITTSVoices.
+	if !rows[0].Ready || len(rows[0].Voices) != 13 {
+		t.Errorf("openai row = %+v", rows[0])
+	}
+	last := rows[len(rows)-1]
+	if !last.Ready || len(last.Voices) != 1 || last.Voices[0].ID != "eve" {
+		t.Errorf("xai row = %+v", last)
+	}
+
+	// The list is fetched once in 5 minutes.
+	if fetches.Load() != 1 {
+		t.Fatalf("first answer fetched %d times", fetches.Load())
+	}
+	now = now.Add(5*time.Minute - time.Second)
+	get()
+	if fetches.Load() != 1 {
+		t.Errorf("a second inside the window fetched again: %d", fetches.Load())
+	}
+	now = now.Add(time.Second)
+	get()
+	if fetches.Load() != 2 {
+		t.Errorf("an expired list was not fetched again: %d", fetches.Load())
+	}
+
+	// Read-only changes nothing for this route.
+	ro := *s.ConfigSnapshot()
+	ro.VirtualDesktop.ReadOnly = true
+	s.replaceConfigSnapshot(&ro)
+	get()
+
+	// An active google comes first and is listed once.
+	google := *s.ConfigSnapshot()
+	google.VirtualDesktop.ReadOnly = false
+	google.TTS.Provider = "google"
+	s.replaceConfigSnapshot(&google)
+	rows, _ = get()
+	want = []string{"google", "phonon", "piper", "sanotts", "supertonic", "speech_lab", "elevenlabs", "minimax", "mistral", "openai", "resemble", "stepfun", "xai"}
+	if got := storymakerVoiceIDs(rows); !reflect.DeepEqual(got, want) {
+		t.Fatalf("provider order with google active = %v", got)
+	}
+	if !rows[0].Active || rows[0].ChunkLimit != 200 {
+		t.Errorf("google row = %+v", rows[0])
 	}
 }
 
