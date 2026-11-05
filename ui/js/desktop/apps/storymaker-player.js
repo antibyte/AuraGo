@@ -10,7 +10,7 @@
 
     const S = root.StorymakerParts = root.StorymakerParts || {};
 
-    const LIMITS = { scenes: 400, issues: 2000, keys: 2000, keyLength: 240, text: 2000, id: 64, frame: 100000000, thumbWaitMs: 12000 };
+    const LIMITS = { scenes: 400, issues: 2000, keys: 2000, keyLength: 240, text: 2000, id: 64, frame: 100000000, thumbWaitMs: 12000, events: 40000, captions: 8000, cues: 400, lineChars: 400 };
     const TYPES = ['ready', 'need_assets', 'compiled', 'time', 'thumb', 'error'];
 
     function isObject(v) { return v !== null && typeof v === 'object' && !Array.isArray(v); }
@@ -28,6 +28,53 @@
             scene_id: text(raw.scene_id, LIMITS.id),
             fix: text(raw.fix, LIMITS.text)
         };
+    }
+
+    const EVENT_KINDS = ['narration', 'dialogue', 'sfx'];
+    const CUE_PLACED = ['span', 'proportion'];
+
+    function isMs(v) { return isInt(v, 0, 1e12); }
+    function okSceneId(v) { return typeof v === 'string' && v.length <= LIMITS.id; }
+    // A block id is the scene id plus ":n" or ":b<beat>", so 16 more characters than a scene id are enough.
+    function okBlockId(v) { return typeof v === 'string' && v.length <= LIMITS.id + 16; }
+
+    // cleanList(raw, max, clean): the entries that pass clean, at most max. A malformed entry is dropped, not the message.
+    function cleanList(raw, max, clean) {
+        const out = [];
+        (Array.isArray(raw) ? raw.slice(0, max) : []).forEach(entry => { const item = clean(entry); if (item) out.push(item); });
+        return out;
+    }
+
+    function cleanEvent(raw) {
+        if (!isObject(raw) || EVENT_KINDS.indexOf(raw.kind) < 0 || typeof raw.ref !== 'string' || !raw.ref || raw.ref.length > 80) return null;
+        if (!isMs(raw.start_ms) || !okSceneId(raw.scene_id)) return null;
+        const out = { kind: raw.kind, ref: raw.ref, start_ms: raw.start_ms, scene_id: raw.scene_id };
+        if (raw.block_id !== undefined) {
+            if (!okBlockId(raw.block_id)) return null;
+            out.block_id = raw.block_id;
+        }
+        if (raw.piece !== undefined) {
+            if (!isInt(raw.piece, 0, 100000)) return null;
+            out.piece = raw.piece;
+        }
+        if (raw.take !== undefined) {
+            if (!isInt(raw.take, 0, 100000)) return null;
+            out.take = raw.take;
+        }
+        return out;
+    }
+
+    function cleanCaption(raw) {
+        if (!isObject(raw) || !isMs(raw.start_ms) || !isMs(raw.end_ms) || !Array.isArray(raw.lines)) return null;
+        if (!okSceneId(raw.scene_id) || !okBlockId(raw.block_id)) return null;
+        const lines = raw.lines.slice(0, 2);
+        if (!lines.length || !lines.every(line => typeof line === 'string')) return null;
+        return { start_ms: raw.start_ms, end_ms: raw.end_ms, lines: lines.map(line => line.slice(0, LIMITS.lineChars)), scene_id: raw.scene_id, block_id: raw.block_id };
+    }
+
+    function cleanCue(raw) {
+        if (!isObject(raw) || !isInt(raw.marker, 0, 1e9) || !isMs(raw.at_ms) || CUE_PLACED.indexOf(raw.placed) < 0) return null;
+        return { marker: raw.marker, at_ms: raw.at_ms, placed: raw.placed };
     }
 
     // checkIncoming(msg) -> a cleaned copy of a valid message, or null. The copy holds only the fields the schema names.
@@ -52,7 +99,7 @@
                 for (let i = 0; i < r.scenes.length; i++) {
                     const s = r.scenes[i];
                     if (!isObject(s) || typeof s.id !== 'string' || s.id.length > LIMITS.id || !isInt(s.start_frame, 0, LIMITS.frame) || !isInt(s.end_frame, 0, LIMITS.frame)) return null;
-                    scenes.push({ id: s.id, start_frame: s.start_frame, end_frame: s.end_frame, kind: text(s.kind, 16) });
+                    scenes.push({ id: s.id, start_frame: s.start_frame, end_frame: s.end_frame, kind: text(s.kind, 16), cues: cleanList(s.cues, LIMITS.cues, cleanCue) });
                 }
                 const issues = [], unverified = [];
                 (Array.isArray(r.issues) ? r.issues.slice(0, LIMITS.issues) : []).forEach(raw => { const issue = cleanIssue(raw); if (issue) issues.push(issue); });
@@ -64,7 +111,10 @@
                         width: isInt(r.width, 1, 16384) ? r.width : 0,
                         height: isInt(r.height, 1, 16384) ? r.height : 0,
                         duration_ms: isInt(r.duration_ms, 0, 1e12) ? r.duration_ms : Math.round(r.frame_count * 1000 / r.fps),
-                        catalog_version: text(r.catalog_version, 64)
+                        catalog_version: text(r.catalog_version, 64),
+                        audio_events: cleanList(r.audio_events, LIMITS.events, cleanEvent),
+                        captions: cleanList(r.captions, LIMITS.captions, cleanCaption),
+                        cue_precision: typeof r.cue_precision === 'number' && isFinite(r.cue_precision) ? r.cue_precision : null
                     }
                 };
             }

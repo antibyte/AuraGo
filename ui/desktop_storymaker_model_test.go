@@ -173,6 +173,43 @@ eq(P({ sm: 1, type: 'thumb', req: 't1', scene_id: 's1', bitmap: {} }), null, 'a 
 eq(P({ sm: 1, type: 'thumb', req: 't1', scene_id: 's1', bitmap: new FakeBitmap() }).scene_id, 's1', 'a thumb');
 eq(P({ sm: 1, type: 'error', code: 'code_error', message: 'x'.repeat(5000), scene_id: 's3' }).message.length, 2000, 'long messages are cut');
 eq(P({ sm: 1, type: 'ready', caps: { workers: true, offscreen: false }, extra: 'x' }), { type: 'ready', caps: { workers: true, offscreen: false } }, 'unknown fields are dropped');
+// the compiled whitelist of phase 2: a malformed entry is dropped, the message stays
+{
+  const evHash = 'a'.repeat(64);
+  const rich = P({ sm: 1, type: 'compiled', report: { frame_count: 90, fps: 30, cue_precision: 0.5,
+    scenes: [{ id: 's1', start_frame: 0, end_frame: 90, kind: 'storyboard', cues: [{ marker: 1, at_ms: 1840, placed: 'span' }, { marker: 'x', at_ms: 1, placed: 'span' }, { marker: 2, at_ms: 5, placed: 'guess' }] }],
+    audio_events: [
+      { kind: 'narration', ref: evHash, start_ms: 500, scene_id: 's1', block_id: 's1:n', piece: 0, extra: 'x' },
+      { kind: 'sfx', ref: 'sfx.pop', start_ms: 1836, scene_id: 's1', take: 2 },
+      { kind: 'music', ref: evHash, start_ms: 1, scene_id: 's1' },
+      { kind: 'narration', ref: 'r'.repeat(81), start_ms: 1, scene_id: 's1' },
+      { kind: 'narration', ref: evHash, start_ms: -1, scene_id: 's1' },
+      { kind: 'narration', ref: evHash, start_ms: 1, scene_id: 's1', piece: 'x' },
+      'nonsense'
+    ],
+    captions: [
+      { start_ms: 500, end_ms: 2600, lines: ['one', 'two', 'three'], scene_id: 's1', block_id: 's1:n' },
+      { start_ms: 2600, end_ms: 3600, lines: ['x'.repeat(500)], scene_id: 's1', block_id: 's1:n' },
+      { start_ms: 3600, end_ms: 4600, lines: [7], scene_id: 's1', block_id: 's1:n' },
+      { start_ms: 4600, end_ms: 5600, lines: [], scene_id: 's1', block_id: 's1:n' }
+    ]
+  } });
+  eq(rich.report.audio_events, [
+    { kind: 'narration', ref: evHash, start_ms: 500, scene_id: 's1', block_id: 's1:n', piece: 0 },
+    { kind: 'sfx', ref: 'sfx.pop', start_ms: 1836, scene_id: 's1', take: 2 }
+  ], 'malformed events are dropped, unknown fields too, and the message stays');
+  eq(rich.report.captions.map(c => c.lines.map(line => line.length)), [[3, 3], [400]], 'at most 2 lines, each clipped at 400 characters');
+  eq(rich.report.scenes[0].cues, [{ marker: 1, at_ms: 1840, placed: 'span' }], 'only well-formed cues stay');
+  eq(rich.report.cue_precision, 0.5, 'cue_precision');
+  const bare = P(valid).report;
+  eq([bare.audio_events, bare.captions, bare.cue_precision, bare.scenes[0].cues], [[], [], null, []], 'a report without the new fields');
+  // the other side of the wire: a report from a real compile loses nothing (dir is ui/js/desktop/apps, four levels below the repo root)
+  const measured = JSON.parse(fs.readFileSync(path.join(dir, '..', '..', '..', '..', 'internal', 'storymaker', 'render', 'testdata', 'report_measured.json'), 'utf8'));
+  const wire = P({ sm: 1, type: 'compiled', report: measured }).report;
+  eq(wire.audio_events.length, measured.audio_events.length, 'every event of a real compile passes');
+  eq(wire.captions.length, (measured.captions || []).length, 'every caption of a real compile passes');
+}
+
 // the export size follows the aspect, as render.CanvasSize does (the preview compiles smaller)
 eq([M.exportSize('16:9'), M.exportSize('9:16'), M.exportSize('1:1'), M.exportSize(''), M.exportSize('4:3')], [[1920, 1080], [1080, 1920], [1080, 1080], [1920, 1080], [1920, 1080]], 'export size by aspect');
 

@@ -455,6 +455,7 @@
     var CAPS = {
         maxFallbackFontBytes: 18 * 1048576,
         maxScenes: 400, maxEntries: 6000, maxAssetKeys: 2000, maxFonts: 16, maxFontBytes: 8 * 1048576, maxFontTotal: 32 * 1048576,
+        maxAudioScenes: 400, maxAudioBlocks: 61, maxAudioPieces: 800, maxLevels: 27000, maxTotalLevels: 200000, maxGlyphFaces: 16, maxGlyphRanges: 60000,
         maxBundles: 400, maxBundleChars: 262144, maxFrame: 100000000, thumbMin: 16, thumbMax: 1920, maxKey: 240, maxReq: 64
     };
     var TYPES = ['load', 'assets', 'seek', 'play', 'pause', 'thumb', 'reset'];
@@ -465,6 +466,47 @@
     function isBuffer(v) { return Object.prototype.toString.call(v) === '[object ArrayBuffer]'; }
     function isInt(v, lo, hi) { return typeof v === 'number' && isFinite(v) && Math.floor(v) === v && v >= lo && v <= hi; }
     function okReq(v) { return (typeof v === 'string' || typeof v === 'number') && String(v).length <= CAPS.maxReq; }
+
+    // checkAudioInfo(info) = null when audio_info fits its caps, else a short reason. maxAudioBlocks counts per scene (one narration
+    // plus 60 beats), maxAudioPieces and maxLevels per block, maxTotalLevels per message.
+    function checkAudioInfo(info) {
+        if (!isObject(info)) return 'load.audio_info is invalid';
+        if (info.narration === undefined) return null;
+        if (!isObject(info.narration)) return 'load.audio_info.narration is invalid';
+        var ids = Object.keys(info.narration), total = 0, i, j;
+        if (ids.length > CAPS.maxAudioScenes) return 'load.audio_info has too many scenes';
+        for (i = 0; i < ids.length; i++) {
+            var scene = info.narration[ids[i]];
+            if (!isObject(scene) || !Array.isArray(scene.blocks)) return 'load.audio_info has a bad scene';
+            if (scene.blocks.length > CAPS.maxAudioBlocks) return 'load.audio_info has too many blocks in a scene';
+            for (j = 0; j < scene.blocks.length; j++) {
+                var block = scene.blocks[j];
+                if (!isObject(block)) return 'load.audio_info has a bad block';
+                var pieces = block.pieces || [], levels = block.levels || [];
+                if (!Array.isArray(pieces) || !Array.isArray(levels)) return 'load.audio_info has a bad block';
+                if (pieces.length > CAPS.maxAudioPieces) return 'load.audio_info has too many pieces in a block';
+                if (levels.length > CAPS.maxLevels) return 'load.audio_info has too many levels in a block';
+                total += levels.length;
+                if (total > CAPS.maxTotalLevels) return 'load.audio_info has too many levels';
+            }
+        }
+        return null;
+    }
+
+    // checkGlyphData(data) = null when catalog.glyph_data has the schema string and fits its caps, else a short reason.
+    // Each range takes two values of d. maxGlyphRanges counts across all faces.
+    function checkGlyphData(data) {
+        if (!isObject(data) || data.schema !== 'storymaker-glyphs/1') return 'load.catalog.glyph_data needs the schema string';
+        if (!Array.isArray(data.faces) || data.faces.length > CAPS.maxGlyphFaces) return 'load.catalog.glyph_data has bad faces or too many faces';
+        var ranges = 0;
+        for (var i = 0; i < data.faces.length; i++) {
+            var face = data.faces[i];
+            if (!isObject(face) || !Array.isArray(face.d)) return 'load.catalog.glyph_data has bad faces or too many faces';
+            ranges += face.d.length / 2;
+            if (ranges > CAPS.maxGlyphRanges) return 'load.catalog.glyph_data has too many ranges';
+        }
+        return null;
+    }
 
     // facesOf(catalog): the fallback faces of a catalog's glyph data. Only these may name a font over maxFontBytes.
     function facesOf(catalog) {
@@ -492,7 +534,14 @@
             case 'load': {
                 if (!isObject(msg.story) || !Array.isArray(msg.story.scenes) || msg.story.scenes.length > CAPS.maxScenes) return 'load.story is invalid or too large';
                 if (!isObject(msg.catalog) || !Array.isArray(msg.catalog.entries) || msg.catalog.entries.length > CAPS.maxEntries) return 'load.catalog is invalid or too large';
-                if (msg.audio_info !== undefined && !isObject(msg.audio_info)) return 'load.audio_info is invalid';
+                if (msg.catalog.glyph_data !== undefined) {
+                    var badGlyphs = checkGlyphData(msg.catalog.glyph_data);
+                    if (badGlyphs) return badGlyphs;
+                }
+                if (msg.audio_info !== undefined) {
+                    var badAudio = checkAudioInfo(msg.audio_info);
+                    if (badAudio) return badAudio;
+                }
                 if (msg.assets !== undefined) {
                     if (!isObject(msg.assets) || Object.keys(msg.assets).length > CAPS.maxAssetKeys) return 'load.assets is invalid or too large';
                     for (k in msg.assets) if (!KEY_RE.test(k)) return 'load.assets has a bad key';

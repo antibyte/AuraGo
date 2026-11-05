@@ -5,6 +5,7 @@ import {
     plain, loadHost, until, settle, loadPlayer, FakeCanvas, InProcessWorker, realmGlobals, TEST_LIMITS
 } from '../storymaker-test-support.mjs';
 import { t } from '../storymaker-test-context.mjs';
+import { readJSON as readRepoJSON } from '../storymaker-test-support.mjs';
 
 const { check, near, catalog, files, firewall, minimal, s3Bundle, bundleScene } = t;
 
@@ -124,6 +125,38 @@ check('host app: the source check, the typed schema and the size caps', async ()
     assert.match(ok({ sm: 1, type: 'load', story: firewall, catalog, format: { fps: 60 } }), /fps/);
     assert.ok(ok(null) && ok('x') && ok({ sm: 2, type: 'play' }));
     assert.equal(a.sent('compiled').length, 0, 'nothing was loaded');
+});
+
+check('host app: audio_info and glyph_data stay inside their caps', () => {
+    const ok = loadHost().StorymakerHost.checkMessage;
+    const load = extra => ({ sm: 1, type: 'load', story: firewall, catalog, ...extra });
+    const block = (levels, pieces = 1) => ({ id: 's1:n', kind: 'narration', levels: new Array(levels).fill(0), pieces: new Array(pieces).fill({ hash: 'a', ext: 'wav' }) });
+    const audio = narration => load({ audio_info: { narration } });
+    const scene = blocks => ({ s1: { blocks } });
+    assert.equal(ok(load({ audio_info: {} })), null, 'audio_info without narration passes');
+    assert.equal(ok(audio({})), null, 'an empty answer passes');
+    assert.match(ok(load({ audio_info: { narration: 5 } })), /audio_info/, 'narration must be an object');
+    assert.equal(ok(audio(scene([block(27000)]))), null, 'one block at maxLevels passes');
+    assert.match(ok(audio(scene([block(27001)]))), /levels/, 'maxLevels is per block');
+    // 7 blocks of 27000 are 189000 levels, inside maxTotalLevels 200000. 8 blocks are 216000, over it, although each block fits.
+    assert.equal(ok(audio(scene(new Array(7).fill(block(27000))))), null, 'seven full blocks pass');
+    assert.match(ok(audio(scene(new Array(8).fill(block(27000))))), /levels/, 'maxTotalLevels is per message');
+    assert.match(ok(audio(scene([block(1, 801)]))), /pieces/, 'maxAudioPieces 800 is per block');
+    assert.match(ok(audio(scene(new Array(62).fill(block(1))))), /blocks/, 'maxAudioBlocks 61 is per scene');
+    const many = {};
+    for (let i = 0; i < 401; i++) many['s' + i] = { blocks: [] };
+    assert.match(ok(audio(many)), /scenes/, 'maxAudioScenes is 400');
+
+    const schema = 'storymaker-glyphs/1';
+    const glyphs = data => load({ catalog: { ...catalog, glyph_data: data } });
+    const face = d => ({ id: 'f', family: 'F', file: '/fonts/f.woff2', weight: '400', d });
+    assert.match(ok(glyphs({ faces: [] })), /schema/, 'glyph_data needs the schema string');
+    assert.match(ok(glyphs({ schema: 'storymaker-glyphs/2', faces: [] })), /schema/, 'another schema is refused');
+    assert.equal(ok(glyphs({ schema, faces: [] })), null, 'the schema string with no faces passes');
+    assert.match(ok(glyphs({ schema, faces: new Array(17).fill(face([])) })), /faces/, 'maxGlyphFaces is 16');
+    // Each range is two values in d, so 120002 values are 60001 ranges, one over maxGlyphRanges.
+    assert.match(ok(glyphs({ schema, faces: [face(new Array(120002).fill(1))] })), /ranges/, 'maxGlyphRanges is 60000');
+    assert.equal(ok(glyphs(readRepoJSON('ui/img/storymaker/glyphs.json'))), null, 'the shipped coverage file fits the caps');
 });
 
 check('host app: seek, play with frame dropping, pause and the end of the video', async () => {
