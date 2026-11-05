@@ -7,7 +7,7 @@
     const S = window.StorymakerParts = window.StorymakerParts || {};
     const ASPECTS = [['16:9', 'storymaker.aspect_16_9'], ['9:16', 'storymaker.aspect_9_16'], ['1:1', 'storymaker.aspect_1_1']];
 
-    // inst: {t, readonly, createProject(spec), openProject(id), deleteProject(project), confirm(title, message)}
+    // inst: {t, readonly, language, createProject(spec), openProject(id), deleteProject(project), confirm(title, message)}
     function createProjects(inst) {
         const { el, icon } = S;
         const t = inst.t;
@@ -18,6 +18,8 @@
 
         const title = el('input', { class: 'stm-input', type: 'text', id: inst.domId('new-title'), maxlength: '120', required: true, autocomplete: 'off', placeholder: t('storymaker.projects.new_title_placeholder'), dataset: { stm: 'new-title' } });
         const errorLine = el('p', { class: 'stm-form-error', role: 'alert', hidden: true, dataset: { stm: 'projects-error' } });
+        const offerButton = el('button', { type: 'button', class: 'stm-btn', dataset: { stm: 'create-without-voice' }, onClick: () => submit(true) }, el('span', { text: t('storymaker.projects.create_without_voice') }));
+        const offer = el('div', { class: 'stm-form-error stm-actions', hidden: true, dataset: { stm: 'projects-offer' } }, offerButton);
         const aspectButtons = ASPECTS.map(([value, key]) => el('button', {
             type: 'button', class: 'stm-chip', dataset: { stm: 'aspect', aspect: value }, ariaPressed: String(value === aspect),
             onClick: () => { aspect = value; syncAspect(); }
@@ -27,7 +29,7 @@
             el('label', { class: 'stm-field', for: inst.domId('new-title') }, el('span', { class: 'stm-label', text: t('storymaker.projects.new_title_label') }), title),
             el('div', { class: 'stm-field' }, el('span', { class: 'stm-label', text: t('storymaker.projects.new_format') }), el('div', { class: 'stm-chips', role: 'group', ariaLabel: t('storymaker.projects.new_format') }, aspectButtons)),
             el('div', { class: 'stm-actions' }, create),
-            errorLine);
+            errorLine, offer);
         const list = el('ul', { class: 'stm-project-list', dataset: { stm: 'project-list' } });
         const empty = el('div', { class: 'stm-empty', hidden: true, dataset: { stm: 'projects-empty' } },
             icon('film', 'stm-empty-icon'),
@@ -49,6 +51,7 @@
             title.disabled = inst.readonly;
             aspectButtons.forEach(button => { button.disabled = off; });
             create.disabled = off;
+            offerButton.disabled = off;
             create.title = inst.readonly ? t('storymaker.banner.readonly') : '';
             list.querySelectorAll('[data-stm="delete-project"]').forEach(button => { button.disabled = off; });
         }
@@ -59,14 +62,30 @@
             errorLine.hidden = !message;
         }
 
-        async function submit() {
+        // No voice speaks the language: say which languages have one and offer a project without a voice. Other errors go to submit.
+        async function send(value, withoutVoice) {
+            const spec = { title: value, aspect };
+            if (!withoutVoice && inst.language) spec.language = inst.language;
+            try {
+                await inst.createProject(spec);
+            } catch (err) {
+                const e = S.errors.normalize(err);
+                if (e.code !== 'narration_unavailable') throw err;
+                const languages = e.data && Array.isArray(e.data.languages) ? e.data.languages : [];
+                setMessage([S.errors.describe(t, e), languages.length ? t('storymaker.projects.languages', { languages: languages.join(', ') }) : ''].filter(Boolean).join(' '));
+                offer.hidden = false;
+            }
+        }
+
+        async function submit(withoutVoice) {
             const value = title.value.trim();
             if (!value) { setMessage(t('storymaker.projects.title_required')); title.focus(); return; }
             busy = true;
             setMessage('');
+            offer.hidden = true;
             syncDisabled();
             try {
-                await inst.createProject({ title: value, aspect });
+                await send(value, withoutVoice);
             } catch (err) {
                 setMessage(S.errors.describe(t, err));
             } finally {

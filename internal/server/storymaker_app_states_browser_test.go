@@ -11,7 +11,20 @@ import (
 	"testing"
 
 	"aurago/internal/storymaker/render"
+
+	"github.com/go-rod/rod"
 )
+
+// smappCreateInForm clicks create-project. The test servers have no ready voice provider, so the project list may stop at the
+// offer; the helper then takes the create-without-voice button.
+func smappCreateInForm(t *testing.T, page *rod.Page) {
+	t.Helper()
+	page.MustElement(`[data-stm="create-project"]`).MustClick()
+	smappWait(t, page, `()=>!!document.querySelector('[data-stm="narration"]') || (!!document.querySelector('[data-stm="projects-offer"]') && !document.querySelector('[data-stm="projects-offer"]').hidden)`)
+	if page.MustEval(`()=>!document.querySelector('[data-stm="narration"]')`).Bool() {
+		page.MustElement(`[data-stm="create-without-voice"]`).MustClick()
+	}
+}
 
 // smappCreate makes a project through the real API and returns its id and etag.
 func smappCreate(t *testing.T, origin, title string) (string, string) {
@@ -60,7 +73,7 @@ func TestStorymakerAppRealServerStatesBrowser(t *testing.T) {
 			t.Fatal("the export-unavailable banner shows although the first export downloads a browser")
 		}
 		page.MustElement(`[data-stm="new-title"]`).MustInput("Download")
-		page.MustElement(`[data-stm="create-project"]`).MustClick()
+		smappCreateInForm(t, page)
 		smappWait(t, page, `()=>!!document.querySelector('[data-stm="export"]') && document.querySelector('[data-stm="clock-total"]').textContent!=='0:00.0'`)
 		smappClick(t, page, `[data-stm="export"]`)
 		smappWait(t, page, `()=>!!document.querySelector('[data-stm="export-start"]') && !document.querySelector('[data-stm="export-start"]').disabled`)
@@ -79,7 +92,7 @@ func TestStorymakerAppRealServerStatesBrowser(t *testing.T) {
 		page, _ := smappPage(t, s)
 		smappWait(t, page, `()=>!!document.querySelector('[data-banner="export_unavailable"]')`)
 		page.MustElement(`[data-stm="new-title"]`).MustInput("Offline")
-		page.MustElement(`[data-stm="create-project"]`).MustClick()
+		smappCreateInForm(t, page)
 		smappWait(t, page, `()=>!!document.querySelector('[data-stm="export"]')`)
 		smappClick(t, page, `[data-stm="export"]`)
 		smappWait(t, page, `()=>!!document.querySelector('[data-stm="export-blockers"]')`)
@@ -100,7 +113,7 @@ func TestStorymakerAppRealServerStatesBrowser(t *testing.T) {
 		page, origin := smappPage(t, s)
 		smappWait(t, page, `()=>!!document.querySelector('.stm-projects')`)
 		page.MustElement(`[data-stm="new-title"]`).MustInput("Before")
-		page.MustElement(`[data-stm="create-project"]`).MustClick()
+		smappCreateInForm(t, page)
 		smappWait(t, page, `()=>!!document.querySelector('[data-stm="narration"]')`)
 		ro := *s.ConfigSnapshot()
 		ro.VirtualDesktop.ReadOnly = true
@@ -139,7 +152,7 @@ func TestStorymakerAppRealServerStatesBrowser(t *testing.T) {
 		page, origin := smappPage(t, s)
 		smappWait(t, page, `()=>!!document.querySelector('.stm-projects')`)
 		page.MustElement(`[data-stm="new-title"]`).MustInput("Conflict")
-		page.MustElement(`[data-stm="create-project"]`).MustClick()
+		smappCreateInForm(t, page)
 		smappWait(t, page, `()=>!!document.querySelector('[data-stm="narration"]')`)
 		id := smappProjectIDs(t, origin)[0]
 		var p smappProject
@@ -201,7 +214,7 @@ func TestStorymakerEnvironmentChangeRealServerBrowser(t *testing.T) {
 	page, origin := smappPage(t, s)
 	smappWait(t, page, `()=>!!document.querySelector('.stm-projects')`)
 	page.MustElement(`[data-stm="new-title"]`).MustInput("Worlds")
-	page.MustElement(`[data-stm="create-project"]`).MustClick()
+	smappCreateInForm(t, page)
 	smappWait(t, page, `()=>document.querySelectorAll('[data-stm="scene"]').length===1 && document.querySelector('[data-stm="clock-total"]').textContent!=='0:00.0'`)
 	id := smappProjectIDs(t, origin)[0]
 	const saved = `document.querySelector('[data-stm="save-state"]')?.dataset.state==='saved'`

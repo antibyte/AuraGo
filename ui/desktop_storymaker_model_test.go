@@ -215,3 +215,116 @@ eq([M.exportSize('16:9'), M.exportSize('9:16'), M.exportSize('1:1'), M.exportSiz
 
 console.log('storymaker app model ok');
 `
+
+// A new project sends the desktop language. When no voice speaks it, the form shows the languages from the error and offers a
+// create without a voice, and that second call sends no language.
+func TestStorymakerNewProjectLanguageInNode(t *testing.T) {
+	t.Parallel()
+	if !strings.Contains(readDesktopAssetText(t, "js/desktop/apps/storymaker.js"), "get language() { return String(window.SYSTEM_LANG || document.documentElement.lang || 'en'); }") {
+		t.Error("storymaker.js does not hand the desktop language to the project list")
+	}
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("node not available")
+	}
+	script := filepath.Join(t.TempDir(), "storymaker-new-project.js")
+	if err := os.WriteFile(script, []byte(storymakerNewProjectScript), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	dir, _ := filepath.Abs(filepath.Join("js", "desktop", "apps"))
+	out, err := exec.Command(node, script, dir).CombinedOutput()
+	if err != nil {
+		t.Fatalf("node check failed: %v\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "storymaker new project ok") {
+		t.Fatalf("unexpected output:\n%s", out)
+	}
+}
+
+const storymakerNewProjectScript = `
+'use strict';
+const fs = require('fs');
+const vm = require('vm');
+const path = require('path');
+const [dir] = process.argv.slice(2);
+
+class FakeNode {
+  constructor(tag) { this.tag = tag; this.kids = []; this.parent = null; this.attrs = {}; this.dataset = {}; this.handlers = {}; this.style = { setProperty() {} }; this.ownText = ''; this.className = ''; }
+  get firstChild() { return this.kids[0] || null; }
+  appendChild(kid) { if (kid.parent) kid.parent.removeChild(kid); kid.parent = this; this.kids.push(kid); return kid; }
+  removeChild(kid) { this.kids.splice(this.kids.indexOf(kid), 1); kid.parent = null; return kid; }
+  setAttribute(name, value) { this.attrs[name] = String(value); }
+  getAttribute(name) { return name in this.attrs ? this.attrs[name] : null; }
+  get hidden() { return 'hidden' in this.attrs; }
+  set hidden(on) { if (on) this.attrs.hidden = ''; else delete this.attrs.hidden; }
+  get disabled() { return 'disabled' in this.attrs; }
+  set disabled(on) { if (on) this.attrs.disabled = ''; else delete this.attrs.disabled; }
+  get value() { return this.val !== undefined ? this.val : (this.attrs.value || ''); }
+  set value(next) { this.val = String(next); }
+  get textContent() { return this.kids.length ? this.kids.map(kid => kid.textContent).join('') : this.ownText; }
+  set textContent(next) { this.kids = []; this.ownText = String(next); }
+  addEventListener(type, fn) { (this.handlers[type] = this.handlers[type] || []).push(fn); }
+  fire(type) { (this.handlers[type] || []).slice().forEach(fn => fn({ type, target: this, preventDefault() {}, stopPropagation() {} })); }
+  click() { if (!this.disabled) this.fire('click'); }
+  focus() {}
+  querySelectorAll() { return []; }
+  find(name) { if (this.dataset.stm === name) return this; for (const kid of this.kids) { const hit = kid.find(name); if (hit) return hit; } return null; }
+  findTag(tag) { if (this.tag === tag) return this; for (const kid of this.kids) { const hit = kid.findTag(tag); if (hit) return hit; } return null; }
+}
+const document = {
+  createElement: tag => new FakeNode(tag),
+  createElementNS: (ns, tag) => new FakeNode(tag),
+  createTextNode: text => { const node = new FakeNode('#text'); node.ownText = String(text); return node; },
+  documentElement: { lang: 'en' }
+};
+const context = { console, setTimeout, clearTimeout, document };
+context.globalThis = context; context.window = context;
+vm.createContext(context);
+for (const name of ['storymaker-core.js', 'storymaker-projects.js']) {
+  vm.runInContext(fs.readFileSync(path.join(dir, name), 'utf8'), context, { filename: name });
+}
+const S = context.StorymakerParts;
+const eq = (a, b, what) => { const x = JSON.stringify(a), y = JSON.stringify(b); if (x !== y) throw new Error(what + ': got ' + x + ', want ' + y); };
+const flush = () => new Promise(resolve => setImmediate(resolve));
+const t = (key, vars) => (vars ? key + ' ' + JSON.stringify(vars) : key);
+
+function open(results) {
+  const calls = [];
+  const inst = {
+    t, readonly: false, language: 'de', domId: suffix => 'stm-test-' + suffix,
+    createProject(spec) { calls.push(spec); const next = results.shift(); return next ? Promise.reject(next) : Promise.resolve(); },
+    openProject() {}, deleteProject() {}, confirm: async () => false
+  };
+  const view = S.createProjects(inst);
+  view.setProjects([]);
+  view.el.find('new-title').value = 'Film';
+  return { calls, view, f: name => view.el.find(name) };
+}
+
+(async () => {
+  const refused = S.errors.fromResponse(422, { error: 'narration_unavailable', code: 'narration_unavailable', message: 'No voice speaks ja.', languages: ['de', 'en'] }, 0);
+  const first = open([refused, null]);
+  eq(first.f('projects-offer').hidden, true, 'no offer before a refusal');
+  first.view.el.findTag('form').fire('submit');
+  await flush();
+  eq(first.calls, [{ title: 'Film', aspect: '16:9', language: 'de' }], 'the first call sends the desktop language');
+  const text = first.f('projects-error').textContent;
+  eq(text.includes('storymaker.error.narration_unavailable'), true, 'the refusal has its own sentence');
+  eq(text.includes('storymaker.projects.languages {"languages":"de, en"}'), true, 'err.data.languages shows');
+  eq(first.f('projects-offer').hidden, false, 'the offer shows');
+
+  first.f('create-without-voice').click();
+  await flush();
+  eq(first.calls[1], { title: 'Film', aspect: '16:9' }, 'the second call sends no language');
+  eq([first.f('projects-offer').hidden, first.f('projects-error').hidden], [true, true], 'a success clears both');
+
+  // Any other failure keeps its plain sentence and offers nothing.
+  const plain = open([S.errors.fromResponse(500, { error: 'internal', code: 'internal', message: 'boom' }, 0)]);
+  plain.view.el.findTag('form').fire('submit');
+  await flush();
+  eq(plain.f('projects-error').textContent, 'storymaker.error.generic boom', 'a plain failure');
+  eq(plain.f('projects-offer').hidden, true, 'no offer for a plain failure');
+
+  console.log('storymaker new project ok');
+})().catch(err => { console.error(err.stack || err); process.exit(1); });
+`

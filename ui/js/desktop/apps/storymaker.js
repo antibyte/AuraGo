@@ -101,6 +101,7 @@
         inst.view = 'projects';
         const view = S.createProjects({
             t: inst.t, domId: inst.domId, get readonly() { return inst.readonly; },
+            get language() { return String(window.SYSTEM_LANG || document.documentElement.lang || 'en'); },
             createProject: spec => createProject(inst, spec),
             openProject: id => openProject(inst, id),
             deleteProject: project => deleteProject(inst, project),
