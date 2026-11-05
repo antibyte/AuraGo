@@ -75,6 +75,7 @@ func ApplyDefaults(s *Story) []DefaultApplied {
 			}
 			set(jp("scenes", i, "environment"), sc.Environment)
 		}
+		envChanged := i > 0 && sc.Environment != prevEnv
 		prevEnv = sc.Environment
 		if sc.Variant == "" {
 			sc.Variant = "day"
@@ -85,9 +86,13 @@ func ApplyDefaults(s *Story) []DefaultApplied {
 			set(jp("scenes", i, "speaker"), "narrator")
 		}
 		if sc.Transition == "" {
-			sc.Transition = "fade"
-			if i == 0 {
+			switch {
+			case i == 0:
 				sc.Transition = "cut"
+			case envChanged:
+				sc.Transition = "wipe"
+			default:
+				sc.Transition = "fade"
 			}
 			set(jp("scenes", i, "transition"), sc.Transition)
 		}

@@ -27,7 +27,7 @@ func TestApplyDefaultsTable(t *testing.T) {
 		"/scenes/0/environment": "env.plain-stage", "/scenes/0/variant": "day", "/scenes/0/speaker": "narrator",
 		"/scenes/0/transition": "cut", "/scenes/0/duration": "auto", "/scenes/0/camera": map[string]any{"framing": "wide"},
 		// scene 2: one actor at center, prop layer front
-		"/scenes/1/variant": "day", "/scenes/1/speaker": "narrator", "/scenes/1/transition": "fade", "/scenes/1/duration": "auto",
+		"/scenes/1/variant": "day", "/scenes/1/speaker": "narrator", "/scenes/1/transition": "wipe", "/scenes/1/duration": "auto",
 		"/scenes/1/camera": map[string]any{"framing": "wide"}, "/scenes/1/actors/0/at": "center", "/scenes/1/actors/0/pose": "stand",
 		"/scenes/1/actors/0/facing": "auto", "/scenes/1/actors/0/expression": "neutral", "/scenes/1/actors/0/scale": 1,
 		"/scenes/1/props/0/layer": "front",
@@ -70,6 +70,30 @@ func TestApplyDefaultsKeepsExplicitValues(t *testing.T) {
 	after, _ := CanonicalJSON(s)
 	if len(got) != 0 || string(before) != string(after) {
 		t.Fatalf("explicit values changed: %v\n%s\n%s", got, before, after)
+	}
+}
+
+func TestApplyDefaultsTransitionFollowsTheEnvironment(t *testing.T) {
+	s := mustDecode(t, `{"schema":"storymaker/1","title":"T","scenes":[
+	  {"id":"s1","environment":"env.office"},
+	  {"id":"s2","environment":"env.office"},
+	  {"id":"s3","environment":"env.plain-stage"},
+	  {"id":"s4"},
+	  {"id":"s5","environment":"env.office","transition":"fade"}]}`)
+	m := appliedMap(ApplyDefaults(&s))
+	for path, want := range map[string]string{
+		"/scenes/0/transition": "cut",  // first scene, whatever its environment
+		"/scenes/1/transition": "fade", // env.office again
+		"/scenes/2/transition": "wipe", // env.office to env.plain-stage
+		"/scenes/3/transition": "fade", // no environment: inherits env.plain-stage
+	} {
+		if m[path] != want {
+			t.Errorf("%s = %#v, want %q", path, m[path], want)
+		}
+	}
+	// s5 changes the environment, but its stored fade stays and is not listed as a default.
+	if _, listed := m["/scenes/4/transition"]; listed || s.Scenes[4].Transition != "fade" {
+		t.Errorf("stored fade changed: listed=%v value=%q", listed, s.Scenes[4].Transition)
 	}
 }
 
