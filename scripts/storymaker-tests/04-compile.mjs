@@ -21,7 +21,9 @@ check('compile: scene ranges in frames, transitions overlap, the first scene has
     assert.equal(r.frame_count, Math.max(...r.scenes.map(s => s.end_frame)));
     assert.equal(r.duration_ms, Math.round(r.frame_count * 1000 / 30));
     assert.equal(r.width, 1920); assert.equal(r.height, 1080); assert.equal(r.catalog_version, 'mini00000000');
-    assert.deepEqual(r.audio_events, []); assert.deepEqual(r.captions, []); assert.deepEqual(r.checks, []);
+    assert.deepEqual(r.audio_events, []); assert.deepEqual(r.checks, []);
+    // Estimated narration still gets captions. s1 has 65 columns on 2 lines, s2 has 32 and s3 has 27: one caption per block.
+    assert.deepEqual(r.captions.map(c => c.block_id), ['s1:n', 's2:n', 's3:n']);
     assert.deepEqual(plain(compiled.schedule.scenes.map(s => s.tf)), [0, 15, 15]);
 });
 

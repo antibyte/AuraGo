@@ -61,6 +61,7 @@
         var plans = P.planAll({ scenes: scenesIn }, audioInfo || {}, cat, fmt, issues);
         var scenes = [], envPrev = null, narrationEvents = [], audioEvents = [];
         var styleFont = story.style && story.style.font || 'default';
+        var captionList = [];
         var captionsOn = !(story.style && story.style.captions === false);
         var glyphIdx = P.glyphIndex(catalog), fontChain = glyphIdx ? SM.glyphs.chain(glyphIdx, '$style') : undefined;
         var catalogFamilies = {};
@@ -138,6 +139,7 @@
             // narration windows (global seconds) and, with measured audio, one audio event per piece
             var base = scene.start_frame / fps;
             if (n.seconds > 0 && !sc.silent) {
+                captionList = captionList.concat(SM.captions.forBlock(n.plain, n.block, Math.round((base + n.start) * 1000), sc.id));
                 if (n.measured) {
                     var blockMs = Math.round((base + n.start) * 1000);
                     n.block.pieces.forEach(function (p, k) {
@@ -187,7 +189,7 @@
             frame_count: frameCount, fps: fps, width: fmt.width, height: fmt.height,
             duration_ms: Math.round(frameCount * 1000 / fps), catalog_version: cat.version,
             scenes: scenes.map(function (s) { return { id: s.id, start_frame: s.start_frame, end_frame: s.end_frame, kind: s.kind, cues: s.narration.cueList }; }),
-            audio_events: audioEvents, captions: [], cue_precision: cuePrecision(scenes), checks: SM.checks.run(scenes), unverified: SM.checks.unverified(scenes), issues: issues
+            audio_events: audioEvents, captions: SM.captions.settle(captionList, filmMs), cue_precision: cuePrecision(scenes), checks: SM.checks.run(scenes), unverified: SM.checks.unverified(scenes), issues: issues
         };
         var timeline = {
             version: 1, fps: fps, width: fmt.width, height: fmt.height, aspect: fmt.aspect, frame_count: frameCount,
