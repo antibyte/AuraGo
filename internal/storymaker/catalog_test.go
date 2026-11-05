@@ -230,7 +230,8 @@ func TestCatalogVerifyFiles(t *testing.T) {
 	// The mini fixture references files that part C owns; the manifest alone loads fine.
 	fsys := fstest.MapFS{}
 	err := c.VerifyFiles(fsys, "img/storymaker")
-	if err == nil || !strings.Contains(err.Error(), "img/storymaker/rig/human.json") || !strings.Contains(err.Error(), "27 missing files") {
+	// 23 thumbs, 5 prop and environment files, the rig and the font: 30
+	if err == nil || !strings.Contains(err.Error(), "img/storymaker/rig/human.json") || !strings.Contains(err.Error(), "30 missing files") {
 		t.Fatalf("missing files not reported: %v", err)
 	}
 	for _, e := range c.Entries() {

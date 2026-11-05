@@ -86,6 +86,9 @@ export const NAMES = {
   'text.title': ['Nadpis', 'Overskrift', 'Titel', 'Τίτλος', 'Title', 'Título', 'Titre', 'शीर्षक', 'Titolo', 'タイトル', 'Titel', 'Tittel', 'Tytuł', 'Título', 'Rubrik', '标题'],
   'text.caption': ['Titulek', 'Billedtekst', 'Untertitel', 'Λεζάντα', 'Caption', 'Subtítulo', 'Légende', 'कैप्शन', 'Didascalia', '字幕', 'Ondertitel', 'Bildetekst', 'Napis', 'Legenda', 'Bildtext', '字幕'],
   'text.label': ['Popisek', 'Etiket', 'Beschriftung', 'Ετικέτα', 'Label', 'Etiqueta', 'Étiquette', 'लेबल', 'Etichetta', 'ラベル', 'Label', 'Etikett', 'Etykieta', 'Rótulo', 'Etikett', '标签'],
+  'text.speech': ['Bublina s textem', 'Talebobbel', 'Sprechblase', 'Συννεφάκι ομιλίας', 'Speech bubble', 'Bocadillo', 'Bulle de dialogue', 'संवाद बबल', 'Fumetto', '吹き出し', 'Tekstballon', 'Snakkeboble', 'Dymek', 'Balão de fala', 'Pratbubbla', '对话气泡'],
+  'text.thought': ['Myšlenková bublina', 'Tankeboble', 'Gedankenblase', 'Συννεφάκι σκέψης', 'Thought bubble', 'Bocadillo de pensamiento', 'Bulle de pensée', 'विचार बबल', 'Nuvoletta di pensiero', '思考の吹き出し', 'Gedachtewolk', 'Tankeboble', 'Dymek myśli', 'Balão de pensamento', 'Tankebubbla', '思考气泡'],
+  'text.subtitle': ['Titulky', 'Undertekster', 'Untertitel', 'Υπότιτλοι', 'Subtitles', 'Subtítulos', 'Sous-titres', 'उपशीर्षक', 'Sottotitoli', '字幕', 'Ondertiteling', 'Undertekster', 'Napisy', 'Legendas', 'Undertexter', '字幕'],
   // transitions
   'trans.cut': ['Střih', 'Klip', 'Schnitt', 'Κοπή', 'Cut', 'Corte', 'Coupe', 'कट', 'Taglio', 'カット', 'Cut', 'Klipp', 'Cięcie', 'Corte', 'Klipp', '切换'],
   'trans.fade': ['Prolnutí', 'Fade', 'Überblendung', 'Σβήσιμο', 'Fade', 'Fundido', 'Fondu', 'फ़ेड', 'Dissolvenza', 'フェード', 'Overvloeien', 'Toning', 'Zanikanie', 'Desvanecer', 'Toning', '淡入淡出'],

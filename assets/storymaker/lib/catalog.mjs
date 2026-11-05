@@ -77,6 +77,16 @@ const TEXT_STYLES = {
   title: { font: 'default', size: 0.07, weight: 700, color: '$text', align: 'center', max_lines: 2, tags: ['title', 'heading', 'headline'] },
   caption: { font: 'default', size: 0.042, weight: 500, color: '#ffffff', box: { fill: '#1f2a44d9', radius: 0.012, pad: 0.012 }, align: 'center', max_lines: 2, tags: ['caption', 'subtitle', 'lower third'] },
   label: { font: 'default', size: 0.034, weight: 600, color: '$text', box: { fill: '$bg2', radius: 0.02, pad: 0.01 }, align: 'center', max_lines: 2, tags: ['label', 'tag', 'small text'] },
+  speech: { font: 'default', size: 0.042, weight: 500, color: '#1f2a44', box: { fill: '#ffffff', radius: 0.02, pad: 0.014 }, align: 'center', max_lines: 4, tags: ['speech', 'bubble', 'dialogue'] },
+  thought: { font: 'default', size: 0.042, weight: 500, color: '#1f2a44', box: { fill: '#ffffff', radius: 0.04, pad: 0.014 }, align: 'center', max_lines: 4, tags: ['thought', 'bubble', 'inner voice'] },
+  subtitle: { font: 'default', size: 0.042, weight: 500, color: '#ffffff', box: { fill: '#1f2a44d9', radius: 0.012, pad: 0.012 }, align: 'center', max_lines: 2, tags: ['subtitle', 'burned captions'] },
+};
+
+const TEXT_USAGE = {
+  title: { do: 'show', text: 'Hallo', at: 'center' },
+  speech: { do: 'say', who: 'anna', text: 'Hallo', style: 'speech' },
+  thought: { do: 'say', who: 'anna', text: 'Hallo', style: 'thought' },
+  subtitle: {},
 };
 
 const TRANSITIONS = { cut: { duration: 0, tags: ['cut', 'instant'] }, fade: { duration: 0.5, tags: ['fade', 'dissolve'] }, 'slide-left': { duration: 0.5, tags: ['slide', 'push'] }, wipe: { duration: 0.5, tags: ['wipe', 'reveal'] } };
@@ -130,7 +140,7 @@ export function buildEntries() {
   out.push(entry('cycle.idle', 'cycle', 'idle', ['idle', 'breathing'], {}, { period: CYCLES.idle.period, keys: CYCLES.idle.keys }));
   for (const [n, t] of Object.entries(TEXT_STYLES)) {
     const { tags, ...rest } = t;
-    const usage = n === 'title' ? { do: 'show', text: 'Hallo', at: 'center' } : { do: 'show', text: 'Hallo', at: 'center', style: n };
+    const usage = TEXT_USAGE[n] || { do: 'show', text: 'Hallo', at: 'center', style: n };
     out.push(entry(`text.${n}`, 'text_style', n, tags, usage, rest));
   }
   for (const [n, t] of Object.entries(TRANSITIONS)) out.push(entry(`trans.${n}`, 'transition', n, t.tags, { transition: n }, { duration: t.duration }));
@@ -156,6 +166,12 @@ function textThumb(name) {
   let shapes;
   if (name === 'title') {
     shapes = [fill(roundRect(0, 0, 320, 180, 10), '$bg'), fill(roundRect(52, 60, 216, 26, 8), '$text'), fill(roundRect(92, 100, 136, 18, 6), '$accent')];
+  } else if (name === 'speech') {
+    shapes = [fill(roundRect(0, 0, 320, 180, 10), '$bg'), fill(roundRect(52, 34, 216, 84, 18), '#ffffff'), fill(poly([[116, 116], [156, 116], [104, 152]]), '#ffffff'), fill(roundRect(78, 62, 164, 10, 5), '#1f2a44'), fill(roundRect(78, 84, 108, 10, 5), '#1f2a44', 0.8)];
+  } else if (name === 'thought') {
+    shapes = [fill(roundRect(0, 0, 320, 180, 10), '$bg'), fill(roundRect(52, 30, 216, 84, 36), '#ffffff'), fill(circle(124, 126, 12), '#ffffff'), fill(circle(106, 146, 8), '#ffffff'), fill(circle(94, 162, 5), '#ffffff'), fill(roundRect(82, 58, 156, 10, 5), '#1f2a44'), fill(roundRect(82, 80, 100, 10, 5), '#1f2a44', 0.8)];
+  } else if (name === 'subtitle') {
+    shapes = [fill(roundRect(0, 0, 320, 180, 10), '$bg'), fill(circle(86, 62, 30), '$accent2', 0.5), fill(roundRect(36, 126, 248, 36, 8), '#1f2a44', 0.85), fill(roundRect(58, 140, 204, 8, 4), '#ffffff')];
   } else if (name === 'caption') {
     shapes = [fill(roundRect(0, 0, 320, 180, 10), '$bg'), fill(circle(250, 60, 34), '$accent2', 0.5), fill(roundRect(44, 112, 232, 44, 10), '#1f2a44', 0.85), fill(roundRect(64, 124, 192, 8, 4), '#ffffff'), fill(roundRect(94, 140, 132, 8, 4), '#ffffff', 0.8)];
   } else {

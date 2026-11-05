@@ -26,7 +26,7 @@ check('fixtures: the shared stories, the code scene and the catalog manifest are
     assert.deepEqual(firewall.scenes.map(s => s.id), ['s1', 's2', 's3']);
     assert.equal(firewall.scenes[2].kind, 'code');
     assert.match(read('internal/storymaker/testdata/scenes/s3.js'), /^export default function scene\(api\) \{\r?\n  api\.duration\(5\);/);
-    assert.equal(catalog.schema, 'storymaker-catalog/1'); assert.equal(catalog.version, 'mini00000000'); assert.equal(catalog.entries.length, 20);
+    assert.equal(catalog.schema, 'storymaker-catalog/1'); assert.equal(catalog.version, 'mini00000000'); assert.equal(catalog.entries.length, 23); // 20 phase 1 entries plus text.speech, text.thought, text.subtitle
     assert.deepEqual(catalog.stage, { width: 1920, height: 1080, safe: { x: 5, y: 5, w: 90, h: 90 } });
     for (const e of catalog.entries) if (e.file) assert.ok(typeof readJSON(MINI + e.file) === 'object', e.file + ' exists and parses');
     assert.equal(readJSON(MINI + catalog.rig.file).id, catalog.rig.id);

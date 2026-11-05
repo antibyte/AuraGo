@@ -9,7 +9,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildOutputs, versionOf } from '../lib/catalog.mjs';
 import { validateOutputs } from '../lib/validate.mjs';
-import { NAMES, LANGS } from '../lib/names.mjs';
+import { NAMES, LANGS, localeTables, nameKey } from '../lib/names.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 
@@ -21,7 +21,8 @@ test('two builds produce identical bytes and the version hash follows the files'
   assert.equal(a.manifest.version, versionOf(a.files));
   assert.match(a.manifest.version, /^[0-9a-f]{12}$/);
   for (const text of a.files.values()) assert.ok(!text.includes('\r'), 'LF only');
-  assert.equal(a.files.size, 106);
+  // 105 phase 1 files, glyphs.json and 3 new thumbnails
+  assert.equal(a.files.size, 109);
 });
 
 test('the generated catalog passes the build validator', () => {
@@ -75,7 +76,19 @@ test('the manifest follows the contract: stage, rig, fonts, palettes and entry s
   assert.deepEqual(byId['env.office'].variants, ['day', 'night']);
   assert.equal(byId['cycle.walk'].speed, 16);
   assert.equal(byId['cycle.idle'].speed, undefined);
-  assert.equal(entries.length, 76);
+  assert.equal(entries.length, 79);
+});
+
+test('the bubble and subtitle styles have size 0.042 and a name in 16 locales', () => {
+  const { entries } = buildOutputs();
+  const tables = localeTables();
+  assert.equal(LANGS.length, 16);
+  for (const id of ['text.speech', 'text.thought', 'text.subtitle']) {
+    const style = entries.find((e) => e.id === id);
+    assert.equal(style?.kind, 'text_style', id);
+    assert.equal(style.size, 0.042, id);
+    for (const lang of LANGS) assert.ok(tables[lang][nameKey(id)]?.trim(), id + ' in ' + lang);
+  }
 });
 
 test('node scripts/build-storymaker-catalog.mjs --check is green on the committed outputs', () => {
