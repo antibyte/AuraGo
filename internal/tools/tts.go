@@ -8,7 +8,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -482,12 +481,18 @@ func ttsElevenLabs(cfg TTSConfig, text string) ([]byte, error) {
 		modelID = "eleven_multilingual_v2"
 	}
 
-	apiURL := fmt.Sprintf("https://api.elevenlabs.io/v1/text-to-speech/%s", voiceID)
+	apiURL := "https://api.elevenlabs.io/v1/text-to-speech/" + url.PathEscape(voiceID)
 
-	body := fmt.Sprintf(`{"text":%q,"model_id":%q,"voice_settings":{"stability":0.5,"similarity_boost":0.75}}`,
-		text, modelID)
+	body, err := json.Marshal(map[string]any{
+		"text":           text,
+		"model_id":       modelID,
+		"voice_settings": map[string]float64{"stability": 0.5, "similarity_boost": 0.75},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode ElevenLabs request: %w", err)
+	}
 
-	req, err := http.NewRequestWithContext(ttsRequestContext(cfg), http.MethodPost, apiURL, strings.NewReader(body))
+	req, err := http.NewRequestWithContext(ttsRequestContext(cfg), http.MethodPost, apiURL, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -834,7 +839,7 @@ func ttsMiniMax(cfg TTSConfig, text string) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 
-	respBody, err := io.ReadAll(resp.Body)
+	respBody, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read MiniMax response: %w", err)
 	}

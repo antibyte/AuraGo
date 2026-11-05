@@ -11,6 +11,12 @@ import (
 	"aurago/internal/security"
 )
 
+// OpenAITTSVoices lists the voices of gpt-4o-mini-tts, the default model of ttsCloud. It returns a
+// new slice, so callers may change it.
+func OpenAITTSVoices() []string {
+	return []string{"alloy", "ash", "ballad", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer", "verse", "marin", "cedar"}
+}
+
 func ttsCloud(cfg TTSConfig, text string) ([]byte, error) {
 	provider := strings.ToLower(strings.TrimSpace(cfg.Provider))
 	var endpoint, key, voice, model string
