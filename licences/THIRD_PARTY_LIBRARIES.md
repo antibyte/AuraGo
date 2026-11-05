@@ -252,9 +252,12 @@ Self-hosted under `ui/fonts/` (see `ui/fonts/fonts.css`).
 
 | Family | Typical license | Project / source |
 |---|---|---|
-| Geist | SIL Open Font License 1.1 | https://vercel.com/font · https://github.com/vercel/geist-font |
+| Geist | SIL Open Font License 1.1 | https://vercel.com/font · https://github.com/vercel/geist-font · `ui/fonts/Geist-Regular.woff2` also carries the Latin coverage of the Storymaker fallback chain |
 | Geist Mono | SIL Open Font License 1.1 | https://github.com/vercel/geist-font |
-| Inter | SIL Open Font License 1.1 | https://github.com/rsms/inter |
+| Inter | SIL Open Font License 1.1 | https://github.com/rsms/inter · `ui/fonts/Inter-LICENSE.txt` · the Greek subset `ui/fonts/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1pL7SUc.woff2` and the Greek Extended subset `ui/fonts/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa2ZL7SUc.woff2` are also Storymaker fallback faces |
+| Noto Sans Devanagari | SIL Open Font License 1.1 | https://github.com/notofonts/devanagari · `ui/fonts/qr/NotoSansDevanagari.ttf`, licence `ui/fonts/qr/OFL-Devanagari.txt`, revision and hash in `ui/fonts/qr/manifest.json`; QR captions and Storymaker fallback face |
+| Noto Sans Arabic | SIL Open Font License 1.1 | https://github.com/notofonts/arabic · `ui/fonts/qr/NotoSansArabic.ttf`, licence `ui/fonts/qr/OFL-Arabic.txt`, revision and hash in `ui/fonts/qr/manifest.json`; QR captions and Storymaker fallback face |
+| Noto Sans CJK SC | SIL Open Font License 1.1 | https://github.com/notofonts/noto-cjk · `ui/fonts/qr/NotoSansCJKsc.otf`, licence `ui/fonts/qr/OFL-CJK.txt`, revision and hash in `ui/fonts/qr/manifest.json`; QR captions and Storymaker fallback face |
 | Darker Grotesque | SIL Open Font License 1.1 | https://fonts.google.com/specimen/Darker+Grotesque |
 | Exo 2 | SIL Open Font License 1.1 | https://fonts.google.com/specimen/Exo+2 |
 | Oxanium | SIL Open Font License 1.1 | https://fonts.google.com/specimen/Oxanium |

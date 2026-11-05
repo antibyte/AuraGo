@@ -845,6 +845,49 @@ func TestStorymakerCatalogFitsTheAssetSet(t *testing.T) {
 	t.Fatal("no ui root in assets/web-assets.json")
 }
 
+// Every fallback face has a notice row in the inventory that names its file, and Inter has its licence text next to the fonts.
+func TestStorymakerGlyphFaceNotices(t *testing.T) {
+	var glyphs struct {
+		Faces []struct {
+			ID   string `json:"id"`
+			File string `json:"file"`
+		} `json:"faces"`
+	}
+	smReadJSON(t, "glyphs.json", &glyphs)
+	if len(glyphs.Faces) == 0 {
+		t.Fatal("glyphs.json lists no faces")
+	}
+	inventory, err := os.ReadFile(filepath.Join("..", "licences", "THIRD_PARTY_LIBRARIES.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var rows []string
+	for _, line := range strings.Split(string(smLF(inventory)), "\n") {
+		if strings.HasPrefix(line, "| ") && strings.Contains(line, "SIL Open Font License 1.1") {
+			rows = append(rows, line)
+		}
+	}
+	for _, face := range glyphs.Faces {
+		base := face.File[strings.LastIndex(face.File, "/")+1:]
+		found := false
+		for _, row := range rows {
+			found = found || strings.Contains(row, base)
+		}
+		if !found {
+			t.Errorf("face %s: no OFL row in THIRD_PARTY_LIBRARIES.md names %s", face.ID, base)
+		}
+	}
+	licence, err := os.ReadFile(filepath.Join("fonts", "Inter-LICENSE.txt"))
+	if err != nil {
+		t.Fatalf("Inter licence: %v", err)
+	}
+	for _, want := range []string{"Inter Project Authors", "SIL OPEN FONT LICENSE Version 1.1"} {
+		if !bytes.Contains(licence, []byte(want)) {
+			t.Errorf("fonts/Inter-LICENSE.txt does not contain %q", want)
+		}
+	}
+}
+
 // ---------------------------------------------------------------- locale names
 
 func TestStorymakerCatalogLocaleNames(t *testing.T) {

@@ -14,6 +14,7 @@ This directory owns the fixed Noto fallback files, verbatim OFL notices and `man
 - Keep upstream source revisions, byte sizes, SHA-256 and OFL notices paired with each font.
 - `sans` and `mono` use embedded Go font data from the existing x/image dependency. `serif` reuses the shipped OFL Liberation Serif font. Noto Arabic, Devanagari, CJK and monochrome emoji supply missing scripts only.
 - CJK uses the Simplified Chinese regional glyph style and covers Japanese kana/Han; regional typographic variants are not promised.
+- Storymaker also uses `NotoSansDevanagari.ttf`, `NotoSansArabic.ttf` and `NotoSansCJKsc.otf` as fallback faces. `ui/img/storymaker/glyphs.json` holds their coverage, and `NotoSansCJKsc.otf` has a named `max_bytes` exception of 17 MiB there. After replacing or renaming one of these files, run `node scripts/build-storymaker-catalog.mjs`, because the coverage data and the catalog version follow the font bytes. Do not subset them: a subset breaks the per-character check.
 
 ## Work Guidance
 
