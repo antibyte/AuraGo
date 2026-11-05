@@ -280,8 +280,9 @@
 
         // preview draws the wire that follows the pointer while connecting.
         function preview(a, b, state) {
-            if (!a || !b) { previewPath.hidden = true; return; }
-            previewPath.hidden = false;
+            // SVG elements do not reflect the HTML hidden property.
+            previewPath.toggleAttribute('hidden', !a || !b);
+            if (!a || !b) return;
             previewPath.setAttribute('d', G.wirePath(a, b));
             previewPath.setAttribute('class', 'ed-wire-preview' + (state ? ' is-' + state : ''));
         }

@@ -1414,6 +1414,9 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   and drops sample state. Verify `test-easydrag-transform.mjs` and the native browser journey.
 - Native canvas double-clicks can be retargeted by pointer capture. Re-hit-test only an exact
   canvas target; preserve port/tool/background actions and readonly inspection boundaries.
+- Connection previews are SVG paths: toggle the `hidden` attribute, not the HTML-only
+  `.hidden` property. `TestDesktopEasyDragConnectionPreviewBrowser` checks native pointer
+  tracking, completed connections and cancelled rewires.
 - Form refresh compares parameter/settings/key content, including same-object mutations. Data
   and validation-only refreshes retain existing controls, focus and caret; real content changes
   still update the form. Verify the flagship regression and Decisions browser journey.
