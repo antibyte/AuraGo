@@ -301,6 +301,10 @@ Not third-party, listed for completeness:
 | Asset | Path | License | Source |
 |---|---|---|---|
 | "Pedestrians using crosswalk (Unsplash)" by Peter Miranda (800 px resize, JPEG q85), self-test photo of the person detector | `internal/persondetect/selftest_reference.jpg` (`go:embed`) | CC0 1.0 Universal | https://commons.wikimedia.org/wiki/File:Pedestrians_using_crosswalk_(Unsplash).jpg |
+| Storymaker whoosh takes, rendered with earshot 0.4.0 from a fit of "Short Whoosh, 13x" by Kinoton | `assets/storymaker/sfx/whoosh_*.wav`, `ui/img/storymaker/sfx/whoosh_*.wav` | CC0 1.0 Universal | https://freesound.org/people/Kinoton/sounds/427979/ |
+| Storymaker click takes, rendered with earshot 0.4.0 from a fit of "Plastic Clicks.flac" by qubodup | `assets/storymaker/sfx/click_*.wav`, `ui/img/storymaker/sfx/click_*.wav` | CC0 1.0 Universal | https://freesound.org/people/qubodup/sounds/167829/ |
+| Storymaker ding and success takes, rendered with earshot 0.4.0 from a fit of "Small Bell #2" by steffcaffrey | `assets/storymaker/sfx/ding_*.wav`, `assets/storymaker/sfx/success_*.wav`, the same names in `ui/img/storymaker/sfx/` | CC0 1.0 Universal | https://freesound.org/people/steffcaffrey/sounds/452379/ |
+| Storymaker pop, error and typing takes, code-made with earshot 0.4.0 forge sounds, no recording | `assets/storymaker/sfx/pop_*.wav`, `assets/storymaker/sfx/error_*.wav`, `assets/storymaker/sfx/typing_*.wav`, the same names in `ui/img/storymaker/sfx/` | earshot is MIT; the rights reading of rendered output is open, see `assets/storymaker/README.md` | earshot 0.4.0 (git 591fa3e) |
 
 ---
 
