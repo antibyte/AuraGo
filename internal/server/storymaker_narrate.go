@@ -4,10 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
+	"io/fs"
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"time"
 	"unicode/utf8"
@@ -226,6 +229,9 @@ func (s *Server) storymakerFreeDisk(path string) (int64, error) {
 // call already in flight. Every error it returns is a *render.JobError, because a plain
 // context.Canceled would surface as render_failed.
 func (s *Server) storymakerAudioRun(ctx context.Context, rt *storymakerRuntime, job render.Job, payload any, h *render.Handle) (render.Output, error) {
+	if music, ok := payload.(storymakerMusicPayload); ok {
+		return s.storymakerMusicRun(ctx, rt, job, music, h)
+	}
 	ctx, release, err := s.beginDesktopRun(ctx)
 	if err != nil {
 		return render.Output{}, s.storymakerNarrateStopped()
@@ -481,4 +487,141 @@ func storymakerProviderMessage(err error) string {
 		return string(text[:200]) + "..."
 	}
 	return string(text)
+}
+
+const (
+	maxMusicSourceBytes = int64(1) << 30 // 1 GiB
+	minMusicDurationMS  = 1000
+	maxMusicDurationMS  = 3600000
+)
+
+// storymakerMusicPayload is the payload of a music job. DurationMS is the film length, for a generated track. GenerateKey
+// is the music key a Generate click named. Only POST /music with generate:true sets it, and the job calls a provider only
+// for that key, because the story can change while the job waits.
+type storymakerMusicPayload struct {
+	ProjectID   string
+	DurationMS  int
+	GenerateKey string
+}
+
+// storymakerMusicRefusal is a music source that POST /music and the job refuse. Its text is safe to show.
+type storymakerMusicRefusal struct{ message string }
+
+func (e *storymakerMusicRefusal) Error() string { return e.message }
+
+func storymakerMusicDurationOK(ms int) bool {
+	return ms >= minMusicDurationMS && ms <= maxMusicDurationMS
+}
+
+// storymakerMusicAudioRel returns file relative to DataDir/audio in slash form, and refuses a file outside it.
+func storymakerMusicAudioRel(cfg *config.Config, file string) (string, error) {
+	root, err := filepath.Abs(filepath.Join(cfg.Directories.DataDir, "audio"))
+	if err != nil {
+		return "", fmt.Errorf("resolve the audio folder: %w", err)
+	}
+	abs, err := filepath.Abs(file)
+	if err != nil {
+		return "", fmt.Errorf("resolve the music file: %w", err)
+	}
+	rel, err := filepath.Rel(root, abs)
+	if err != nil || !filepath.IsLocal(rel) {
+		return "", &storymakerMusicRefusal{message: "The music file is not in the audio folder."}
+	}
+	return filepath.ToSlash(rel), nil
+}
+
+// storymakerMusicTrackPath turns a media id into its desktop path below the Music mount.
+func (s *Server) storymakerMusicTrackPath(cfg *config.Config, track string) (string, error) {
+	id, err := strconv.ParseInt(track, 10, 64)
+	if err != nil || id <= 0 {
+		return "", &storymakerMusicRefusal{message: "The music track id is not valid."}
+	}
+	item, err := tools.GetMedia(s.MediaRegistryDB, id)
+	if err != nil {
+		return "", fmt.Errorf("%w: track %d", storymaker.ErrMusicSourceMissing, id)
+	}
+	if item.MediaType != "music" {
+		return "", &storymakerMusicRefusal{message: "This media item is not a music track."}
+	}
+	rel, err := storymakerMusicAudioRel(cfg, item.FilePath)
+	if err != nil {
+		return "", err
+	}
+	return "Music/" + rel, nil
+}
+
+// storymakerMusicSourceOpen opens the story's file or track. Every source goes through Store.Open, so the desktop's
+// mount and symlink checks hold. A missing source wraps storymaker.ErrMusicSourceMissing.
+func (s *Server) storymakerMusicSourceOpen(ctx context.Context, rt *storymakerRuntime, cfg *config.Config, m *storymaker.Music) (io.ReadSeekCloser, storymaker.FileInfo, error) {
+	source := m.File
+	if m.Track != "" {
+		trackPath, err := s.storymakerMusicTrackPath(cfg, m.Track)
+		if err != nil {
+			return nil, storymaker.FileInfo{}, err
+		}
+		source = trackPath
+	}
+	r, info, err := rt.store.Open(ctx, source)
+	switch {
+	case err == nil:
+		return r, info, nil
+	case errors.Is(err, fs.ErrNotExist):
+		return nil, storymaker.FileInfo{}, fmt.Errorf("%w: %w", storymaker.ErrMusicSourceMissing, err)
+	case ctx.Err() != nil:
+		return nil, storymaker.FileInfo{}, ctx.Err()
+	}
+	return nil, storymaker.FileInfo{}, &storymakerMusicRefusal{message: "The music source could not be opened."}
+}
+
+// storymakerCheckMusicSource makes the checks that read no more than the head of a source: size, format by its bytes
+// and free disk. It leaves r at the start and returns the format.
+func storymakerCheckMusicSource(r io.ReadSeeker, size int64, workspaceDir string) (string, error) {
+	if size > maxMusicSourceBytes {
+		return "", &storymakerMusicRefusal{message: "The music file is larger than 1 GiB."}
+	}
+	head := make([]byte, 12)
+	n, err := io.ReadFull(r, head)
+	if err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) {
+		return "", fmt.Errorf("read the music source: %w", err)
+	}
+	if _, err := r.Seek(0, io.SeekStart); err != nil {
+		return "", fmt.Errorf("rewind the music source: %w", err)
+	}
+	ext := storymaker.SniffAudio(head[:n])
+	if ext != "wav" && ext != "mp3" {
+		return "", &storymakerMusicRefusal{message: "The music file is not WAV or MP3."}
+	}
+	free, err := fileutil.FreeDiskBytes(workspaceDir)
+	if err != nil {
+		return "", fmt.Errorf("read the free disk space: %w", err)
+	}
+	if free < size+render.MinFreeDiskBytes {
+		return "", &storymakerMusicRefusal{message: fmt.Sprintf("The disk has %d MiB free, and this music file needs %d MiB.", free>>20, (size+render.MinFreeDiskBytes)>>20)}
+	}
+	return ext, nil
+}
+
+// storymakerMusicSourceProblem runs the checks POST /music makes before any job exists.
+func (s *Server) storymakerMusicSourceProblem(ctx context.Context, rt *storymakerRuntime, cfg *config.Config, m *storymaker.Music) error {
+	src, info, err := s.storymakerMusicSourceOpen(ctx, rt, cfg, m)
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+	if _, err := storymakerCheckMusicSource(src, info.Size, cfg.VirtualDesktop.WorkspaceDir); err != nil {
+		return err
+	}
+	_, durationMS, err := storymaker.ProbeAudio(src)
+	if err != nil {
+		return &storymakerMusicRefusal{message: "The music file could not be read as audio."}
+	}
+	if !storymakerMusicDurationOK(durationMS) {
+		return &storymakerMusicRefusal{message: "The music file must last between 1 second and 1 hour."}
+	}
+	return nil
+}
+
+// storymakerMusicRun is the music job. A25b replaces this stub with the copy of a file or track source.
+func (s *Server) storymakerMusicRun(ctx context.Context, rt *storymakerRuntime, job render.Job, p storymakerMusicPayload, h *render.Handle) (render.Output, error) {
+	return render.Output{}, render.Fail(render.CodeMusicFailed, "Music jobs cannot run yet.")
 }

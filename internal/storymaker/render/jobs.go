@@ -75,10 +75,13 @@ const (
 	jobsFileVersion      = 1
 )
 
-// Codes of the audio gates on POST /render.
+// Codes of the audio gates on POST /render and of the music job, and the phase of that job.
 const (
 	CodeNarrationIncomplete = "narration_incomplete"
 	CodeMusicIncomplete     = "music_incomplete"
+	CodeMusicFailed         = "music_failed"
+
+	PhaseGenerating = "generating"
 )
 
 // ErrBusy means the render queue already holds DefaultMaxQueued waiting jobs.

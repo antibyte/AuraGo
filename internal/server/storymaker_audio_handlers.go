@@ -2,8 +2,10 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"regexp"
 	"sort"
@@ -636,5 +638,117 @@ func (s *Server) storymakerLocalVoiceRows(ctx context.Context, cfg *config.Confi
 		storymakerSanoRow(cfg),
 		storymakerSupertonicRow(ctx, cfg),
 		s.storymakerSpeechLabRow(ctx, cfg),
+	}
+}
+
+// handleStorymakerMusic answers POST /projects/{id}/music: it checks the source before any job exists and queues a job
+// only when the key's file or meta is missing. A generation starts only from a call with generate:true, which only the
+// Generate button sends.
+func handleStorymakerMusic(s *Server, w http.ResponseWriter, r *http.Request, id string) {
+	if r.Method != http.MethodPost {
+		writeStorymakerMethodError(w, "POST")
+		return
+	}
+	acc, ok := storymakerAuthorize(s, w, r, desktopScopeWrite, desktopWrite, true)
+	if !ok {
+		return
+	}
+	var req struct {
+		DurationMS int  `json:"duration_ms"`
+		Generate   bool `json:"generate"`
+	}
+	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, storymakerJSONLimit))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&req); err != nil && !errors.Is(err, io.EOF) {
+		writeStorymakerError(w, http.StatusBadRequest, "invalid_request", `The request body must be empty or {"duration_ms": ..., "generate": true}.`, nil)
+		return
+	}
+	ctx := r.Context()
+	data, _, err := acc.rt.projects.LoadStory(ctx, id)
+	if err != nil {
+		mapStorymakerError(w, err, "project_not_found")
+		return
+	}
+	story, _, err := storymaker.DecodeStory(data, storymakerLimits(acc.cfg))
+	if err != nil {
+		mapStorymakerError(w, err, "project_not_found")
+		return
+	}
+	storymaker.ApplyDefaults(&story)
+	key, err := s.storymakerMusicKey(ctx, story.Music)
+	if err != nil {
+		writeStorymakerMusicSourceError(w, err)
+		return
+	}
+	if key == "" {
+		writeStorymakerJSON(w, http.StatusOK, map[string]any{"job": nil})
+		return
+	}
+	if story.Music.Mode == "generated" {
+		limit := acc.cfg.Storymaker.Render.MaxDurationSeconds * 1000
+		if req.DurationMS < minMusicDurationMS || req.DurationMS > limit {
+			writeStorymakerError(w, http.StatusBadRequest, "invalid_argument", fmt.Sprintf("duration_ms must be between %d and %d.", minMusicDurationMS, limit), nil)
+			return
+		}
+	}
+	meta, audioExt, err := acc.rt.projects.MusicInfo(ctx, id, key)
+	if err != nil {
+		writeStorymakerError(w, http.StatusInternalServerError, "storage_failed", "The project storage failed.", nil)
+		return
+	}
+	if meta.V == 1 && audioExt != "" {
+		writeStorymakerJSON(w, http.StatusOK, map[string]any{"job": nil})
+		return
+	}
+	// A stored file without valid meta needs neither its source nor a provider: the job only probes it.
+	if audioExt == "" {
+		if story.Music.Mode == "generated" {
+			// A generation costs money, so a call without the click queues nothing, and the panel offers the button. This also
+			// stops a file job's automatic call that lands right after a switch to generated.
+			if !req.Generate {
+				writeStorymakerJSON(w, http.StatusOK, map[string]any{"job": nil})
+				return
+			}
+			if !acc.cfg.MusicConfigured() {
+				writeStorymakerError(w, http.StatusConflict, "music_unavailable", "No music provider is configured.", nil)
+				return
+			}
+			if !acc.cfg.UsesLocalMusic() && s.BudgetTracker.IsBlocked("music_generation") {
+				writeStorymakerError(w, http.StatusConflict, render.CodeBudgetExceeded, "The daily budget is used up, so no music can be generated.", nil)
+				return
+			}
+		} else if err := s.storymakerMusicSourceProblem(ctx, acc.rt, acc.cfg, story.Music); err != nil {
+			writeStorymakerMusicSourceError(w, err)
+			return
+		}
+	}
+	payload := storymakerMusicPayload{ProjectID: id, DurationMS: req.DurationMS}
+	if story.Music.Mode == "generated" && req.Generate {
+		payload.GenerateKey = key
+	}
+	job, replayed, err := acc.rt.narrate.Enqueue(render.EnqueueRequest{
+		ProjectID: id, Kind: render.KindMusic, Coalesce: true, Payload: payload,
+	})
+	switch {
+	case errors.Is(err, render.ErrBusy):
+		writeStorymakerError(w, http.StatusTooManyRequests, render.CodeBusy, "Too many audio jobs are waiting. Try again when one has finished.", nil)
+	case err != nil:
+		writeStorymakerError(w, http.StatusInternalServerError, "job_failed", "The music job could not be queued.", nil)
+	case replayed:
+		writeStorymakerJSON(w, http.StatusOK, map[string]any{"job": job})
+	default:
+		writeStorymakerJSON(w, http.StatusAccepted, map[string]any{"job": job})
+	}
+}
+
+func writeStorymakerMusicSourceError(w http.ResponseWriter, err error) {
+	var refusal *storymakerMusicRefusal
+	switch {
+	case errors.Is(err, storymaker.ErrMusicSourceMissing):
+		writeStorymakerErrorWith(w, http.StatusUnprocessableEntity, "invalid_music_file", "The music source no longer exists.", map[string]any{"music_issue": "source_missing"})
+	case errors.As(err, &refusal):
+		writeStorymakerError(w, http.StatusUnprocessableEntity, "invalid_music_file", refusal.message, nil)
+	default:
+		writeStorymakerError(w, http.StatusInternalServerError, "storage_failed", "The project storage failed.", nil)
 	}
 }

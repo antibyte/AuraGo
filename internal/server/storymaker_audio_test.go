@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"net"
@@ -23,6 +24,7 @@ import (
 	"aurago/internal/realtimespeech"
 	"aurago/internal/storymaker"
 	"aurago/internal/storymaker/render"
+	"aurago/internal/storymaker/storymakertest"
 	"aurago/internal/tools"
 )
 
@@ -589,4 +591,190 @@ func TestStorymakerVoiceNotesHoldFactsOnly(t *testing.T) {
 		}
 	}
 	assertStorymakerVoiceNotesAreFacts(t, rows)
+}
+
+// musicRouteWAV builds a silent 8 kHz mono PCM16 WAV. The route and the job read its header only.
+func musicRouteWAV(seconds float64) []byte {
+	const rate = 8000
+	frames := int(seconds * rate)
+	data := make([]byte, 44+frames*2)
+	copy(data, "RIFF")
+	binary.LittleEndian.PutUint32(data[4:], uint32(36+frames*2))
+	copy(data[8:], "WAVEfmt ")
+	binary.LittleEndian.PutUint32(data[16:], 16)
+	binary.LittleEndian.PutUint16(data[20:], 1)
+	binary.LittleEndian.PutUint16(data[22:], 1)
+	binary.LittleEndian.PutUint32(data[24:], rate)
+	binary.LittleEndian.PutUint32(data[28:], rate*2)
+	binary.LittleEndian.PutUint16(data[32:], 2)
+	binary.LittleEndian.PutUint16(data[34:], 16)
+	copy(data[36:], "data")
+	binary.LittleEndian.PutUint32(data[40:], uint32(frames*2))
+	return data
+}
+
+func writeMusicSource(t *testing.T, s *Server, rel string, data []byte) {
+	t.Helper()
+	target := filepath.Join(s.Cfg.VirtualDesktop.WorkspaceDir, filepath.FromSlash(rel))
+	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(target, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func musicRouteStory(t *testing.T, s *Server, token string, p *apiProject, music string) {
+	t.Helper()
+	doc := `{"schema":"storymaker/1","title":"Music","music":` + music + `,"scenes":[{"id":"s1"}]}`
+	w := storymakerRequest(s, token, http.MethodPut, "/projects/"+p.Project.ID+"/story", strings.NewReader(doc), map[string]string{"If-Match": p.ETag})
+	var saved struct {
+		ETag string `json:"etag"`
+	}
+	decodeBody(t, w, &saved)
+	if w.Code != http.StatusOK {
+		t.Fatalf("save story: %d %s", w.Code, w.Body.String())
+	}
+	p.ETag = saved.ETag
+}
+
+func postMusic(s *Server, token, id, body string) *httptest.ResponseRecorder {
+	return storymakerRequest(s, token, http.MethodPost, "/projects/"+id+"/music", strings.NewReader(body), nil)
+}
+
+func TestStorymakerMusicRouteRefusesBadSources(t *testing.T) {
+	s, _, token := storymakerAPIFixture(t)
+	p := createStorymakerProject(t, s, token)
+	id := p.Project.ID
+
+	// The bytes decide, never the name: OggS is neither WAV nor MP3.
+	writeMusicSource(t, s, "Documents/theme.ogg", append([]byte("OggS"), make([]byte, 64)...))
+	// One byte over the 1 GiB limit. Truncate writes nothing, so this takes no time.
+	writeMusicSource(t, s, "Documents/big.wav", musicRouteWAV(0.1))
+	big, err := os.OpenFile(filepath.Join(s.Cfg.VirtualDesktop.WorkspaceDir, "Documents", "big.wav"), os.O_WRONLY, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := big.Truncate(1<<30 + 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := big.Close(); err != nil {
+		t.Fatal(err)
+	}
+	// 0.5 s is under the 1 s minimum.
+	writeMusicSource(t, s, "Documents/short.wav", musicRouteWAV(0.5))
+
+	type answer struct {
+		Code       string `json:"code"`
+		MusicIssue string `json:"music_issue"`
+	}
+	for _, file := range []string{"theme.ogg", "big.wav", "short.wav"} {
+		musicRouteStory(t, s, token, &p, `{"mode":"file","file":"Documents/`+file+`"}`)
+		w := postMusic(s, token, id, "")
+		var got answer
+		decodeBody(t, w, &got)
+		if w.Code != http.StatusUnprocessableEntity || got.Code != "invalid_music_file" || got.MusicIssue != "" {
+			t.Fatalf("%s: %d %s", file, w.Code, w.Body.String())
+		}
+	}
+
+	musicRouteStory(t, s, token, &p, `{"mode":"file","file":"Documents/gone.wav"}`)
+	w := postMusic(s, token, id, "")
+	var got answer
+	decodeBody(t, w, &got)
+	if w.Code != http.StatusUnprocessableEntity || got.Code != "invalid_music_file" || got.MusicIssue != "source_missing" {
+		t.Fatalf("missing source: %d %s", w.Code, w.Body.String())
+	}
+}
+
+func TestStorymakerMusicRouteGeneratedMode(t *testing.T) {
+	s, _, token := storymakerAPIFixture(t)
+	p := createStorymakerProject(t, s, token)
+	id := p.Project.ID
+	musicRouteStory(t, s, token, &p, `{"mode":"generated","mood":"calm-ambient"}`)
+	code := func(w *httptest.ResponseRecorder) string {
+		t.Helper()
+		var got struct {
+			Code string `json:"code"`
+		}
+		decodeBody(t, w, &got)
+		return got.Code
+	}
+
+	// Empty means 0. The range is 1000 to max_duration_seconds*1000.
+	tooLong := fmt.Sprintf(`{"duration_ms":%d}`, s.Cfg.Storymaker.Render.MaxDurationSeconds*1000+1)
+	for _, body := range []string{"", `{"duration_ms":999}`, tooLong} {
+		w := postMusic(s, token, id, body)
+		if w.Code != http.StatusBadRequest || code(w) != "invalid_argument" {
+			t.Fatalf("body %q: %d %s", body, w.Code, w.Body.String())
+		}
+	}
+	if w := postMusic(s, token, id, `{"seconds":5}`); w.Code != http.StatusBadRequest || code(w) != "invalid_request" {
+		t.Fatalf("unknown field: %d %s", w.Code, w.Body.String())
+	}
+
+	// Only the Generate click asks for a generation. Any other call queues nothing, and the panel offers the button.
+	w := postMusic(s, token, id, `{"duration_ms":15000}`)
+	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"job":null`) {
+		t.Fatalf("no click: %d %s", w.Code, w.Body.String())
+	}
+
+	// The fixture configures no music provider.
+	w = postMusic(s, token, id, `{"duration_ms":15000,"generate":true}`)
+	if w.Code != http.StatusConflict || code(w) != "music_unavailable" {
+		t.Fatalf("not configured: %d %s", w.Code, w.Body.String())
+	}
+
+	// A stored file with its meta needs no job, whatever the provider state is.
+	rt, err := s.storymakerRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	key := storymaker.MusicKeyGenerated("calm-ambient", "")
+	if err := storymakertest.SeedMusic(context.Background(), rt.projects, id, key, 2); err != nil {
+		t.Fatal(err)
+	}
+	w = postMusic(s, token, id, `{"duration_ms":15000,"generate":true}`)
+	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"job":null`) {
+		t.Fatalf("stored key: %d %s", w.Code, w.Body.String())
+	}
+}
+
+func TestStorymakerMusicRouteQueuesAFileSource(t *testing.T) {
+	s, _, token := storymakerAPIFixture(t)
+	p := createStorymakerProject(t, s, token)
+	writeMusicSource(t, s, "Documents/theme.wav", musicRouteWAV(2))
+	musicRouteStory(t, s, token, &p, `{"mode":"file","file":"Documents/theme.wav"}`)
+	w := postMusic(s, token, p.Project.ID, "")
+	var got struct {
+		Job render.Job `json:"job"`
+	}
+	decodeBody(t, w, &got)
+	if w.Code != http.StatusAccepted || got.Job.Kind != "music" || got.Job.ProjectID != p.Project.ID {
+		t.Fatalf("queue: %d %s", w.Code, w.Body.String())
+	}
+}
+
+func TestStorymakerStatusReportsMusicConfigured(t *testing.T) {
+	s, readToken, _ := storymakerAPIFixture(t)
+	read := func() bool {
+		t.Helper()
+		w := storymakerRequest(s, readToken, http.MethodGet, "/status", nil, nil)
+		var got struct {
+			MusicConfigured bool `json:"music_configured"`
+		}
+		decodeBody(t, w, &got)
+		if w.Code != http.StatusOK {
+			t.Fatalf("status: %d %s", w.Code, w.Body.String())
+		}
+		return got.MusicConfigured
+	}
+	if read() {
+		t.Fatal("music_configured is true with no provider")
+	}
+	s.Cfg.MusicGeneration.Enabled = true
+	s.Cfg.MusicGeneration.APIKey = "test-key"
+	if !read() {
+		t.Fatal("music_configured is false with a provider")
+	}
 }

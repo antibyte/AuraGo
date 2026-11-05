@@ -130,6 +130,8 @@ func handleStorymaker(s *Server) http.HandlerFunc {
 				handleStorymakerProject(s, w, r, id)
 			case len(parts) == 3 && parts[2] == "story":
 				handleStorymakerStory(s, w, r, id)
+			case len(parts) == 3 && parts[2] == "music":
+				handleStorymakerMusic(s, w, r, id)
 			case len(parts) == 3 && parts[2] == "render":
 				handleStorymakerRender(s, w, r, id)
 			case len(parts) == 3 && parts[2] == "events":
@@ -237,6 +239,7 @@ func handleStorymakerStatus(s *Server, w http.ResponseWriter, r *http.Request) {
 	browser := rt.browsers.Status(r.Context(), cfg.Storymaker.Render.BrowserPath)
 	status["ffmpeg"] = ffmpeg
 	status["browser"] = browser
+	status["music_configured"] = cfg.MusicConfigured()
 	status["limits"] = map[string]any{
 		"max_duration_seconds":  cfg.Storymaker.Render.MaxDurationSeconds,
 		"max_scenes":            lim.MaxScenes,
