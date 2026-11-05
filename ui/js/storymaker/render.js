@@ -250,6 +250,19 @@
         if (k !== 1) ctx.setTransform(1, 0, 0, 1, 0, 0);
     }
 
+    // drawBubble: a bubble follows the camera, so its anchor is the owner's head under the camera window win. It draws nothing
+    // without lines or when the owner is not visible. Its colours come from the palette only, so the light text token of a dark
+    // environment cannot land on a white bubble.
+    function drawBubble(ctx, st, states, rc, stage, win) {
+        if (!(st.alpha > 0) || !st.lines || !st.lines.length) return;
+        var owner = states.filter(function (s) { return s.type === 'actor' && s.id === st.owner; })[0];
+        if (!owner || !(owner.alpha > 0)) return;
+        var style = rc.cat.textStyles[st.style] || FALLBACK_TEXT_STYLE;
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        var lay = SM.bubble.layout(ctx, st.lines, style, { canvasW: rc.W, canvasH: rc.H, safe: rc.safe, family: familyOf(rc, style) });
+        SM.bubble.draw(ctx, lay, SM.bubble.anchorOf(stage, owner, win), st.kind, SM.parts.makeResolver([rc.palette]), st.alpha);
+    }
+
     // drawScene(ctx, sc, t, rc): a storyboard or code-scene-like object {env, variant, camera, entities, stages}.
     function drawScene(ctx, sc, t, rc) {
         var stage = stageFor(sc, rc);
@@ -266,6 +279,7 @@
         states.filter(function (s) { return s.type === 'shape' && live(s); }).forEach(function (s) { drawShapeEntity(ctx, s, rc, Mv); });
         var tokens = envTokens(sc, rc);
         states.filter(function (s) { return s.type === 'text'; }).forEach(function (s) { drawText(ctx, s, rc, stage, bw, tokens); });
+        states.filter(function (s) { return s.type === 'bubble'; }).forEach(function (s) { drawBubble(ctx, s, states, rc, stage, win); });
         states.forEach(function (s) { drawHighlight(ctx, s, rc, stage, bw, Mv); });
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.globalAlpha = 1;

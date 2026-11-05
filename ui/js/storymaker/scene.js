@@ -55,6 +55,7 @@
         e.expr = new t.StepTrack(def.expression || 'neutral');
         e.gestures = new t.Intervals();
         e.walks = new t.Intervals();
+        e.speech = new t.Intervals();
         e.highlights = new t.Intervals();
         e.phase = def.phase || 0;
         if (def.hidden) e.alpha.init = 0;
@@ -96,6 +97,21 @@
         return e;
     }
 
+    // createBubble({id, owner, kind, lines, t0, t1}): a bubble of the actor whose id is owner, shown from t0 to t1 with the fades
+    // of SM.bubble. kind is speech or thought and also names the catalog text style. It is drawn in screen space above the texts.
+    function createBubble(def) {
+        var e = base('bubble', def.id, 0, 0), fade = Math.min(SM.bubble.FADE_SECONDS, Math.max(0, def.t1 - def.t0) / 2);
+        e.owner = def.owner;
+        e.kind = def.kind === 'thought' ? 'thought' : 'speech';
+        e.style = e.kind;
+        e.lines = def.lines || [];
+        e.baseScale = 1;
+        e.alpha.init = 0;
+        e.alpha.add(def.t0, def.t0 + fade, 1, 'linear');
+        e.alpha.add(def.t1 - fade, def.t1, 0, 'linear');
+        return e;
+    }
+
     // evalEntity(e, t) = the logical state of an entity at scene time t (no rig or catalog data needed).
     function evalEntity(e, t) {
         var s = { type: e.type, id: e.id, x: e.x.at(t), y: e.y.at(t), alpha: e.alpha.at(t), scale: e.scale.at(t) * (e.baseScale || 1), rot: e.rot.at(t), depth: e.depth };
@@ -121,6 +137,11 @@
         } else if (e.type === 'text') {
             s.text = e.text;
             s.style = e.style;
+        } else if (e.type === 'bubble') {
+            s.owner = e.owner;
+            s.kind = e.kind;
+            s.style = e.style;
+            s.lines = e.lines;
         } else if (e.type === 'shape') {
             s.kind = e.kind;
             s.w = e.w.at(t);
@@ -146,6 +167,6 @@
 
     SM.scene = {
         indexCatalog: indexCatalog, createActor: createActor, createProp: createProp, createText: createText,
-        createShape: createShape, evalEntity: evalEntity, entityEnd: entityEnd
+        createShape: createShape, createBubble: createBubble, evalEntity: evalEntity, entityEnd: entityEnd
     };
 })(typeof globalThis !== 'undefined' ? globalThis : self);
