@@ -307,6 +307,22 @@
         drawScene(ctx, sc, layer.f / timeline.fps, rc);
     }
 
+    // drawCaptions(ctx, timeline, n, rc): the burned caption of frame n in screen space, over whatever the frame drew. The
+    // box bottom sits at 92 % of the height, 82 % in 9:16. The caption time comes from n alone.
+    function drawCaptions(ctx, timeline, n, rc) {
+        if (!timeline.style.captions || !timeline.captions || !timeline.captions.length) return;
+        var cap = SM.captions.at(timeline.captions, n * 1000 / timeline.fps);
+        if (!cap) return;
+        var style = rc.cat.textStyles.subtitle || rc.cat.textStyles.title || FALLBACK_TEXT_STYLE;
+        var x = rc.W / 2, bottom = rc.H * (rc.aspect === '9:16' ? 0.82 : 0.92);
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        var lay = SM.text.layout(ctx, cap.lines.join('\n'), style, {
+            canvasH: rc.H, short: Math.min(rc.W, rc.H), maxWidth: SM.text.maxWidthFor(rc.W, rc.safe, x, style.align || 'center'), family: familyOf(rc, style)
+        });
+        SM.text.draw(ctx, lay, style, x, bottom - lay.height / 2 - lay.pad, SM.parts.makeResolver([rc.palette]), 1);
+        ctx.globalAlpha = 1;
+    }
+
     // renderFrame(timeline, n, ctx, assets, opts): assets = {rig, props: {file: json}, envs: {file: json}, codeFrames,
     // codeErrors, canvas(name, w, h) -> {canvas, ctx}}; opts.width renders at another width (thumbnails).
     function renderFrame(timeline, n, ctx, assets, opts) {
@@ -320,12 +336,13 @@
         }
         if (!plan.transition) {
             drawLayer(ctx, timeline, plan.layers[0], rc);
-            return;
+        } else {
+            var prev = assets.canvas('prev', W, H), cur = assets.canvas('cur', W, H);
+            drawLayer(prev.ctx, timeline, plan.layers[0], rc);
+            drawLayer(cur.ctx, timeline, plan.layers[1], rc);
+            SM.transitions.composite(ctx, plan.transition.kind, plan.transition.p, W, H, prev.canvas, cur.canvas);
         }
-        var prev = assets.canvas('prev', W, H), cur = assets.canvas('cur', W, H);
-        drawLayer(prev.ctx, timeline, plan.layers[0], rc);
-        drawLayer(cur.ctx, timeline, plan.layers[1], rc);
-        SM.transitions.composite(ctx, plan.transition.kind, plan.transition.p, W, H, prev.canvas, cur.canvas);
+        drawCaptions(ctx, timeline, n, rc);
     }
 
     SM.render = {

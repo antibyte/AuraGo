@@ -93,3 +93,34 @@ check('compile report: the captions equal the fixture that Go parses', () => {
     const fixture = readJSON('internal/storymaker/render/testdata/report_measured.json');
     assert.deepEqual(plain(SM.compile(story, audio, catalog).report.captions), fixture.captions);
 });
+
+// ---- Task S9: burned captions. The imports are aliased because this block joins the S4 checks above.
+import s9Assert from 'node:assert/strict';
+import { FakeCanvas as S9Canvas, renderAssets as s9Assets, plain as s9Plain } from '../storymaker-test-support.mjs';
+import { t as s9 } from '../storymaker-test-context.mjs';
+
+const S9 = s9.core();
+
+s9.check('captions: the box bottom sits at 92 % of the height in 16:9 and 1:1, and at 82 % in 9:16', () => {
+    // a boxed text.subtitle, so the bottom edge can be read from the call log
+    const entries = s9.catalog.entries.map(e => e.id === 'text.subtitle' ? { ...e, box: { fill: '$bg2', pad: 0.01, radius: 0.01 } } : e);
+    s9Assert.ok(entries.some(e => e.id === 'text.subtitle'), 'S5 added the style to the mini catalog');
+    const boxed = { ...s9.catalog, entries };
+    for (const [aspect, share] of [['16:9', 0.92], ['1:1', 0.92], ['9:16', 0.82]]) {
+        const tl = S9.compile({ format: { aspect, fps: 30 }, scenes: [{ id: 'a', narration: 'hallo liebe welt heute' }] }, {}, boxed).timeline;
+        const cv = new S9Canvas(tl.width, tl.height);
+        S9.renderFrame(tl, 10, cv.ctx, s9Assets());
+        const corners = cv.ctx.log.filter(l => l.startsWith('arcTo(')).map(l => l.slice(6, -1).split(',').map(Number));
+        s9Assert.equal(corners.length, 4, aspect + ': one box with four corners');
+        // roundRect runs its second and third arcTo along y + h, the bottom edge of the box
+        s9.near(Math.max(...corners.map(p => Math.max(p[1], p[3]))), share * tl.height, 0.01, aspect + ' bottom edge');
+    }
+});
+
+s9.check('captions: a Latin story with narration and no on-screen text needs the base font, only while captions are drawn', () => {
+    const needs = story => s9Plain(S9.compile(story, {}, s9.catalog).needs);
+    const narrated = { scenes: [{ id: 'a', narration: 'eins zwei drei vier' }] };
+    s9Assert.ok(needs(narrated).includes('font:default/400'), 'captions on: the mini catalog has one font, default at weight 400');
+    s9Assert.ok(!needs({ ...narrated, style: { captions: false } }).includes('font:default/400'), 'captions off: nothing draws');
+    s9Assert.ok(!needs({ scenes: [{ id: 'a' }] }).includes('font:default/400'), 'no narration: no caption to draw');
+});

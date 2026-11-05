@@ -152,7 +152,8 @@ check('compile tolerates missing optional fields and reports a story without sce
     const codeFailed = SM.compile({ scenes: [{ id: 'c', kind: 'code' }] }, {}, catalog, { codeScenes: { c: { error: { code: 'code_error', message: 'boom', line: 3, column: 5 } } } });
     assert.match(codeFailed.report.issues.find(i => i.code === 'code_error').message, /boom \(line 3, column 5\)/);
     const needs = plain(compiled.needs);
-    assert.deepEqual(needs, ['catalog:environments/abstract-tech.json', 'catalog:environments/office.json', 'catalog:props/lock.json', 'catalog:props/shield.json', 'catalog:rig/human.json']);
+    // firewall has narration, so its captions draw in text.subtitle; the mini catalog has one font, default at weight 400
+    assert.deepEqual(needs, ['catalog:environments/abstract-tech.json', 'catalog:environments/office.json', 'catalog:props/lock.json', 'catalog:props/shield.json', 'catalog:rig/human.json', 'font:default/400']);
 });
 
 check('frame plan: one layer, or two with the transition share p in (0, 1)', () => {

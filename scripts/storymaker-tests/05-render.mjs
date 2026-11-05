@@ -122,6 +122,33 @@ check('layout memo: a sliding text renders the same at its frames in both orders
     assert.equal(lines(15), 1);
 });
 
+check('captions: drawn last, after the transition composite, in both branches and in thumbnails; none with style.captions false', () => {
+    // a: 4 words / 2.3 = 1.739 s of narration + 0.4 s tail = 64 frames. b overlaps by its 15-frame fade, so it starts at frame 49.
+    // Frame 50 is 1667 ms: inside the fade and inside the caption of a, which ends at 1739 ms. Frame 10 is a plain frame of a.
+    const story = { scenes: [{ id: 'a', narration: 'eins zwei drei vier' }, { id: 'b', narration: 'fuenf sechs sieben acht', transition: 'fade' }] };
+    const tl = SM.compile(story, {}, catalog).timeline, fading = tl.schedule.scenes[1].start_frame + 1;
+    const isCaption = l => l.startsWith('fillText(eins zwei drei vier,');
+
+    const plainFrame = renderLog(tl, 10), at = plainFrame.findIndex(isCaption);
+    assert.ok(at >= 0, 'the caption is on a frame without a transition');
+    assert.ok(!plainFrame.slice(at + 1).some(l => /^(fill|stroke|drawImage|fillText)\(/.test(l)), 'nothing draws over it');
+
+    const layers = {};
+    const canvas = (name, w, h) => { const c = new FakeCanvas(w, h); layers[name] = c; return { canvas: c, ctx: c.ctx }; };
+    const out = new FakeCanvas(tl.width, tl.height);
+    SM.renderFrame(tl, fading, out.ctx, renderAssets({ canvas }));
+    const lastImage = out.ctx.log.map(l => l.startsWith('drawImage')).lastIndexOf(true);
+    assert.ok(lastImage >= 0, 'the transition composited its two canvases');
+    assert.ok(out.ctx.log.findIndex(isCaption) > lastImage, 'the caption comes after the composite');
+    assert.ok(![...layers.prev.ctx.log, ...layers.cur.ctx.log].some(isCaption), 'no scene layer holds the caption');
+
+    assert.ok(renderLog(tl, 10, undefined, 320).some(isCaption), 'a thumbnail draws it too');
+
+    const off = SM.compile({ ...story, style: { captions: false } }, {}, catalog);
+    assert.ok(off.report.captions.length > 0, 'the report keeps its captions, so SRT works with burn-in off');
+    for (const n of [10, fading]) assert.ok(!renderLog(off.timeline, n).some(isCaption), 'no caption with style.captions false at frame ' + n);
+});
+
 check('rig state: a gesture in progress, the seated typing pose, the walk cycle in profile', () => {
     const point = t.byId('gesture.point');
     // rigState: a gesture in progress, the typing pose seated, the walk cycle in profile

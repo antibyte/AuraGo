@@ -208,6 +208,15 @@
             fontFamilies: families, fontChain: fontChain, cat: cat, rigFile: catalog && catalog.rig && catalog.rig.file || '', safe: catalog && catalog.stage && catalog.stage.safe || null,
             scenes: scenes, schedule: schedule, narrationEvents: narrationEvents
         };
+        // Burned captions draw in text.subtitle, in renderFrame. A story with narration and no on-screen text has no text
+        // entity, so this is the only key that loads the base font for them.
+        timeline.captions = report.captions;
+        if (timeline.style.captions && report.captions.length) {
+            var subtitle = cat.textStyles.subtitle || cat.textStyles.title || {};
+            var subtitleFont = !subtitle.font || subtitle.font === 'default' ? styleFont : subtitle.font;
+            var subtitleKey = fontKey(cat, subtitleFont, subtitle.weight || 400) || fontKey(cat, 'default', subtitle.weight || 400);
+            if (subtitleKey) needs[subtitleKey] = true;
+        }
         return { timeline: timeline, report: report, schedule: schedule, needs: Object.keys(needs).sort() };
     }
 
