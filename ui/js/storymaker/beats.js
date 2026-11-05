@@ -186,6 +186,33 @@
             }
         }
 
+        // ---- say beats. A say with text is its own block: measured when the plan has it, else estimated.
+        var sayInfo = new Map(), sayBlocks = [], audioEvents = [], blocksEnd = 0, blockEnd = plan.T + plan.narration.seconds;
+        beats.forEach(function (b, j) {
+            if (!b || b.do !== 'say') return;
+            var parsed = SM.narration.parse(b.text);
+            // no text, only spaces or only a marker: no words, so no block (the same test as Go's Blocks and sayHasText)
+            if (parsed.words === 0) { sayInfo.set(b, { spoken: false, seconds: 0 }); return; }
+            var measured = plan.narration.dialogue[j] || null;
+            var block = measured || SM.cuemap.estimated(sid + ':b' + j, SM.narration.estimate(parsed.words), parsed.length);
+            sayInfo.set(b, { spoken: true, plain: parsed.plain, block: block, estimated: !measured, seconds: block.duration_ms / 1000 });
+        });
+
+        // Step 8 of the schedule: a spoken say waits for the block before it and owns the time until its block ends.
+        function sayStart(b, j, t) {
+            var s = sayInfo.get(b);
+            if (!s.spoken) return t;
+            var start = Math.max(t, blockEnd);
+            blockEnd = start + s.seconds;
+            blocksEnd = blockEnd;
+            s.block.pieces.forEach(function (pc, k) {
+                audioEvents.push({ kind: 'dialogue', ref: pc.hash, block_id: s.block.id, piece: k, blockStart: start, at_ms: pc.at_ms });
+            });
+            sayBlocks.push({ start: start, seconds: s.seconds, plain: s.plain, block: s.block });
+            if (s.estimated) warn('warning', beatPath(j, 'text'), 'narration_missing', 'No audio for this say yet; its length is estimated at ' + s.seconds.toFixed(1) + ' s.');
+            return start;
+        }
+
         var kinds = {
             enter: {
                 dur: function () { return DEF.enter * f; },
@@ -320,6 +347,17 @@
                 dur: function () { return 0; },
                 run: function (b, j) { warn('minor', beatPath(j), 'not_supported_yet', 'Beat "sfx" is not supported yet; it is ignored.'); }
             },
+            say: {
+                dur: function (b) { return sayInfo.get(b).seconds; },
+                run: function (b, j, t0, dur) {
+                    var s = sayInfo.get(b);
+                    if (!s.spoken) return;
+                    var a = actorOf(b.who, beatPath(j, 'who'));
+                    if (!a) return;
+                    entities.push(S.createBubble({ id: 'bubble-' + j, owner: a.id, kind: b.style, lines: [s.plain], t0: t0, t1: t0 + dur }));
+                    if (s.block.levels && s.block.levels.length) a.speech.add(t0, t0 + s.seconds, { block: s.block });
+                }
+            },
             wait: {
                 dur: function (b) { return b.seconds >= 0 ? b.seconds : 1; },
                 run: function () {}
@@ -418,6 +456,7 @@
             if (cueT !== undefined && floor > 0 && floor > t + 1e-6) {
                 issues.push(P.issue('warning', sid, beatPath(j, 'cue'), 'cue_late', 'The previous beat on this target still runs at marker {' + b.cue + '}; this beat lands at ' + (start + lead).toFixed(2) + ' s.', { at_seconds: start + lead }));
             }
+            if (b.do === 'say') { start = sayStart(b, j, start); end = start + dur; }
             spec.run(b, j, start, dur, tgt);
             if (tgt) lastEnd.set(tgt, Math.max(lastEnd.get(tgt) || 0, end));
             var me = { j: j, kind: b.do, tgt: tgt, start: start, dur: dur, end: end, landing: SM.motion.isArrival(b) ? start + lead : null, cued: cueT !== undefined };
@@ -432,7 +471,7 @@
         for (var k = 0; k < entities.length; k++) { var ee = S.entityEnd(entities[k]); if (ee > motionEnd) motionEnd = ee; }
         return {
             entities: entities, camera: cam, beatsEnd: beatsEnd, motionEnd: motionEnd, framing: framing, actorsPlaced: placed, log: log,
-            holdsEnd: holdsEndOf(log, f), blocksEnd: 0, audioEvents: []
+            holdsEnd: holdsEndOf(log, f), blocksEnd: blocksEnd, audioEvents: audioEvents, sayBlocks: sayBlocks
         };
     }
 

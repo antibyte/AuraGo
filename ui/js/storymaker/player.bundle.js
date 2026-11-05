@@ -2406,6 +2406,33 @@
             }
         }
 
+        // ---- say beats. A say with text is its own block: measured when the plan has it, else estimated.
+        var sayInfo = new Map(), sayBlocks = [], audioEvents = [], blocksEnd = 0, blockEnd = plan.T + plan.narration.seconds;
+        beats.forEach(function (b, j) {
+            if (!b || b.do !== 'say') return;
+            var parsed = SM.narration.parse(b.text);
+            // no text, only spaces or only a marker: no words, so no block (the same test as Go's Blocks and sayHasText)
+            if (parsed.words === 0) { sayInfo.set(b, { spoken: false, seconds: 0 }); return; }
+            var measured = plan.narration.dialogue[j] || null;
+            var block = measured || SM.cuemap.estimated(sid + ':b' + j, SM.narration.estimate(parsed.words), parsed.length);
+            sayInfo.set(b, { spoken: true, plain: parsed.plain, block: block, estimated: !measured, seconds: block.duration_ms / 1000 });
+        });
+
+        // Step 8 of the schedule: a spoken say waits for the block before it and owns the time until its block ends.
+        function sayStart(b, j, t) {
+            var s = sayInfo.get(b);
+            if (!s.spoken) return t;
+            var start = Math.max(t, blockEnd);
+            blockEnd = start + s.seconds;
+            blocksEnd = blockEnd;
+            s.block.pieces.forEach(function (pc, k) {
+                audioEvents.push({ kind: 'dialogue', ref: pc.hash, block_id: s.block.id, piece: k, blockStart: start, at_ms: pc.at_ms });
+            });
+            sayBlocks.push({ start: start, seconds: s.seconds, plain: s.plain, block: s.block });
+            if (s.estimated) warn('warning', beatPath(j, 'text'), 'narration_missing', 'No audio for this say yet; its length is estimated at ' + s.seconds.toFixed(1) + ' s.');
+            return start;
+        }
+
         var kinds = {
             enter: {
                 dur: function () { return DEF.enter * f; },
@@ -2540,6 +2567,17 @@
                 dur: function () { return 0; },
                 run: function (b, j) { warn('minor', beatPath(j), 'not_supported_yet', 'Beat "sfx" is not supported yet; it is ignored.'); }
             },
+            say: {
+                dur: function (b) { return sayInfo.get(b).seconds; },
+                run: function (b, j, t0, dur) {
+                    var s = sayInfo.get(b);
+                    if (!s.spoken) return;
+                    var a = actorOf(b.who, beatPath(j, 'who'));
+                    if (!a) return;
+                    entities.push(S.createBubble({ id: 'bubble-' + j, owner: a.id, kind: b.style, lines: [s.plain], t0: t0, t1: t0 + dur }));
+                    if (s.block.levels && s.block.levels.length) a.speech.add(t0, t0 + s.seconds, { block: s.block });
+                }
+            },
             wait: {
                 dur: function (b) { return b.seconds >= 0 ? b.seconds : 1; },
                 run: function () {}
@@ -2638,6 +2676,7 @@
             if (cueT !== undefined && floor > 0 && floor > t + 1e-6) {
                 issues.push(P.issue('warning', sid, beatPath(j, 'cue'), 'cue_late', 'The previous beat on this target still runs at marker {' + b.cue + '}; this beat lands at ' + (start + lead).toFixed(2) + ' s.', { at_seconds: start + lead }));
             }
+            if (b.do === 'say') { start = sayStart(b, j, start); end = start + dur; }
             spec.run(b, j, start, dur, tgt);
             if (tgt) lastEnd.set(tgt, Math.max(lastEnd.get(tgt) || 0, end));
             var me = { j: j, kind: b.do, tgt: tgt, start: start, dur: dur, end: end, landing: SM.motion.isArrival(b) ? start + lead : null, cued: cueT !== undefined };
@@ -2652,7 +2691,7 @@
         for (var k = 0; k < entities.length; k++) { var ee = S.entityEnd(entities[k]); if (ee > motionEnd) motionEnd = ee; }
         return {
             entities: entities, camera: cam, beatsEnd: beatsEnd, motionEnd: motionEnd, framing: framing, actorsPlaced: placed, log: log,
-            holdsEnd: holdsEndOf(log, f), blocksEnd: 0, audioEvents: []
+            holdsEnd: holdsEndOf(log, f), blocksEnd: blocksEnd, audioEvents: audioEvents, sayBlocks: sayBlocks
         };
     }
 
@@ -2827,7 +2866,7 @@
     }
 
     // dropPastFilmEnd(events, filmMs, scenes, issues): the audio events that start inside the film. A scene that lost an event
-    // gets one warning; the warning of a duration shorter than the narration already is that one.
+    // gets one warning; the warning of a duration shorter than the speech already is that one.
     function dropPastFilmEnd(events, filmMs, scenes, issues) {
         var kept = [], lost = {};
         events.forEach(function (e) {
@@ -2909,9 +2948,11 @@
             var D;
             if (typeof sc.duration === 'number' && sc.duration > 0) {
                 D = sc.duration;
-                if (n.seconds > 0 && D < T + n.seconds - 0.05) {
+                // Narration and say blocks share one check, so a scene gets one warning at this path.
+                var spokenEnd = Math.max(n.seconds > 0 ? T + n.seconds : 0, built.blocksEnd);
+                if (spokenEnd > 0 && D < spokenEnd - 0.05) {
                     issues.push(P.issue('warning', sc.id, '/scenes/' + i + '/duration', 'invalid_value',
-                        'The scene duration ' + D + ' s is shorter than its narration (' + (T + n.seconds).toFixed(1) + ' s including the transition).'));
+                        'The scene duration ' + D + ' s is shorter than its speech (' + spokenEnd.toFixed(1) + ' s including the transition). The speech overlaps the next scene or is cut at the film end.'));
                 }
             } else if (isCode && codeInfo && codeInfo.duration > 0) {
                 // With narration and without api.duration the scene also covers that narration. A silent scene keeps the length of its motion. A length the author set stays, with a warning when the speech is longer.
@@ -2961,9 +3002,18 @@
                 if (n.plain && (captionsOn || saysNoText)) needGlyphs(n.plain);
             }
 
+            // say blocks: one audio event per piece at a film-global time, one window per block, its captions and its glyph faces
+            (built.audioEvents || []).forEach(function (ev) {
+                audioEvents.push({ kind: ev.kind, ref: ev.ref, start_ms: Math.round((base + ev.blockStart) * 1000) + ev.at_ms, scene_id: sc.id, block_id: ev.block_id, piece: ev.piece });
+            });
+            (built.sayBlocks || []).forEach(function (s) {
+                narrationEvents.push({ kind: 'dialogue', scene_id: sc.id, ref: s.block.pieces.length ? s.block.pieces[0].hash : '', start: base + s.start, end: base + s.start + s.seconds });
+                captionList = captionList.concat(SM.captions.forBlock(s.plain, s.block, Math.round((base + s.start) * 1000), sc.id));
+            });
+
             // fonts in use
             scene.entities.forEach(function (e) {
-                if (e.type !== 'text') return;
+                if (e.type !== 'text' && e.type !== 'bubble') return;
                 var style = cat.textStyles[e.style] || cat.textStyles.title || {};
                 var name = !style.font || style.font === 'default' ? styleFont : style.font;
                 var key = fontKey(cat, name, style.weight || 400) || fontKey(cat, 'default', style.weight || 400);

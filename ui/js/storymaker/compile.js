@@ -29,7 +29,7 @@
     }
 
     // dropPastFilmEnd(events, filmMs, scenes, issues): the audio events that start inside the film. A scene that lost an event
-    // gets one warning; the warning of a duration shorter than the narration already is that one.
+    // gets one warning; the warning of a duration shorter than the speech already is that one.
     function dropPastFilmEnd(events, filmMs, scenes, issues) {
         var kept = [], lost = {};
         events.forEach(function (e) {
@@ -111,9 +111,11 @@
             var D;
             if (typeof sc.duration === 'number' && sc.duration > 0) {
                 D = sc.duration;
-                if (n.seconds > 0 && D < T + n.seconds - 0.05) {
+                // Narration and say blocks share one check, so a scene gets one warning at this path.
+                var spokenEnd = Math.max(n.seconds > 0 ? T + n.seconds : 0, built.blocksEnd);
+                if (spokenEnd > 0 && D < spokenEnd - 0.05) {
                     issues.push(P.issue('warning', sc.id, '/scenes/' + i + '/duration', 'invalid_value',
-                        'The scene duration ' + D + ' s is shorter than its narration (' + (T + n.seconds).toFixed(1) + ' s including the transition).'));
+                        'The scene duration ' + D + ' s is shorter than its speech (' + spokenEnd.toFixed(1) + ' s including the transition). The speech overlaps the next scene or is cut at the film end.'));
                 }
             } else if (isCode && codeInfo && codeInfo.duration > 0) {
                 // With narration and without api.duration the scene also covers that narration. A silent scene keeps the length of its motion. A length the author set stays, with a warning when the speech is longer.
@@ -163,9 +165,18 @@
                 if (n.plain && (captionsOn || saysNoText)) needGlyphs(n.plain);
             }
 
+            // say blocks: one audio event per piece at a film-global time, one window per block, its captions and its glyph faces
+            (built.audioEvents || []).forEach(function (ev) {
+                audioEvents.push({ kind: ev.kind, ref: ev.ref, start_ms: Math.round((base + ev.blockStart) * 1000) + ev.at_ms, scene_id: sc.id, block_id: ev.block_id, piece: ev.piece });
+            });
+            (built.sayBlocks || []).forEach(function (s) {
+                narrationEvents.push({ kind: 'dialogue', scene_id: sc.id, ref: s.block.pieces.length ? s.block.pieces[0].hash : '', start: base + s.start, end: base + s.start + s.seconds });
+                captionList = captionList.concat(SM.captions.forBlock(s.plain, s.block, Math.round((base + s.start) * 1000), sc.id));
+            });
+
             // fonts in use
             scene.entities.forEach(function (e) {
-                if (e.type !== 'text') return;
+                if (e.type !== 'text' && e.type !== 'bubble') return;
                 var style = cat.textStyles[e.style] || cat.textStyles.title || {};
                 var name = !style.font || style.font === 'default' ? styleFont : style.font;
                 var key = fontKey(cat, name, style.weight || 400) || fontKey(cat, 'default', style.weight || 400);
