@@ -66,3 +66,36 @@ check('sfx: a cued sfx in scene 2 has start_ms from the scene start plus its loc
     assert.equal(ev.scene_id, 'b');
     near(ev.start_ms, (base + marker - takesOf('sfx.pop')[ev.take].impact_ms / 1000) * 1000, 1);
 });
+
+const typingStory = id => ({ scenes: [{ id, transition: 'cut', beats: [{ do: 'sfx', sound: 'sfx.typing', duration: 2 }] }] });
+
+check('typing: keys sit 90 to 140 ms apart inside the duration', () => {
+    const x = sfxEvents(SM.compile(typingStory('a'), {}, catalog).report).map(e => e.start_ms + takesOf('sfx.typing')[e.take].impact_ms);
+    // The loop stops only when x reaches 2000 ms. x starts at the first take's impact (at most 13 ms in the mini catalog)
+    // and grows by at most 140 ms, so there are at least 15 keys (13+140k < 2000 holds up to k = 14). It grows by at least
+    // 90 ms, so there are at most floor(2000/90)+1 = 23.
+    assert.ok(x.length >= 15 && x.length <= 23, 'key count ' + x.length);
+    // start_ms is a rounded whole ms, which moves one gap by at most 1 ms.
+    for (let i = 1; i < x.length; i++) {
+        const gap = x[i] - x[i - 1];
+        assert.ok(gap >= 89 && gap <= 141, 'gap ' + gap);
+    }
+    assert.ok(x[x.length - 1] < 2001, 'the last key sits inside the duration');
+});
+
+check('typing: takes are seeded and two compiles match', () => {
+    const once = sfxEvents(SM.compile(typingStory('a'), {}, catalog).report);
+    assert.deepEqual(sfxEvents(SM.compile(typingStory('a'), {}, catalog).report), once);
+    for (let i = 1; i < once.length; i++) assert.notEqual(once[i].take, once[i - 1].take, 'no take twice in a row');
+    const other = sfxEvents(SM.compile(typingStory('b'), {}, catalog).report);
+    assert.notDeepEqual(other.map(e => e.start_ms), once.map(e => e.start_ms), 'the scene id seeds the spacing');
+});
+
+check('typing: the default duration scales with rhythm', () => {
+    const frames = rhythm => SM.compile({ style: { rhythm }, scenes: [{ id: 'a', transition: 'cut', beats: [{ do: 'sfx', sound: 'sfx.typing' }] }] }, {}, catalog).report.scenes[0].end_frame;
+    // 1200 ms times the factor at 30 fps: calm 1.5 s = 45 frames, standard 1.2 s = 36 frames. Lively is 0.96 s, under the
+    // 1.0 s minimum of a scene without speech, so it stays at 30 frames.
+    assert.equal(frames('calm'), 45);
+    assert.equal(frames('standard'), 36);
+    assert.equal(frames('lively'), 30);
+});

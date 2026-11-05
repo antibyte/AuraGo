@@ -390,11 +390,19 @@
             }
         };
 
+        var typingBeats = [];
+
         kinds.sfx = {
-            dur: function () { return 0; },
-            run: function (b, j, t0) {
-                var pick = sfxPicks[j];
-                if (pick) sfxEvents.push({ ref: b.sound, t: t0, take: pick.take });
+            // Frozen 4.6 step 4: 0, or for a pattern its default length times the rhythm factor.
+            dur: function (b) {
+                var entry = S.sfxEntry(cat, b.sound);
+                return entry && entry.pattern ? entry.pattern.default_duration_ms / 1000 * SM.motion.factor((c.story && c.story.style) || {}) : 0;
+            },
+            run: function (b, j, t0, dur) {
+                var pick = sfxPicks[j], entry = S.sfxEntry(cat, b.sound);
+                if (!pick) return;
+                if (entry.pattern) typingBeats.push({ j: j, entry: entry, first: pick, start: t0, dur: dur });
+                else sfxEvents.push({ ref: b.sound, t: t0, take: pick.take });
             }
         };
 
@@ -499,6 +507,10 @@
             if (!byPrev || end >= anchor.end) anchor = me;
             prev = me;
             if (end > beatsEnd) beatsEnd = end;
+        });
+
+        typingBeats.forEach(function (o) {
+            sfxEvents = sfxEvents.concat(SM.motion.typingKeys({ sceneId: sid, j: o.j, entry: o.entry, first: o.first, start: o.start, dur: o.dur, lastTake: lastTake }));
         });
 
         var motionEnd = SM.camera.end(cam);

@@ -2175,7 +2175,27 @@
         return { take: take, impact: (entry.takes[take].impact_ms || 0) / 1000 };
     }
 
+    var MAX_TYPING_KEYS = 32768; // the report's event ceiling; a story that never saw Go must not stall compile
+
+    // typingKeys(o) = the key events of a pattern sfx (frozen 4.6 Typing). o = {sceneId, j, entry, first, start, dur, lastTake}.
+    // first is the take of step 5. x starts at the beat's start plus that take's impact; each key starts at x minus the
+    // impact of its own take; x advances by a seeded spacing while x < start+dur.
+    function typingKeys(o) {
+        var spacing = o.entry.pattern.spacing_ms, lo = spacing[0], span = spacing[1] - spacing[0];
+        var prng = SM.seed.random(o.sceneId + ':' + o.j + ':' + o.entry.id);
+        var pick = o.first, x = o.start + pick.impact, end = o.start + o.dur, key = 0, out = [];
+        while (x < end && out.length < MAX_TYPING_KEYS) {
+            out.push({ ref: o.entry.id, t: x - pick.impact, take: pick.take });
+            x += (lo + span * prng()) / 1000;
+            if (x >= end) break;
+            key++;
+            pick = pickTake(o.sceneId, o.j, o.entry, key, o.lastTake);
+        }
+        return out;
+    }
+
     SM.motion.pickTake = pickTake;
+    SM.motion.typingKeys = typingKeys;
 })(typeof globalThis !== 'undefined' ? globalThis : self);
 
 ;
@@ -2680,11 +2700,19 @@
             }
         };
 
+        var typingBeats = [];
+
         kinds.sfx = {
-            dur: function () { return 0; },
-            run: function (b, j, t0) {
-                var pick = sfxPicks[j];
-                if (pick) sfxEvents.push({ ref: b.sound, t: t0, take: pick.take });
+            // Frozen 4.6 step 4: 0, or for a pattern its default length times the rhythm factor.
+            dur: function (b) {
+                var entry = S.sfxEntry(cat, b.sound);
+                return entry && entry.pattern ? entry.pattern.default_duration_ms / 1000 * SM.motion.factor((c.story && c.story.style) || {}) : 0;
+            },
+            run: function (b, j, t0, dur) {
+                var pick = sfxPicks[j], entry = S.sfxEntry(cat, b.sound);
+                if (!pick) return;
+                if (entry.pattern) typingBeats.push({ j: j, entry: entry, first: pick, start: t0, dur: dur });
+                else sfxEvents.push({ ref: b.sound, t: t0, take: pick.take });
             }
         };
 
@@ -2789,6 +2817,10 @@
             if (!byPrev || end >= anchor.end) anchor = me;
             prev = me;
             if (end > beatsEnd) beatsEnd = end;
+        });
+
+        typingBeats.forEach(function (o) {
+            sfxEvents = sfxEvents.concat(SM.motion.typingKeys({ sceneId: sid, j: o.j, entry: o.entry, first: o.first, start: o.start, dur: o.dur, lastTake: lastTake }));
         });
 
         var motionEnd = SM.camera.end(cam);

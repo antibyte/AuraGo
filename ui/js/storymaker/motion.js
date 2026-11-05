@@ -84,5 +84,25 @@
         return { take: take, impact: (entry.takes[take].impact_ms || 0) / 1000 };
     }
 
+    var MAX_TYPING_KEYS = 32768; // the report's event ceiling; a story that never saw Go must not stall compile
+
+    // typingKeys(o) = the key events of a pattern sfx (frozen 4.6 Typing). o = {sceneId, j, entry, first, start, dur, lastTake}.
+    // first is the take of step 5. x starts at the beat's start plus that take's impact; each key starts at x minus the
+    // impact of its own take; x advances by a seeded spacing while x < start+dur.
+    function typingKeys(o) {
+        var spacing = o.entry.pattern.spacing_ms, lo = spacing[0], span = spacing[1] - spacing[0];
+        var prng = SM.seed.random(o.sceneId + ':' + o.j + ':' + o.entry.id);
+        var pick = o.first, x = o.start + pick.impact, end = o.start + o.dur, key = 0, out = [];
+        while (x < end && out.length < MAX_TYPING_KEYS) {
+            out.push({ ref: o.entry.id, t: x - pick.impact, take: pick.take });
+            x += (lo + span * prng()) / 1000;
+            if (x >= end) break;
+            key++;
+            pick = pickTake(o.sceneId, o.j, o.entry, key, o.lastTake);
+        }
+        return out;
+    }
+
     SM.motion.pickTake = pickTake;
+    SM.motion.typingKeys = typingKeys;
 })(typeof globalThis !== 'undefined' ? globalThis : self);
