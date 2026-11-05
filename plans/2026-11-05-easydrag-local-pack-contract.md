@@ -1,6 +1,7 @@
 # EasyDrag local flow packs
 
-Status: implementation in progress; acceptance evidence is recorded separately.
+Status: implemented locally. Exact clean-checkout backend race, UI bundle, native browser,
+locale and compatibility checks pass; release acceptance and deployment remain separate.
 Roadmap: `2026-11-04-easydrag-flagship-plan.md`, J.7 and the reuse reference journey.
 Owners: flows, server and Desktop EasyDrag guides; Mission Control ownership remains in tools.
 
