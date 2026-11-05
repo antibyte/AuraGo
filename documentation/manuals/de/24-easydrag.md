@@ -113,6 +113,41 @@ oder weitere Abhängigkeiten. Die Versionsansicht ist schreibgeschützt; **Aktue
 öffnen** führt zur Bearbeitung zurück. Der Elternlauf zeigt Baustein-ID und Version des
 Aufrufs, jedoch keinen eigenen Verlauf der untergeordneten Schritte.
 
+### Eine Liste mit einem Baustein verarbeiten
+
+Füge in einem normalen Flow **Für jeden Eintrag** hinzu und wähle ausdrücklich eine
+veröffentlichte Bausteinversion. Unter **Bausteineingabe für jeden Eintrag** wählst Du
+das typisierte Feld, das jeden ganzen Listeneintrag erhält. Die übrigen **Gemeinsamen
+Eingaben** füllst Du einmal aus. **Liste** nimmt eine JSON-Liste oder einen einzelnen
+zugeordneten Ausdruck an, etwa `{{trigger.data.items}}`. Eine Zuordnung ersetzt die
+feste Liste; sie hängt keinen Ausdruck an deren JSON an. Text wie `{{beispiel.feld}}`
+in einem Eintrag bleibt wörtlicher Dateninhalt, auch beim Umbenennen oder Kopieren
+eines anderen Schritts.
+
+Wähle **Maximale Einträge** bewusst (1–1.000, anfangs 100). Eine längere Liste wird vor
+dem ersten Eintrag abgelehnt und niemals gekürzt. Eine leere Liste liefert erfolgreich
+eine leere Ergebnisliste; der JSON-Wert `null` ist keine Liste. Der direkte JSON-Editor erlaubt bis zu 2 MiB,
+200.000 Werte und 64 Ebenen; der gesamte Flow muss weiter ins Dokumentlimit passen.
+Die Feldinfo hält diese Grenzen bereit. Scheitert die Prüfung des Arbeitsbudgets,
+verringere **Maximale Einträge**; ein Klick auf das Problem führt direkt zu diesem Feld.
+
+Die Einträge laufen einzeln in ihrer ursprünglichen Reihenfolge. **Beim ersten Fehler
+abbrechen** nennt den fehlgeschlagenen nullbasierten Index und Fehlercode, ohne ein
+Teilergebnis zu liefern. **Eintragsfehler sammeln** behält geordnete Erfolgs- und
+Fehlereinträge mit erfolgreicher Ausgabe oder stabilem Fehlercode. Abbruch, Zeit- und
+Ressourcengrenzen beenden immer die gesamte Verarbeitung. Die Ausgabe bietet `items`,
+`count`, `succeeded` und `failed`; die Ergebnisansicht unterscheidet verarbeitete
+Gesamtzahlen von aufbewahrten Einträgen und zeigt bis zu 50 Zusammenfassungen. Darunter
+bleiben die Ansichten Baum, Tabelle und JSON verfügbar. Aus gekürzten oder ausgelassenen
+Ergebnissen kannst Du nicht schließen, ob fehlende Einträge erfolgreich waren oder
+scheiterten. Einen getrennten Verlauf der Bausteinläufe gibt es nicht.
+
+Die Simulation verwendet denselben festgelegten reinen Baustein. Eine spätere
+Veröffentlichung aktualisiert diesen Schritt nie automatisch: Prüfe den Versionswechsel
+ausdrücklich. Fällt sein Eingabefeld pro Eintrag weg, bleibt die bisherige Auswahl sichtbar
+nicht verfügbar, bis Du ein anderes wählst. Die Wiederholungszahl bleibt null; verschachtelte
+Bausteine, externe Werkzeuge und dauerhaft wartende Verarbeitung sind ausgeschlossen.
+
 ## Der Editor
 
 Die Schrittliste in der linken Werkzeugleiste zeigt Dir den Flow als sichtbare Liste.
@@ -269,7 +304,7 @@ Gleichheitsvergleich und werden als unvollständig gekennzeichnet. **Diagnose he
 exportiert nur technische Metadaten, ohne Namen, Dateninhalte oder Fehlermeldungstexte.
 Beim Vergleichen wird kein Schritt erneut ausgeführt.
 
-- **Läufe** zeigt zunächst die letzten 50 Läufe, gefiltert nach *Alle*, *Fehler*, *Tests* oder *Live*. **Ältere Läufe laden** holt die nächste aufbewahrte Seite; die Suche durchsucht die geladenen Einträge. Aktualisieren beginnt wieder bei der neuesten Seite. Ein Klick öffnet die genaue Flow-Version mit den gespeicherten Ein- und Ausgaben, nur zum Lesen. Schrittverlauf und Fehlerhinweis helfen bei der Diagnose. **Zurück zum Entwurf** oder **Esc** führt zurück. Die Bausteine-Leiste bleibt in der Laufansicht verborgen; ein Fehlerlauf öffnet sich beim gescheiterten Schritt.
+- **Läufe** zeigt zunächst die letzten 50 Läufe, gefiltert nach *Alle*, *Fehler*, *Tests* oder *Live*. **Ältere Läufe laden** holt die nächste aufbewahrte Seite; die Suche durchsucht die geladenen Einträge. Aktualisieren beginnt wieder bei der neuesten Seite. Ein Klick öffnet die genaue Flow-Version mit den gespeicherten Ein- und Ausgaben, nur zum Lesen. Schrittverlauf und Fehlerhinweis helfen bei der Diagnose. **Zurück zum Entwurf** oder **Esc** führt zurück. Die Bausteine-Leiste bleibt in der Laufansicht verborgen; ein Fehlerlauf öffnet sich beim gescheiterten Schritt. Ein weiterhin sichtbarer Speicherhinweis trägt **Entwurf: …** und gehört zu Deinem bearbeitbaren Entwurf, nicht zum aufgezeichneten Lauf.
 - **Mit diesen Daten erneut testen** öffnet den Testdialog mit den Auslöserdaten des betrachteten Laufs. Ersetze ausgeblendete oder ausgelassene Werte vor einem echten Test. Der Dialog nennt die echten Auswirkungen und fragt vor dem Start; Daten werden nur mit *Diese Daten für spätere Tests merken* gespeichert. Der Knopf fehlt während eines laufenden Tests und bei unvollständig aufbewahrten Auslöserdaten.
 - Ein Lauf, der noch nicht beendet ist (*In Warteschlange* – auch wenn er auf einen freien Platz wartet – oder *Läuft*), zeigt in der Liste und im Banner seiner Ansicht **Stoppen**, auch wenn ein Auslöser oder ein anderes Fenster ihn gestartet hat. Außer bei einem Test fragt EasyDrag vorher nach; Schritte, die schon gelaufen sind, werden nicht rückgängig gemacht. Auch ein schreibgeschützter Desktop bietet **Stoppen** an, denn Stoppen ändert keinen Flow; schreibgeschützte Missionen lehnen es ab.
 - **Jetzt ausführen** (Menü ⋯, das Menü *Flow* oder das Menü einer Karte auf der Startseite) startet die veröffentlichte Version. Der Flow muss **Aktiv** sein: Solange er pausiert ist, ist *Jetzt ausführen* ausgeschaltet, und sein Tooltip sagt, dass du den Flow zuerst einschalten musst, so wie Mission Control eine pausierte Mission nicht ausführt. **Testen** geht in beiden Fällen.

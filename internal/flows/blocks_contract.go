@@ -24,7 +24,7 @@ const (
 	maxBlockFields     = 64
 	maxBlockBytes      = 16 << 20
 	maxBatchItems      = 1000
-	maxBatchWorkers    = 4
+	maxBatchWorkers    = 1
 )
 
 var (
@@ -212,7 +212,10 @@ func blockReference(node Node) (blockRef, error) {
 		items, itemOK := node.Params["max_items"].(float64)
 		workers, workerOK := node.Params["concurrency"].(float64)
 		policy, policyOK := node.Params["on_item_error"].(string)
-		if !itemOK || !workerOK || math.Trunc(items) != items || math.Trunc(workers) != workers || items < 1 || items > maxBatchItems || workers < 1 || workers > maxBatchWorkers || !policyOK || (policy != "stop" && policy != "continue" && policy != "collect") {
+		if !itemOK || !workerOK || math.IsNaN(items) || math.IsInf(items, 0) || math.Trunc(items) != items || math.Trunc(workers) != workers || items < 1 || items > maxBatchItems || workers != maxBatchWorkers || !policyOK || (policy != "stop" && policy != "collect") {
+			return blockRef{}, errBlockContract
+		}
+		if _, exists := node.Params["index_field"]; exists {
 			return blockRef{}, errBlockContract
 		}
 	}

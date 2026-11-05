@@ -281,7 +281,12 @@
         // state, a failure above all, stays visible there.
         function syncSaveChip() {
             const node = el.querySelector('[data-ed-save]');
-            if (node && ed.saver) node.hidden = !!ed.runView && ed.saver.state === 'saved';
+            if (node && ed.saver) {
+                node.hidden = !!ed.runView && ed.saver.state === 'saved';
+                const text = node.querySelector('.ed-foot-text'), state = t('easydrag.ui.save_' + ed.saver.state);
+                const label = ed.runView ? t('easydrag.ui.save_draft_status', { status: state }) : state;
+                if (text && text.textContent !== label) text.textContent = label;
+            }
         }
 
         function renderIssues() {

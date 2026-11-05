@@ -358,7 +358,7 @@ func lintUntrusted(f *Flow, reg *Registry) ([]Issue, untrustedRoots) {
 		originRoots := map[string]urlOrigin{}
 		reported := map[string]bool{}
 		warned := map[string]bool{}
-		refs, problems := CollectTemplateRefs(n.Params)
+		refs, problems := CollectTemplateRefs(nodeTemplateParams(n))
 		// The node's key, cut like an error echo, is part of every message.
 		nodeKey := echoKey(n.Key)
 		// ancestors is computed once per node, and only for a ref in a secret target.

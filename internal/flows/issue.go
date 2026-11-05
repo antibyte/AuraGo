@@ -55,6 +55,7 @@ const (
 	IssueNodeNotFound            = "FLOW_NODE_NOT_FOUND" // a test run's OnlyNode is not in the document; also a run error
 	IssueParamRequired           = "PARAM_REQUIRED"
 	IssueParamInvalid            = "PARAM_INVALID"
+	IssueBatchWorkLimit          = "BATCH_WORK_LIMIT"
 	IssueEdgeIDDuplicate         = "EDGE_ID_DUPLICATE"
 	IssueEdgeNodeMissing         = "EDGE_NODE_MISSING"
 	IssueEdgePortInvalid         = "EDGE_PORT_INVALID"

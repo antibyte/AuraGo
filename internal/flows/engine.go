@@ -231,6 +231,7 @@ var nonRetryableCodes = map[string]bool{
 	"FLOW_SECRET_UNAVAILABLE":          true,
 	"FLOW_OUTPUT_TOO_LARGE":            true,
 	"FLOW_SIMULATION_FIXTURE_REQUIRED": true,
+	"FLOW_BATCH_ITEM_FAILED":           true,
 }
 
 // hopeless reports whether err, a node's failure, is final whatever the Retry
@@ -276,7 +277,24 @@ func (e *Engine) executeNode(ctx context.Context, def *NodeDef, n *Node, in Exec
 	if refusal != nil {
 		return fail(refusal)
 	}
-	params, err := resolveParams(withDefaults(def, n.Params), in.Env, def.fencedParams())
+	rawParams := withDefaults(def, n.Params)
+	var params map[string]any
+	var err error
+	if n.Type == blockEachType {
+		// A literal item array is data, not a list of templates. Only a whole
+		// top-level expression is resolved by the existing resolver.
+		items := rawParams["items"]
+		delete(rawParams, "items")
+		params, err = resolveParams(rawParams, in.Env, def.fencedParams())
+		if err == nil {
+			if _, ok := items.(string); ok {
+				items, err = ResolveValue(items, in.Env)
+			}
+			params["items"] = items
+		}
+	} else {
+		params, err = resolveParams(rawParams, in.Env, def.fencedParams())
+	}
 	if err != nil {
 		return fail(&NodeError{Code: "FLOW_TEMPLATE_ERROR", Message: err.Error()})
 	}

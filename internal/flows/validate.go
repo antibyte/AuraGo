@@ -449,6 +449,12 @@ func (v *validator) requiredParams(n *Node, def *NodeDef, sev Severity) {
 			continue
 		}
 		val, present := n.Params[spec.Name]
+		// An explicitly supplied empty batch list is a valid zero-item run.
+		if n.Type == blockEachType && spec.Name == "items" && present {
+			if list, ok := val.([]any); ok && list != nil {
+				continue
+			}
+		}
 		if !present {
 			val = spec.Default
 		}
@@ -501,7 +507,7 @@ func paramEmpty(spec ParamSpec, v any) bool {
 }
 
 func (v *validator) templates(n *Node, g *graph, sev Severity) {
-	refs, problems := CollectTemplateRefs(n.Params)
+	refs, problems := CollectTemplateRefs(nodeTemplateParams(n))
 	for _, p := range problems {
 		v.add(IssueTemplateSyntax, sev, n.ID, "", p.Param, p.Err.Error())
 	}

@@ -102,6 +102,36 @@ remains blocked. **Load more** retrieves older versions or additional dependenci
 inspection is read-only; **Open current draft** returns to editing. The parent run shows the
 call's block ID and version, without a separate child-run history.
 
+### Process a list with a block
+
+In a normal flow, add **For each item** and explicitly choose a published block version.
+Under **Block input for each item**, select the typed field that receives each whole list
+entry. Fill the other **Shared inputs** once. **List** accepts a JSON list or one mapped
+expression, such as `{{trigger.data.items}}`. Mapping replaces the fixed list; it does not
+append an expression to its JSON. Text such as `{{example.field}}` inside an entry stays
+literal data, including when another step is renamed or copied.
+
+Set **Maximum items** deliberately (1–1,000; initially 100). A longer list is rejected
+before the first item and is never shortened. An empty list succeeds with zero results;
+null is not a list. The direct JSON editor allows up to 2 MiB, 200,000 values and 64 levels;
+the whole flow must still fit its document limit. The field's information control retains
+these limits. If the work-budget check fails, reduce **Maximum items**; clicking the
+problem takes you directly to that field.
+
+Items run one at a time in their original order. **Stop at first failure** reports the
+failed zero-based index and error code without a partial result. **Collect item errors**
+retains ordered success/error records, with successful output or a stable error code.
+Cancellation, time limits and resource limits always stop the whole batch. Outputs offer
+`items`, `count`, `succeeded` and `failed`; the result view distinguishes processed totals
+from retained entries and shows up to 50 item summaries, with the existing tree/table/JSON
+views below. A shortened or omitted retained result does not prove that missing entries
+succeeded or failed. There is no separate child-run history.
+
+Simulation uses the same pinned pure block. Publishing a later block version never
+upgrades this step: review the version change explicitly. If its per-item field disappears,
+the previous choice stays visibly unavailable until you choose another one. The batch's
+retry count remains zero; it cannot invoke nested blocks, external tools or durable waits.
+
 ## The Editor
 
 The step list in the left toolbar provides a visible outline of the flow. Select a
@@ -244,7 +274,7 @@ Truncated or redacted data cannot establish equality and is marked incomplete.
 **Download diagnostics** exports technical metadata only, without names, payloads or
 error-message text. Comparing never replays a step.
 
-- **Runs** initially lists the latest 50 runs, filtered by *All*, *Errors*, *Tests* or *Live*. **Load older runs** retrieves another retained page; search covers the loaded rows. Refresh explicitly to restart at the newest page. Clicking a run opens its exact flow version and recorded input/output, read-only. A timeline and failure explanation help locate the affected step. **Back to draft** or **Esc** returns. The building blocks panel stays hidden in the run view, and a failed run opens centred on the failed step.
+- **Runs** initially lists the latest 50 runs, filtered by *All*, *Errors*, *Tests* or *Live*. **Load older runs** retrieves another retained page; search covers the loaded rows. Refresh explicitly to restart at the newest page. Clicking a run opens its exact flow version and recorded input/output, read-only. A timeline and failure explanation help locate the affected step. **Back to draft** or **Esc** returns. The building blocks panel stays hidden in the run view, and a failed run opens centred on the failed step. A remaining save warning is labelled **Draft: …** and belongs to your editable draft, not the recorded run.
 - In the run view, **Test again with this data** opens the test dialog with that run's trigger data. Replace redacted or omitted values before a real test. The dialog lists the real effects and asks before anything runs; data is remembered only when you tick *Remember this data for later tests*. The button is missing while a run is going and when the original trigger data was not retained in full.
 - A run that has not ended yet (*Queued*, which includes waiting for a free slot, or *Running*) shows **Stop** in the list and in the banner of its run view, also when a trigger or another window started it. Stopping any run but a test asks first; steps that already ran are not undone. A read-only desktop offers Stop too, because stopping changes no flow; read-only missions refuse it.
 - **Run now** (⋯ menu, the *Flow* menu, or a card's menu on the start page) starts the published version. The flow must be **Active**: while it is paused, *Run now* is turned off and its tooltip says to switch the flow on first, as Mission Control refuses to run a paused mission. **Test** works either way.

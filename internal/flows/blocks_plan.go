@@ -11,6 +11,34 @@ import (
 // ErrBlockUnavailable means a referenced published block cannot be safely read.
 var ErrBlockUnavailable = errors.New("the referenced block revision is unavailable")
 
+// ErrBatchWorkLimit rejects a batch whose declared worst-case work is too large.
+var ErrBatchWorkLimit = errors.New("batch work exceeds the allowed limit")
+
+const maxBatchStepAttempts = 10000
+
+type batchWorkError struct{ NodeID string }
+
+func (e *batchWorkError) Error() string {
+	return "reduce max_items: batch work exceeds the allowed limit"
+}
+func (e *batchWorkError) Unwrap() []error { return []error{ErrBatchWorkLimit, ErrBlockInvalid} }
+
+func batchWorkIssue(err error) (Issue, bool) {
+	var budget *batchWorkError
+	if !errors.As(err, &budget) {
+		return Issue{}, false
+	}
+	return Issue{Code: IssueBatchWorkLimit, Severity: SeverityError, NodeID: budget.NodeID, Param: "max_items", Message: "reduce max_items: the batch exceeds the work limit"}, true
+}
+
+func blockWorstAttempts(doc *Flow) int {
+	total := 0
+	for _, node := range doc.Nodes {
+		total += 1 + clampInt(node.Settings.Retry.Count, 0, MaxRetryCount)
+	}
+	return total
+}
+
 // blockPlan holds cloned, validated snapshots; runtime performs no version lookup.
 type blockPlan struct {
 	byNode map[string]resolvedBlock
@@ -23,10 +51,7 @@ func prepareBlockPlan(ctx context.Context, store *Store, doc *Flow, services *Se
 	}
 	hasCalls := false
 	for _, n := range doc.Nodes {
-		if n.Type == blockEachType {
-			return nil, ErrBlockInvalid
-		}
-		if n.Type == blockCallType {
+		if n.Type == blockCallType || n.Type == blockEachType {
 			hasCalls = true
 		}
 	}
@@ -121,16 +146,23 @@ func prepareBlockPlanTx(ctx context.Context, tx *sql.Tx, doc *Flow, services *Se
 	}
 	plan := &blockPlan{byNode: make(map[string]resolvedBlock), blocks: blocks}
 	nodes, edges, bytes := len(doc.Nodes), len(doc.Edges), len(data)
+	work := blockWorstAttempts(doc)
+	hasBatch := false
+	firstBatchID := ""
+	for _, n := range doc.Nodes {
+		if n.Type == blockEachType {
+			hasBatch = true
+			firstBatchID = n.ID
+			break
+		}
+	}
 	seenIDs := make(map[string]bool, len(doc.Nodes))
 	for _, n := range doc.Nodes {
 		if n.ID == "" || seenIDs[n.ID] {
 			return nil, ErrBlockInvalid
 		}
 		seenIDs[n.ID] = true
-		if n.Type == blockEachType {
-			return nil, ErrBlockInvalid
-		}
-		if n.Type != blockCallType {
+		if n.Type != blockCallType && n.Type != blockEachType {
 			continue
 		}
 		if n.Settings.Retry.Count != 0 {
@@ -154,6 +186,21 @@ func prepareBlockPlanTx(ctx context.Context, tx *sql.Tx, doc *Flow, services *Se
 		nodes, edges, bytes = nodes+len(child.Document.Nodes), edges+len(child.Document.Edges), bytes+len(encoded)
 		if nodes > MaxNodes || edges > MaxEdges || bytes > MaxDocumentBytes {
 			return nil, ErrBlockInvalid
+		}
+		if hasBatch {
+			multiplier := 1
+			if n.Type == blockEachType {
+				multiplier = int(n.Params["max_items"].(float64))
+			}
+			childWork := blockWorstAttempts(child.Document)
+			if childWork > 0 && (work > maxBatchStepAttempts || multiplier > (maxBatchStepAttempts-work)/childWork) {
+				id := firstBatchID
+				if n.Type == blockEachType {
+					id = n.ID
+				}
+				return nil, &batchWorkError{NodeID: id}
+			}
+			work += multiplier * childWork
 		}
 		plan.byNode[n.ID] = child
 	}

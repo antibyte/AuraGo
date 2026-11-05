@@ -37,6 +37,16 @@ the contracts below describe the implemented behavior of each delivered slice.
   excluded. Calls require retry count zero. Child frames use the parent's deadline,
   cancellation, taint fences and shared output/log budgets, with no second Runner.
   Inputs use the boundary node key's `data` object; call outputs expose declared fields directly.
+- `component.each` invokes the same pinned pure block serially for at most 1,000 items, with
+  an explicitly selected input, shared inputs, concurrency one and retry count zero. Stop mode
+  fails without partial output; collect mode returns ordered item outputs or bounded error codes.
+  Cancellation and shared resource limits always stop the batch. Literal items are data; only a
+  whole top-level expression is resolved. Both literal and mapped lists are checked before the
+  first child for at most 200,000 values and 64 nesting levels. Admission conservatively caps
+  worst-case parent and child attempts at 10,000 and reports `BATCH_WORK_LIMIT` on `max_items`.
+  `items`, `max_items`, `concurrency` and `on_item_error` are explicitly required; the editor
+  inserts its initial values only when creating a node, never while loading a document.
+  The existing graph, output, log, deadline, taint and pin limits remain shared with the parent.
 - Publication and run admission bind exact child revisions and hashes to the owning block,
   verify owner kind and stored document consistency, and install version/run pins atomically.
   Pins prevent deletion and pruning while needed. Flow and block APIs reject the other kind,
@@ -93,7 +103,7 @@ the contracts below describe the implemented behavior of each delivered slice.
 ## Boundaries
 - Never import `internal/agent`, `internal/server` or `internal/tools`. Tool calls go through
   `ToolInvoker`, LLM calls through `LLMStepper`, time through `Clock` (`services.go`).
-- Node types live in a `Registry`. `RegisterCatalog(reg, env)` registers the 39 curated types (see Catalog);
+- Node types live in a `Registry`. `RegisterCatalog(reg, env)` registers the 40 curated types (see Catalog);
   the server wiring (`internal/server`, see Integration) supplies the `CatalogEnv` and the `GenericTool` list for
   `RefreshGenericTools`.
 
@@ -112,7 +122,7 @@ the contracts below describe the implemented behavior of each delivered slice.
   `FLOW_CONDITION_INVALID` (the node's own parameters), `FLOW_AI_UNAVAILABLE`, `FLOW_TOOLS_UNAVAILABLE`,
   `FLOW_NODE_UNAVAILABLE`, `FLOW_TOOL_DENIED`, `FLOW_ACTION_RULE_REQUIRED`, `FLOW_SECRET_UNAVAILABLE` (missing, refused or unusable
   capability, a vault entry included), `FLOW_BUDGET_EXCEEDED`,
-  `FLOW_OUTPUT_TOO_LARGE`, `FLOW_SIMULATION_FIXTURE_REQUIRED`, and the failures that follow from the input alone (params are resolved once, so every
+  `FLOW_OUTPUT_TOO_LARGE`, `FLOW_SIMULATION_FIXTURE_REQUIRED`, `FLOW_BATCH_ITEM_FAILED`, and the failures that follow from the input alone (params are resolved once, so every
   attempt sees the same): `FLOW_CONDITION_FAILED` (a condition that cannot be evaluated: two dates needed, a bad
   or too complex pattern), `FLOW_VALUE_TYPE` (a `logic.set` value that does not fit its type) and
   `FLOW_WAIT_TOO_LONG` (a `logic.wait` until time more than an hour away; it reads the clock, but a retry delay is
@@ -487,9 +497,9 @@ the contracts below describe the implemented behavior of each delivered slice.
   overlap keeps its wall-clock time; which of the two instants is not defined.
 
 ## Catalog
-- Counts: `RegisterCatalog(reg, env)` registers 39 curated types, 14 triggers and 25 others: logic 7 (`logic.if`, `switch`, `merge`, `wait`,
-  `set`, `stop`, `component.call`), AI 2 (`ai.step`, `ai.decision`) and actions 16 (web 3, documents 4, notify 5, smart home 2,
-  planner 2); `TestRegisterCatalogCounts` pins the total (39) and the trigger count (14). Generic `tool.<name>` nodes are
+- Counts: `RegisterCatalog(reg, env)` registers 40 curated types, 14 triggers and 26 others: logic 8 (`logic.if`, `switch`, `merge`, `wait`,
+  `set`, `stop`, `component.call`, `component.each`), AI 2 (`ai.step`, `ai.decision`) and actions 16 (web 3, documents 4, notify 5, smart home 2,
+  planner 2); `TestRegisterCatalogCounts` pins the total (40) and the trigger count (14). Generic `tool.<name>` nodes are
   separate: `RefreshGenericTools(reg, tools, env)` replaces all of them in one atomic `Registry.ReplaceWhere`
   step (a concurrent `Lookup` never sees a half-built set) and returns how many it registered. Call it again
   when the tool configuration changes.

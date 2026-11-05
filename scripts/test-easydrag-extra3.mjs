@@ -7,7 +7,7 @@ import vm from 'node:vm';
 import { webcrypto } from 'node:crypto';
 
 const MODULES = ['easydrag-core.js', 'easydrag-template.js', 'easydrag-model.js', 'easydrag-geometry.js', 'easydrag-saver.js', 'easydrag-canvas.js',
-    'easydrag-wires.js', 'easydrag-interact.js', 'easydrag-palette.js', 'easydrag-fields.js', 'easydrag-forms.js', 'easydrag-blocks.js', 'easydrag-block-fields.js', 'easydrag-transform.js', 'easydrag-mapping.js',
+    'easydrag-wires.js', 'easydrag-interact.js', 'easydrag-palette.js', 'easydrag-fields.js', 'easydrag-forms.js', 'easydrag-blocks.js', 'easydrag-batches.js', 'easydrag-block-fields.js', 'easydrag-transform.js', 'easydrag-mapping.js',
     'easydrag-detail.js', 'easydrag-scenarios.js', 'easydrag-testing.js', 'easydrag-compare.js', 'easydrag-runs.js', 'easydrag-metadata.js', 'easydrag-publish.js', 'easydrag-home.js', 'easydrag-dialogs.js', 'easydrag-history.js', 'easydrag-workspace.js', 'easydrag-authoring.js', 'easydrag-editor.js', 'easydrag.js'];
 const T1 = 'n_tttttttt';
 const A = 'n_aaaaaaaa';
@@ -94,6 +94,7 @@ export async function run(env) {
             if (this.localName === 'a' && this.download) downloads.push({ name: this.download, blob: objects.get(this.href) });
             this.fire('click');
         };
+        proto.dispatchEvent = function (event) { return !this.fire(event.type, Object.assign({}, event, { target: this })).defaultPrevented; };
         proto.blur = function () {};
         proto.select = function () {};
         const body = new dom.El('body', {});
@@ -126,7 +127,7 @@ export async function run(env) {
         const box = vm.createContext({
             window: { SYSTEM_LANG: 'en', location: { origin: 'https://aurago.test' }, open() {}, addEventListener: (type, fn) => { (winListeners[type] = winListeners[type] || []).push(fn); },
                 removeEventListener: (type, fn) => { const list = winListeners[type] || []; if (list.includes(fn)) list.splice(list.indexOf(fn), 1); } }, navigator: { platform: platform || 'Linux' }, crypto: webcrypto, document: dom.document,
-            EventSource, URLSearchParams, URL: DownloadURL, Blob, AbortController,
+            EventSource, Event: class { constructor(type, options) { this.type = type; Object.assign(this, options); } }, URLSearchParams, URL: DownloadURL, Blob, AbortController,
             console: { log() {}, warn() {}, error: (...args) => { logged.push(args.map(String).join(' ')); } },
             localStorage: {
                 get length() { return store.size; },
@@ -1464,6 +1465,7 @@ export async function run(env) {
     await (await import('./test-easydrag-transform.mjs')).run({ sandbox, openEditor, eq, guardAsync, settle });
     await (await import('./test-easydrag-blocks.mjs')).run({ sandbox, openEditor, eq, guardAsync, settle });
     await (await import('./test-easydrag-metadata.mjs')).run({ sandbox, openEditor, eq, guardAsync, settle });
+    await (await import('./test-easydrag-batches.mjs')).run({ sandbox, openEditor, eq, guardAsync, settle });
     // The FF2 and a1008 checks (test-easydrag-extra5.mjs, -extra6.mjs) build on this sandbox.
     return { sandbox, openEditor, desktopMenus };
 }

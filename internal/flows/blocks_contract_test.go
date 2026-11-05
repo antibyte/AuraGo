@@ -131,7 +131,7 @@ func TestBlockDependencyAndBatchBounds(t *testing.T) {
 		t.Fatalf("too many dependencies = %v", err)
 	}
 	node := Node{Type: blockEachType, TypeVersion: 1, Params: map[string]any{
-		"flow_id": "flow_a", "revision": 1.0, "max_items": 1000.0, "concurrency": 4.0, "on_item_error": "collect",
+		"flow_id": "flow_a", "revision": 1.0, "max_items": 1000.0, "concurrency": 1.0, "on_item_error": "collect",
 	}}
 	if _, err := blockReference(node); err != nil {
 		t.Fatal(err)
@@ -174,7 +174,7 @@ func TestBlockBindingsRejectMissingUnknownAndDuplicateInputs(t *testing.T) {
 	if err := checkBlockBindings(call, contract); !errors.Is(err, errBlockContract) {
 		t.Fatalf("missing input = %v", err)
 	}
-	batch := Node{Type: blockEachType, Params: map[string]any{"items": "{{trigger.data.items}}", "item_field": "value", "index_field": "position"}}
+	batch := Node{Type: blockEachType, Params: map[string]any{"items": "{{trigger.data.items}}", "item_field": "value"}}
 	if err := checkBlockBindings(batch, contract); err != nil {
 		t.Fatal(err)
 	}

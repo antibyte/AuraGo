@@ -239,6 +239,27 @@ type TemplateProblem struct {
 	Err   error
 }
 
+// nodeTemplateParams excludes literal batch elements from reference analysis:
+// they are data, while a whole top-level items expression is still a template.
+func nodeTemplateParams(n *Node) map[string]any {
+	if n == nil || n.Type != blockEachType {
+		if n == nil {
+			return nil
+		}
+		return n.Params
+	}
+	if _, ok := n.Params["items"].([]any); !ok {
+		return n.Params
+	}
+	params := make(map[string]any, len(n.Params))
+	for key, value := range n.Params {
+		if key != "items" {
+			params[key] = value
+		}
+	}
+	return params
+}
+
 // CollectTemplateRefs walks params (keys sorted) and returns every expression
 // with its parameter path, e.g. "rows[0].left", plus all parse problems. A map
 // or list nested deeper than 32 levels is reported as a problem at its path and

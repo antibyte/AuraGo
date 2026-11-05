@@ -397,13 +397,13 @@
                 '<label>' + esc(t('easydrag.ui.settings_timeout')) + '<input type="number" min="0" max="3600" class="ed-input" data-k="timeout" value="' + esc(s.timeout_seconds || '') + '" placeholder="' + esc(t('easydrag.ui.settings_default')) + '"' + (ro ? ' disabled' : '') + '></label></div>');
             retry.addEventListener('change', () => {
                 const current = ed.model.node(id); if (!current || ed.readonly || ed.runView) return;
-                const count = current.type === 'component.call' ? Number((current.settings.retry || {}).count) || 0 : core.clamp(Number(retry.querySelector('[data-k="count"]').value) || 0, 0, 5);
+                const count = ['component.call', 'component.each'].includes(current.type) ? Number((current.settings.retry || {}).count) || 0 : core.clamp(Number(retry.querySelector('[data-k="count"]').value) || 0, 0, 5);
                 const delay = core.clamp(Number(retry.querySelector('[data-k="delay_seconds"]').value) || 0, 0, 600);
                 const timeout = Number(retry.querySelector('[data-k="timeout"]').value) || undefined;
                 ed.model.setSettings(id, { retry: count ? { count, delay_seconds: delay } : undefined, timeout_seconds: timeout });
             });
             host.appendChild(retry);
-            if (node.type === 'component.call') {
+            if (['component.call', 'component.each'].includes(node.type)) {
                 const count = retry.querySelector('[data-k="count"]'), delay = retry.querySelector('[data-k="delay_seconds"]');
                 count.max = '0'; count.disabled = true; delay.disabled = true;
                 retry.appendChild(core.el('<p class="ed-hint">' + esc(t('easydrag.ui.block_retry_hint')) + '</p>'));
@@ -612,6 +612,7 @@
             // JSON only; never resolve it into a real file link or thumbnail/media request.
             const fileList = outputSubject === 'output' && !simulation ? files(payload) : [];
             let html = text ? '<section class="ed-result-preview"><h4>' + esc(t('easydrag.ui.output_preview')) + '</h4><p>' + esc(text) + '</p></section>' : '';
+            if (node.type === 'component.each' && outputSubject === 'output' && ED.batches) html += ED.batches.resultMarkup(ed, step, outputView === 'json');
             html += fileList.map(f => {
                 const mime = String(f.mime || '');
                 const url = safeFileUrl(f.web_path);

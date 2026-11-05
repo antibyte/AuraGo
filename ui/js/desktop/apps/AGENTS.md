@@ -1270,6 +1270,21 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   Backend: `internal/desktop/looper.go`, `internal/server/looper_service.go`.
 
 ## EasyDrag
+- `easydrag-batches.js` extends the existing pinned block form for `component.each`: one whole
+  item goes to an explicitly selected typed input; shared bindings resolve once. Items in literal
+  arrays remain data during field previews, key renames and clipboard rewrites. Only a top-level
+  list expression and shared bindings use template semantics. Reuse ordinary caret/IME mappings.
+  New Add/Insert operations explicitly initialize [], 100 items, concurrency 1 and stop; loading
+  damaged documents never supplies missing required values. A longer list fails before any item;
+  never truncate input. Pure batches run serially with retry zero and no nested or durable work.
+  Direct JSON editing preflights 2 MiB UTF-8, 200,000 values and 64 levels; the whole document still
+  obeys its existing bound. Keep invalid raw edits visible and decline actions until repaired.
+  Stable `BATCH_WORK_LIMIT` issues target `max_items` with localized reduction guidance. Stop
+  diagnostics parse only the exact backend index/code grammar under `FLOW_BATCH_ITEM_FAILED`,
+  never user/child text, and promise no partial output. Collect output uses static list/count
+  fields only; retained rows are bounded, escaped and distinct from processed totals. Missing or
+  truncated records/counters remain unknown. Verify `test-easydrag-batches.mjs`, existing model/
+  mapping/clipboard checks and the native batch browser journey in both themes and narrow layout.
 - `easydrag-metadata.js` owns server-stored flat folders and case-sensitive tags for normal
   flows, plus version notes for flows and blocks. These resources use their own CAS revisions;
   never route metadata through the graph model, autosaver, undo or test-evidence invalidation.
@@ -1408,7 +1423,7 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   and a card's menu, with `disabledHint` (`error_flow_disabled`), a menu-item field the desktop
   draws as the disabled item's tooltip; a stale click gets the server's 409 `FLOW_DISABLED`.
 - Undo affordances live in `easydrag-history.js` (`ED.history.create(ed, {host, toastHost, undo, redo, focusCanvas})`): the header group `[data-ed-history-host]` holds Undo/Redo (`data-ed-history`, `aria-disabled`, never `disabled`, hidden on a read-only desktop) and `.ed-toast` offers Undo after `interact.removeSteps` emits `steps-deleted` ({names}); the toast is no live region (the canvas announced the delete), closes after 8 s or on any other model change, and its Undo acts only on the version right after the delete. No delete confirmation.
-- At an editor width of 560 px or less (`@container`), Runs and Run now are hidden in the header, Test stays visible, and `moreMenu` lists Runs and Test first (`headerNarrow`). The state chip goes, but the Paused chip (`[data-ed-paused]`), "Republish needed" (`[data-ed-live-outdated]`) and the timers warning (`[data-ed-timers-off]`) stay: the CSS exception lists all three. A skipped Run now (202 `{status: "skipped"}`) notifies `run_now_skipped`. The run view hides the revision line and a "Saved" chip; its banner offers `rerun-viewed` (Test again with this data: the run's `trigger_data` prefills the test dialog, which still lists effects and asks; nothing is remembered unless ticked). `canRerun` hides that button for stub trigger data (the store keeps oversized data as `{_preview}` or `{_preview: "", _omitted}`: a test would run real effects on the stub) and while a run is going (the viewed run is active, or a live run is parked: `runs.hasParked()`); a click that still finds a run going keeps the run view and notifies `run_going`. `GET runs/{id}?include=doc` without `doc` carries `doc_missing` (`version_pruned` shows `run_view_pruned`).
+- At an editor width of 560 px or less (`@container`), Runs and Run now are hidden in the header, Test stays visible, and `moreMenu` lists Runs and Test first (`headerNarrow`). The state chip goes, but the Paused chip (`[data-ed-paused]`), "Republish needed" (`[data-ed-live-outdated]`) and the timers warning (`[data-ed-timers-off]`) stay: the CSS exception lists all three. A skipped Run now (202 `{status: "skipped"}`) notifies `run_now_skipped`. The run view hides the revision line and a "Saved" chip; other save states explicitly say they belong to the draft, retaining the same saver and all failure warnings. Its banner offers `rerun-viewed` (Test again with this data: the run's `trigger_data` prefills the test dialog, which still lists effects and asks; nothing is remembered unless ticked). `canRerun` hides that button for stub trigger data (the store keeps oversized data as `{_preview}` or `{_preview: "", _omitted}`: a test would run real effects on the stub) and while a run is going (the viewed run is active, or a live run is parked: `runs.hasParked()`); a click that still finds a run going keeps the run view and notifies `run_going`. `GET runs/{id}?include=doc` without `doc` carries `doc_missing` (`version_pruned` shows `run_view_pruned`).
 - The JSON editor (`fields.jsonEditor`) keeps `aria-invalid` live on every input but writes the `role="alert"` text only when the error appears and never rewrites identical text (a screen reader would read it on every keystroke); change and blur announce a standing error afresh.
 - The editor builds in two steps: `create` makes the shell and `build(app, loaded, opts, guard)` fills it. A build aborted by a dispose, a failure or a newer open cleans up what it made so far.
 - Run events repaint in place without markup: `runs.js` logs touched steps in `ed.run.changes`, the canvas (`paintCard`) and wires (`onRun`, `syncPill`) follow that log; a new run object repaints all states. `ed.renderStats` ({cards, paints, wires}) is guarded by the b5 F6 check (300 steps, 1000 events: no card render). `model.incoming/outgoing/edge` use an adjacency index rebuilt on `docGen` and return copies.

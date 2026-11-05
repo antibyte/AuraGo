@@ -140,10 +140,7 @@ func (s *runState) checkFlow() (code, msg, nodeID string) {
 			len(f.Nodes), len(f.Edges), MaxNodes, MaxEdges), ""
 	}
 	for _, n := range f.Nodes {
-		if n.Type == blockEachType {
-			return "FLOW_PARAM_INVALID", "batch blocks are not available", n.ID
-		}
-		if n.Type == blockCallType {
+		if n.Type == blockCallType || n.Type == blockEachType {
 			if n.Settings.Retry.Count != 0 || s.req.blocks == nil || s.req.scope == nil {
 				return "FLOW_PARAM_INVALID", "the block call has no valid execution plan", n.ID
 			}
@@ -160,7 +157,7 @@ func (s *runState) checkFlow() (code, msg, nodeID string) {
 		// production callback. Other parent definitions retain their normal policy.
 		registry = NewRegistry()
 		for _, def := range s.e.reg.All() {
-			if def.Type == blockCallType {
+			if def.Type == blockCallType || def.Type == blockEachType {
 				continue
 			}
 			if err := registry.Register(def); err != nil {
@@ -168,6 +165,9 @@ func (s *runState) checkFlow() (code, msg, nodeID string) {
 			}
 		}
 		if err := registry.Register(blockCallDef()); err != nil {
+			return "FLOW_NODE_UNAVAILABLE", "the node registry is unavailable", ""
+		}
+		if err := registry.Register(blockEachDef()); err != nil {
 			return "FLOW_NODE_UNAVAILABLE", "the node registry is unavailable", ""
 		}
 	}
@@ -371,6 +371,14 @@ func (s *runState) fireTrigger(trigger *Node) {
 	raw := map[string]any{"type": s.req.TriggerType, "node": trigger.Key, "fired_at": now.Format(time.RFC3339), "data": data}
 	out, encoded, err := normalizeOutput(raw)
 	if err != nil || out == nil {
+		if s.req.Flow.Kind == KindBlock && trigger.Type == blockInputType {
+			code := "FLOW_PARAM_INVALID"
+			if len(encoded) > MaxOutputBytes {
+				code = "FLOW_OUTPUT_TOO_LARGE"
+			}
+			s.failure = NewNodeError(code, "block inputs are invalid or exceed the output limit")
+			return
+		}
 		s.e.logger.Warn("flows: trigger data replaced with an empty object", "flow", s.req.Flow.ID, "run", s.req.RunID,
 			"bytes", len(encoded), "limit", MaxOutputBytes, "error", err)
 		raw["data"] = map[string]any{}

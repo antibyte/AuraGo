@@ -220,14 +220,34 @@
     }
     function call(env) {
         const { ed } = env, core = ED.core, id = env.node.id, controller = new AbortController(), bag = core.bag();
-        let node = env.node, form = null, closed = false, versionSeq = 0, bindingSeq = 0, reviewSeq = 0, listSeq = 0, listRows = [], listCursor = '', versionRows = [], versionCursor = 0, versionBusy = false, stagedId = node.params.flow_id || '', stagedRevision = Number(node.params.revision) || 0;
-        const el = core.el('<div class="ed-block-call"><p class="ed-hint">' + ed.esc(ed.t('easydrag.ui.block_pins_hint')) + '</p><label class="ed-label">' + ed.esc(ed.t('easydrag.ui.blocks_title')) + '<select class="ed-input" data-ed-call-block></select></label><label class="ed-label">' + ed.esc(ed.t('easydrag.ui.block_revision')) + '<select class="ed-input" data-ed-call-version></select></label><button type="button" class="ed-btn" data-ed-call-apply>' + ed.esc(ed.t('easydrag.ui.block_use_version')) + '</button><p class="ed-error" role="alert" hidden></p><div data-ed-call-inputs></div></div>');
+        let node = env.node, form = null, batch = null, bindingShape = null, boundItem, bindingBag = core.bag(), closed = false, versionSeq = 0, bindingSeq = 0, reviewSeq = 0, listSeq = 0, listRows = [], listCursor = '', versionRows = [], versionCursor = 0, versionBusy = false, stagedId = node.params.flow_id || '', stagedRevision = Number(node.params.revision) || 0;
+        const each = node.type === 'component.each';
+        const el = core.el('<div class="ed-block-call"><p class="ed-hint">' + ed.esc(ed.t('easydrag.ui.block_pins_hint')) + '</p><label class="ed-label">' + ed.esc(ed.t('easydrag.ui.blocks_title')) + '<select class="ed-input" data-ed-call-block></select></label><label class="ed-label">' + ed.esc(ed.t('easydrag.ui.block_revision')) + '<select class="ed-input" data-ed-call-version></select></label><button type="button" class="ed-btn" data-ed-call-apply>' + ed.esc(ed.t('easydrag.ui.block_use_version')) + '</button><p class="ed-error" role="alert" hidden></p><div data-ed-batch-options></div><div data-ed-call-inputs></div></div>');
         const blockSelect = el.querySelector('[data-ed-call-block]'), versionSelect = el.querySelector('[data-ed-call-version]'), apply = el.querySelector('[data-ed-call-apply]');
         const more = core.el('<button type="button" class="ed-btn" data-ed-call-more hidden>' + ed.esc(ed.t('easydrag.ui.block_load_more')) + '</button>'); el.insertBefore(more, versionSelect.closest('label'));
         const versionMore = core.el('<button type="button" class="ed-btn" data-ed-call-version-more hidden>' + ed.esc(ed.t('easydrag.ui.block_load_more')) + '</button>'); el.insertBefore(versionMore, apply);
         function current() { return !closed && ed.model.node(id) === node; }
         function fail(err) { const box = el.querySelector('.ed-error'); box.hidden = false; box.textContent = err ? core.errorText(ed.t, err) : ed.t('easydrag.ui.block_contract_unavailable'); }
         function options(select, rows, value) { select.innerHTML = '<option value="">' + ed.esc(ed.t('easydrag.ui.option_none')) + '</option>' + rows.map(row => '<option value="' + ed.esc(row.value) + '">' + ed.esc(row.label) + '</option>').join(''); select.value = String(value || ''); select.disabled = !!(ed.readonly || ed.runView); }
+        if (each) { batch = ED.batches.options(env); el.querySelector('[data-ed-batch-options]').appendChild(batch.el); }
+        function renderBindings(shape) {
+            bindingBag.dispose(); bindingBag = core.bag();
+            if (form) form.dispose(); form = null;
+            const host = el.querySelector('[data-ed-call-inputs]'); host.innerHTML = '';
+            if (each) {
+                const raw = node.params.item_field, selected = typeof raw === 'string' ? raw : ':invalid';
+                const missing = own(node.params, 'item_field') && raw !== '' && !shape.inputs.some(field => field.name === raw);
+                const item = core.el('<label class="ed-label">' + ed.esc(ed.t('easydrag.ui.batch_item_field')) + '<select class="ed-input" data-ed-batch-item-field></select></label>');
+                host.appendChild(item); const select = item.querySelector('select');
+                options(select, shape.inputs.map(field => ({ value: field.name, label: field.name + ' · ' + ed.t('easydrag.ui.type_' + ED.blocks.types[field.type]) })), typeof raw === 'string' ? raw : '');
+                if (missing) { const label = typeof raw === 'string' ? raw.slice(0, 80) : ED.template.describe(raw, ed.t, core.fmt.number); select.appendChild(core.el('<option value="' + ed.esc(selected) + '">' + ed.esc(ed.t('easydrag.ui.batch_item_missing', { field: label })) + '</option>')); select.value = selected; select.setAttribute('aria-invalid', 'true'); }
+                bindingBag.listen(select, 'change', () => { if ((select.value === '' || shape.inputs.some(field => field.name === select.value)) && current() && !ed.readonly && !ed.runView && (!form || form.flush()) && batch.flush()) env.onChange('item_field', select.value, id); });
+                host.appendChild(core.el('<h4>' + ed.esc(ed.t('easydrag.ui.batch_shared_inputs')) + '</h4><p class="ed-hint">' + ed.esc(ed.t('easydrag.ui.batch_shared_hint')) + '</p>'));
+            }
+            boundItem = node.params.item_field;
+            form = values({ ed, nodeId: id, fields: shape.inputs.filter(field => !each || field.name !== node.params.item_field), value: node.params.inputs || {}, prefix: 'inputs.', templatable: true, roots: env.roots, upstream: env.upstream, onChange: next => { if (current() && !ed.readonly && !ed.runView) env.onChange('inputs', next, id); } });
+            host.appendChild(form.el); ed.bus.emit('schema');
+        }
         async function versions(append) {
             if (append && versionBusy) return;
             const mine = ++versionSeq, selectedId = stagedId; apply.disabled = true;
@@ -238,16 +258,15 @@
         }
         async function bindings() {
             const mine = ++bindingSeq;
-            if (form) form.dispose(); form = null;
+            bindingBag.dispose(); bindingBag = core.bag();
+            if (form) form.dispose(); form = null; bindingShape = null; el.querySelector('[data-ed-call-inputs]').innerHTML = '';
             if (!node.params.flow_id || !node.params.revision) { ed.bus.emit('schema'); return; }
             const refId = node.params.flow_id, refRevision = node.params.revision;
             try {
                 const res = await ed.blockApi.version(refId, refRevision, controller.signal), shape = ED.blocks.contract(res.contract);
                 if (!current() || mine !== bindingSeq || node.params.flow_id !== refId || node.params.revision !== refRevision) return;
                 ed.catalog.blockContracts.set(refId + ':' + refRevision, shape);
-                if (form) form.dispose();
-                form = values({ ed, nodeId: id, fields: shape.inputs, value: node.params.inputs || {}, prefix: 'inputs.', templatable: true, roots: env.roots, upstream: env.upstream, onChange: next => { if (current() && !ed.readonly && !ed.runView) env.onChange('inputs', next, id); } });
-                el.querySelector('[data-ed-call-inputs]').appendChild(form.el); ed.bus.emit('schema');
+                bindingShape = shape; renderBindings(shape);
             } catch (err) { if (current() && mine === bindingSeq) { fail(err); ed.bus.emit('schema'); } }
         }
         bag.listen(blockSelect, 'change', () => { if (!current() || ed.readonly || ed.runView) return; stagedId = blockSelect.value; stagedRevision = 0; options(versionSelect, [], ''); if (stagedId) versions(); });
@@ -264,11 +283,11 @@
                 const before = ed.catalog.blockContracts.get(node.params.flow_id + ':' + node.params.revision);
                 const retained = Object.fromEntries(shape.inputs.filter(field => own(node.params.inputs || {}, field.name)).map(field => [field.name, node.params.inputs[field.name]]));
                 const removed = Object.keys(node.params.inputs || {}).filter(name => !shape.inputs.some(field => field.name === name));
-                const dialog = core.modal(ed.root, { title: ed.t('easydrag.ui.block_use_version'), closeLabel: ed.t('easydrag.ui.close'), className: 'ed-modal--block', body: '<p>' + ed.esc(ed.t('easydrag.ui.block_upgrade_hint')) + '</p><p><code>' + ed.esc(refId) + ' · v' + revision + '</code></p>' + (before ? '<h3>' + ed.esc(ed.t('easydrag.ui.publish_change_before')) + '</h3>' + ED.blocks.contractMarkup(ed, before) : '') + '<h3>' + ed.esc(ed.t('easydrag.ui.publish_change_after')) + '</h3>' + ED.blocks.contractMarkup(ed, shape) + (removed.length ? '<p class="ed-callout">' + ed.esc(ed.t('easydrag.ui.block_removed_bindings', { fields: removed.join(', ') })) + '</p>' : '') + '<p class="ed-hint">' + ed.esc(ed.t('easydrag.ui.block_dependencies')) + ': ' + ed.esc((deps.items || []).length) + (deps.next_cursor ? '+' : '') + '</p>', actions: [{ id: 'cancel', label: ed.t('easydrag.ui.cancel') }, { id: 'apply', label: ed.t('easydrag.ui.block_use_version'), primary: true }], onAction: action => {
+                const dialog = core.modal(ed.root, { title: ed.t('easydrag.ui.block_use_version'), closeLabel: ed.t('easydrag.ui.close'), className: 'ed-modal--block', body: '<p>' + ed.esc(ed.t('easydrag.ui.block_upgrade_hint')) + '</p><p><code>' + ed.esc(refId) + ' · v' + revision + '</code></p>' + (before ? '<h3>' + ed.esc(ed.t('easydrag.ui.publish_change_before')) + '</h3>' + ED.blocks.contractMarkup(ed, before) : '') + '<h3>' + ed.esc(ed.t('easydrag.ui.publish_change_after')) + '</h3>' + ED.blocks.contractMarkup(ed, shape) + (each && node.params.item_field && !shape.inputs.some(field => field.name === node.params.item_field) ? '<p class="ed-callout ed-callout--warn">' + ed.esc(ed.t('easydrag.ui.batch_item_missing', { field: typeof node.params.item_field === 'string' ? node.params.item_field.slice(0, 80) : ED.template.describe(node.params.item_field, ed.t, core.fmt.number) })) + '</p>' : '') + (removed.length ? '<p class="ed-callout">' + ed.esc(ed.t('easydrag.ui.block_removed_bindings', { fields: removed.join(', ') })) + '</p>' : '') + '<p class="ed-hint">' + ed.esc(ed.t('easydrag.ui.block_dependencies')) + ': ' + ed.esc((deps.items || []).length) + (deps.next_cursor ? '+' : '') + '</p>', actions: [{ id: 'cancel', label: ed.t('easydrag.ui.cancel') }, { id: 'apply', label: ed.t('easydrag.ui.block_use_version'), primary: true }], onAction: action => {
                     if (action !== 'apply') return true;
                     if (!current() || review !== reviewSeq || refId !== stagedId || revision !== stagedRevision || ed.model.version !== observed || ed.readonly || ed.runView || ed.flushPendingEdits() === false || ed.model.version !== observed) return false;
                     ed.catalog.blockContracts.set(refId + ':' + revision, shape);
-                    ed.model.change('block-reference', rec => { const next = rec.node(id); next.params = { flow_id: refId, revision, inputs: retained }; next.settings.retry = { count: 0 }; });
+                    ed.model.change('block-reference', rec => { const next = rec.node(id); next.params = Object.assign({}, each ? next.params : {}, { flow_id: refId, revision, inputs: retained }); next.settings.retry = { count: 0 }; });
                     const latest = ed.model.node(id); if (node !== latest) { node = latest; bindings(); } return true;
                 } });
                 bag.add(() => dialog.close(null));
@@ -284,9 +303,24 @@
         bag.listen(more, 'click', () => { if (listCursor) loadList(true); });
         loadList(false); if (stagedId) versions(); bindings();
         apply.disabled = true;
-        return { el, insert: (name, ref) => form && form.insert(name, ref), focus: name => form && form.focus(name), flush: () => !form || form.flush(), value: name => node.params.inputs && node.params.inputs[name.slice('inputs.'.length)], mappingTargets: () => form ? form.mappingTargets() : [], refresh(next, roots) { const refChanged = next.params.flow_id !== node.params.flow_id || next.params.revision !== node.params.revision; node = next; env.roots = roots; if (refChanged) { reviewSeq++; stagedId = node.params.flow_id || ''; stagedRevision = Number(node.params.revision) || 0; blockSelect.value = stagedId; versions(); bindings(); } else if (form) form.refresh(node.params.inputs || {}, roots); }, dispose() { closed = true; versionSeq++; bindingSeq++; reviewSeq++; controller.abort(); if (form) form.dispose(); bag.dispose(); el.remove(); } };
+        const owner = name => batch && !name.startsWith('inputs.') ? batch : form;
+        return {
+            el, insert: (name, ref) => owner(name) && owner(name).insert(name, ref),
+            focus(name) { const target = name === 'flow_id' ? blockSelect : name === 'revision' ? versionSelect : name === 'item_field' ? el.querySelector('[data-ed-batch-item-field]') : null; if (target) target.focus(); else if (owner(name)) owner(name).focus(name); },
+            flush: () => (!batch || batch.flush()) && (!form || form.flush()),
+            value: name => name === 'items' ? node.params.items : node.params.inputs && node.params.inputs[name.slice('inputs.'.length)],
+            mappingTargets: () => (batch ? batch.mappingTargets() : []).concat(form ? form.mappingTargets() : []),
+            refresh(next, roots) {
+                const refChanged = next.params.flow_id !== node.params.flow_id || next.params.revision !== node.params.revision;
+                node = next; env.roots = roots; if (batch) batch.refresh(next, roots);
+                if (refChanged) { reviewSeq++; stagedId = node.params.flow_id || ''; stagedRevision = Number(node.params.revision) || 0; blockSelect.value = stagedId; versions(); bindings(); }
+                else if (each && bindingShape && boundItem !== node.params.item_field) renderBindings(bindingShape);
+                else if (form) form.refresh(node.params.inputs || {}, roots);
+            },
+            dispose() { closed = true; versionSeq++; bindingSeq++; reviewSeq++; controller.abort(); if (form) form.dispose(); if (batch) batch.dispose(); bindingBag.dispose(); bag.dispose(); el.remove(); }
+        };
     }
-    function handles(type) { return ['block.input', 'block.output', 'component.call'].includes(type); }
+    function handles(type) { return ['block.input', 'block.output', 'component.call', 'component.each'].includes(type); }
     // Metadata reads touch only changed call IDs after the initial document scan, never run ticks.
     function track(ed) {
         const controller = new AbortController(), queue = [], seen = new Set(), refs = new Map(), nodes = new Map(), requests = new Map();
@@ -294,7 +328,7 @@
         ed.catalog.blockContracts.clear();
         function update(id) {
             const node = ed.model.node(id), old = nodes.get(id);
-            const key = ed.blockApi && node && node.type === 'component.call' && typeof node.params.flow_id === 'string' && Number.isInteger(node.params.revision) && node.params.revision > 0 ? node.params.flow_id + ':' + node.params.revision : '';
+            const key = ed.blockApi && node && ['component.call', 'component.each'].includes(node.type) && typeof node.params.flow_id === 'string' && Number.isInteger(node.params.revision) && node.params.revision > 0 ? node.params.flow_id + ':' + node.params.revision : '';
             if (old === key) return;
             if (old) { const count = refs.get(old) - 1; if (count) refs.set(old, count); else { refs.delete(old); seen.delete(old); requests.delete(old); ed.catalog.blockContracts.delete(old); } }
             nodes.delete(id);
@@ -320,5 +354,5 @@
         });
         return { dispose() { closed = true; controller.abort(); queue.length = 0; seen.clear(); refs.clear(); nodes.clear(); requests.clear(); ed.catalog.blockContracts.clear(); off(); } };
     }
-    ED.blockFields = { values, handles, track, render: env => env.node.type === 'component.call' ? call(env) : boundary(env) };
+    ED.blockFields = { values, handles, track, render: env => ['component.call', 'component.each'].includes(env.node.type) ? call(env) : boundary(env) };
 })();

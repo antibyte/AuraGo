@@ -114,7 +114,8 @@
             box.hidden = false;
             if (!Object.keys(roots).length) { box.textContent = t('easydrag.ui.preview_no_data'); box.className = 'ed-field-preview is-muted'; return; }
             try {
-                const result = ED.template.evaluate(value, roots);
+                const param = ((env.info && env.info.params) || []).find(item => item.name === name);
+                const result = param && param.literal && Array.isArray(value) ? value : ED.template.evaluate(value, roots);
                 const shown = typeof result === 'string' ? (result.length > 140 ? result.slice(0, 139) + '…' : result) : '';
                 box.className = 'ed-field-preview';
                 box.innerHTML = '<span class="ed-preview-label">' + esc(t('easydrag.ui.preview_result')) + '</span> ' +

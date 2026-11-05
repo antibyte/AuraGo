@@ -591,7 +591,11 @@ func (s *Service) PublishPreview(ctx context.Context, id string) (*PublishPrevie
 	}
 	issues := append(Validate(rec.Draft, s.reg, s.vc(ModePublish)), selfTriggerIssues(rec.Draft, rec.MissionID)...)
 	if _, err := prepareBlockPlan(ctx, s.store, rec.Draft, s.services); err != nil {
-		issues = append(issues, Issue{Code: IssueParamInvalid, Severity: SeverityError, Message: "a referenced block revision is invalid or unavailable"})
+		if issue, ok := batchWorkIssue(err); ok {
+			issues = append(issues, issue)
+		} else {
+			issues = append(issues, Issue{Code: IssueParamInvalid, Severity: SeverityError, Message: "a referenced block revision is invalid or unavailable"})
+		}
 	}
 	if issues == nil {
 		issues = []Issue{}

@@ -142,6 +142,10 @@ func (s *Service) PublishWithNote(ctx context.Context, id string, baseRevision i
 	}
 	plan, err := prepareBlockPlan(ctx, s.store, rec.Draft, s.services)
 	if err != nil {
+		if issue, ok := batchWorkIssue(err); ok {
+			issues = append(issues, issue)
+			return nil, issues, &ValidationError{Issues: issues}
+		}
 		return nil, issues, err
 	}
 	bindings, err := BindTriggers(rec.Draft, s.reg, loc, now)

@@ -21,6 +21,9 @@ func RegisterCatalog(reg *Registry, env CatalogEnv) error {
 	if err := reg.Register(blockCallDef()); err != nil {
 		return err
 	}
+	if err := reg.Register(blockEachDef()); err != nil {
+		return err
+	}
 	if err := RegisterTriggerNodes(reg); err != nil {
 		return err
 	}

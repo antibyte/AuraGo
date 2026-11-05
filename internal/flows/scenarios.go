@@ -415,7 +415,7 @@ func (s *Service) SaveScenario(ctx context.Context, flowID string, baseDraftRevi
 		}
 	}
 	for id := range scenario.Fixtures {
-		if node := doc.NodeByID(id); node != nil && node.Type == blockCallType {
+		if node := doc.NodeByID(id); node != nil && (node.Type == blockCallType || node.Type == blockEachType) {
 			return Scenario{}, ErrInvalidSimulationFixture
 		}
 	}

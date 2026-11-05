@@ -1391,3 +1391,9 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 /* The start page and the loading / error states sit on the theme's canvas material; --ed-canvas falls back to the flat
    --ed-bg. Every other region paints itself from the role aliases in the token block (bar, side, card, well, field, btn). */
 .ed-app { background: var(--ed-canvas); }
+.ed-app .ed-batch-options { margin-block: 16px; padding-block: 8px; border-block: 1px solid var(--ed-border); }
+.ed-app .ed-batch-results { margin-block: 12px; }
+.ed-app .ed-batch-item-results { display: grid; gap: 8px; padding-inline-start: 24px; }
+.ed-app .ed-batch-item-results li { min-width: 0; overflow-wrap: anywhere; }
+.ed-app .ed-batch-item-results strong, .ed-app .ed-batch-item-results code { display: block; }
+.ed-app .ed-batch-item-results code { white-space: pre-wrap; }

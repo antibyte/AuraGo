@@ -508,7 +508,8 @@
         // ── commands ─────────────────────────────────────────────────────────────
 
         function defaults(i) {
-            const out = {};
+            // Only creation supplies batch defaults; loading a damaged draft never fills them in.
+            const out = i && i.type === 'component.each' ? { items: [], item_field: '', inputs: {}, max_items: 100, concurrency: 1, on_item_error: 'stop' } : {};
             (i && i.params || []).forEach(p => { if (p.default !== undefined && p.default !== null) out[p.name] = clone(p.default); });
             return out;
         }
@@ -659,6 +660,13 @@
             change('label', rec => { rec.node(id).label = String(label).slice(0, 80); }, { coalesce: 'label:' + id });
         }
 
+        function renameParams(n, renames) {
+            if (n.type !== 'component.each' || !Array.isArray(n.params.items)) return ED.template.renameRootsInValue(n.params, renames);
+            const { items, ...params } = n.params;
+            return Object.assign(ED.template.renameRootsInValue(params, renames), { items });
+        }
+
+        // Literal batch items are data, while the list expression and shared bindings are templates.
         // setKey renames a node key and rewrites every template reference in one step.
         function setKey(id, key) {
             const n = node(id);
@@ -671,7 +679,7 @@
             change('key', rec => {
                 rec.node(id).key = key;
                 state.doc.nodes.forEach(other => {
-                    const renamed = ED.template.renameInValue(other.params, oldKey, key);
+                    const renamed = renameParams(other, new Map([[oldKey, key]]));
                     if (!same(renamed, other.params)) rec.node(other.id).params = renamed;
                 });
             });
@@ -803,7 +811,7 @@
                     rec.addNode({
                         id: n.newId, key: n.newKey, type: n.type, type_version: n.type_version, label: n.label,
                         position: { x: Math.round(ax + n.position.x - min.x), y: Math.round(ay + n.position.y - min.y) },
-                        params: renames.size ? ED.template.renameRootsInValue(n.params, renames) : n.params,
+                        params: renames.size ? renameParams(n, renames) : n.params,
                         settings: n.settings
                     });
                 });

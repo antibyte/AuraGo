@@ -145,7 +145,7 @@ func (s *Service) Simulate(ctx context.Context, id string, req SimulationRequest
 		if def.Trigger {
 			continue
 		}
-		pure := simulationPureType(def.Type) || def.Type == blockCallType
+		pure := simulationPureType(def.Type) || def.Type == blockCallType || def.Type == blockEachType
 		copyDef := *def
 		original := def.Execute
 		copyDef.Execute = func(nodeCtx context.Context, in ExecInput) (ExecResult, error) {
