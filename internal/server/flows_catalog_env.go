@@ -183,6 +183,13 @@ func (e *flowCatalogEnv) ToolAvailability(tool string) flows.Availability {
 	return flowToolAvailability(cfg, e.toolNames(cfg), tool)
 }
 
+// ApprovalAuthAvailable reports whether a usable owner login is configured now.
+// Catalog registration remains passive; this only controls whether an approval node
+// can be authored and is re-read from the immutable config snapshot on each call.
+func (e *flowCatalogEnv) ApprovalAuthAvailable() bool {
+	return e != nil && flowApprovalAuthAvailable(e.current())
+}
+
 // flowToolAvailability decides whether a node's tool can run with cfg. names holds the
 // configured agent tools. The logical names brave_search, pdf_extractor and
 // document_creator:gotenberg have no schema of their own.

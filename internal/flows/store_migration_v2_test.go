@@ -25,7 +25,7 @@ func v1MigrationFixture(t *testing.T, conflict bool) string {
 		t.Fatal(err)
 	}
 	defer raw.Close()
-	if _, err := raw.Exec(`DROP TABLE flow_child_traces; ALTER TABLE flow_runs DROP COLUMN child_history_state; ALTER TABLE flow_runs DROP COLUMN child_history_bytes; ALTER TABLE flow_runs DROP COLUMN child_history_metadata; ALTER TABLE flow_runs DROP COLUMN durable_mission_id; ALTER TABLE flow_runs DROP COLUMN durable; DROP TABLE flow_version_notes; DROP TABLE flow_library_metadata; DROP TABLE flow_library_folders; DROP TABLE flow_block_run_pins; DROP TABLE flow_block_version_pins; DROP TABLE flow_checkpoints; DROP TABLE flow_test_scenarios; UPDATE flows_meta SET value='1' WHERE key='schema_version'`); err != nil {
+	if _, err := raw.Exec(`DROP TABLE flow_durable_gates; DROP TABLE flow_child_traces; ALTER TABLE flow_runs DROP COLUMN child_history_state; ALTER TABLE flow_runs DROP COLUMN child_history_bytes; ALTER TABLE flow_runs DROP COLUMN child_history_metadata; ALTER TABLE flow_runs DROP COLUMN durable_mission_id; ALTER TABLE flow_runs DROP COLUMN durable; DROP TABLE flow_version_notes; DROP TABLE flow_library_metadata; DROP TABLE flow_library_folders; DROP TABLE flow_block_run_pins; DROP TABLE flow_block_version_pins; DROP TABLE flow_checkpoints; DROP TABLE flow_test_scenarios; UPDATE flows_meta SET value='1' WHERE key='schema_version'`); err != nil {
 		t.Fatal(err)
 	}
 	if conflict {
@@ -47,7 +47,7 @@ func TestFlowsV2MigrationBacksUpExistingData(t *testing.T) {
 		t.Fatal(err)
 	}
 	var version string
-	if err := s.db.QueryRow(`SELECT value FROM flows_meta WHERE key='schema_version'`).Scan(&version); err != nil || version != "7" {
+	if err := s.db.QueryRow(`SELECT value FROM flows_meta WHERE key='schema_version'`).Scan(&version); err != nil || version != "8" {
 		t.Fatalf("migrated version = %q %v", version, err)
 	}
 	backups, err := filepath.Glob(filepath.Join(filepath.Dir(path), ".flows-v1-backup-*", "flows.db"))

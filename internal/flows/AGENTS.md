@@ -168,7 +168,7 @@ the contracts below describe the implemented behavior of each delivered slice.
 ## Boundaries
 - Never import `internal/agent`, `internal/server` or `internal/tools`. Tool calls go through
   `ToolInvoker`, LLM calls through `LLMStepper`, time through `Clock` (`services.go`).
-- Node types live in a `Registry`. `RegisterCatalog(reg, env)` registers the 41 curated types (see Catalog);
+- Node types live in a `Registry`. `RegisterCatalog(reg, env)` registers the 42 curated types (see Catalog);
   the server wiring (`internal/server`, see Integration) supplies the `CatalogEnv` and the `GenericTool` list for
   `RefreshGenericTools`.
 
@@ -468,7 +468,7 @@ the contracts below describe the implemented behavior of each delivered slice.
 ## Store
 - Times are stored as fixed-width UTC text (`timeLayout`) so text order is time order. There is no
   corruption auto-recovery: a failed open is an error, so users' flows never vanish silently.
-- Schema version: `flows_meta.schema_version` holds `storeSchemaVersion` (6). `OpenStore` refuses a database
+- Schema version: `flows_meta.schema_version` holds `storeSchemaVersion` (8). `OpenStore` refuses a database
   with a greater version (or one that is not a number) before any migration runs and leaves the file untouched,
   so an older AuraGo never writes into a schema a newer one migrated. Raise `storeSchemaVersion` with every
   migration a previous release cannot work with.
@@ -480,7 +480,10 @@ the contracts below describe the implemented behavior of each delivered slice.
   version 4 backs up v3 and atomically installs folders, flow metadata and version notes. Version 5
   backs up v4 and advances only the compatibility marker so old binaries cannot discard groups. Version 6
   backs up v5 and adds the checked, admission-owned `flow_runs.durable` marker and immutable
-  `durable_mission_id`; old rows default to false and an empty owner.
+  `durable_mission_id`; old rows default to false and an empty owner. Version 7 adds child-run history.
+  Version 8 backs up v7 and transactionally adds `flow_durable_gates`, preserving existing child history,
+  immutable run owners and opaque encrypted checkpoint bytes; a failed migration leaves the marker and v7
+  data intact. Older binaries refuse v8 before writing.
   Existing v4 stores complete this migration before baseline schema writes. Incomplete
   or incompatible v3/v4 ownership constraints fail closed before other writes. Verify
   `TestFlowsV2Migration*`, `TestFlowsV3*`, `TestFlowsV4*`, `TestFlowsV5*`, `TestFlowsV6*` and `TestC16OpenStoreRefusesANewerSchema`.
@@ -507,6 +510,25 @@ the contracts below describe the implemented behavior of each delivered slice.
   checkpoint rows and pre-checkpoint durable runs at 64. Scans reject more than one million JSON values.
   Checkpoint status diagnostics are serialized and bounded, and retain checkpoints through ordinary run pruning.
   Scenario and checkpoint keys are separate, agent-hidden Vault entries; backups need their matching Vault keys.
+- `logic.durable_approval` is an explicit human boundary in the same pure-local durable allowlist. Durable mode
+  remains default-off; publication, admission and resume require current durable authority and usable owner-login
+  authorization. A committed pending gate stores only bounded identity/digest metadata in SQL; its full summary
+  and review JSON stay in the authenticated encrypted `pendingApproval` checkpoint. The digest binds run, flow,
+  published revision, owner, node, gate, generation and exact canonical review bytes. Safe-integer-incompatible
+  review numbers are rejected at all nesting levels; long identifiers must be strings. Pending gates are absent
+  from timed checkpoint claims. While a gate is pending, status exposes its deadline but no technical wake time.
+  A failed initial checkpoint save leaves the run retained and blocked; log only its run ID and storage error,
+  never review or checkpoint content. An explicit `local_admin` approve/reject CAS authenticates the checkpoint and
+  rechecks expiry after acquiring SQLite's write lock; duplicate matching decisions reread the committed outcome.
+  Approval advances the same checkpoint and run into the normal fair queue; rejection and authenticated expiry
+  atomically finish run/history metadata and remove the checkpoint. Explicit generation-fenced Stop remains
+  key-independent and records no human decision. Terminal metadata retains the digest, never the review payload.
+  `DurableRunStatus` retains the latest gate ID after checkpoint removal; a terminal run is historical and does
+  not offer Stop. Existing retained-checkpoint Stop behavior, including legacy checkpoints, remains unchanged.
+  Verify `TestDurableApprovalProcessLossResumesSameRunOnce` for process loss before and after decision commit,
+  pinned revision and one continuation; `TestDurableApprovalDecisionCASAndStopBoundaries` for inbox/CAS,
+  deadline precision, expiry and key-independent Stop; and `TestDurableApprovalAuthOwnerRollbackFailClosed` for
+  auth availability/rechecks, owner mismatch, transaction rollback and browser-safe review numbers.
 - Test runs store their document once per flow and content in `flow_test_docs` (sha256 key, written in one
   transaction with the run row) and refer to it through `flow_runs.doc_hash`; rows from before keep `doc_json`.
   `PruneRunsByMode` sweeps documents no run refers to. Live runs reference `flow_versions`. `Publish` keeps the
@@ -579,9 +601,9 @@ the contracts below describe the implemented behavior of each delivered slice.
   overlap keeps its wall-clock time; which of the two instants is not defined.
 
 ## Catalog
-- Counts: `RegisterCatalog(reg, env)` registers 41 curated types, 14 triggers and 27 others: logic 9 (`logic.if`, `switch`, `merge`, `wait`,
-  `durable_wait`, `set`, `stop`, `component.call`, `component.each`), AI 2 (`ai.step`, `ai.decision`) and actions 16 (web 3, documents 4, notify 5, smart home 2,
-  planner 2); `TestRegisterCatalogCounts` pins the total (41) and the trigger count (14). Generic `tool.<name>` nodes are
+- Counts: `RegisterCatalog(reg, env)` registers 42 curated types, 14 triggers and 28 others: logic 10 (`logic.if`, `switch`, `merge`, `wait`,
+  `durable_wait`, `durable_approval`, `set`, `stop`, `component.call`, `component.each`), AI 2 (`ai.step`, `ai.decision`) and actions 16 (web 3, documents 4, notify 5, smart home 2,
+  planner 2); `TestRegisterCatalogCounts` pins the total (42) and the trigger count (14). Generic `tool.<name>` nodes are
   separate: `RefreshGenericTools(reg, tools, env)` replaces all of them in one atomic `Registry.ReplaceWhere`
   step (a concurrent `Lookup` never sees a half-built set) and returns how many it registered. Call it again
   when the tool configuration changes.
@@ -883,6 +905,8 @@ the contracts below describe the implemented behavior of each delivered slice.
 ## Tests
 - `go test ./internal/flows/ -count=1`; the race detector needs cgo, so `go test -race ./internal/flows/`
   runs on Linux (aurago-test), not locally on Windows.
+- Schema and approval focused regressions: `TestFlowsV[2-8]`, `TestClaimedDurableStateMatchesRunIdentity`,
+  `TestDurableRunnerWakeCompletesSameRun`, `TestRegisterCatalogCounts` and `TestDescribeNodeTypesRealCatalog`.
 - Run timing-sensitive tests alone in a fresh process. On Windows the first local-time format in a
   process costs about 48 ms; gate such tests on a `started` channel, not on a short run timeout.
 - `fakeClock` keeps abandoned waiters until `Advance` passes their deadline; `WaitForWaiters` counts them.

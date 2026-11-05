@@ -42,7 +42,7 @@ const (
 // flowsCollectionRoutes are the first path segments under /api/desktop/flows/ that
 // handleFlows dispatches as a collection route, not as a flow id. Only routes that exist
 // are listed: a new collection route in handleFlows adds its segment here.
-var flowsCollectionRoutes = map[string]bool{"secrets": true, "runs": true, "node-types": true, "templates": true, "validate": true, "ai-proposal": true, "packs": true}
+var flowsCollectionRoutes = map[string]bool{"secrets": true, "runs": true, "node-types": true, "templates": true, "validate": true, "ai-proposal": true, "packs": true, "approvals": true}
 
 // flowIDPattern accepts what can be a flow id (flows.NewFlowID gives "flow_" and ten
 // characters); anything else is FLOW_NOT_FOUND before the store is asked.
@@ -237,6 +237,8 @@ func (s *Server) flowsErrorFrom(w http.ResponseWriter, r *http.Request, err erro
 	switch {
 	case errors.As(err, &ve) && ve != nil:
 		flowsJSON(w, http.StatusUnprocessableEntity, map[string]any{"error": flowsErrorText(err), "code": "FLOW_INVALID", "issues": nonNilIssues(ve.Issues)})
+	case errors.Is(err, flows.ErrDurableApprovalAuthUnavailable):
+		flowsError(w, http.StatusServiceUnavailable, "FLOW_APPROVAL_AUTH_UNAVAILABLE", "approval_auth_unavailable")
 	case errors.Is(err, flows.ErrWrongFlowKind):
 		flowsError(w, http.StatusNotFound, "FLOW_NOT_FOUND", "flow not found")
 	case errors.Is(err, flows.ErrNotFound):
@@ -426,7 +428,11 @@ func (s *Server) handleFlows(w http.ResponseWriter, r *http.Request) {
 	// is split around the flows gates, so the flows API keeps its own codes for a read-only
 	// desktop (FLOW_PERMISSION_DENIED) and a cancelled request (flowsErrorFrom: 503), while a
 	// write still gets the Desktop grant that a readonly switch revokes.
-	if !authenticateDesktopPermission(s, w, r, flowsRequiredScope(r.Method, parts)) {
+	if isFlowApprovalDecision(r.Method, parts) {
+		if !s.requireFlowApprovalDecisionSession(w, r) {
+			return
+		}
+	} else if !authenticateDesktopPermission(s, w, r, flowsRequiredScope(r.Method, parts)) {
 		return
 	}
 	if !flowsOriginOK(r) {
@@ -468,6 +474,8 @@ func (s *Server) handleFlows(w http.ResponseWriter, r *http.Request) {
 		s.flowsRunRoute(w, r, parts[1:])
 	case parts[0] == "packs":
 		s.flowsPacks(w, r, parts[1:])
+	case parts[0] == "approvals":
+		s.flowsApprovals(w, r, parts[1:])
 	case parts[0] == "node-types":
 		s.flowsNodeTypes(w, r, parts[1:])
 	case parts[0] == "templates" && len(parts) == 1:
@@ -536,7 +544,8 @@ func isFlowsAPIPath(path string) bool {
 // flowsRequiredScope is the desktop scope a bearer token needs for a flows request (parts
 // from flowsPathParts): desktop:read for GET/HEAD and read-only pack preview/reconciliation,
 // desktop:write for POST validate (it only checks the document it is sent), and
-// desktop:admin for every other request. A
+// desktop:admin for every other request. Approval decision routes still reject bearer
+// authorization in handleFlows, even when a token has this scope. A
 // test or live run executes the flow's tools on the host (shell, sudo, Docker), publishing
 // and enabling create missions, cron jobs and webhooks, and secrets go into the vault, so
 // these writes need what the desktop chat and Looper runs need. Both the auth middleware

@@ -115,6 +115,24 @@ func (s *Service) Publish(ctx context.Context, id string, baseRevision int) (*Fl
 }
 
 func (s *Service) PublishWithNote(ctx context.Context, id string, baseRevision int, note *string) (*FlowRecord, []Issue, error) {
+	// Approval capability is a publication boundary. Read before taking the flow
+	// lock because the authority callback may inspect Mission Control state.
+	preflight, err := s.requireFlow(ctx, id)
+	if err != nil {
+		return nil, nil, err
+	}
+	if preflight.DraftRevision != baseRevision {
+		return nil, nil, ErrRevisionConflict
+	}
+	if containsDurableApproval(preflight.Draft) {
+		if !s.cfg.DurableEnabled || s.services.CheckpointKeys == nil {
+			return nil, nil, ErrDurableUnavailable
+		}
+		authority, ok := s.bridge.(DurableApprovalAuthority)
+		if !ok || authority.DurableApprovalAllowed(ctx) != nil {
+			return nil, nil, ErrDurableApprovalAuthUnavailable
+		}
+	}
 	if note != nil {
 		copy := *note
 		if err := libraryText(copy, 2048, 4096, true); err != nil {

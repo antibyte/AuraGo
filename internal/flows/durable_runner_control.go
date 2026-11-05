@@ -28,12 +28,20 @@ func durableControl(store *Store, keys CheckpointKeyProvider, runID, owner strin
 	control.save = func(ctx context.Context, state durableCheckpointState, step StepRecord) error {
 		mu.Lock()
 		defer mu.Unlock()
+		next := generation + 1
+		if state.PendingApproval != nil {
+			state.PendingApproval.GateGeneration = next
+			digest, err := durableApprovalDigest(state, state.PendingApproval)
+			if err != nil {
+				return err
+			}
+			state.PendingApproval.ContentDigest = digest
+		}
 		plain, err := encodeDurableState(state)
 		if err != nil {
 			return err
 		}
 		defer clear(plain)
-		next := generation + 1
 		err = withCheckpointKeyMode(ctx, store.db, keys, generation == 0, func(tx *sql.Tx, key []byte) error {
 			if generation > 0 {
 				if err := authenticateOwnedCheckpointTx(ctx, tx, runID, generation, owner, now(), key); err != nil {
@@ -45,7 +53,18 @@ func durableControl(store *Store, keys CheckpointKeyProvider, runID, owner strin
 				return err
 			}
 			rec := durableCheckpointRecord{RunID: runID, Generation: next, WakeAt: state.WakeAt, Deadline: state.Deadline, Ciphertext: sealed}
-			return store.saveWaitingCheckpointTx(ctx, tx, rec, generation, owner, now(), state.EventSeq, step)
+			if err := store.saveWaitingCheckpointTx(ctx, tx, rec, generation, owner, now(), state.EventSeq, step); err != nil {
+				return err
+			}
+			if approval := state.PendingApproval; approval != nil {
+				_, err := tx.ExecContext(ctx, `INSERT INTO flow_durable_gates(gate_id,run_id,flow_id,revision,node_id,node_key,admission_owner,gate_generation,content_digest,expires_at,state,created_at)
+					VALUES(?,?,?,?,?,?,?,?,?,?,'pending',?)`, approval.GateID, state.RunID, state.Flow.ID, state.Revision, approval.NodeID, approval.NodeKey,
+					approval.AdmissionOwner, approval.GateGeneration, approval.ContentDigest, formatTime(state.Deadline), formatTime(now()))
+				if err != nil {
+					return fmt.Errorf("save durable approval gate: %w", err)
+				}
+			}
+			return nil
 		})
 		if err == nil {
 			generation = next

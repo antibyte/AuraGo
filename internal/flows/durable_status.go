@@ -31,7 +31,7 @@ func (s *Service) checkpointBlocked(ctx context.Context, runID string, generatio
 	if err != nil {
 		return "checkpoint_unreadable", nil
 	}
-	if state.Version != 2 {
+	if state.Version < 2 || state.Version > 3 {
 		return "incompatible", nil
 	}
 	if (checkpointState == "waiting" && runStatus != string(RunWaiting)) || (checkpointState == "claimed" && ((runStatus != string(RunQueued) && runStatus != string(RunRunning)) || parseTime(lease).IsZero())) || (checkpointState != "waiting" && checkpointState != "claimed") {
@@ -224,8 +224,11 @@ func (s *Service) DurableRunStatus(ctx context.Context, runID string) (*DurableR
 	var marker int
 	var runStatus string
 	var gen sql.NullInt64
-	var state, wake, deadline sql.NullString
-	err := s.store.db.QueryRowContext(ctx, `SELECT r.durable,r.status,c.generation,c.state,c.wake_at,c.deadline FROM flow_runs r LEFT JOIN flow_checkpoints c ON c.run_id=r.id WHERE r.id=?`, runID).Scan(&marker, &runStatus, &gen, &state, &wake, &deadline)
+	var state, wake, deadline, gateID, gateState sql.NullString
+	err := s.store.db.QueryRowContext(ctx, `SELECT r.durable,r.status,c.generation,c.state,c.wake_at,c.deadline,
+		(SELECT g.gate_id FROM flow_durable_gates g WHERE g.run_id=r.id ORDER BY g.created_at DESC,g.gate_id DESC LIMIT 1),
+		(SELECT g.state FROM flow_durable_gates g WHERE g.run_id=r.id ORDER BY g.created_at DESC,g.gate_id DESC LIMIT 1)
+		FROM flow_runs r LEFT JOIN flow_checkpoints c ON c.run_id=r.id WHERE r.id=?`, runID).Scan(&marker, &runStatus, &gen, &state, &wake, &deadline, &gateID, &gateState)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrRunNotFound
 	}
@@ -233,9 +236,16 @@ func (s *Service) DurableRunStatus(ctx context.Context, runID string) (*DurableR
 		return nil, err
 	}
 	if !gen.Valid {
+		out := &DurableRunStatus{RunID: runID, CancelAvailable: marker == 1 && !RunStatus(runStatus).Terminal()}
+		if gateID.Valid {
+			out.ApprovalGateID = gateID.String
+		}
+		if gateState.Valid && gateState.String == DurableApprovalPending {
+			out.State = "approval_pending"
+			return out, nil
+		}
 		if marker == 1 && (runStatus == string(RunQueued) || runStatus == string(RunRunning)) {
 			active, queued := s.runner.durableRunOwnership(runID)
-			out := &DurableRunStatus{RunID: runID, CancelAvailable: true}
 			switch {
 			case active:
 				out.State = "running"
@@ -247,10 +257,17 @@ func (s *Service) DurableRunStatus(ctx context.Context, runID string) (*DurableR
 			}
 			return out, nil
 		}
+		if gateID.Valid {
+			out.State = runStatus
+			return out, nil
+		}
 		return nil, nil
 	}
 	out := &DurableRunStatus{RunID: runID, Generation: gen.Int64, CancelAvailable: true}
-	if t := parseTime(wake.String); !t.IsZero() {
+	if gateID.Valid {
+		out.ApprovalGateID = gateID.String
+	}
+	if t := parseTime(wake.String); !t.IsZero() && !(gateState.Valid && gateState.String == DurableApprovalPending) {
 		u := t.UTC()
 		out.WakeAt = &u
 	}
@@ -287,7 +304,9 @@ func (s *Service) DurableRunStatus(ctx context.Context, runID string) (*DurableR
 		out.State, out.BlockedCode = "blocked", blocked
 		return out, nil
 	}
-	if state.String == "waiting" {
+	if gateState.Valid && gateState.String == DurableApprovalPending {
+		out.State = "approval_pending"
+	} else if state.String == "waiting" {
 		out.State = "waiting"
 	} else if state.String == "claimed" {
 		active, _ := s.runner.durableRunOwnership(runID)

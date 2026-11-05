@@ -4,7 +4,7 @@ import "time"
 
 // captureDurableState runs on the coordinator after all workers have drained.
 // The coordinator must keep its flow and outputs read-only until encoded.
-func captureDurableState(s *runState, waitingNode string, waitStartedAt, wakeAt, deadline time.Time) (durableCheckpointState, error) {
+func captureDurableState(s *runState, waitingNode string, waitStartedAt, wakeAt, deadline time.Time, approvals ...*durableApprovalCheckpoint) (durableCheckpointState, error) {
 	if s == nil || s.g == nil || s.req.Flow == nil || s.running != 0 || s.failure != nil || s.stop != nil || s.req.Mode != ModeLive || s.req.OnlyNode != "" {
 		return durableCheckpointState{}, errInvalidCheckpoint
 	}
@@ -40,11 +40,14 @@ func captureDurableState(s *runState, waitingNode string, waitStartedAt, wakeAt,
 		return durableCheckpointState{}, err
 	}
 	state := durableCheckpointState{
-		Version: 2, Location: location, RunID: s.req.RunID, Flow: s.req.Flow, Revision: s.req.Revision,
+		Version: 3, Location: location, RunID: s.req.RunID, Flow: s.req.Flow, Revision: s.req.Revision,
 		TriggerNode: s.req.TriggerNode, Trigger: s.trigger, StartedAt: s.started, Deadline: deadline,
 		WakeAt: wakeAt, WaitStartedAt: waitStartedAt, WaitingNode: waitingNode, Statuses: statuses, Edges: edges,
 		Outputs: s.outputs, Untrusted: s.untrusted, OutputBytes: s.outputBytes,
 		StoredBytes: s.storedBytes, EventSeq: s.seq,
+	}
+	if len(approvals) > 0 {
+		state.PendingApproval = approvals[0]
 	}
 	if !validDurableState(state) {
 		return durableCheckpointState{}, errInvalidCheckpoint

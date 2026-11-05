@@ -62,6 +62,7 @@ type RunRequest struct {
 	// without a runner.
 	Slot RunSlot
 	// durable is set only by the durable coordinator, never by ordinary runs.
+	missionID      string
 	durable        *durableRunControl
 	blocks         *blockPlan
 	scope          *blockRunScope

@@ -34,7 +34,7 @@ func childHistoryV6Fixture(t *testing.T) (string, *sql.DB) {
 	db.SetMaxOpenConns(1)
 	t.Cleanup(func() { _ = db.Close() })
 	_, err = db.Exec(`PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA wal_autocheckpoint=0;
-		DROP TABLE flow_child_traces;
+		DROP TABLE flow_durable_gates; DROP TABLE flow_child_traces;
 		ALTER TABLE flow_runs DROP COLUMN child_history_state;
 		ALTER TABLE flow_runs DROP COLUMN child_history_bytes;
 		ALTER TABLE flow_runs DROP COLUMN child_history_metadata;

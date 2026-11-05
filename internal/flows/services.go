@@ -113,6 +113,7 @@ type Services struct {
 	Decisions      DecisionEvaluator
 	Secrets        SecretReader
 	CheckpointKeys CheckpointKeyProvider
+	DurableApprovalAuthority DurableApprovalAuthority
 	ScenarioKeys   ScenarioKeyProvider
 	Clock          Clock
 	Location       *time.Location

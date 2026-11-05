@@ -312,12 +312,18 @@ loop:
 	for {
 		for len(ready) > 0 && s.running < s.e.parallel && s.failure == nil && s.stop == nil && ctx.Err() == nil {
 			id := ready[0]
-			if s.req.durable != nil && s.g.nodes[id].Type == durableWaitType {
+			if s.req.durable != nil && (s.g.nodes[id].Type == durableWaitType || s.g.nodes[id].Type == durableApprovalType) {
 				if s.running != 0 {
 					break
 				}
 				ready = ready[1:]
-				result, failure := s.suspendDurableNode(ctx, id)
+				var result RunResult
+				var failure *NodeError
+				if s.g.nodes[id].Type == durableApprovalType {
+					result, failure = s.suspendDurableApproval(ctx, id)
+				} else {
+					result, failure = s.suspendDurableNode(ctx, id)
+				}
 				if failure == nil {
 					return result
 				}

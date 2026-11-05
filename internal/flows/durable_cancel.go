@@ -11,6 +11,19 @@ import (
 // accepted cancellation of a still-uncheckpointed worker. Terminal legacy
 // rows retain their status when their incompatible checkpoint is removed.
 func (s *Service) CancelDurableRun(ctx context.Context, runID string, expectedGeneration int64) (bool, error) {
+	return s.cancelDurableRun(ctx, runID, expectedGeneration, "")
+}
+
+// CancelDurableRunAs records the authenticated local administrator when the
+// caller has one. Stop remains key-independent and generation fenced.
+func (s *Service) CancelDurableRunAs(ctx context.Context, runID string, expectedGeneration int64, actor string) (bool, error) {
+	if actor != "local_admin" {
+		actor = ""
+	}
+	return s.cancelDurableRun(ctx, runID, expectedGeneration, actor)
+}
+
+func (s *Service) cancelDurableRun(ctx context.Context, runID string, expectedGeneration int64, actor string) (bool, error) {
 	if runID == "" || len(runID) > 128 || expectedGeneration < 0 {
 		return false, ErrDurableGenerationConflict
 	}
@@ -81,6 +94,12 @@ func (s *Service) CancelDurableRun(ctx context.Context, runID string, expectedGe
 	}
 	if expectedGeneration != generation.Int64 {
 		return false, ErrDurableGenerationConflict
+	}
+	if !RunStatus(status).Terminal() {
+		_, err := tx.ExecContext(ctx, `UPDATE flow_durable_gates SET state='cancelled',decision='',actor=?,decided_at=? WHERE run_id=? AND state='pending'`, actor, formatTime(s.now()), runID)
+		if err != nil {
+			return false, err
+		}
 	}
 	if !RunStatus(status).Terminal() {
 		res, err := tx.ExecContext(ctx, `UPDATE flow_runs SET status='cancelled',error_code='FLOW_CANCELLED',error_message='the run was cancelled',finished_at=? WHERE id=? AND status IN ('queued','running','waiting')`, formatTime(s.now()), runID)

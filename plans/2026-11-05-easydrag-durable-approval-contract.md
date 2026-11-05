@@ -22,6 +22,8 @@ queue. Rejection, expiry or cancellation stops it. Opening or refreshing a revie
   Reuse current parameter forms/resolution. Resolve once at the quiescent suspension boundary.
   Reject blank summaries, unsupported values, bounds violations and registered-secret content
   before inserting a gate; never truncate the review or silently redact an executable value.
+  Reject integer values outside the browser's safe range (±9,007,199,254,740,991), including
+  exponent notation; identifiers requiring more digits must be strings.
 - Expiry is the original absolute run deadline. Add no timeout override or extended deadline.
   Approval completes the node with `{approved:true}`; rejection/expiry have fixed error codes
   and stop, without a configurable alternate branch. Pure nodes already committed never repeat.
@@ -139,5 +141,10 @@ Update English/German manuals and nearest owning guides with the implemented bou
 - UI: inbox -> exact run -> complete review -> explicit decision; terminal/blocked/unknown states,
   stale replies, GET-only uncertainty recovery, close/dispose, hostile text, keyboard and phone
   theme journeys. Keep module budgets, locale/loader coverage and legacy flows passing.
-- Run focused tests then exact clean-checkout Linux race and native/bundle checks. Human usability,
-  assistive technology, reference hardware and production acceptance remain separate release gates.
+- Minimize verification to the changed behavior and meaningful risk boundaries above. Combine
+  cases in existing/table-driven harnesses; avoid duplicate assertions and implementation-mirroring
+  tests. Use focused host checks, then exact clean-checkout race checks for affected durable/approval
+  paths and one combined native UI journey with cheap locale/module/bundle checks. Repeat or broaden
+  only for a new change, failure or unresolved concern. Do not rerun unrelated package/browser suites
+  or add performance benchmarks to this slice. Human usability, assistive technology, reference
+  hardware and production acceptance remain separate release gates.

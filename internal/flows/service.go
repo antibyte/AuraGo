@@ -214,9 +214,14 @@ func NewService(store *Store, reg *Registry, services *Services, bridge MissionB
 		history: map[string]runHistory{}, stop: make(chan struct{}), done: make(chan struct{})}
 	s.bootTime = services.Now()
 	authority, _ := bridge.(DurableAuthority)
+	approvalAuthority, _ := bridge.(DurableApprovalAuthority)
 	projector, _ := bridge.(DurableHistoryProjector)
+	services.DurableApprovalAuthority = approvalAuthority
 	if _, ok := reg.Lookup(durableWaitType); ok {
 		reg.Replace(durableWaitDef(cfg.DurableEnabled && authority != nil && services.CheckpointKeys != nil))
+	}
+	if def, ok := reg.Lookup(durableApprovalType); ok {
+		reg.Replace(durableApprovalDef(cfg.DurableEnabled && authority != nil && services.CheckpointKeys != nil, def.approvalAuthAvailable))
 	}
 	s.engine = NewEngine(reg, services, logger, cfg.MaxParallelNodes)
 	s.runner = NewRunner(s.engine, store, RunnerHooks{OnRunStarted: s.onRunStarted, OnRunFinished: s.onRunFinished},

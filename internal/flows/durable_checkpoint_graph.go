@@ -2,6 +2,19 @@ package flows
 
 // durableWaitType is deliberately unregistered until persistence and recovery ship together.
 const durableWaitType = "logic.durable_wait"
+const durableApprovalType = "logic.durable_approval"
+
+func containsDurableApproval(f *Flow) bool {
+	if f == nil {
+		return false
+	}
+	for _, node := range f.Nodes {
+		if node.Type == durableApprovalType {
+			return true
+		}
+	}
+	return false
+}
 
 // durableGraphAllowed checks the entire immutable graph, including disabled and
 // unreachable nodes. Callers must validate the document and execute with a
@@ -18,7 +31,7 @@ func durableGraphAllowed(f *Flow) bool {
 		switch n.Type {
 		case TypeTriggerManual:
 			triggers++
-		case durableWaitType:
+		case durableWaitType, durableApprovalType:
 			waits++
 		case TypeIf, TypeSwitch, TypeMerge, TypeSet, TypeStop:
 		default:

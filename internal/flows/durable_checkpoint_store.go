@@ -335,10 +335,11 @@ func claimDurableCheckpoint(ctx context.Context, db *sql.DB, runID string, gener
 		}
 	}
 	result, err := tx.ExecContext(ctx, `UPDATE flow_checkpoints SET state='claimed',lease_owner=?,lease_until=?,updated_at=?
-		WHERE run_id=? AND generation=? AND wake_at<=? AND deadline>? AND (
-		(state='waiting' AND EXISTS (SELECT 1 FROM flow_runs WHERE id=? AND status='waiting' AND durable=1)) OR
-		(state='claimed' AND lease_until<=? AND EXISTS (SELECT 1 FROM flow_runs WHERE id=? AND status IN ('queued','running') AND durable=1)))`,
-		owner, formatTime(leaseUntil), formatTime(now), runID, generation, formatTime(now), formatTime(now), runID, formatTime(now), runID)
+		WHERE run_id=? AND generation=? AND wake_at<=? AND deadline>? AND
+		((state='waiting' AND EXISTS (SELECT 1 FROM flow_runs WHERE id=? AND status='waiting' AND durable=1)) OR
+		(state='claimed' AND lease_until<=? AND EXISTS (SELECT 1 FROM flow_runs WHERE id=? AND status IN ('queued','running') AND durable=1)))
+		AND NOT EXISTS (SELECT 1 FROM flow_durable_gates WHERE run_id=? AND state='pending')`,
+		owner, formatTime(leaseUntil), formatTime(now), runID, generation, formatTime(now), formatTime(now), runID, formatTime(now), runID, runID)
 	if err != nil {
 		return false, fmt.Errorf("claim checkpoint: %w", err)
 	}

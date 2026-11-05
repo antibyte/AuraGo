@@ -92,7 +92,7 @@ func (s *Service) Simulate(ctx context.Context, id string, req SimulationRequest
 		return nil, ErrRevisionConflict
 	}
 	for _, node := range rec.Draft.Nodes {
-		if node.Type == durableWaitType {
+		if node.Type == durableWaitType || node.Type == durableApprovalType {
 			return nil, ErrDurableInvalidGraph
 		}
 	}

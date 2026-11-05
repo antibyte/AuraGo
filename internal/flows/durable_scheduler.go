@@ -20,17 +20,21 @@ type durableResume struct {
 
 func (s *Service) startDurableScheduler() {
 	r := s.runner
-	if !s.cfg.DurableEnabled || r.cfg.DurableAuthority == nil || r.cfg.DurableHistory == nil || s.services.CheckpointKeys == nil {
+	if s.services.CheckpointKeys == nil {
 		return
 	}
 	r.mu.Lock()
-	if r.closed || r.durableStarted {
+	if r.closed || r.durableExpiryStarted {
 		r.mu.Unlock()
 		return
 	}
-	r.durableStarted = true
-	for id := range r.durable {
-		r.bus.Open(id)
+	r.durableExpiryStarted = true
+	canRecover := s.cfg.DurableEnabled && r.cfg.DurableAuthority != nil && r.cfg.DurableHistory != nil
+	if canRecover {
+		r.durableStarted = true
+		for id := range r.durable {
+			r.bus.Open(id)
+		}
 	}
 	r.wg.Add(1)
 	r.mu.Unlock()
@@ -60,7 +64,19 @@ func (s *Service) recoverDurableDue(ctx context.Context) {
 			return
 		}
 		now := r.now()
-		if item.Incompatible || now.Before(item.WakeAt) || (item.State == "claimed" && now.Before(item.LeaseUntil)) {
+		if item.Incompatible {
+			continue
+		}
+		if item.ApprovalPending {
+			if !now.Before(item.Deadline) {
+				gate, err := s.getDurableApprovalByRun(ctx, item.RunID)
+				if err == nil {
+					_ = s.expireDurableApproval(ctx, gate)
+				}
+			}
+			continue
+		}
+		if !s.cfg.DurableEnabled || r.cfg.DurableAuthority == nil || r.cfg.DurableHistory == nil || now.Before(item.WakeAt) || (item.State == "claimed" && now.Before(item.LeaseUntil)) {
 			continue
 		}
 		rec, err := s.requireFlow(ctx, item.FlowID)
@@ -172,6 +188,12 @@ func (s *Service) claimDurableForWorker(ctx context.Context, item durableReserva
 	version, err := s.store.GetVersion(ctx, item.FlowID, item.Revision)
 	if err != nil {
 		return empty, "", 0, ErrDurableUnavailable
+	}
+	if containsDurableApproval(version) {
+		approvalAuthority, ok := s.bridge.(DurableApprovalAuthority)
+		if !ok || approvalAuthority.DurableApprovalAllowed(ctx) != nil {
+			return empty, "", 0, ErrDurableApprovalAuthUnavailable
+		}
 	}
 	document, err := version.Marshal()
 	if err != nil {

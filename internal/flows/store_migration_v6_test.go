@@ -28,7 +28,7 @@ func durableV5Fixture(t *testing.T) (string, *sql.DB) {
 	db.SetMaxOpenConns(1)
 	t.Cleanup(func() { db.Close() })
 	_, err = db.Exec(`PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA wal_autocheckpoint=0;
-		DROP TABLE flow_child_traces; ALTER TABLE flow_runs DROP COLUMN child_history_state; ALTER TABLE flow_runs DROP COLUMN child_history_bytes; ALTER TABLE flow_runs DROP COLUMN child_history_metadata; ALTER TABLE flow_runs DROP COLUMN durable_mission_id; ALTER TABLE flow_runs DROP COLUMN durable; UPDATE flows_meta SET value='5' WHERE key='schema_version'; PRAGMA wal_checkpoint(TRUNCATE);
+		DROP TABLE flow_durable_gates; DROP TABLE flow_child_traces; ALTER TABLE flow_runs DROP COLUMN child_history_state; ALTER TABLE flow_runs DROP COLUMN child_history_bytes; ALTER TABLE flow_runs DROP COLUMN child_history_metadata; ALTER TABLE flow_runs DROP COLUMN durable_mission_id; ALTER TABLE flow_runs DROP COLUMN durable; UPDATE flows_meta SET value='5' WHERE key='schema_version'; PRAGMA wal_checkpoint(TRUNCATE);
 		INSERT INTO flow_runs(id,flow_id,revision,mode,status,started_at) VALUES('run_old','flow_v6test',1,'live','waiting','2026-11-05T10:00:00Z');
 		INSERT INTO flow_checkpoints(run_id,generation,state,wake_at,deadline,ciphertext,updated_at) VALUES('run_old',1,'waiting','2026-11-05T11:00:00Z','2026-11-06T10:00:00Z',X'FF8001','2026-11-05T10:00:00Z')`)
 	if err != nil {

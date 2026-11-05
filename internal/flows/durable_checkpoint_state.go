@@ -23,6 +23,7 @@ type durableCheckpointState struct {
 	WakeAt        time.Time                 `json:"wake_at"`
 	WaitStartedAt time.Time                 `json:"wait_started_at"`
 	WaitingNode   string                    `json:"waiting_node"`
+	PendingApproval *durableApprovalCheckpoint `json:"pending_approval,omitempty"`
 	Statuses      map[string]StepStatus     `json:"statuses"`
 	Edges         map[string]edgeState      `json:"edges"`
 	Outputs       map[string]map[string]any `json:"outputs"`
@@ -30,6 +31,21 @@ type durableCheckpointState struct {
 	OutputBytes   int                       `json:"output_bytes"`
 	StoredBytes   int                       `json:"stored_bytes"`
 	EventSeq      int                       `json:"event_seq"`
+}
+
+// durableApprovalCheckpoint contains the exact review presented while a run is
+// paused. It stays only in the authenticated encrypted checkpoint.
+type durableApprovalCheckpoint struct {
+	GateID         string          `json:"gate_id"`
+	NodeID         string          `json:"node_id"`
+	NodeKey        string          `json:"node_key"`
+	NodeLabel      string          `json:"node_label"`
+	AdmissionOwner string          `json:"admission_owner"`
+	GateGeneration int64           `json:"gate_generation"`
+	ContentDigest  string          `json:"content_digest"`
+	Summary        string          `json:"summary"`
+	ReviewData     json.RawMessage `json:"review_data"`
+	Decision       string          `json:"decision,omitempty"`
 }
 
 // Waiting rows round up to the store's microsecond precision so they never
@@ -112,7 +128,7 @@ func decodeDurableState(data []byte) (durableCheckpointState, error) {
 }
 
 func validDurableState(s durableCheckpointState) bool {
-	if (s.Version != 1 && s.Version != 2) || (s.Version == 1 && s.Location != "") || (s.Version == 2 && s.Location == "") || s.RunID == "" || len(s.RunID) > 128 || s.Revision <= 0 || !durableGraphAllowed(s.Flow) || s.Flow.Schema != SchemaVersion || s.Flow.ID == "" ||
+	if (s.Version < 1 || s.Version > 3) || (s.Version == 1 && s.Location != "") || (s.Version >= 2 && s.Location == "") || s.RunID == "" || len(s.RunID) > 128 || s.Revision <= 0 || !durableGraphAllowed(s.Flow) || s.Flow.Schema != SchemaVersion || s.Flow.ID == "" ||
 		s.StartedAt.IsZero() || !s.Deadline.After(s.StartedAt) || s.Deadline.Sub(s.StartedAt) > MaxRunSecondsLimit*time.Second ||
 		s.OutputBytes < 0 || s.OutputBytes > MaxRunOutputBytes ||
 		s.StoredBytes < 0 || s.StoredBytes > MaxStoredRunBytes || s.EventSeq < 0 {
@@ -138,12 +154,27 @@ func validDurableState(s durableCheckpointState) bool {
 	}
 	if s.WaitingNode != "" {
 		wait := s.Flow.NodeByID(s.WaitingNode)
-		if wait == nil || wait.Type != durableWaitType || wait.Settings.Disabled || s.Statuses[s.WaitingNode] != StepWaiting ||
+		approval := wait != nil && wait.Type == durableApprovalType
+		if wait == nil || (wait.Type != durableWaitType && !approval) || wait.Settings.Disabled || s.Statuses[s.WaitingNode] != StepWaiting ||
 			s.WaitStartedAt.Before(s.StartedAt) || s.WakeAt.Before(s.WaitStartedAt) || !s.WakeAt.Before(s.Deadline) {
+			return false
+		}
+		if approval != (s.PendingApproval != nil) {
 			return false
 		}
 	} else if !s.WaitStartedAt.IsZero() || !s.WakeAt.IsZero() {
 		return false
+	} else if s.PendingApproval != nil {
+		return false
+	}
+	if s.PendingApproval != nil {
+		approval := s.PendingApproval
+		node := s.Flow.NodeByID(approval.NodeID)
+		if approval.GateID == "" || len(approval.GateID) > 128 || node == nil || node.ID != s.WaitingNode || node.Key != approval.NodeKey || node.Type != durableApprovalType ||
+			approval.AdmissionOwner == "" || len(approval.AdmissionOwner) > 128 || approval.GateGeneration <= 0 || len(approval.ContentDigest) != 64 || len(approval.Summary) == 0 || len(approval.Summary) > 2<<10 ||
+			len(approval.ReviewData) == 0 || len(approval.ReviewData) > 16<<10 || !json.Valid(approval.ReviewData) || (approval.Decision != "" && approval.Decision != DurableApprovalDecisionApprove) {
+			return false
+		}
 	}
 	nodes, keys := map[string]bool{}, map[string]bool{}
 	for _, n := range s.Flow.Nodes {

@@ -21,6 +21,13 @@ func RegisterCatalog(reg *Registry, env CatalogEnv) error {
 	if err := reg.Register(durableWaitDef(false)); err != nil {
 		return err
 	}
+	var approvalAvailable func() bool
+	if source, ok := env.(interface{ ApprovalAuthAvailable() bool }); ok {
+		approvalAvailable = source.ApprovalAuthAvailable
+	}
+	if err := reg.Register(durableApprovalDef(false, approvalAvailable)); err != nil {
+		return err
+	}
 	if err := reg.Register(blockCallDef()); err != nil {
 		return err
 	}

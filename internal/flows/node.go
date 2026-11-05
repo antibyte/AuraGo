@@ -266,12 +266,13 @@ type NodeDef struct {
 	// names its fail-closed branch (false of logic.if, default of logic.switch), so a
 	// failed node never picks the branch that a success would have to earn. A name that
 	// is not one of the node's ports is ignored.
-	ContinuePort     string
-	UntrustedOutput  bool
-	DefaultTimeout   time.Duration
-	AvailabilityFunc func() Availability
-	Validate         func(n *Node, vc ValidateContext) []Issue
-	Execute          ExecuteFunc
+	ContinuePort          string
+	UntrustedOutput       bool
+	DefaultTimeout        time.Duration
+	AvailabilityFunc      func() Availability
+	approvalAuthAvailable func() bool
+	Validate              func(n *Node, vc ValidateContext) []Issue
+	Execute               ExecuteFunc
 }
 
 // AllowsErrorMode reports whether mode is permitted for this definition. A nil

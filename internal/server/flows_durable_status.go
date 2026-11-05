@@ -99,7 +99,19 @@ func (s *Server) cancelDurableFlowRun(w http.ResponseWriter, r *http.Request, ru
 		flowsError(w, http.StatusBadRequest, "FLOW_BAD_REQUEST", "a non-negative generation is required")
 		return
 	}
-	accepted, err := s.Flows.CancelDurableRun(r.Context(), runID, *request.Generation)
+	// A browser owner cancellation records the server-derived singleton actor with
+	// a pending approval gate. Bearer and auth-disabled cancellations remain actorless.
+	accepted := false
+	if cfg := s.ConfigSnapshot(); flowApprovalAuthAvailable(cfg) &&
+		IsAuthenticated(r, cfg.Auth.SessionSecret) {
+		if _, bearer := bearerCredential(r.Header.Get("Authorization")); !bearer {
+			accepted, err = s.Flows.CancelDurableRunAs(r.Context(), runID, *request.Generation, "local_admin")
+		} else {
+			accepted, err = s.Flows.CancelDurableRun(r.Context(), runID, *request.Generation)
+		}
+	} else {
+		accepted, err = s.Flows.CancelDurableRun(r.Context(), runID, *request.Generation)
+	}
 	if errors.Is(err, flows.ErrDurableGenerationConflict) {
 		flowsError(w, http.StatusConflict, "FLOW_DURABLE_GENERATION_CONFLICT", "the durable generation changed")
 		return

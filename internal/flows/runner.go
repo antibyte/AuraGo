@@ -179,6 +179,7 @@ type Runner struct {
 	live                 map[string]int
 	durable              map[string]durableReservation
 	durableStarted       bool
+	durableExpiryStarted bool
 	recoveryErr          error
 	flowSlots            map[string]int // global slots held by counted runs, per flow (MaxSlotsPerFlow)
 	flowQueue            map[string][]*pendingRun
@@ -299,7 +300,7 @@ func (r *Runner) StartContext(ctx context.Context, req StartRequest) (StartResul
 	}
 	hasDurable := false
 	for _, node := range req.Flow.Nodes {
-		if node.Type == durableWaitType {
+		if node.Type == durableWaitType || node.Type == durableApprovalType {
 			hasDurable = true
 			break
 		}
@@ -359,7 +360,7 @@ func (r *Runner) StartContext(ctx context.Context, req StartRequest) (StartResul
 		}
 	}()
 	for _, n := range req.Flow.Nodes {
-		if (!hasDurable && n.Type != blockCallType && n.Type != blockEachType) || (hasDurable && n.Type != durableWaitType) {
+		if (!hasDurable && n.Type != blockCallType && n.Type != blockEachType) || (hasDurable && n.Type != durableWaitType && n.Type != durableApprovalType) {
 			continue
 		}
 		if ctx == nil {
@@ -381,6 +382,12 @@ func (r *Runner) StartContext(ctx context.Context, req StartRequest) (StartResul
 		}
 		token = r.blockAdmissionTokens.add(req.Flow.ID, req.missionID, req.Mode, cancel, hasDurable)
 		if hasDurable {
+			if containsDurableApproval(req.Flow) {
+				approvalAuthority, ok := r.cfg.DurableAuthority.(DurableApprovalAuthority)
+				if !ok || approvalAuthority.DurableApprovalAllowed(admissionCtx) != nil {
+					return StartResult{}, ErrDurableApprovalAuthUnavailable
+				}
+			}
 			enabled, err := r.cfg.DurableAuthority.DurableEnabled(admissionCtx)
 			if err != nil {
 				return StartResult{}, ErrDurableUnavailable
@@ -894,13 +901,13 @@ func (r *Runner) runAndRecord(ctx context.Context, p *pendingRun) (res RunResult
 		defer stopWorker()
 		durable.ownerCtx = workerCtx
 		stopHeartbeat := r.startDurableHeartbeat(workerCtx, stopWorker, p, durable)
-		res = resumeDurableCoordinator(workerCtx, p.durableResume.state, r.engine.services, r.logger, durable, slot, sink)
+		res = resumeDurableCoordinator(workerCtx, p.durableResume.state, r.engine.services, r.logger, durable, slot, sink, p.req.missionID)
 		stopHeartbeat()
 	} else {
 		res = engine.Execute(ctx, RunRequest{
 			RunID: runID, Flow: p.req.Flow, Revision: p.req.Revision, Mode: p.req.Mode,
 			TriggerNode: p.req.TriggerNode, TriggerType: p.req.TriggerType, TriggerData: p.req.TriggerData,
-			OnlyNode: p.req.OnlyNode, Timeout: p.req.Timeout, Slot: slot, blocks: p.req.blocks, scope: scope, durable: durable,
+			OnlyNode: p.req.OnlyNode, Timeout: p.req.Timeout, Slot: slot, missionID: p.req.missionID, blocks: p.req.blocks, scope: scope, durable: durable,
 		}, sink)
 	}
 	if res.suspended || res.durabilityLost {
