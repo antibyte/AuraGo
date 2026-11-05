@@ -134,6 +134,74 @@ func (v *validator) story() {
 	v.music()
 	v.castList()
 	v.scenes()
+	v.glyphs()
+}
+
+// glyphs reports text that no fallback face can draw, one glyph_missing per text path. A catalog without coverage data skips
+// the check. Code-scene strings stay layout_unverified, so a code scene answers only for its narration. A silent scene's
+// narration is never drawn, so it is never checked.
+func (v *validator) glyphs() {
+	if v.cat == nil || v.cat.Glyphs() == nil {
+		return
+	}
+	g := v.cat.Glyphs()
+	check := func(path, text string) {
+		missing := g.Missing(text)
+		if len(missing) == 0 {
+			return
+		}
+		v.errorf(CodeGlyphMissing, path, "No font covers these characters: "+glyphNames(missing)+".",
+			"Remove or replace them. Emoji, Thai and Hebrew have no font in this catalog.")
+	}
+	for i := range v.s.Scenes {
+		sc := &v.s.Scenes[i]
+		v.sceneID = sc.ID
+		storyboard := sc.Kind != "code"
+		bareSay := false
+		if storyboard {
+			for j := range sc.Beats {
+				if sc.Beats[j].Do == "say" && !sayHasText(sc.Beats[j].Text) {
+					bareSay = true
+				}
+			}
+		}
+		if !sc.Silent && (v.s.Style.Captions || bareSay) {
+			check(jp("scenes", i)+"/narration", sc.Narration)
+		}
+		if !storyboard {
+			continue
+		}
+		for j := range sc.Beats {
+			if b := &sc.Beats[j]; b.Do == "show" || b.Do == "say" {
+				check(jp("scenes", i, "beats", j)+"/text", b.Text)
+			}
+		}
+	}
+	v.sceneID = ""
+}
+
+// glyphNames names at most three runes as U+XXXX "x".
+func glyphNames(runes []rune) string {
+	names := make([]string, 0, 3)
+	for _, r := range runes {
+		if len(names) == 3 {
+			break
+		}
+		names = append(names, fmt.Sprintf("U+%04X %q", r, string(r)))
+	}
+	if extra := len(runes) - len(names); extra > 0 {
+		return strings.Join(names, ", ") + fmt.Sprintf(" and %d more", extra)
+	}
+	return strings.Join(names, ", ")
+}
+
+// sayMarkerPattern is the marker form of the player's narration parser: any count of ASCII digits, so wider than cuePattern.
+var sayMarkerPattern = regexp.MustCompile(`\{[0-9]+\}`)
+
+// sayHasText is true when a say's text keeps a character after its markers and JS whitespace go. It is the same test as Blocks
+// (StripMarkers(text) is not empty) and the player (parsed.words > 0), so a say of only spaces counts as a say without text.
+func sayHasText(text string) bool {
+	return strings.TrimFunc(sayMarkerPattern.ReplaceAllString(text, ""), IsJSSpace) != ""
 }
 
 func (v *validator) format() {

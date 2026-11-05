@@ -59,6 +59,9 @@ const (
 	CodeTransitionVariety = "transition_variety"  // minor
 )
 
+// CodeGlyphMissing is an error of Validate: a drawn text has a character that no font of the catalog covers.
+const CodeGlyphMissing = "glyph_missing"
+
 // Issue is one validation finding. Path is a JSON Pointer (RFC 6901) from the story root.
 type Issue struct {
 	Severity  string   `json:"severity"`

@@ -503,3 +503,71 @@ func TestCreateLikeStoryIsValid(t *testing.T) {
 		t.Fatalf("a fresh story must validate cleanly:%s", dump(issues))
 	}
 }
+
+func TestValidateGlyphMissing(t *testing.T) {
+	thai := string(rune(0x0E01))
+	zwj := string(rune(0x200D))
+	lineSep := string(rune(0x2028))
+	show := func(text string) string {
+		return `{"id":"s1","beats":[{"do":"show","text":"` + text + `","at":"center","entry":"fade"}]}`
+	}
+	bareSay := `"actors":[{"cast":"anna"}],"beats":[{"do":"say","who":"anna","style":"speech"}]`
+	cases := []struct {
+		name     string
+		captions bool
+		scene    string
+		path     string // "" means no glyph_missing at all
+	}{
+		{"show text", true, show(thai), "/scenes/0/beats/0/text"},
+		{"say text", true, `{"id":"s1","actors":[{"cast":"anna"}],"beats":[{"do":"say","who":"anna","style":"speech","text":"` + thai + `"}]}`, "/scenes/0/beats/0/text"},
+		{"zero width joiner is exempt", true, show("a" + zwj + "b"), ""},
+		{"line separator is exempt", true, show("a" + lineSep + "b"), ""},
+		{"narration with captions on", true, `{"id":"s1","narration":"` + thai + `"}`, "/scenes/0/narration"},
+		{"narration with captions off", false, `{"id":"s1","narration":"` + thai + `"}`, ""},
+		{"narration with captions off and a say without text", false, `{"id":"s1","speaker":"anna","narration":"` + thai + `",` + bareSay + `}`, "/scenes/0/narration"},
+		{"silent narration with captions on", true, `{"id":"s1","silent":true,"narration":"` + thai + `"}`, ""},
+		{"silent narration with a say without text", true, `{"id":"s1","silent":true,"narration":"` + thai + `",` + bareSay + `}`, ""},
+		{"code scene narration with captions on", true, `{"id":"s1","kind":"code","narration":"` + thai + `"}`, "/scenes/0/narration"},
+		{"code scene narration with captions off", false, `{"id":"s1","kind":"code","narration":"` + thai + `"}`, ""},
+		{"code scene strings stay unchecked", true, `{"id":"s1","kind":"code","beats":[{"do":"show","text":"` + thai + `","at":"center","entry":"fade"}]}`, ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			s := storyOf(t, tc.scene)
+			s.Style.Captions = tc.captions
+			var found []Issue
+			for _, is := range Validate(&s, loadReal(t), DefaultLimits()) {
+				if is.Code == CodeGlyphMissing {
+					found = append(found, is)
+				}
+			}
+			if tc.path == "" {
+				if len(found) != 0 {
+					t.Fatalf("unexpected glyph_missing:%s", dump(found))
+				}
+				return
+			}
+			if len(found) != 1 || found[0].Path != tc.path || found[0].Severity != SeverityError {
+				t.Fatalf("want one error at %s, got:%s", tc.path, dump(found))
+			}
+			if !strings.Contains(found[0].Message, "U+0E01") {
+				t.Fatalf("message does not name the character: %s", found[0].Message)
+			}
+		})
+	}
+	t.Run("names at most three characters", func(t *testing.T) {
+		// Four distinct Thai letters and one repeat, so the fourth stays unnamed.
+		s := storyOf(t, show(string([]rune{0x0E01, 0x0E02, 0x0E03, 0x0E04, 0x0E01})))
+		is := expectIssue(t, Validate(&s, loadReal(t), DefaultLimits()), CodeGlyphMissing, SeverityError, "/scenes/0/beats/0/text")
+		if !strings.Contains(is.Message, fmt.Sprintf("U+0E01 %q", thai)) || !strings.Contains(is.Message, "U+0E03") || strings.Contains(is.Message, "U+0E04") {
+			t.Fatalf("message: %s", is.Message)
+		}
+	})
+	t.Run("the mini catalog has no coverage, so nothing is checked", func(t *testing.T) {
+		for _, is := range validateScenes(t, show(thai)) {
+			if is.Code == CodeGlyphMissing {
+				t.Fatalf("unexpected: %+v", is)
+			}
+		}
+	})
+}
