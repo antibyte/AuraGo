@@ -48,7 +48,9 @@
     "build:browser-vendor": "node scripts/build-browser-vendor.js",
     "test:storymaker": "node scripts/test-storymaker-player.mjs",
     "build:storymaker-catalog": "node scripts/build-storymaker-catalog.mjs",
-    "check:storymaker-catalog": "node scripts/build-storymaker-catalog.mjs --check"
+    "check:storymaker-catalog": "node scripts/build-storymaker-catalog.mjs --check",
+    "build:storymaker-ranges": "node scripts/build-storymaker-ranges.mjs",
+    "check:storymaker-ranges": "node scripts/build-storymaker-ranges.mjs --check"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",
