@@ -237,6 +237,15 @@ progress.stm-progress::-webkit-progress-bar { background: var(--vd-mat-well, var
 progress.stm-progress::-webkit-progress-value { background: var(--vd-mat-primary, var(--vd-accent)); }
 progress.stm-progress::-moz-progress-bar { background: var(--vd-mat-primary, var(--vd-accent)); }
 
+/* Music panel: a side tab of its own. With a fourth tab the strip wraps instead of overflowing the side panel. */
+.stm-tabs-small { flex-wrap: wrap; }
+.stm-music { display: none; padding: 0 var(--ds-space-3) var(--ds-space-3); }
+.stm-app [data-sidetab="music"] .stm-music { display: block; }
+.stm-app [data-sidetab="music"] .stm-side > :not(.stm-tabs, .stm-music) { display: none; }
+.stm-music-status { display: grid; gap: var(--ds-space-2); margin-top: var(--ds-space-2); }
+.stm-music-status p { margin: 0; }
+.stm-music-bad { color: var(--stm-bad-text); }
+
 /* The code tab has the whole body: the strip and the inspector belong to the storyboard */
 .stm-editor-app[data-tab="code"] .stm-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
 .stm-editor-app[data-tab="code"] :is(.stm-strip, .stm-side) { display: none; }

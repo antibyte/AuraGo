@@ -939,3 +939,248 @@ eq(ctx.bars.length, 125, 'a new report repaints');
 transport.dispose();
 console.log('storymaker scrub wave ok');
 `
+
+// The music panel in Node, on a small fake DOM and a fake instance: when generated music is offered, that a paid call needs a
+// click, that a file or a track starts one job per source, and what the panel says about a missing source and a stopped job.
+func TestStorymakerMusicPanelInNode(t *testing.T) {
+	t.Parallel()
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("node not available")
+	}
+	script := filepath.Join(t.TempDir(), "storymaker-music-panel.js")
+	if err := os.WriteFile(script, []byte(storymakerMusicPanelScript), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	dir, _ := filepath.Abs(filepath.Join("js", "desktop", "apps"))
+	out, err := exec.Command(node, script, dir).CombinedOutput()
+	if err != nil {
+		t.Fatalf("node check failed: %v\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "storymaker music panel ok") {
+		t.Fatalf("unexpected output:\n%s", out)
+	}
+}
+
+const storymakerMusicPanelScript = `
+'use strict';
+const fs = require('fs');
+const vm = require('vm');
+const path = require('path');
+const [dir] = process.argv.slice(2);
+
+class FakeNode {
+  constructor(tag) { this.tag = String(tag); this.children = []; this.parent = null; this.dataset = {}; this.attrs = {}; this.listeners = {}; this.own = ''; this.value = ''; this.hidden = false; this.disabled = false; this.className = ''; this.style = { setProperty() {} }; }
+  appendChild(child) { child.parent = this; this.children.push(child); return child; }
+  removeChild(child) { this.children = this.children.filter(item => item !== child); child.parent = null; return child; }
+  get firstChild() { return this.children[0] || null; }
+  get textContent() { return this.own + this.children.map(child => child.textContent).join(''); }
+  set textContent(text) { this.children = []; this.own = String(text); }
+  setAttribute(name, value) { this.attrs[name] = String(value); if (name === 'value') this.value = String(value); if (name === 'hidden') this.hidden = true; if (name === 'disabled') this.disabled = true; }
+  removeAttribute(name) { delete this.attrs[name]; }
+  addEventListener(type, fn) { (this.listeners[type] = this.listeners[type] || []).push(fn); }
+  removeEventListener() {}
+  fire(type) { (this.listeners[type] || []).forEach(fn => fn({ target: this })); }
+  click() { if (!this.disabled) this.fire('click'); }
+  focus() {}
+}
+const document = {
+  createElement: tag => new FakeNode(tag),
+  createElementNS: (ns, tag) => new FakeNode(tag),
+  createTextNode: text => { const node = new FakeNode('#text'); node.own = String(text); return node; },
+  documentElement: { lang: 'en' },
+  activeElement: null
+};
+const context = { console, document, setTimeout, clearTimeout };
+context.globalThis = context; context.window = context;
+vm.createContext(context);
+for (const name of ['storymaker-core.js', 'storymaker-model.js', 'storymaker-music.js']) {
+  vm.runInContext(fs.readFileSync(path.join(dir, name), 'utf8'), context, { filename: name });
+}
+const S = context.StorymakerParts;
+const eq = (a, b, what) => { const x = JSON.stringify(a), y = JSON.stringify(b); if (x !== y) throw new Error(what + ': got ' + x + ', want ' + y); };
+const find = (node, stm) => { if (node.dataset.stm === stm) return node; for (const child of node.children) { const hit = find(child, stm); if (hit) return hit; } return null; };
+const flush = () => new Promise(resolve => setImmediate(resolve));
+const emptyAnswer = () => ({ narration: {}, missing: [], chars: { total: 0, missing: 0 }, music: null });
+
+function makeInst(overrides) {
+  const calls = { music: [], tracks: 0, refresh: 0, cancel: [] };
+  const inst = Object.assign({
+    t: (key, vars) => (vars ? key + ' ' + JSON.stringify(vars) : key),
+    bus: S.createBus(),
+    domId: name => 'x-' + name,
+    projectId: 'p1',
+    status: { music_configured: true },
+    readonly: false,
+    dirty: false,
+    story: { scenes: [{ id: 's1' }], music: null },
+    report: { duration_ms: 61000, fps: 30, frame_count: 1830 },
+    audioInfo: emptyAnswer(),
+    flushEdits: () => Promise.resolve(true),
+    refreshAudio() { calls.refresh++; },
+    api: {
+      music(id, ms, generate) { calls.music.push(generate ? [id, ms, generate] : [id, ms]); return Promise.resolve({ job: { id: 'j' + calls.music.length, kind: 'music', status: 'queued', project_id: 'p1' } }); },
+      noisemakerTracks() { calls.tracks++; return Promise.resolve({ items: [{ id: 7, title: 'Rain' }] }); },
+      cancelJob(id) { calls.cancel.push(id); return Promise.resolve({ id, kind: 'music', status: 'running', project_id: 'p1' }); }
+    },
+    editStory(fn) {
+      if (inst.readonly) return false;
+      const draft = JSON.parse(JSON.stringify(inst.story));
+      fn(draft);
+      inst.story = draft;
+      inst.bus.emit('story');
+      return true;
+    }
+  }, overrides);
+  inst.calls = calls;
+  return inst;
+}
+
+(async () => {
+  // generated mode hides without music_configured
+  let inst = makeInst({ status: { music_configured: false } });
+  let panel = S.createMusicPanel(inst);
+  eq(find(panel.el, 'music-mode').children.map(item => item.value), ['none', 'file'], 'generated hides without music_configured');
+  inst = makeInst();
+  panel = S.createMusicPanel(inst);
+  eq(find(panel.el, 'music-mode').children.map(item => item.value), ['none', 'generated', 'file'], 'generated shows when configured');
+
+  // generated music waits for the click, also after a prompt edit and a fresh answer
+  inst = makeInst({ story: { scenes: [{ id: 's1' }], music: { mode: 'generated', mood: 'calm-ambient', prompt: 'soft rain' } } });
+  panel = S.createMusicPanel(inst);
+  await flush();
+  eq(inst.calls.music, [], 'generated sends nothing by itself');
+  const button = find(panel.el, 'music-generate');
+  eq(button.hidden, false, 'the button shows while audioInfo.music is null');
+  const summary = find(panel.el, 'music-summary').textContent;
+  eq([summary.includes('storymaker.music.mood_calm_ambient'), summary.includes('soft rain')], [true, true], 'the button shows the mood and the prompt');
+  const box = find(panel.el, 'music-prompt');
+  box.value = 'harder rain';
+  box.fire('input');
+  inst.bus.emit('audio');
+  inst.bus.emit('report');
+  await flush();
+  eq(inst.calls.music, [], 'a prompt edit and a fresh answer send nothing');
+  eq(find(panel.el, 'music-summary').textContent.includes('harder rain'), true, 'the summary follows the edit');
+  button.click();
+  await flush();
+  eq(inst.calls.music, [['p1', 61000, true]], 'the click sends the report duration and asks for the generation');
+  eq(button.hidden, true, 'no second click while the job runs');
+
+  // the stop control: only while the job is queued or running, never read-only, and it calls the existing cancel route
+  const stop = find(panel.el, 'music-cancel');
+  eq(stop.hidden, false, 'stop shows while the job is queued');
+  inst.readonly = true;
+  inst.bus.emit('readonly');
+  eq(stop.hidden, true, 'stop hides when read-only');
+  inst.readonly = false;
+  inst.bus.emit('readonly');
+  stop.click();
+  await flush();
+  eq(inst.calls.cancel, ['j1'], 'stop cancels the panel job');
+
+  // the panel has its own text for interrupted and cancelled, and ignores other kinds
+  inst.bus.emit('job', { id: 'j1', kind: 'music', status: 'interrupted', project_id: 'p1', error: { code: 'interrupted', message: 'm' } });
+  eq(find(panel.el, 'music-status').textContent.includes('storymaker.music.interrupted'), true, 'interrupted');
+  eq(inst.calls.refresh, 1, 'a finished job refreshes the answer');
+  eq(stop.hidden, true, 'stop hides once the job is over');
+  button.click();
+  await flush();
+  inst.bus.emit('job', { id: 'j2', kind: 'music', status: 'cancelled', project_id: 'p1' });
+  eq(find(panel.el, 'music-status').textContent.includes('storymaker.music.cancelled'), true, 'cancelled');
+  inst.bus.emit('job', { id: 'n1', kind: 'narrate', status: 'running', project_id: 'p1' });
+  eq(find(panel.el, 'music-status').textContent.includes('storymaker.music.cancelled'), true, 'a narrate job is not the panel job');
+
+  // a file starts one job per source, with the report's duration and no click
+  const opened = [];
+  context.AuraDesktopFileDialogs = { open(options) { opened.push(options); return Promise.resolve({ canceled: false, path: 'Documents/Music/other.wav' }); } };
+  inst = makeInst({ story: { scenes: [{ id: 's1' }], music: { mode: 'file', file: 'Documents/Music/theme.mp3' } } });
+  panel = S.createMusicPanel(inst);
+  await flush();
+  eq(inst.calls.music, [['p1', 61000]], 'a file starts one job without a click and does not ask for a generation');
+  inst.bus.emit('audio');
+  inst.bus.emit('report');
+  await flush();
+  eq(inst.calls.music.length, 1, 'no second call while the job runs');
+  inst.bus.emit('job', { id: 'j1', kind: 'music', status: 'succeeded', project_id: 'p1' });
+  await flush();
+  eq(inst.calls.music.length, 1, 'the same source does not start again');
+
+  // the picker: the desktop file dialog with a filter; a new source is a new job
+  find(panel.el, 'music-choose').click();
+  await flush();
+  eq(opened[0].filters[0].extensions, ['.wav', '.mp3'], 'the picker filters wav and mp3');
+  eq(inst.story.music.file, 'Documents/Music/other.wav', 'the picked file is stored');
+  eq(inst.calls.music.length, 2, 'a new source starts its own job');
+
+  // file and track stay exclusive
+  const track = find(panel.el, 'music-track');
+  eq([inst.calls.tracks, track.children.map(item => item.value)], [1, ['', '7']], 'tracks come from Noisemaker once');
+  track.value = '7';
+  track.fire('change');
+  eq(['file' in inst.story.music, inst.story.music.track], [false, '7'], 'a track removes the file');
+  find(panel.el, 'music-choose').click();
+  await flush();
+  eq(['track' in inst.story.music, inst.story.music.file], [false, 'Documents/Music/other.wav'], 'a file removes the track');
+
+  // a missing source is named, starts nothing and offers another file
+  const answer = emptyAnswer();
+  answer.music_issue = 'source_missing';
+  inst = makeInst({ story: { scenes: [{ id: 's1' }], music: { mode: 'file', file: 'Documents/Music/gone.mp3' } }, audioInfo: answer });
+  panel = S.createMusicPanel(inst);
+  await flush();
+  eq(inst.calls.music, [], 'a missing source starts nothing');
+  eq(find(panel.el, 'music-missing').textContent.includes('Documents/Music/gone.mp3'), true, 'the missing source is named');
+  eq(find(panel.el, 'music-choose').textContent, 'storymaker.music.choose_other', 'another file is offered');
+
+  // a refused start and a failed job name the music budget, not the narration's character limit
+  inst = makeInst({ story: { scenes: [{ id: 's1' }], music: { mode: 'generated', mood: 'calm-ambient' } } });
+  inst.api.music = () => Promise.reject(S.errors.fromResponse(409, { error: 'budget_exceeded', code: 'budget_exceeded', message: 'm' }, null));
+  panel = S.createMusicPanel(inst);
+  await flush();
+  find(panel.el, 'music-generate').click();
+  await flush();
+  let said = find(panel.el, 'music-status').textContent;
+  eq([said.includes('storymaker.music.budget_exceeded'), said.includes('storymaker.job_error.budget_exceeded')], [true, false], 'a refused start names the music budget');
+  inst.bus.emit('job', { id: 'b1', kind: 'music', status: 'queued', project_id: 'p1' });
+  inst.bus.emit('job', { id: 'b1', kind: 'music', status: 'failed', project_id: 'p1', error: { code: 'budget_exceeded', message: 'm' } });
+  said = find(panel.el, 'music-status').textContent;
+  eq([said.includes('storymaker.music.budget_exceeded'), said.includes('storymaker.job_error.budget_exceeded')], [true, false], 'a failed job names the music budget');
+
+  // a refused file keeps the server's reason next to the sentence; a sentence that already holds the message does not repeat it
+  const refusedFile = 'The music file must last between 1 second and 1 hour.';
+  inst = makeInst({ story: { scenes: [{ id: 's1' }], music: { mode: 'file', file: 'Documents/Music/long.wav' } } });
+  inst.api.music = () => Promise.reject(S.errors.fromResponse(422, { error: 'invalid_music_file', code: 'invalid_music_file', message: refusedFile }, null));
+  panel = S.createMusicPanel(inst);
+  await flush();
+  eq([find(panel.el, 'music-status').textContent.includes('storymaker.error.invalid_music_file'), find(panel.el, 'music-refusal-detail').textContent], [true, refusedFile], 'the reason of the server shows');
+  inst = makeInst({ story: { scenes: [{ id: 's1' }], music: { mode: 'file', file: 'Documents/Music/long.wav' } } });
+  inst.api.music = () => Promise.reject(S.errors.fromResponse(500, { error: 'job_failed', code: 'job_failed', message: 'The music job could not be queued.' }, null));
+  panel = S.createMusicPanel(inst);
+  await flush();
+  eq(find(panel.el, 'music-refusal-detail'), null, 'the generic sentence already holds the message');
+
+  // a film over the limit closes Generate and says why, in the sentence of the export panel
+  inst = makeInst({ status: { music_configured: true, limits: { max_duration_seconds: 60 } }, story: { scenes: [{ id: 's1' }], music: { mode: 'generated', mood: 'calm-ambient' } } });
+  panel = S.createMusicPanel(inst);
+  eq([find(panel.el, 'music-generate').disabled, find(panel.el, 'music-too-long').textContent], [true, 'storymaker.export.blocked_too_long {"max":"60"}'], 'a film of 61 s over a limit of 60 s');
+  inst.report = { duration_ms: 60000, fps: 30, frame_count: 1800 };
+  inst.bus.emit('report');
+  eq([find(panel.el, 'music-generate').disabled, find(panel.el, 'music-too-long').hidden], [false, true], 'a film that fits opens it');
+
+  // a file replaced on disk has a new key: no music, no issue, nothing running and its one job used, so the panel says so and offers to prepare it again
+  inst = makeInst({ story: { scenes: [{ id: 's1' }], music: { mode: 'file', file: 'Documents/Music/theme.mp3' } } });
+  panel = S.createMusicPanel(inst);
+  await flush();
+  eq(find(panel.el, 'music-retry'), null, 'no retry while the job runs');
+  inst.bus.emit('job', { id: 'j1', kind: 'music', status: 'succeeded', project_id: 'p1' });
+  eq(find(panel.el, 'music-retry'), null, 'no retry while the fresh answer is on its way');
+  inst.bus.emit('audio');
+  eq(find(panel.el, 'music-unprepared').textContent, 'storymaker.export.missing_music', 'the panel says the file is not prepared');
+  eq(inst.calls.music.length, 1, 'nothing starts by itself');
+  find(panel.el, 'music-retry').click();
+  await flush();
+  eq(inst.calls.music.length, 2, 'retry prepares it again');
+  console.log('storymaker music panel ok');
+})().catch(err => { console.error(err.stack || err); process.exit(1); });
+`

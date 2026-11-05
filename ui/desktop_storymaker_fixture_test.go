@@ -222,7 +222,7 @@ func (f *storymakerFixture) status(w http.ResponseWriter) {
 		browser["issue"] = "no Chrome or Chromium found"
 	}
 	f.writeJSON(w, http.StatusOK, map[string]any{
-		"enabled": true, "read_only": f.readOnly, "ffmpeg": ffmpeg, "browser": browser, "transport": "png", "catalog_version": f.catalog.Version(),
+		"enabled": true, "read_only": f.readOnly, "ffmpeg": ffmpeg, "browser": browser, "transport": "png", "catalog_version": f.catalog.Version(), "music_configured": false,
 		"limits": map[string]any{"max_duration_seconds": f.limits.MaxDurationSeconds, "max_scenes": f.limits.MaxScenes, "max_narration_chars": f.limits.MaxNarrationChars},
 	})
 }
@@ -303,6 +303,8 @@ func (f *storymakerFixture) project(w http.ResponseWriter, r *http.Request, rout
 		f.narration(w, ctx, id)
 	case rest == "render" && r.Method == http.MethodPost:
 		f.render(w, r, id)
+	case rest == "music" && r.Method == http.MethodPost:
+		f.writeJSON(w, http.StatusOK, map[string]any{"job": nil})
 	case rest == "events" && r.Method == http.MethodGet:
 		f.events(w, r, id)
 	default:

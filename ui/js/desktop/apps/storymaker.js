@@ -251,6 +251,7 @@
             saveCodeScene: (sceneId, text, etag) => saveCodeScene(inst, sceneId, text, etag),
             editStory: (fn, options) => editStory(inst, fn, options),
             showIssues: () => toggleIssues(inst, true),
+            showPanel: name => showPanel(inst, name),
             reloadPlayer: () => reloadPlayer(inst)
         });
 
@@ -272,10 +273,11 @@
         const library = S.createLibrary(inst);
         const code = S.createCode(inst);
         const exporter = S.createExport(inst);
+        const music = S.createMusicPanel(inst);
         const voice = S.createVoicePanel(inst);
         stage.appendChild(voice.marker);
         code.el.hidden = true;
-        inst.parts.strip = strip; inst.parts.transport = transport; inst.parts.inspector = inspector; inst.parts.library = library; inst.parts.code = code; inst.parts.exporter = exporter; inst.parts.voice = voice;
+        inst.parts.strip = strip; inst.parts.transport = transport; inst.parts.inspector = inspector; inst.parts.library = library; inst.parts.code = code; inst.parts.exporter = exporter; inst.parts.music = music; inst.parts.voice = voice;
 
         const backButton = el('button', { type: 'button', class: 'stm-btn stm-btn-quiet', dataset: { stm: 'back' }, onClick: () => leaveProject(inst) }, icon('left'), el('span', { text: t('storymaker.back_to_projects') }));
         const title = el('h2', { class: 'stm-title', dataset: { stm: 'project-title' }, text: inst.project.title || inst.projectId });
@@ -295,7 +297,12 @@
             type: 'button', class: 'stm-tab', role: 'tab', dataset: { stm: 'side-tab', tab: name }, ariaSelected: String(name === inst.sideTab),
             onClick: () => setSideTab(inst, name)
         }, icon(glyph), el('span', { text: t(key) })));
+        sideTabs.push(el('button', {
+            type: 'button', class: 'stm-tab', role: 'tab', dataset: { stm: 'side-tab', tab: 'music' }, ariaSelected: String(inst.sideTab === 'music'),
+            onClick: () => setSideTab(inst, 'music')
+        }, icon('sparkle'), el('span', { text: t('storymaker.side_music') })));
         const side = el('aside', { class: 'stm-side', dataset: { stm: 'side' } }, el('div', { class: 'stm-tabs stm-tabs-small', role: 'tablist', ariaLabel: t('storymaker.inspector.title') }, sideTabs), inspector.el, library.el, voice.el);
+        side.appendChild(music.el);
         const center = el('main', { class: 'stm-center' }, el('div', { class: 'stm-stage-wrap', dataset: { stm: 'stage-wrap' } }, stage, transport.el), code.el, issuesPanel);
         const body = el('div', { class: 'stm-body' }, strip.el, center, side);
         const bannerArea = el('div', { class: 'stm-banners', dataset: { stm: 'banners' } });
@@ -593,6 +600,12 @@
         inst.sideTab = name;
         inst.parts.app.dataset.sidetab = name;
         inst.parts.sideTabs.forEach(button => button.setAttribute('aria-selected', String(button.dataset.tab === name)));
+    }
+
+    // An action elsewhere (the export refusals) opens a side panel: the storyboard tab, then the side tab of that name (voice from E1e, music from this task).
+    function showPanel(inst, name) {
+        if (inst.tab === 'code') setTab(inst, 'stage');
+        setSideTab(inst, name);
     }
 
     function allIssues(inst) {

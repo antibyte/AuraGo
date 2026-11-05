@@ -8,7 +8,7 @@ import (
 )
 
 // storymakerModules is the load order of the app: the shared core first, the composition root last.
-var storymakerModules = []string{"core", "model", "api", "assets", "player", "projects", "strip", "inspector", "code", "export", "audio", "voice"}
+var storymakerModules = []string{"core", "model", "api", "assets", "player", "projects", "strip", "inspector", "code", "export", "audio", "voice", "music"}
 
 func TestDesktopStorymakerRegistration(t *testing.T) {
 	t.Parallel()
