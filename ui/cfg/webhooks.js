@@ -365,7 +365,7 @@ function whShowEditor(id) {
                 </div>
                 <div class="wh-form-row">
                     <label for="wh-f-replay">${t('config.webhooks.replay_label')}</label>
-                    <input id="wh-f-replay" type="checkbox" aria-describedby="wh-f-replay-help" ${format.replay_protection ? 'checked' : ''}>
+                    <input id="wh-f-replay" type="checkbox" data-cfg-choice aria-describedby="wh-f-replay-help" ${format.replay_protection ? 'checked' : ''}>
                     <small class="wh-field-hint field-help" id="wh-f-replay-help">${t('config.webhooks.replay_help')}</small>
                 </div>
                 <div class="wh-subsection-title">
