@@ -60,6 +60,19 @@ the contracts below describe the implemented behavior of each delivered slice.
   Block simulation resolves the exact draft and all children in one read snapshot and records no run.
   Older C8 code can open the same store but refuses a nested block during admission rather than
   executing it with an incomplete dependency plan.
+- Extracting a linear selection of enabled `logic.set` nodes into a pure published block uses
+  a read-only, revision-bound proposal followed by one transaction that inserts the block and
+  version and CAS-replaces the parent draft. It creates no mission or run. Proposed IDs and the
+  canonical digest are untrusted and rechecked; an occupied block ID never overwrites a record.
+  Reconciliation confirms only matching parent draft and unchanged block draft/live/version in a
+  single snapshot; absence or later edits remain unknown. No automatic mutation retry follows an
+  uncertain commit. Only static typed outputs and proven input/control boundaries are accepted;
+  external references are limited to `trigger` and the immediately delivering predecessor.
+  Sensitive/fenced downstream uses must retain their security classification. Full groups move,
+  partial groups shrink in the parent, and selected positions stay unchanged. The generated
+  boundary/call consume shared graph, output and log budgets; preview checks expanded graph
+  limits, but a formerly successful near-limit run can still exhaust a shared runtime budget.
+  `TestExtraction*` covers the transaction, reconciliation and conservative graph boundaries.
 - `component.each` invokes the same pinned pure block serially for at most 1,000 items, with
   an explicitly selected input, shared inputs, concurrency one and retry count zero. Stop mode
   fails without partial output; collect mode returns ordered item outputs or bounded error codes.

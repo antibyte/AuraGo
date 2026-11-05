@@ -515,6 +515,7 @@
                 { icon: 'copy', label: t('easydrag.ui.node_duplicate'), disabled: ro, action: () => duplicateSteps(Array.from(ed.selection)) },
                 { icon: 'copy', label: t('easydrag.ui.menu_copy'), action: () => copySelection() },
                 ...(ed.groups ? [{ icon: 'grid', label: t('easydrag.ui.group_create'), disabled: ro, action: () => ed.groups.createFromSelection() }] : []),
+                ...(!ed.isBlock && ED.extraction ? [{ icon: 'grid', label: t('easydrag.ui.extraction_title'), disabled: ro, action: () => ed.bus.emit('extract-selection') }] : []),
                 { icon: 'pause', label: n && n.settings.disabled ? t('easydrag.ui.node_enable') : t('easydrag.ui.node_disable'), disabled: ro, action: () => toggleSteps(Array.from(ed.selection)) }
             ];
             if (ed.selection.size >= 2) {
@@ -537,6 +538,7 @@
             ed.ctx.showContextMenu(x, y, [
                 { icon: 'plus', label: t('easydrag.ui.menu_add_node'), disabled: ro, action: () => ed.bus.emit('quick-add', { x, y }) },
                 { icon: 'copy', label: t('easydrag.ui.menu_paste'), disabled: ro, action: () => pasteAt(canvas.clientToWorld(x, y)) },
+                ...(!ed.isBlock && ED.extraction ? [{ icon: 'grid', label: t('easydrag.ui.extraction_title'), disabled: ro || !ed.selection.size, action: () => ed.bus.emit('extract-selection') }] : []),
                 { separator: true },
                 { icon: 'search', label: t('easydrag.ui.find_step'), disabled: !ed.model.doc.nodes.length, action: () => ed.bus.emit('find-step') },
                 { icon: 'sparkles', label: t('easydrag.ui.auto_layout'), disabled: ro || ed.model.doc.nodes.length < 2, action: () => canvas.autoLayout() },

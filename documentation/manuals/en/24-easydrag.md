@@ -108,6 +108,19 @@ changes only when you publish; callers keep their pinned version until explicitl
 The parent run shows the
 call's block ID and version, without a separate child-run history.
 
+### Extract selected steps into a block
+
+Select a connected, linear sequence of enabled **Set fields** steps and choose **Extract
+selection as block** from Edit or the selection menu. The first version supports fixed output
+types and **Keep incoming data** turned off; the review explains when a selection or reference cannot be
+extracted safely. Pending draft edits are saved first. Name the block and inspect the proposed
+inputs, outputs, group changes and extra work before applying.
+
+Apply creates and publishes the block and replaces the selection in the flow draft together.
+It does not publish or run the flow. Undo restores the flow draft; it does not delete the new
+block. If the response is lost, use **Check status**. An unknown result is not proof that
+nothing happened: reload and review the current flow and block library before trying again.
+
 ### Process a list with a block
 
 In a normal flow, add **For each item** and explicitly choose a published block version.

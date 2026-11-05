@@ -232,6 +232,7 @@
                 '/js/desktop/apps/easydrag-history.js',
                 '/js/desktop/apps/easydrag-workspace.js',
                 '/js/desktop/apps/easydrag-authoring.js',
+                '/js/desktop/apps/easydrag-extraction.js',
                 '/js/desktop/apps/easydrag-editor.js',
                 '/js/desktop/apps/easydrag.js'
             ]

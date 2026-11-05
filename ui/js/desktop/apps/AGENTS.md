@@ -1323,6 +1323,21 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   `window.EasyDragApp = { render, open, dispose }`; `open` re-routes an existing window by
   `flowId`/`flow_id` and `runId`/`run_id`, and `{section: 'home'}` (Mission Control's New flow)
   shows the start page once the editor's `leave()` allowed it.
+- `easydrag-extraction.js` owns the normal-flow selection/context command and bounded read-only
+  extraction review. The server alone proves safe linear `logic.set` boundaries and transforms
+  references; the UI shows selected labels/keys, typed boundaries, moved/shrunk groups and added
+  graph work. Flush pending fields and CAS-save before preview. Apply uses the reviewed IDs/digest
+  once, creating a published block and replacing only the parent draft atomically; it never runs
+  or publishes the parent. Adopt exact acknowledged records with one recorder command and
+  `saver.beginExternal`/`acknowledgeExternal`, preserving document order and Undo without another
+  PUT. Undo/Redo edit the parent only; the published block remains. While Apply or reconciliation
+  is uncertain, hold autosave and retain the emergency copy/proof. Never resend Apply, regenerate
+  IDs, infer failure from missing records, or overwrite later local edits. Explicit recovery uses
+  the existing Keep/Reload choice; a dismissed/failed choice retains the hold. Closing the review
+  leaves a status/recovery banner; leaving warns even if the pre-transaction model was clean.
+  Masked preview field names are bounded display text and never become bindings or Apply data.
+  Verify `test-easydrag-extraction.mjs` through the canonical Node entry and the native extraction
+  browser journey; inspect mobile/desktop themes and uncertain-reply recovery.
 - `easydrag-blocks.js` adapts `/api/desktop/flow-blocks` to the existing editor/saver,
   with a separate paginated library, immutable version inspection, dependency review and isolated
   draft simulation. `blockId` opens a block; `{section: 'blocks'}` opens its library. Block editors

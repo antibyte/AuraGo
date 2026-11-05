@@ -42,6 +42,7 @@
         return clone(value);
     }
     function fieldsMarkup(ed, fields) {
+        if (!fields.length) return '<p class="ed-hint">' + ed.esc(ed.t('easydrag.ui.option_none')) + '</p>';
         return '<ul class="ed-block-contract">' + fields.map(field => '<li><code>' + ed.esc(field.name) + '</code> <span>' + ed.esc(ed.t('easydrag.ui.type_' + TYPES[field.type])) + '</span>' + (field.required ? ' · ' + ed.esc(ed.t('easydrag.ui.block_required')) : '') + (field.nullable ? ' · null' : '') + '</li>').join('') + '</ul>';
     }
     function contractMarkup(ed, value) {

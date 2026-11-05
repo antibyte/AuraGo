@@ -206,6 +206,14 @@ func prepareBlockPlanTx(ctx context.Context, tx *sql.Tx, doc *Flow, services *Se
 	if err := verifyBlockPinsTx(ctx, tx, plan.blocks); err != nil {
 		return nil, err
 	}
+	if err := measureBlockPlan(ctx, doc, plan); err != nil {
+		return nil, err
+	}
+	return plan, nil
+}
+
+// measureBlockPlan bounds expanded work for both stored and proposed frames.
+func measureBlockPlan(ctx context.Context, doc *Flow, plan *blockPlan) error {
 	nodes, edges, bytes, work := 0, 0, 0, 0
 	hasBatch := false
 	firstBatchID := ""
@@ -267,8 +275,5 @@ func prepareBlockPlanTx(ctx context.Context, tx *sql.Tx, doc *Flow, services *Se
 		}
 		return nil
 	}
-	if err := measure(doc, plan, 1, ""); err != nil {
-		return nil, err
-	}
-	return plan, nil
+	return measure(doc, plan, 1, "")
 }

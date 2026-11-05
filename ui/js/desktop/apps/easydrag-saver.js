@@ -80,6 +80,9 @@
         let retryDelay = RETRY_MS;
         let error = null;
         let disposed = false;
+        // An atomic server operation may replace the draft without using PUT. Hold autosave
+        // until its exact acknowledgement or the user's explicit conflict choice is known.
+        let external = null;
         let copyAt = 0;            // when the emergency copy was written last (Date.now)
         let copyPending = false;   // a change since then is not in the copy yet
         let copyTimer = 0;         // the trailing write of a held-back change
@@ -143,7 +146,7 @@
         function flushCopy() {
             if (!copyPending) return;
             dropPendingCopy();
-            if (o.model.version !== savedVersion) writeEmergency();
+            if (external || o.model.version !== savedVersion) writeEmergency();
         }
 
         // goOffline keeps err and calls save() again after the backoff delay, which then doubles.
@@ -166,6 +169,7 @@
             setState(state === 'conflict' ? 'conflict' : 'dirty');
             keepCopy();
             clearTimeout(timer);
+            if (external) return;
             timer = setTimeout(() => { save(); }, DELAY_MS);
         }
 
@@ -173,6 +177,7 @@
             clearTimeout(timer);
             if (disposed) return undefined;
             flushCopy();
+            if (external) return undefined;
             if (state === 'conflict') return undefined;
             if (inFlight) { pending = true; return inFlight; }
             clearTimeout(retryTimer);
@@ -318,17 +323,75 @@
             return state === 'saved';
         }
 
+        function beginExternal(expectedRevision, expectedVersion) {
+            if (disposed || external || inFlight || state !== 'saved' || revision !== expectedRevision || savedVersion !== expectedVersion || o.model.version !== expectedVersion) return null;
+            clearTimeout(timer); clearTimeout(retryTimer);
+            external = { revision, version: expectedVersion };
+            writeEmergency();
+            setState('saving');
+            return external;
+        }
+
+        function acknowledgeExternal(ticket, nextRevision, apply, issues) {
+            if (disposed || !ticket || external !== ticket || revision !== ticket.revision || o.model.version !== ticket.version || !Number.isInteger(nextRevision) || nextRevision !== revision + 1) return false;
+            // apply is one synchronous, validated model command. Its change listener cannot
+            // start a PUT while the hold is active.
+            if (apply() === false) return false;
+            // A synchronous listener can make a further local edit while the command emits.
+            // Only the single acknowledged command belongs to this server transaction.
+            if (o.model.version !== ticket.version + 1) return false;
+            revision = nextRevision;
+            savedVersion = o.model.version;
+            external = null;
+            invalidVersion = -1; conflictChoice = null; pending = false;
+            clearTimeout(timer); clearTimeout(retryTimer);
+            retryDelay = RETRY_MS; error = null;
+            dropPendingCopy();
+            core.storage.remove(emergencyKey(o.flowId));
+            notify(o.onSaved, { revision, issues: issues || [] });
+            setState('saved');
+            return true;
+        }
+
+        function releaseExternal(ticket) {
+            if (disposed || !ticket || external !== ticket) return false;
+            external = null;
+            if (o.model.version !== savedVersion) schedule();
+            else {
+                dropPendingCopy(); core.storage.remove(emergencyKey(o.flowId)); setState('saved');
+            }
+            return true;
+        }
+
+        function recoverExternal(ticket) {
+            if (disposed || !ticket || external !== ticket || inFlight) return Promise.resolve(false);
+            clearTimeout(timer); clearTimeout(retryTimer);
+            // Keep the hold if the question itself fails/closes. Only a deliberate choice
+            // transfers ownership to the ordinary conflict fetch/retry path.
+            return run(async () => {
+                setState('conflict');
+                let choice;
+                try { choice = o.onConflict ? await o.onConflict() : 'reload'; }
+                catch (err) { error = err; return false; }
+                if (disposed || external !== ticket || !['keep', 'reload'].includes(choice)) return false;
+                external = null;
+                conflictChoice = choice;
+                return loadServerDraft();
+            }).then(() => external !== ticket);
+        }
+
         return {
             schedule,
             save,
             flush,
+            beginExternal, acknowledgeExternal, releaseExternal, recoverExternal,
             // flushCopy writes a held-back change to the emergency copy (the end of a gesture).
             flushCopy() { if (!disposed) flushCopy(); },
             get revision() { return revision; },
             set revision(value) { revision = value; },
             get state() { return state; },
             get error() { return error; },
-            isDirty: () => o.model.version !== savedVersion,
+            isDirty: () => !!external || o.model.version !== savedVersion,
             markSaved() { savedVersion = o.model.version; setState('saved'); },
             // dispose writes the unsaved draft before it marks itself disposed, also while an older
             // save is still in flight (that request will not send the newer draft once disposed).
@@ -336,7 +399,7 @@
             // then clears a timer an earlier refusal had armed, so it cannot fire into a newer editor.
             dispose() {
                 if (disposed) return;
-                if (o.model.version !== savedVersion) {
+                if (external || o.model.version !== savedVersion) {
                     if (!writeEmergency({ hold: true })) writeEmergency({ hold: true });
                 } else flushCopy();
                 disposed = true;

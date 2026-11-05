@@ -25,7 +25,7 @@
         const isBlock = !!app.isBlock;
         const { t, esc, ctx } = app;
         const bag = core.bag();
-        let canvas, wires, interact, palette, runs, publish, history, workspace, authoring, emailBinding, blockTracker;
+        let canvas, wires, interact, palette, runs, publish, history, workspace, authoring, extraction, emailBinding, blockTracker;
         // A build that fails later releases what it set up (dispose skips what does not exist yet).
         guard.abort = () => { try { dispose(); } catch (err) { bag.dispose(); } };
         const draftModel = ED.model.create(loaded.flow.draft, app.catalog);
@@ -127,6 +127,7 @@
             onInvalid: issues => { ed.issues = issues; ed.bus.emit('issues', issues); },
             onConflict: () => ED.dialogs.conflict(ed)
         });
+        extraction = !isBlock && ED.extraction && ED.extraction.create(ed, canvas);
 
         // ── header and footer ───────────────────────────────────────────────────
 
@@ -586,6 +587,7 @@
             interact.abortGesture();
             // A pending field or note is written before the saver runs. A failed check keeps the editor open.
             if (!ed.flushPendingEdits()) return false;
+            if (extraction && extraction.pending()) return extraction.leave();
             if (ed.readonly || !contentDirty) return true;
             const ok = await ed.saver.flush();
             if (ok) return true;
@@ -703,6 +705,7 @@
                         { id: 'copy', labelKey: 'easydrag.ui.copy', icon: 'copy', shortcutHint: 'Ctrl+C', disabled: busy || !sel, action: unlessOverlay(() => interact.copySelection()) },
                         { id: 'paste', labelKey: 'easydrag.ui.paste', icon: 'clipboard', shortcutHint: 'Ctrl+V', disabled: ro || busy, action: unlessOverlay(() => interact.pasteAt(null)) },
                         { id: 'duplicate', labelKey: 'easydrag.ui.duplicate', icon: 'copy', shortcutHint: 'Ctrl+D', disabled: ro || busy || !sel, action: unlessOverlay(() => interact.duplicateSteps(Array.from(ed.selection))) },
+                        ...(!isBlock && extraction ? [{ id: 'extract-selection', labelKey: 'easydrag.ui.extraction_title', icon: 'grid', disabled: ro || busy || !sel, action: unlessOverlay(() => extraction.open()) }] : []),
                         { id: 'delete-sel', labelKey: 'easydrag.ui.delete', icon: 'trash', shortcutHint: 'Del', disabled: ro || busy || (!sel && !ed.selectedEdge), action: unlessOverlay(() => interact.removeSelection()) },
                         { type: 'separator' },
                         { id: 'select-all', labelKey: 'easydrag.ui.select_all', icon: 'check-square', shortcutHint: 'Ctrl+A', disabled: busy, action: unlessOverlay(() => interact.selectAll()) },
@@ -1024,7 +1027,7 @@
             safely(() => { if (interact) interact.dispose(); });
             safely(() => { if (contentDirty && ed.saver) ed.saver.save(); });
             safely(() => storeView.flush());
-            [blockTracker, authoring, workspace, wires, canvas, palette, runs, publish, history].forEach(m => { if (m) safely(() => m.dispose()); });
+            [extraction, blockTracker, authoring, workspace, wires, canvas, palette, runs, publish, history].forEach(m => { if (m) safely(() => m.dispose()); });
             if (emailBinding) safely(() => emailBinding.dispose());
             safely(() => { if (ed.saver) ed.saver.dispose(); });
             safely(() => setMenusSoon.cancel());

@@ -764,6 +764,13 @@ Server-owned HTTP and cross-component integration contracts.
   remain unavailable inside blocks. Goal-only AI proposals exclude block calls: users choose
   published versions in the editor. Verify `TestFlowBlock*`, `TestFlowNestedBlocksHTTP` and
   `TestFlowAIProposalRejectsInventedBlockReferences`.
+- `POST /api/desktop/flows/{id}/extract/{preview,apply,reconcile}` uses the existing admin,
+  origin, readonly, availability and revocable-grant gates. Bound and validate complete UTF-8
+  JSON; preview scrubs review labels while retaining validated IDs and digests. Apply rechecks
+  the proposal and acknowledges one atomic parent-draft/block-publication transaction; never
+  retry an uncertain write. Reconcile returns records only for matching hashes in one snapshot;
+  an unknown result is not proof of failure. Audit only fixed block events and IDs, never
+  selection or values. Verify `TestFlowExtractionHTTP*`.
 - Normal flow exports with visual groups use wire schema 2; group-free exports remain schema 1.
   The create/import endpoint accepts either and stores schema 1 after validation. Draft PUT,
   version snapshots and AI proposals retain the strict internal schema; no block import/export

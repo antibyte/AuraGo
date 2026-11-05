@@ -1038,6 +1038,11 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-modal-foot { display: flex; flex: none; flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding: 12px 18px 16px; border-top: 1px solid var(--ed-border); background: color-mix(in srgb, var(--ed-chrome) 60%, transparent); }
 .ed-app .ed-modal-foot > .ed-btn { min-width: 0; max-width: 100%; white-space: normal; }
 .ed-app .ed-modal-foot > .ed-btn > span { overflow-wrap: anywhere; }
+.ed-app .ed-extraction-selection { max-height: 8rem; overflow: auto; padding-inline-start: 1.6rem; }
+.ed-app .ed-extraction-selection li { overflow-wrap: anywhere; }
+.ed-app .ed-extraction-selection code { color: var(--ed-muted); font-size: 12px; }
+.ed-app .ed-extraction-status { flex-wrap: wrap; }
+.ed-app .ed-extraction-status > span { flex-basis: 20rem; min-width: 0; overflow-wrap: anywhere; }
 .ed-app .ed-modal-backdrop:has(> .ed-modal--transform) { max-width: 100vw; }
 .ed-app .ed-modal--transform { width: min(720px, 100%); }
 .ed-app .ed-modal-backdrop:has(> .ed-modal--block) { max-width: 100vw; }

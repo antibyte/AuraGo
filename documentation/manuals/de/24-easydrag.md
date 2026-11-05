@@ -120,6 +120,22 @@ Rückfrage den aktuellen Bausteinentwurf durch die gewählte Version. Der laufen
 Du sie ausdrücklich aktualisierst. Der Elternlauf zeigt Baustein-ID und Version des
 Aufrufs, jedoch keinen eigenen Verlauf der untergeordneten Schritte.
 
+### Ausgewählte Schritte als Baustein auslagern
+
+Wähle eine zusammenhängende, lineare Folge eingeschalteter **Felder setzen**-Schritte und
+anschließend **Auswahl als Baustein auslagern** im Bearbeiten- oder Auswahlmenü. Die erste
+Version unterstützt feste Ausgabetypen und ausgeschaltetes **Eingangsdaten behalten**; die Vorschau erklärt,
+wenn eine Auswahl oder Referenz nicht sicher ausgelagert werden kann. Ausstehende Änderungen
+werden zuerst gespeichert. Benenne den Baustein und prüfe vorgeschlagene Ein- und Ausgaben,
+Gruppenänderungen und zusätzlichen Aufwand vor dem Übernehmen.
+
+Beim Übernehmen werden der Baustein erstellt und veröffentlicht sowie die Auswahl im
+Flow-Entwurf gemeinsam ersetzt. Der Flow wird dabei weder veröffentlicht noch ausgeführt.
+Rückgängig stellt den Flow-Entwurf wieder her, löscht aber nicht den neuen Baustein. Geht die
+Antwort verloren, nutze **Status prüfen**. Ein unbekannter Status beweist nicht, dass nichts
+passiert ist: Lade den aktuellen Flow und die Bausteinbibliothek neu und prüfe sie vor einem
+weiteren Versuch.
+
 ### Eine Liste mit einem Baustein verarbeiten
 
 Füge in einem normalen Flow **Für jeden Eintrag** hinzu und wähle ausdrücklich eine

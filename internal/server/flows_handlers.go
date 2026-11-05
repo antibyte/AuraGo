@@ -50,7 +50,7 @@ var flowIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
 // /api/desktop/flows/{id}/… route takes ("" is the flow itself). Any other path is
 // FLOW_NOT_FOUND (404); a new route adds its entry here.
 var flowRouteSegments = map[string]int{"": 0, "publish-preview": 1, "publish": 1, "enabled": 1, "export": 1,
-	"versions": 1, "library": 1, "test": 1, "simulate": 1, "ai-proposal": 1, "repair-mission": 1, "run": 1, "runs": 1, "test-data": 2}
+	"versions": 1, "library": 1, "test": 1, "simulate": 1, "ai-proposal": 1, "repair-mission": 1, "run": 1, "runs": 1, "test-data": 2, "extract": 2}
 
 const (
 	// flowSecretValueMaxBytes bounds the value of a flow secret. Flow secrets are API
@@ -608,6 +608,8 @@ func (s *Server) flowRoute(w http.ResponseWriter, r *http.Request, id string, re
 		return
 	}
 	switch action {
+	case "extract":
+		s.flowExtraction(w, r, id, rest[1])
 	case "library":
 		s.flowLibrary(w, r, id)
 	case "scenarios":

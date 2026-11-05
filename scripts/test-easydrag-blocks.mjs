@@ -18,6 +18,14 @@ export async function run({ sandbox, openEditor, eq, guardAsync, settle }) {
         ], edges: [{ id: 'e1', source: { node: A, port: 'out' }, target: { node: B, port: 'in' } }] } } });
         return { h, editor: openEditor(h, opts) };
     }
+    await guardAsync('blocks contract review names empty and populated field lists explicitly', async () => {
+        const { h, editor } = fixture();
+        const empty = h.ED.blocks.contractMarkup(editor.ed, { inputs: [], outputs: [] });
+        eq('blocks empty inputs and outputs each have a localized None hint', [(empty.match(/class="ed-hint"/g) || []).length, (empty.match(/option_none/g) || []).length, empty.includes('<ul')], [2, 2, false]);
+        const mixed = h.ED.blocks.contractMarkup(editor.ed, { inputs: [], outputs: [field('message')] });
+        eq('blocks populated contract fields retain their type and required state beside an empty input hint', [(mixed.match(/option_none/g) || []).length, mixed.includes('<code>message</code>'), mixed.includes('type_text'), mixed.includes('block_required')], [1, true, true, true]);
+        editor.dispose();
+    });
     await guardAsync('blocks typed values distinguish omitted null false and zero', async () => {
         const { h, editor } = fixture(); await settle();
         const fields = [field('count', 'number'), field('enabled', 'boolean'), field('optional', 'string', false, true), field('null_value', 'string', false, true)];
