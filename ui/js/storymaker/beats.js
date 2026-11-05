@@ -16,6 +16,25 @@
 
     function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
 
+    // holdsEndOf(log, factor): the largest landing plus scaled hold of a shown text that no hide removes. A text without a
+    // landing (entry none) holds from its start.
+    function holdsEndOf(log, factor) {
+        var hidden = new Set(), showsTitle = false, out = 0;
+        function isText(l) { return l.kind === 'show' && l.tgt && l.tgt.type === 'text'; }
+        log.forEach(function (l) {
+            if (l.kind === 'hide' && l.tgt) hidden.add(l.tgt);
+            if (isText(l) && l.tgt.style === 'title') showsTitle = true;
+        });
+        log.forEach(function (l) {
+            if (!isText(l) || hidden.has(l.tgt)) return;
+            var secondary = showsTitle && (l.tgt.style === 'caption' || l.tgt.style === 'label');
+            var hold = SM.motion.holdSeconds(l.tgt.text, { secondary: secondary, factor: factor }).scaled;
+            var end = (l.landing !== null ? l.landing : l.start) + hold;
+            if (end > out) out = end;
+        });
+        return out;
+    }
+
     function buildStoryboard(c) {
         var P = SM.plan, S = SM.scene, scene = c.scene, index = c.index, sid = scene.id, stage = c.stage, cat = c.cat;
         var issues = c.issues, plan = c.plan, fmt = c.fmt;
@@ -403,7 +422,10 @@
 
         var motionEnd = SM.camera.end(cam);
         for (var k = 0; k < entities.length; k++) { var ee = S.entityEnd(entities[k]); if (ee > motionEnd) motionEnd = ee; }
-        return { entities: entities, camera: cam, beatsEnd: beatsEnd, motionEnd: motionEnd, framing: framing, actorsPlaced: placed, log: log };
+        return {
+            entities: entities, camera: cam, beatsEnd: beatsEnd, motionEnd: motionEnd, framing: framing, actorsPlaced: placed, log: log,
+            holdsEnd: holdsEndOf(log, f), blocksEnd: 0, audioEvents: []
+        };
     }
 
     SM.beats = { buildStoryboard: buildStoryboard };

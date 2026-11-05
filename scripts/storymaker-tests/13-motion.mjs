@@ -268,3 +268,61 @@ check('cue lead: an sfx has no target and impact 0: with prev it sits on the lan
     const onCue = one([{ do: 'sfx', sound: 'sfx.absent', cue: 1, delay: 0.2 }, { do: 'show', item: 'prop.lock', with: 'prev' }], { narration: LONG });
     near(lastSeg(onCue.item('prop.lock').alpha).t0, cueOf(LONG) + 0.2, 1e-9, 'on the marker');
 });
+
+// ---- holds, scene length, beat log
+
+// the mini catalog has only the title style; a secondary line needs a caption
+const withCaption = { ...catalog, entries: [...catalog.entries, { id: 'text.caption', kind: 'text_style', name: 'caption', font: 'default', size: 0.042, weight: 400, color: '$text', align: 'center', max_lines: 2 }] };
+
+check('holds: an auto scene lasts until the text has been read, an explicit duration is never extended', () => {
+    const title = { do: 'show', text: 'eins zwei drei vier' };
+    // a 0.5 s fade lands at 0.4377 * 0.5 = 0.219 s; 4 words hold 0.5 + 0.3 * 4 = 1.7 s; 1.919 s * 30 = 57.57, rounds to 58 frames
+    assert.equal(one([title], { actors: [] }).end, 58);
+    assert.equal(one([title], { actors: [], duration: 1 }).end, 30, 'an explicit duration stays');
+    // lively: a 0.4 s fade lands at 0.175 s; the hold stays 1.7 s; 1.875 s * 30 = 56.25, rounds to 56 frames
+    assert.equal(one([title], { actors: [], style: { rhythm: 'lively' } }).end, 56, 'lively keeps the base hold');
+    // calm: a 0.625 s fade lands at 0.274 s; the hold is 1.7 * 1.25 = 2.125 s; 2.399 s * 30 = 71.96, rounds to 72 frames
+    assert.equal(one([title], { actors: [], style: { rhythm: 'calm' } }).end, 72, 'calm scales the hold');
+    // a hide removes the hold: show 0.5 s, hide 0.35 s, so the 1.0 s minimum decides: 30 frames
+    assert.equal(one([{ ...title, id: 'x' }, { do: 'hide', target: 'x' }], { actors: [] }).end, 30, 'a hidden text holds nothing');
+});
+
+check('holds: a secondary line holds at least 1.2 s beside a title, not alone', () => {
+    const title = { do: 'show', text: 'Titel' }, line = { do: 'show', text: 'eins', style: 'caption' };
+    // the title fades over 0..0.5 s. The caption is another target: it starts at 0.4 * 0.5 = 0.2 s and lands at 0.2 + 0.219 = 0.419 s.
+    // 1 word is 0.8 s, raised to 1.2 s: 1.619 s * 30 = 48.57, rounds to 49 frames
+    assert.equal(one([title, line], { actors: [], catalog: withCaption }).end, 49, 'beside a title');
+    // alone it is no secondary line: 0.219 + 0.8 = 1.019 s; 1.019 s * 30 = 30.57, rounds to 31 frames
+    assert.equal(one([line], { actors: [], catalog: withCaption }).end, 31, 'alone');
+});
+
+check('scene length: a code scene without a usable duration gets a number, not NaN', () => {
+    // no code-scene info, so the automatic length falls to the 1.0 s minimum: 30 frames
+    assert.equal(SM.compile({ scenes: [{ id: 'c', kind: 'code' }] }, {}, catalog).report.scenes[0].end_frame, 30);
+});
+
+// storyboardOf(sc): buildStoryboard for one scene, because compile does not hand out its log.
+function storyboardOf(sc) {
+    const story = { cast: CAST, scenes: [sc] }, cat = SM.scene.indexCatalog(catalog), fmt = SM.plan.normaliseFormat(story, {}), issues = [];
+    const plan = SM.plan.planScene(story, {}, cat, fmt, 0, issues);
+    const stage = SM.stage.create({ aspect: fmt.aspect, width: fmt.width, height: fmt.height, env: cat.byId[sc.environment], safe: catalog.stage.safe });
+    return SM.beats.buildStoryboard({ story, scene: sc, index: 0, plan, cat, fmt, stage, issues, needs: {}, castMap: { anna: CAST[0] } });
+}
+
+check('beat log: every placed beat with its target, times and landing', () => {
+    const o = storyboardOf({ id: 's', environment: 'env.office', actors: [{ cast: 'anna', at: 'left' }], beats: [{ do: 'enter', who: 'anna', to: 'center' }, { do: 'emote', who: 'anna', expression: 'happy' }, { do: 'dance' }] });
+    assert.equal(o.log.length, 2, 'an unknown kind is not logged');
+    const enter = o.log[0], emote = o.log[1];
+    assert.equal(enter.j, 0);
+    assert.equal(enter.kind, 'enter');
+    assert.equal(enter.tgt, o.entities[0], 'the target is the instance');
+    assert.equal(enter.cued, false);
+    near(enter.start, 0, 1e-9, 'enter start');
+    near(enter.end, 0.6, 1e-9, 'enter end');
+    near(enter.landing, 0.54, 1e-9, 'linear: 0.9 of 0.6 s');
+    near(emote.start, 0.6, 1e-9, 'emote start');
+    assert.equal(emote.landing, null, 'an emote is no arrival');
+    assert.equal(o.holdsEnd, 0);
+    assert.equal(o.blocksEnd, 0);
+    assert.deepEqual(plain(o.audioEvents), []);
+});

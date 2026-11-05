@@ -1712,6 +1712,25 @@
 
     function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
 
+    // holdsEndOf(log, factor): the largest landing plus scaled hold of a shown text that no hide removes. A text without a
+    // landing (entry none) holds from its start.
+    function holdsEndOf(log, factor) {
+        var hidden = new Set(), showsTitle = false, out = 0;
+        function isText(l) { return l.kind === 'show' && l.tgt && l.tgt.type === 'text'; }
+        log.forEach(function (l) {
+            if (l.kind === 'hide' && l.tgt) hidden.add(l.tgt);
+            if (isText(l) && l.tgt.style === 'title') showsTitle = true;
+        });
+        log.forEach(function (l) {
+            if (!isText(l) || hidden.has(l.tgt)) return;
+            var secondary = showsTitle && (l.tgt.style === 'caption' || l.tgt.style === 'label');
+            var hold = SM.motion.holdSeconds(l.tgt.text, { secondary: secondary, factor: factor }).scaled;
+            var end = (l.landing !== null ? l.landing : l.start) + hold;
+            if (end > out) out = end;
+        });
+        return out;
+    }
+
     function buildStoryboard(c) {
         var P = SM.plan, S = SM.scene, scene = c.scene, index = c.index, sid = scene.id, stage = c.stage, cat = c.cat;
         var issues = c.issues, plan = c.plan, fmt = c.fmt;
@@ -2099,7 +2118,10 @@
 
         var motionEnd = SM.camera.end(cam);
         for (var k = 0; k < entities.length; k++) { var ee = S.entityEnd(entities[k]); if (ee > motionEnd) motionEnd = ee; }
-        return { entities: entities, camera: cam, beatsEnd: beatsEnd, motionEnd: motionEnd, framing: framing, actorsPlaced: placed, log: log };
+        return {
+            entities: entities, camera: cam, beatsEnd: beatsEnd, motionEnd: motionEnd, framing: framing, actorsPlaced: placed, log: log,
+            holdsEnd: holdsEndOf(log, f), blocksEnd: 0, audioEvents: []
+        };
     }
 
     SM.beats = { buildStoryboard: buildStoryboard };
@@ -2186,7 +2208,7 @@
             } else envEntry = null;
             var variant = sc.variant === 'night' ? 'night' : 'day';
             var stage = SM.stage.create({ aspect: fmt.aspect, width: fmt.width, height: fmt.height, env: envEntry, safe: catalog && catalog.stage && catalog.stage.safe });
-            var built = { entities: [], camera: SM.camera.create(1, stage.vis.x + stage.vis.w / 2, stage.vis.y + stage.vis.h / 2), beatsEnd: 0, motionEnd: 0 };
+            var built = { entities: [], camera: SM.camera.create(1, stage.vis.x + stage.vis.w / 2, stage.vis.y + stage.vis.h / 2), beatsEnd: 0, motionEnd: 0, blocksEnd: 0, holdsEnd: 0 };
             var codeInfo = null;
             if (isCode) {
                 codeInfo = opts.codeScenes ? (opts.codeScenes[sc.id] || { error: { message: 'No code-scene bundle for scene "' + sc.id + '".' } }) : null;
@@ -2203,7 +2225,7 @@
 
             // duration (scene-local seconds, origin = start of the entry transition)
             var T = plan.T, n = plan.narration, tail = n.seconds > 0 ? SM.narration.TAIL_SECONDS : 0;
-            var autoD = Math.max(T + n.seconds + tail, built.beatsEnd, T + (n.seconds > 0 ? 0 : P.MIN_SCENE_SECONDS));
+            var autoD = Math.max(T + n.seconds + tail, built.blocksEnd > 0 ? built.blocksEnd + SM.narration.TAIL_SECONDS : 0, built.beatsEnd, built.holdsEnd, T + (n.seconds > 0 ? 0 : P.MIN_SCENE_SECONDS));
             var D;
             if (typeof sc.duration === 'number' && sc.duration > 0) {
                 D = sc.duration;

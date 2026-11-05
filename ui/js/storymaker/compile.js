@@ -50,7 +50,7 @@
             } else envEntry = null;
             var variant = sc.variant === 'night' ? 'night' : 'day';
             var stage = SM.stage.create({ aspect: fmt.aspect, width: fmt.width, height: fmt.height, env: envEntry, safe: catalog && catalog.stage && catalog.stage.safe });
-            var built = { entities: [], camera: SM.camera.create(1, stage.vis.x + stage.vis.w / 2, stage.vis.y + stage.vis.h / 2), beatsEnd: 0, motionEnd: 0 };
+            var built = { entities: [], camera: SM.camera.create(1, stage.vis.x + stage.vis.w / 2, stage.vis.y + stage.vis.h / 2), beatsEnd: 0, motionEnd: 0, blocksEnd: 0, holdsEnd: 0 };
             var codeInfo = null;
             if (isCode) {
                 codeInfo = opts.codeScenes ? (opts.codeScenes[sc.id] || { error: { message: 'No code-scene bundle for scene "' + sc.id + '".' } }) : null;
@@ -67,7 +67,7 @@
 
             // duration (scene-local seconds, origin = start of the entry transition)
             var T = plan.T, n = plan.narration, tail = n.seconds > 0 ? SM.narration.TAIL_SECONDS : 0;
-            var autoD = Math.max(T + n.seconds + tail, built.beatsEnd, T + (n.seconds > 0 ? 0 : P.MIN_SCENE_SECONDS));
+            var autoD = Math.max(T + n.seconds + tail, built.blocksEnd > 0 ? built.blocksEnd + SM.narration.TAIL_SECONDS : 0, built.beatsEnd, built.holdsEnd, T + (n.seconds > 0 ? 0 : P.MIN_SCENE_SECONDS));
             var D;
             if (typeof sc.duration === 'number' && sc.duration > 0) {
                 D = sc.duration;
