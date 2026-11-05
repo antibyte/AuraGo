@@ -195,13 +195,10 @@ func glyphNames(runes []rune) string {
 	return strings.Join(names, ", ")
 }
 
-// sayMarkerPattern is the marker form of the player's narration parser: any count of ASCII digits, so wider than cuePattern.
-var sayMarkerPattern = regexp.MustCompile(`\{[0-9]+\}`)
-
 // sayHasText is true when a say's text keeps a character after its markers and JS whitespace go. It is the same test as Blocks
 // (StripMarkers(text) is not empty) and the player (parsed.words > 0), so a say of only spaces counts as a say without text.
 func sayHasText(text string) bool {
-	return strings.TrimFunc(sayMarkerPattern.ReplaceAllString(text, ""), IsJSSpace) != ""
+	return StripMarkers(text) != ""
 }
 
 func (v *validator) format() {

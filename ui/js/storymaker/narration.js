@@ -28,7 +28,7 @@
         }
         append(src.slice(last));
         var trimmed = plain.replace(/ $/, '');
-        var words = trimmed ? trimmed.split(' ').length : 0;
+        var words = SM.ranges.wordCount(trimmed);
         Object.keys(cues).forEach(function (k) { if (cues[k] > trimmed.length) cues[k] = trimmed.length; });
         return { plain: trimmed, cues: cues, words: words, length: trimmed.length };
     }

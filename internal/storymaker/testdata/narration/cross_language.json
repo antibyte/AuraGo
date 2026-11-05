@@ -1,0 +1,88 @@
+[
+  {
+    "input": "Anna kommt {1}heute  spät.",
+    "plain": "Anna kommt heute spät.",
+    "cues": {
+      "1": 11
+    },
+    "chars_total": 22,
+    "width": 22,
+    "words": 4
+  },
+  {
+    "input": "　Das ist gut.　　{2}　Ja und nein, sagt sie.　",
+    "plain": "Das ist gut. Ja und nein, sagt sie.",
+    "cues": {
+      "2": 13
+    },
+    "chars_total": 35,
+    "width": 35,
+    "words": 8
+  },
+  {
+    "input": "今日は天気がいいです。{1}明日は雨が降るでしょう。",
+    "plain": "今日は天気がいいです。明日は雨が降るでしょう。",
+    "cues": {
+      "1": 11
+    },
+    "chars_total": 23,
+    "width": 46,
+    "words": 12
+  },
+  {
+    "input": "आज मौसम बहुत अच्छा है। कल बारिश होगी और हवा भी चलेगी।",
+    "plain": "आज मौसम बहुत अच्छा है। कल बारिश होगी और हवा भी चलेगी।",
+    "cues": {},
+    "chars_total": 53,
+    "width": 53,
+    "words": 12
+  },
+  {
+    "input": "Η μέρα είναι όμορφη σήμερα; Ναι, πολύ όμορφη σήμερα.",
+    "plain": "Η μέρα είναι όμορφη σήμερα; Ναι, πολύ όμορφη σήμερα.",
+    "cues": {},
+    "chars_total": 52,
+    "width": 52,
+    "words": 9
+  },
+  {
+    "input": "Er sagte ganz laut und deutlich: „Das ist gut.“ {1}Dann ging er langsam nach Hause.",
+    "plain": "Er sagte ganz laut und deutlich: „Das ist gut.“ Dann ging er langsam nach Hause.",
+    "cues": {
+      "1": 48
+    },
+    "chars_total": 80,
+    "width": 80,
+    "words": 15
+  },
+  {
+    "input": "𠮷{1}野家😀 ok",
+    "plain": "𠮷野家😀 ok",
+    "cues": {
+      "1": 2
+    },
+    "chars_total": 9,
+    "width": 10,
+    "words": 4
+  },
+  {
+    "input": "Hallo ﻿Welt {3}",
+    "plain": "Hallo Welt",
+    "cues": {
+      "3": 10
+    },
+    "chars_total": 10,
+    "width": 10,
+    "words": 2
+  },
+  {
+    "input": "  {1}  ",
+    "plain": "",
+    "cues": {
+      "1": 0
+    },
+    "chars_total": 0,
+    "width": 0,
+    "words": 0
+  }
+]
