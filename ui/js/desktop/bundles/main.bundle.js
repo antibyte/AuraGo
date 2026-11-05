@@ -19780,8 +19780,14 @@ if (appId === 'pixel') {
             window.open(previewURL, '_blank', 'noopener');
             return;
         }
-        if (kind === 'image' || kind === 'video' || kind === 'audio') {
-            // Images, videos and audio open in the shared Gallery lightbox (zoom, info, actions).
+        if (kind === 'audio') {
+            // Audio opens in the native Music Player window (playlist + visualizer),
+            // not in the fullscreen Gallery lightbox.
+            openApp('audio-player', { path: file.path });
+            return;
+        }
+        if (kind === 'image' || kind === 'video') {
+            // Images and videos open in the shared Gallery lightbox (zoom, info, actions).
             openMediaLightbox(file).then(opened => { if (!opened) openLegacyMediaPreview(file, kind, previewURL); }).catch(() => openLegacyMediaPreview(file, kind, previewURL));
             return;
         }

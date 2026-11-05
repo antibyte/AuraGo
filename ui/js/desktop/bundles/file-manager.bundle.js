@@ -3039,6 +3039,7 @@
         } else if (isMedia) {
             const ext = String(file.name || '').split('.').pop().toLowerCase();
             if (['mp3', 'wav', 'flac', 'ogg', 'm4a', 'opus'].includes(ext)) {
+                apps.push({ label: t('desktop.app_audio_player'), appId: 'audio-player' });
                 apps.push({ label: t('desktop.app_music_player'), appId: 'music-player' });
             }
             apps.push({ label: t('desktop.app_gallery'), appId: 'gallery' });
