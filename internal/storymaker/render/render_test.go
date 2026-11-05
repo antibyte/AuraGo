@@ -320,7 +320,7 @@ func (fx *runFixture) playing(o playOptions) {
 
 func (fx *runFixture) render(t *testing.T) Job {
 	t.Helper()
-	plan, err := fx.runner.Prepare(context.Background(), fx.projectID, "", fx.settings)
+	plan, err := fx.runner.Prepare(context.Background(), fx.projectID, "", fx.settings, RenderOptions{})
 	if err != nil {
 		t.Fatalf("Prepare: %v", err)
 	}
@@ -630,7 +630,7 @@ func TestRunRefusesBadFrames(t *testing.T) {
 func TestRunCancelStopsEverything(t *testing.T) {
 	fx := newRunFixture(t)
 	fx.playing(playOptions{frames: 200, stallAfter: 5})
-	plan, err := fx.runner.Prepare(context.Background(), fx.projectID, "", fx.settings)
+	plan, err := fx.runner.Prepare(context.Background(), fx.projectID, "", fx.settings, RenderOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -762,18 +762,18 @@ func TestRenderTimeoutFormula(t *testing.T) {
 func TestPrepareChecksTheStoryLikeSaveDoes(t *testing.T) {
 	fx := newRunFixture(t)
 	ctx := context.Background()
-	plan, err := fx.runner.Prepare(ctx, fx.projectID, "", fx.settings)
+	plan, err := fx.runner.Prepare(ctx, fx.projectID, "", fx.settings, RenderOptions{})
 	if err != nil || plan.StoryETag == "" || len(plan.StoryJSON) == 0 || plan.Story.Scenes[0].Environment == "" {
 		t.Fatalf("Prepare = %+v, %v", plan, err)
 	}
 	// A stale etag is reported as such.
-	if _, err := fx.runner.Prepare(ctx, fx.projectID, `"stale"`, fx.settings); err == nil {
+	if _, err := fx.runner.Prepare(ctx, fx.projectID, `"stale"`, fx.settings, RenderOptions{}); err == nil {
 		t.Fatal("a stale etag was accepted")
 	} else if pe := new(PrepareError); !errors.As(err, &pe) || !pe.Stale {
 		t.Fatalf("stale error = %v", err)
 	}
 	// The current etag passes.
-	if _, err := fx.runner.Prepare(ctx, fx.projectID, plan.StoryETag, fx.settings); err != nil {
+	if _, err := fx.runner.Prepare(ctx, fx.projectID, plan.StoryETag, fx.settings, RenderOptions{}); err != nil {
 		t.Fatalf("current etag: %v", err)
 	}
 	// A story with an error issue is refused with its issues.
@@ -781,7 +781,7 @@ func TestPrepareChecksTheStoryLikeSaveDoes(t *testing.T) {
 	if _, err := fx.projects.SaveStory(ctx, fx.projectID, []byte(bad), ""); err != nil {
 		t.Fatal(err)
 	}
-	_, err = fx.runner.Prepare(ctx, fx.projectID, "", fx.settings)
+	_, err = fx.runner.Prepare(ctx, fx.projectID, "", fx.settings, RenderOptions{})
 	var pe *PrepareError
 	if !errors.As(err, &pe) || pe.Code != CodeInvalidStory || len(pe.Issues) == 0 || pe.Issues[0].Code != "unknown_asset" {
 		t.Fatalf("invalid story error = %v (%+v)", err, pe)
@@ -790,10 +790,10 @@ func TestPrepareChecksTheStoryLikeSaveDoes(t *testing.T) {
 	if _, err := fx.projects.SaveStory(ctx, fx.projectID, []byte(`{"schema":`), ""); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = fx.runner.Prepare(ctx, fx.projectID, "", fx.settings); !errors.As(err, &pe) || pe.Code != CodeInvalidStory || len(pe.Issues) == 0 {
+	if _, err = fx.runner.Prepare(ctx, fx.projectID, "", fx.settings, RenderOptions{}); !errors.As(err, &pe) || pe.Code != CodeInvalidStory || len(pe.Issues) == 0 {
 		t.Fatalf("broken JSON error = %v", err)
 	}
-	if _, err := fx.runner.Prepare(ctx, "33333333-3333-4333-8333-333333333333", "", fx.settings); err == nil {
+	if _, err := fx.runner.Prepare(ctx, "33333333-3333-4333-8333-333333333333", "", fx.settings, RenderOptions{}); err == nil {
 		t.Fatal("a missing project was accepted")
 	}
 }
@@ -850,7 +850,7 @@ func TestBootCarriesThePlanAudioInfo(t *testing.T) {
 	if _, err := fx.projects.SaveStory(ctx, fx.projectID, []byte(narratedStoryJSON), ""); err != nil {
 		t.Fatal(err)
 	}
-	unsynthesised, err := fx.runner.Prepare(ctx, fx.projectID, "", fx.settings)
+	unsynthesised, err := fx.runner.Prepare(ctx, fx.projectID, "", fx.settings, RenderOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -862,7 +862,7 @@ func TestBootCarriesThePlanAudioInfo(t *testing.T) {
 	}
 	seedPieces(t, fx, unsynthesised.Blocks)
 
-	plan, err := fx.runner.Prepare(ctx, fx.projectID, "", fx.settings)
+	plan, err := fx.runner.Prepare(ctx, fx.projectID, "", fx.settings, RenderOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -914,7 +914,7 @@ func TestPrepareWithoutAMusicKeyMeansNoMusic(t *testing.T) {
 		t.Fatal(err)
 	}
 	// fx.deps has no MusicKey, so the key is "" and nothing is to be played.
-	plan, err := fx.runner.Prepare(ctx, fx.projectID, "", fx.settings)
+	plan, err := fx.runner.Prepare(ctx, fx.projectID, "", fx.settings, RenderOptions{})
 	if err != nil {
 		t.Fatalf("Prepare with a nil MusicKey: %v", err)
 	}
@@ -933,7 +933,7 @@ func TestPrepareCollectsCodeSceneBundles(t *testing.T) {
 	if _, err := fx.projects.SaveStory(ctx, fx.projectID, bytes.ReplaceAll(story, []byte("\r\n"), []byte("\n")), ""); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := fx.runner.Prepare(ctx, fx.projectID, "", fx.settings); err == nil {
+	if _, err := fx.runner.Prepare(ctx, fx.projectID, "", fx.settings, RenderOptions{}); err == nil {
 		t.Fatal("a code scene without a source was accepted")
 	} else if pe := new(PrepareError); !errors.As(err, &pe) || pe.Code != CodeInvalidStory {
 		t.Fatalf("missing code scene error = %v", err)
@@ -945,7 +945,7 @@ func TestPrepareCollectsCodeSceneBundles(t *testing.T) {
 	if _, res, err := fx.projects.SaveCodeScene(ctx, fx.projectID, "s3", bytes.ReplaceAll(src, []byte("\r\n"), []byte("\n")), ""); err != nil || len(res.Errors) != 0 {
 		t.Fatalf("SaveCodeScene: %v %+v", err, res)
 	}
-	plan, err := fx.runner.Prepare(ctx, fx.projectID, "", fx.settings)
+	plan, err := fx.runner.Prepare(ctx, fx.projectID, "", fx.settings, RenderOptions{})
 	if err != nil {
 		t.Fatalf("Prepare: %v", err)
 	}
@@ -1005,7 +1005,7 @@ func waitForStart(ctx context.Context, base, token string) StartAnswer {
 // enqueueRender queues a render of the fixture's project and returns the job at once.
 func (fx *runFixture) enqueueRender(t *testing.T) Job {
 	t.Helper()
-	plan, err := fx.runner.Prepare(context.Background(), fx.projectID, "", fx.settings)
+	plan, err := fx.runner.Prepare(context.Background(), fx.projectID, "", fx.settings, RenderOptions{})
 	if err != nil {
 		t.Fatalf("Prepare: %v", err)
 	}
@@ -1391,5 +1391,66 @@ func TestRunMixCancelEndsTheJob(t *testing.T) {
 	}
 	if entries, _ := os.ReadDir(StagingRoot(fx.dir)); len(entries) != 0 {
 		t.Errorf("staging not cleaned: %v", entries)
+	}
+}
+
+// renderWith runs a render with options and waits for its end.
+func (fx *runFixture) renderWith(t *testing.T, opts RenderOptions) Job {
+	t.Helper()
+	plan, err := fx.runner.Prepare(context.Background(), fx.projectID, "", fx.settings, opts)
+	if err != nil {
+		t.Fatalf("Prepare: %v", err)
+	}
+	job, _, err := fx.mgr.Enqueue(EnqueueRequest{ProjectID: fx.projectID, Payload: plan})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return waitJobFor(t, fx.mgr, job.ID, terminal, 8*time.Minute)
+}
+
+func TestRunHighQualitySetsCRF18(t *testing.T) {
+	fx := newRunFixture(t)
+	var encoder videostudio.Encoder
+	fx.deps.mixHook = func(_ context.Context, run *renderRun) error {
+		encoder = run.encoder
+		return nil
+	}
+	fx.rebuild(t)
+	fx.playing(playOptions{frames: 6})
+	job := fx.renderWith(t, RenderOptions{Quality: "high"})
+	if job.Status != StatusSucceeded {
+		t.Fatalf("job = %+v %+v", job, job.Error)
+	}
+	args, err := BuildFFmpegArgs(FFmpegConfig{Encoder: encoder, Transport: TransportPNG, Width: 1920, Height: 1080, FPS: 30, Frames: 6, Output: "out.mp4"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(strings.Join(args, " "), "-crf 18") {
+		t.Errorf("arguments = %v, want -crf 18", args)
+	}
+}
+
+// The override runs before Validate. A Thai narration needs no glyphs with captions off, and is glyph_missing when burned in.
+func TestPrepareBurnInOverrideRunsBeforeTheGlyphCheck(t *testing.T) {
+	fx := newRunFixture(t)
+	ctx := context.Background()
+	thai := string([]rune{0x0E2A, 0x0E27, 0x0E31, 0x0E2A, 0x0E14, 0x0E35})
+	doc := `{"schema":"storymaker/1","title":"Thai","style":{"palette":"` + storymaker.DefaultPalette + `","captions":false},"scenes":[{"id":"s1","narration":"` + thai + `"}]}`
+	fx.seedNarratedStory(t, doc, 1)
+	if _, err := fx.runner.Prepare(ctx, fx.projectID, "", fx.settings, RenderOptions{}); err != nil {
+		t.Fatalf("captions off: %v", err)
+	}
+	burn := true
+	_, err := fx.runner.Prepare(ctx, fx.projectID, "", fx.settings, RenderOptions{BurnInCaptions: &burn})
+	var pe *PrepareError
+	if !errors.As(err, &pe) || pe.Code != CodeInvalidStory {
+		t.Fatalf("burned Thai captions = %v", err)
+	}
+	found := false
+	for _, is := range pe.Issues {
+		found = found || is.Code == storymaker.CodeGlyphMissing
+	}
+	if !found {
+		t.Errorf("issues = %+v, want glyph_missing", pe.Issues)
 	}
 }

@@ -1331,3 +1331,76 @@ func TestStorymakerFailingSecondManagerClosesTheFirst(t *testing.T) {
 		t.Fatalf("the first manager after the failure: %v, want ErrClosed", err)
 	}
 }
+
+func TestStorymakerRenderOptions(t *testing.T) {
+	plans := make(chan *render.Plan, 8)
+	s, token, p := renderFixture(t, func(ctx context.Context, job render.Job, payload any, h *render.Handle) (render.Output, error) {
+		plans <- payload.(*render.Plan)
+		return render.Output{Path: "Documents/Storymaker/" + job.ProjectID + "/exports/x.mp4", Size: 3}, nil
+	})
+	path := "/projects/" + p.Project.ID + "/render"
+	headers := func(key string) map[string]string {
+		return map[string]string{"If-Match": p.ETag, "Idempotency-Key": key}
+	}
+	nextPlan := func() *render.Plan {
+		t.Helper()
+		select {
+		case plan := <-plans:
+			return plan
+		case <-time.After(10 * time.Second):
+			t.Fatal("the job did not run")
+			return nil
+		}
+	}
+
+	// A strict body: unknown fields, a bad quality and more than 16 KiB are 400.
+	for name, body := range map[string]string{
+		"unknown field": `{"handoff":true}`,
+		"bad quality":   `{"quality":"ultra"}`,
+		"too large":     `{"srt":true}` + strings.Repeat(" ", 16<<10),
+	} {
+		w := storymakerRequest(s, token, http.MethodPost, path, strings.NewReader(body), headers("bad"))
+		if w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), `"code":"invalid_request"`) {
+			t.Errorf("%s = %d %s", name, w.Code, w.Body.String())
+		}
+	}
+
+	// An empty body gives the defaults.
+	w := storymakerRequest(s, token, http.MethodPost, path, nil, headers("one"))
+	var first struct {
+		Job render.Job `json:"job"`
+	}
+	decodeBody(t, w, &first)
+	if w.Code != http.StatusAccepted || first.Job.ID == "" {
+		t.Fatalf("empty body = %d %s", w.Code, w.Body.String())
+	}
+	if plan := nextPlan(); plan.Options != (render.RenderOptions{Quality: "standard"}) {
+		t.Errorf("default options = %+v", plan.Options)
+	}
+
+	// The same key returns the job with the same options and is 409 with other options.
+	w = storymakerRequest(s, token, http.MethodPost, path, nil, headers("one"))
+	var replay struct {
+		Job render.Job `json:"job"`
+	}
+	decodeBody(t, w, &replay)
+	if w.Code != http.StatusAccepted || replay.Job.ID != first.Job.ID {
+		t.Errorf("replay = %d %s", w.Code, w.Body.String())
+	}
+	w = storymakerRequest(s, token, http.MethodPost, path, strings.NewReader(`{"srt":true}`), headers("one"))
+	if w.Code != http.StatusConflict || !strings.Contains(w.Body.String(), "idempotency_conflict") {
+		t.Errorf("same key, other options = %d %s", w.Code, w.Body.String())
+	}
+
+	// The options reach the snapshot, and the override reaches the story there.
+	body := `{"burn_in_captions":false,"srt":true,"vtt":true,"stems":true,"quality":"high"}`
+	w = storymakerRequest(s, token, http.MethodPost, path, strings.NewReader(body), headers("two"))
+	if w.Code != http.StatusAccepted {
+		t.Fatalf("full options = %d %s", w.Code, w.Body.String())
+	}
+	plan := nextPlan()
+	o := plan.Options
+	if o.BurnInCaptions == nil || *o.BurnInCaptions || !o.SRT || !o.VTT || !o.Stems || o.Quality != "high" || plan.Story.Style.Captions {
+		t.Errorf("plan options = %+v, captions %v", o, plan.Story.Style.Captions)
+	}
+}

@@ -592,6 +592,17 @@ func handleStorymakerRender(s *Server, w http.ResponseWriter, r *http.Request, i
 		writeStorymakerError(w, http.StatusBadRequest, "invalid_idempotency_key", "Idempotency-Key must be 1 to 128 printable characters.", nil)
 		return
 	}
+	const maxRenderOptionsBytes = 16 << 10
+	optionsBody, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxRenderOptionsBytes))
+	if err != nil {
+		writeStorymakerError(w, http.StatusBadRequest, "invalid_request", "The export options are larger than 16 KiB.", nil)
+		return
+	}
+	opts, err := render.ParseRenderOptions(optionsBody)
+	if err != nil {
+		writeStorymakerError(w, http.StatusBadRequest, "invalid_request", "The export options are invalid: "+err.Error(), nil)
+		return
+	}
 	ctx := r.Context()
 	if _, err := acc.rt.projects.Get(ctx, id); err != nil {
 		mapStorymakerError(w, err, "project_not_found")
@@ -610,7 +621,7 @@ func handleStorymakerRender(s *Server, w http.ResponseWriter, r *http.Request, i
 		writeStorymakerError(w, http.StatusConflict, render.CodeBrowserUnavailable, b.Issue, nil)
 		return
 	}
-	plan, err := acc.rt.runner.Prepare(ctx, id, match, settings)
+	plan, err := acc.rt.runner.Prepare(ctx, id, match, settings, opts)
 	if err != nil {
 		var pe *render.PrepareError
 		if errors.As(err, &pe) {
@@ -630,7 +641,7 @@ func handleStorymakerRender(s *Server, w http.ResponseWriter, r *http.Request, i
 		mapStorymakerError(w, err, "project_not_found")
 		return
 	}
-	job, _, err := acc.rt.jobs.Enqueue(render.EnqueueRequest{ProjectID: id, Key: key, Fingerprint: id + "\x00" + match, Payload: plan})
+	job, _, err := acc.rt.jobs.Enqueue(render.EnqueueRequest{ProjectID: id, Key: key, Fingerprint: id + "\x00" + match + "\x00" + opts.Fingerprint(), Payload: plan})
 	switch {
 	case errors.Is(err, render.ErrBusy):
 		writeStorymakerError(w, http.StatusTooManyRequests, render.CodeBusy, "Sixteen exports are already waiting. Try again when one has finished.", nil)

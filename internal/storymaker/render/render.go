@@ -118,6 +118,7 @@ type Plan struct {
 	AudioInfo storymaker.AudioInfo
 	// AudioJSON is AudioInfo marshalled once. boot.audio_info serves these bytes, so app and render compile the same input.
 	AudioJSON []byte
+	Options   RenderOptions
 }
 
 // PrepareError is a request that cannot become a job.
@@ -148,7 +149,16 @@ func NewRunner(deps Deps) *Runner {
 // Prepare reads the project's story, checks it against ifMatch (an etag; "" skips the check),
 // decodes, defaults and validates it like the save endpoint does and collects the bundles of its
 // code scenes. A story with an error issue is refused with CodeInvalidStory and the issues.
-func (r *Runner) Prepare(ctx context.Context, projectID, ifMatch string, st Settings) (*Plan, error) {
+func (r *Runner) Prepare(ctx context.Context, projectID, ifMatch string, st Settings, opts RenderOptions) (*Plan, error) {
+	plan, err := r.prepareStory(ctx, projectID, ifMatch, st, opts)
+	if err != nil {
+		return nil, err
+	}
+	plan.Options = opts
+	return plan, nil
+}
+
+func (r *Runner) prepareStory(ctx context.Context, projectID, ifMatch string, st Settings, opts RenderOptions) (*Plan, error) {
 	data, etag, err := r.deps.Projects.LoadStory(ctx, projectID)
 	if err != nil {
 		return nil, err
@@ -166,6 +176,7 @@ func (r *Runner) Prepare(ctx context.Context, projectID, ifMatch string, st Sett
 	}
 	_ = issues
 	storymaker.ApplyDefaults(&story)
+	storymaker.ApplyCaptionOverride(&story, opts.BurnInCaptions)
 	issues = storymaker.Validate(&story, r.deps.Catalog, st.Limits)
 	status, err := r.deps.Projects.CodeSceneStatus(ctx, projectID)
 	if err != nil {
@@ -342,7 +353,7 @@ func (run *renderRun) execute(ctx context.Context) (Output, error) {
 	if run.frameLimit <= 0 {
 		run.frameLimit = run.st.MaxDurationSeconds * run.fps
 	}
-	run.encoder, run.encName = run.st.Encoder, run.st.EncoderName
+	run.encoder, run.encName = run.plan.Options.encoder(run.st.Encoder), run.st.EncoderName
 	if run.encName == "" {
 		run.encName = videostudio.CodecX264
 		if run.encoder.Hardware() {

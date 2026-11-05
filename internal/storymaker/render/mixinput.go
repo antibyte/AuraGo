@@ -81,9 +81,8 @@ type plannedSource struct {
 	rawFrames  int64  // set by buildMixInput
 }
 
-// mixStems says whether this job writes stems. Stems are asked for through the render options,
-// which do not exist yet, so no job writes them.
-func (run *renderRun) mixStems() bool { return false }
+// mixStems says whether this job writes stems. The disk check of buildMixInput counts them.
+func (run *renderRun) mixStems() bool { return run.plan.Options.Stems }
 
 func msToMixFrames(ms int64) int64 { return ms * mixFramesPerMS }
 

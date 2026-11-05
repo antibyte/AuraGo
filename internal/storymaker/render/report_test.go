@@ -249,7 +249,7 @@ func TestRunRefusesAReportThatDropsMeasuredNarration(t *testing.T) {
 	if _, err := fx.projects.SaveStory(ctx, fx.projectID, []byte(narratedStoryJSON), ""); err != nil {
 		t.Fatal(err)
 	}
-	plan, err := fx.runner.Prepare(ctx, fx.projectID, "", fx.settings)
+	plan, err := fx.runner.Prepare(ctx, fx.projectID, "", fx.settings, RenderOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
