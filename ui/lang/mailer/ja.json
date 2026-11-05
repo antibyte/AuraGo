@@ -359,5 +359,6 @@
   "mailer.rule_run_unknown_help": "操作の結果を確認できませんでした。再試行する前にプロバイダー側の状態を確認してください。操作はすでに実行された可能性があります。",
   "mailer.rule_run_failed": "操作に失敗",
   "mailer.rule_run_failed_help": "この操作は失敗しました。再試行する前にメッセージとプロバイダーの状態を確認してください。",
-  "mailer.rule_run_error_details": "技術的な詳細"
+  "mailer.rule_run_error_details": "技術的な詳細",
+  "mailer.test_busy": "接続テストは実行中です。少し待ってから再試行してください。"
 }

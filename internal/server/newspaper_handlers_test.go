@@ -89,6 +89,9 @@ func TestNewspaperTelegramChunksKeepCompleteText(t *testing.T) {
 }
 
 func TestNewspaperAgentMailChallengeOutcome(t *testing.T) {
+	if testutil.RunTLSFixtureSubprocess(t) {
+		return
+	}
 	for _, tc := range []struct {
 		name       string
 		provider   int

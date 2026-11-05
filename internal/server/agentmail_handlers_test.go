@@ -37,6 +37,9 @@ func TestHandleAgentMailStatusReportsDisabled(t *testing.T) {
 }
 
 func TestHandleAgentMailTestListsInboxes(t *testing.T) {
+	if testutil.RunTLSFixtureSubprocess(t) {
+		return
+	}
 	upstream := testutil.NewHTTPSServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/v0/inboxes" {
 			t.Fatalf("path = %q", r.URL.Path)

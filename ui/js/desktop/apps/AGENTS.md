@@ -4274,6 +4274,11 @@ registration lives in `internal/desktop/types.go`.
   `mailer-stickers` → `mailer-compose` → `mailer-settings` → `mailer`; the views
   module must load before the shell because the shell delegates to it.
   `window.MailerApp` keeps `{ render, dispose, safeMailHTML }`.
+- Mailer connection tests disable their account-test buttons while pending,
+  including settings repaints. Translate the server's 429/mail_test_busy into a
+  wait/retry notice in all sixteen Mailer locales. Completion preserves current
+  readonly/capability gates and ignores disposed windows. Verify
+  TestDesktopMailerConnectionProbeFeedback and TestDesktopMailerLocaleCoverage.
 - Mailer layout stays container driven: `container-name: mailer` with the
   1099 px and 719 px app-width breakpoints and `container-name: mailer-compose`
   for the composer. Viewport media queries are forbidden. The reader is an

@@ -3,12 +3,24 @@ package ui
 import (
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
 	"testing"
 )
+
+func TestDesktopMailerConnectionProbeFeedback(t *testing.T) {
+	t.Parallel()
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("Node.js is required for the Mailer runtime check")
+	}
+	if out, err := exec.Command(node, "testdata/mailer-probe.cjs").CombinedOutput(); err != nil {
+		t.Fatalf("Mailer connection probe feedback: %v\n%s", err, out)
+	}
+}
 
 func TestDesktopMailerResponsiveAndReaderContracts(t *testing.T) {
 	t.Parallel()

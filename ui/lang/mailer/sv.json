@@ -359,5 +359,6 @@
   "mailer.rule_run_unknown_help": "Åtgärdens resultat kunde inte bekräftas. Kontrollera statusen hos leverantören innan du försöker igen; åtgärden kan redan ha utförts.",
   "mailer.rule_run_failed": "Åtgärden misslyckades",
   "mailer.rule_run_failed_help": "Åtgärden misslyckades. Kontrollera meddelandet och statusen hos leverantören innan du försöker igen.",
-  "mailer.rule_run_error_details": "Tekniska detaljer"
+  "mailer.rule_run_error_details": "Tekniska detaljer",
+  "mailer.test_busy": "Ett anslutningstest pågår redan. Vänta en stund och försök igen."
 }

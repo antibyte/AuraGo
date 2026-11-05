@@ -359,5 +359,6 @@
   "mailer.rule_run_unknown_help": "Não foi possível confirmar o resultado da ação. Verifique o estado no fornecedor antes de tentar novamente; a ação pode já ter sido executada.",
   "mailer.rule_run_failed": "Ação falhou",
   "mailer.rule_run_failed_help": "Esta ação falhou. Verifique a mensagem e o estado no fornecedor antes de tentar novamente.",
-  "mailer.rule_run_error_details": "Detalhes técnicos"
+  "mailer.rule_run_error_details": "Detalhes técnicos",
+  "mailer.test_busy": "Já está a decorrer um teste de ligação. Aguarda um pouco e tenta novamente."
 }

@@ -359,5 +359,6 @@
   "mailer.rule_run_unknown_help": "Resultatet av handlingen kunne ikke bekreftes. Sjekk status hos leverandøren før du prøver igjen; handlingen kan allerede være utført.",
   "mailer.rule_run_failed": "Handlingen mislyktes",
   "mailer.rule_run_failed_help": "Handlingen mislyktes. Sjekk meldingen og status hos leverandøren før du prøver igjen.",
-  "mailer.rule_run_error_details": "Tekniske detaljer"
+  "mailer.rule_run_error_details": "Tekniske detaljer",
+  "mailer.test_busy": "En tilkoblingstest kjører allerede. Vent litt og prøv igjen."
 }

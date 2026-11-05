@@ -359,5 +359,6 @@
   "mailer.rule_run_unknown_help": "Výsledek akce nelze potvrdit. Před opakováním zkontroluj stav u poskytovatele; akce se mohla už provést.",
   "mailer.rule_run_failed": "Akce selhala",
   "mailer.rule_run_failed_help": "Tato akce selhala. Zkontroluj zprávu a stav u poskytovatele, než ji znovu spustíš.",
-  "mailer.rule_run_error_details": "Technické podrobnosti"
+  "mailer.rule_run_error_details": "Technické podrobnosti",
+  "mailer.test_busy": "Test připojení již probíhá. Chvíli počkej a zkus to znovu."
 }

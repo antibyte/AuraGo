@@ -5,6 +5,8 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/textproto"
@@ -15,6 +17,7 @@ import (
 	"aurago/internal/agentmail"
 	"aurago/internal/config"
 	"aurago/internal/mailer"
+	"github.com/emersion/go-imap"
 )
 
 func TestMailConnectionErrorsDoNotExposeProviderData(t *testing.T) {
@@ -29,6 +32,12 @@ func TestMailConnectionErrorsDoNotExposeProviderData(t *testing.T) {
 		{x509.UnknownAuthorityError{}, "certificate_invalid"},
 		{&textproto.Error{Code: 535, Msg: "PRIVATE_CREDENTIAL"}, "auth_failed"},
 		{mailer.ErrMailTarget, "target_blocked"},
+		{fmt.Errorf("%w: %w", mailer.ErrMailAuthentication, (&imap.StatusResp{Type: imap.StatusRespNo, Info: "Invalid credentials (Failure)"}).Err()), "auth_failed"},
+		{fmt.Errorf("%w: %w", mailer.ErrMailAuthentication, context.DeadlineExceeded), "timeout"},
+		{fmt.Errorf("%w: %w", mailer.ErrMailAuthentication, context.Canceled), "cancelled"},
+		{fmt.Errorf("%w: %w", mailer.ErrMailAuthentication, io.EOF), "connection_failed"},
+		{fmt.Errorf("%w: %w", mailer.ErrMailAuthentication, &net.OpError{Op: "read", Err: errors.New("connection reset")}), "connection_failed"},
+		{errors.New("PRIVATE login failed server prose"), "connection_failed"},
 		{errors.New("PRIVATE_BODY"), "connection_failed"},
 	} {
 		code := mailConnectionErrorCode(tc.err)

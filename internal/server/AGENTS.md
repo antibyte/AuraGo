@@ -115,6 +115,8 @@ Server-owned HTTP and cross-component integration contracts.
 - Config and setup saves validate AgentMail HTTPS base syntax before persistence.
   Connection-test errors contain fixed codes only, never provider bodies or echoed
   request values; the Config UI translates those codes in all sixteen locales.
+- IMAP authentication classification uses mailer's fixed phase marker, not server
+  prose. Original transport/cancellation/timeout causes take precedence.
 - Classic and AgentMail Config probes and Desktop Mailer account probes share two
   slots per server and a one-second start cooldown. Reject busy work with 429 and
   Retry-After before dialing; keep setup draft tests independent of Desktop policy.

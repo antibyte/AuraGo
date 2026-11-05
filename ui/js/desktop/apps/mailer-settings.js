@@ -3,6 +3,7 @@
 
     function create(inst, deps) {
         const { esc, t, responseItems, accountSettingsRecord, showError, setStatus, reloadState, refreshCurrent, localDateTime } = deps;
+        let probeBusy = false;
         function showSettings(inst) {
             inst.host.querySelector('[data-settings]').hidden = false;
             paintSettings(inst);
@@ -45,7 +46,7 @@
                 }).join('') || `<p class="vd-mailer-empty-copy">${esc(t(inst.ctx, 'no_sources'))}</p>`}</section>
                 <section class="vd-mailer-connected-list"><h3>${esc(t(inst.ctx, 'connected_accounts'))}</h3>${accounts.map(account => {
                     const reasonCode = account.sync_error || account.reason || (account.disabled ? 'account_disabled' : '');
-                    return `<article class="vd-mailer-account-setting"><div><b>${esc(account.name || account.address)}</b><small>${esc(account.address)} · ${esc(account.source)}</small>${reasonCode ? `<p>${esc(reasonText(inst, reasonCode))}</p>` : ''}</div><div class="vd-mailer-account-setting-controls"><button type="button" data-test-account="${esc(account.id)}" data-direction="receive" ${inst.state.readonly || !account.capabilities?.includes('read') ? 'disabled' : ''}>${esc(t(inst.ctx, 'test_receive'))}</button><button type="button" data-test-account="${esc(account.id)}" data-direction="send" ${inst.state.readonly || !account.capabilities?.includes('send') ? 'disabled' : ''}>${esc(t(inst.ctx, 'test_send'))}</button>${account.reauthorize_supported ? `<button type="button" data-reauthorize="${esc(account.id)}" ${inst.state.readonly ? 'disabled' : ''}>${esc(t(inst.ctx, 'reauthorize'))}</button>` : ''}<label class="vd-mailer-inline-check"><input type="checkbox" data-account-pref="disabled" data-account-id="${esc(account.id)}" ${account.disabled ? 'checked' : ''} ${inst.state.readonly ? 'disabled' : ''}><span>${esc(t(inst.ctx, 'account_disabled'))}</span></label><label class="vd-mailer-inline-check"><input type="checkbox" data-account-pref="read_only" data-account-id="${esc(account.id)}" ${account.read_only ? 'checked' : ''} ${inst.state.readonly ? 'disabled' : ''}><span>${esc(t(inst.ctx, 'account_readonly'))}</span></label>${canConfigureAgentAccess(account) ? `<label class="vd-mailer-inline-check"><input type="checkbox" data-account-pref="agent_access" data-account-id="${esc(account.id)}" ${account.agent_access ? 'checked' : ''} ${inst.state.readonly ? 'disabled' : ''}><span>${esc(t(inst.ctx, 'agent_access'))}</span></label>` : ''}${folderMappingControls(inst, account)}<button type="button" data-disconnect-account="${esc(account.id)}" ${inst.state.readonly ? 'disabled' : ''}>${esc(t(inst.ctx, 'disconnect'))}</button></div></article>`;
+                    return `<article class="vd-mailer-account-setting"><div><b>${esc(account.name || account.address)}</b><small>${esc(account.address)} · ${esc(account.source)}</small>${reasonCode ? `<p>${esc(reasonText(inst, reasonCode))}</p>` : ''}</div><div class="vd-mailer-account-setting-controls"><button type="button" data-test-account="${esc(account.id)}" data-direction="receive" aria-busy="${probeBusy}" ${probeBusy || inst.state.readonly || !account.capabilities?.includes('read') ? 'disabled' : ''}>${esc(t(inst.ctx, 'test_receive'))}</button><button type="button" data-test-account="${esc(account.id)}" data-direction="send" aria-busy="${probeBusy}" ${probeBusy || inst.state.readonly || !account.capabilities?.includes('send') ? 'disabled' : ''}>${esc(t(inst.ctx, 'test_send'))}</button>${account.reauthorize_supported ? `<button type="button" data-reauthorize="${esc(account.id)}" ${inst.state.readonly ? 'disabled' : ''}>${esc(t(inst.ctx, 'reauthorize'))}</button>` : ''}<label class="vd-mailer-inline-check"><input type="checkbox" data-account-pref="disabled" data-account-id="${esc(account.id)}" ${account.disabled ? 'checked' : ''} ${inst.state.readonly ? 'disabled' : ''}><span>${esc(t(inst.ctx, 'account_disabled'))}</span></label><label class="vd-mailer-inline-check"><input type="checkbox" data-account-pref="read_only" data-account-id="${esc(account.id)}" ${account.read_only ? 'checked' : ''} ${inst.state.readonly ? 'disabled' : ''}><span>${esc(t(inst.ctx, 'account_readonly'))}</span></label>${canConfigureAgentAccess(account) ? `<label class="vd-mailer-inline-check"><input type="checkbox" data-account-pref="agent_access" data-account-id="${esc(account.id)}" ${account.agent_access ? 'checked' : ''} ${inst.state.readonly ? 'disabled' : ''}><span>${esc(t(inst.ctx, 'agent_access'))}</span></label>` : ''}${folderMappingControls(inst, account)}<button type="button" data-disconnect-account="${esc(account.id)}" ${inst.state.readonly ? 'disabled' : ''}>${esc(t(inst.ctx, 'disconnect'))}</button></div></article>`;
                 }).join('') || `<p class="vd-mailer-empty-copy">${esc(t(inst.ctx, 'no_accounts'))}</p>`}</section>
                 <section class="vd-mailer-oauth-guidance"><h3>${esc(t(inst.ctx, 'oauth_title'))}</h3><p>${esc(t(inst.ctx, 'oauth_byok'))}</p><p>${esc(t(inst.ctx, 'oauth_private'))}</p></section>`;
             content.querySelectorAll('[data-account-pref]').forEach(input => input.addEventListener('change', () => updateAccountPref(inst, input.dataset.accountId, input.dataset.accountPref, input.type === 'checkbox' ? input.checked : input.value)));
@@ -145,16 +146,33 @@
             catch (error) { showError(inst, error); }
         }
 
+        function setProbeBusy(inst, busy) {
+            probeBusy = busy;
+            if (inst.disposed) return;
+            inst.host.querySelectorAll('[data-test-account]').forEach(button => {
+                const account = inst.state.accounts.find(item => item.id === button.dataset.testAccount);
+                const capability = button.dataset.direction === 'receive' ? 'read' : 'send';
+                button.disabled = busy || inst.state.readonly || !account?.capabilities?.includes(capability);
+                button.setAttribute('aria-busy', String(busy));
+            });
+        }
+
         async function testAccount(inst, accountId, direction) {
-            if (inst.state.readonly || !['receive', 'send'].includes(direction)) return;
+            if (inst.disposed || probeBusy || inst.state.readonly || !['receive', 'send'].includes(direction)) return;
+            setProbeBusy(inst, true);
             setStatus(inst, t(inst.ctx, direction === 'receive' ? 'testing_receive' : 'testing_send'));
             try {
                 const result = await inst.api.testAccount(accountId, direction);
+                if (inst.disposed) return;
                 const outcome = result[direction] || result.status;
                 const errorCode = outcome === 'error' ? result[direction + '_error'] : '';
                 const key = errorCode ? 'test_result_error_detail' : 'test_result_' + String(outcome).toLowerCase();
                 setStatus(inst, t(inst.ctx, key, { code: String(errorCode || ''), direction: t(inst.ctx, direction === 'receive' ? 'test_receive' : 'test_send') }), outcome === 'error');
-            } catch (error) { showError(inst, error); }
+            } catch (error) {
+                if (inst.disposed) return;
+                if (error?.status === 429 && error?.body?.code === 'mail_test_busy') setStatus(inst, t(inst.ctx, 'test_busy'));
+                else showError(inst, error);
+            } finally { setProbeBusy(inst, false); }
         }
 
         async function toggleEnabled(inst, enabled) {

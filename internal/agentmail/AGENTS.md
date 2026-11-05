@@ -26,7 +26,8 @@ owns tool admission. Mailer's provider adapter remains in `../mailer`.
 ## Work Guidance
 
 Use TLS fixtures with injected trusted clients. Default-client integration fixtures
-must explicitly trust their local test certificate and allow loopback only in tests.
+run through testutil.RunTLSFixtureSubprocess before trusting their local certificate;
+keep irreversible root changes in the child and allow loopback only in tests.
 
 ## Verification
 

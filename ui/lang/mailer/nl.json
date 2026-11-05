@@ -359,5 +359,6 @@
   "mailer.rule_run_unknown_help": "Het resultaat van de actie kon niet worden bevestigd. Controleer de status bij de provider voordat je opnieuw probeert; de actie is mogelijk al uitgevoerd.",
   "mailer.rule_run_failed": "Actie mislukt",
   "mailer.rule_run_failed_help": "Deze actie is mislukt. Controleer het bericht en de status bij de provider voordat je opnieuw probeert.",
-  "mailer.rule_run_error_details": "Technische details"
+  "mailer.rule_run_error_details": "Technische details",
+  "mailer.test_busy": "Er loopt al een verbindingstest. Wacht even en probeer het opnieuw."
 }

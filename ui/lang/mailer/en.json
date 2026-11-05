@@ -359,5 +359,6 @@
   "mailer.rule_run_unknown_help": "The action result could not be confirmed. Check the provider state before retrying; the action may already have run.",
   "mailer.rule_run_failed": "Action failed",
   "mailer.rule_run_failed_help": "This action failed. Check the message and provider state before you retry it.",
-  "mailer.rule_run_error_details": "Technical details"
+  "mailer.rule_run_error_details": "Technical details",
+  "mailer.test_busy": "A connection test is already running. Wait briefly and try again."
 }
