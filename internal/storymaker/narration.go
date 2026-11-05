@@ -587,6 +587,36 @@ var (
 	storedAudioName = regexp.MustCompile(`^[0-9a-f]{64}\.(wav|mp3|env\.json|meta\.json|pending\.json)$`)
 )
 
+// Size caps of the audio answer. They mirror CAPS.maxLevels and CAPS.maxTotalLevels in ui/js/storymaker/host-app.js
+// (checkAudioInfo), which refuses the whole load when one is exceeded. Go enforces them first, by dropping levels.
+const (
+	MaxBlockLevels = 27000  // levels of one block: 900 s at 30 fps
+	MaxTotalLevels = 200000 // levels of one answer
+	// maxBlockSpans bounds Spans of one block. Nothing reads Spans today (cue placement uses pieces and speech_ok), and a
+	// piece of 10 ms speech and 100 ms gaps makes about 5000 pairs per 600 s of audio.
+	maxBlockSpans = 2000
+)
+
+// limitAudioBlock keeps the answer small without touching timing. A block whose levels exceed perBlock, or would push the
+// running total over all, loses its levels (an empty value, still [] in JSON) and adds nothing to the total: it keeps
+// pieces, duration and speech_ok, so only lip-sync and the waveform of that block are lost. A block with more than
+// maxBlockSpans spans gets one span per used piece range instead.
+func limitAudioBlock(b *AudioBlock, total *int, perBlock, all int) {
+	if n := len(b.Levels); n > perBlock || *total+n > all {
+		b.Levels = Levels{}
+	} else {
+		*total += n
+	}
+	if len(b.Spans) > maxBlockSpans {
+		b.Spans = make([][2]int, 0, len(b.Pieces))
+		for _, p := range b.Pieces {
+			if p.OutMS > p.InMS {
+				b.Spans = append(b.Spans, [2]int{p.AtMS, p.AtMS + p.OutMS - p.InMS})
+			}
+		}
+	}
+}
+
 // AudioAnswer builds the answer for a decoded story. A block enters Narration only when every piece
 // has audio and a valid envelope; otherwise it enters Missing and JS estimates it. A missing music
 // source sets MusicIssue and keeps the narration; any other resolver error is returned.
@@ -596,6 +626,7 @@ func (p *ProjectStore) AudioAnswer(ctx context.Context, id string, s *Story, res
 		return AudioAnswer{}, err
 	}
 	ans := AudioAnswer{Narration: map[string]SceneAudio{}, Missing: []MissingBlock{}}
+	totalLevels := 0
 	for _, b := range Blocks(s) {
 		pieces := PiecesOf(b)
 		inputs := make([]AudioPieceInput, 0, len(pieces))
@@ -619,7 +650,9 @@ func (p *ProjectStore) AudioAnswer(ctx context.Context, id string, s *Story, res
 			continue
 		}
 		scene := ans.Narration[b.SceneID]
-		scene.Blocks = append(scene.Blocks, AssembleBlock(b, inputs, s.Format.FPS))
+		block := AssembleBlock(b, inputs, s.Format.FPS)
+		limitAudioBlock(&block, &totalLevels, MaxBlockLevels, MaxTotalLevels)
+		scene.Blocks = append(scene.Blocks, block)
 		ans.Narration[b.SceneID] = scene
 	}
 	// Only the resolver's error counts here, so a key leaves Music null. Batch 2C wraps this body with

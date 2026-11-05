@@ -678,3 +678,72 @@ func TestOpenAudioReadsWhatWritePieceKept(t *testing.T) {
 		t.Errorf("PieceFiles after RemovePiece: %+v, %v", files, err)
 	}
 }
+
+// A block over the level cap loses its levels and nothing else: duration, pieces and speech_ok stay, so timing and playback
+// are unchanged. A normal block of the same answer keeps its levels.
+func TestAudioAnswerDropsLevelsOverTheCap(t *testing.T) {
+	ps, _, id := audioStoreProject(t)
+	ctx := context.Background()
+	story := audioStoreStory()
+	story.Scenes = append(story.Scenes, Scene{ID: "s2", Narration: "Ein ganz anderer Text steht in der zweiten Szene."})
+	// Two pieces of 600 s are 120000 bins, which is 36000 frames at 30 fps, over the cap of 27000.
+	long := Envelope{V: 1, DurationMS: 600000, Rate: 100, Levels: make(Levels, 60000)}
+	for i := range long.Levels {
+		long.Levels[i] = 170
+	}
+	for _, b := range Blocks(story) {
+		env := audioStoreEnvelope()
+		if b.SceneID == "s1" {
+			env = long
+		}
+		for _, piece := range PiecesOf(b) {
+			if err := ps.WritePiece(ctx, id, PieceKey(b.Voice, piece.Text), "wav", []byte("audio"), env); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	ans, err := ps.AudioAnswer(ctx, id, story, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	big, small := ans.Narration["s1"].Blocks[0], ans.Narration["s2"].Blocks[0]
+	if big.Levels == nil || len(big.Levels) != 0 {
+		t.Fatalf("big levels = %d, want an empty non-nil value", len(big.Levels))
+	}
+	if len(big.Pieces) != 2 || big.DurationMS < 1200000 || !big.SpeechOK || len(big.Spans) == 0 {
+		t.Fatalf("big block lost timing: %d pieces, %d ms, ok %v, %d spans", len(big.Pieces), big.DurationMS, big.SpeechOK, len(big.Spans))
+	}
+	if len(small.Levels) == 0 || len(small.Levels) != (small.DurationMS*30+999)/1000 {
+		t.Fatalf("small block: %d levels, %d ms, %d pieces", len(small.Levels), small.DurationMS, len(small.Pieces))
+	}
+	raw, _ := json.Marshal(big)
+	if !strings.Contains(string(raw), `"levels":[]`) {
+		t.Fatalf("big block JSON: %.200s", raw)
+	}
+}
+
+func TestLimitAudioBlockKeepsARunningTotal(t *testing.T) {
+	block := func(levels, spans int) AudioBlock {
+		b := AudioBlock{DurationMS: 5000, Levels: make(Levels, levels), Spans: make([][2]int, spans), SpeechOK: true,
+			Pieces: []AudioPiece{{AtMS: 0, InMS: 40, OutMS: 940}, {AtMS: 1500, InMS: 0, OutMS: 800}}}
+		return b
+	}
+	total := 0
+	a, b, c, d := block(40, 3), block(70, 3), block(50, 3), block(60, 3)
+	for _, blk := range []*AudioBlock{&a, &b, &c, &d} {
+		limitAudioBlock(blk, &total, 60, 100)
+	}
+	// a fits (40), b is over the block cap, c would make 90 (fits), d would make 150 (over the total).
+	if len(a.Levels) != 40 || len(b.Levels) != 0 || b.Levels == nil || len(c.Levels) != 50 || len(d.Levels) != 0 || total != 90 {
+		t.Fatalf("levels a %d, b %d, c %d, d %d, total %d", len(a.Levels), len(b.Levels), len(c.Levels), len(d.Levels), total)
+	}
+	if d.DurationMS != 5000 || len(d.Pieces) != 2 || !d.SpeechOK || len(d.Spans) != 3 {
+		t.Fatalf("a dropped block lost more than its levels: %+v", d)
+	}
+	// Too many spans collapse to one span per used piece range, in block time.
+	many := block(10, maxBlockSpans+1)
+	limitAudioBlock(&many, &total, 60, 1000)
+	if want := [][2]int{{0, 900}, {1500, 2300}}; !reflect.DeepEqual(many.Spans, want) || len(many.Levels) != 10 {
+		t.Fatalf("spans %v, levels %d", many.Spans, len(many.Levels))
+	}
+}

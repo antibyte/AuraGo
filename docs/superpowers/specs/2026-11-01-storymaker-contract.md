@@ -1033,6 +1033,8 @@ Host caps (`StorymakerHost.CAPS`):
 | glyph range values | 60000 |
 | fallback font | at most its `max_bytes` and at most 18 MiB |
 
+Go enforces the two level caps first (`ProjectStore.AudioAnswer`, `MaxBlockLevels` and `MaxTotalLevels`): a block over the per-block cap, or one that would push the running total over the message cap, is sent with `levels: []` and keeps its pieces, duration and spans, so only its lip-sync and waveform are lost. A block with more than 2000 spans gets one span per used piece range.
+
 `format.width` is the width of the preview canvas (the height follows the aspect). Without it the canvas has the export size. The desktop app uses 960 px for 16:9, 720 px for 1:1 and 540 px for 9:16.
 
 ### Readiness
