@@ -166,6 +166,53 @@ func TestRunnerUnstartedRunsFinishTheirLog(t *testing.T) {
 	}
 }
 
+func TestRunnerUnstartedStoreFailureEventBoundary(t *testing.T) {
+	t.Run("deleted ordinary run", func(t *testing.T) {
+		fx := newRunnerFixture(t, RunnerConfig{})
+		f := fx.flow(t, "flow_aaaaaaaadz", ConcurrencyQueue)
+		fx.start(t, f, ModeLive, "a")
+		fx.gate.waitStarted(t, "a")
+		queued := fx.start(t, f, ModeLive, "b")
+		_, events, stop, ok := fx.r.Subscribe(queued.RunID, 0)
+		defer stop()
+		if !ok {
+			t.Fatal("queued run has no event log")
+		}
+		// Reproduce the delete cascade before the service's second CancelFlow.
+		if err := fx.store.DeleteFlow(context.Background(), f.ID); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := fx.store.GetRunHeader(context.Background(), queued.RunID); !errors.Is(err, ErrRunNotFound) {
+			t.Fatalf("deleted run lookup = %v", err)
+		}
+		if n := fx.r.CancelFlow(f.ID); n != 2 {
+			t.Fatalf("cancelled %d runs, want 2", n)
+		}
+		got := drainEvents(t, events)
+		if len(got) != 1 || got[0].Seq != 1 || got[0].RunID != queued.RunID || got[0].Type != EventRunFinished ||
+			got[0].Run == nil || got[0].Run.Status != RunCancelled || got[0].Run.ErrorCode != "FLOW_CANCELLED" {
+			t.Fatalf("queued run log = %s, want one terminal cancellation", describeEvents(got))
+		}
+	})
+	t.Run("unconfirmed durable cancellation", func(t *testing.T) {
+		fx := newRunnerFixture(t, RunnerConfig{})
+		p := &pendingRun{rec: RunRecord{ID: NewRunID(), Durable: true}}
+		fx.r.bus.Open(p.rec.ID)
+		_, events, stop, ok := fx.r.Subscribe(p.rec.ID, 0)
+		defer stop()
+		if !ok {
+			t.Fatal("durable run has no event log")
+		}
+		// No matching queued row: the durable transition cannot be confirmed.
+		fx.r.recordUnstarted(p, "FLOW_CANCELLED", "cancelled before start")
+		select {
+		case ev, open := <-events:
+			t.Fatalf("unconfirmed durable outcome emitted %+v or closed its log (open=%v)", ev, open)
+		default:
+		}
+	})
+}
+
 // A panic in the runner's own code during a run (here in the event sink) is recorded
 // as FLOW_RUNNER_PANIC, ends the run's event log and still frees the run's global and
 // flow slots, so the flow's queued run starts.

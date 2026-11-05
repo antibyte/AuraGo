@@ -434,6 +434,9 @@ the contracts below describe the implemented behavior of each delivered slice.
 - Every run with an id has an event log from its creation (queued runs too), and the log always ends
   with `run_finished`: `endLog` publishes it for runs that end without the engine (cancelled while
   queued, `FLOW_SHUTDOWN`, runner panic). A runner panic gives `FLOW_RUNNER_PANIC` and frees the slot.
+  Ordinary cancellation ends the log even when the run row was deleted or its final write fails.
+  Durable terminal events require a confirmed journal transition; an uncertain durable write never
+  fabricates one. Verify `TestRunnerUnstartedStoreFailureEventBoundary` and `TestRunnerUnstartedRunsFinishTheirLog`.
 - `OnRunStarted(rec, doc)` fires right before a run executes, with the document it executes (the
   `StartRequest`'s `Flow`, shared with the engine: read-only); `OnRunFinished` is called for every run,
   including runs cancelled before they started (those never get `OnRunStarted`). Hooks run outside all locks.

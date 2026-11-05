@@ -1077,7 +1077,9 @@ func (r *Runner) recordUnstarted(p *pendingRun, code, msg string) (RunRecord, Ru
 	}
 	if err != nil {
 		r.logStoreError("cancelled flow run not saved", p.rec.ID, err)
-	} else {
+	}
+	// Ordinary cancellation is final in memory; durable outcomes require the journal.
+	if err == nil || !p.rec.Durable {
 		r.endLog(p.rec.ID, 1, res)
 	}
 	rec := p.rec
