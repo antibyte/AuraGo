@@ -111,6 +111,8 @@ Requests with another version return HTTP 409 with a reload instruction rather
 than silently returning new files. Unversioned subresources are network-only,
 including in the service worker. Versioned resources retain cache and Range
 support; HTML, authentication and APIs are not used as offline UI substitutes.
+Workers registered without a version or with `v=dev` skip precaching rather than
+requesting resources with a placeholder version that the server rejects.
 Installed standalone PWAs reconnect EventSource after background freeze and
 reload once when `X-AuraGo-Asset-Set` no longer matches the loaded BuildVersion.
 The manifest ships `any` and `maskable` icons plus Chat/Desktop shortcuts; the

@@ -6,7 +6,8 @@ const STATIC_CACHE = `${CACHE_VERSION}-static`;
 
 // Keep the install shell static-only. The cache namespace changes with every
 // service-worker build, while request query strings remain part of cache keys.
-const CORE_ASSETS = [
+// Unversioned registrations have no asset digest to safely precache against.
+const CORE_ASSETS = SERVICE_WORKER_BUILD === 'dev' ? [] : [
     '/site.webmanifest',
     '/favicon.ico',
     '/favicon.svg',

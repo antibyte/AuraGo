@@ -843,7 +843,10 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   Pages that link the manifest declare `apple-mobile-web-app-capable` and
   `mobile-web-app-capable`. `initPWA` registers the service worker even without
   `PushManager`. Chat registration uses `updateViaCache: 'none'`. Precache
-  failures must not block install. Standalone PWA resume reconnects `AuraSSE`
+  failures must not block install. Unversioned or `v=dev` workers skip precaching;
+  never synthesize a `v=dev` resource request without an asset digest. Verify with
+  the service-worker cases in `node scripts/test-ui-regressions.mjs`.
+  Standalone PWA resume reconnects `AuraSSE`
   after hide/freeze/offline and reloads once when `/api/ready` reports a
   different `X-AuraGo-Asset-Set`.
 - CanvasUI components are vendored as local framework-free ESM under

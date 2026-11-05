@@ -877,6 +877,43 @@ function testGameMakerPreviewLoadingIgnoresStaleFrameSettlement() {
   assert.equal(state.previewLoadTimer, null);
 }
 
+async function testServiceWorkerPrecachesOnlyVersionedBuilds() {
+  for (const query of ['', '?v=', '?v=dev', '?v=build%2042']) {
+    const handlers = {};
+    const precached = [];
+    let activated = false;
+    vm.runInNewContext(read('ui/sw.js'), {
+      URL,
+      caches: {
+        open: async () => ({
+          add: async url => {
+            precached.push(url);
+            throw new Error('simulated unavailable asset');
+          }
+        })
+      },
+      self: {
+        location: new URL(`https://aurago.test/sw.js${query}`),
+        addEventListener(type, handler) { handlers[type] = handler; },
+        skipWaiting: async () => { activated = true; }
+      }
+    });
+
+    let installWork;
+    handlers.install({ waitUntil(work) { installWork = work; } });
+    await installWork;
+    assert.equal(activated, true, 'unavailable precache assets must not block installation');
+    if (query === '?v=build%2042') {
+      assert.equal(precached.length, 6);
+      for (const asset of precached) {
+        assert.equal(new URL(asset, 'https://aurago.test').searchParams.get('v'), 'build 42');
+      }
+    } else {
+      assert.deepEqual(precached, [], 'unversioned and dev workers must not invent asset versions');
+    }
+  }
+}
+
 async function testServiceWorkerPreservesMediaRangeResponses() {
   const handlers = {};
   let cacheOpened = false;
@@ -5587,6 +5624,7 @@ const tests = [
   ['versioned service-worker registration', testVersionedServiceWorkerRegistration],
   ['AuraSSE resumes after a frozen PWA becomes visible', testAuraSSEResumesWhenVisibleAfterFrozenConnection],
   ['Game Maker preview loading ignores stale frame settlement', testGameMakerPreviewLoadingIgnoresStaleFrameSettlement],
+  ['service worker precaches only versioned builds', testServiceWorkerPrecachesOnlyVersionedBuilds],
   ['service worker preserves media range responses', testServiceWorkerPreservesMediaRangeResponses],
   ['real skill snapshot differences', testSkillSnapshotDifferences],
   ['Python skill card ordering matches snapshots', testSkillCardOrderingMatchesSnapshots],
