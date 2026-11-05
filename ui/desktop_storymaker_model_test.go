@@ -69,6 +69,296 @@ func TestStorymakerAppModelInNode(t *testing.T) {
 	}
 }
 
+// The export panel in Node, on a small fake DOM: a refused start shows what is missing and leads to the panel that fixes it, and the
+// silent note appears only for a film that really has no sound.
+func TestStorymakerExportRefusalsInNode(t *testing.T) {
+	t.Parallel()
+	if strings.Contains(readDesktopAssetText(t, "js/desktop/apps/storymaker-export.js"), "silent_note") {
+		t.Error("storymaker-export.js still names storymaker.export.silent_note")
+	}
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("node not available")
+	}
+	script := filepath.Join(t.TempDir(), "storymaker-export-refusals.js")
+	if err := os.WriteFile(script, []byte(storymakerExportRefusalsScript), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	dir, _ := filepath.Abs(filepath.Join("js", "desktop", "apps"))
+	out, err := exec.Command(node, script, dir).CombinedOutput()
+	if err != nil {
+		t.Fatalf("node check failed: %v\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "storymaker export refusals ok") {
+		t.Fatalf("unexpected output:\n%s", out)
+	}
+}
+
+const storymakerExportRefusalsScript = `
+'use strict';
+const fs = require('fs');
+const vm = require('vm');
+const path = require('path');
+const [dir] = process.argv.slice(2);
+
+class FakeNode {
+  constructor(tag) { this.tag = String(tag); this.children = []; this.parent = null; this.dataset = {}; this.attrs = {}; this.listeners = {}; this.own = ''; this.value = ''; this.hidden = false; this.disabled = false; this.className = ''; this.style = { setProperty() {} }; }
+  appendChild(child) { child.parent = this; this.children.push(child); return child; }
+  removeChild(child) { this.children = this.children.filter(item => item !== child); child.parent = null; return child; }
+  get firstChild() { return this.children[0] || null; }
+  get textContent() { return this.own + this.children.map(child => child.textContent).join(''); }
+  set textContent(text) { this.children = []; this.own = String(text); }
+  setAttribute(name, value) { this.attrs[name] = String(value); if (name === 'value') this.value = String(value); if (name === 'hidden') this.hidden = true; if (name === 'disabled') this.disabled = true; }
+  removeAttribute(name) { delete this.attrs[name]; }
+  addEventListener(type, fn) { (this.listeners[type] = this.listeners[type] || []).push(fn); }
+  removeEventListener() {}
+  fire(type) { (this.listeners[type] || []).forEach(fn => fn({ target: this })); }
+  click() { if (!this.disabled) this.fire('click'); }
+  focus() {}
+  querySelector() { return null; }
+  contains() { return true; }
+}
+const document = {
+  createElement: tag => new FakeNode(tag),
+  createElementNS: (ns, tag) => new FakeNode(tag),
+  createTextNode: text => { const node = new FakeNode('#text'); node.own = String(text); return node; },
+  addEventListener() {},
+  removeEventListener() {},
+  documentElement: { lang: 'en' },
+  activeElement: null
+};
+const context = { console, document, setTimeout, clearTimeout };
+context.globalThis = context; context.window = context;
+vm.createContext(context);
+for (const name of ['storymaker-core.js', 'storymaker-model.js', 'storymaker-export.js']) {
+  vm.runInContext(fs.readFileSync(path.join(dir, name), 'utf8'), context, { filename: name });
+}
+const S = context.StorymakerParts;
+const eq = (a, b, what) => { const x = JSON.stringify(a), y = JSON.stringify(b); if (x !== y) throw new Error(what + ': got ' + x + ', want ' + y); };
+const find = (node, stm) => { if (node.dataset.stm === stm) return node; for (const child of node.children) { const hit = find(child, stm); if (hit) return hit; } return null; };
+const flush = () => new Promise(resolve => setImmediate(resolve));
+const t = (key, vars) => (vars ? key + ' ' + JSON.stringify(vars) : key);
+const quietAnswer = () => ({ narration: {}, missing: [], chars: { total: 0, missing: 0 }, music: null });
+
+function makeInst(refusal, overrides) {
+  const inst = Object.assign({
+    t,
+    bus: S.createBus(),
+    status: { ffmpeg: { ready: true }, browser: { ready: true, source: 'system' } },
+    readonly: false,
+    projectId: 'p1',
+    etag: '"e"',
+    story: { format: { aspect: '16:9' }, scenes: [{ id: 's1' }] },
+    report: { frame_count: 300, fps: 30, duration_ms: 10000, scenes: [{ id: 's1', start_frame: 0, end_frame: 300 }], audio_events: [], issues: [] },
+    audioInfo: quietAnswer(),
+    issues: [],
+    ctx: {},
+    notes: [],
+    shown: [],
+    flushEdits: () => Promise.resolve(true),
+    showIssues() {},
+    notify(text) { inst.notes.push(text); },
+    showPanel(name) { inst.shown.push(name); },
+    api: { startRender() { return Promise.reject(refusal); } }
+  }, overrides);
+  return inst;
+}
+
+(async () => {
+  // narration_incomplete names the missing scenes and characters and leads to the voice panel
+  let refusal = S.errors.fromResponse(409, { error: 'narration_incomplete', code: 'narration_incomplete', message: 'm', missing: [{ scene_id: 's2', block_id: 's2:n', chars: 120 }, { scene_id: 's2', block_id: 's2:b1', chars: 30 }, { scene_id: 's4', block_id: 's4:n', chars: 10 }], chars: { total: 640, missing: 160 } }, null);
+  let inst = makeInst(refusal);
+  let exporter = S.createExport(inst);
+  exporter.open();
+  find(exporter.el, 'export-start').click();
+  await flush();
+  eq(find(exporter.el, 'export-refused').dataset.code, 'narration_incomplete', 'the refusal is shown');
+  const missing = find(exporter.el, 'export-missing').textContent;
+  eq([missing.includes('s2, s4'), missing.includes('160')], [true, true], 'the missing scenes and characters are named');
+  eq(inst.notes, ['storymaker.job_error.narration_incomplete'], 'the sentence of the refusal');
+  find(exporter.el, 'export-go-voice').click();
+  eq(inst.shown, ['voice'], 'the action leads to the voice panel');
+  exporter.dispose();
+
+  // music_incomplete leads to the music panel
+  refusal = S.errors.fromResponse(409, { error: 'music_incomplete', code: 'music_incomplete', message: 'm', key: 'a'.repeat(64) }, null);
+  inst = makeInst(refusal);
+  exporter = S.createExport(inst);
+  exporter.open();
+  find(exporter.el, 'export-start').click();
+  await flush();
+  eq(find(exporter.el, 'export-missing').textContent, 'storymaker.export.missing_music', 'a music file that is not ready');
+  find(exporter.el, 'export-go-music').click();
+  eq(inst.shown, ['music'], 'the action leads to the music panel');
+  exporter.dispose();
+
+  // a moved source says so
+  refusal = S.errors.fromResponse(409, { error: 'music_incomplete', code: 'music_incomplete', message: 'm', key: '', music_issue: 'source_missing' }, null);
+  inst = makeInst(refusal);
+  exporter = S.createExport(inst);
+  exporter.open();
+  find(exporter.el, 'export-start').click();
+  await flush();
+  eq(find(exporter.el, 'export-missing').textContent, 'storymaker.export.missing_music_source', 'a moved source');
+  exporter.dispose();
+
+  // silent_film only with no narration, no music and empty audio_events
+  const report = { audio_events: [] };
+  eq(S.isSilentFilm(quietAnswer(), report), true, 'a film without any sound');
+  eq(S.isSilentFilm(Object.assign(quietAnswer(), { narration: { s1: { blocks: [{ id: 's1:n' }] } } }), report), false, 'narration');
+  eq(S.isSilentFilm(Object.assign(quietAnswer(), { music: { key: 'k', ext: 'mp3', duration_ms: 1000 } }), report), false, 'music');
+  eq(S.isSilentFilm(Object.assign(quietAnswer(), { missing: [{ scene_id: 's1', block_id: 's1:n', chars: 5 }] }), report), false, 'narration text without audio');
+  eq(S.isSilentFilm(quietAnswer(), { audio_events: [{ kind: 'sfx', ref: 'sfx.pop', start_ms: 1, scene_id: 's1', take: 0 }] }), false, 'an sfx event');
+  eq(S.isSilentFilm(null, report), false, 'an answer that has not arrived');
+  inst = makeInst(null);
+  exporter = S.createExport(inst);
+  exporter.open();
+  eq(find(exporter.el, 'export-silent').textContent, 'storymaker.export.silent_film', 'the note shows for a silent film');
+  exporter.dispose();
+  inst = makeInst(null, { audioInfo: Object.assign(quietAnswer(), { music: { key: 'k', ext: 'mp3', duration_ms: 1000 } }) });
+  exporter = S.createExport(inst);
+  exporter.open();
+  eq(find(exporter.el, 'export-silent'), null, 'no note with music');
+  exporter.dispose();
+  // A panel that is gone is done with its job: a poll that was due asks for nothing, and an answer that arrives later starts no poll.
+  const running = { id: 'r1', project_id: 'p1', kind: 'render', status: 'running', progress: 0 };
+  const timers = [];
+  const realSetTimeout = context.setTimeout;
+  context.setTimeout = fn => { timers.push(fn); return timers.length; };
+  let polled = 0;
+  inst = makeInst(null, { api: { getJob() { polled++; return Promise.resolve(running); } } });
+  exporter = S.createExport(inst);
+  exporter.apply(running, true);
+  eq(timers.length, 1, 'a running job polls');
+  exporter.dispose();
+  await timers[0]();
+  eq(polled, 0, 'a poll that was due asks for nothing');
+  exporter.apply(running, true);
+  eq(timers.length, 1, 'an answer after dispose starts no poll');
+  context.setTimeout = realSetTimeout;
+  console.log('storymaker export refusals ok');
+})().catch(err => { console.error(err.stack || err); process.exit(1); });
+`
+
+// The Silent switch of the inspector in Node: it writes and clears scene.silent with an immediate save, for storyboard and code
+// scenes alike, follows the story and locks when read-only. The narration text stays, because silent only keeps it out of the film.
+func TestStorymakerInspectorSilentInNode(t *testing.T) {
+	t.Parallel()
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("node not available")
+	}
+	script := filepath.Join(t.TempDir(), "storymaker-inspector-silent.js")
+	if err := os.WriteFile(script, []byte(storymakerInspectorSilentScript), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	dir, _ := filepath.Abs(filepath.Join("js", "desktop", "apps"))
+	out, err := exec.Command(node, script, dir).CombinedOutput()
+	if err != nil {
+		t.Fatalf("node check failed: %v\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "storymaker inspector silent ok") {
+		t.Fatalf("unexpected output:\n%s", out)
+	}
+}
+
+const storymakerInspectorSilentScript = `
+'use strict';
+const fs = require('fs');
+const vm = require('vm');
+const path = require('path');
+const [dir] = process.argv.slice(2);
+
+class FakeNode {
+  constructor(tag) { this.tag = String(tag); this.children = []; this.parent = null; this.dataset = {}; this.attrs = {}; this.listeners = {}; this.own = ''; this.value = ''; this.hidden = false; this.disabled = false; this.readOnly = false; this.checked = false; this.className = ''; this.style = { setProperty() {} }; }
+  appendChild(child) { child.parent = this; this.children.push(child); return child; }
+  removeChild(child) { this.children = this.children.filter(item => item !== child); child.parent = null; return child; }
+  replaceWith(next) { const list = this.parent.children; list[list.indexOf(this)] = next; next.parent = this.parent; }
+  get firstChild() { return this.children[0] || null; }
+  get textContent() { return this.own + this.children.map(child => child.textContent).join(''); }
+  set textContent(text) { this.children = []; this.own = String(text); }
+  setAttribute(name, value) { this.attrs[name] = String(value); if (name === 'value') this.value = String(value); if (name === 'disabled') this.disabled = true; }
+  removeAttribute(name) { delete this.attrs[name]; }
+  addEventListener(type, fn) { (this.listeners[type] = this.listeners[type] || []).push(fn); }
+  removeEventListener() {}
+  fire(type) { (this.listeners[type] || []).forEach(fn => fn({ target: this })); }
+  focus() {}
+  contains() { return false; }
+}
+const document = {
+  createElement: tag => new FakeNode(tag),
+  createElementNS: (ns, tag) => new FakeNode(tag),
+  createTextNode: text => { const node = new FakeNode('#text'); node.own = String(text); return node; },
+  documentElement: { lang: 'en' },
+  activeElement: null
+};
+const context = { console, document, setTimeout, clearTimeout };
+context.globalThis = context; context.window = context;
+vm.createContext(context);
+for (const name of ['storymaker-core.js', 'storymaker-model.js', 'storymaker-inspector.js']) {
+  vm.runInContext(fs.readFileSync(path.join(dir, name), 'utf8'), context, { filename: name });
+}
+const S = context.StorymakerParts;
+const eq = (a, b, what) => { const x = JSON.stringify(a), y = JSON.stringify(b); if (x !== y) throw new Error(what + ': got ' + x + ', want ' + y); };
+const find = (node, stm) => { if (node.dataset.stm === stm) return node; for (const child of node.children) { const hit = find(child, stm); if (hit) return hit; } return null; };
+
+const saves = [];
+const inst = {
+  t: key => key,
+  bus: S.createBus(),
+  domId: name => 'x-' + name,
+  story: { scenes: [{ id: 's1', narration: 'Hello there.' }, { id: 'c1', kind: 'code', narration: 'A code scene.' }] },
+  selected: 0,
+  catalog: null,
+  status: null,
+  readonly: false,
+  moveScene() {},
+  deleteScene() {},
+  openCode() {},
+  editScene(id, fn, options) {
+    const draft = JSON.parse(JSON.stringify(inst.story));
+    fn(draft.scenes.find(scene => scene.id === id), draft);
+    inst.story = draft;
+    saves.push(!!(options && options.immediate));
+    inst.bus.emit('story');
+    return true;
+  }
+};
+const panel = S.createInspector(inst);
+const box = () => find(panel.el, 'scene-silent');
+
+eq(box().checked, false, 'a normal scene is not silent');
+box().checked = true;
+box().fire('change');
+eq(inst.story.scenes[0].silent, true, 'checking writes silent');
+eq(inst.story.scenes[0].narration, 'Hello there.', 'the text stays');
+eq(saves, [true], 'the save is immediate, so the audio answer and the blocker follow');
+eq(box().checked, true, 'the switch stays on');
+box().checked = false;
+box().fire('change');
+eq('silent' in inst.story.scenes[0], false, 'unchecking deletes the field');
+
+// the story moves the switch
+inst.story = JSON.parse(JSON.stringify(inst.story));
+inst.story.scenes[0].silent = true;
+inst.bus.emit('story');
+eq(box().checked, true, 'the story moves the switch');
+
+// a code scene has it too
+inst.selected = 1;
+inst.bus.emit('selection');
+eq(box().checked, false, 'the code scene is not silent');
+box().checked = true;
+box().fire('change');
+eq(inst.story.scenes[1].silent, true, 'a code scene can be silent');
+
+// read-only locks it
+inst.readonly = true;
+inst.bus.emit('readonly');
+eq(box().disabled, true, 'read-only disables the switch');
+console.log('storymaker inspector silent ok');
+`
+
 const storymakerModelScript = `
 'use strict';
 const fs = require('fs');

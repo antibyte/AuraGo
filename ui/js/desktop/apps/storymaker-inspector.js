@@ -145,6 +145,14 @@
             }
             controls.narration = narrationField(scene);
             body.appendChild(field('storymaker.inspector.narration', inst.domId('narration'), controls.narration, t('storymaker.inspector.narration_hint')));
+            const silent = el('input', { type: 'checkbox', id: inst.domId('silent'), dataset: { stm: 'scene-silent' } });
+            silent.checked = scene.silent === true;
+            silent.addEventListener('change', () => {
+                const on = silent.checked;
+                inst.editScene(scene.id, draft => { if (on) draft.silent = true; else delete draft.silent; }, { immediate: true });
+            });
+            controls.silent = silent;
+            body.appendChild(el('div', { class: 'stm-field' }, el('label', { class: 'stm-voice-check', for: inst.domId('silent') }, silent, el('span', { text: t('storymaker.inspector.silent') }))));
             controls.transition = transitionSelect(scene, index === 0);
             body.appendChild(field('storymaker.inspector.transition', inst.domId('transition'), controls.transition, index === 0 ? t('storymaker.inspector.transition_first') : ''));
             const duration = durationControls(scene);
@@ -161,7 +169,7 @@
         }
 
         function applyReadonly() {
-            ['environment', 'variant', 'narration'].forEach(name => { if (controls[name]) controls[name].disabled = inst.readonly; });
+            ['environment', 'variant', 'narration', 'silent'].forEach(name => { if (controls[name]) controls[name].disabled = inst.readonly; });
             if (controls.narration) controls.narration.readOnly = inst.readonly;
             if (controls.durationMode) controls.durationMode.disabled = inst.readonly;
             if (controls.durationSeconds) controls.durationSeconds.disabled = inst.readonly || controls.durationMode.value === 'auto';
@@ -173,6 +181,8 @@
             set(controls.environment, scene.environment || '');
             set(controls.variant, scene.variant || 'day');
             set(controls.narration, scene.narration || '');
+            // set compares .value, and a checkbox holds its state in .checked.
+            if (controls.silent) controls.silent.checked = scene.silent === true;
             const duration = S.model.durationOf(scene);
             set(controls.durationMode, duration.auto ? 'auto' : 'fixed');
             if (controls.durationSeconds && document.activeElement !== controls.durationSeconds) {

@@ -11,6 +11,16 @@
     const POLL_MS = 2500;
     const PHASES = ['starting', 'compiling', 'mixing', 'rendering', 'encoding', 'writing'];
 
+    // A film is silent when the /narration answer holds no block, no music and no missing text and the report has no audio event.
+    function isSilentFilm(audioInfo, report) {
+        if (!audioInfo) return false;
+        const narration = audioInfo.narration && typeof audioInfo.narration === 'object' ? audioInfo.narration : {};
+        const spoken = Object.keys(narration).some(id => narration[id] && Array.isArray(narration[id].blocks) && narration[id].blocks.length > 0);
+        const waiting = Array.isArray(audioInfo.missing) && audioInfo.missing.length > 0;
+        const events = report && Array.isArray(report.audio_events) ? report.audio_events : [];
+        return !spoken && !waiting && !audioInfo.music && events.length === 0;
+    }
+
     function dirOf(path) {
         const text = String(path || '');
         const cut = text.lastIndexOf('/');
@@ -27,6 +37,8 @@
         let cancelling = false;
         let pollTimer = 0;
         let copied = 0;
+        let refused = null;   // the last gate answer of a start: {code, data}
+        let disposed = false;   // a panel that is gone takes up no job and polls nothing
 
         const buttonLabel = el('span', { class: 'stm-export-label', text: t('storymaker.export.button') });
         const button = el('button', { type: 'button', class: 'stm-btn stm-btn-primary stm-export-btn', dataset: { stm: 'export', state: 'idle' }, ariaHaspopup: 'dialog', ariaExpanded: 'false', onClick: () => toggle() }, icon('export'), buttonLabel);
@@ -128,6 +140,32 @@
                 el('div', { class: 'stm-actions' }, el('button', { type: 'button', class: 'stm-btn', dataset: { stm: 'export-again' }, onClick: () => { job = null; paint(); } }, icon('refresh'), el('span', { text: t('storymaker.export.again') }))));
         }
 
+        function goPanel(name) {
+            close(false);
+            inst.showPanel(name);
+        }
+
+        // A refused start says what is missing and offers the panel that fixes it.
+        function refusedView() {
+            const data = refused.data && typeof refused.data === 'object' ? refused.data : {};
+            let text = '';
+            let action = null;
+            if (refused.code === 'narration_incomplete') {
+                const missing = Array.isArray(data.missing) ? data.missing : [];
+                const scenes = Array.from(new Set(missing.map(item => String(item && item.scene_id || '')))).filter(Boolean).slice(0, 5).join(', ');
+                const chars = data.chars && Number(data.chars.missing) > 0 ? Number(data.chars.missing) : 0;
+                text = t('storymaker.export.missing_narration', { scenes, chars });
+                action = el('button', { type: 'button', class: 'stm-btn', dataset: { stm: 'export-go-voice' }, onClick: () => goPanel('voice') }, icon('user'), el('span', { text: t('storymaker.export.go_voice') }));
+            } else {
+                text = data.music_issue === 'source_missing' ? t('storymaker.export.missing_music_source') : t('storymaker.export.missing_music');
+                action = el('button', { type: 'button', class: 'stm-btn', dataset: { stm: 'export-go-music' }, onClick: () => goPanel('music') }, icon('sparkle'), el('span', { text: t('storymaker.export.go_music') }));
+            }
+            return el('div', { class: 'stm-job', dataset: { stm: 'export-refused', code: refused.code } },
+                el('p', { class: 'stm-job-title stm-job-bad' }, icon('alert'), el('strong', { text: refused.code === 'narration_incomplete' ? t('storymaker.job_error.narration_incomplete') : t('storymaker.job_error.music_incomplete') })),
+                el('p', { class: 'stm-hint', dataset: { stm: 'export-missing' }, text }),
+                el('div', { class: 'stm-actions' }, action));
+        }
+
         function startView() {
             const reasons = blockers();
             const blocked = reasons.length > 0;
@@ -142,14 +180,16 @@
                 const seconds = inst.report ? inst.report.duration_ms / 1000 : 0;
                 const size = S.model.exportSize(inst.story.format ? inst.story.format.aspect : '');
                 view.appendChild(el('p', { class: 'stm-muted', text: t('storymaker.export.summary', { duration: S.format.clock(inst.report.frame_count, inst.report.fps), format: (inst.story.format ? inst.story.format.aspect : '') + ' · ' + (inst.report.fps || '') + ' fps', width: size[0], height: size[1] }) }));
-                if (seconds > 0) view.appendChild(el('p', { class: 'stm-hint', text: t('storymaker.export.silent_note') }));
+                if (seconds > 0 && isSilentFilm(inst.audioInfo, inst.report)) view.appendChild(el('p', { class: 'stm-hint', dataset: { stm: 'export-silent' }, text: t('storymaker.export.silent_film') }));
             }
+            if (refused) view.appendChild(refusedView());
             view.appendChild(el('div', { class: 'stm-actions' },
                 el('button', { type: 'button', class: 'stm-btn stm-btn-primary', dataset: { stm: 'export-start' }, disabled: blocked || starting || null, onClick: () => start() }, icon('film'), el('span', { text: starting ? t('storymaker.export.starting') : t('storymaker.export.start') }))));
             return view;
         }
 
         function paint() {
+            if (disposed) return;
             const state = isActive() ? 'running' : job ? job.status : 'idle';
             button.dataset.state = state;
             const fraction = isActive() && job && Number.isFinite(job.progress) ? S.clamp(job.progress, 0, 1) : 0;
@@ -173,10 +213,10 @@
         function schedulePoll() {
             clearTimeout(pollTimer);
             pollTimer = 0;
-            if (!isActive()) return;
+            if (disposed || !isActive()) return;
             pollTimer = setTimeout(async () => {
                 pollTimer = 0;
-                if (!job) return;
+                if (disposed || !job) return;
                 try { apply(await inst.api.getJob(job.id)); } catch (err) {
                     if (err && err.aborted) return;
                     schedulePoll();
@@ -187,7 +227,7 @@
         // apply(next, adopt): a job event of this project. Without a tracked job only an active one is taken up (a start by
         // another window); a finished one is shown when this panel started it (adopt).
         function apply(next, adopt) {
-            if (!next || typeof next !== 'object' || typeof next.id !== 'string') return;
+            if (disposed || !next || typeof next !== 'object' || typeof next.id !== 'string') return;
             if (next.project_id && inst.projectId && next.project_id !== inst.projectId) return;
             if (job && job.id !== next.id && (isActive() || ACTIVE.indexOf(next.status) < 0)) return;
             if (!job && !adopt && ACTIVE.indexOf(next.status) < 0) return;
@@ -210,12 +250,14 @@
                 const saved = await inst.flushEdits();
                 if (!saved) return;
                 if (blockers().length) return;
+                refused = null;
                 const created = await inst.api.startRender(inst.projectId, inst.etag, S.uuid());
                 job = null;
                 apply(created, true);
             } catch (err) {
                 if (err && err.aborted) return;
                 if (err && err.status === 412) inst.bus.emit('conflict', err);
+                if (err && (err.code === 'narration_incomplete' || err.code === 'music_incomplete')) refused = { code: err.code, data: err.data || {} };
                 inst.notify(S.errors.describe(t, err, 'render'), 'error');
             } finally {
                 starting = false;
@@ -266,6 +308,7 @@
         const off = [
             inst.bus.on('job', next => { if (next && next.kind === 'render') apply(next, false); }),
             inst.bus.on('report', () => { if (open) paint(); }),
+            inst.bus.on('audio', () => { refused = null; if (open) paint(); }),
             inst.bus.on('issues', () => { if (open) paint(); }),
             inst.bus.on('status', () => { if (open) paint(); }),
             inst.bus.on('readonly', () => { if (open) paint(); })
@@ -280,6 +323,7 @@
             apply,
             dispose() {
                 clearTimeout(pollTimer);
+                disposed = true;
                 document.removeEventListener('pointerdown', onDocumentPointer, true);
                 document.removeEventListener('keydown', onDocumentKey, true);
                 off.forEach(fn => fn());
@@ -288,4 +332,5 @@
     }
 
     S.createExport = createExport;
+    S.isSilentFilm = isSilentFilm;
 })();

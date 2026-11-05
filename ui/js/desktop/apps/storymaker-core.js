@@ -294,7 +294,7 @@
         else if (e.code === 'desktop_scope_required') key = 'storymaker.error.scope';
         else if (e.code === 'desktop_readonly') key = 'storymaker.error.readonly';
         else if (e.code === 'storymaker_disabled') key = 'storymaker.error.disabled';
-        else if (context === 'render' && (e.code === 'invalid_story' || e.code === 'code_error')) key = 'storymaker.job_error.' + e.code;
+        else if (context === 'render' && (e.code === 'invalid_story' || e.code === 'code_error' || e.code === 'narration_incomplete' || e.code === 'music_incomplete')) key = 'storymaker.job_error.' + e.code;
         else if (e.code === 'story_unreadable') key = 'storymaker.error.story_unreadable';
         else if (e.code === 'narration_unavailable') key = 'storymaker.error.narration_unavailable';
         else if (e.code === 'voice_unknown') key = 'storymaker.error.voice_unknown';
