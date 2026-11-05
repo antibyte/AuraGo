@@ -176,6 +176,76 @@ func TestStorymakerGatesDisabledScopeAndReadOnly(t *testing.T) {
 	}
 }
 
+func TestStorymakerCreateWithLanguage(t *testing.T) {
+	t.Setenv("AURAGO_PHONON_DIR", t.TempDir())
+	s, readToken, writeToken := storymakerAPIFixture(t)
+	s.Cfg.TTS.Provider = "sanotts"
+
+	// sanotts is the active provider, TTSReady says yes for it and it speaks de.
+	w := storymakerRequest(s, writeToken, http.MethodPost, "/projects", strings.NewReader(`{"title":"Mit Stimme","language":"de"}`), nil)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("create with language = %d %s", w.Code, w.Body.String())
+	}
+	var created apiProject
+	decodeBody(t, w, &created)
+	if created.Story.Voice == nil || created.Story.Voice.Provider != "sanotts" || storymaker.LanguageBase(created.Story.Voice.Language) != "de" {
+		t.Fatalf("resolved voice = %+v", created.Story.Voice)
+	}
+
+	// Without a language the voice stays null, as in phase 1.
+	w = storymakerRequest(s, writeToken, http.MethodPost, "/projects", strings.NewReader(`{"title":"Ohne Stimme"}`), nil)
+	if w.Code != http.StatusCreated || !strings.Contains(w.Body.String(), `"voice":null`) {
+		t.Fatalf("create without language = %d %s", w.Code, w.Body.String())
+	}
+
+	// Nothing ready speaks hi: sanotts does not list it, phonon has no files in this folder, piper,
+	// supertonic and speech_lab are off and the cloud providers have no key.
+	w = storymakerRequest(s, writeToken, http.MethodPost, "/projects", strings.NewReader(`{"title":"Hindi","language":"hi"}`), nil)
+	var refused struct {
+		Code      string   `json:"code"`
+		Languages []string `json:"languages"`
+	}
+	decodeBody(t, w, &refused)
+	if w.Code != http.StatusUnprocessableEntity || refused.Code != "narration_unavailable" {
+		t.Fatalf("create in hi = %d %s", w.Code, w.Body.String())
+	}
+	hasGerman := false
+	for _, language := range refused.Languages {
+		if language == "*" || language == "hi" {
+			t.Errorf("languages hold %q: %v", language, refused.Languages)
+		}
+		hasGerman = hasGerman || language == "de"
+	}
+	if !hasGerman {
+		t.Errorf("languages miss de, which sanotts speaks: %v", refused.Languages)
+	}
+
+	// The refused create left nothing behind: only the first two projects exist.
+	var list struct {
+		Projects []storymaker.Project `json:"projects"`
+	}
+	decodeBody(t, storymakerRequest(s, readToken, http.MethodGet, "/projects", nil, nil), &list)
+	if len(list.Projects) != 2 {
+		t.Errorf("projects after the refusal = %d", len(list.Projects))
+	}
+}
+
+func TestStorymakerStatusShowsNarrationLimits(t *testing.T) {
+	s, readToken, _ := storymakerAPIFixture(t)
+	w := storymakerRequest(s, readToken, http.MethodGet, "/status", nil, nil)
+	var st struct {
+		Limits map[string]float64 `json:"limits"`
+	}
+	decodeBody(t, w, &st)
+	// 128 is the narrate queue of newStorymakerRuntime. 100000 and 20000 are the defaults of
+	// StorymakerNarrationConfig, which the fixture leaves unchanged.
+	for key, want := range map[string]float64{"max_queued_narrations": 128, "max_daily_chars": 100000, "max_job_chars": 20000} {
+		if st.Limits[key] != want {
+			t.Errorf("limits.%s = %v, want %v", key, st.Limits[key], want)
+		}
+	}
+}
+
 func TestStorymakerProjectCRUD(t *testing.T) {
 	s, readToken, writeToken := storymakerAPIFixture(t)
 	p := createStorymakerProject(t, s, writeToken)

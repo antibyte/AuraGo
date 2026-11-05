@@ -13,6 +13,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/desktop"
+	"aurago/internal/phonon"
 	"aurago/internal/storymaker"
 	"aurago/internal/storymaker/render"
 	"aurago/internal/videostudio"
@@ -237,14 +238,17 @@ func handleStorymakerStatus(s *Server, w http.ResponseWriter, r *http.Request) {
 	status["ffmpeg"] = ffmpeg
 	status["browser"] = browser
 	status["limits"] = map[string]any{
-		"max_duration_seconds": cfg.Storymaker.Render.MaxDurationSeconds,
-		"max_scenes":           lim.MaxScenes,
-		"max_items_per_scene":  lim.MaxItemsPerScene,
-		"max_beats_per_scene":  lim.MaxBeatsPerScene,
-		"max_narration_chars":  lim.MaxNarrationChars,
-		"max_story_bytes":      lim.MaxStoryBytes,
-		"max_code_bytes":       lim.MaxCodeBytes,
-		"max_queued_renders":   render.DefaultMaxQueued,
+		"max_duration_seconds":  cfg.Storymaker.Render.MaxDurationSeconds,
+		"max_scenes":            lim.MaxScenes,
+		"max_items_per_scene":   lim.MaxItemsPerScene,
+		"max_beats_per_scene":   lim.MaxBeatsPerScene,
+		"max_narration_chars":   lim.MaxNarrationChars,
+		"max_story_bytes":       lim.MaxStoryBytes,
+		"max_code_bytes":        lim.MaxCodeBytes,
+		"max_queued_renders":    render.DefaultMaxQueued,
+		"max_queued_narrations": storymakerMaxQueuedNarrations,
+		"max_daily_chars":       cfg.Storymaker.Narration.MaxDailyChars,
+		"max_job_chars":         cfg.Storymaker.Narration.MaxJobChars,
 	}
 	status["transport"] = render.ChooseTransport(cfg.Storymaker.Render.Transport)
 	status["catalog_version"] = rt.catalog.Version()
@@ -252,10 +256,46 @@ func handleStorymakerStatus(s *Server, w http.ResponseWriter, r *http.Request) {
 	writeStorymakerJSON(w, http.StatusOK, status)
 }
 
+// storymakerDefaultVoiceFor is the default voice of a provider for a language, for
+// ResolveProjectVoice. A list voice of that language wins, the provider's own default first, so
+// piper does not start a German story with a voice of another language.
+func storymakerDefaultVoiceFor(cfg *config.Config, providers []storymaker.VoiceProvider) func(provider, language string) string {
+	return func(provider, language string) string {
+		id := storymaker.NormalizeProvider(provider)
+		if id == "phonon" {
+			return phonon.DefaultVoice(language, cfg.Personality.CorePersonality)
+		}
+		base := storymaker.LanguageBase(language)
+		for _, row := range providers {
+			if row.ID != id {
+				continue
+			}
+			first := ""
+			for _, option := range row.Voices {
+				if storymaker.LanguageBase(option.Language) != base {
+					continue
+				}
+				if option.ID == row.DefaultVoice {
+					return option.ID
+				}
+				if first == "" {
+					first = option.ID
+				}
+			}
+			if first != "" {
+				return first
+			}
+			return row.DefaultVoice
+		}
+		return ""
+	}
+}
+
 type storymakerCreateRequest struct {
-	Title  string `json:"title"`
-	Aspect string `json:"aspect"`
-	FPS    int    `json:"fps"`
+	Title    string `json:"title"`
+	Aspect   string `json:"aspect"`
+	FPS      int    `json:"fps"`
+	Language string `json:"language"`
 }
 
 func handleStorymakerProjects(s *Server, w http.ResponseWriter, r *http.Request) {
@@ -284,10 +324,23 @@ func handleStorymakerProjects(s *Server, w http.ResponseWriter, r *http.Request)
 		dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, storymakerJSONLimit))
 		dec.DisallowUnknownFields()
 		if err := dec.Decode(&req); err != nil {
-			writeStorymakerError(w, http.StatusBadRequest, "invalid_request", "The request body must be {\"title\": ..., \"aspect\"?: ..., \"fps\"?: ...}.", nil)
+			writeStorymakerError(w, http.StatusBadRequest, "invalid_request", "The request body must be {\"title\": ..., \"aspect\"?: ..., \"fps\"?: ..., \"language\"?: ...}.", nil)
 			return
 		}
-		project, story, etag, err := acc.rt.projects.Create(r.Context(), req.Title, req.Aspect, req.FPS)
+		var voice *storymaker.Voice
+		if language := strings.TrimSpace(req.Language); language != "" {
+			providers := s.storymakerVoiceProviders(r.Context())
+			resolved, languages, err := storymaker.ResolveProjectVoice(providers, language, storymakerDefaultVoiceFor(acc.cfg, providers))
+			if err != nil {
+				if languages == nil {
+					languages = []string{}
+				}
+				writeStorymakerErrorWith(w, http.StatusUnprocessableEntity, render.CodeNarrationUnavailable, "No ready voice speaks this language.", map[string]any{"languages": languages})
+				return
+			}
+			voice = &resolved
+		}
+		project, story, etag, err := acc.rt.projects.CreateWithVoice(r.Context(), req.Title, req.Aspect, req.FPS, voice)
 		if err != nil {
 			mapStorymakerError(w, err, "not_found")
 			return
