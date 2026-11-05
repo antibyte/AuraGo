@@ -563,6 +563,9 @@ func (run *renderRun) snapshot() (*Snapshot, error) {
 	if cat.Rig.File != "" {
 		files[cat.Rig.File] = true
 	}
+	if glyphs := cat.GlyphsFile(); glyphs != "" {
+		files[glyphs] = true
+	}
 	for _, e := range cat.Entries() {
 		if e.File != "" {
 			files[e.File] = true
@@ -577,16 +580,38 @@ func (run *renderRun) snapshot() (*Snapshot, error) {
 			return nil, err
 		}
 	}
-	for _, f := range cat.Fonts {
-		clean := strings.TrimPrefix(path.Clean(f.File), "/")
-		if !strings.HasPrefix(f.File, "/fonts/") || !fs.ValidPath(clean) {
-			return nil, fmt.Errorf("the catalog font file %q is not a /fonts/ path", f.File)
+	readFont := func(file string) ([]byte, error) {
+		clean := strings.TrimPrefix(path.Clean(file), "/")
+		if !strings.HasPrefix(file, "/fonts/") || !fs.ValidPath(clean) {
+			return nil, fmt.Errorf("the catalog font file %q is not a /fonts/ path", file)
 		}
-		data, err := read(clean)
+		return read(clean)
+	}
+	catalogFamilies := map[string]bool{}
+	for _, f := range cat.Fonts {
+		data, err := readFont(f.File)
 		if err != nil {
 			return nil, err
 		}
+		catalogFamilies[f.Family] = true
 		snap.Fonts = append(snap.Fonts, SnapshotFont{Name: f.Name, Family: f.Family, Weight: f.Weight, File: f.File, Data: data})
+	}
+	// Every fallback face is offered, and the page fetches one only when compile needs it. A face whose
+	// family is a catalog font loads through catalog.fonts, so it is not listed twice.
+	if glyphs := cat.Glyphs(); glyphs != nil {
+		for _, face := range glyphs.Faces {
+			if catalogFamilies[face.Family] {
+				continue
+			}
+			data, err := readFont(face.File)
+			if err != nil {
+				return nil, err
+			}
+			snap.Fonts = append(snap.Fonts, SnapshotFont{
+				Name: face.ID, Family: face.Family, Weight: 400, File: face.File, Data: data,
+				Fallback: true, UnicodeRange: face.UnicodeRange, WeightRange: face.Weight, MaxBytes: face.MaxBytes,
+			})
+		}
 	}
 	return snap, nil
 }

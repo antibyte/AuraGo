@@ -5,10 +5,13 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"aurago/internal/storymaker"
 )
 
 // testRenderToken is the token of the listener fixture: 32 hex characters, like NewPrefix gives.
@@ -414,6 +417,93 @@ func TestStartListenerRejectsWeakPrefixes(t *testing.T) {
 			_ = l.Close()
 			t.Errorf("prefix %q accepted", prefix)
 		}
+	}
+}
+
+func TestListenerServesFallbackFacesWithTheirType(t *testing.T) {
+	prefix, err := NewPrefix()
+	if err != nil {
+		t.Fatal(err)
+	}
+	snap := &Snapshot{Fonts: []SnapshotFont{
+		{Name: "default", Family: "Geist", Weight: 400, File: "/fonts/Geist-Regular.woff2", Data: []byte("woff2")},
+		{Name: "sm-deva", Family: "SMDeva", Weight: 400, File: "/fonts/qr/NotoSansDevanagari.ttf", Data: []byte("ttf"), Fallback: true, WeightRange: "100 900"},
+		{Name: "sm-cjk", Family: "SMCJK", Weight: 400, File: "/fonts/qr/NotoSansCJKsc.otf", Data: []byte("otf"), Fallback: true, WeightRange: "400", MaxBytes: 17 << 20},
+		{Name: "sm-greek", Family: "SMGreek", Weight: 400, File: "/fonts/Greek.woff2", Data: []byte("greek"), Fallback: true, WeightRange: "300 700", UnicodeRange: "U+0370-03FF"},
+	}}
+	l, err := StartListener(prefix, snap, PageParams{Width: 1920, Height: 1080, FPS: 30, Transport: TransportPNG, Token: testRenderToken}, Hooks{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = l.Close() })
+	fx := &listenerFixture{l: l, client: &http.Client{Timeout: 5 * time.Second}}
+	base := l.Base()
+
+	_, body := fx.do(t, http.MethodGet, base+"/boot.json", nil, nil)
+	var doc struct {
+		Fonts []bootFont `json:"fonts"`
+	}
+	if err := json.Unmarshal(body, &doc); err != nil {
+		t.Fatal(err)
+	}
+	want := []bootFont{
+		{Name: "default", Family: "Geist", Weight: 400, URL: base + "/fonts/Geist-Regular.woff2"},
+		{Name: "sm-deva", Family: "SMDeva", Weight: 400, URL: base + "/fonts/qr/NotoSansDevanagari.ttf", Fallback: true, WeightRange: "100 900"},
+		{Name: "sm-cjk", Family: "SMCJK", Weight: 400, URL: base + "/fonts/qr/NotoSansCJKsc.otf", Fallback: true, WeightRange: "400", MaxBytes: 17 << 20},
+		{Name: "sm-greek", Family: "SMGreek", Weight: 400, URL: base + "/fonts/Greek.woff2", Fallback: true, WeightRange: "300 700", UnicodeRange: "U+0370-03FF"},
+	}
+	if len(doc.Fonts) != len(want) {
+		t.Fatalf("boot.fonts = %+v", doc.Fonts)
+	}
+	for i := range want {
+		if doc.Fonts[i] != want[i] {
+			t.Errorf("boot.fonts[%d] = %+v, want %+v", i, doc.Fonts[i], want[i])
+		}
+	}
+	for file, ct := range map[string]string{
+		"/fonts/Geist-Regular.woff2":       "font/woff2",
+		"/fonts/qr/NotoSansDevanagari.ttf": "font/ttf",
+		"/fonts/qr/NotoSansCJKsc.otf":      "font/otf",
+	} {
+		res, _ := fx.do(t, http.MethodGet, base+file, nil, nil)
+		if res.StatusCode != http.StatusOK || res.Header.Get("Content-Type") != ct {
+			t.Errorf("GET %s = %d %q, want %q", file, res.StatusCode, res.Header.Get("Content-Type"), ct)
+		}
+	}
+}
+
+func TestSnapshotHoldsGlyphsAndFallbackFaces(t *testing.T) {
+	ui := os.DirFS(uiDirForTests)
+	cat, err := storymaker.LoadCatalog(ui, "img/storymaker/catalog.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	run := &renderRun{r: &Runner{deps: Deps{UI: ui, Catalog: cat}}, plan: &Plan{StoryJSON: []byte(`{}`)}}
+	snap, err := run.snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(snap.CatalogFiles["glyphs.json"]) == 0 {
+		t.Error("glyphs.json is not in the snapshot")
+	}
+	fallback := map[string]SnapshotFont{}
+	for _, f := range snap.Fonts {
+		if f.Fallback {
+			fallback[f.Name] = f
+		}
+	}
+	// 17 MiB is the one named exception to the 8 MiB cap (frozen section 6, Font caps).
+	cjk, ok := fallback["sm-cjk"]
+	if !ok || cjk.Family != "SMCJK" || cjk.Weight != 400 || cjk.WeightRange != "400" || cjk.MaxBytes != 17<<20 || cjk.File != "/fonts/qr/NotoSansCJKsc.otf" || len(cjk.Data) == 0 {
+		t.Errorf("sm-cjk = %+v (ok %v, %d bytes)", cjk.Name, ok, len(cjk.Data))
+	}
+	greek, ok := fallback["sm-greek"]
+	if !ok || greek.UnicodeRange != "U+0370-03FF" || greek.WeightRange != "300 700" || greek.Weight != 400 {
+		t.Errorf("sm-greek = %q %q %d (ok %v)", greek.UnicodeRange, greek.WeightRange, greek.Weight, ok)
+	}
+	// Geist is a catalog font family, so its faces load through catalog.fonts only.
+	if _, dup := fallback["geist"]; dup {
+		t.Error("the geist face is listed as a fallback")
 	}
 }
 

@@ -35,6 +35,11 @@ type SnapshotFont struct {
 	// File is the catalog path ("/fonts/Geist-400.woff2"); the listener serves it below <base>/fonts/.
 	File string
 	Data []byte
+	// The fields below describe a fallback face of glyphs.json. A catalog font leaves them empty.
+	Fallback     bool
+	UnicodeRange string
+	WeightRange  string // FontFace descriptor, for example "300 700"
+	MaxBytes     int64  // 0 means the page's cap of 8 MiB
 }
 
 // Snapshot is everything the render page may read, copied when the job starts so edits during a
@@ -319,10 +324,14 @@ func (l *Listener) page(w http.ResponseWriter, r *http.Request) {
 }
 
 type bootFont struct {
-	Name   string `json:"name"`
-	Family string `json:"family"`
-	Weight int    `json:"weight"`
-	URL    string `json:"url"`
+	Name         string `json:"name"`
+	Family       string `json:"family"`
+	Weight       int    `json:"weight"`
+	URL          string `json:"url"`
+	Fallback     bool   `json:"fallback,omitempty"`
+	UnicodeRange string `json:"unicode_range,omitempty"`
+	WeightRange  string `json:"weight_range,omitempty"`
+	MaxBytes     int64  `json:"max_bytes,omitempty"`
 }
 
 type bootDoc struct {
@@ -362,7 +371,7 @@ func (l *Listener) boot(w http.ResponseWriter, r *http.Request) {
 		doc.CodeBundles[id] = base + "/scenes/" + url.PathEscape(id) + ".js"
 	}
 	for _, f := range l.snap.Fonts {
-		doc.Fonts = append(doc.Fonts, bootFont{Name: f.Name, Family: f.Family, Weight: f.Weight, URL: base + f.File})
+		doc.Fonts = append(doc.Fonts, bootFont{Name: f.Name, Family: f.Family, Weight: f.Weight, URL: base + f.File, Fallback: f.Fallback, UnicodeRange: f.UnicodeRange, WeightRange: f.WeightRange, MaxBytes: f.MaxBytes})
 	}
 	// The first GET takes the token. A HEAD never does, and the page makes that GET before any worker exists.
 	if r.Method == http.MethodGet && !l.tokenServed.Swap(true) {
@@ -386,7 +395,18 @@ func (l *Listener) font(w http.ResponseWriter, r *http.Request, file string) {
 		notFound(w)
 		return
 	}
-	serveBytes(w, r, "font/woff2", f.Data)
+	serveBytes(w, r, fontContentType(file), f.Data)
+}
+
+// fontContentType picks the type by extension. The Noto fallback faces are TTF and OTF.
+func fontContentType(file string) string {
+	switch strings.ToLower(path.Ext(file)) {
+	case ".ttf":
+		return "font/ttf"
+	case ".otf":
+		return "font/otf"
+	}
+	return "font/woff2"
 }
 
 // badTokenAnswer is the body of a 403. A wrong or missing token calls no hook and consumes nothing.

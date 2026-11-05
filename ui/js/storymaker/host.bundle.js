@@ -762,6 +762,7 @@
 
     var TRANSPORTS = ['png', 'webp', 'raw', 'screenshot'];
     var MIME = { png: 'image/png', webp: 'image/webp', raw: 'application/octet-stream' };
+    var MAX_FONT_BYTES = 8 * 1048576;   // boot.fonts[].max_bytes names the one exception
 
     function errorBody(err, sceneId) {
         var e = H.asError(err), out = { code: e.code, message: String(e.message).slice(0, 600) };
@@ -828,16 +829,32 @@
                 if (!res.ok) throw H.fail('code_error', 'Code scene "' + id + '" could not be fetched (' + res.status + ').', { scene_id: id });
                 bundles[id] = await res.text();
             }));
-            var fonts = await Promise.all((boot.fonts || []).map(async function (f) {
-                var res = await doFetch(f.url, { cache: 'no-store' });
-                if (!res.ok) throw H.fail('readiness', 'Font "' + f.family + '" could not be fetched (' + res.status + ').');
-                return { name: f.name, family: f.family, weight: f.weight, data: await res.arrayBuffer() };
-            }));
             var assetsBase = String(boot.assets_base || (base + '/catalog/')).replace(/\/*$/, '/');
+            if (catalog && catalog.glyphs && catalog.glyphs.file) {
+                var glyphFile = String(catalog.glyphs.file);
+                if (glyphFile.indexOf('..') >= 0 || glyphFile.charAt(0) === '/') throw H.fail('readiness', 'Bad asset path ' + glyphFile);
+                catalog.glyph_data = await getJSON('glyphs', assetsBase + glyphFile);
+            }
+            // Fonts are lazy: load.fonts stays empty and requestAssets fetches a face when compile needs it. URLs come from boot.fonts
+            // only (the catalog's file paths are AuraGo paths), and each buffer is fetched once.
+            var fontByKey = {}, fontFetches = {};
+            (boot.fonts || []).forEach(function (f) { fontByKey['font:' + f.name + '/' + f.weight] = f; });
+            function fetchFont(key) {
+                if (!fontFetches[key]) {
+                    fontFetches[key] = (async function () {
+                        var f = fontByKey[key], res = await doFetch(f.url, { cache: 'no-store' });
+                        if (!res.ok) throw H.fail('readiness', 'Font "' + f.family + '" could not be fetched (' + res.status + ').');
+                        var data = await res.arrayBuffer(), limit = f.max_bytes > 0 ? f.max_bytes : MAX_FONT_BYTES;
+                        if (data.byteLength > limit) throw H.fail('readiness', 'Font "' + f.family + '" has ' + data.byteLength + ' bytes, over its limit of ' + limit + '.');
+                        return data;
+                    })();
+                }
+                return fontFetches[key];
+            }
 
             env.onError = function (e) { status.lastError = e; postError(e, e.scene_id); };
             env.requestAssets = async function (keys) {
-                var assets = {};
+                var assets = {}, missing = [];
                 await Promise.all(keys.map(async function (key) {
                     if (key.indexOf('catalog:') === 0) {
                         var rel = key.slice(8);
@@ -845,16 +862,17 @@
                         var res = await doFetch(assetsBase + rel, { cache: 'no-store' });
                         if (!res.ok) throw H.fail('readiness', 'Asset ' + rel + ' answered ' + res.status);
                         assets[key] = await res.json();
+                    } else if (key.indexOf('font:') === 0) {
+                        if (fontByKey[key]) assets[key] = await fetchFont(key); else missing.push(key);
                     }
-                    // render mode takes font URLs only from boot.fonts (the catalog's file paths are AuraGo paths)
                 }));
-                return { assets: assets, missing: [] };
+                return { assets: assets, missing: missing };
             };
 
             engine = H.createEngine(env);
             status.phase = 'compiling';
             var loaded = await engine.load({
-                story: story, catalog: catalog, audio_info: boot.audio_info || {}, assets: {}, fonts: fonts, code_bundles: bundles,
+                story: story, catalog: catalog, audio_info: boot.audio_info || {}, assets: {}, fonts: [], code_bundles: bundles,
                 format: { fps: boot.fps, width: boot.width, height: boot.height }
             });
             await loaded.prepare();

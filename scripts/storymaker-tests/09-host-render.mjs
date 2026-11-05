@@ -23,7 +23,7 @@ function makeServer(opts = {}) {
         ...(opts.boot || {})
     };
     const res = (body, status = 200) => ({
-        ok: status >= 200 && status < 300, status, json: async () => body, text: async () => typeof body === 'string' ? body : JSON.stringify(body), arrayBuffer: async () => new ArrayBuffer(16)
+        ok: status >= 200 && status < 300, status, json: async () => body, text: async () => typeof body === 'string' ? body : JSON.stringify(body), arrayBuffer: async () => new ArrayBuffer(opts.fontBytes || 16)
     });
     const answerFor = opts.answer || (() => null);
     let frames = 0;
@@ -55,9 +55,10 @@ function makeServer(opts = {}) {
         if (url === RBASE + '/boot.json') return res(boot);
         if (url === RBASE + '/story.json') return res(storyDoc);
         if (url === RBASE + '/scenes/s3.js') return res(s3Bundle);
-        if (url === RBASE + '/fonts/placeholder.woff2') return res('');
+        if (url.startsWith(RBASE + '/fonts/')) return res('');
         if (url.startsWith(RBASE + '/catalog/')) {
             const rel = url.slice((RBASE + '/catalog/').length);
+            if (opts.catalogFiles && opts.catalogFiles[rel]) return res(opts.catalogFiles[rel]);
             const file = path.join(root, MINI, rel);
             return fs.existsSync(file) ? res(JSON.parse(fs.readFileSync(file, 'utf8'))) : res({}, 404);
         }
@@ -67,6 +68,10 @@ function makeServer(opts = {}) {
 }
 async function runRender(opts = {}) {
     const hostCtx = loadHost(), H = hostCtx.StorymakerHost, server = makeServer(opts);
+    if (opts.onEngine) {
+        const create = H.createEngine;
+        H.createEngine = e => { const engine = create(e); opts.onEngine(e, engine); return engine; };
+    }
     const canvas = new FakeCanvas(1, 1), base = canvas.ctx;
     canvas.getContext = () => new Proxy(base, { get(target, prop) {
         if (prop === 'getImageData') return (x, y, w, h) => ({ data: new Uint8ClampedArray(w * h * 4) });
@@ -198,6 +203,60 @@ check('render mode: the boot token goes on every POST and into no message', asyn
     const seen = [refused.status, sent.error, broken.status, broken.server.posts.find(p => p.path === '/error').error].map(v => JSON.stringify(v)).join('\n');
     assert.ok(!seen.includes(token), seen);
     assert.ok(!seen.includes(prefix), seen);
+});
+
+const defaultFace = { name: 'default', family: 'Storymaker Default', weight: 400, url: RBASE + '/fonts/placeholder.woff2' };
+
+check('render mode: fonts load on need through boot.fonts', async () => {
+    const cjk = { name: 'sm-cjk', family: 'SMCJK', weight: 400, url: RBASE + '/fonts/qr/NotoSansCJKsc.otf', fallback: true, weight_range: '400', max_bytes: 64 };
+    let pageEnv = null, loadMsg = null;
+    const r = await runRender({
+        boot: { fonts: [defaultFace, cjk] }, answer: () => ({ stop: true }),
+        onEngine(env, engine) {
+            pageEnv = env;
+            const load = engine.load;
+            engine.load = msg => { loadMsg = msg; return load.call(engine, msg); };
+        }
+    });
+    assert.equal(r.status.phase, 'stopped', JSON.stringify(r.status));
+    assert.deepEqual(plain(loadMsg.fonts), [], 'load.fonts stays empty');
+    assert.equal(r.server.gets.filter(u => u === defaultFace.url).length, 1, 'the face the story needs is fetched');
+    assert.ok(!r.server.gets.includes(cjk.url), 'a Latin story fetches no CJK face');
+    // The mini catalog has no glyph data, so compile never asks for this key. Ask the page's asset source directly.
+    const got = await pageEnv.requestAssets(['font:sm-cjk/400', 'font:sm-arab/400']);
+    assert.equal(got.assets['font:sm-cjk/400'].byteLength, 16);   // the stub answers 16 bytes, inside max_bytes 64
+    assert.deepEqual(plain(got.missing), ['font:sm-arab/400'], 'a key outside boot.fonts is missing');
+    await pageEnv.requestAssets(['font:sm-cjk/400']);
+    assert.equal(r.server.gets.filter(u => u === cjk.url).length, 1, 'the buffer is cached per key');
+});
+
+check('render mode: a font over its limit is a readiness failure', async () => {
+    // The stub answers 16 bytes, which is over max_bytes 8.
+    const named = await runRender({ boot: { fonts: [{ ...defaultFace, max_bytes: 8 }] } });
+    assert.equal(named.status.phase, 'error', JSON.stringify(named.status));
+    assert.equal(named.status.error, 'readiness');
+    assert.equal(named.server.posts.filter(p => p.path === '/report').length, 0, 'fonts load before the report');
+    assert.equal(named.server.posts.find(p => p.path === '/error').error.code, 'readiness');
+    // Without max_bytes the limit is 8 MiB, so one byte more fails.
+    const byDefault = await runRender({ fontBytes: 8 * 1048576 + 1 });
+    assert.equal(byDefault.status.phase, 'error', JSON.stringify(byDefault.status));
+    assert.equal(byDefault.status.error, 'readiness');
+});
+
+check('render mode: catalog.glyphs is fetched into catalog.glyph_data', async () => {
+    const glyphData = { schema: 'storymaker-glyphs/1', faces: [] };
+    let loadMsg = null;
+    const r = await runRender({
+        story: minimal, noCode: true, answer: () => ({ stop: true }),
+        catalogFiles: { 'catalog.json': { ...t.catalog, glyphs: { file: 'glyphs.json' } }, 'glyphs.json': glyphData },
+        onEngine(env, engine) {
+            const load = engine.load;
+            engine.load = msg => { loadMsg = msg; return load.call(engine, msg); };
+        }
+    });
+    assert.equal(r.status.phase, 'stopped', JSON.stringify(r.status));
+    assert.ok(r.server.gets.includes(RBASE + '/catalog/glyphs.json'));
+    assert.deepEqual(plain(loadMsg.catalog.glyph_data), glyphData);
 });
 
 check('host bundle is small and self-contained: no codescene, rig or compile in the document realm', () => {
