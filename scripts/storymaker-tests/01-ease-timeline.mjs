@@ -23,6 +23,19 @@ check('the six eases hit 0 and 1 and behave', () => {
     assert.equal(SM.ease('ease-out', 9), 1);
 });
 
+check('internal curves: quart-out, expo-out and spring exist for compile and stay out of the public names', () => {
+    for (const name of ['quart-out', 'expo-out', 'spring']) {
+        assert.equal(SM.isEase(name), false, name + ' is not a public ease');
+        near(SM.ease(name, 0), 0, 1e-12, name + '(0)');
+        assert.equal(SM.ease(name, 1), 1, name + '(1)');
+    }
+    for (const name of plain(SM.easeNames)) assert.equal(SM.isEase(name), true, name);
+    near(SM.ease('quart-out', 0.5), 0.9375, 1e-12, '1 - 0.5^4');
+    near(SM.ease('expo-out', 0.1), 0.5, 1e-12, '1 - 2^-1');
+    // spring first crosses 1 where cos(wd*u) + (zeta*w0/wd)*sin(wd*u) = 0, which frozen 4.5 gives as u = 0.4812
+    assert.ok(SM.ease('spring', 0.48) < 1 && SM.ease('spring', 0.49) > 1, 'spring crosses 1 at 0.4812');
+});
+
 check('tracks evaluate segments, overlapping segments and step tracks', () => {
     const T = SM.timeline, tr = new T.Track(10);
     tr.add(1, 3, 20, 'linear');
@@ -40,5 +53,6 @@ check('tracks evaluate segments, overlapping segments and step tracks', () => {
     assert.equal(st.at(1.5), 'c');
     assert.equal(st.at(2.5), 'b');
     const blend = st.blendAt(2.25);
-    assert.equal(blend.a, 'c'); assert.equal(blend.b, 'b'); near(blend.u, 0.25, 1e-9);
+    // the step began at t=2 and lasts 1 s, so the raw u is 0.25; ease-in-out gives 4 * 0.25^3 = 0.0625
+    assert.equal(blend.a, 'c'); assert.equal(blend.b, 'b'); near(blend.u, 0.0625, 1e-9);
 });

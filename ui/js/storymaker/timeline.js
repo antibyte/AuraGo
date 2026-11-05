@@ -11,7 +11,8 @@
     function evalSeg(seg, t) {
         if (t >= seg.t1) return seg.to;
         if (!(seg.t1 > seg.t0)) return seg.to;
-        return lerp(seg.from, seg.to, SM.ease(seg.ease, (t - seg.t0) / (seg.t1 - seg.t0)));
+        var s = SM.ease(seg.ease, (t - seg.t0) / (seg.t1 - seg.t0));
+        return seg.log ? seg.from * Math.pow(seg.to / seg.from, s) : lerp(seg.from, seg.to, s);
     }
 
     function Track(init) {
@@ -22,8 +23,9 @@
 
     // add(t0, t1, to, ease, from): from is optional; without it the segment starts at the value the track has at t0 (the
     // end of the previous segment, or its mid-way value when segments overlap).
-    Track.prototype.add = function (t0, t1, to, ease, from) {
-        this.segs.push({ t0: t0, t1: t1 < t0 ? t0 : t1, to: to, ease: ease || 'linear', from: from, order: this.segs.length });
+    // log: interpolate in log space (camera zoom), so a zoom reads at an even speed.
+    Track.prototype.add = function (t0, t1, to, ease, from, log) {
+        this.segs.push({ t0: t0, t1: t1 < t0 ? t0 : t1, to: to, ease: ease || 'linear', from: from, log: !!log, order: this.segs.length });
         this.dirty = true;
         return this;
     };
@@ -88,14 +90,14 @@
         return k < 0 ? this.init : this.steps[k].v;
     };
 
-    // blendAt(t): for a track whose steps carry a blend duration in x: {a: previous value, b: value, u: 0..1}.
+    // blendAt(t): for a track whose steps carry a blend duration in x: {a: previous value, b: value, u: 0..1}, u eased by ease-in-out.
     StepTrack.prototype.blendAt = function (t) {
         var k = this.index(t);
         if (k < 0) return { a: this.init, b: this.init, u: 1 };
         var step = this.steps[k], prev = k === 0 ? this.init : this.steps[k - 1].v;
         var dur = step.x > 0 ? step.x : 0;
         var u = dur > 0 ? clamp((t - step.t) / dur, 0, 1) : 1;
-        return u >= 1 ? { a: step.v, b: step.v, u: 1 } : { a: prev, b: step.v, u: u };
+        return u >= 1 ? { a: step.v, b: step.v, u: 1 } : { a: prev, b: step.v, u: SM.ease('ease-in-out', u) };
     };
 
     // Interval list (walking, gesture windows): active(t) returns the interval containing t, the latest start first.

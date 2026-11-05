@@ -25,6 +25,14 @@
         return n1 * t * t + 0.984375;
     }
 
+    // spring(u): damped oscillator, damping 0.75, w0 7.6. It overshoots 1 once and ends on exactly 1.
+    var SPRING_ZETA = 0.75, SPRING_W0 = 7.6, SPRING_WD = SPRING_W0 * Math.sqrt(1 - SPRING_ZETA * SPRING_ZETA);
+    function spring(u) {
+        if (u >= 1) return 1;
+        var a = SPRING_ZETA * SPRING_W0;
+        return 1 - Math.exp(-a * u) * (Math.cos(SPRING_WD * u) + (a / SPRING_WD) * Math.sin(SPRING_WD * u));
+    }
+
     var FNS = {
         'linear': function (t) { return t; },
         'ease-in': function (t) { return t * t * t; },
@@ -38,7 +46,11 @@
             var c1 = 1.70158, c3 = c1 + 1, u = t - 1;
             return 1 + c3 * u * u * u + c1 * u * u;
         },
-        'bounce-out': bounceOut
+        'bounce-out': bounceOut,
+        // Internal curves: compile picks them by role, and a story or a code scene cannot name them (isEase below).
+        'quart-out': function (t) { var u = 1 - t; return 1 - u * u * u * u; },
+        'expo-out': function (t) { return t >= 1 ? 1 : 1 - Math.pow(2, -10 * t); },
+        'spring': spring
     };
 
     // ease(name, t): t is clamped to 0..1; an unknown name is linear.
@@ -47,7 +59,8 @@
         return fn(clamp01(t));
     }
 
-    function isEase(name) { return Object.prototype.hasOwnProperty.call(FNS, name); }
+    // isEase(name): only the six public names.
+    function isEase(name) { return NAMES.indexOf(name) >= 0; }
 
     SM.ease = ease;
     SM.easeNames = NAMES.slice();
@@ -408,7 +421,8 @@
     function evalSeg(seg, t) {
         if (t >= seg.t1) return seg.to;
         if (!(seg.t1 > seg.t0)) return seg.to;
-        return lerp(seg.from, seg.to, SM.ease(seg.ease, (t - seg.t0) / (seg.t1 - seg.t0)));
+        var s = SM.ease(seg.ease, (t - seg.t0) / (seg.t1 - seg.t0));
+        return seg.log ? seg.from * Math.pow(seg.to / seg.from, s) : lerp(seg.from, seg.to, s);
     }
 
     function Track(init) {
@@ -419,8 +433,9 @@
 
     // add(t0, t1, to, ease, from): from is optional; without it the segment starts at the value the track has at t0 (the
     // end of the previous segment, or its mid-way value when segments overlap).
-    Track.prototype.add = function (t0, t1, to, ease, from) {
-        this.segs.push({ t0: t0, t1: t1 < t0 ? t0 : t1, to: to, ease: ease || 'linear', from: from, order: this.segs.length });
+    // log: interpolate in log space (camera zoom), so a zoom reads at an even speed.
+    Track.prototype.add = function (t0, t1, to, ease, from, log) {
+        this.segs.push({ t0: t0, t1: t1 < t0 ? t0 : t1, to: to, ease: ease || 'linear', from: from, log: !!log, order: this.segs.length });
         this.dirty = true;
         return this;
     };
@@ -485,14 +500,14 @@
         return k < 0 ? this.init : this.steps[k].v;
     };
 
-    // blendAt(t): for a track whose steps carry a blend duration in x: {a: previous value, b: value, u: 0..1}.
+    // blendAt(t): for a track whose steps carry a blend duration in x: {a: previous value, b: value, u: 0..1}, u eased by ease-in-out.
     StepTrack.prototype.blendAt = function (t) {
         var k = this.index(t);
         if (k < 0) return { a: this.init, b: this.init, u: 1 };
         var step = this.steps[k], prev = k === 0 ? this.init : this.steps[k - 1].v;
         var dur = step.x > 0 ? step.x : 0;
         var u = dur > 0 ? clamp((t - step.t) / dur, 0, 1) : 1;
-        return u >= 1 ? { a: step.v, b: step.v, u: 1 } : { a: prev, b: step.v, u: u };
+        return u >= 1 ? { a: step.v, b: step.v, u: 1 } : { a: prev, b: step.v, u: SM.ease('ease-in-out', u) };
     };
 
     // Interval list (walking, gesture windows): active(t) returns the interval containing t, the latest start first.
@@ -1201,7 +1216,8 @@
 
     function clampZoom(z) { return z < 1 ? 1 : (z > MAX_ZOOM ? MAX_ZOOM : z); }
 
-    function addZoom(cam, t0, t1, zoom, ease) { cam.zoom.add(t0, t1, clampZoom(zoom), ease); }
+    // addZoom: always in log space, code scenes included.
+    function addZoom(cam, t0, t1, zoom, ease) { cam.zoom.add(t0, t1, clampZoom(zoom), ease, undefined, true); }
     function addPan(cam, t0, t1, cx, cy, ease) { cam.cx.add(t0, t1, cx, ease); cam.cy.add(t0, t1, cy, ease); }
     function addShake(cam, t0, t1, amp) { cam.shakes.push({ t0: t0, t1: t1 > t0 ? t1 : t0 + 0.01, amp: amp }); }
 

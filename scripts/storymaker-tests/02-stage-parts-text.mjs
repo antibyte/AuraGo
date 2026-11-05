@@ -101,7 +101,8 @@ check('camera: framings, zoom and pan tweens, shake bursts decay and never leave
     SM.camera.addPan(cam, 1, 2, 1200, 600, 'linear');
     SM.camera.addShake(cam, 3, 4, 10);
     const mid = SM.camera.at(cam, 1.5);
-    near(mid.zoom, 1.5, 1e-9); near(mid.cx, 1080, 1e-9); near(mid.cy, 570, 1e-9);
+    // zoom runs in log space: 1 * (2 / 1)^0.5. The pan stays linear.
+    near(mid.zoom, Math.SQRT2, 1e-9); near(mid.cx, 1080, 1e-9); near(mid.cy, 570, 1e-9);
     assert.equal(SM.camera.at(cam, 0).zoom, 1);
     assert.equal(SM.camera.at(cam, 2.5).zoom, 2);
     assert.equal(SM.camera.at(cam, 2.5).shakeX, 0);
@@ -110,6 +111,9 @@ check('camera: framings, zoom and pan tweens, shake bursts decay and never leave
     assert.deepEqual(plain(SM.camera.at(cam, 3.05)), plain(SM.camera.at(cam, 3.05)), 'shake is a pure function of t');
     assert.equal(SM.camera.clampZoom(0.2), 1); assert.equal(SM.camera.clampZoom(99), SM.camera.MAX_ZOOM);
     near(SM.camera.end(cam), 4, 1e-9);
+    const four = SM.camera.create(1, 960, 540);
+    SM.camera.addZoom(four, 0, 1, 4, 'linear');
+    near(SM.camera.at(four, 0.5).zoom, 2, 1e-9, 'log zoom: 1 * (4 / 1)^0.5');
     // the stage turns the camera into a window inside the design frame
     const stage = SM.stage.create({ aspect: '16:9' }), win = stage.cameraWindow(SM.camera.at(cam, 2.5));
     near(win.w, 960, 1e-9); near(win.x, 1200 - 480, 1e-9); near(win.y, 600 - 270, 1e-9);

@@ -16,7 +16,8 @@
 
     function clampZoom(z) { return z < 1 ? 1 : (z > MAX_ZOOM ? MAX_ZOOM : z); }
 
-    function addZoom(cam, t0, t1, zoom, ease) { cam.zoom.add(t0, t1, clampZoom(zoom), ease); }
+    // addZoom: always in log space, code scenes included.
+    function addZoom(cam, t0, t1, zoom, ease) { cam.zoom.add(t0, t1, clampZoom(zoom), ease, undefined, true); }
     function addPan(cam, t0, t1, cx, cy, ease) { cam.cx.add(t0, t1, cx, ease); cam.cy.add(t0, t1, cy, ease); }
     function addShake(cam, t0, t1, amp) { cam.shakes.push({ t0: t0, t1: t1 > t0 ? t1 : t0 + 0.01, amp: amp }); }
 
