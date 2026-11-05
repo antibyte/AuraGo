@@ -257,31 +257,7 @@
             },
             show: {
                 dur: function (b) { return (b.entry || 'fade') === 'none' ? 0 : DEF.show * f; },
-                run: function (b, j, t0, dur) {
-                    if (b.chart || b.icon) {
-                        warn('minor', beatPath(j), 'not_supported_yet', 'Show with ' + (b.chart ? 'a chart' : 'an icon') + ' is not supported yet; the beat is ignored.');
-                        return;
-                    }
-                    if (b.text !== undefined && b.text !== null && b.item === undefined) {
-                        var pos = textPosition(b.at, beatPath(j, 'at'));
-                        var style = b.style && cat.textStyles[b.style] ? b.style : 'title';
-                        if (b.style && !cat.textStyles[b.style] && !P.contains(['speech', 'thought'], b.style)) {
-                            warn('warning', beatPath(j, 'style'), 'unknown_name', 'Unknown text style "' + b.style + '"; the player uses "title".');
-                        }
-                        var t = S.createText({ id: instanceId('text.text', b.id), text: b.text, style: style, x: pos.x, y: pos.y, hidden: true });
-                        register(t, null);
-                        entryAnim(t, b, t0, dur, pos);
-                        return;
-                    }
-                    if (!b.item) { warn('warning', beatPath(j), 'missing_field', 'A show beat needs item, text, icon or chart.'); return; }
-                    var entry = cat.byId[b.item];
-                    if (!entry || entry.kind !== 'prop') { warn('warning', beatPath(j, 'item'), 'unknown_asset', 'Unknown prop "' + b.item + '".'); return; }
-                    var at = resolveAt(b.at, beatPath(j, 'at'), 'center');
-                    needFile(entry);
-                    var prop = S.createProp({ id: instanceId(b.item, b.id), item: b.item, x: at.x, y: at.y, scale: b.scale, layer: b.layer, hidden: true, depth: at.depth });
-                    register(prop, b.item);
-                    entryAnim(prop, b, t0, dur, at);
-                }
+                run: function (b, j, t0, dur, tgt) { if (tgt) entryAnim(tgt, b, t0, dur, { x: tgt.x.init }); }
             },
             hide: {
                 dur: function () { return DEF.hide * f; },
@@ -331,6 +307,29 @@
             return p ? { x: p.x, y: p.y } : home;
         }
 
+        // showTarget(b, j): the instance a show beat creates. It must exist before the beat is placed, because the scheduler
+        // compares instances. Returns null when the beat names nothing it can show.
+        function showTarget(b, j) {
+            if (b.text !== undefined && b.text !== null && b.item === undefined) {
+                var pos = textPosition(b.at, beatPath(j, 'at'));
+                var style = b.style && cat.textStyles[b.style] ? b.style : 'title';
+                if (b.style && !cat.textStyles[b.style] && !P.contains(['speech', 'thought'], b.style)) {
+                    warn('warning', beatPath(j, 'style'), 'unknown_name', 'Unknown text style "' + b.style + '"; the player uses "title".');
+                }
+                var t = S.createText({ id: instanceId('text.text', b.id), text: b.text, style: style, x: pos.x, y: pos.y, hidden: true });
+                register(t, null);
+                return t;
+            }
+            if (!b.item) { warn('warning', beatPath(j), 'missing_field', 'A show beat needs item, text, icon or chart.'); return null; }
+            var entry = cat.byId[b.item];
+            if (!entry || entry.kind !== 'prop') { warn('warning', beatPath(j, 'item'), 'unknown_asset', 'Unknown prop "' + b.item + '".'); return null; }
+            var at = resolveAt(b.at, beatPath(j, 'at'), 'center');
+            needFile(entry);
+            var prop = S.createProp({ id: instanceId(b.item, b.id), item: b.item, x: at.x, y: at.y, scale: b.scale, layer: b.layer, hidden: true, depth: at.depth });
+            register(prop, b.item);
+            return prop;
+        }
+
         function moveBeat(b, j, t0, dur, walking) {
             var ref = b.who || b.target, e = find(ref);
             if (!e) { warn('warning', beatPath(j, b.who ? 'who' : 'target'), 'unknown_name', 'Nothing named "' + ref + '" to move.'); return; }
@@ -346,7 +345,14 @@
             moveTo(e, t0, t0 + dur, to, ease);
         }
 
-        var cursor = plan.T, prevStart = plan.T, beatsEnd = 0;
+        // targetOf(b, j): the instance a beat acts on, compared by identity. A show's target is the instance it creates. A
+        // string that resolves to no instance (a camera on a spot) has none.
+        function targetOf(b, j) {
+            if (b.do === 'show') return showTarget(b, j);
+            return b.do === 'wait' ? null : find(b.who || b.target);
+        }
+
+        var cursor = plan.T, prev = null, anchor = null, beatsEnd = 0, lastEnd = new Map(), log = [];
         beats.forEach(function (b, j) {
             if (!b || typeof b !== 'object') return;
             var spec = kinds[b.do];
@@ -354,25 +360,38 @@
                 warn('minor', beatPath(j), 'not_supported_yet', 'Beat "' + b.do + '" is not supported yet; it is ignored.');
                 return;
             }
-            var t0 = cursor, usedPrev = b.with === 'prev' && j > 0;
-            if (usedPrev) t0 = prevStart;
-            else if (b.cue !== undefined && b.cue !== null) {
-                var ct = plan.narration.cues[b.cue];
-                if (ct === undefined) warn('warning', beatPath(j, 'cue'), 'unknown_cue', 'Narration has no cue marker {' + b.cue + '}; the beat follows the previous one.');
-                else t0 = ct;
+            if (b.do === 'show' && (b.chart || b.icon)) {
+                warn('minor', beatPath(j), 'not_supported_yet', 'Show with ' + (b.chart ? 'a chart' : 'an icon') + ' is not supported yet; the beat is ignored.');
+                return;
             }
-            t0 += b.delay > 0 ? b.delay : 0;
-            var dur = typeof b.duration === 'number' && b.duration >= 0 ? b.duration : spec.dur(b, t0);
-            spec.run(b, j, t0, dur);
-            var end = t0 + dur;
-            prevStart = t0;
-            cursor = usedPrev ? Math.max(cursor, end) : end;
+            var tgt = targetOf(b, j);
+            var floor = tgt ? (lastEnd.get(tgt) || 0) : 0;
+            // a walk measures its distance from the target's position at floor: only same-target beats move that track
+            var dur = typeof b.duration === 'number' && b.duration >= 0 ? b.duration : spec.dur(b, floor);
+            var delay = b.delay > 0 ? b.delay : 0, cueT, byPrev = false, t;
+            if (b.cue !== undefined && b.cue !== null) {
+                cueT = plan.narration.cues[b.cue];
+                if (cueT === undefined) warn('warning', beatPath(j, 'cue'), 'unknown_cue', 'Narration has no cue marker {' + b.cue + '}; the beat follows the previous one.');
+            }
+            if (cueT !== undefined) t = cueT + delay;
+            else if (b.with === 'prev' && prev) { byPrev = true; t = prev.start + delay; }
+            else if (prev && prev.tgt && tgt && prev.tgt !== tgt) t = anchor.start + SM.motion.OVERLAP * anchor.dur + delay;
+            else t = cursor + delay;
+            // with prev has no floor: it keeps running together with the previous beat, also on the same target
+            var start = byPrev ? Math.max(0, t) : Math.max(0, floor, t), end = start + dur;
+            spec.run(b, j, start, dur, tgt);
+            if (tgt) lastEnd.set(tgt, Math.max(lastEnd.get(tgt) || 0, end));
+            var me = { j: j, kind: b.do, tgt: tgt, start: start, dur: dur, end: end, landing: null, cued: false };
+            log.push(me);
+            cursor = byPrev ? Math.max(cursor, end) : end;
+            if (!byPrev || end >= anchor.end) anchor = me;
+            prev = me;
             if (end > beatsEnd) beatsEnd = end;
         });
 
-        var lastEnd = SM.camera.end(cam);
-        for (var k = 0; k < entities.length; k++) { var ee = S.entityEnd(entities[k]); if (ee > lastEnd) lastEnd = ee; }
-        return { entities: entities, camera: cam, beatsEnd: beatsEnd, motionEnd: lastEnd, framing: framing, actorsPlaced: placed };
+        var motionEnd = SM.camera.end(cam);
+        for (var k = 0; k < entities.length; k++) { var ee = S.entityEnd(entities[k]); if (ee > motionEnd) motionEnd = ee; }
+        return { entities: entities, camera: cam, beatsEnd: beatsEnd, motionEnd: motionEnd, framing: framing, actorsPlaced: placed, log: log };
     }
 
     SM.beats = { buildStoryboard: buildStoryboard };

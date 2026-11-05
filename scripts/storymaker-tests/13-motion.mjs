@@ -145,3 +145,57 @@ check('pop: opacity never passes 1, also with an explicit overshooting ease', ()
         assert.ok(maxAlpha(one([text], { actors: [] }).text) <= 1, 'text with ' + ease);
     }
 });
+
+// ---- the scheduler: targets, floors, overlap, cursor, anchor
+
+const lock = (id, extra = {}) => ({ do: 'show', item: 'prop.lock', id, ...extra });
+const startOf = e => e.alpha.segs[0].t0;
+const WALK = { do: 'walk', who: 'anna', to: 'center' };
+
+check('scheduler: a beat on another target starts at 0.4 of the anchor, a same-target beat follows, a wait breaks overlap', () => {
+    // two 0.5 s shows of one item are two instances, so two targets: the second starts at 0.4 * 0.5 = 0.2 s
+    const two = one([lock('a'), lock('b')], { actors: [] });
+    near(startOf(two.of('a')), 0, 1e-9, 'first');
+    near(startOf(two.of('b')), 0.2, 1e-9, 'overlap');
+    // same target: the emote waits for the walk
+    const same = one([WALK, { do: 'emote', who: 'anna', expression: 'happy' }]);
+    near(same.anna.expr.steps[0].t, same.anna.walks.list[0].t1, 1e-9, 'same target');
+    // a wait has no target: it starts at the cursor (0.5 s), lasts 1 s, and the next show follows it
+    const gap = one([lock('a'), { do: 'wait', seconds: 1 }, lock('b')], { actors: [] });
+    near(startOf(gap.of('b')), 1.5, 1e-9, 'a wait breaks overlap');
+    // an unsupported beat leaves the state untouched: the overlap still reads the first show
+    const skipped = one([lock('a'), { do: 'chart', chart: 'bar', data: {} }, { do: 'show', icon: 'icon.x' }, lock('b')], { actors: [] });
+    near(startOf(skipped.of('b')), 0.2, 1e-9, 'unsupported beats');
+});
+
+check('scheduler: targets compare as instances, not as strings', () => {
+    // one instance under two names is one target: the second move follows the first, at 0.5 + 0.8 = 1.3 s
+    const named = one([lock('a'), { do: 'move', target: 'a', to: 'left' }, { do: 'move', target: 'prop.lock', to: 'center' }], { actors: [] });
+    near(named.of('a').x.segs[1].t0, 1.3, 1e-9, 'one instance, two names');
+    // a camera on a spot has no instance, so no target: it starts at the cursor (0.5 s) for 0.8 s, and the next show follows
+    const spot = one([lock('a'), { do: 'camera', op: 'focus', target: 'board' }, lock('b')], { actors: [] });
+    near(startOf(spot.of('b')), 1.3, 1e-9, 'a spot is not a target');
+});
+
+check('scheduler: a short with-prev beat leaves the anchor on the longer beat; floors and the cursor hold', () => {
+    // the walk lasts W; the lock runs with it for 0.5 s and does not replace the anchor, so the shield starts at 0.4 W
+    const group = one([WALK, lock('a', { with: 'prev' }), { do: 'show', item: 'prop.shield', id: 'b' }]);
+    const walk = group.anna.walks.list[0], W = walk.t1 - walk.t0;
+    near(startOf(group.of('a')), 0, 1e-9, 'with prev');
+    near(startOf(group.of('b')), 0.4 * W, 1e-9, 'the anchor stays on the walk');
+    // floor: the emote overlaps the lock by rule c, but anna is busy until W
+    const floored = one([WALK, lock('a'), { do: 'emote', who: 'anna', expression: 'happy' }]);
+    near(floored.anna.expr.steps[0].t, W, 1e-9, 'floor');
+    // cursor after with prev: the maximum of the group, so a wait starts at W and the next show at W + 1
+    const after = one([WALK, lock('a', { with: 'prev' }), { do: 'wait', seconds: 1 }, lock('b')]);
+    near(startOf(after.of('b')), W + 1, 1e-9, 'cursor');
+});
+
+check('scheduler: firewall s2: the gesture runs with the walk on the same actor, the shield overlaps, the camera follows the shield', () => {
+    const s2 = t.sceneById('s2'), anna = s2.entities.find(e => e.id === 'anna');
+    const walk = anna.walks.list[0], gesture = anna.gestures.list[0], shield = s2.entities.find(e => e.item === 'prop.shield');
+    near(walk.t0, 0.5, 1e-9, 'T of a fade is 0.5 s');
+    near(gesture.t0, 0.5, 1e-9, 'with prev has no floor');
+    near(startOf(shield), 0.5 + 0.4 * (walk.t1 - walk.t0), 1e-9, 'shield');
+    near(s2.camera.zoom.segs[0].t0, shield.alpha.segs[0].t1, 1e-9, 'a camera without a target starts at the cursor');
+});
