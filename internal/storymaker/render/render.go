@@ -84,6 +84,8 @@ type Deps struct {
 	Publisher Publisher
 	Settings  func(ctx context.Context) (Settings, error)
 	Logger    *slog.Logger
+	// MusicKey returns the key of the story's music. nil means key "".
+	MusicKey storymaker.MusicKeyResolver
 
 	// OpenPage starts the browser; nil uses the real Chrome. Tests replace it.
 	OpenPage pageOpener
@@ -107,6 +109,10 @@ type Plan struct {
 	StoryJSON []byte
 	Bundles   map[string][]byte
 	StoryETag string
+	Blocks    []storymaker.NarrationBlock
+	AudioInfo storymaker.AudioInfo
+	// AudioJSON is AudioInfo marshalled once. boot.audio_info serves these bytes, so app and render compile the same input.
+	AudioJSON []byte
 }
 
 // PrepareError is a request that cannot become a job.
@@ -171,6 +177,15 @@ func (r *Runner) Prepare(ctx context.Context, projectID, ifMatch string, st Sett
 		}
 		return nil, &PrepareError{Code: CodeInvalidStory, Message: clip(first.Message, 300), Issues: issues}
 	}
+	answer, err := r.deps.Projects.AudioAnswer(ctx, projectID, &story, r.deps.MusicKey)
+	if err != nil {
+		return nil, err
+	}
+	audioInfo := answer.Info()
+	audioJSON, err := json.Marshal(audioInfo)
+	if err != nil {
+		return nil, err
+	}
 	bundles := map[string][]byte{}
 	for _, sc := range story.Scenes {
 		if sc.Kind != "code" {
@@ -186,7 +201,7 @@ func (r *Runner) Prepare(ctx context.Context, projectID, ifMatch string, st Sett
 	if err != nil {
 		return nil, err
 	}
-	return &Plan{ProjectID: projectID, Story: story, StoryJSON: storyJSON, Bundles: bundles, StoryETag: etag}, nil
+	return &Plan{ProjectID: projectID, Story: story, StoryJSON: storyJSON, Bundles: bundles, StoryETag: etag, Blocks: storymaker.Blocks(&story), AudioInfo: audioInfo, AudioJSON: audioJSON}, nil
 }
 
 // CanvasSize returns the export size of an aspect: 1920x1080, 1080x1920 or 1080x1080.
@@ -370,7 +385,7 @@ func (run *renderRun) execute(ctx context.Context) (Output, error) {
 	run.prefix, run.token = prefix, token
 	h.SetPrefixHash(HashPrefix(prefix))
 	run.ingest = NewIngest(IngestConfig{Width: run.width, Height: run.height, Transport: run.transport, FrameLimit: run.frameLimit})
-	listener, err := StartListener(prefix, snap, PageParams{Width: run.width, Height: run.height, FPS: run.fps, Transport: run.transport, FrameLimit: run.frameLimit, FrameDeadlineMS: frameDeadlineMS, Token: token},
+	listener, err := StartListener(prefix, snap, PageParams{Width: run.width, Height: run.height, FPS: run.fps, Transport: run.transport, FrameLimit: run.frameLimit, FrameDeadlineMS: frameDeadlineMS, Token: token, AudioInfo: run.plan.AudioJSON},
 		Hooks{Report: run.onReport, Frame: run.onFrame, Error: run.onPageError})
 	if err != nil {
 		return Output{}, Fail(CodeRenderFailed, "%v", err)

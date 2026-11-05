@@ -110,6 +110,7 @@ func (s *Server) newStorymakerRuntime(dataDir string) (*storymakerRuntime, error
 		Dir: dir, UI: ui, Catalog: catalog, Projects: rt.projects, Browsers: rt.browsers, Publisher: store,
 		Settings: func(ctx context.Context) (render.Settings, error) { return s.storymakerSettings(ctx) },
 		Logger:   logger, FrameObserver: s.storymakerFrameObserver,
+		MusicKey: s.storymakerMusicKey,
 	})
 	run := rt.runner.Run
 	if s.storymakerRunOverride != nil {

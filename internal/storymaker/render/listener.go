@@ -68,6 +68,8 @@ type PageParams struct {
 	// Token authorises the page's POSTs (32 hex characters). boot.json hands it out once, before any
 	// scene worker exists, so a scene worker that knows the base still cannot forge a report.
 	Token string
+	// AudioInfo is served as boot.audio_info. nil serves {}.
+	AudioInfo json.RawMessage
 }
 
 // ReportAnswer is the reply to POST /report.
@@ -347,7 +349,7 @@ type bootDoc struct {
 	AssetsBase      string            `json:"assets_base"`
 	CodeBundles     map[string]string `json:"code_bundles"`
 	Fonts           []bootFont        `json:"fonts"`
-	AudioInfo       map[string]any    `json:"audio_info"`
+	AudioInfo       json.RawMessage   `json:"audio_info"`
 	Token           string            `json:"token,omitempty"`
 }
 
@@ -357,10 +359,14 @@ func (l *Listener) boot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	base := l.Base()
+	audioInfo := l.params.AudioInfo
+	if len(audioInfo) == 0 {
+		audioInfo = json.RawMessage(`{}`)
+	}
 	doc := bootDoc{
 		Mode: "render", FPS: l.params.FPS, Width: l.params.Width, Height: l.params.Height, Transport: l.params.Transport,
 		FrameLimit: l.params.FrameLimit, FrameDeadlineMS: l.params.FrameDeadlineMS, StoryURL: base + "/story.json", CatalogURL: base + "/catalog/catalog.json",
-		AssetsBase: base + "/catalog/", CodeBundles: map[string]string{}, Fonts: []bootFont{}, AudioInfo: map[string]any{},
+		AssetsBase: base + "/catalog/", CodeBundles: map[string]string{}, Fonts: []bootFont{}, AudioInfo: audioInfo,
 	}
 	ids := make([]string, 0, len(l.snap.CodeBundles))
 	for id := range l.snap.CodeBundles {

@@ -751,6 +751,131 @@ func TestPrepareChecksTheStoryLikeSaveDoes(t *testing.T) {
 	}
 }
 
+// narratedStoryJSON has one scene with a two-sentence narration and a voice, so Blocks gives one block.
+const narratedStoryJSON = `{"schema":"storymaker/1","title":"Narrated","voice":{"provider":"sanotts","voice":"thorsten","language":"de"},"scenes":[{"id":"s1","environment":"env.plain-stage","narration":"Hallo Welt, das ist der erste Satz. Und hier kommt noch ein zweiter Satz."}]}`
+
+// seedPieces stores audio and a valid envelope for every piece of blocks, as a finished narrate job leaves them.
+func seedPieces(t *testing.T, fx *runFixture, blocks []storymaker.NarrationBlock) {
+	t.Helper()
+	samples := make([]float32, 24000) // 1 s at 24 kHz
+	for i := range samples {
+		samples[i] = 0.1 // -20 dBFS, above the speech threshold of -40 dBFS
+	}
+	env := storymaker.ComputeEnvelope(storymaker.DecodedAudio{Rate: 24000, Channels: 1, Samples: samples})
+	for _, b := range blocks {
+		for _, p := range storymaker.PiecesOf(b) {
+			if err := fx.projects.WritePiece(context.Background(), fx.projectID, storymaker.PieceKey(b.Voice, p.Text), "wav", []byte("RIFF"), env); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+}
+
+// bootOfJob runs plan as a job, returns the boot document the page reads, and cancels the job.
+func bootOfJob(t *testing.T, fx *runFixture, plan *Plan) []byte {
+	t.Helper()
+	got := make(chan []byte, 1)
+	fx.page.script = func(ctx context.Context, base string) {
+		if data, _, err := httpDo(ctx, "GET", base+"/boot.json", "", nil, nil); err == nil {
+			got <- data
+		}
+	}
+	job, _, err := fx.mgr.Enqueue(EnqueueRequest{ProjectID: fx.projectID, Payload: plan})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		fx.mgr.Cancel(job.ID)
+		waitJob(t, fx.mgr, job.ID, terminal)
+	}()
+	select {
+	case data := <-got:
+		return data
+	case <-time.After(time.Minute):
+		t.Fatal("the page never read boot.json")
+		return nil
+	}
+}
+
+func TestBootCarriesThePlanAudioInfo(t *testing.T) {
+	fx := newRunFixture(t)
+	ctx := context.Background()
+	if _, err := fx.projects.SaveStory(ctx, fx.projectID, []byte(narratedStoryJSON), ""); err != nil {
+		t.Fatal(err)
+	}
+	unsynthesised, err := fx.runner.Prepare(ctx, fx.projectID, "", fx.settings)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(unsynthesised.AudioJSON) != `{"narration":{}}` {
+		t.Errorf("AudioJSON without audio = %s", unsynthesised.AudioJSON)
+	}
+	if len(unsynthesised.Blocks) != 1 || unsynthesised.Blocks[0].ID != "s1:n" {
+		t.Fatalf("Blocks = %+v", unsynthesised.Blocks)
+	}
+	seedPieces(t, fx, unsynthesised.Blocks)
+
+	plan, err := fx.runner.Prepare(ctx, fx.projectID, "", fx.settings)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Two sentences of 7 words each: neither merges, so the block has two pieces.
+	if blocks := plan.AudioInfo.Narration["s1"].Blocks; len(blocks) != 1 || len(blocks[0].Pieces) != 2 {
+		t.Fatalf("AudioInfo = %+v", plan.AudioInfo)
+	}
+	var doc struct {
+		AudioInfo struct {
+			Narration json.RawMessage `json:"narration"`
+		} `json:"audio_info"`
+	}
+	if err := json.Unmarshal(bootOfJob(t, fx, plan), &doc); err != nil {
+		t.Fatal(err)
+	}
+	// GET /narration encodes AudioAnswer with encoding/json, so this is the narration value of that route.
+	answer, err := fx.projects.AudioAnswer(ctx, fx.projectID, &plan.Story, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := json.Marshal(answer.Narration)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(doc.AudioInfo.Narration) != string(want) {
+		t.Errorf("boot.audio_info.narration:\n%s\nwant:\n%s", doc.AudioInfo.Narration, want)
+	}
+}
+
+func TestBootServesEmptyAudioInfoWithoutAPlanValue(t *testing.T) {
+	fx := newListenerFixture(t)
+	_, body := fx.do(t, http.MethodGet, fx.l.Base()+"/boot.json", nil, nil)
+	var doc struct {
+		AudioInfo json.RawMessage `json:"audio_info"`
+	}
+	if err := json.Unmarshal(body, &doc); err != nil {
+		t.Fatal(err)
+	}
+	if string(doc.AudioInfo) != `{}` {
+		t.Errorf("audio_info = %s", doc.AudioInfo)
+	}
+}
+
+func TestPrepareWithoutAMusicKeyMeansNoMusic(t *testing.T) {
+	fx := newRunFixture(t)
+	ctx := context.Background()
+	story := `{"schema":"storymaker/1","title":"With music","music":{"mode":"generated","mood":"calm-ambient"},"scenes":[{"id":"s1","environment":"env.plain-stage"}]}`
+	if _, err := fx.projects.SaveStory(ctx, fx.projectID, []byte(story), ""); err != nil {
+		t.Fatal(err)
+	}
+	// fx.deps has no MusicKey, so the key is "" and nothing is to be played.
+	plan, err := fx.runner.Prepare(ctx, fx.projectID, "", fx.settings)
+	if err != nil {
+		t.Fatalf("Prepare with a nil MusicKey: %v", err)
+	}
+	if string(plan.AudioJSON) != `{"narration":{}}` {
+		t.Errorf("AudioJSON = %s", plan.AudioJSON)
+	}
+}
+
 func TestPrepareCollectsCodeSceneBundles(t *testing.T) {
 	fx := newRunFixture(t)
 	ctx := context.Background()
