@@ -10936,5 +10936,6 @@
   "desktop.mc_state_waiting": "En espera",
   "desktop.mc_error_durable_cancel": "Esta misión contiene ejecuciones guardadas. Abre en EasyDrag la ejecución que quieras detener y detenla allí.",
   "aura_drift.catchup": "Remontada: los rivales rezagados reciben como máximo un 6 % más de velocidad objetivo, nunca más agarre.",
-  "desktop.mc_state_unknown": "Desconocido"
+  "desktop.mc_state_unknown": "Desconocido",
+  "aura_drift.load_error_hint": "Recarga la página con Ctrl+F5. Si no funciona, borra la caché y el service worker de este sitio."
 }

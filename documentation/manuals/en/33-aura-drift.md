@@ -67,6 +67,14 @@ Volume, mute, graphics tier, reduced motion, ghost display and the weapon switch
 the in-game menu. Best times and settings stay local to this browser. A read-only Desktop
 stores nothing.
 
+## If the window stays empty
+
+The browser is then holding an older copy of the game files in its service-worker
+cache. Open the Desktop in a private window as a test: if the game works there,
+clear this site's cache and service worker, then reload with Ctrl+F5. Current
+versions show a message naming the missing files instead of an empty window; if
+only the WebGL2 pass is missing, the game keeps running normally on Canvas 2D.
+
 ## Boundaries
 
 Aura Drift offers believable, deterministic driving physics — not an engineering-grade

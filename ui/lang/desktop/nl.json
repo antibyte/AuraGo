@@ -10936,5 +10936,6 @@
   "desktop.mc_state_waiting": "Wachtend",
   "desktop.mc_error_durable_cancel": "Deze missie bevat opgeslagen uitvoeringen. Open de uitvoering die je wilt stoppen in EasyDrag en stop die daar.",
   "aura_drift.catchup": "Inhaalslag: achterliggende tegenstanders krijgen maximaal 6% meer doelsnelheid, nooit meer grip.",
-  "desktop.mc_state_unknown": "Onbekend"
+  "desktop.mc_state_unknown": "Onbekend",
+  "aura_drift.load_error_hint": "Herlaad de pagina met Ctrl+F5. Werkt dat niet, wis dan de cache en service worker van deze site."
 }

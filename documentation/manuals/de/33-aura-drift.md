@@ -71,6 +71,15 @@ Lautstärke, Stumm, Grafikstufe, Bewegungsreduktion, Geist-Anzeige und Waffen-Sc
 liegen im Spielmenü. Bestzeiten und Einstellungen bleiben lokal in diesem Browser. Bei
 einem schreibgeschützten Desktop wird nichts gespeichert.
 
+## Falls das Fenster leer bleibt
+
+Dann hält der Browser eine ältere Version der Spieldateien im Service-Worker-Cache.
+Öffne den Desktop zum Test in einem privaten Fenster: Läuft das Spiel dort, lösche
+für diese Seite den Cache samt Service Worker und lade mit Strg+F5 neu. Aktuelle
+Versionen zeigen in so einem Fall eine Meldung mit den fehlenden Dateien statt
+eines leeren Fensters; fehlt nur der WebGL2-Pass, läuft das Spiel ganz normal
+weiter.
+
 ## Grenzen
 
 Aura Drift ist ein Spiel mit glaubwürdiger, deterministischer Fahrphysik – keine

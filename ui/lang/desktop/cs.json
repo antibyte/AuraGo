@@ -10936,5 +10936,6 @@
   "desktop.mc_state_waiting": "Čeká",
   "desktop.mc_error_durable_cancel": "Tato mise obsahuje uložené běhy. Otevři požadovaný běh v EasyDrag a zastav ho tam.",
   "aura_drift.catchup": "Vyrovnání: soupeři vzadu dostanou nejvýše 6 % vyšší cílovou rychlost, nikdy větší přilnavost.",
-  "desktop.mc_state_unknown": "Neznámý"
+  "desktop.mc_state_unknown": "Neznámý",
+  "aura_drift.load_error_hint": "Načti stránku znovu pomocí Ctrl+F5. Pokud to nepomůže, vymaž mezipaměť a service worker této stránky."
 }

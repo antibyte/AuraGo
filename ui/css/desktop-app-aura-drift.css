@@ -168,6 +168,39 @@
 .ad-record { color: #ffd166; font-size: 13px; margin: 12px 0 0; }
 .ad-result-buttons { display: flex; flex-direction: column; }
 
+.ad-load-error {
+    position: absolute;
+    inset: 0;
+    z-index: 8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+    background: rgba(5, 9, 17, 0.88);
+}
+.ad-load-error-panel {
+    width: min(430px, 100%);
+    box-sizing: border-box;
+    padding: 22px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 138, 112, 0.45);
+    background: #141c2a;
+    color: #eef4ff;
+    text-align: left;
+}
+.ad-load-error-panel h2 { font-size: 18px; margin: 0 0 10px; }
+.ad-load-error-panel p { font-size: 13px; line-height: 1.55; color: #b8cee4; margin: 0 0 12px; }
+.ad-load-error-panel code {
+    display: block;
+    font-size: 11px;
+    color: #ffcf6b;
+    word-break: break-all;
+    padding: 8px;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.35);
+    margin-bottom: 4px;
+}
+
 .ad-touch {
     position: absolute;
     left: 0; right: 0; bottom: 0;

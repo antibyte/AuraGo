@@ -10936,5 +10936,6 @@
   "desktop.mc_state_waiting": "In attesa",
   "desktop.mc_error_durable_cancel": "Questa missione contiene esecuzioni salvate. Apri in EasyDrag l’esecuzione che vuoi arrestare e arrestala da lì.",
   "aura_drift.catchup": "Recupero: gli avversari attardati ottengono al massimo il 6% di velocità in più, mai più aderenza.",
-  "desktop.mc_state_unknown": "Sconosciuto"
+  "desktop.mc_state_unknown": "Sconosciuto",
+  "aura_drift.load_error_hint": "Ricarica la pagina con Ctrl+F5. Se non basta, cancella cache e service worker di questo sito."
 }

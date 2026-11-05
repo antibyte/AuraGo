@@ -10936,5 +10936,6 @@
   "desktop.mc_state_waiting": "En attente",
   "desktop.mc_error_durable_cancel": "Cette mission contient des exécutions enregistrées. Ouvre dans EasyDrag l’exécution que tu souhaites arrêter, puis arrête-la depuis cette vue.",
   "aura_drift.catchup": "Rattrapage : les adversaires distancés gagnent au plus 6 % de vitesse cible, jamais plus d'adhérence.",
-  "desktop.mc_state_unknown": "Inconnu"
+  "desktop.mc_state_unknown": "Inconnu",
+  "aura_drift.load_error_hint": "Rechargez la page avec Ctrl+F5. Si cela ne suffit pas, effacez le cache et le service worker de ce site."
 }

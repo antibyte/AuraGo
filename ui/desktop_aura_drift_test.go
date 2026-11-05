@@ -53,9 +53,18 @@ func TestAuraDriftAppRegistration(t *testing.T) {
 	if !strings.Contains(css, ":focus-visible") || !strings.Contains(css, ".ad-sr-only") {
 		t.Fatal("Aura Drift stylesheet must keep keyboard focus and screen-reader affordances")
 	}
+	if !strings.Contains(css, ".ad-load-error") {
+		t.Fatal("Aura Drift stylesheet must style the visible stale-assets error panel")
+	}
 	uiSource := readDesktopAssetText(t, "js/desktop/apps/aura-drift-ui.js")
 	if !strings.Contains(uiSource, "aria-hidden") {
 		t.Fatal("pointer-only touch controls must be hidden from screen readers")
+	}
+	shell := readDesktopAssetText(t, "js/desktop/apps/aura-drift.js")
+	for _, marker := range []string{"missingModules", "showLoadError", "createNoopPost"} {
+		if !strings.Contains(shell, marker) {
+			t.Fatalf("Aura Drift shell lost its stale-loader guard %s", marker)
+		}
 	}
 
 	routing := readDesktopAssetText(t, "js/desktop/core/menus-and-routing.js")
@@ -103,6 +112,7 @@ func TestAuraDriftLocaleKeysCoverAllLanguages(t *testing.T) {
 		"aura_drift.finish", "aura_drift.position", "aura_drift.new_record",
 		"aura_drift.next_track", "aura_drift.ready", "aura_drift.lap",
 		"aura_drift.weapon", "aura_drift.loading", "aura_drift.catchup",
+		"aura_drift.load_error_hint",
 	}
 	for _, lang := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
 		values := readMergedLangMap(t, lang)

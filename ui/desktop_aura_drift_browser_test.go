@@ -17,8 +17,15 @@ import (
 )
 
 // auraDriftFixture serves the real Desktop shell with the in-memory browser
-// fixture and returns an initialised page. Both smoke tests share it.
+// fixture and returns an initialised page.
 func auraDriftFixture(t *testing.T) *rod.Page {
+	t.Helper()
+	return auraDriftFixtureWithout(t, "")
+}
+
+// auraDriftFixtureWithout optionally removes one script from the served
+// module-loader.js to reproduce a stale service-worker cache.
+func auraDriftFixtureWithout(t *testing.T, script string) *rod.Page {
 	t.Helper()
 	html := regexp.MustCompile(`(?s)<script\b[^>]*>.*?</script>`).ReplaceAllString(readDesktopAssetText(t, "desktop.html"), "")
 	html = regexp.MustCompile(`\{\{[^}]*\}\}`).ReplaceAllString(html, "")
@@ -31,6 +38,27 @@ func auraDriftFixture(t *testing.T) *rod.Page {
 	shell = shell[:cut] + `window.aurora={state,loadIconManifest,applyDesktopSettings,renderIcons,renderStartApps,renderStartButtonIcon,wireShellChromeControls,bindViewportMetrics,handleDesktopKeydown,closeContextMenu,openApp,closeWindow};})();`
 	mux := http.NewServeMux()
 	mux.Handle("/", http.FileServer(http.FS(Content)))
+	if script != "" {
+		loader := readDesktopAssetText(t, "js/desktop/core/module-loader.js")
+		lines := strings.Split(loader, "\n")
+		kept := make([]string, 0, len(lines))
+		removed := 0
+		for _, line := range lines {
+			if strings.Contains(line, "'/js/desktop/apps/"+script+"'") {
+				removed++
+				continue
+			}
+			kept = append(kept, line)
+		}
+		if removed != 1 {
+			t.Fatalf("expected exactly one loader reference to %s, found %d", script, removed)
+		}
+		stale := strings.Join(kept, "\n")
+		mux.HandleFunc("/js/desktop/core/module-loader.js", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "text/javascript")
+			fmt.Fprint(w, stale)
+		})
+	}
 	mux.HandleFunc("/fixture", func(w http.ResponseWriter, r *http.Request) { fmt.Fprint(w, html) })
 	mux.HandleFunc("/racer-shell.js", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/javascript")
@@ -318,4 +346,63 @@ func TestDesktopAuraDriftQualityMatrixBrowser(t *testing.T) {
 	if errors := page.MustEval(`()=>JSON.stringify(fixtureErrors)`).Str(); errors != "[]" {
 		t.Fatal(errors)
 	}
+}
+
+// A stale service-worker cache can serve an older module-loader.js. The game
+// must degrade to Canvas 2D when the optional WebGL2 module is missing, and
+// must show a visible, actionable error when a required module is missing.
+func TestDesktopAuraDriftStaleLoaderBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+
+	t.Run("optional_webgl2_module_missing", func(t *testing.T) {
+		page := auraDriftFixtureWithout(t, "aura-drift-post.js")
+		page.MustEval(`async()=>{await fixtureOpen('aura-drift');}`)
+		if !page.MustEval(`()=>{
+            const o=document.querySelector('.ad-overlay');
+            return !!o && !o.hidden && o.getBoundingClientRect().height>0;
+        }`).Bool() {
+			t.Fatal("stale loader without WebGL2 module left an empty window")
+		}
+		if page.MustEval(`()=>!!document.querySelector('.ad-load-error')`).Bool() {
+			t.Fatal("optional WebGL2 module must not trigger the load-error panel")
+		}
+		page.MustElement(".ad-menu .ad-primary").MustClick()
+		page.MustEval(`()=>new Promise(resolve=>setTimeout(resolve,3600))`)
+		page.MustEval(`()=>window.dispatchEvent(new KeyboardEvent('keydown',{code:'ArrowUp',bubbles:true}))`)
+		page.MustEval(`()=>new Promise(resolve=>setTimeout(resolve,1100))`)
+		stats := page.MustEval(`()=>JSON.stringify(window.AuraDriftApp.stats()[0]||{})`).Str()
+		t.Logf("degraded stats: %s", stats)
+		if !strings.Contains(stats, `"degraded":true`) {
+			t.Fatalf("WebGL2 fallback was not reported: %s", stats)
+		}
+		if !page.MustEval(`()=>{
+            const s=window.AuraDriftApp.stats()[0];
+            return s && s.state==='running' && s.speedKmh>5;
+        }`).Bool() {
+			t.Fatalf("game was not playable without the WebGL2 module: %s", stats)
+		}
+		auraDriftCloseWindows(page)
+		if errors := page.MustEval(`()=>JSON.stringify(fixtureErrors)`).Str(); errors != "[]" {
+			t.Fatal(errors)
+		}
+	})
+
+	t.Run("required_module_missing", func(t *testing.T) {
+		page := auraDriftFixtureWithout(t, "aura-drift-core.js")
+		page.MustEval(`async()=>{await fixtureOpen('aura-drift');}`)
+		panel := page.MustEval(`()=>{
+            const p=document.querySelector('.ad-load-error');
+            return p ? JSON.stringify({text:p.textContent, visible:p.getBoundingClientRect().height>0}) : 'null';
+        }`).Str()
+		if panel == "null" {
+			t.Fatal("missing core module produced a silent empty window")
+		}
+		if !strings.Contains(panel, "aura-drift-core.js") || !strings.Contains(panel, `"visible":true`) {
+			t.Fatalf("load-error panel lacks the missing module or is invisible: %s", panel)
+		}
+		if !page.MustEval(`()=>!!document.querySelector('.ad-load-error .ad-primary')`).Bool() {
+			t.Fatal("load-error panel has no reload action")
+		}
+		auraDriftCloseWindows(page)
+	})
 }

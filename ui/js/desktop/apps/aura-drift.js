@@ -5,6 +5,65 @@
     const instances = new Map();
     const QUALITY_ORDER = ['low', 'medium', 'high', 'ultra'];
 
+    /* Every factory the shell needs. A stale service-worker cache can serve an
+       older module-loader.js that predates one of these files; fail visibly
+       instead of leaving an empty dark window. createPostProcessor is
+       deliberately absent because the WebGL2 pass is optional. */
+    const REQUIRED = [
+        ['aura-drift-core.js', 'loadSettings'],
+        ['aura-drift-core.js', 'createScheduler'],
+        ['aura-drift-physics.js', 'createVehicle'],
+        ['aura-drift-track.js', 'buildTrack'],
+        ['aura-drift-race.js', 'createRace'],
+        ['aura-drift-render.js', 'createRenderer'],
+        ['aura-drift-render.js', 'createCamera'],
+        ['aura-drift-hud.js', 'createHud'],
+        ['aura-drift-audio.js', 'createAudio'],
+        ['aura-drift-ui.js', 'createUI']
+    ];
+
+    function missingModules() {
+        const core = window.AuraDriftCore;
+        const missing = [];
+        for (const [file, fn] of REQUIRED) {
+            if ((!core || typeof core[fn] !== 'function') && missing.indexOf(file) < 0) missing.push(file);
+        }
+        return missing;
+    }
+
+    function showLoadError(root, t, details) {
+        const overlay = document.createElement('div');
+        overlay.className = 'ad-load-error';
+        const panel = document.createElement('div');
+        panel.className = 'ad-load-error-panel';
+        const title = document.createElement('h2');
+        title.textContent = t('desktop.app_error_title');
+        const hint = document.createElement('p');
+        hint.textContent = t('aura_drift.load_error_hint');
+        const detail = document.createElement('code');
+        detail.textContent = details.join(', ');
+        const reload = document.createElement('button');
+        reload.type = 'button';
+        reload.className = 'ad-primary';
+        reload.textContent = t('aura_drift.restart');
+        reload.addEventListener('click', () => window.location.reload(), { once: true });
+        panel.append(title, hint, detail, reload);
+        overlay.appendChild(panel);
+        root.appendChild(overlay);
+    }
+
+    /* Canvas 2D remains fully playable when the optional WebGL2 pass is missing. */
+    function createNoopPost() {
+        return {
+            available: false,
+            enabled: false,
+            setQuality() {}, setBiome() {}, resize() {},
+            render() { return false; },
+            stats() { return { available: false, enabled: false, degraded: true, quality: 'none', biome: 'none' }; },
+            dispose() {}
+        };
+    }
+
     function dispose(id) {
         const entry = instances.get(id);
         if (!entry) return;
@@ -75,10 +134,18 @@
         root.appendChild(hudCanvas);
         host.replaceChildren(root);
 
+        const missing = missingModules();
+        if (missing.length) {
+            showLoadError(root, t, missing);
+            return;
+        }
+
         const settings = AD.loadSettings();
         const bests = AD.loadBests();
         const renderer = AD.createRenderer(world, settings);
-        const post = AD.createPostProcessor(world, postCanvas);
+        const post = typeof AD.createPostProcessor === 'function'
+            ? AD.createPostProcessor(world, postCanvas)
+            : createNoopPost();
         const hud = AD.createHud(hudCanvas, labels);
         const audio = AD.createAudio(settings);
         const camera = AD.createCamera();

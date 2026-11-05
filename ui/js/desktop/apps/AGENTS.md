@@ -3452,6 +3452,38 @@ buttons and menu popovers remain excluded from those gestures.
   inactive and restarts at most one loop on visibility/focus return. Gallery
   errors use translated messages; Detective renders invalid URLs as text.
 
+- `aura-drift-*.js` implements Aura Drift, a first-party offline top-down racer.
+  Load order is defined under the `aura-drift` entry: core, physics, track, race,
+  render, post, hud, audio, ui, then `aura-drift.js` (which exposes
+  `window.AuraDriftApp = { render, dispose, stats }`). Shared state lives on
+  `window.AuraDriftCore`. The simulation runs at a fixed 120 Hz via
+  `AD.createScheduler` with a five-substep clamp; `AD.stepRace` uses only the
+  seeded PRNG, so input tapes replay bit-identically at 30/60/144 render FPS.
+  Tracks are closed Catmull-Rom splines with a 64 m spatial grid and 256 m
+  procedurally generated chunk canvases capped per quality tier. The world is
+  Canvas 2D; `aura-drift-post.js` adds a WebGL2 High/Ultra fullscreen pass
+  (bloom, wet reflections, grade, impact aberration) with NaN-guarded shader
+  math, context-loss handling, disposal and a Canvas 2D fallback. Web Audio is
+  synthesized with separate music/SFX/engine buses into a master compressor.
+  AI uses grip/corridor-aware corner speeds, a bounded disclosed 6% catch-up,
+  reverse recovery and a deterministic marshal respawn. One RAF per window,
+  `isActive` gating, focus-loss pause with released input, reduced motion,
+  read-only Desktop (no settings/best writes), keyboard focus and screen-reader
+  affordances, and full disposal of listeners, RAF, AudioContext, WebGL
+  resources, caches and observers. Visible strings use `aura_drift.*` plus
+  `desktop.app_aura_drift` in all sixteen `ui/lang/desktop/*.json` files.
+  A stale service-worker cache may serve an old `module-loader.js`; the shell
+  therefore checks required factories before boot, shows a translated
+  `aura_drift.load_error_hint` panel with missing file names when one is absent,
+  and degrades the optional WebGL2 post pass to a no-op so Canvas 2D stays
+  playable (`post.degraded` in stats). `TestDesktopAuraDriftStaleLoaderBrowser`
+  covers both cases by serving a loader with one script removed.
+  `window.AuraDriftApp.stats()` is a read-only per-window diagnostic used by the
+  `TestDesktopAuraDrift*Browser` checks (drive/dispose, five-case quality
+  matrix, night-harbour wet pass, stale loader; `AURAGO_RUN_BROWSER_SMOKE=1`).
+  Verify
+  `TestAuraDrift*`, `node scripts/test-aura-drift-{physics,tracks,balance}.mjs`;
+  see `documentation/aura-drift.md`.
 - `galaxa-*.js` implements Galaxa Deluxe, a modular Canvas 2D arcade shooter
   with procedural audio, biomed progression, parry/super combat, and persistent
   meta-progression.

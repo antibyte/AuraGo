@@ -10936,5 +10936,6 @@
   "desktop.mc_state_waiting": "प्रतीक्षा में",
   "desktop.mc_error_durable_cancel": "इस मिशन में सहेजे गए रन हैं। जिस रन को रोकना है, उसे EasyDrag में खोलें और वहीं रोकें।",
   "aura_drift.catchup": "कैच-अप: पीछे रहने वाले प्रतिद्वंद्वियों को अधिकतम 6% अधिक लक्ष्य गति मिलती है, कभी अधिक ग्रिप नहीं।",
-  "desktop.mc_state_unknown": "अज्ञात"
+  "desktop.mc_state_unknown": "अज्ञात",
+  "aura_drift.load_error_hint": "Ctrl+F5 से पेज रीलोड करें। अगर यह काम न करे तो इस साइट का कैश और सर्विस वर्कर साफ़ करें।"
 }

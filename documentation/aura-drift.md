@@ -76,6 +76,25 @@ allows racing but does not write settings or personal bests.
   `app_aura_drift` plus `aura_drift.*` keys in all 16 Desktop locale bundles, Standard and
   Fruity chrome, and app-owned icon artwork.
 
+## Troubleshooting: empty dark window
+
+If the Aura Drift window opens but stays a flat dark rectangle with no menu, the
+browser is serving a stale `module-loader.js` from the service-worker cache. The
+Service Worker uses a cache-first strategy for versioned static assets, so an
+older loader from before an app module was added can survive a server update.
+Check the server first (`--check-assets`, then request
+`/js/desktop/core/module-loader.js` over the real HTTPS port and confirm it lists
+all ten `aura-drift-*.js` modules); if the server is correct, open the Desktop in
+a private window. If it works there, clear this site's cache and unregister its
+Service Worker, then reload with Ctrl+F5.
+
+The app shell defends against partial module sets: it verifies required factories
+before boot, shows a translated error panel with the missing file names and a
+reload button when one is absent, and replaces the optional WebGL2 post pass with
+a no-op so the game stays fully playable on Canvas 2D. `window.AuraDriftApp.stats()`
+reports `post.degraded` when that fallback is active.
+`TestDesktopAuraDriftStaleLoaderBrowser` covers both cases.
+
 ## Boundaries
 
 "Perfect physics" in the plan means deterministic, frame-rate independent, collision-safe,
