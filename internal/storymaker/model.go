@@ -426,7 +426,7 @@ var (
 // Phase 1 plays these beats (show only with item or text) and transitions; everything else
 // is accepted, ignored by the player and reported as a minor not_supported_yet issue.
 var (
-	phase1Beats       = nameSet("enter", "exit", "walk", "move", "pose", "gesture", "emote", "look", "show", "hide", "camera", "wait")
+	phase1Beats       = nameSet("enter", "exit", "walk", "move", "pose", "gesture", "emote", "look", "show", "hide", "highlight", "camera", "wait")
 	phase1Transitions = nameSet("cut", "fade", "slide-left", "wipe")
 )
 

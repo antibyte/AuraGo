@@ -110,7 +110,8 @@ check('compile: the phase-1 support matrix reports not_supported_yet and falls b
         { id: 'b', transition: 'zoom' }, { id: 'c', transition: 'slide-right' }, { id: 'd', transition: 'wipe' }, { id: 'e', transition: 'slide-left' }, { id: 'f', transition: 'blink' }] };
     const out = SM.compile(s, {}, catalog), issues = plain(out.report.issues);
     const codes = (path, code) => issues.filter(i => i.path === path && i.code === code);
-    for (const j of [0, 1, 2, 3]) assert.equal(codes('/scenes/0/beats/' + j, 'not_supported_yet').length, 1, 'beat ' + j);
+    assert.equal(codes('/scenes/0/beats/0', 'not_supported_yet').length, 0, 'highlight is played');
+    for (const j of [1, 2, 3]) assert.equal(codes('/scenes/0/beats/' + j, 'not_supported_yet').length, 1, 'beat ' + j);
     assert.equal(codes('/scenes/0/beats/4', 'not_supported_yet').length, 1, 'show with an icon');
     assert.equal(codes('/scenes/0/beats/5', 'not_supported_yet').length, 1, 'show with a chart');
     assert.ok(issues.every(i => i.code !== 'not_supported_yet' || i.severity === 'minor'));

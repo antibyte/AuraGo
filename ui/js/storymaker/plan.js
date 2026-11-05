@@ -16,7 +16,7 @@
     };
     // What the phase-1 player implements.
     var SUPPORTED_TRANSITIONS = ['cut', 'fade', 'slide-left', 'wipe'];
-    var SUPPORTED_BEATS = ['enter', 'exit', 'walk', 'move', 'pose', 'gesture', 'emote', 'look', 'show', 'hide', 'camera', 'wait'];
+    var SUPPORTED_BEATS = ['enter', 'exit', 'walk', 'move', 'pose', 'gesture', 'emote', 'look', 'show', 'hide', 'highlight', 'camera', 'wait'];
     var DEFAULT_TRANSITION_SECONDS = { 'cut': 0, 'fade': 0.5, 'slide-left': 0.5, 'slide-right': 0.5, 'slide-up': 0.5, 'slide-down': 0.5, 'wipe': 0.5, 'zoom': 0.6, 'iris': 0.6, 'whip': 0.35 };
     var MIN_SCENE_SECONDS = 1.0;
     var MAX_CODE_SECONDS = 600;

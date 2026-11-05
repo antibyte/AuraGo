@@ -64,6 +64,41 @@ check('determinism: the same frame renders the same call log, in any order, from
     assert.ok(placeholder.some(l => l.includes('Code scene')), 'a code scene without a frame shows a placeholder');
 });
 
+check('highlight: pulse peaks at 1.08 on a prop and a text, outline strokes 6 design pixels in $accent, arrow draws above the entity', () => {
+    const r3 = v => String(Math.round(v * 1000) / 1000);
+    const onProp = style => SM.compile({ scenes: [{ id: 'a', transition: 'cut', props: [{ id: 'lock', item: 'prop.lock', at: 'center' }], beats: [{ do: 'highlight', target: 'lock', style }] }] }, {}, catalog).timeline;
+    const onText = style => SM.compile({ scenes: [{ id: 'a', transition: 'cut', beats: [{ do: 'show', id: 't1', text: 'Hallo', entry: 'none' }, { do: 'highlight', target: 't1', style }] }] }, {}, catalog).timeline;
+    // The beat starts at scene time 0 and lasts the default 0.8 s, so u = t / 0.8. sin(2 PI 2 u) peaks at u = 1/8, which is
+    // frame 3 at 30 fps, and bottoms at u = 3/8, which is frame 9.
+    let peak = 0;
+    for (let i = 0; i <= 800; i++) peak = Math.max(peak, SM.render.pulseOf({ highlight: { style: 'pulse', u: i / 800 } }));
+    near(peak, 1.08, 1e-9);
+    // The lock: height 0.14 of 1080 at depth 0.8 + 0.25 x 18/26 (spot y 88 % on the plain stage floor 70..96), viewbox 100 x 120,
+    // bottom centre on (960, 950.4).
+    const depth = 0.8 + 0.25 * (18 / 26), boxH = 0.14 * 1080 * depth, boxW = boxH * 100 / 120, top = 0.88 * 1080 - boxH;
+    const scaled = 'setTransform(' + r3(boxH / 120 * 1.08) + ',0,0,' + r3(boxH / 120 * 1.08) + ',';
+    assert.ok(renderLog(onProp('pulse'), 3).some(l => l.startsWith(scaled)), 'the prop is drawn at 1.08 times its size at the peak');
+    assert.ok(!renderLog(onProp('pulse'), 0).some(l => l.startsWith(scaled)), 'and at its own size at u = 0');
+    // A text: the transform scales around the anchor (960, 302.4), which is 28 % of 1080 on the centre line.
+    const textLog = renderLog(onText('pulse'), 3);
+    const tr = textLog.indexOf('setTransform(1.08,0,0,1.08,' + r3(960 * -0.08) + ',' + r3(302.4 * -0.08) + ')');
+    assert.ok(tr >= 0, 'drawText applies the pulse as a canvas transform');
+    assert.ok(textLog.findIndex(l => l.startsWith('fillText(Hallo')) > tr, 'the text is drawn under it');
+    // Outline: the strokes run in design pixels under the stage matrix, in the mini palette's accent.
+    const outline = renderLog(onProp('outline'), 3);
+    const at = outline.indexOf('strokeRect(' + [960 - boxW / 2, top, boxW, boxH].map(r3).join(',') + ')');
+    assert.ok(at > 0, 'the stroke follows the entity box');
+    assert.deepEqual(outline.slice(at - 2, at), ['set strokeStyle=#ff7a45', 'set lineWidth=6']);
+    // A text box lives in canvas pixels, so at half size 6 design pixels are 3 canvas pixels.
+    const half = renderLog(onText('outline'), 3, undefined, 960);
+    assert.equal(half[half.findIndex(l => l.startsWith('strokeRect(')) - 1], 'set lineWidth=3');
+    // Arrow: the tip sits 40 px above the box, plus 8 px at the sine's peak and minus 8 px at its low.
+    const high = renderLog(onProp('arrow'), 3), tip = high.indexOf('moveTo(960,' + r3(top - 48) + ')');
+    assert.ok(tip > high.findLastIndex(l => l.includes('M28,52')), 'the arrow is above the lock and drawn after it');
+    assert.equal(high[tip - 2], 'set fillStyle=#ff7a45');
+    assert.ok(renderLog(onProp('arrow'), 9).includes('moveTo(960,' + r3(top - 32) + ')'), 'the arrow bobs 8 px');
+});
+
 check('rig state: a gesture in progress, the seated typing pose, the walk cycle in profile', () => {
     const point = t.byId('gesture.point');
     // rigState: a gesture in progress, the typing pose seated, the walk cycle in profile

@@ -286,6 +286,14 @@
                     e.alpha.add(t0, t0 + dur, 0, easeOf(b));
                 }
             },
+            highlight: {
+                dur: function () { return SM.motion.DEFAULTS.highlight * SM.motion.factor(c.story.style); },
+                run: function (b, j, t0, dur) {
+                    var e = find(b.target);
+                    if (!e) { warn('warning', beatPath(j, 'target'), 'unknown_name', 'Nothing named "' + b.target + '" to highlight.'); return; }
+                    e.highlights.add(t0, t0 + dur, { style: b.style === 'outline' || b.style === 'arrow' ? b.style : 'pulse' });
+                }
+            },
             camera: {
                 dur: function (b) { return (b.op === 'shake' ? DEF.shake : DEF.camera) * f; },
                 run: function (b, j, t0, dur) {

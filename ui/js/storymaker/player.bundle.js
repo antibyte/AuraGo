@@ -1310,6 +1310,7 @@
         e.expr = new t.StepTrack(def.expression || 'neutral');
         e.gestures = new t.Intervals();
         e.walks = new t.Intervals();
+        e.highlights = new t.Intervals();
         e.phase = def.phase || 0;
         if (def.hidden) e.alpha.init = 0;
         return e;
@@ -1320,6 +1321,7 @@
         var e = base('prop', def.id, def.x, def.y);
         e.item = def.item;
         e.layer = def.layer === 'back' ? 'back' : 'front';
+        e.highlights = new (T().Intervals)();
         e.baseScale = def.scale > 0 ? def.scale : 1;
         if (def.hidden) e.alpha.init = 0;
         return e;
@@ -1330,6 +1332,7 @@
         var e = base('text', def.id, def.x, def.y);
         e.text = String(def.text === undefined || def.text === null ? '' : def.text);
         e.style = def.style || 'title';
+        e.highlights = new (T().Intervals)();
         e.baseScale = 1;
         if (def.hidden) e.alpha.init = 0;
         return e;
@@ -1380,6 +1383,8 @@
             s.color = e.color;
             s.stroke = e.stroke;
         }
+        var h = e.highlights ? e.highlights.active(t) : null;
+        if (h) s.highlight = { style: h.data.style, u: h.t1 > h.t0 ? (t - h.t0) / (h.t1 - h.t0) : 1 };
         return s;
     }
 
@@ -1389,6 +1394,8 @@
             var lists = [e.gestures.list, e.walks.list];
             for (var k = 0; k < lists.length; k++) for (var i = 0; i < lists[k].length; i++) if (lists[k][i].t1 > end) end = lists[k][i].t1;
         }
+        var marks = e.highlights ? e.highlights.list : [];
+        for (var m = 0; m < marks.length; m++) if (marks[m].t1 > end) end = marks[m].t1;
         return end;
     }
 
@@ -1473,7 +1480,7 @@
     };
     // What the phase-1 player implements.
     var SUPPORTED_TRANSITIONS = ['cut', 'fade', 'slide-left', 'wipe'];
-    var SUPPORTED_BEATS = ['enter', 'exit', 'walk', 'move', 'pose', 'gesture', 'emote', 'look', 'show', 'hide', 'camera', 'wait'];
+    var SUPPORTED_BEATS = ['enter', 'exit', 'walk', 'move', 'pose', 'gesture', 'emote', 'look', 'show', 'hide', 'highlight', 'camera', 'wait'];
     var DEFAULT_TRANSITION_SECONDS = { 'cut': 0, 'fade': 0.5, 'slide-left': 0.5, 'slide-right': 0.5, 'slide-up': 0.5, 'slide-down': 0.5, 'wipe': 0.5, 'zoom': 0.6, 'iris': 0.6, 'whip': 0.35 };
     var MIN_SCENE_SECONDS = 1.0;
     var MAX_CODE_SECONDS = 600;
@@ -1982,6 +1989,14 @@
                     e.alpha.add(t0, t0 + dur, 0, easeOf(b));
                 }
             },
+            highlight: {
+                dur: function () { return SM.motion.DEFAULTS.highlight * SM.motion.factor(c.story.style); },
+                run: function (b, j, t0, dur) {
+                    var e = find(b.target);
+                    if (!e) { warn('warning', beatPath(j, 'target'), 'unknown_name', 'Nothing named "' + b.target + '" to highlight.'); return; }
+                    e.highlights.add(t0, t0 + dur, { style: b.style === 'outline' || b.style === 'arrow' ? b.style : 'pulse' });
+                }
+            },
             camera: {
                 dur: function (b) { return (b.op === 'shake' ? DEF.shake : DEF.camera) * f; },
                 run: function (b, j, t0, dur) {
@@ -2367,6 +2382,8 @@
 
     var FALLBACK_TEXT_STYLE = { font: 'default', size: 0.06, weight: 700, color: '$text', align: 'center', max_lines: 2 };
     var SHADOW_ALPHA = 0.16;
+    var PULSE_AMOUNT = 0.08, PULSE_CYCLES = 2, OUTLINE_PX = 6, ARROW_PX = 40, ARROW_BOB_PX = 8, ARROW_SIZE_PX = 28;
+    var ACTOR_BOX_WIDTH = 0.42;   // of the actor's height: the rig has no width of its own
 
     function R() { return SM.rig; }
     function scaleM(sx, sy) { return [sx, 0, 0, sy, 0, 0]; }
@@ -2519,6 +2536,77 @@
         }
     }
 
+    // pulseOf(st): the scale factor of a running pulse highlight, else 1. It peaks at u = 1/8.
+    function pulseOf(st) {
+        var h = st.highlight;
+        return h && h.style === 'pulse' ? 1 + PULSE_AMOUNT * Math.sin(2 * Math.PI * PULSE_CYCLES * h.u) : 1;
+    }
+
+    function layText(ctx, st, style, rc, x, align) {
+        return SM.text.layout(ctx, st.text, style, { canvasH: rc.H, maxWidth: SM.text.maxWidthFor(rc.W, rc.safe, x, align), family: familyOf(rc, style) });
+    }
+
+    // entityBox(st, rc, stage): the box of an actor or a prop in design pixels, or null when its art is missing.
+    function entityBox(st, rc, stage) {
+        var depth = stage.depthScale(st.y, st.depth), h, w;
+        if (st.type === 'prop') {
+            var entry = rc.cat.byId[st.item], part = entry && rc.assets.props && rc.assets.props[entry.file];
+            if (!part) return null;
+            var vb = part.viewbox || [0, 0, 100, 100], anchor = entry.anchor || { x: 0.5, y: 1 };
+            h = (entry.size && entry.size.h > 0 ? entry.size.h : 0.15) * SM.stage.DESIGN_H * depth * st.scale;
+            w = h * (vb[2] || 100) / (vb[3] || 100);
+            return { x: st.x - anchor.x * w, y: st.y - anchor.y * h, w: w, h: h };
+        }
+        var rig = rc.assets.rig;
+        if (!rig) return null;
+        h = R().scaleFor(rig, SM.stage.DESIGN_H, depth, st.scale, R().bodyOf(rig, st.params.body)) * (rig.units_height || 400);
+        w = h * ACTOR_BOX_WIDTH;
+        return { x: st.x - w / 2, y: st.y - h, w: w, h: h };
+    }
+
+    // textBox(ctx, st, rc, stage, bw): the box of a text in canvas pixels, padding included.
+    function textBox(ctx, st, rc, stage, bw) {
+        if (!st.text) return null;
+        var style = rc.cat.textStyles[st.style] || rc.cat.textStyles.title || FALLBACK_TEXT_STYLE;
+        var pos = stage.toCanvas(st.x, st.y, bw), align = style.align || 'center';
+        var lay = layText(ctx, st, style, rc, pos.x, align);
+        var left = align === 'left' ? pos.x : (align === 'right' ? pos.x - lay.width : pos.x - lay.width / 2);
+        return { x: left - lay.pad, y: pos.y - lay.height / 2 - lay.pad, w: lay.width + lay.pad * 2, h: lay.height + lay.pad * 2 };
+    }
+
+    // drawHighlight: the outline or arrow of a running highlight, on top of every entity. Actors and props are drawn through
+    // the camera matrix, so their sizes are design pixels; a text is in canvas pixels, so its sizes follow the stage scale.
+    function drawHighlight(ctx, st, rc, stage, bw, Mv) {
+        var h = st.highlight;
+        if (!h || h.style === 'pulse' || !(st.alpha > 0)) return;
+        var box, unit = 1;
+        if (st.type === 'text') {
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            box = textBox(ctx, st, rc, stage, bw);
+            unit = stage.scale;
+        } else {
+            box = entityBox(st, rc, stage);
+            setM(ctx, Mv);
+        }
+        if (!box) return;
+        var accent = SM.parts.makeResolver([rc.palette])('$accent');
+        ctx.globalAlpha = st.alpha > 1 ? 1 : st.alpha;
+        if (h.style === 'outline') {
+            ctx.strokeStyle = accent;
+            ctx.lineWidth = OUTLINE_PX * unit;
+            ctx.strokeRect(box.x, box.y, box.w, box.h);
+            return;
+        }
+        var cx = box.x + box.w / 2, tip = box.y - (ARROW_PX + ARROW_BOB_PX * Math.sin(2 * Math.PI * PULSE_CYCLES * h.u)) * unit;
+        ctx.fillStyle = accent;
+        ctx.beginPath();
+        ctx.moveTo(cx, tip);
+        ctx.lineTo(cx - ARROW_SIZE_PX / 2 * unit, tip - ARROW_SIZE_PX * unit);
+        ctx.lineTo(cx + ARROW_SIZE_PX / 2 * unit, tip - ARROW_SIZE_PX * unit);
+        ctx.closePath();
+        ctx.fill();
+    }
+
     // drawText: tokens (optional) are the environment's colour tokens; they win over the palette, so a dark environment can carry
     // its own text colour and label box colour.
     function drawText(ctx, st, rc, stage, bw, tokens) {
@@ -2526,8 +2614,11 @@
         var style = rc.cat.textStyles[st.style] || rc.cat.textStyles.title || FALLBACK_TEXT_STYLE;
         var pos = stage.toCanvas(st.x, st.y, bw), align = style.align || 'center';
         ctx.setTransform(1, 0, 0, 1, 0, 0);
-        var lay = SM.text.layout(ctx, st.text, style, { canvasH: rc.H, maxWidth: SM.text.maxWidthFor(rc.W, rc.safe, pos.x, align), family: familyOf(rc, style) });
+        var lay = layText(ctx, st, style, rc, pos.x, align), k = pulseOf(st);
+        // a text reads no scale otherwise: a pulse scales it around its anchor
+        if (k !== 1) ctx.setTransform(k, 0, 0, k, pos.x * (1 - k), pos.y * (1 - k));
         SM.text.draw(ctx, lay, style, pos.x, pos.y, SM.parts.makeResolver([tokens, rc.palette]), st.alpha);
+        if (k !== 1) ctx.setTransform(1, 0, 0, 1, 0, 0);
     }
 
     // drawScene(ctx, sc, t, rc): a storyboard or code-scene-like object {env, variant, camera, entities, stages}.
@@ -2536,7 +2627,7 @@
         var cam = SM.camera.at(sc.camera, t), win = stage.cameraWindow(cam), bw = stage.baseWindow(), Mv = stage.matrix(win);
         drawBackdrop(ctx, rc);
         drawEnvironment(ctx, sc, rc, win, bw, Mv);
-        var states = sc.entities.map(function (e, k) { var s = SM.scene.evalEntity(e, t); s.k = k; return s; });
+        var states = sc.entities.map(function (e, k) { var s = SM.scene.evalEntity(e, t); s.k = k; s.scale *= pulseOf(s); return s; });
         var live = function (s) { return s.alpha > 0; };
         states.filter(function (s) { return s.type === 'prop' && s.layer === 'back' && live(s); }).forEach(function (s) { drawProp(ctx, s, rc, stage, Mv); });
         states.filter(function (s) { return s.type === 'actor' && live(s); })
@@ -2546,6 +2637,7 @@
         states.filter(function (s) { return s.type === 'shape' && live(s); }).forEach(function (s) { drawShapeEntity(ctx, s, rc, Mv); });
         var tokens = envTokens(sc, rc);
         states.filter(function (s) { return s.type === 'text'; }).forEach(function (s) { drawText(ctx, s, rc, stage, bw, tokens); });
+        states.forEach(function (s) { drawHighlight(ctx, s, rc, stage, bw, Mv); });
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.globalAlpha = 1;
     }
@@ -2595,7 +2687,7 @@
 
     SM.render = {
         renderFrame: renderFrame, drawScene: drawScene, rigState: rigState, makeContext: makeContext, familyOf: familyOf,
-        drawBackdrop: drawBackdrop, drawText: drawText, stageFor: stageFor
+        drawBackdrop: drawBackdrop, drawText: drawText, stageFor: stageFor, pulseOf: pulseOf
     };
     SM.renderFrame = renderFrame;
 })(typeof globalThis !== 'undefined' ? globalThis : self);

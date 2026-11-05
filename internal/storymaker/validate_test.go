@@ -173,7 +173,6 @@ func TestValidateNames(t *testing.T) {
 		{"transition not played yet", `{"id":"s1","transition":"slide-right"}`, CodeNotSupportedYet, SeverityMinor, "/scenes/0/transition"},
 		{"transition zoom", `{"id":"s1","transition":"zoom"}`, CodeNotSupportedYet, SeverityMinor, "/scenes/0/transition"},
 		{"say beat", `{"id":"s1","actors":[{"cast":"anna"}],"beats":[{"do":"say","who":"anna","style":"speech","text":"Hi"}]}`, CodeNotSupportedYet, SeverityMinor, "/scenes/0/beats/0"},
-		{"highlight beat", `{"id":"s1","props":[{"id":"a","item":"prop.lock"}],"beats":[{"do":"highlight","target":"a","style":"pulse"}]}`, CodeNotSupportedYet, SeverityMinor, "/scenes/0/beats/0"},
 		{"sfx beat", `{"id":"s1","beats":[{"do":"sfx","sound":"sfx.pop"}]}`, CodeNotSupportedYet, SeverityMinor, "/scenes/0/beats/0"},
 		{"chart beat", `{"id":"s1","beats":[{"do":"chart","chart":"bar","data":{"labels":["a"],"values":[1]},"at":"right"}]}`, CodeNotSupportedYet, SeverityMinor, "/scenes/0/beats/0"},
 		{"show with icon", `{"id":"s1","beats":[{"do":"show","icon":"warning","at":"center","entry":"pop"}]}`, CodeNotSupportedYet, SeverityMinor, "/scenes/0/beats/0"},
@@ -189,6 +188,16 @@ func TestValidateNames(t *testing.T) {
 		`{"do":"gesture","who":"anna","gesture":"point","count":2,"ease":"back-out"},{"do":"show","text":"Hi","style":"title","at":"center","entry":"fade"}]}`
 	if issues := validateScenes(t, clean); len(issues) != 0 {
 		t.Errorf("supported names rejected:%s", dump(issues))
+	}
+}
+
+// The highlight beat is played from phase 2 on, so Validate no longer marks it.
+func TestValidateHighlightIsSupported(t *testing.T) {
+	for _, style := range []string{"pulse", "outline", "arrow"} {
+		issues := validateScenes(t, `{"id":"s1","props":[{"id":"a","item":"prop.lock"}],"beats":[{"do":"highlight","target":"a","style":"`+style+`"}]}`)
+		if is := findIssue(issues, CodeNotSupportedYet, SeverityMinor, "/scenes/0/beats/0"); is != nil {
+			t.Errorf("%s still reports not_supported_yet:%s", style, dump(issues))
+		}
 	}
 }
 

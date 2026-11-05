@@ -55,6 +55,7 @@
         e.expr = new t.StepTrack(def.expression || 'neutral');
         e.gestures = new t.Intervals();
         e.walks = new t.Intervals();
+        e.highlights = new t.Intervals();
         e.phase = def.phase || 0;
         if (def.hidden) e.alpha.init = 0;
         return e;
@@ -65,6 +66,7 @@
         var e = base('prop', def.id, def.x, def.y);
         e.item = def.item;
         e.layer = def.layer === 'back' ? 'back' : 'front';
+        e.highlights = new (T().Intervals)();
         e.baseScale = def.scale > 0 ? def.scale : 1;
         if (def.hidden) e.alpha.init = 0;
         return e;
@@ -75,6 +77,7 @@
         var e = base('text', def.id, def.x, def.y);
         e.text = String(def.text === undefined || def.text === null ? '' : def.text);
         e.style = def.style || 'title';
+        e.highlights = new (T().Intervals)();
         e.baseScale = 1;
         if (def.hidden) e.alpha.init = 0;
         return e;
@@ -125,6 +128,8 @@
             s.color = e.color;
             s.stroke = e.stroke;
         }
+        var h = e.highlights ? e.highlights.active(t) : null;
+        if (h) s.highlight = { style: h.data.style, u: h.t1 > h.t0 ? (t - h.t0) / (h.t1 - h.t0) : 1 };
         return s;
     }
 
@@ -134,6 +139,8 @@
             var lists = [e.gestures.list, e.walks.list];
             for (var k = 0; k < lists.length; k++) for (var i = 0; i < lists[k].length; i++) if (lists[k][i].t1 > end) end = lists[k][i].t1;
         }
+        var marks = e.highlights ? e.highlights.list : [];
+        for (var m = 0; m < marks.length; m++) if (marks[m].t1 > end) end = marks[m].t1;
         return end;
     }
 
