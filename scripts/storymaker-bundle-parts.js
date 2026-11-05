@@ -13,6 +13,7 @@ export const storymakerHostParts = [
 
 export const storymakerPlayerParts = [
   'ui/js/storymaker/ease.js',
+  'ui/js/storymaker/seed.js',
   'ui/js/storymaker/ranges.js',
   'ui/js/storymaker/timeline.js',
   'ui/js/storymaker/schedule.js',

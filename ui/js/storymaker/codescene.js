@@ -12,22 +12,8 @@
     var MAX_DURATION = 600;
     var TWEEN_PROPS = { opacity: 'alpha', x: 'x', y: 'y', scale: 'scale', rotation: 'rot', width: 'w', height: 'h' };
 
-    function hashSeed(seed) {
-        var s = String(seed === undefined ? 0 : seed), h = 2166136261;
-        for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
-        return h >>> 0;
-    }
-
-    // random(seed): mulberry32, the only randomness a scene has.
-    function random(seed) {
-        var a = hashSeed(seed);
-        return function () {
-            a = (a + 0x6D2B79F5) | 0;
-            var t = Math.imul(a ^ (a >>> 15), 1 | a);
-            t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-        };
-    }
+    // random(seed): mulberry32, the only randomness a scene has. SM.seed owns the generator.
+    function random(seed) { return SM.seed.random(seed); }
 
     function finite(v, what) {
         if (typeof v !== 'number' || !isFinite(v)) throw new TypeError(what + ' must be a number, got ' + String(v));

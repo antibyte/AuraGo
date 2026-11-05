@@ -78,6 +78,48 @@ check('code scene API: api.random is seeded, api.cue maps to cue times, errors n
     assert.equal(err("export default function s(api) { api.cue(1); }"), '');
 });
 
+check('seed: the generator moved to SM.seed without changing a code scene, and takeIndex never repeats the last take', () => {
+    // The generator exactly as it stood in codescene.js before the move. It stays here as the reference.
+    const before = seed => {
+        const s = String(seed === undefined ? 0 : seed);
+        let h = 2166136261;
+        for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+        let a = h >>> 0;
+        return () => {
+            a = (a + 0x6D2B79F5) | 0;
+            let x = Math.imul(a ^ (a >>> 15), 1 | a);
+            x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x;
+            return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+        };
+    };
+    for (const seed of [undefined, 0, 42, '42', 's1:0:sfx.pop', 'x'.repeat(40)]) {
+        const ref = before(seed), viaSeed = SM.seed.random(seed), viaScene = SM.codescene.random(seed);
+        for (let i = 0; i < 16; i++) {
+            const want = ref();
+            assert.equal(viaSeed(), want);
+            assert.equal(viaScene(), want);
+        }
+    }
+    // Published FNV-1a 32-bit test vectors.
+    assert.equal(SM.seed.hash(''), 0x811C9DC5);
+    assert.equal(SM.seed.hash('a'), 0xE40C292C);
+    // A scene that draws from api.random still gets the same picture: x is percent / 100 * 1920.
+    const { build } = runScene(`export default function scene(api) {
+      const box = api.shape('rect', { at: { x: 50, y: 50 }, w: 200, h: 100 });
+      api.tween(box, { x: api.random(7)() * 100 }, { start: 0, dur: 1, ease: 'linear' });
+    }`, 'seeded');
+    near(build().entities[0].x.at(1), before(7)() * 1920, 1e-6, 'x from api.random');
+    // takeIndex: the rule of frozen section 4.2, as a property over many keys.
+    for (const count of [2, 3, 4]) {
+        for (let key = 0; key < 50; key++) {
+            const fresh = SM.seed.takeIndex('s1', 3, 'sfx.pop', key, count, -1);
+            assert.ok(fresh >= 0 && fresh < count, 'in range');
+            assert.equal(SM.seed.takeIndex('s1', 3, 'sfx.pop', key, count, fresh), (fresh + 1) % count, 'never the last take');
+        }
+    }
+    assert.equal(SM.seed.takeIndex('s1', 3, 'sfx.pop', 0, 1, 0), 0, 'a sound with one take repeats it');
+});
+
 check('code scene frames: the onFrame hook draws through a restricted facade', () => {
     const { C, build } = runScene(`export default function scene(api) {
       api.duration(2);
