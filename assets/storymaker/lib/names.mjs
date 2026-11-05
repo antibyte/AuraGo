@@ -94,6 +94,14 @@ export const NAMES = {
   'trans.fade': ['Prolnutí', 'Fade', 'Überblendung', 'Σβήσιμο', 'Fade', 'Fundido', 'Fondu', 'फ़ेड', 'Dissolvenza', 'フェード', 'Overvloeien', 'Toning', 'Zanikanie', 'Desvanecer', 'Toning', '淡入淡出'],
   'trans.slide-left': ['Posun doleva', 'Skub til venstre', 'Nach links schieben', 'Ολίσθηση αριστερά', 'Slide left', 'Deslizar a la izquierda', 'Glisser vers la gauche', 'बाईं ओर स्लाइड', 'Scorri a sinistra', '左へスライド', 'Naar links schuiven', 'Skyv til venstre', 'Przesunięcie w lewo', 'Deslizar para a esquerda', 'Skjut åt vänster', '向左滑动'],
   'trans.wipe': ['Stírání', 'Wipe-overgang', 'Wischblende', 'Εναλλαγή σάρωσης', 'Wipe', 'Cortinilla', 'Volet', 'वाइप', 'Tendina', 'ワイプ', 'Veegovergang', 'Wipe-overgang', 'Wycieranie', 'Cortina', 'Svepövergång', '擦除'],
+  // sound effects
+  'sfx.whoosh': ['Svist', 'Sus', 'Wusch', 'Σφύριγμα', 'Whoosh', 'Silbido', 'Souffle', 'सरसराहट', 'Fruscio', 'シュッという音', 'Zoef', 'Sus', 'Świst', 'Zunido', 'Sus', '嗖声'],
+  'sfx.pop': ['Lupnutí', 'Plop', 'Plopp', 'Σκάσιμο', 'Pop', 'Chasquido', 'Éclatement', 'पॉप ध्वनि', 'Schiocco', 'ポンという音', 'Plop', 'Plopp', 'Pyknięcie', 'Estalo', 'Plopp', '啵声'],
+  'sfx.click': ['Kliknutí', 'Klik', 'Klick', 'Κλικ', 'Click', 'Clic', 'Clic', 'क्लिक', 'Clic', 'クリック音', 'Klik', 'Klikk', 'Kliknięcie', 'Clique', 'Klick', '点击声'],
+  'sfx.ding': ['Cinknutí', 'Kling', 'Ding', 'Κουδούνισμα', 'Ding', 'Campanilla', 'Tintement', 'घंटी की आवाज़', 'Rintocco', 'チーンという音', 'Ping', 'Pling', 'Dzwonek', 'Toque de sino', 'Pling', '叮声'],
+  'sfx.success': ['Úspěch', 'Succes', 'Erfolg', 'Επιτυχία', 'Success', 'Éxito', 'Réussite', 'सफलता', 'Successo', '成功音', 'Succes', 'Suksess', 'Sukces', 'Sucesso', 'Framgång', '成功音'],
+  'sfx.error': ['Chyba', 'Fejl', 'Fehler', 'Σφάλμα', 'Error', 'Error', 'Erreur', 'त्रुटि', 'Errore', 'エラー音', 'Fout', 'Feil', 'Błąd', 'Erro', 'Fel', '错误音'],
+  'sfx.typing': ['Psaní na klávesnici', 'Tastetryk', 'Tippen', 'Πληκτρολόγηση', 'Typing', 'Tecleo', 'Frappe au clavier', 'टाइपिंग', 'Digitazione', 'タイピング音', 'Typen', 'Tastetrykk', 'Pisanie na klawiaturze', 'Digitação', 'Tangentnedslag', '打字声'],
   // palettes
   'palette.sunny': ['Slunečná', 'Solrig', 'Sonnig', 'Ηλιόλουστη', 'Sunny', 'Soleada', 'Ensoleillée', 'धूप भरी', 'Soleggiata', 'サニー', 'Zonnig', 'Solfylt', 'Słoneczna', 'Ensolarada', 'Solig', '阳光'],
   'palette.calm': ['Klidná', 'Rolig', 'Ruhig', 'Ήρεμη', 'Calm', 'Tranquila', 'Calme', 'शांत', 'Calma', 'カーム', 'Rustig', 'Rolig', 'Spokojna', 'Calma', 'Lugn', '宁静'],

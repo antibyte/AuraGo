@@ -78,6 +78,13 @@
   "storymaker.catalog.trans_fade": "Toning",
   "storymaker.catalog.trans_slide-left": "Skyv til venstre",
   "storymaker.catalog.trans_wipe": "Wipe-overgang",
+  "storymaker.catalog.sfx_whoosh": "Sus",
+  "storymaker.catalog.sfx_pop": "Plopp",
+  "storymaker.catalog.sfx_click": "Klikk",
+  "storymaker.catalog.sfx_ding": "Pling",
+  "storymaker.catalog.sfx_success": "Suksess",
+  "storymaker.catalog.sfx_error": "Feil",
+  "storymaker.catalog.sfx_typing": "Tastetrykk",
   "storymaker.catalog.palette_sunny": "Solfylt",
   "storymaker.catalog.palette_calm": "Rolig"
 }

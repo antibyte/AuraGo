@@ -5,6 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
+import fs from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -23,7 +24,7 @@ test('two builds produce identical bytes and the version hash follows the files'
   assert.match(a.manifest.version, /^[0-9a-f]{12}$/);
   for (const text of a.files.values()) if (!Buffer.isBuffer(text)) assert.ok(!text.includes('\r'), 'LF only');
   // 105 phase 1 files, glyphs.json and 3 new thumbnails
-  assert.equal(a.files.size, 109);
+  assert.equal(a.files.size, 134); // 109 after batch 2B plus 25 WAVs
 });
 
 test('versionOf hashes a Buffer raw and text LF-normalised, and sameOutput follows the same rule', () => {
@@ -90,7 +91,7 @@ test('the manifest follows the contract: stage, rig, fonts, palettes and entry s
   assert.deepEqual(byId['env.office'].variants, ['day', 'night']);
   assert.equal(byId['cycle.walk'].speed, 16);
   assert.equal(byId['cycle.idle'].speed, undefined);
-  assert.equal(entries.length, 79);
+  assert.equal(entries.length, 86); // 79 after batch 2B plus 7 sfx
 });
 
 test('the bubble and subtitle styles have size 0.042 and a name in 16 locales', () => {
@@ -102,6 +103,46 @@ test('the bubble and subtitle styles have size 0.042 and a name in 16 locales', 
     assert.equal(style?.kind, 'text_style', id);
     assert.equal(style.size, 0.042, id);
     for (const lang of LANGS) assert.ok(tables[lang][nameKey(id)]?.trim(), id + ' in ' + lang);
+  }
+});
+
+test('the sfx entries follow the frozen shape', () => {
+  const { entries, files } = buildOutputs();
+  const sfx = entries.filter((e) => e.kind === 'sfx');
+  // frozen catalog sfx entry: seven names, 4 + 4 + 4 + 3 + 2 + 2 + 6 = 25 takes
+  assert.deepEqual(sfx.map((e) => [e.id, e.takes.length]), [['sfx.whoosh', 4], ['sfx.pop', 4], ['sfx.click', 4], ['sfx.ding', 3], ['sfx.success', 2], ['sfx.error', 2], ['sfx.typing', 6]]);
+  const byId = Object.fromEntries(sfx.map((e) => [e.id, e]));
+  assert.deepEqual(byId['sfx.typing'].pattern, { spacing_ms: [90, 140], default_duration_ms: 1200 });
+  assert.equal(byId['sfx.typing'].hit, undefined);
+  assert.equal(byId['sfx.error'].align, 'onset');
+  assert.equal(byId['sfx.success'].align, 'onset');
+  assert.equal(byId['sfx.pop'].align, 'peak');
+  assert.deepEqual(byId['sfx.pop'].hit, { over_db: 4.5, dip_db: 3 });
+  assert.deepEqual(byId['sfx.ding'].hit, { over_db: 4.5, dip_db: 3 });
+  assert.deepEqual(byId['sfx.success'].hit, { over_db: 4.5, dip_db: 4 });
+  assert.deepEqual(byId['sfx.error'].hit, { over_db: 4.5, dip_db: 4 });
+  assert.equal(byId['sfx.whoosh'].hit, undefined);
+  assert.equal(byId['sfx.click'].hit, undefined);
+  assert.equal(byId['sfx.pop'].impact_ms, 3.75); // (3.5 + 4.5 + 3.5 + 3.5) / 4
+  for (const e of sfx) {
+    assert.equal(e.thumb, '', e.id);
+    assert.equal(e.file, e.takes[0].file, e.id);
+    for (const t of e.takes) assert.ok(Buffer.isBuffer(files.get(t.file)), t.file);
+  }
+});
+
+test('--check fails when one byte of a copied WAV changes', () => {
+  const wav = path.join(root, 'ui', 'img', 'storymaker', 'sfx', 'pop_1.wav');
+  const original = fs.readFileSync(wav);
+  const changed = Buffer.from(original);
+  changed[changed.length - 1] ^= 1;
+  fs.writeFileSync(wav, changed);
+  try {
+    const r = spawnSync(process.execPath, [path.join(root, 'scripts', 'build-storymaker-catalog.mjs'), '--check'], { cwd: root, encoding: 'utf8' });
+    assert.equal(r.status, 1, r.stdout + r.stderr);
+    assert.match(r.stderr, /differs: .*pop_1\.wav/);
+  } finally {
+    fs.writeFileSync(wav, original);
   }
 });
 

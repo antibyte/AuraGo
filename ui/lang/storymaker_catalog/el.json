@@ -78,6 +78,13 @@
   "storymaker.catalog.trans_fade": "Σβήσιμο",
   "storymaker.catalog.trans_slide-left": "Ολίσθηση αριστερά",
   "storymaker.catalog.trans_wipe": "Εναλλαγή σάρωσης",
+  "storymaker.catalog.sfx_whoosh": "Σφύριγμα",
+  "storymaker.catalog.sfx_pop": "Σκάσιμο",
+  "storymaker.catalog.sfx_click": "Κλικ",
+  "storymaker.catalog.sfx_ding": "Κουδούνισμα",
+  "storymaker.catalog.sfx_success": "Επιτυχία",
+  "storymaker.catalog.sfx_error": "Σφάλμα",
+  "storymaker.catalog.sfx_typing": "Πληκτρολόγηση",
   "storymaker.catalog.palette_sunny": "Ηλιόλουστη",
   "storymaker.catalog.palette_calm": "Ήρεμη"
 }

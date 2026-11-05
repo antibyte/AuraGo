@@ -78,6 +78,13 @@
   "storymaker.catalog.trans_fade": "Prolnutí",
   "storymaker.catalog.trans_slide-left": "Posun doleva",
   "storymaker.catalog.trans_wipe": "Stírání",
+  "storymaker.catalog.sfx_whoosh": "Svist",
+  "storymaker.catalog.sfx_pop": "Lupnutí",
+  "storymaker.catalog.sfx_click": "Kliknutí",
+  "storymaker.catalog.sfx_ding": "Cinknutí",
+  "storymaker.catalog.sfx_success": "Úspěch",
+  "storymaker.catalog.sfx_error": "Chyba",
+  "storymaker.catalog.sfx_typing": "Psaní na klávesnici",
   "storymaker.catalog.palette_sunny": "Slunečná",
   "storymaker.catalog.palette_calm": "Klidná"
 }

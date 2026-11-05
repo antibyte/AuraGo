@@ -315,6 +315,30 @@ func (fx *runFixture) render(t *testing.T) Job {
 	return waitJobFor(t, fx.mgr, job.ID, terminal, 8*time.Minute)
 }
 
+func TestSnapshotHoldsNoWAV(t *testing.T) {
+	ui := os.DirFS(uiDirForTests)
+	cat, err := storymaker.LoadCatalog(ui, "img/storymaker/catalog.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := cat.Lookup("sfx.pop"); !ok {
+		t.Fatal("the real catalog has no sfx.pop")
+	}
+	run := &renderRun{r: NewRunner(Deps{UI: ui, Catalog: cat}), plan: &Plan{StoryJSON: []byte("{}")}}
+	snap, err := run.snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := snap.CatalogFiles["catalog.json"]; !ok {
+		t.Error("the snapshot lost catalog.json")
+	}
+	for rel := range snap.CatalogFiles {
+		if strings.HasSuffix(rel, ".wav") {
+			t.Errorf("the snapshot holds %s", rel)
+		}
+	}
+}
+
 func TestRunRendersAndPublishesTheVideo(t *testing.T) {
 	ffprobe := testBinary(t, "ffprobe")
 	fx := newRunFixture(t)

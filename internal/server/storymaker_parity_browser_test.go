@@ -68,7 +68,7 @@ window.addEventListener('message', async (ev) => {
       const project = await getJSON(API + '/projects/' + PROJECT);
       const catalog = await getJSON('/img/storymaker/catalog.json');
       const files = {};
-      for (const p of [catalog.rig.file].concat(catalog.entries.filter(e => e.file).map(e => e.file))) files['catalog:' + p] = await getJSON('/img/storymaker/' + p);
+      for (const p of [catalog.rig.file].concat(catalog.entries.filter(e => e.file && e.kind !== 'sfx').map(e => e.file))) files['catalog:' + p] = await getJSON('/img/storymaker/' + p);
       const fonts = [];
       for (const f of catalog.fonts) fonts.push({ name: f.name, family: f.family, weight: f.weight, data: await (await fetch(f.file)).arrayBuffer() });
       const bundles = {};

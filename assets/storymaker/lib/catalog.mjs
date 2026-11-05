@@ -2,6 +2,7 @@
 // buildOutputs() returns a Map of repo-relative output paths (below ui/img/storymaker/) to file contents.
 
 import crypto from 'node:crypto';
+import { readFileSync as readSfxFile } from 'node:fs';
 import { buildRig } from './rig.mjs';
 import { PROPS } from './props.mjs';
 import { ENVIRONMENTS, ENV_META } from './environments.mjs';
@@ -102,6 +103,58 @@ function entry(id, kind, name, tags, usage, extra) {
   return { id, kind, name, name_key: nameKey(id), tags, thumb: `thumbs/${id}.svg`, usage_example: usage, ...extra };
 }
 
+// The measured takes of assets/storymaker/sfx, copied from the render sheet (README, "Sound effects").
+// One row per take: [dur_ms, onset_ms, peak_ms, impact_ms, l50_lufs, true_peak_dbtp]. impact_ms is the peak, or the onset with align "onset".
+const SMALL_BELL = 'https://freesound.org/people/steffcaffrey/sounds/452379/';
+const SFX = {
+  whoosh: {
+    tags: ['whoosh', 'swish'], align: 'peak',
+    source: { kind: 'fit', basis: 'earshot 0.4.0 fit/whoosh.short/bamboo_swish', url: 'https://freesound.org/people/Kinoton/sounds/427979/' },
+    takes: [[477, 87, 129.5, 129.5, -18, -11.5], [477, 89, 129.5, 129.5, -18, -12.2], [477, 88.8, 129.5, 129.5, -18, -12.2], [477, 89.2, 130.5, 130.5, -18, -11.5]],
+  },
+  pop: {
+    tags: ['pop'], align: 'peak', hit: { over_db: 4.5, dip_db: 3 },
+    source: { kind: 'forge', basis: 'earshot 0.4.0 pop/0', url: '' },
+    takes: [[200, 0, 3.5, 3.5, -18, -10], [200, 0, 4.5, 4.5, -18, -10.7], [200, 0, 3.5, 3.5, -18, -11], [200, 0, 3.5, 3.5, -18, -10]],
+  },
+  click: {
+    tags: ['click'], align: 'peak',
+    source: { kind: 'fit', basis: 'earshot 0.4.0 fit/click/floss_lid', url: 'https://freesound.org/people/qubodup/sounds/167829/' },
+    takes: [[132, 4, 7.5, 7.5, -18, -2.8], [132, 4.2, 7.5, 7.5, -18.4, -1.5], [132, 4.5, 7.5, 7.5, -18, -1.6], [132, 4.5, 7.5, 7.5, -18.62, -1.5]],
+  },
+  ding: {
+    tags: ['ding', 'bell'], align: 'peak', hit: { over_db: 4.5, dip_db: 3 },
+    source: { kind: 'fit', basis: 'earshot 0.4.0 fit/bell/small_bell', url: SMALL_BELL },
+    takes: [[900, 1.2, 32.5, 32.5, -18, -17.8], [900, 1, 32.5, 32.5, -18, -17.1], [900, 1.2, 32.5, 32.5, -18, -17.7]],
+  },
+  success: {
+    tags: ['success', 'chime'], align: 'onset', hit: { over_db: 4.5, dip_db: 4 },
+    source: { kind: 'fit', basis: 'earshot 0.4.0 fit/bell/small_bell at G7, B7, D8', url: SMALL_BELL },
+    takes: [[1120, 1.2, 138.5, 1.2, -18, -17.2], [1120, 1.2, 28.5, 1.2, -18, -16.3]],
+  },
+  error: {
+    tags: ['error', 'buzz'], align: 'onset', hit: { over_db: 4.5, dip_db: 4 },
+    source: { kind: 'forge', basis: 'earshot 0.4.0 pro_zip/down', url: '' },
+    takes: [[500, 0.8, 41.5, 0.8, -18, -20.5], [500, 0.2, 9.5, 0.2, -18, -19.3]],
+  },
+  typing: {
+    tags: ['typing', 'keyboard'], align: 'peak', pattern: { spacing_ms: [90, 140], default_duration_ms: 1200 },
+    source: { kind: 'forge', basis: 'earshot 0.4.0 typing_key/thock', url: '' },
+    takes: [[336.5, 8.8, 13.5, 13.5, -18, -3.2], [311.5, 8.5, 12.5, 12.5, -18.33, -1.1], [308, 8, 12.5, 12.5, -18, -4.2], [298.5, 7.8, 12.5, 12.5, -18, -2.6], [276.5, 8, 11.5, 11.5, -19.03, -1], [307.6, 8, 12.5, 12.5, -19.21, -1.2]],
+  },
+};
+
+function sfxEntry(name, s) {
+  const id = `sfx.${name}`;
+  const takes = s.takes.map(([dur_ms, onset_ms, peak_ms, impact_ms, l50_lufs, true_peak_dbtp], i) => ({ file: `sfx/${name}_${i + 1}.wav`, dur_ms, onset_ms, peak_ms, impact_ms, l50_lufs, true_peak_dbtp }));
+  const extra = { thumb: '', file: takes[0].file, impact_ms: takes.reduce((sum, t) => sum + t.impact_ms, 0) / takes.length, align: s.align };
+  if (s.hit) extra.hit = s.hit;
+  if (s.pattern) extra.pattern = s.pattern;
+  extra.source = s.source;
+  extra.takes = takes;
+  return entry(id, 'sfx', id, s.tags, { do: 'sfx', sound: id }, extra);
+}
+
 /** All manifest entries in a stable order. */
 export function buildEntries() {
   const out = [];
@@ -144,6 +197,7 @@ export function buildEntries() {
     out.push(entry(`text.${n}`, 'text_style', n, tags, usage, rest));
   }
   for (const [n, t] of Object.entries(TRANSITIONS)) out.push(entry(`trans.${n}`, 'transition', n, t.tags, { transition: n }, { duration: t.duration }));
+  for (const [n, s] of Object.entries(SFX)) out.push(sfxEntry(n, s));
   return out;
 }
 
@@ -202,6 +256,7 @@ function transThumb(name) {
 export function buildThumbs(rig, entries) {
   const out = new Map();
   for (const e of entries) {
+    if (e.kind === 'sfx') continue; // an sfx entry has no image
     const id = e.id;
     let svg;
     switch (e.kind) {
@@ -295,7 +350,7 @@ function manifestText(manifest) {
   return lines.join('\n') + '\n';
 }
 
-/** Every output file below ui/img/storymaker/ as a Map(relative path -> text). */
+/** Every output file below ui/img/storymaker/ as a Map(relative path -> text, or a Buffer for a WAV). */
 export function buildOutputs() {
   const rig = buildRig();
   const entries = buildEntries();
@@ -310,6 +365,7 @@ export function buildOutputs() {
     files.set(`environments/${n}.json`, JSON.stringify({ viewbox: [0, 0, 1920, 1080], layers: e.layers, tokens: e.tokens }) + '\n');
   }
   for (const [p, svg] of buildThumbs(rig, entries)) files.set(p, svg);
+  for (const e of entries) if (e.kind === 'sfx') for (const t of e.takes) files.set(t.file, readSfxFile(new URL(`../${t.file}`, import.meta.url)));
   files.set('glyphs.json', glyphsText(buildGlyphs()));
   const manifest = {
     schema: 'storymaker-catalog/1',

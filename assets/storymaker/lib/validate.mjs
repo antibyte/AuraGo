@@ -19,8 +19,9 @@ export const REQUIRED = {
   cycle: ['cycle.walk', 'cycle.idle'],
   text_style: ['text.title', 'text.caption', 'text.label'],
   transition: ['trans.cut', 'trans.fade', 'trans.slide-left', 'trans.wipe'],
+  sfx: ['whoosh', 'pop', 'click', 'ding', 'success', 'error', 'typing'].map((n) => `sfx.${n}`),
 };
-const PREFIX = { character: 'char.', prop: 'prop.', environment: 'env.', pose: 'pose.', gesture: 'gesture.', expression: 'expr.', mouth: 'mouth.', cycle: 'cycle.', text_style: 'text.', transition: 'trans.' };
+const PREFIX = { character: 'char.', prop: 'prop.', environment: 'env.', pose: 'pose.', gesture: 'gesture.', expression: 'expr.', mouth: 'mouth.', cycle: 'cycle.', text_style: 'text.', transition: 'trans.', sfx: 'sfx.' };
 const BONES = ['root', 'hips', 'torso', 'neck', 'head', 'upper_arm_l', 'lower_arm_l', 'upper_arm_r', 'lower_arm_r', 'upper_leg_l', 'lower_leg_l', 'upper_leg_r', 'lower_leg_r'];
 const SLOT_PARAMS = ['body', 'skin', 'hair', 'hair_back', 'eyes', 'brows', 'mouth', 'hand', 'top', 'bottom', 'shoes', 'glasses', 'facial_hair', 'accessory'];
 const VIEWS = ['front', 'three_quarter', 'profile'];
@@ -71,7 +72,7 @@ export function validateOutputs(built, { maxProblems = 40 } = {}) {
     if (!e.id.startsWith(PREFIX[e.kind] || '\0')) add(`${e.id}: prefix does not match kind ${e.kind}`);
     if (e.name_key !== nameKey(e.id)) add(`${e.id}: wrong name_key`);
     if (!NAMES[e.id]) add(`${e.id}: no names`);
-    if (!files.has(e.thumb)) add(`${e.id}: missing thumbnail ${e.thumb}`);
+    if (e.kind !== 'sfx' && !files.has(e.thumb)) add(`${e.id}: missing thumbnail ${e.thumb}`);
     if (!Array.isArray(e.tags) || !e.tags.length) add(`${e.id}: no tags`);
     if (typeof e.usage_example !== 'object') add(`${e.id}: usage_example must be an object`);
     if (e.file && !files.has(e.file)) add(`${e.id}: missing file ${e.file}`);
@@ -154,6 +155,19 @@ export function validateOutputs(built, { maxProblems = 40 } = {}) {
       if (!rig.variants.eyes[`round/${e.eyes}`] || !rig.variants.brows[`soft/${e.brows}`] || !rig.variants.mouth[e.mouth]) add(`${e.id}: eyes/brows/mouth variant missing in the rig`);
     }
     if (e.kind === 'mouth' && !rig.variants.mouth[e.shape]) add(`${e.id}: rig has no mouth ${e.shape}`);
+  }
+
+  // sfx: at least two takes, each a copied WAV; file is the first take
+  for (const e of entries.filter((x) => x.kind === 'sfx')) {
+    if (e.thumb !== '') add(`${e.id}: an sfx entry has no thumbnail`);
+    if (!Array.isArray(e.takes) || e.takes.length < 2) {
+      add(`${e.id}: needs at least two takes`);
+    } else {
+      if (e.file !== e.takes[0].file) add(`${e.id}: file must equal takes[0].file`);
+      for (const t of e.takes) if (!Buffer.isBuffer(files.get(t.file))) add(`${e.id}: missing take ${t.file}`);
+    }
+    if (e.align !== 'peak' && e.align !== 'onset') add(`${e.id}: align must be peak or onset`);
+    if (!e.source || !e.source.kind || !e.source.basis) add(`${e.id}: source needs kind and basis`);
   }
 
   // props: palette tokens only

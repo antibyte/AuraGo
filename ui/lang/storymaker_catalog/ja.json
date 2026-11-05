@@ -78,6 +78,13 @@
   "storymaker.catalog.trans_fade": "フェード",
   "storymaker.catalog.trans_slide-left": "左へスライド",
   "storymaker.catalog.trans_wipe": "ワイプ",
+  "storymaker.catalog.sfx_whoosh": "シュッという音",
+  "storymaker.catalog.sfx_pop": "ポンという音",
+  "storymaker.catalog.sfx_click": "クリック音",
+  "storymaker.catalog.sfx_ding": "チーンという音",
+  "storymaker.catalog.sfx_success": "成功音",
+  "storymaker.catalog.sfx_error": "エラー音",
+  "storymaker.catalog.sfx_typing": "タイピング音",
   "storymaker.catalog.palette_sunny": "サニー",
   "storymaker.catalog.palette_calm": "カーム"
 }

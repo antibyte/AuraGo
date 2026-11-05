@@ -78,6 +78,13 @@
   "storymaker.catalog.trans_fade": "Überblendung",
   "storymaker.catalog.trans_slide-left": "Nach links schieben",
   "storymaker.catalog.trans_wipe": "Wischblende",
+  "storymaker.catalog.sfx_whoosh": "Wusch",
+  "storymaker.catalog.sfx_pop": "Plopp",
+  "storymaker.catalog.sfx_click": "Klick",
+  "storymaker.catalog.sfx_ding": "Ding",
+  "storymaker.catalog.sfx_success": "Erfolg",
+  "storymaker.catalog.sfx_error": "Fehler",
+  "storymaker.catalog.sfx_typing": "Tippen",
   "storymaker.catalog.palette_sunny": "Sonnig",
   "storymaker.catalog.palette_calm": "Ruhig"
 }

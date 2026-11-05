@@ -78,6 +78,13 @@
   "storymaker.catalog.trans_fade": "淡入淡出",
   "storymaker.catalog.trans_slide-left": "向左滑动",
   "storymaker.catalog.trans_wipe": "擦除",
+  "storymaker.catalog.sfx_whoosh": "嗖声",
+  "storymaker.catalog.sfx_pop": "啵声",
+  "storymaker.catalog.sfx_click": "点击声",
+  "storymaker.catalog.sfx_ding": "叮声",
+  "storymaker.catalog.sfx_success": "成功音",
+  "storymaker.catalog.sfx_error": "错误音",
+  "storymaker.catalog.sfx_typing": "打字声",
   "storymaker.catalog.palette_sunny": "阳光",
   "storymaker.catalog.palette_calm": "宁静"
 }

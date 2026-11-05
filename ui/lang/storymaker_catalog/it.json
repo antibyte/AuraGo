@@ -78,6 +78,13 @@
   "storymaker.catalog.trans_fade": "Dissolvenza",
   "storymaker.catalog.trans_slide-left": "Scorri a sinistra",
   "storymaker.catalog.trans_wipe": "Tendina",
+  "storymaker.catalog.sfx_whoosh": "Fruscio",
+  "storymaker.catalog.sfx_pop": "Schiocco",
+  "storymaker.catalog.sfx_click": "Clic",
+  "storymaker.catalog.sfx_ding": "Rintocco",
+  "storymaker.catalog.sfx_success": "Successo",
+  "storymaker.catalog.sfx_error": "Errore",
+  "storymaker.catalog.sfx_typing": "Digitazione",
   "storymaker.catalog.palette_sunny": "Soleggiata",
   "storymaker.catalog.palette_calm": "Calma"
 }

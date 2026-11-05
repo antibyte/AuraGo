@@ -62,6 +62,17 @@ func TestValidateFixturesAreClean(t *testing.T) {
 	}
 }
 
+// With sfx entries in the real catalog, the guard at validator.checkAsset no longer skips sounds.
+func TestValidateSoundOnTheRealCatalog(t *testing.T) {
+	cat := loadReal(t)
+	s := storyOf(t, `{"id":"s1","beats":[{"do":"sfx","sound":"sfx.nope"}]}`)
+	expectIssue(t, Validate(&s, cat, DefaultLimits()), CodeUnknownAsset, SeverityError, "/scenes/0/beats/0/sound")
+	s = storyOf(t, `{"id":"s1","beats":[{"do":"sfx","sound":"sfx.pop"}]}`)
+	if is := findIssue(Validate(&s, cat, DefaultLimits()), CodeUnknownAsset, SeverityError, "/scenes/0/beats/0/sound"); is != nil {
+		t.Fatalf("sfx.pop is in the catalog: %+v", is)
+	}
+}
+
 func TestValidateIssueShape(t *testing.T) {
 	issues := validateScenes(t, `{"id":"s1","environment":"env.offce","narration":"x","actors":[{"cast":"anna","at":"balcony"}]}`)
 	for _, is := range issues {

@@ -32,12 +32,15 @@ func TestRealCatalogLoadsAndItsFilesExist(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, id := range []string{"char.office-woman-1", "char.office-man-1", "char.it-tech-1", "char.senior-man-1", "env.plain-stage", "env.office",
-		"env.home-office", "env.abstract-tech", "prop.lock", "prop.shield", "pose.typing", "gesture.point", "expr.surprised", "cycle.walk", "text.caption", "trans.wipe"} {
+		"env.home-office", "env.abstract-tech", "prop.lock", "prop.shield", "pose.typing", "gesture.point", "expr.surprised", "cycle.walk", "text.caption", "trans.wipe", "sfx.pop", "sfx.typing"} {
 		if _, ok := cat.Lookup(id); !ok {
 			t.Errorf("the starter catalog has no %s", id)
 		}
 	}
-	for _, kind := range []string{"pose", "gesture", "expression"} {
+	if e, _ := cat.Lookup("sfx.typing"); e.Pattern == nil || e.Hit != nil || len(e.Takes) != 6 {
+		t.Errorf("sfx.typing: pattern %+v, hit %+v, %d takes", e.Pattern, e.Hit, len(e.Takes))
+	}
+	for _, kind := range []string{"pose", "gesture", "expression", "sfx"} {
 		if len(cat.Names(kind)) == 0 {
 			t.Errorf("no %s names", kind)
 		}

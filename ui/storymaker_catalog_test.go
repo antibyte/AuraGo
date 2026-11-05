@@ -40,11 +40,12 @@ var storymakerRequired = map[string][]string{
 	"cycle":       {"cycle.walk", "cycle.idle"},
 	"text_style":  {"text.title", "text.caption", "text.label"},
 	"transition":  {"trans.cut", "trans.fade", "trans.slide-left", "trans.wipe"},
+	"sfx":         {"sfx.whoosh", "sfx.pop", "sfx.click", "sfx.ding", "sfx.success", "sfx.error", "sfx.typing"},
 }
 
 var storymakerPrefix = map[string]string{
 	"character": "char.", "prop": "prop.", "environment": "env.", "pose": "pose.", "gesture": "gesture.", "expression": "expr.",
-	"mouth": "mouth.", "cycle": "cycle.", "text_style": "text.", "transition": "trans.",
+	"mouth": "mouth.", "cycle": "cycle.", "text_style": "text.", "transition": "trans.", "sfx": "sfx.",
 }
 
 var storymakerBones = []string{"root", "hips", "torso", "neck", "head", "upper_arm_l", "lower_arm_l", "upper_arm_r", "lower_arm_r", "upper_leg_l", "lower_leg_l", "upper_leg_r", "lower_leg_r"}
@@ -331,7 +332,11 @@ func TestStorymakerCatalogManifest(t *testing.T) {
 		if smStr(e, "name_key") != smNameKey(id) {
 			t.Errorf("%s: name_key %q", id, smStr(e, "name_key"))
 		}
-		if smStr(e, "thumb") != "thumbs/"+id+".svg" {
+		if kind == "sfx" {
+			if smStr(e, "thumb") != "" {
+				t.Errorf("%s: an sfx entry has no thumb, got %q", id, smStr(e, "thumb"))
+			}
+		} else if smStr(e, "thumb") != "thumbs/"+id+".svg" {
 			t.Errorf("%s: thumb %q", id, smStr(e, "thumb"))
 		} else if _, err := os.Stat(filepath.Join(storymakerCatalogDir, "thumbs", id+".svg")); err != nil {
 			t.Errorf("%s: thumbnail missing", id)
@@ -370,7 +375,7 @@ func TestStorymakerCatalogManifest(t *testing.T) {
 		need := map[string][]string{
 			"character": {"params"}, "prop": {"file", "size", "anchor"}, "environment": {"file", "spots", "floor", "variants"},
 			"pose": {"bones"}, "gesture": {"keys", "duration"}, "expression": {"eyes", "brows", "mouth"}, "mouth": {"shape"},
-			"cycle": {"period", "keys"}, "text_style": {"font", "size", "weight", "color", "align", "max_lines"}, "transition": {"duration"},
+			"cycle": {"period", "keys"}, "text_style": {"font", "size", "weight", "color", "align", "max_lines"}, "transition": {"duration"}, "sfx": {"file", "takes", "impact_ms", "align", "source"},
 		}[smStr(e, "kind")]
 		for _, f := range need {
 			if _, ok := e[f]; !ok {
@@ -765,10 +770,14 @@ func TestStorymakerCatalogFilesVersionAndBudget(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		h.Write(smLF(data))
 		ext := strings.ToLower(filepath.Ext(p))
-		if ext != ".json" && ext != ".svg" {
-			t.Errorf("%s: extension %s is not .json or .svg", p, ext)
+		if ext == ".wav" {
+			h.Write(data) // the build hashes WAV files raw
+		} else {
+			h.Write(smLF(data))
+		}
+		if ext != ".json" && ext != ".svg" && ext != ".wav" {
+			t.Errorf("%s: extension %s is not .json, .svg or .wav", p, ext)
 		}
 	}
 	if got := hex.EncodeToString(h.Sum(nil))[:12]; got != c.Version {
@@ -780,6 +789,11 @@ func TestStorymakerCatalogFilesVersionAndBudget(t *testing.T) {
 		referenced[smStr(e, "thumb")] = true
 		if f := smStr(e, "file"); f != "" {
 			referenced[f] = true
+		}
+		takes, _ := e["takes"].([]any)
+		for _, raw := range takes {
+			take, _ := raw.(map[string]any)
+			referenced[smStr(take, "file")] = true
 		}
 	}
 	for _, p := range paths {
@@ -835,7 +849,7 @@ func TestStorymakerCatalogFitsTheAssetSet(t *testing.T) {
 				t.Errorf("web-assets.json ui root does not ship the %s directory", dir)
 			}
 		}
-		for _, ext := range []string{".json", ".svg"} {
+		for _, ext := range []string{".json", ".svg", ".wav"} {
 			if !smHas(r.Extensions, ext) {
 				t.Errorf("web-assets.json ui root does not ship %s files", ext)
 			}
