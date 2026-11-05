@@ -53,6 +53,11 @@ func (p durableQueryProjection) ProjectDurableRun(ctx context.Context, id string
 
 func durableQueuedFixture(t *testing.T) (*Service, StartRequest, string) {
 	t.Helper()
+	return durableQueuedFixtureWithHistory(t, nil)
+}
+
+func durableQueuedFixtureWithHistory(t *testing.T, history func(*Store) DurableHistoryProjector) (*Service, StartRequest, string) {
+	t.Helper()
 	store := openTestStore(t)
 	req := durableReviewPublished(t, store, "flow_cancel_race", 1)
 	bridge := &durableStatusBridge{fakeBridge: newFakeBridge()}
@@ -60,6 +65,9 @@ func durableQueuedFixture(t *testing.T) (*Service, StartRequest, string) {
 	clock := newFakeClock(time.Now().UTC())
 	services := &Services{CheckpointKeys: &durableReviewKeys{}, Clock: clock, Location: time.UTC}
 	s := NewService(store, catalogRegistry(t, fullEnv()), services, bridge, ServiceConfig{DurableEnabled: true, MaxParallelRuns: 1}, discardLogger())
+	if history != nil {
+		s.runner.cfg.DurableHistory = history(store)
+	}
 	t.Cleanup(func() { _ = s.Shutdown(context.Background()) })
 	s.runner.mu.Lock()
 	s.runner.durableStarted = true
@@ -206,9 +214,10 @@ func TestDurableClaimFencesLiveAndPublishedVersion(t *testing.T) {
 }
 
 func TestDurableCancelReleasesConnectionBeforeHistoryProjection(t *testing.T) {
-	s, _, runID := durableQueuedFixture(t)
+	s, _, runID := durableQueuedFixtureWithHistory(t, func(store *Store) DurableHistoryProjector {
+		return durableQueryProjection{store: store}
+	})
 	s.store.db.SetMaxOpenConns(1)
-	s.runner.cfg.DurableHistory = durableQueryProjection{store: s.store}
 	done := make(chan error, 1)
 	go func() {
 		ok, err := s.CancelDurableRun(context.Background(), runID, 1)
