@@ -169,3 +169,72 @@ check('say: a bubble adds the font key of its style', () => {
     // the mini catalog has one face of the default font, so weight 500 resolves to it
     assert.ok(plain(out.needs).includes('font:default/400'));
 });
+
+// ---- S8: say without text
+
+const CAST_S8 = [{ id: 'anna', character: 'char.office-woman-1' }];
+const word = i => 'w' + (100 + i);
+const wordRun = (from, n) => Array.from({ length: n }, (_, i) => word(from + i)).join(' ');
+const NARRATION = wordRun(0, 40);
+const NARRATION_SECONDS = 40 / 2.3;   // 40 words at 2.3 words per second, from scene time 0
+const plainSay = { do: 'say', who: 'anna', style: 'speech' };
+const speakerStory = (scene, more) => ({ cast: CAST_S8, scenes: [{ id: 'a', transition: 'cut', speaker: 'anna', narration: NARRATION, actors: [{ cast: 'anna', at: 'left' }], ...scene }], ...more });
+const bubbleList = out => out.timeline.scenes[0].entities.filter(e => e.type === 'bubble');
+const dialogueWindows = out => plain(out.timeline.narrationEvents).filter(e => e.kind === 'dialogue');
+
+check('say without text: the bubble shows the active caption lines until the narration ends, with the fades', () => {
+    const out = SM.compile(speakerStory({ beats: [plainSay] }), {}, catalog), b = bubbleList(out)[0];
+    const at = time => SM.scene.evalEntity(b, time);
+    // each word has 4 characters, so 8 words fill a line of width 39 (a ninth makes 44, over 42), and 2 lines make a caption of 16 words
+    assert.deepEqual(plain(at(1).lines), [wordRun(0, 8), wordRun(8, 8)]);
+    // the text has 199 UTF-16 units over 17.39 s: caption 2 starts at offset 80 = 6.99 s and caption 3 at offset 160 = 13.98 s
+    assert.deepEqual(plain(at(7.5).lines), [wordRun(16, 8), wordRun(24, 8)]);
+    assert.deepEqual(plain(at(14.5).lines), [wordRun(32, 8)]);
+    near(at(0.06).alpha, 0.5, 1e-9, 'half of the fade in');
+    near(at(NARRATION_SECONDS - 0.06).alpha, 0.5, 1e-6, 'half of the fade out');
+    assert.equal(at(NARRATION_SECONDS).alpha, 0);
+    const cv = new FakeCanvas(1920, 1080);
+    SM.renderFrame(out.timeline, 30, cv.ctx, renderAssets());
+    assert.ok(cv.ctx.log.some(l => l.startsWith('fillText(' + wordRun(0, 8) + ',')), 'frame 30 draws the first caption line');
+});
+
+check('say without text: it creates no block and leaves blockEnd and the cursor alone', () => {
+    const alone = SM.compile(speakerStory({ beats: [plainSay] }), {}, catalog);
+    assert.deepEqual(dialogueWindows(alone), []);
+    assert.deepEqual(plain(alone.report.audio_events), []);
+    assert.ok(!alone.report.issues.some(i => i.path === '/scenes/0/beats/0/text'), 'no warning at the beat');
+    const out = SM.compile(speakerStory({ beats: [
+        { do: 'wait', seconds: 1 }, plainSay, { do: 'wait', seconds: 1 },
+        { do: 'show', item: 'prop.lock', at: 'right', entry: 'fade' },
+        { do: 'say', who: 'anna', text: 'Hallo Welt', style: 'speech' }
+    ] }), {}, catalog);
+    // wait 0-1, the bubble has no length, wait 1-2, so the prop starts at 2 s
+    near(out.timeline.scenes[0].entities.find(e => e.item === 'prop.lock').alpha.segs[0].t0, 2, 1e-9, 'the cursor did not move');
+    // the block end is still the narration end, so the say with text starts there
+    assert.equal(dialogueWindows(out).length, 1, 'only the say with text is a block');
+    near(dialogueWindows(out)[0].start, NARRATION_SECONDS, 1e-6, 'blockEnd did not move');
+    assert.equal(bubbleList(out).length, 2);
+    // only spaces or only a marker count as no text, as in Go's sayHasText
+    assert.equal(bubbleList(SM.compile(speakerStory({ beats: [{ ...plainSay, text: ' {1} ' }] }), {}, catalog)).length, 1, 'a marker is no text');
+});
+
+check('say without text: no bubble in a silent scene, after the narration or for an off-stage actor', () => {
+    assert.equal(bubbleList(SM.compile(speakerStory({ silent: true, beats: [plainSay] }), {}, catalog)).length, 0, 'silent');
+    // the narration ends at 17.39 s and this say starts at 18 s
+    assert.equal(bubbleList(SM.compile(speakerStory({ beats: [{ do: 'wait', seconds: 18 }, plainSay] }), {}, catalog)).length, 0, 'too late');
+    const away = SM.compile(speakerStory({ actors: [], beats: [plainSay] }), {}, catalog);
+    assert.equal(bubbleList(away).length, 0, 'off stage');
+    assert.ok(away.report.issues.some(i => i.code === 'unknown_cast' && i.path === '/scenes/0/beats/0/who'));
+});
+
+check('say without text: it adds its font needs, also with captions off', () => {
+    const han = String.fromCodePoint(0x4F60, 0x597D, 0x4E16, 0x754C);
+    // one face that covers U+4E00 to U+9FFF: the first d value is the range start, the second its length
+    const withFace = { ...catalog, glyph_data: { schema: 'storymaker-glyphs/1', faces: [{ id: 'sm-cjk', family: 'SMCJK', file: '/fonts/qr/NotoSansCJKsc.otf', weight: '400', unicode_range: '', d: [0x4E00, 0x51FF] }] } };
+    const off = { style: { captions: false } };
+    const none = SM.compile(speakerStory({ narration: han, beats: [] }, off), {}, withFace);
+    assert.ok(!plain(none.needs).includes('font:sm-cjk/400'), 'captions off and no bubble: the narration is never drawn');
+    const drawn = plain(SM.compile(speakerStory({ narration: han, beats: [plainSay] }, off), {}, withFace).needs);
+    assert.ok(drawn.includes('font:sm-cjk/400'), 'the bubble draws the narration');
+    assert.ok(drawn.includes('font:default/400'), 'the base font of the bubble style');
+});

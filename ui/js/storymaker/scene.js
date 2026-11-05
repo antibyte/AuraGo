@@ -105,6 +105,7 @@
         e.kind = def.kind === 'thought' ? 'thought' : 'speech';
         e.style = e.kind;
         e.lines = def.lines || [];
+        e.captions = def.captions || null;   // a say without text: the narration's captions, in scene-local ms
         e.baseScale = 1;
         e.alpha.init = 0;
         e.alpha.add(def.t0, def.t0 + fade, 1, 'linear');
@@ -141,7 +142,8 @@
             s.owner = e.owner;
             s.kind = e.kind;
             s.style = e.style;
-            s.lines = e.lines;
+            var cap = e.captions ? SM.captions.at(e.captions, t * 1000) : null;
+            s.lines = e.captions ? (cap ? cap.lines : null) : e.lines;
         } else if (e.type === 'shape') {
             s.kind = e.kind;
             s.w = e.w.at(t);

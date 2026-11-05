@@ -1557,6 +1557,7 @@
         e.kind = def.kind === 'thought' ? 'thought' : 'speech';
         e.style = e.kind;
         e.lines = def.lines || [];
+        e.captions = def.captions || null;   // a say without text: the narration's captions, in scene-local ms
         e.baseScale = 1;
         e.alpha.init = 0;
         e.alpha.add(def.t0, def.t0 + fade, 1, 'linear');
@@ -1593,7 +1594,8 @@
             s.owner = e.owner;
             s.kind = e.kind;
             s.style = e.style;
-            s.lines = e.lines;
+            var cap = e.captions ? SM.captions.at(e.captions, t * 1000) : null;
+            s.lines = e.captions ? (cap ? cap.lines : null) : e.lines;
         } else if (e.type === 'shape') {
             s.kind = e.kind;
             s.w = e.w.at(t);
@@ -2418,6 +2420,17 @@
             sayInfo.set(b, { spoken: true, plain: parsed.plain, block: block, estimated: !measured, seconds: block.duration_ms / 1000 });
         });
 
+        // A say without text: a bubble with the caption lines of the scene narration, from its start until the narration ends. It
+        // has no block and no length. A silent scene has no narration to show.
+        function narrationBubble(b, j, t0) {
+            var until = plan.T + plan.narration.seconds;
+            if (scene.silent === true || !(t0 < until)) return;
+            var a = actorOf(b.who, beatPath(j, 'who'));
+            if (!a) return;
+            var list = SM.captions.forBlock(plan.narration.plain, plan.narration.block, Math.round(plan.T * 1000), sid);
+            entities.push(S.createBubble({ id: 'bubble-' + j, owner: a.id, kind: b.style, captions: list, t0: t0, t1: until }));
+        }
+
         // Step 8 of the schedule: a spoken say waits for the block before it and owns the time until its block ends.
         function sayStart(b, j, t) {
             var s = sayInfo.get(b);
@@ -2571,7 +2584,7 @@
                 dur: function (b) { return sayInfo.get(b).seconds; },
                 run: function (b, j, t0, dur) {
                     var s = sayInfo.get(b);
-                    if (!s.spoken) return;
+                    if (!s.spoken) { narrationBubble(b, j, t0); return; }
                     var a = actorOf(b.who, beatPath(j, 'who'));
                     if (!a) return;
                     entities.push(S.createBubble({ id: 'bubble-' + j, owner: a.id, kind: b.style, lines: [s.plain], t0: t0, t1: t0 + dur }));
