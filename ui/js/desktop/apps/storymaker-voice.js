@@ -3,7 +3,8 @@
 // provider's languages (a free-text field for a provider with "*"), the "not tested" mark and the facts of the provider's note.
 // One button writes {provider, voice, language} into the story. The audition plays the first stored piece of the current
 // /narration answer and never synthesises, so no paid call starts here. Server texts are set as text only. Classic script, publishes
-// S.createVoicePanel.
+// S.createVoicePanel. The narration half shows what still needs audio and the progress of the narrate job, starts it with Generate
+// (the only paid path, and it runs in the job loop with its caps), stops it with Stop, switches the burned captions and owns the "no audio" marker.
 (function () {
     'use strict';
 
@@ -63,7 +64,168 @@
         return null;
     }
 
-    // inst: {t, bus, api, story, selected, projectId, readonly, audioInfo, domId(suffix), notify(text, kind), editStory(fn, options)}
+    const ACTIVE = ['queued', 'running'];
+
+    function jobIsActive(job) {
+        return !!job && ACTIVE.indexOf(job.status) >= 0;
+    }
+
+    // The narration half of the panel. Job events of kind narrate land here; the export popover takes kind render only.
+    // voiceDiffers() says the panel shows a voice the story does not hold. Generate runs the stored voice, so it waits until that voice is written.
+    function createNarrationStatus(inst, voiceDiffers) {
+        const { el, icon } = S;
+        const t = inst.t;
+        let job = null;
+        let starting = false;
+        let refusal = '';
+        let cancelling = false;
+
+        const summary = el('p', { class: 'stm-hint', dataset: { stm: 'narration-summary' } });
+        const meter = el('progress', { class: 'stm-progress', max: '1', value: '0', hidden: true, ariaLabel: t('storymaker.voice.status_title'), dataset: { stm: 'narration-progress' } });
+        const pieces = el('p', { class: 'stm-hint', hidden: true, dataset: { stm: 'narration-pieces' } });
+        const jobLine = el('p', { role: 'status', hidden: true, dataset: { stm: 'narration-job' } });
+        const jobDetail = el('code', { class: 'stm-cap-issue', hidden: true, dataset: { stm: 'narration-job-detail' } });
+        const refusalLine = el('p', { class: 'stm-voice-error', role: 'alert', hidden: true, dataset: { stm: 'narration-refusal' } });
+        const voiceHint = el('p', { class: 'stm-hint', hidden: true, dataset: { stm: 'narration-voice-hint' }, text: t('storymaker.voice.apply_first') });
+        const generateLabel = el('span', { text: t('storymaker.voice.generate') });
+        const generate = el('button', { type: 'button', class: 'stm-btn stm-btn-primary', dataset: { stm: 'narration-generate' }, onClick: () => start() }, icon('sparkle'), generateLabel);
+        const cancelButton = el('button', { type: 'button', class: 'stm-btn', hidden: true, dataset: { stm: 'narration-cancel' }, onClick: () => cancel() }, icon('stop'), el('span', { text: t('storymaker.voice.cancel') }));
+        const captions = el('input', { type: 'checkbox', id: inst.domId('captions'), dataset: { stm: 'captions-toggle' }, onChange: () => toggleCaptions() });
+        const marker = el('div', { class: 'stm-no-audio', role: 'status', hidden: true, dataset: { stm: 'no-audio' } }, icon('alert'), el('span', { text: t('storymaker.voice.no_audio') }));
+        const readRetry = el('button', { type: 'button', class: 'stm-btn', hidden: true, dataset: { stm: 'narration-read-retry' }, onClick: () => inst.refreshAudio() }, el('span', { text: t('storymaker.retry') }));
+        const root = el('div', { class: 'stm-voice-status', dataset: { stm: 'narration-status' } },
+            el('span', { class: 'stm-label', text: t('storymaker.voice.status_title') }),
+            summary, meter, pieces, jobLine, jobDetail, refusalLine, voiceHint,
+            el('div', { class: 'stm-actions' }, generate, cancelButton, readRetry),
+            el('label', { class: 'stm-voice-check', for: inst.domId('captions') }, captions, el('span', { text: t('storymaker.voice.captions') })));
+
+        function jobText() {
+            if (job.status === 'succeeded') return t('storymaker.voice.job_done');
+            if (job.status === 'cancelled') return t('storymaker.voice.job_cancelled');
+            if (job.status === 'interrupted') return t('storymaker.voice.job_interrupted');
+            if (job.status === 'failed') return S.errors.describeJob(t, job.error);
+            if (job.status === 'queued') return t('storymaker.voice.job_queued');
+            return t('storymaker.voice.job_running');
+        }
+
+        function paintJob() {
+            const active = jobIsActive(job);
+            const total = job && Number(job.pieces_total) > 0 ? Number(job.pieces_total) : 0;
+            const done = job ? Number(job.pieces_done) || 0 : 0;
+            meter.hidden = !active;
+            if (active) meter.value = total ? S.clamp(done / total, 0, 1) : S.clamp(job.progress, 0, 1);
+            pieces.hidden = !active || !total;
+            if (active && total) pieces.textContent = t('storymaker.voice.pieces', { done, total });
+            jobLine.hidden = !job;
+            jobLine.textContent = job ? jobText() : '';
+            const detail = job && job.status === 'failed' && job.error && job.error.message ? String(job.error.message).slice(0, 600) : '';
+            jobDetail.hidden = !detail;
+            jobDetail.textContent = detail;
+        }
+
+        function paint() {
+            const answer = inst.audioInfo;
+            const chars = answer && answer.chars ? answer.chars : { total: 0, missing: 0 };
+            const missing = answer && Array.isArray(answer.missing) ? answer.missing : [];
+            // A failed first read must not look like loading forever: the reason and a way to read again.
+            const readFailed = !answer && !!inst.audioError;
+            readRetry.hidden = !readFailed;
+            if (readFailed) summary.textContent = S.errors.describe(t, inst.audioError);
+            else if (!answer) summary.textContent = t('storymaker.loading');
+            else if (missing.length) summary.textContent = t('storymaker.voice.missing', { blocks: missing.length, chars: chars.missing, total: chars.total });
+            else if (chars.total > 0) summary.textContent = t('storymaker.voice.complete', { total: chars.total });
+            else summary.textContent = t('storymaker.voice.no_text');
+            paintJob();
+            refusalLine.textContent = refusal;
+            refusalLine.hidden = !refusal;
+            generateLabel.textContent = t(starting ? 'storymaker.voice.generating' : 'storymaker.voice.generate');
+            const differs = voiceDiffers();
+            voiceHint.hidden = !differs;
+            generate.disabled = inst.readonly || starting || jobIsActive(job) || !missing.length || differs;
+            cancelButton.hidden = inst.readonly || !jobIsActive(job);
+            cancelButton.disabled = cancelling;
+            const style = inst.story && inst.story.style;
+            captions.checked = !style || style.captions !== false;
+            captions.disabled = inst.readonly;
+            const scene = S.model.scenesOf(inst.story)[inst.selected];
+            marker.hidden = !scene || !missing.some(item => item.scene_id === scene.id);
+        }
+
+        // take(next, adopt): without a tracked job only an active one is taken up, because the event stream replays old jobs on every open.
+        function take(next, adopt) {
+            if (!next || typeof next !== 'object' || next.kind !== 'narrate') return;
+            if (next.project_id && inst.projectId && next.project_id !== inst.projectId) return;
+            if (job && job.id !== next.id && (jobIsActive(job) || !jobIsActive(next))) return;
+            if (!job && !adopt && !jobIsActive(next)) return;
+            job = next;
+            paint();
+        }
+
+        function refusalText(err) {
+            const e = S.errors.normalize(err);
+            const data = e.data || {};
+            const parts = [S.errors.describe(t, e)];
+            if (Array.isArray(data.alternatives) && data.alternatives.length) parts.push(t('storymaker.voice.alternatives', { names: data.alternatives.join(', ') }));
+            if (e.code === 'budget_exceeded' && data.limit) parts.push(t('storymaker.voice.budget_detail', { limit: data.limit, missing: data.missing }));
+            return parts.join(' ');
+        }
+
+        async function start() {
+            if (starting || inst.readonly || jobIsActive(job) || voiceDiffers()) return;
+            starting = true;
+            refusal = '';
+            paint();
+            try {
+                if (!(await inst.flushEdits())) return;
+                const answer = await inst.api.narrate(inst.projectId);
+                if (answer && answer.job) {
+                    // An event of this job may already have arrived and be newer than this answer.
+                    if (!job || job.id !== answer.job.id) { job = null; take(answer.job, true); }
+                } else {
+                    job = null;
+                    inst.refreshAudio();
+                }
+            } catch (err) {
+                if (err && err.aborted) return;
+                refusal = refusalText(err);
+            } finally {
+                starting = false;
+                paint();
+            }
+        }
+
+        async function cancel() {
+            if (inst.readonly || cancelling || !jobIsActive(job)) return;
+            cancelling = true;
+            paint();
+            try {
+                take(await inst.api.cancelJob(job.id), false);
+            } catch (err) {
+                if (err && err.aborted) return;
+                inst.notify(S.errors.describe(t, err), 'error');
+            } finally {
+                cancelling = false;
+                paint();
+            }
+        }
+
+        function toggleCaptions() {
+            const on = captions.checked;
+            inst.editStory(story => { story.style = Object.assign({}, story.style, { captions: on }); }, { immediate: true });
+        }
+
+        const off = [
+            inst.bus.on('job', next => take(next, false)),
+            inst.bus.on('audio', paint),
+            inst.bus.on('story', paint),
+            inst.bus.on('selection', paint),
+            inst.bus.on('readonly', paint)
+        ];
+        paint();
+        return { el: root, marker, paint, dispose() { off.forEach(fn => fn()); } };
+    }
+
+    // inst: {t, bus, api, story, selected, projectId, readonly, audioInfo, domId(suffix), notify(text, kind), editStory(fn, options), flushEdits(), refreshAudio()}
     function createVoicePanel(inst) {
         const { el, icon } = S;
         const t = inst.t;
@@ -103,7 +265,8 @@
         const errorLine = el('p', { class: 'stm-voice-error', role: 'alert', hidden: true, dataset: { stm: 'voice-error' } });
         const retry = el('button', { type: 'button', class: 'stm-btn', hidden: true, dataset: { stm: 'voice-retry' }, onClick: () => load() }, icon('refresh'), el('span', { text: t('storymaker.retry') }));
         const loading = el('p', { class: 'stm-muted', role: 'status', dataset: { stm: 'voice-loading' }, text: t('storymaker.loading') });
-        const root = el('section', { class: 'stm-voice', ariaLabel: t('storymaker.voice.title'), dataset: { stm: 'voice' } }, loading, none, errorLine, retry, form, player);
+        const status = createNarrationStatus(inst, draftDiffers);
+        const root = el('section', { class: 'stm-voice', ariaLabel: t('storymaker.voice.title'), dataset: { stm: 'voice' } }, loading, none, errorLine, retry, form, player, status.el);
 
         function currentProvider() {
             return (providers || []).find(item => item.id === draft.provider) || null;
@@ -244,6 +407,7 @@
             const differs = draftDiffers();
             audition.disabled = !piece || differs;
             audition.title = !piece ? t('storymaker.voice.audition_none') : differs ? t('storymaker.voice.apply_first') : '';
+            status.paint();
         }
 
         function writeVoice() {
@@ -297,9 +461,11 @@
         load();
         return {
             el: root,
-            paint,
+            marker: status.marker,
+            paint() { paint(); status.paint(); },
             dispose() {
                 disposed = true;
+                status.dispose();
                 off.forEach(fn => fn());
                 player.pause();
                 player.removeAttribute('src');

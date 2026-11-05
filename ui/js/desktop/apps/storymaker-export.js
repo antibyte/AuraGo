@@ -264,7 +264,7 @@
         function close(restoreFocus) { open = false; paint(); if (restoreFocus) button.focus(); }
 
         const off = [
-            inst.bus.on('job', next => apply(next, false)),
+            inst.bus.on('job', next => { if (next && next.kind === 'render') apply(next, false); }),
             inst.bus.on('report', () => { if (open) paint(); }),
             inst.bus.on('issues', () => { if (open) paint(); }),
             inst.bus.on('status', () => { if (open) paint(); }),

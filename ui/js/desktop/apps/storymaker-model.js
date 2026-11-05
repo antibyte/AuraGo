@@ -179,9 +179,9 @@
             .map(entry => entry.issue);
     }
 
-    // Phase 1 renders are silent, so a scene without narration audio is not worth showing.
+    // Every issue shows, narration_missing too: this list is the one place that locates a scene without audio.
     function visibleIssues(list) {
-        return (Array.isArray(list) ? list : []).filter(issue => issue.code !== 'narration_missing');
+        return Array.isArray(list) ? list : [];
     }
 
     // The render browser as an export needs it, from GET /status: "ready" (a launch probe succeeded), "download" (none is ready but the

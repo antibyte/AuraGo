@@ -107,7 +107,7 @@ eq(tricky.slice(M.locate(tricky, '/b/1/c').from, M.locate(tricky, '/b/1/c').to),
 // issues
 const merged = M.mergeIssues([{ severity: 'minor', code: 'a', path: '/x', message: 'm' }, { severity: 'error', code: 'b', path: '', message: 'e' }], [{ severity: 'minor', code: 'a', path: '/x', message: 'm' }]);
 eq(merged.map(i => i.severity), ['error', 'minor'], 'errors first, duplicates gone');
-eq(M.visibleIssues([{ code: 'narration_missing' }, { code: 'x' }]).length, 1, 'narration_missing is hidden');
+eq(M.visibleIssues([{ code: 'narration_missing' }, { code: 'x' }]).length, 2, 'narration_missing is shown');
 eq(M.sceneIndexOfIssue({ path: '/scenes/2/beats/0' }, story), 2, 'scene of an issue by path');
 eq(M.sceneIndexOfIssue({ scene_id: 's2', path: '' }, story), 1, 'scene of an issue by id');
 

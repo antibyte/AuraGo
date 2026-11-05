@@ -272,6 +272,7 @@
         const code = S.createCode(inst);
         const exporter = S.createExport(inst);
         const voice = S.createVoicePanel(inst);
+        stage.appendChild(voice.marker);
         code.el.hidden = true;
         inst.parts.strip = strip; inst.parts.transport = transport; inst.parts.inspector = inspector; inst.parts.library = library; inst.parts.code = code; inst.parts.exporter = exporter; inst.parts.voice = voice;
 

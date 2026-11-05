@@ -257,7 +257,7 @@
             const list = [];
             if (staleMarks) return list;
             const issues = S.model.visibleIssues(S.model.mergeIssues(inst.issues, inst.report ? inst.report.issues : []));
-            issues.forEach(issue => {
+            issues.filter(issue => issue.code !== 'narration_missing').forEach(issue => {
                 let from = 0, to = 0, found = false;
                 const where = S.model.positionFromMessage(issue.message);
                 if (!issue.path && !(issue.code === 'invalid_json' && where)) return;

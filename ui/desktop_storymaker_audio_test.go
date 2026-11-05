@@ -585,3 +585,242 @@ function pick(view, id) { view.f('voice-provider').value = id; view.f('voice-pro
   console.log('storymaker voice panel ok');
 })().catch(err => { console.error(err.stack || err); process.exit(1); });
 `
+
+// The narration half of the voice panel beside the real export popover, on a small stand-in for the DOM: job events go to the right
+// owner, the status follows pieces_done, a missing block shows the marker, and the terminal states have the panel's own text.
+func TestStorymakerNarrationStatusInNode(t *testing.T) {
+	t.Parallel()
+	if !strings.Contains(readDesktopAssetText(t, "js/desktop/apps/storymaker.js"), "stage.appendChild(voice.marker)") {
+		t.Error("storymaker.js does not put the no-audio marker on the stage")
+	}
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("node not available")
+	}
+	script := filepath.Join(t.TempDir(), "storymaker-narration-status.js")
+	if err := os.WriteFile(script, []byte(storymakerNarrationStatusScript), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	dir, _ := filepath.Abs(filepath.Join("js", "desktop", "apps"))
+	out, err := exec.Command(node, script, dir).CombinedOutput()
+	if err != nil {
+		t.Fatalf("node check failed: %v\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "storymaker narration status ok") {
+		t.Fatalf("unexpected output:\n%s", out)
+	}
+}
+
+const storymakerNarrationStatusScript = `
+'use strict';
+const fs = require('fs');
+const vm = require('vm');
+const path = require('path');
+const [dir] = process.argv.slice(2);
+
+class FakeNode {
+  constructor(tag) { this.tag = tag; this.kids = []; this.parent = null; this.attrs = {}; this.dataset = {}; this.handlers = {}; this.style = { setProperty() {} }; this.ownText = ''; this.className = ''; }
+  get firstChild() { return this.kids[0] || null; }
+  appendChild(kid) { if (kid.parent) kid.parent.removeChild(kid); kid.parent = this; this.kids.push(kid); return kid; }
+  removeChild(kid) { this.kids.splice(this.kids.indexOf(kid), 1); kid.parent = null; return kid; }
+  setAttribute(name, value) { this.attrs[name] = String(value); }
+  getAttribute(name) { return name in this.attrs ? this.attrs[name] : null; }
+  removeAttribute(name) { delete this.attrs[name]; }
+  get hidden() { return 'hidden' in this.attrs; }
+  set hidden(on) { if (on) this.attrs.hidden = ''; else delete this.attrs.hidden; }
+  get disabled() { return 'disabled' in this.attrs; }
+  set disabled(on) { if (on) this.attrs.disabled = ''; else delete this.attrs.disabled; }
+  get value() {
+    if (this.tag === 'select') return this.kids.map(kid => kid.attrs.value).indexOf(this.val) >= 0 ? this.val : '';
+    return this.val !== undefined ? this.val : (this.attrs.value || '');
+  }
+  set value(next) { this.val = String(next); }
+  get textContent() { return this.kids.length ? this.kids.map(kid => kid.textContent).join('') : this.ownText; }
+  set textContent(next) { this.kids = []; this.ownText = String(next); }
+  addEventListener(type, fn) { (this.handlers[type] = this.handlers[type] || []).push(fn); }
+  removeEventListener() {}
+  fire(type) { (this.handlers[type] || []).slice().forEach(fn => fn({ type, target: this, preventDefault() {}, stopPropagation() {} })); }
+  click() { if (!this.disabled) this.fire('click'); }
+  focus() {}
+  find(name) { if (this.dataset.stm === name) return this; for (const kid of this.kids) { const hit = kid.find(name); if (hit) return hit; } return null; }
+  play() { return Promise.resolve(); }
+  pause() {}
+}
+const document = {
+  createElement: tag => new FakeNode(tag),
+  createElementNS: (ns, tag) => new FakeNode(tag),
+  createTextNode: text => { const node = new FakeNode('#text'); node.ownText = String(text); return node; },
+  addEventListener() {}, removeEventListener() {},
+  documentElement: { lang: 'en' }
+};
+const context = { console, setTimeout, clearTimeout, document, SYSTEM_LANG: 'de' };
+context.globalThis = context; context.window = context;
+vm.createContext(context);
+for (const name of ['storymaker-core.js', 'storymaker-model.js', 'storymaker-export.js', 'storymaker-voice.js']) {
+  vm.runInContext(fs.readFileSync(path.join(dir, name), 'utf8'), context, { filename: name });
+}
+const S = context.StorymakerParts;
+const eq = (a, b, what) => { const x = JSON.stringify(a), y = JSON.stringify(b); if (x !== y) throw new Error(what + ': got ' + x + ', want ' + y); };
+const flush = () => new Promise(resolve => setImmediate(resolve));
+const t = (key, vars) => (vars ? key + ' ' + JSON.stringify(vars) : key);
+const providers = [{ id: 'piper', active: true, ready: true, voices: [{ id: 'de_DE-thorsten-high', language: 'de_DE' }, { id: 'de_DE-karlsson-low', language: 'de_DE' }], languages: ['de'], tested_languages: [], needs_install: false, chunk_limit: 400 }];
+const job = extra => Object.assign({ id: 'n1', project_id: 'p1', kind: 'narrate', status: 'running', pieces_done: 0, pieces_total: 4, progress: 0 }, extra);
+
+function makeInst(answer) {
+  const inst = {
+    t, bus: S.createBus(), selected: 0, projectId: 'p1', readonly: false, status: {}, issues: [], report: null, etag: '', ctx: {},
+    audioInfo: answer,
+    story: { schema: 'storymaker/1', voice: { provider: 'piper', voice: 'de_DE-thorsten-high', language: 'de' }, style: { palette: 'sunny', font: 'default', captions: true }, scenes: [{ id: 's1' }, { id: 's2' }] },
+    domId: suffix => 'stm-test-' + suffix,
+    notify() {}, showIssues() {},
+    flushed: 0, refreshed: 0, narrated: [], answers: [], cancelled: [],
+    flushEdits: async () => { inst.flushed++; return true; },
+    refreshAudio() { inst.refreshed++; },
+    editStory(fn) { if (inst.readonly) return false; const draft = S.model.cloneStory(inst.story); fn(draft); inst.story = draft; inst.bus.emit('story'); return true; },
+    api: {
+      voices: async () => ({ providers }),
+      narrationUrl: () => '',
+      narrate(id) { inst.narrated.push(id); const next = inst.answers.shift(); return next && next.stm ? Promise.reject(next) : Promise.resolve(next); },
+      getJob: async () => { throw new Error('nothing polls in this test'); },
+      cancelJob: async id => { inst.cancelled.push(id); return job({ id, pieces_done: 3 }); }
+    }
+  };
+  return inst;
+}
+
+(async () => {
+  const inst = makeInst({ narration: {}, missing: [{ scene_id: 's1', block_id: 's1:n', chars: 120 }], chars: { total: 640, missing: 120 }, music: null });
+  const panel = S.createVoicePanel(inst);
+  const exporter = S.createExport(inst);
+  await flush();
+  const f = name => panel.el.find(name);
+  const button = exporter.el.find('export');
+
+  // What is missing, and the marker for the selected scene.
+  eq(f('narration-summary').textContent, 'storymaker.voice.missing {"blocks":1,"chars":120,"total":640}', 'what is missing');
+  eq(panel.marker.hidden, false, 'a missing block in the selected scene shows the marker');
+  inst.selected = 1; inst.bus.emit('selection');
+  eq(panel.marker.hidden, true, 'the other scene misses nothing');
+  inst.selected = 0; inst.bus.emit('selection');
+
+  // Read-only.
+  eq(f('narration-cancel').hidden, true, 'no job, no Stop');
+  eq(f('narration-generate').disabled, false, 'Generate is open');
+  inst.readonly = true; inst.bus.emit('readonly');
+  eq([f('narration-generate').disabled, f('captions-toggle').disabled], [true, true], 'read-only disables Generate and the toggle');
+  inst.readonly = false; inst.bus.emit('readonly');
+
+  // A failed first read says why and offers Retry, instead of loading forever.
+  const answered = inst.audioInfo;
+  inst.audioInfo = null; inst.audioError = S.errors.fromResponse(500, { error: 'internal', code: 'internal', message: 'm' }, 0); inst.bus.emit('audio');
+  eq([f('narration-summary').textContent === 'storymaker.loading', f('narration-read-retry').hidden], [false, false], 'a failed read shows the reason and Retry');
+  const readsBefore = inst.refreshed;
+  f('narration-read-retry').click();
+  eq(inst.refreshed, readsBefore + 1, 'Retry reads again');
+  inst.refreshed = readsBefore;
+  inst.audioInfo = answered; inst.audioError = null; inst.bus.emit('audio');
+  eq(f('narration-read-retry').hidden, true, 'Retry goes with the error');
+
+  // Refusals say why, with the fields the sentence alone cannot carry.
+  inst.answers.push(S.errors.fromResponse(409, { error: 'voice_unknown', code: 'voice_unknown', message: 'm', alternatives: ['a', 'b'] }, 0));
+  f('narration-generate').click(); await flush();
+  eq([inst.flushed, inst.narrated], [1, ['p1']], 'edits are saved first, then the route runs once');
+  eq(f('narration-refusal').textContent.includes('storymaker.voice.alternatives {"names":"a, b"}'), true, 'the alternatives show');
+  inst.answers.push(S.errors.fromResponse(409, { error: 'budget_exceeded', code: 'budget_exceeded', message: 'm', limit: 20000, missing: 30000 }, 0));
+  f('narration-generate').click(); await flush();
+  eq(f('narration-refusal').textContent.includes('storymaker.voice.budget_detail {"limit":20000,"missing":30000}'), true, 'the budget numbers show');
+
+  // Nothing missing on the server: no job, and the status is read again.
+  inst.answers.push({ job: null });
+  f('narration-generate').click(); await flush();
+  eq([f('narration-job').hidden, inst.refreshed, f('narration-refusal').hidden], [true, 1, true], 'job null refreshes');
+
+  // A new job.
+  inst.answers.push({ job: job({ status: 'queued' }) });
+  f('narration-generate').click(); await flush();
+  eq(f('narration-job').textContent, 'storymaker.voice.job_queued', 'queued');
+  eq(f('narration-cancel').hidden, false, 'a queued job can be stopped');
+  eq(f('narration-generate').disabled, true, 'one job at a time');
+
+  // A narrate event leaves the popover idle and advances the pieces.
+  inst.bus.emit('job', job({ pieces_done: 1 }));
+  eq([exporter.job(), button.dataset.state], [null, 'idle'], 'a narrate job leaves the export popover idle');
+  eq(f('narration-job').textContent, 'storymaker.voice.job_running', 'running');
+  eq([f('narration-pieces').textContent, f('narration-progress').value], ['storymaker.voice.pieces {"done":1,"total":4}', '0.25'], 'one of four');
+  inst.bus.emit('job', job({ pieces_done: 3 }));
+  eq([f('narration-pieces').textContent, f('narration-progress').value], ['storymaker.voice.pieces {"done":3,"total":4}', '0.75'], 'three of four');
+
+  // Stop shows while the job runs, is hidden when read-only and goes through the existing cancel call.
+  eq(f('narration-cancel').hidden, false, 'a running job can be stopped');
+  inst.readonly = true; inst.bus.emit('readonly');
+  eq(f('narration-cancel').hidden, true, 'read-only hides Stop');
+  inst.readonly = false; inst.bus.emit('readonly');
+  f('narration-cancel').click(); await flush();
+  eq(inst.cancelled, ['n1'], 'Stop calls cancelJob with the job id');
+
+  // A render event goes to the popover only, and another project is ignored.
+  inst.bus.emit('job', { id: 'r1', project_id: 'p1', kind: 'render', status: 'running', progress: 0.5 });
+  eq([exporter.job().id, button.dataset.state], ['r1', 'running'], 'a render job reaches the popover');
+  inst.bus.emit('job', job({ id: 'n9', project_id: 'p2', pieces_done: 9, pieces_total: 9 }));
+  eq(f('narration-pieces').textContent, 'storymaker.voice.pieces {"done":3,"total":4}', 'the panel kept its own job');
+
+  // Terminal states have the panel's own text. describeJobError would answer with the unknown text for these two.
+  inst.bus.emit('job', job({ status: 'interrupted' }));
+  eq(f('narration-job').textContent, 'storymaker.voice.job_interrupted', 'interrupted');
+  eq([f('narration-progress').hidden, f('narration-generate').disabled, f('narration-cancel').hidden], [true, false, true], 'a finished job frees Generate and has no Stop');
+  inst.bus.emit('job', job({ status: 'cancelled' }));
+  eq(f('narration-job').textContent, 'storymaker.voice.job_cancelled', 'cancelled');
+  inst.bus.emit('job', job({ status: 'failed', error: { code: 'narration_failed', message: 'piper answered 500' } }));
+  eq(f('narration-job-detail').textContent, 'piper answered 500', 'the failure detail');
+
+  // Everything has audio.
+  inst.audioInfo = { narration: {}, missing: [], chars: { total: 640, missing: 0 }, music: null };
+  inst.bus.emit('audio');
+  eq(f('narration-summary').textContent, 'storymaker.voice.complete {"total":640}', 'complete');
+  eq([panel.marker.hidden, f('narration-generate').disabled], [true, true], 'nothing to generate');
+
+  // The toggle writes style.captions and leaves the rest of the style alone.
+  eq(f('captions-toggle').checked, true, 'captions start on');
+  f('captions-toggle').checked = false; f('captions-toggle').fire('change');
+  eq(inst.story.style, { palette: 'sunny', font: 'default', captions: false }, 'the toggle writes style.captions');
+  eq(f('captions-toggle').checked, false, 'the toggle follows the story');
+
+  // Generate runs the stored voice, so a voice the panel shows but the story does not hold keeps it closed and says why.
+  const unsaved = () => ({ narration: {}, missing: [{ scene_id: 's1', block_id: 's1:n', chars: 120 }], chars: { total: 120, missing: 120 }, music: null });
+  const fresh = makeInst(unsaved());
+  fresh.story.voice = null;
+  const freshPanel = S.createVoicePanel(fresh);
+  await flush();
+  const gate = () => [freshPanel.el.find('narration-generate').disabled, freshPanel.el.find('narration-voice-hint').hidden];
+  eq(gate(), [true, false], 'voice null: the preselected voice is not stored yet');
+  freshPanel.el.find('voice-apply').click();
+  eq(gate(), [false, true], 'the one action opens Generate');
+  const picker = freshPanel.el.find('voice-select');
+  picker.value = 'de_DE-karlsson-low'; picker.fire('change');
+  eq(gate(), [true, false], 'a picked voice that is not written closes it again');
+  picker.value = 'de_DE-thorsten-high'; picker.fire('change');
+  eq(gate(), [false, true], 'the stored voice opens it');
+  freshPanel.dispose();
+
+  // With no voice to write on screen the server's refusal still speaks.
+  const bare = makeInst(unsaved());
+  bare.story.voice = null;
+  bare.api.voices = async () => ({ providers: [] });
+  const barePanel = S.createVoicePanel(bare);
+  await flush();
+  eq([barePanel.el.find('narration-generate').disabled, barePanel.el.find('narration-voice-hint').hidden], [false, true], 'no form, no hold');
+  barePanel.dispose();
+
+  // An idle panel does not take up an old finished job, which the event stream replays on every open.
+  const other = makeInst(null);
+  const quiet = S.createVoicePanel(other);
+  await flush();
+  other.bus.emit('job', job({ id: 'old', status: 'failed', error: { code: 'narration_failed', message: 'x' } }));
+  eq(quiet.el.find('narration-job').hidden, true, 'an old failure stays out');
+
+  exporter.dispose();
+  panel.dispose();
+  quiet.dispose();
+  console.log('storymaker narration status ok');
+})().catch(err => { console.error(err.stack || err); process.exit(1); });
+`
