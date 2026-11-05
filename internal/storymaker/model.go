@@ -103,11 +103,12 @@ type Format struct {
 	FPS    int    `json:"fps"`
 }
 
-// Style names a catalog palette and font and switches captions.
+// Style names a catalog palette and font, switches captions and sets the rhythm.
 type Style struct {
 	Palette  string `json:"palette"`
 	Font     string `json:"font"`
 	Captions bool   `json:"captions"`
+	Rhythm   string `json:"rhythm,omitempty"` // "" | calm | standard | lively; Go never writes a default
 }
 
 // UnmarshalJSON defaults captions to true when a style object omits the key.

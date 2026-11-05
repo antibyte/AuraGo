@@ -205,6 +205,43 @@ func TestStyleCaptionsDefaultOnWhenOmitted(t *testing.T) {
 	}
 }
 
+func TestStyleRhythmIsOnlyWrittenWhenSet(t *testing.T) {
+	without := `{"schema":"storymaker/1","title":"x","style":{"palette":"sunny","font":"default","captions":true},"scenes":[]}`
+	out, err := CanonicalJSON(mustDecode(t, without))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(out), "rhythm") {
+		t.Fatalf("a canonical save without a rhythm writes the key:\n%s", out)
+	}
+	with := `{"schema":"storymaker/1","title":"x","style":{"palette":"sunny","font":"default","captions":true,"rhythm":"lively"},"scenes":[]}`
+	s := mustDecode(t, with)
+	if s.Style.Rhythm != "lively" {
+		t.Fatalf("rhythm lost: %+v", s.Style)
+	}
+	out, err = CanonicalJSON(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(out), `"rhythm": "lively"`) {
+		t.Fatalf("rhythm not written:\n%s", out)
+	}
+}
+
+func TestDecodeRhythmHints(t *testing.T) {
+	issues := decodeFail(t, `{"schema":"storymaker/1","title":"x","rhythm":"calm","style":{"tempo":"fast"},"scenes":[{"id":"s1","rhythm":"calm"}]}`)
+	want := map[string]string{"/rhythm": `"style"`, "/style/tempo": `"rhythm"`, "/scenes/0/rhythm": `"style"`}
+	if len(issues) != len(want) {
+		t.Fatalf("want %d issues, got %+v", len(want), issues)
+	}
+	for _, is := range issues {
+		hint, ok := want[is.Path]
+		if !ok || is.Code != CodeUnknownField || !strings.Contains(is.Fix, hint) {
+			t.Errorf("issue %+v, want an unknown_field whose fix has %s", is, hint)
+		}
+	}
+}
+
 func TestCanonicalJSONIsStableAndRoundTrips(t *testing.T) {
 	for _, name := range []string{"minimal", "firewall"} {
 		data, _ := os.ReadFile("testdata/stories/" + name + ".json")

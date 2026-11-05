@@ -404,6 +404,7 @@ var fieldHints = map[string]string{
 	"Story.duration":    `Durations belong to scenes: scenes[].duration is "auto" or a number of seconds.`,
 	"Story.id":          `A story has no id; the project id is kept by the app.`,
 	"Story.name":        `Use "title".`,
+	"Story.rhythm":      `The rhythm belongs to the style: "style": {"rhythm":"calm"}.`,
 
 	"Scene.text":        `The spoken text is "narration"; on-screen text is a show beat: {"do":"show","text":"...","at":"center","entry":"fade"}.`,
 	"Scene.script":      `The spoken text is "narration".`,
@@ -432,6 +433,7 @@ var fieldHints = map[string]string{
 	"Scene.seconds":     `Use "duration": "auto" or a number of seconds.`,
 	"Scene.music":       `Music is set once for the story: "music": {"mode":"none"}.`,
 	"Scene.framing":     `The camera is "camera": {"framing":"wide"}.`,
+	"Scene.rhythm":      `The rhythm is set once for the story: "style": {"rhythm":"calm"}.`,
 
 	"Actor.character": `Use "cast" with the cast id, for example {"cast":"anna"}.`,
 	"Actor.id":        `Use "cast" with the cast id, for example {"cast":"anna"}.`,
@@ -517,6 +519,8 @@ var fieldHints = map[string]string{
 	"Style.theme":     `Use "palette" with a palette name such as "sunny".`,
 	"Style.typeface":  `Use "font": "default" or a bundled font name.`,
 	"Style.subtitles": `Use "captions": true or false.`,
+	"Style.tempo":     `Use "rhythm": "calm", "standard" or "lively".`,
+	"Style.pace":      `Use "rhythm": "calm", "standard" or "lively".`,
 
 	"Voice.lang":   `Use "language", for example "de".`,
 	"Voice.engine": `Use "provider", for example "piper".`,

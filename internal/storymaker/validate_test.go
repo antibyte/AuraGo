@@ -367,6 +367,21 @@ func TestValidateStoryLevel(t *testing.T) {
 	expectIssue(t, issues, CodeNotSupportedYet, SeverityMinor, "/music")
 }
 
+func TestValidateStyleRhythm(t *testing.T) {
+	cat := loadMini(t)
+	check := func(rhythm string) []Issue {
+		s := storyOf(t, `{"id":"s1"}`)
+		s.Style.Rhythm = rhythm
+		return Validate(&s, cat, DefaultLimits())
+	}
+	expectIssue(t, check("fast"), CodeInvalidValue, SeverityError, "/style/rhythm")
+	for _, rhythm := range []string{"", "calm", "standard", "lively"} {
+		if is := findIssue(check(rhythm), CodeInvalidValue, SeverityError, "/style/rhythm"); is != nil {
+			t.Errorf("rhythm %q refused: %+v", rhythm, is)
+		}
+	}
+}
+
 func TestValidateVoiceProvider(t *testing.T) {
 	cat := loadMini(t)
 	voiceIssues := func(path, provider string) []Issue {

@@ -168,6 +168,11 @@ func (v *validator) style() {
 		v.errorf(CodeUnknownName, "/style/font", fmt.Sprintf("The font %q is not in the catalog.", st.Font),
 			"Use one of: "+listOf(alts)+". Example: "+exampleJSON("font", alts[0]))
 	}
+	switch st.Rhythm {
+	case "", "calm", "standard", "lively":
+	default:
+		v.errorf(CodeInvalidValue, "/style/rhythm", fmt.Sprintf("The rhythm %q is not supported.", clip(st.Rhythm, 20)), `Use "calm", "standard" or "lively": {"rhythm":"calm"}.`)
+	}
 }
 
 func (v *validator) checkVoice(path string, voice *Voice) {
