@@ -649,7 +649,7 @@ func (run *renderRun) onReport(body []byte) ReportAnswer {
 		ids[i] = sc.ID
 	}
 	blocks, captionText, maxEvents := planReportBlocks(run.plan)
-	rep, refusal := parseReport(body, reportExpect{FPS: run.fps, Width: run.width, Height: run.height, MaxFrames: run.frameLimit, CatalogVersion: run.catVersion, SceneIDs: ids,
+	rep, refusal := parseReport(body, reportExpect{FPS: run.fps, Width: run.width, Height: run.height, MaxFrames: run.frameLimit, CatalogVersion: run.catVersion, Catalog: run.r.deps.Catalog, SFXEvents: sfxEventBound(&run.plan.Story, run.r.deps.Catalog), SceneIDs: ids,
 		Blocks: blocks, CaptionText: captionText, MaxEvents: maxEvents,
 		Prefix: run.prefix, Token: run.token})
 	if refusal != nil {

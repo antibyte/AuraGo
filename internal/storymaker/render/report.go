@@ -127,8 +127,7 @@ func checkAudioEvents(events []reportAudioEvent, filmMS int64, want reportExpect
 			}
 			seen[ev.BlockID][ev.Piece] = true
 		case "sfx":
-			// The catalog has no sound effects yet, so no such event can be valid.
-			return fmt.Sprintf("audio event %d is a sound effect, which the catalog does not have", i)
+			// checkSFXEvents owns the ref and the take.
 		default:
 			return fmt.Sprintf("audio event %d has the unknown kind %q", i, want.clean(ev.Kind, 40))
 		}
@@ -210,6 +209,8 @@ type reportExpect struct {
 	MaxFrames      int
 	CatalogVersion string
 	SceneIDs       []string
+	Catalog        *storymaker.Catalog // sfx refs
+	SFXEvents      int                 // sfx share of MaxEvents, from sfxEventBound
 	// Blocks holds the measured blocks by id. Only they may have audio events.
 	Blocks map[string]reportBlock
 	// CaptionText holds the captionKey of every other block the plan knows. The page also writes captions for
@@ -241,6 +242,7 @@ func (e reportExpect) captionText(id string) (string, bool) {
 // canvas, catalog version), frame_count must not exceed the Go-computed limit, the scene ranges must
 // be monotonic and cover frame_count exactly, and an error issue refuses the render.
 func parseReport(body []byte, want reportExpect) (compileReport, *reportRefusal) {
+	want.MaxEvents = min(want.MaxEvents+want.SFXEvents, maxReportEvents)
 	var rep compileReport
 	if err := json.Unmarshal(body, &rep); err != nil {
 		return rep, &reportRefusal{CodeRenderFailed, "The compile report is not valid JSON."}
@@ -312,5 +314,60 @@ func parseReport(body []byte, want reportExpect) (compileReport, *reportRefusal)
 	if reason := checkCaptions(rep.Captions, filmMS, want); reason != "" {
 		return bad("%s", reason)
 	}
+	if msg := checkSFXEvents(rep.AudioEvents, want.Catalog); msg != "" {
+		return bad("%s", msg)
+	}
 	return rep, nil
 }
+
+// sfxEventBound is the sfx share of MaxEvents: one event per sfx beat, for a pattern
+// floor(max(duration, default duration at the largest rhythm)/smallest spacing)+1, and one per show
+// with entry pop when auto_sfx is on. The beats of a code scene never run.
+func sfxEventBound(s *storymaker.Story, cat *storymaker.Catalog) int {
+	n := 0
+	for i := range s.Scenes {
+		if s.Scenes[i].Kind == "code" {
+			continue
+		}
+		for j := range s.Scenes[i].Beats {
+			b := &s.Scenes[i].Beats[j]
+			switch {
+			case b.Do == "sfx":
+				n += sfxBeatBound(b, cat)
+			case b.Do == "show" && b.Entry == "pop" && s.Style.AutoSFX:
+				n++
+			}
+		}
+	}
+	return n
+}
+
+func sfxBeatBound(b *storymaker.Beat, cat *storymaker.Catalog) int {
+	entry, ok := cat.Lookup(b.Sound)
+	if !ok || entry.Pattern == nil || entry.Pattern.SpacingMS[0] <= 0 {
+		return 1
+	}
+	span := max(b.Duration*1000, entry.Pattern.DefaultDurationMS*maxRhythmFactor)
+	return int(span/entry.Pattern.SpacingMS[0]) + 1 // a positive float truncates to its floor
+}
+
+// checkSFXEvents says why an sfx event is refused, or returns "". Its ref must be a catalog sfx and
+// its take an index into that entry's takes. A nil catalog refuses every sfx event.
+func checkSFXEvents(events []reportAudioEvent, cat *storymaker.Catalog) string {
+	for i := range events {
+		ev := &events[i]
+		if ev.Kind != "sfx" {
+			continue
+		}
+		entry, ok := cat.Lookup(ev.Ref)
+		if !ok || entry.Kind != "sfx" {
+			return fmt.Sprintf("the sfx event %d names the unknown sound %q", i, clip(ev.Ref, 80))
+		}
+		if ev.Take < 0 || ev.Take >= len(entry.Takes) {
+			return fmt.Sprintf("the sfx event %d of %q has take %d of %d", i, ev.Ref, ev.Take, len(entry.Takes))
+		}
+	}
+	return ""
+}
+
+const maxRhythmFactor = 1.25 // pinned against RHYTHM in motion.js by a test
