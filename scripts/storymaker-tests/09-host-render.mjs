@@ -51,6 +51,7 @@ function makeServer(opts = {}) {
             return res({}, 404);
         }
         gets.push(url);
+        if (url.split('?')[0] === RBASE + '/start') return res(opts.start ? opts.start(posts) : { start: true });
         if (opts.bootStatus && url.endsWith('/boot.json')) return res({}, opts.bootStatus);
         if (url === RBASE + '/boot.json') return res(boot);
         if (url === RBASE + '/story.json') return res(storyDoc);
@@ -155,8 +156,8 @@ check('render mode: restart, stop, refusal, frame limit and failures', async () 
     assert.equal(stop.status.phase, 'stopped'); assert.equal(stop.frames.length, 4); assert.equal(stop.status.error, 'cancelled');
     const refused = await runRender({ story: minimal, noCode: true, report: () => ({ start: false, error: 'ffmpeg_unavailable', message: 'no ffmpeg' }) });
     assert.equal(refused.status.phase, 'refused'); assert.equal(refused.frames.length, 0); assert.equal(refused.status.error, 'ffmpeg_unavailable');
-    const resumed = await runRender({ story: minimal, noCode: true, report: () => ({ start: true, from_frame: 10 }) });
-    assert.equal(resumed.frames[0].n, 10);
+    const ignored = await runRender({ story: minimal, noCode: true, report: () => ({ start: true, from_frame: 10 }) });
+    assert.equal(ignored.frames[0].n, 0, 'from_frame is gone: a render always starts at frame 0');
     const limited = await runRender({ story: minimal, noCode: true, frameLimit: 20, answer: () => ({ ok: true }) });
     assert.equal(limited.status.phase, 'error'); assert.equal(limited.frames.length, 20);
     assert.match(limited.server.posts.at(-1).error.message, /ran past the last frame/);
@@ -166,6 +167,48 @@ check('render mode: restart, stop, refusal, frame limit and failures', async () 
     assert.equal(err.code, 'readiness'); assert.match(err.message, /boot\.json answered 503/);
     const rejected = await runRender({ story: minimal, noCode: true, answer: () => ({ stop: true, error: 'bad_frame', message: 'size' }) });
     assert.equal(rejected.status.phase, 'stopped');
+});
+
+check('render mode: a pending report long-polls /start and renders only after start', async () => {
+    let polls = 0;
+    const framesAtPoll = [];
+    const r = await runRender({
+        story: minimal, noCode: true, report: () => ({ start: false, pending: true }),
+        start: posts => {
+            polls++;
+            framesAtPoll.push(posts.filter(p => p.path.startsWith('/frame')).length);
+            return polls < 3 ? { pending: true } : { start: true };
+        }
+    });
+    assert.equal(r.status.phase, 'done', JSON.stringify(r.status));
+    assert.equal(polls, 3, 'every pending answer polls again');
+    assert.deepEqual(framesAtPoll, [0, 0, 0], 'no frame before the start');
+    assert.equal(r.frames[0].n, 0);
+    assert.equal(r.frames.length, r.server.posts[0].report.frame_count);
+});
+
+check('render mode: an error from /start and an answer with neither start nor pending end in refused', async () => {
+    const pending = () => ({ start: false, pending: true });
+    const failed = await runRender({ story: minimal, noCode: true, report: pending, start: () => ({ error: 'ffmpeg_unavailable', message: 'no ffmpeg' }) });
+    assert.equal(failed.status.phase, 'refused'); assert.equal(failed.status.error, 'ffmpeg_unavailable'); assert.equal(failed.frames.length, 0);
+    const neither = await runRender({ story: minimal, noCode: true, report: () => ({ start: false }) });
+    assert.equal(neither.status.phase, 'refused'); assert.equal(neither.frames.length, 0);
+    assert.equal(neither.server.gets.filter(u => u.includes('/start')).length, 0);
+});
+
+check('render mode: a stand-in that answers {start:true} renders without polling', async () => {
+    const r = await runRender({ story: minimal, noCode: true });
+    assert.equal(r.status.phase, 'done');
+    assert.equal(r.server.gets.filter(u => u.includes('/start')).length, 0);
+});
+
+check('render mode: /start carries the token of boot.json, and no t without one', async () => {
+    const token = '0123456789abcdef0123456789abcdef';
+    const pending = () => ({ start: false, pending: true });
+    const withToken = await runRender({ story: minimal, noCode: true, report: pending, boot: { token } });
+    assert.ok(withToken.server.gets.includes(RBASE + '/start?t=' + token));
+    const without = await runRender({ story: minimal, noCode: true, report: pending });
+    assert.ok(without.server.gets.includes(RBASE + '/start'));
 });
 
 check('render mode: a code scene that fails is reported in the report issues and by POST /error', async () => {

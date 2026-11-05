@@ -12,6 +12,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
@@ -98,6 +99,8 @@ type Deps struct {
 	SessionTweak func(o *sessionOptions)
 	// ReportObserver, when set, sees every compile report body the page posts.
 	ReportObserver func(body []byte)
+	// mixHook, when set, runs where the mix runs, on the mix context. Tests hold the start with it.
+	mixHook func(ctx context.Context, run *renderRun) error
 	// ListenerObserver, when set, receives the request counts of the listener when the job ends.
 	ListenerObserver func(counts map[string]int64)
 }
@@ -284,6 +287,17 @@ type renderRun struct {
 	reportCh chan struct{}
 	doneCh   chan struct{}
 
+	// page is set under mu before Navigate, because driveScreenshots needs it.
+	page browserPage
+	// mixCtx derives from the job ctx and is created in execute before the page opens.
+	mixCtx    context.Context
+	cancelMix context.CancelFunc
+	// onReport adds to mixWG under mu before it starts the goroutine.
+	mixWG sync.WaitGroup
+	// startCh is closed once FFmpeg runs or the start failed; startErr is read after that.
+	startCh  chan struct{}
+	startErr *JobError
+
 	mu        sync.Mutex
 	ctx       context.Context
 	reported  bool
@@ -391,7 +405,7 @@ func (run *renderRun) execute(ctx context.Context) (Output, error) {
 	h.SetPrefixHash(HashPrefix(prefix))
 	run.ingest = NewIngest(IngestConfig{Width: run.width, Height: run.height, Transport: run.transport, FrameLimit: run.frameLimit})
 	listener, err := StartListener(prefix, snap, PageParams{Width: run.width, Height: run.height, FPS: run.fps, Transport: run.transport, FrameLimit: run.frameLimit, FrameDeadlineMS: frameDeadlineMS, Token: token, AudioInfo: run.plan.AudioJSON},
-		Hooks{Report: run.onReport, Frame: run.onFrame, Error: run.onPageError})
+		Hooks{Report: run.onReport, Frame: run.onFrame, Error: run.onPageError, Start: run.onStart})
 	if err != nil {
 		return Output{}, Fail(CodeRenderFailed, "%v", err)
 	}
@@ -418,6 +432,8 @@ func (run *renderRun) execute(ctx context.Context) (Output, error) {
 	if r.deps.SessionTweak != nil {
 		r.deps.SessionTweak(&opts)
 	}
+	run.startCh = make(chan struct{})
+	run.mixCtx, run.cancelMix = context.WithCancel(ctx)
 	page, err := r.deps.OpenPage(ctx, opts)
 	if err != nil {
 		if ctx.Err() != nil {
@@ -434,6 +450,14 @@ func (run *renderRun) execute(ctx context.Context) (Output, error) {
 			ff.Discard()
 		}
 	}()
+	// Runs before the discard above: stop the mix and wait, so FFmpeg never starts or is in run.ff.
+	defer func() {
+		run.cancelMix()
+		run.mixWG.Wait()
+	}()
+	run.mu.Lock()
+	run.page = page
+	run.mu.Unlock()
 
 	h.SetPhase(PhaseCompiling)
 	h.SetProgress(0.05)
@@ -477,9 +501,6 @@ func (run *renderRun) wait(ctx context.Context, page browserPage) error {
 				}
 			}
 			overall.Reset(RenderTimeout(run.st.TimeoutSeconds, run.report.FrameCount, run.transport))
-			if run.transport == TransportScreenshot {
-				go run.driveScreenshots(ctx, page)
-			}
 		case <-reportTimeout:
 			msg := "The render page did not report within " + reportWait.String() + "."
 			if status := page.Status(ctx); status != "" && status != "null" {
@@ -652,9 +673,8 @@ func (run *renderRun) snapshot() (*Snapshot, error) {
 	return snap, nil
 }
 
-// onReport is the hook behind POST /report: it validates the report, starts FFmpeg and tells the
-// page to begin. The ingest starts after the run lock is released (the ingest calls back into the
-// run while it holds its own lock, so the lock order is always ingest, then run).
+// onReport is the hook behind POST /report: it validates the report and answers pending at once. The
+// mix and the encoder start in startAfterReport, because three timers would cut a mix inside this request.
 func (run *renderRun) onReport(body []byte) ReportAnswer {
 	if obs := run.r.deps.ReportObserver; obs != nil {
 		obs(body)
@@ -678,25 +698,118 @@ func (run *renderRun) onReport(body []byte) ReportAnswer {
 		run.fail(&JobError{Code: refusal.Code, Message: refusal.Message})
 		return ReportAnswer{Error: refusal.Code, Message: refusal.Message}
 	}
-	ff, err := run.startFFmpeg(run.encoder, rep.FrameCount)
-	if err != nil {
-		run.mu.Unlock()
-		run.fail(Fail(CodeFFmpegUnavailable, "%v", err))
-		return ReportAnswer{Error: CodeFFmpegUnavailable, Message: err.Error()}
-	}
 	run.report = rep
 	run.frames = rep.FrameCount
+	run.mixWG.Add(1)
+	close(run.reportCh)
+	go run.startAfterReport()
+	run.mu.Unlock()
+	return ReportAnswer{Pending: true}
+}
+
+// onStart is the hook behind GET /start: 404 until a report was accepted, then it holds at most
+// startHold and answers pending, start or the failure of the start.
+func (run *renderRun) onStart(ctx context.Context) (StartAnswer, int) {
+	run.mu.Lock()
+	accepted := run.frames > 0
+	run.mu.Unlock()
+	if !accepted {
+		return StartAnswer{}, 404
+	}
+	timer := time.NewTimer(startHold)
+	defer timer.Stop()
+	select {
+	case <-run.startCh:
+		if run.startErr != nil {
+			return StartAnswer{Error: run.startErr.Code, Message: run.startErr.Message}, 200
+		}
+		return StartAnswer{Start: true}, 200
+	case <-timer.C:
+	case <-ctx.Done():
+	}
+	return StartAnswer{Pending: true}, 200
+}
+
+// failStart ends the start with err: the job fails and the next /start answer carries the error.
+func (run *renderRun) failStart(err *JobError) {
+	run.startErr = err
+	run.fail(err)
+	close(run.startCh)
+}
+
+// recoverStart is deferred by startAfterReport. This goroutine is out of reach of Manager.safeRun, so without it one bad
+// stored file would end the whole server. Only this goroutine closes startCh, so the check cannot race.
+func (run *renderRun) recoverStart() {
+	rec := recover()
+	if rec == nil {
+		return
+	}
+	run.r.deps.Logger.Error("[Storymaker] Recovered from a panic while starting a render", "job", run.job.ID, "panic", rec, "stack", string(debug.Stack()))
+	err := Fail(CodeRenderFailed, "The render stopped unexpectedly.")
+	select {
+	case <-run.startCh:
+		run.fail(err)
+	default:
+		run.failStart(err)
+	}
+}
+
+// startEncoder starts FFmpeg and the watchdog under run.mu. It returns no encoder and no error when the job is already
+// over. The unlock is deferred because a panic must not leave run.mu held: recoverStart fails the job, and execute then
+// takes the lock on its way out.
+func (run *renderRun) startEncoder() (*FFmpeg, error) {
+	run.mu.Lock()
+	defer run.mu.Unlock()
+	if run.mixCtx.Err() != nil {
+		return nil, nil
+	}
+	ff, err := run.startFFmpeg(run.encoder, run.frames)
+	if err != nil {
+		return nil, err
+	}
 	run.ff = ff
 	run.watchdog = time.AfterFunc(noFrameWatchdog, func() {
 		run.fail(Fail(CodeCodeError, "The page rendered no frame for %s. A code scene may be stuck.", noFrameWatchdog))
 	})
+	return ff, nil
+}
+
+// startAfterReport runs after an accepted report. It prepares the audio, starts FFmpeg, the watchdog and the ingest, and
+// then releases the page. The ingest starts after the run lock is released, because the ingest calls back into the run
+// while it holds its own lock.
+func (run *renderRun) startAfterReport() {
+	defer run.mixWG.Done()
+	defer run.recoverStart()
+	run.h.SetPhase(PhaseMixing)
+	if hook := run.r.deps.mixHook; hook != nil {
+		if err := hook(run.mixCtx, run); err != nil && run.mixCtx.Err() == nil {
+			run.failStart(Fail(CodeRenderFailed, "%v", err))
+			return
+		}
+	}
+
+	ff, err := run.startEncoder()
+	if err != nil {
+		run.failStart(Fail(CodeFFmpegUnavailable, "%v", err))
+		return
+	}
+	if ff == nil {
+		// The job is over. FFmpeg must not start: on Windows RemoveAll fails while it holds a file.
+		run.startErr = Fail(CodeRenderFailed, "The render stopped before it started.")
+		close(run.startCh)
+		return
+	}
+	run.mu.Lock()
+	page, frames := run.page, run.frames
 	run.mu.Unlock()
 
-	run.ingest.Start(rep.FrameCount, ff, run.recoverEncoder, run.onFrameAccepted)
+	run.ingest.Start(frames, ff, run.recoverEncoder, run.onFrameAccepted)
 	run.h.SetPhase(PhaseRendering)
-	run.h.SetFrames(0, rep.FrameCount)
-	close(run.reportCh)
-	return ReportAnswer{Start: true}
+	run.h.SetFrames(0, frames)
+	close(run.startCh)
+	if run.transport == TransportScreenshot {
+		go run.driveScreenshots(run.ctx, page)
+	}
 }
 
 func (run *renderRun) startFFmpeg(enc videostudio.Encoder, frames int) (*FFmpeg, error) {

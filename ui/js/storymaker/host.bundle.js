@@ -830,7 +830,7 @@
         var status = win.__smStatus = { phase: 'boot', frame: -1 };
         var engine = null;
 
-        // The token of the first boot.json answer stays here, and only post() reads it. A failure text names a label or a route and
+        // The token of the first boot.json answer stays here, and post() and waitForStart() read it. A failure text names a label or a route and
         // never a URL, because a URL holds the secret prefix and this text reaches __smStatus, POST /error and the job record.
         var token = '';
 
@@ -849,6 +849,16 @@
             try { json = text ? JSON.parse(text) : {}; } catch (e) { json = null; }
             if (!res.ok && (!json || !(json.stop || json.restart))) throw H.fail('render_failed', 'POST ' + path.split('?')[0] + ' answered ' + res.status + (text ? ': ' + text.slice(0, 200) : ''));
             return json || {};
+        }
+        // The deferred start: Go holds each GET at most 20 s and answers pending, start or an error, so the page
+        // needs no timer of its own. A failure text names the route only, never the token.
+        async function waitForStart() {
+            for (;;) {
+                var res = await doFetch(base + '/start' + (token ? '?t=' + token : ''), { cache: 'no-store' });
+                if (!res.ok) throw H.fail('render_failed', 'GET /start answered ' + res.status);
+                var reply = await res.json();
+                if (!reply.pending) return reply;
+            }
         }
         async function postError(err, sceneId) {
             try { await post('/error', JSON.stringify(errorBody(err, sceneId)), { 'Content-Type': 'application/json' }); } catch (e) { /* the listener is gone */ }
@@ -929,6 +939,11 @@
             var rep = loaded.report;
             status.phase = 'reporting';
             var answer = await post('/report', JSON.stringify(rep), { 'Content-Type': 'application/json' });
+            // Go answers at once and mixes in the background. A stand-in may still answer {start:true}.
+            if (answer.pending && !answer.start && !answer.error) {
+                status.phase = 'waiting';
+                answer = await waitForStart();
+            }
             if (!answer.start) {
                 status.phase = 'refused';
                 status.error = answer.error || '';
@@ -978,7 +993,7 @@
             }
 
             status.phase = 'rendering';
-            var n = answer.from_frame > 0 ? answer.from_frame : 0;
+            var n = 0;
             for (;;) {
                 if (n >= limit) {
                     await postError(H.fail('render_failed', 'The page ran past the last frame (' + limit + ') without a done answer.'));

@@ -1,6 +1,7 @@
 package render
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/hex"
@@ -26,6 +27,9 @@ const (
 	maxReportBytes = 8 << 20
 	maxErrorBytes  = 16 << 10
 )
+
+// startHold is how long GET /start holds one call. A variable, so the tests can shorten it.
+var startHold = 20 * time.Second
 
 // SnapshotFont is one catalog font face as the render page receives it.
 type SnapshotFont struct {
@@ -74,10 +78,18 @@ type PageParams struct {
 
 // ReportAnswer is the reply to POST /report.
 type ReportAnswer struct {
-	Start     bool   `json:"start"`
-	FromFrame int    `json:"from_frame,omitempty"`
-	Error     string `json:"error,omitempty"`
-	Message   string `json:"message,omitempty"`
+	Start   bool   `json:"start"`
+	Pending bool   `json:"pending,omitempty"`
+	Error   string `json:"error,omitempty"`
+	Message string `json:"message,omitempty"`
+}
+
+// StartAnswer is the reply to GET /start.
+type StartAnswer struct {
+	Pending bool   `json:"pending,omitempty"`
+	Start   bool   `json:"start,omitempty"`
+	Error   string `json:"error,omitempty"`
+	Message string `json:"message,omitempty"`
 }
 
 // FrameAnswer is the reply to POST /frame.
@@ -105,6 +117,8 @@ type Hooks struct {
 	Frame func(n int, contentType string, data []byte) (answer FrameAnswer, status int)
 	// Error receives a page failure.
 	Error func(e PageError)
+	// Start blocks at most startHold. status is the HTTP status: 404 before an accepted report, else 200.
+	Start func(ctx context.Context) (answer StartAnswer, status int)
 }
 
 // Listener is the per-job loopback HTTP server the headless browser talks to. It binds
@@ -250,6 +264,8 @@ func (l *Listener) serve(w http.ResponseWriter, r *http.Request) {
 		serveBytes(w, r, "text/javascript; charset=utf-8", l.snap.PlayerBundle)
 	case rest == "report":
 		l.report(w, r)
+	case rest == "start":
+		l.start(w, r)
 	case rest == "frame":
 		l.frame(w, r)
 	case rest == "error":
@@ -265,7 +281,7 @@ func (l *Listener) count(method, rest string) {
 	switch rest {
 	case "":
 		route = "page"
-	case "report", "frame", "error", "boot.json":
+	case "report", "start", "frame", "error", "boot.json":
 		route = rest
 	}
 	l.statsMu.Lock()
@@ -450,6 +466,24 @@ func (l *Listener) report(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, l.hooks.Report(body))
+}
+
+// start is the long poll of the deferred start (contract section 7).
+func (l *Listener) start(w http.ResponseWriter, r *http.Request) {
+	if subtle.ConstantTimeCompare([]byte(r.URL.Query().Get("t")), []byte(l.params.Token)) != 1 {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "bad_token"})
+		return
+	}
+	if r.Method != http.MethodGet {
+		methodNotAllowed(w, "GET, OPTIONS")
+		return
+	}
+	if l.hooks.Start == nil {
+		notFound(w)
+		return
+	}
+	answer, status := l.hooks.Start(r.Context())
+	writeJSON(w, status, answer)
 }
 
 func (l *Listener) frame(w http.ResponseWriter, r *http.Request) {

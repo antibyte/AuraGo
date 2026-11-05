@@ -7,6 +7,7 @@ import (
 	"errors"
 	"image/color"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -105,6 +106,7 @@ type playOptions struct {
 	errorAfter  int // POST /error after this many frames (0 = never)
 	errorBody   string
 	onRefused   func(answer ReportAnswer)
+	onAnswer    func(answer ReportAnswer)
 	onRestart   func()
 	framesSent  *atomic.Int64
 	skipReport  bool
@@ -184,11 +186,23 @@ func play(t *testing.T, o playOptions) func(ctx context.Context, base string) {
 					t.Error("a second report was accepted")
 				}
 			}
-			if !answer.Start {
+			if o.onAnswer != nil {
+				o.onAnswer(answer)
+			}
+			if !answer.Start && !answer.Pending {
 				if o.onRefused != nil {
 					o.onRefused(answer)
 				}
 				return
+			}
+			if answer.Pending {
+				started := waitForStart(ctx, base, fakePageBootToken(bootBytes))
+				if !started.Start {
+					if o.onRefused != nil {
+						o.onRefused(ReportAnswer{Error: started.Error, Message: started.Message})
+					}
+					return
+				}
 			}
 		}
 		if boot.Transport == TransportScreenshot {
@@ -958,5 +972,190 @@ func TestRunBoundsTheBrowserSetupByTheRenderTimeout(t *testing.T) {
 	}
 	if took := time.Since(start); took > 20*time.Second {
 		t.Fatalf("the setup ran %s although render.timeout_seconds is 1", took)
+	}
+}
+
+// fakePageBootToken reads the listener token from the boot document the fake page fetched.
+func fakePageBootToken(bootBytes []byte) string {
+	var doc struct {
+		Token string `json:"token"`
+	}
+	_ = json.Unmarshal(bootBytes, &doc)
+	return doc.Token
+}
+
+// waitForStart long-polls /start like the page does. It returns on any answer but pending, or when the job ended.
+func waitForStart(ctx context.Context, base, token string) StartAnswer {
+	for ctx.Err() == nil {
+		out, status, err := httpDo(ctx, "GET", base+"/start?t="+token, "", nil, nil)
+		if err != nil || status != 200 {
+			return StartAnswer{Error: "start_unreachable"}
+		}
+		var a StartAnswer
+		_ = json.Unmarshal(out, &a)
+		if !a.Pending {
+			return a
+		}
+	}
+	return StartAnswer{Error: "cancelled"}
+}
+
+// enqueueRender queues a render of the fixture's project and returns the job at once.
+func (fx *runFixture) enqueueRender(t *testing.T) Job {
+	t.Helper()
+	plan, err := fx.runner.Prepare(context.Background(), fx.projectID, "", fx.settings)
+	if err != nil {
+		t.Fatalf("Prepare: %v", err)
+	}
+	job, _, err := fx.mgr.Enqueue(EnqueueRequest{ProjectID: fx.projectID, Payload: plan})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return job
+}
+
+func TestRunDeferredStartAnswersPendingAndHoldsTheWatchdog(t *testing.T) {
+	old := noFrameWatchdog
+	noFrameWatchdog = 600 * time.Millisecond
+	t.Cleanup(func() { noFrameWatchdog = old })
+	fx := newRunFixture(t)
+	release := make(chan struct{})
+	fx.deps.mixHook = func(ctx context.Context, _ *renderRun) error {
+		select {
+		case <-release:
+			return nil
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+	fx.rebuild(t)
+	answers := make(chan ReportAnswer, 1)
+	fx.playing(playOptions{frames: 12, onAnswer: func(a ReportAnswer) { answers <- a }})
+	job := fx.enqueueRender(t)
+	select {
+	case a := <-answers:
+		if a.Start || !a.Pending || a.Error != "" {
+			t.Fatalf("the report answer = %+v, want pending", a)
+		}
+	case <-time.After(time.Minute):
+		t.Fatal("the report was not answered while the start was held")
+	}
+	// Twice the watchdog passes inside the mix. The job still runs, because the watchdog starts with FFmpeg.
+	time.Sleep(2 * noFrameWatchdog)
+	if j, _ := fx.mgr.Get(job.ID); j.Status != StatusRunning || j.Phase != PhaseMixing {
+		t.Fatalf("while the mix holds: %+v %+v", j, j.Error)
+	}
+	close(release)
+	done := waitJobFor(t, fx.mgr, job.ID, terminal, 2*time.Minute)
+	if done.Status != StatusSucceeded {
+		t.Fatalf("job = %+v %+v", done, done.Error)
+	}
+}
+
+// No report means nothing was added to mixWG, so the wait at the end of execute returns at once.
+func TestRunDeferredStartReportTimeoutEndsAtOnce(t *testing.T) {
+	old := reportWait
+	reportWait = 200 * time.Millisecond
+	t.Cleanup(func() { reportWait = old })
+	fx := newRunFixture(t)
+	fx.page.script = func(ctx context.Context, _ string) { <-ctx.Done() }
+	started := time.Now()
+	job := fx.render(t)
+	if job.Status != StatusFailed || job.Error == nil || job.Error.Code != CodeRenderFailed || !strings.Contains(job.Error.Message, "did not report") {
+		t.Fatalf("job = %+v %+v", job, job.Error)
+	}
+	if took := time.Since(started); took > 20*time.Second {
+		t.Fatalf("the job took %s to end", took)
+	}
+}
+
+func TestRunDeferredStartCancelBeforeTheReportEndsAtOnce(t *testing.T) {
+	fx := newRunFixture(t)
+	opened := make(chan struct{})
+	fx.page.script = func(ctx context.Context, _ string) {
+		close(opened)
+		<-ctx.Done()
+	}
+	job := fx.enqueueRender(t)
+	select {
+	case <-opened:
+	case <-time.After(time.Minute):
+		t.Fatal("the page was never opened")
+	}
+	fx.mgr.Cancel(job.ID)
+	done := waitJob(t, fx.mgr, job.ID, terminal)
+	if done.Status != StatusCancelled {
+		t.Fatalf("job = %+v %+v", done, done.Error)
+	}
+}
+
+// A panic on the start goroutine is out of reach of Manager.safeRun, so without a recover here one project's stored audio
+// could end the whole server. The job fails with the fixed text, the log keeps the panic, and /start gets its answer.
+func TestRunDeferredStartPanicFailsTheJob(t *testing.T) {
+	fx := newRunFixture(t)
+	var logged bytes.Buffer
+	fx.deps.Logger = slog.New(slog.NewTextHandler(&logged, nil))
+	var held atomic.Pointer[renderRun]
+	fx.deps.mixHook = func(_ context.Context, run *renderRun) error {
+		held.Store(run)
+		panic("mix index out of range")
+	}
+	fx.rebuild(t)
+	fx.playing(playOptions{frames: 12})
+	job := fx.render(t)
+	if job.Status != StatusFailed || job.Error == nil || job.Error.Code != CodeRenderFailed || job.Error.Message != "The render stopped unexpectedly." {
+		t.Fatalf("job = %+v %+v", job, job.Error)
+	}
+	if !strings.Contains(logged.String(), "mix index out of range") {
+		t.Errorf("the log does not name the panic: %s", logged.String())
+	}
+	run := held.Load()
+	select {
+	case <-run.startCh:
+		if run.startErr == nil || run.startErr.Code != CodeRenderFailed {
+			t.Errorf("startErr = %+v", run.startErr)
+		}
+	default:
+		t.Error("startCh is still open, so /start would answer pending until the job ended")
+	}
+}
+
+// wait returns on a crash with the job ctx still live, so only cancelMix can stop the mix.
+func TestRunDeferredStartPageCrashStartsNoFFmpeg(t *testing.T) {
+	fx := newRunFixture(t)
+	var held atomic.Pointer[renderRun]
+	inMix := make(chan struct{})
+	fx.deps.mixHook = func(ctx context.Context, run *renderRun) error {
+		held.Store(run)
+		close(inMix)
+		<-ctx.Done() // the real mix checks the same ctx at each block
+		return ctx.Err()
+	}
+	fx.rebuild(t)
+	fx.playing(playOptions{frames: 12})
+	job := fx.enqueueRender(t)
+	select {
+	case <-inMix:
+	case <-time.After(time.Minute):
+		t.Fatal("the mix never started")
+	}
+	started := time.Now()
+	close(fx.page.crashed)
+	done := waitJob(t, fx.mgr, job.ID, terminal)
+	if done.Status != StatusFailed || done.Error == nil || !strings.Contains(done.Error.Message, "crashed") {
+		t.Fatalf("job = %+v %+v", done, done.Error)
+	}
+	if took := time.Since(started); took > 5*time.Second {
+		t.Errorf("the crash took %s to end the job", took)
+	}
+	run := held.Load()
+	run.mu.Lock()
+	ff := run.ff
+	run.mu.Unlock()
+	if ff != nil {
+		t.Error("FFmpeg started after the crash")
+	}
+	if entries, _ := os.ReadDir(StagingRoot(fx.dir)); len(entries) != 0 {
+		t.Errorf("staging not cleaned: %v", entries)
 	}
 }

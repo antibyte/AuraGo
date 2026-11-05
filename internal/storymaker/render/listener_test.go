@@ -518,3 +518,73 @@ func TestListenerCloseStopsServing(t *testing.T) {
 		t.Fatal("the listener still answers after Close")
 	}
 }
+
+// /start needs the token, answers 404 until a report was accepted, holds at most startHold and then
+// answers pending, start or the failure of the start.
+func TestListenerDeferredStartRoute(t *testing.T) {
+	old := startHold
+	startHold = 150 * time.Millisecond
+	t.Cleanup(func() { startHold = old })
+	const token = "0123456789abcdef0123456789abcdef"
+	listen := func(run *renderRun) (*listenerFixture, string) {
+		t.Helper()
+		prefix, err := NewPrefix()
+		if err != nil {
+			t.Fatal(err)
+		}
+		l, err := StartListener(prefix, &Snapshot{}, PageParams{Width: 1920, Height: 1080, FPS: 30, Transport: TransportPNG, FrameLimit: 900, Token: token}, Hooks{Start: run.onStart})
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = l.Close() })
+		client := &http.Client{Timeout: 5 * time.Second, Transport: &http.Transport{DisableKeepAlives: true}}
+		return &listenerFixture{l: l, client: client}, l.Base() + "/start"
+	}
+
+	run := &renderRun{startCh: make(chan struct{})}
+	fx, start := listen(run)
+	if res, body := fx.do(t, http.MethodGet, start+"?t=wrong", nil, nil); res.StatusCode != http.StatusForbidden || !strings.Contains(string(body), `"error":"bad_token"`) {
+		t.Errorf("wrong token = %d %s", res.StatusCode, body)
+	}
+	if res, _ := fx.do(t, http.MethodPost, start+"?t="+token, nil, nil); res.StatusCode != http.StatusMethodNotAllowed {
+		t.Errorf("POST /start = %d", res.StatusCode)
+	}
+	if res, _ := fx.do(t, http.MethodGet, start+"?t="+token, nil, nil); res.StatusCode != http.StatusNotFound {
+		t.Errorf("/start before a report = %d, want 404", res.StatusCode)
+	}
+
+	// A report was accepted and the start still runs: the call holds, then answers pending.
+	run.mu.Lock()
+	run.frames = 30
+	run.mu.Unlock()
+	began := time.Now()
+	res, body := fx.do(t, http.MethodGet, start+"?t="+token, nil, nil)
+	if res.StatusCode != http.StatusOK || string(body) != `{"pending":true}` {
+		t.Errorf("held /start = %d %s", res.StatusCode, body)
+	}
+	if held := time.Since(began); held < startHold {
+		t.Errorf("/start answered after %s, it must hold %s", held, startHold)
+	}
+
+	// A hold far longer than the client's 5 s timeout: the answer comes when the start is done, not at the end of the hold.
+	startHold = 10 * time.Second
+	time.AfterFunc(50*time.Millisecond, func() { close(run.startCh) })
+	res, body = fx.do(t, http.MethodGet, start+"?t="+token, nil, nil)
+	if res.StatusCode != http.StatusOK || string(body) != `{"start":true}` {
+		t.Errorf("/start after the start = %d %s", res.StatusCode, body)
+	}
+	if _, body := fx.do(t, http.MethodGet, start+"?t="+token, nil, nil); string(body) != `{"start":true}` {
+		t.Errorf("a repeated /start = %s", body)
+	}
+	if fx.l.Counts()["GET start"] == 0 {
+		t.Errorf("counts = %v, want the route start", fx.l.Counts())
+	}
+
+	failed := &renderRun{startCh: make(chan struct{}), frames: 30, startErr: Fail(CodeFFmpegUnavailable, "no encoder")}
+	close(failed.startCh)
+	fx2, start2 := listen(failed)
+	res, body = fx2.do(t, http.MethodGet, start2+"?t="+token, nil, nil)
+	if res.StatusCode != http.StatusOK || string(body) != `{"error":"ffmpeg_unavailable","message":"no encoder"}` {
+		t.Errorf("failed start = %d %s", res.StatusCode, body)
+	}
+}
