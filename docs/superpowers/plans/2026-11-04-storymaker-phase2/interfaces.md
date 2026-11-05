@@ -320,7 +320,7 @@ func (p *ProjectStore) MusicInfo(ctx context.Context, id, key string) (meta Musi
 
 - Keys are lower-case hex sha256 of `generated|mood|prompt`, `file|path|size|mtime` or `track|id|size|mtime`. `mtime` is decimal `UnixNano`. Length is excluded.
 - Decided here: `meta.json` holds the duration, so `/narration` never decodes a track.
-- `MusicPrompt`: the mood's template, then `". "` and the user's prompt when both exist. A prompt without a mood stays as written. `Instrumental:true` is a parameter, not prompt text. First guesses, because they feed a paid call and the key:
+- `MusicPrompt`: the mood's template, then `". "` and the user's prompt when both exist. A prompt without a mood stays as written. `Instrumental:true` is a parameter, not prompt text. First guesses, because they feed a paid call. The key holds the mood's name and not this text, so an edit keeps stored tracks:
 
 | Mood | Template |
 | --- | --- |

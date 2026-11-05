@@ -16,8 +16,8 @@ import (
 // MusicMoods are the presets of music.mood. MusicPrompt has one template for each.
 var MusicMoods = []string{"upbeat-corporate", "calm-ambient", "inspiring", "playful", "tech-pulse", "dramatic", "lo-fi", "acoustic"}
 
-// musicTemplates are first guesses. They feed a paid call and the music key, so changing one makes
-// every generated track of that mood missing.
+// musicTemplates are first guesses. They feed a paid call. The key holds the mood's name and not this text, so an edit
+// keeps the tracks already stored for that mood.
 var musicTemplates = map[string]string{
 	"upbeat-corporate": "Upbeat corporate background music, bright piano and clean guitar, steady light drums, positive and professional",
 	"calm-ambient":     "Calm ambient background music, soft pads and slow textures, no drums, quiet and spacious",
