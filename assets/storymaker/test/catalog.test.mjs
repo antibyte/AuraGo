@@ -4,10 +4,11 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildOutputs, versionOf } from '../lib/catalog.mjs';
+import { buildOutputs, sameOutput, versionOf } from '../lib/catalog.mjs';
 import { validateOutputs } from '../lib/validate.mjs';
 import { NAMES, LANGS, localeTables, nameKey } from '../lib/names.mjs';
 
@@ -17,12 +18,25 @@ test('two builds produce identical bytes and the version hash follows the files'
   const a = buildOutputs();
   const b = buildOutputs();
   assert.deepEqual([...a.files.keys()], [...b.files.keys()]);
-  for (const [p, text] of a.files) assert.equal(text, b.files.get(p), p);
+  for (const [p, content] of a.files) assert.deepEqual(content, b.files.get(p), p);
   assert.equal(a.manifest.version, versionOf(a.files));
   assert.match(a.manifest.version, /^[0-9a-f]{12}$/);
-  for (const text of a.files.values()) assert.ok(!text.includes('\r'), 'LF only');
+  for (const text of a.files.values()) if (!Buffer.isBuffer(text)) assert.ok(!text.includes('\r'), 'LF only');
   // 105 phase 1 files, glyphs.json and 3 new thumbnails
   assert.equal(a.files.size, 109);
+});
+
+test('versionOf hashes a Buffer raw and text LF-normalised, and sameOutput follows the same rule', () => {
+  const hash = (bytes) => crypto.createHash('sha256').update(bytes).digest('hex').slice(0, 12);
+  const crlf = Buffer.from([0x41, 0x0d, 0x0a, 0x42]); // the bytes of A CR LF B: in binary data that pair is not a line end
+  const lfOnly = Buffer.from([0x41, 0x0a, 0x42]);
+  assert.notEqual(hash(crlf), hash(lfOnly));
+  assert.equal(versionOf(new Map([['sfx/a.wav', crlf]])), hash(crlf));
+  assert.equal(versionOf(new Map([['a.json', 'A\r\nB']])), hash(lfOnly));
+  assert.equal(sameOutput(crlf, Buffer.from(crlf)), true);
+  assert.equal(sameOutput(lfOnly, crlf), false);
+  assert.equal(sameOutput(crlf, 'A\nB'), true); // a text output survives a CRLF checkout
+  assert.equal(sameOutput(Buffer.from('A\nC'), 'A\nB'), false);
 });
 
 test('the generated catalog passes the build validator', () => {

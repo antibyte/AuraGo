@@ -11,7 +11,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { buildOutputs } from '../assets/storymaker/lib/catalog.mjs';
+import { buildOutputs, sameOutput } from '../assets/storymaker/lib/catalog.mjs';
 import { localeTables, LANGS } from '../assets/storymaker/lib/names.mjs';
 import { validateOutputs } from '../assets/storymaker/lib/validate.mjs';
 import { castSheet, varietySheet, envPropSheet } from '../assets/storymaker/lib/review.mjs';
@@ -19,9 +19,8 @@ import { castSheet, varietySheet, envPropSheet } from '../assets/storymaker/lib/
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = path.join(root, 'ui', 'img', 'storymaker');
 const langDir = path.join(root, 'ui', 'lang', 'storymaker_catalog');
-const SUBDIRS = ['rig', 'props', 'environments', 'thumbs'];
+const SUBDIRS = ['rig', 'props', 'environments', 'sfx', 'thumbs'];
 
-const lf = (s) => s.replace(/\r\n/g, '\n');
 
 function expectedFiles() {
   const built = buildOutputs();
@@ -57,7 +56,7 @@ function write() {
   }
   for (const [p, text] of files) {
     fs.mkdirSync(path.dirname(p), { recursive: true });
-    fs.writeFileSync(p, text, 'utf8');
+    fs.writeFileSync(p, text); // a string is written as UTF-8, a Buffer byte for byte
   }
   for (const p of listExisting()) if (!files.has(p)) fs.rmSync(p);
   let bytes = 0;
@@ -70,7 +69,7 @@ function check() {
   const problems = validateOutputs(built);
   for (const [p, text] of files) {
     if (!fs.existsSync(p)) problems.push(`missing: ${path.relative(root, p)}`);
-    else if (lf(fs.readFileSync(p, 'utf8')) !== text) problems.push(`differs: ${path.relative(root, p)}`);
+    else if (!sameOutput(fs.readFileSync(p), text)) problems.push(`differs: ${path.relative(root, p)}`);
   }
   for (const p of listExisting()) if (!files.has(p)) problems.push(`stale: ${path.relative(root, p)}`);
   if (problems.length) {

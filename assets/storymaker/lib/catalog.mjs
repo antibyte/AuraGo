@@ -270,10 +270,18 @@ export function buildThumbs(rig, entries) {
 // ---------------------------------------------------------------- manifest and hashing
 const lf = (s) => s.replace(/\r\n/g, '\n');
 
-/** sha256 over the LF-normalised bytes of every output except catalog.json in sorted path order, first 12 hex. */
+/** True when the bytes on disk match an expected output: a Buffer byte for byte, text after LF normalisation. */
+export function sameOutput(onDisk, expected) {
+  return Buffer.isBuffer(expected) ? onDisk.equals(expected) : lf(onDisk.toString('utf8')) === expected;
+}
+
+/** sha256 over every output except catalog.json in sorted path order, text LF-normalised and Buffers raw, first 12 hex. */
 export function versionOf(files) {
   const h = crypto.createHash('sha256');
-  for (const p of [...files.keys()].filter((k) => k !== 'catalog.json').sort()) h.update(Buffer.from(lf(files.get(p)), 'utf8'));
+  for (const p of [...files.keys()].filter((k) => k !== 'catalog.json').sort()) {
+    const content = files.get(p);
+    h.update(Buffer.isBuffer(content) ? content : Buffer.from(lf(content), 'utf8'));
+  }
   return h.digest('hex').slice(0, 12);
 }
 
