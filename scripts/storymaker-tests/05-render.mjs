@@ -1,6 +1,6 @@
 // Task C6: renderFrame: environment layers, props, actors, texts, transitions, determinism of the call log.
 import assert from 'node:assert/strict';
-import { plain, renderAssets, FakeCanvas, makeContext, digest } from '../storymaker-test-support.mjs';
+import { plain, renderAssets, FakeCanvas, makeContext, digest, loadPlayer, coreOf } from '../storymaker-test-support.mjs';
 import { t } from '../storymaker-test-context.mjs';
 
 const { check, near, catalog, files, firewall } = t;
@@ -97,6 +97,29 @@ check('highlight: pulse peaks at 1.08 on a prop and a text, outline strokes 6 de
     assert.ok(tip > high.findLastIndex(l => l.includes('M28,52')), 'the arrow is above the lock and drawn after it');
     assert.equal(high[tip - 2], 'set fillStyle=#ff7a45');
     assert.ok(renderLog(onProp('arrow'), 9).includes('moveTo(960,' + r3(top - 32) + ')'), 'the arrow bobs 8 px');
+});
+
+check('layout memo: a sliding text renders the same at its frames in both orders', () => {
+    // The slide moves the anchor and the anchor sets maxWidth, so the wrap changes during the entry. Two fresh realms start with
+    // empty memos, so a key without maxWidth would freeze the first wrap each realm sees, and the two orders would differ.
+    const slide = { scenes: [{ id: 'a', transition: 'cut', beats: [{ do: 'show', text: 'Ein kurzer Titel hier', at: 'left', entry: 'slide' }] }] };
+    const run = frames => {
+        const S = coreOf(loadPlayer()), tl = S.compile(slide, {}, catalog).timeline, out = {};
+        for (const n of frames) {
+            const cv = new FakeCanvas(tl.width, tl.height);
+            S.renderFrame(tl, n, cv.ctx, renderAssets());
+            out[n] = cv.ctx.log.map(l => l.replace(/canvas\d+/g, 'canvas'));
+        }
+        return out;
+    };
+    const frames = Array.from({ length: 16 }, (_, n) => n);
+    const forward = run(frames), backward = run([...frames].reverse());
+    for (const n of frames) assert.deepEqual(backward[n], forward[n], 'frame ' + n);
+    // The title is 76 px, so with the fake 0.5 em font the text is 21 x 38 = 798 px wide. The anchor slides from 436 to 576. At frame 1
+    // (u = 1/15) it is below 470, so maxWidth = 2 x (x - 96) is below 750: two lines. At frame 15 it is 576, so maxWidth is 960: one line.
+    const lines = n => forward[n].filter(l => l.startsWith('fillText(')).length;
+    assert.equal(lines(1), 2);
+    assert.equal(lines(15), 1);
 });
 
 check('rig state: a gesture in progress, the seated typing pose, the walk cycle in profile', () => {

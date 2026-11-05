@@ -170,7 +170,7 @@
     }
 
     function layText(ctx, st, style, rc, x, align) {
-        return SM.text.layout(ctx, st.text, style, { canvasH: rc.H, maxWidth: SM.text.maxWidthFor(rc.W, rc.safe, x, align), family: familyOf(rc, style) });
+        return SM.text.layout(ctx, st.text, style, { canvasH: rc.H, canvasW: rc.W, short: Math.min(rc.W, rc.H), styleName: st.style || 'title', maxWidth: SM.text.maxWidthFor(rc.W, rc.safe, x, align), family: familyOf(rc, style) });
     }
 
     // entityBox(st, rc, stage): the box of an actor or a prop in design pixels, or null when its art is missing.

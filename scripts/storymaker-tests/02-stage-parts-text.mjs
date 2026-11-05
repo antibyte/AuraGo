@@ -84,14 +84,43 @@ check('text: wrapping with measureText, max_lines with an ellipsis, long words, 
     assert.deepEqual(plain(SM.text.wrap(measure, 'one\ntwo three', 100, 5).lines), ['one', 'two three']);
     assert.deepEqual(plain(SM.text.wrap(measure, '', 100, 2).lines), ['']);
     const ctx = makeContext(null), style = t.byId('text.title');
+    const fit = SM.text.layout(ctx, 'Hallo Welt', style, { canvasH: 1080, maxWidth: 900, family: 'Storymaker Default' });
+    assert.equal(fit.px, Math.round(0.07 * 1080));
+    assert.equal(fit.font, '700 76px "Storymaker Default", sans-serif');
     const lay = SM.text.layout(ctx, 'Ein ziemlich langer Titel, der umbrochen werden muss, weil er nicht passt', style, { canvasH: 1080, maxWidth: 900, family: 'Storymaker Default' });
-    assert.equal(lay.px, Math.round(0.07 * 1080));
-    assert.equal(lay.font, '700 76px "Storymaker Default", sans-serif');
+    assert.ok(lay.px < fit.px, 'the long title shrinks');
+    assert.equal(lay.overflow, false);
     assert.ok(lay.lines.length <= 2, 'max_lines of the title style');
     assert.ok(lay.lines.every(l => ctx.measureText(l).width <= 900));
     near(SM.text.maxWidthFor(1920, { x: 5, y: 5, w: 90, h: 90 }, 960, 'center'), 1728, 1e-9);
     near(SM.text.maxWidthFor(1920, { x: 5, y: 5, w: 90, h: 90 }, 400, 'center'), 2 * (400 - 96), 1e-9);
     near(SM.text.maxWidthFor(1920, { x: 5, y: 5, w: 90, h: 90 }, 100, 'center'), 432, 1e-9, 'never narrower than a quarter of the safe width');
+});
+
+check('text: an over-long title shrinks by 0.94 to its floor, reports shrunk, and overflow only when still truncated; balance never adds a line', () => {
+    const measure = s => s.length * 5;
+    const style = t.byId('text.title'), ctx = makeContext(null), opts = w => ({ canvasH: 1080, short: 1080, maxWidth: w, family: 'Storymaker Default' });
+    const text = 'Ein ziemlich langer Titel, der umbrochen werden muss, weil er nicht passt';
+    // 73 characters with the fake 0.5 em font. Two lines at width 900 need the 40 characters up to "umbrochen" on line 1, because
+    // a break after "der" leaves 42 characters for line 2. A line holds 1800 / px characters, so px <= 45:
+    // 76 x 0.94^8 = 46.33 is too wide, 76 x 0.94^9 = 43.55 fits.
+    const fits = SM.text.layout(ctx, text, style, opts(900));
+    near(fits.px, 76 * 0.94 ** 9, 1e-9);
+    assert.equal(fits.shrunk, true); assert.equal(fits.overflow, false); assert.equal(fits.truncated, false);
+    assert.equal(fits.lines.length, 2);
+    // Floor: max(0.45 x 76, 0.026 x 1080) = max(34.2, 28.08) = 34.2. At width 200 the text never fits two lines.
+    const stuck = SM.text.layout(ctx, text, style, opts(200));
+    near(stuck.px, 34.2, 1e-9);
+    assert.equal(stuck.shrunk, true); assert.equal(stuck.overflow, true); assert.equal(stuck.truncated, true);
+    // A small style stops at 2.6 % of the short side: px0 = round(32.4) = 32, floor max(14.4, 28.08) = 28.08.
+    near(SM.text.layout(ctx, text, { ...style, size: 0.03 }, opts(200)).px, 28.08, 1e-9);
+    const small = SM.text.layout(ctx, 'Hallo Welt', style, opts(900));
+    assert.equal(small.shrunk, false); assert.equal(small.overflow, false);
+    assert.deepEqual(plain(SM.text.balance(measure, ['aaaa bbbb cccc', 'dddd'], 70, 2)), ['aaaa bbbb', 'cccc dddd']);
+    assert.deepEqual(plain(SM.text.balance(measure, ['aaa bbb', 'ccc'], 40, 2)), ['aaa bbb', 'ccc'], 'no narrower width keeps the line count');
+    assert.deepEqual(plain(SM.text.balance(measure, ['abcdefgh', 'ijklmnop'], 40, 5)), ['abcdefgh', 'ijklmnop'], 'a broken long word stays as it is');
+    const named = { ...opts(900), canvasW: 1920, styleName: 'title' };
+    assert.equal(SM.text.layout(ctx, 'Memo', style, named), SM.text.layout(ctx, 'Memo', style, named), 'the second call is a memo hit');
 });
 
 check('camera: framings, zoom and pan tweens, shake bursts decay and never leave the zoom range', () => {
