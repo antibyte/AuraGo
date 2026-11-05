@@ -248,6 +248,7 @@
             flushEdits: () => flushEdits(inst),
             saveStoryText: text => saveStoryText(inst, text),
             saveCodeScene: (sceneId, text, etag) => saveCodeScene(inst, sceneId, text, etag),
+            editStory: (fn, options) => editStory(inst, fn, options),
             showIssues: () => toggleIssues(inst, true),
             reloadPlayer: () => reloadPlayer(inst)
         });
@@ -270,8 +271,9 @@
         const library = S.createLibrary(inst);
         const code = S.createCode(inst);
         const exporter = S.createExport(inst);
+        const voice = S.createVoicePanel(inst);
         code.el.hidden = true;
-        inst.parts.strip = strip; inst.parts.transport = transport; inst.parts.inspector = inspector; inst.parts.library = library; inst.parts.code = code; inst.parts.exporter = exporter;
+        inst.parts.strip = strip; inst.parts.transport = transport; inst.parts.inspector = inspector; inst.parts.library = library; inst.parts.code = code; inst.parts.exporter = exporter; inst.parts.voice = voice;
 
         const backButton = el('button', { type: 'button', class: 'stm-btn stm-btn-quiet', dataset: { stm: 'back' }, onClick: () => leaveProject(inst) }, icon('left'), el('span', { text: t('storymaker.back_to_projects') }));
         const title = el('h2', { class: 'stm-title', dataset: { stm: 'project-title' }, text: inst.project.title || inst.projectId });
@@ -287,11 +289,11 @@
             el('span', { class: 'stm-spacer' }, ''), issuesButton, exporter.el);
 
         const issuesPanel = el('section', { class: 'stm-issues', hidden: true, ariaLabel: t('storymaker.issues.title'), dataset: { stm: 'issues' } });
-        const sideTabs = [['scene', 'storymaker.side_scene', 'sliders'], ['library', 'storymaker.side_library', 'box']].map(([name, key, glyph]) => el('button', {
+        const sideTabs = [['scene', 'storymaker.side_scene', 'sliders'], ['library', 'storymaker.side_library', 'box'], ['voice', 'storymaker.side_voice', 'user']].map(([name, key, glyph]) => el('button', {
             type: 'button', class: 'stm-tab', role: 'tab', dataset: { stm: 'side-tab', tab: name }, ariaSelected: String(name === inst.sideTab),
             onClick: () => setSideTab(inst, name)
         }, icon(glyph), el('span', { text: t(key) })));
-        const side = el('aside', { class: 'stm-side', dataset: { stm: 'side' } }, el('div', { class: 'stm-tabs stm-tabs-small', role: 'tablist', ariaLabel: t('storymaker.inspector.title') }, sideTabs), inspector.el, library.el);
+        const side = el('aside', { class: 'stm-side', dataset: { stm: 'side' } }, el('div', { class: 'stm-tabs stm-tabs-small', role: 'tablist', ariaLabel: t('storymaker.inspector.title') }, sideTabs), inspector.el, library.el, voice.el);
         const center = el('main', { class: 'stm-center' }, el('div', { class: 'stm-stage-wrap', dataset: { stm: 'stage-wrap' } }, stage, transport.el), code.el, issuesPanel);
         const body = el('div', { class: 'stm-body' }, strip.el, center, side);
         const bannerArea = el('div', { class: 'stm-banners', dataset: { stm: 'banners' } });
@@ -712,6 +714,15 @@
         const scene = S.model.scenesOf(draft).find(candidate => candidate && candidate.id === sceneId);
         if (!scene) return false;
         fn(scene, draft);
+        commit(inst, draft, !!(options && options.immediate));
+        return true;
+    }
+
+    // An edit of the story itself, not of one scene: the voice, the captions switch.
+    function editStory(inst, fn, options) {
+        if (inst.readonly || !inst.story) return false;
+        const draft = S.model.cloneStory(inst.story);
+        fn(draft);
         commit(inst, draft, !!(options && options.immediate));
         return true;
     }

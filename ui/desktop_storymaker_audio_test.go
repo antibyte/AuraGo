@@ -353,3 +353,235 @@ const flush = () => new Promise(resolve => setTimeout(resolve, 0));
   console.log('storymaker audio model ok');
 })().catch(err => { console.error(err.stack || err); process.exit(1); });
 `
+
+// The voice panel in Node, on a small stand-in for the DOM: what it preselects, what each kind of provider shows, the one action
+// that writes the voice, the audition of a stored piece and the state with no ready provider.
+func TestStorymakerVoicePanelInNode(t *testing.T) {
+	t.Parallel()
+	root := readDesktopAssetText(t, "js/desktop/apps/storymaker.js")
+	for _, marker := range []string{"S.createVoicePanel(inst)", "inst.parts.voice = voice", "'storymaker.side_voice'", "editStory: (fn, options) => editStory(inst, fn, options)"} {
+		if !strings.Contains(root, marker) {
+			t.Errorf("storymaker.js lacks %q", marker)
+		}
+	}
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("node not available")
+	}
+	script := filepath.Join(t.TempDir(), "storymaker-voice-panel.js")
+	if err := os.WriteFile(script, []byte(storymakerVoicePanelScript), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	dir, _ := filepath.Abs(filepath.Join("js", "desktop", "apps"))
+	out, err := exec.Command(node, script, dir).CombinedOutput()
+	if err != nil {
+		t.Fatalf("node check failed: %v\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "storymaker voice panel ok") {
+		t.Fatalf("unexpected output:\n%s", out)
+	}
+}
+
+const storymakerVoicePanelScript = `
+'use strict';
+const fs = require('fs');
+const vm = require('vm');
+const path = require('path');
+const [dir] = process.argv.slice(2);
+
+class FakeNode {
+  constructor(tag) { this.tag = tag; this.kids = []; this.parent = null; this.attrs = {}; this.dataset = {}; this.handlers = {}; this.style = { setProperty() {} }; this.ownText = ''; this.className = ''; }
+  get firstChild() { return this.kids[0] || null; }
+  appendChild(kid) { if (kid.parent) kid.parent.removeChild(kid); kid.parent = this; this.kids.push(kid); return kid; }
+  removeChild(kid) { this.kids.splice(this.kids.indexOf(kid), 1); kid.parent = null; return kid; }
+  setAttribute(name, value) { this.attrs[name] = String(value); }
+  getAttribute(name) { return name in this.attrs ? this.attrs[name] : null; }
+  removeAttribute(name) { delete this.attrs[name]; }
+  get hidden() { return 'hidden' in this.attrs; }
+  set hidden(on) { if (on) this.attrs.hidden = ''; else delete this.attrs.hidden; }
+  get disabled() { return 'disabled' in this.attrs; }
+  set disabled(on) { if (on) this.attrs.disabled = ''; else delete this.attrs.disabled; }
+  get value() {
+    if (this.tag === 'select') return this.kids.map(kid => kid.attrs.value).indexOf(this.val) >= 0 ? this.val : '';
+    return this.val !== undefined ? this.val : (this.attrs.value || '');
+  }
+  set value(next) { this.val = String(next); }
+  get textContent() { return this.kids.length ? this.kids.map(kid => kid.textContent).join('') : this.ownText; }
+  set textContent(next) { this.kids = []; this.ownText = String(next); }
+  addEventListener(type, fn) { (this.handlers[type] = this.handlers[type] || []).push(fn); }
+  removeEventListener() {}
+  fire(type) { (this.handlers[type] || []).slice().forEach(fn => fn({ type, target: this, preventDefault() {}, stopPropagation() {} })); }
+  click() { if (!this.disabled) this.fire('click'); }
+  focus() {}
+  find(name) { if (this.dataset.stm === name) return this; for (const kid of this.kids) { const hit = kid.find(name); if (hit) return hit; } return null; }
+  play() { this.played = this.src; return Promise.resolve(); }
+  pause() {}
+}
+const document = {
+  createElement: tag => new FakeNode(tag),
+  createElementNS: (ns, tag) => new FakeNode(tag),
+  createTextNode: text => { const node = new FakeNode('#text'); node.ownText = String(text); return node; },
+  addEventListener() {}, removeEventListener() {},
+  documentElement: { lang: 'en' }
+};
+const context = { console, setTimeout, clearTimeout, document, SYSTEM_LANG: 'de' };
+context.globalThis = context; context.window = context;
+vm.createContext(context);
+for (const name of ['storymaker-core.js', 'storymaker-model.js', 'storymaker-voice.js']) {
+  vm.runInContext(fs.readFileSync(path.join(dir, name), 'utf8'), context, { filename: name });
+}
+const S = context.StorymakerParts;
+const eq = (a, b, what) => { const x = JSON.stringify(a), y = JSON.stringify(b); if (x !== y) throw new Error(what + ': got ' + x + ', want ' + y); };
+const flush = () => new Promise(resolve => setImmediate(resolve));
+const options = node => node.kids.filter(kid => kid.tag === 'option').map(kid => kid.attrs.value);
+const nullStory = () => ({ schema: 'storymaker/1', title: 'T', voice: null, scenes: [{ id: 's1' }, { id: 's2' }] });
+
+const providers = [
+  { id: 'piper', active: true, ready: true, voices: [{ id: 'de_DE-thorsten-high', name: 'Thorsten', language: 'de_DE' }, { id: 'en_US-amy', name: 'Amy', language: 'en_US' }], languages: ['de', 'en'], tested_languages: [], needs_install: false, default_voice: 'de_DE-thorsten-high', chunk_limit: 400, note: 'Local voices.' },
+  { id: 'sanotts', active: false, ready: true, languages: ['ar', 'de', 'en'], tested_languages: [], needs_install: false, chunk_limit: 2000 },
+  { id: 'elevenlabs', active: false, ready: true, free_text: true, languages: ['*'], tested_languages: [], needs_install: false, chunk_limit: 400 },
+  { id: 'phonon', active: false, ready: false, languages: ['de', 'en'], tested_languages: [], needs_install: true, chunk_limit: 2000 }
+];
+
+async function open(story, list, answer) {
+  const inst = {
+    t: (key, vars) => (vars ? key + ' ' + JSON.stringify(vars) : key),
+    bus: S.createBus(), story, selected: 0, projectId: 'p1', readonly: false, audioInfo: answer || null, edits: 0,
+    domId: suffix => 'stm-test-' + suffix,
+    notify() {},
+    editStory(fn) { if (inst.readonly) return false; const draft = S.model.cloneStory(inst.story); fn(draft); inst.story = draft; inst.edits++; inst.bus.emit('story'); return true; },
+    api: {
+      voices: () => (list instanceof Error ? Promise.reject(list) : Promise.resolve({ providers: list })),
+      narrationUrl: (id, hash, ext) => '/audio/' + id + '/' + hash + '.' + ext
+    }
+  };
+  const panel = S.createVoicePanel(inst);
+  await flush();
+  return { inst, panel, f: name => panel.el.find(name) };
+}
+function pick(view, id) { view.f('voice-provider').value = id; view.f('voice-provider').fire('change'); }
+
+(async () => {
+  // A story with voice null preselects the active provider, and the language starts from the desktop language.
+  const first = await open(nullStory(), providers);
+  eq(first.f('voice-provider').value, 'piper', 'the active provider is preselected');
+  eq(first.f('voice-provider').kids.find(kid => kid.attrs.value === 'phonon').disabled, true, 'a provider that is not ready cannot be picked');
+  eq([first.f('voice-language').value, options(first.f('voice-language'))], ['de', ['de', 'en']], 'the language select is limited to the provider');
+  eq([first.f('voice-language-field').hidden, first.f('voice-language-free-field').hidden], [false, true], 'a list provider has no free language field');
+  eq(options(first.f('voice-select')), ['de_DE-thorsten-high'], 'the voices of the language');
+  eq(first.f('voice-not-tested').hidden, false, 'not tested shows for a list provider');
+  eq(first.f('voice-note').textContent, 'Local voices.', 'the facts of the note');
+
+  // One action writes the voice, and then there is nothing left to write.
+  eq(first.f('voice-apply').disabled, false, 'the action is open for a voice null story');
+  first.f('voice-apply').click();
+  eq(first.inst.story.voice, { provider: 'piper', voice: 'de_DE-thorsten-high', language: 'de' }, 'one action writes the voice');
+  eq(first.inst.edits, 1, 'one edit');
+  eq(first.f('voice-apply').disabled, true, 'the stored voice needs no second write');
+
+  // sanotts has neither a list nor free text.
+  const second = await open(nullStory(), providers);
+  pick(second, 'sanotts');
+  eq([second.f('voice-select-field').hidden, second.f('voice-free-field').hidden], [true, true], 'sanotts has no voice control');
+  eq([second.f('voice-language').value, options(second.f('voice-language'))], ['de', ['ar', 'de', 'en']], 'the sanotts languages');
+  eq(second.f('voice-not-tested').hidden, false, 'not tested shows for sanotts');
+  second.f('voice-apply').click();
+  eq(second.inst.story.voice, { provider: 'sanotts', voice: '', language: 'de' }, 'sanotts writes no voice id');
+
+  // A free-text provider takes the voice id and the language as text.
+  pick(second, 'elevenlabs');
+  eq([second.f('voice-free-field').hidden, second.f('voice-select-field').hidden], [false, true], 'a free-text field for the voice');
+  eq([second.f('voice-language-free-field').hidden, second.f('voice-language-field').hidden], [false, true], 'a free-text field for ["*"]');
+  eq(second.f('voice-language-free').value, 'de', 'the field holds the same language');
+  eq(second.f('voice-not-tested').hidden, false, 'not tested shows for a free-text provider');
+  second.f('voice-free').value = 'a b'; second.f('voice-free').fire('input');
+  eq(second.f('voice-apply').disabled, true, 'a voice id with a space would be refused by the save');
+  second.f('voice-free').value = 'abc_123'; second.f('voice-free').fire('input');
+  second.f('voice-apply').click();
+  eq(second.inst.story.voice, { provider: 'elevenlabs', voice: 'abc_123', language: 'de' }, 'free text is written');
+
+  // A tested language hides the mark.
+  const tested = providers.map(item => (item.id === 'piper' ? Object.assign({}, item, { tested_languages: ['de'] }) : item));
+  eq((await open(nullStory(), tested)).f('voice-not-tested').hidden, true, 'a tested language has no mark');
+
+  // voice.language wins over the desktop language, and a stored voice shows as stored.
+  const story = nullStory();
+  story.voice = { provider: 'Piper', voice: 'en_US-amy', language: 'en-US' };
+  const stored = await open(story, providers);
+  eq(stored.f('voice-provider').value, 'piper', 'provider case is ignored');
+  eq([stored.f('voice-language').value, options(stored.f('voice-language'))], ['en-US', ['de', 'en-US']], 'the stored language stays as written');
+  eq(stored.f('voice-select').value, 'en_US-amy', 'the stored voice');
+  eq(stored.f('voice-apply').disabled, true, 'nothing to write');
+
+  // A desktop language the provider does not list falls to its first language, and the note names the language it replaced.
+  context.SYSTEM_LANG = 'ja';
+  const foreign = await open(nullStory(), providers);
+  const foreignWritten = await open(nullStory(), providers);
+  context.SYSTEM_LANG = 'de';
+  eq(foreign.f('voice-language').value, 'de', 'the language stays inside the provider list');
+  eq(foreign.f('voice-note').textContent, 'storymaker.voice.language_replaced {"language":"ja"} Local voices.', 'the note names the replaced language');
+  // The language asked for comes back with a provider that can take it, and the note goes with it.
+  pick(foreign, 'elevenlabs');
+  eq([foreign.f('voice-language-free').value, foreign.f('voice-note').textContent], ['ja', ''], 'a free-text provider takes the language back');
+  pick(foreign, 'sanotts');
+  eq([foreign.f('voice-language').value, foreign.f('voice-note').textContent], ['ar', 'storymaker.voice.language_replaced {"language":"ja"}'], 'another provider without it says so again');
+  foreign.f('voice-language').value = 'de'; foreign.f('voice-language').fire('change');
+  eq(foreign.f('voice-note').textContent, '', 'a language the user picks replaces nothing');
+  foreignWritten.f('voice-apply').click();
+  eq([foreignWritten.inst.story.voice.language, foreignWritten.f('voice-note').textContent], ['de', 'Local voices.'], 'a written voice holds no replacement');
+
+  // The audition plays the first piece of the first block in scene order, and is disabled with none.
+  const heardStory = nullStory();
+  heardStory.voice = { provider: 'piper', voice: 'de_DE-thorsten-high', language: 'de' };
+  const heard = await open(heardStory, providers);
+  eq(heard.f('voice-audition').disabled, true, 'no stored piece, no audition');
+  heard.inst.audioInfo = { narration: {
+    s2: { blocks: [{ id: 's2:n', pieces: [{ hash: 'b'.repeat(64), ext: 'mp3', at_ms: 0 }] }] },
+    s1: { blocks: [{ id: 's1:n', pieces: [{ hash: 'a'.repeat(64), ext: 'wav', at_ms: 0 }, { hash: 'c'.repeat(64), ext: 'wav', at_ms: 900 }] }] }
+  }, missing: [], chars: { total: 10, missing: 0 }, music: null };
+  heard.inst.bus.emit('audio');
+  eq(heard.f('voice-audition').disabled, false, 'a stored piece opens the audition');
+  heard.f('voice-audition').click();
+  eq(heard.f('voice-audio').played, '/audio/p1/' + 'a'.repeat(64) + '.wav', 'the first stored piece plays');
+
+  // The pieces belong to the stored voice, so a picked voice closes the audition until it is written.
+  heard.f('voice-language').value = 'en'; heard.f('voice-language').fire('change');
+  eq([heard.f('voice-audition').disabled, heard.f('voice-audition').title], [true, 'storymaker.voice.apply_first'], 'a differing draft has no sample');
+  heard.f('voice-language').value = 'de'; heard.f('voice-language').fire('change');
+  eq([heard.f('voice-audition').disabled, heard.f('voice-audition').title], [false, ''], 'the stored voice has it back');
+
+  // A Phonon voice that is not installed fails its job, so the list leaves it out. A stored one stays visible and marked and cannot be written again.
+  const catalog = [{ id: 'phonon', active: true, ready: true, languages: ['fr', 'de'], tested_languages: [], needs_install: false, default_voice: 'fr-there', chunk_limit: 2000, voices: [
+    { id: 'fr-absent', name: 'Absent', language: 'fr', installed: false },
+    { id: 'fr-there', name: 'There', language: 'fr', installed: true },
+    { id: 'de-absent', name: 'Fehlt', language: 'de', installed: false },
+    { id: 'de-there', name: 'Da', language: 'de', installed: true }
+  ] }];
+  const offered = await open(nullStory(), catalog);
+  eq(options(offered.f('voice-select')), ['de-there'], 'an uninstalled voice is not listed');
+  offered.f('voice-language').value = 'fr'; offered.f('voice-language').fire('change');
+  eq([offered.f('voice-select').value, options(offered.f('voice-select'))], ['fr-there', ['fr-there']], 'a language change lands on an installed voice');
+  const heldStory = nullStory();
+  heldStory.voice = { provider: 'phonon', voice: 'fr-absent', language: 'fr' };
+  const held = await open(heldStory, catalog);
+  eq(options(held.f('voice-select')), ['fr-absent', 'fr-there'], 'the stored voice stays listed');
+  eq(held.f('voice-select').kids.map(kid => kid.textContent.includes('storymaker.voice.not_installed')), [true, false], 'only the uninstalled voice is marked');
+  eq(held.f('voice-note').textContent, 'storymaker.voice.not_installed', 'the note says what to do');
+  const heldFree = await open(heldStory, [Object.assign({}, catalog[0], { languages: ['*'] })]);
+  heldFree.f('voice-language-free').value = 'fr-CA'; heldFree.f('voice-language-free').fire('input');
+  eq(heldFree.f('voice-apply').disabled, true, 'an uninstalled voice cannot be written');
+  // Settings offers every Piper voice, so that flag decides nothing.
+  const flagged = await open(nullStory(), [{ id: 'piper', active: true, ready: true, languages: ['de'], tested_languages: [], needs_install: false, default_voice: 'de-flagged', chunk_limit: 400, voices: [{ id: 'de-flagged', language: 'de', installed: false }] }]);
+  eq(options(flagged.f('voice-select')), ['de-flagged'], 'a Piper voice stays listed');
+
+  // No ready provider: the state says so and there is no form.
+  const silent = await open(nullStory(), providers.map(item => Object.assign({}, item, { ready: false })));
+  eq([silent.f('voice-none').hidden, silent.f('voice-form').hidden], [false, true], 'no TTS ready');
+
+  // A failed list is an error, not the claim that nothing is ready.
+  const down = await open(nullStory(), new Error('down'));
+  eq([down.f('voice-none').hidden, down.f('voice-error').hidden, down.f('voice-retry').hidden], [true, false, false], 'a failed list offers a retry');
+
+  console.log('storymaker voice panel ok');
+})().catch(err => { console.error(err.stack || err); process.exit(1); });
+`
