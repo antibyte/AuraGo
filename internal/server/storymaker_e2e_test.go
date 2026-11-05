@@ -6,11 +6,13 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -60,6 +62,7 @@ type storymakerProbeDoc struct {
 		AvgFrameRate string `json:"avg_frame_rate"`
 		NbFrames     string `json:"nb_frames"`
 		PixFmt       string `json:"pix_fmt"`
+		Duration     string `json:"duration"`
 	} `json:"streams"`
 	Format struct {
 		Duration string `json:"duration"`
@@ -79,7 +82,7 @@ func storymakerFFprobe(t *testing.T, ffmpeg, file string) storymakerProbeDoc {
 			t.Skip("ffprobe is not available next to ffmpeg or on PATH")
 		}
 	}
-	out, err := exec.Command(probe, "-v", "error", "-show_entries", "stream=codec_type,codec_name,width,height,avg_frame_rate,nb_frames,pix_fmt:format=duration", "-of", "json", file).CombinedOutput()
+	out, err := exec.Command(probe, "-v", "error", "-show_entries", "stream=codec_type,codec_name,width,height,avg_frame_rate,nb_frames,pix_fmt,duration:format=duration", "-of", "json", file).CombinedOutput()
 	if err != nil {
 		t.Fatalf("ffprobe %s: %v\n%s", file, err, out)
 	}
@@ -88,6 +91,25 @@ func storymakerFFprobe(t *testing.T, ffmpeg, file string) storymakerProbeDoc {
 		t.Fatalf("ffprobe output: %v\n%s", err, out)
 	}
 	return doc
+}
+
+// storymakerMeasureLUFS reads the integrated loudness of a file's first audio stream from the last I: line of FFmpeg's
+// ebur128 summary. framelog=verbose prints no frame lines at the default log level.
+func storymakerMeasureLUFS(t *testing.T, ffmpeg, file string) float64 {
+	t.Helper()
+	out, err := exec.Command(ffmpeg, "-hide_banner", "-nostdin", "-nostats", "-i", file, "-map", "0:a:0", "-af", "ebur128=framelog=verbose", "-f", "null", "-").CombinedOutput()
+	if err != nil {
+		t.Fatalf("ebur128 over %s: %v\n%s", file, err, out)
+	}
+	matches := regexp.MustCompile(`I:\s+(-?[0-9.]+) LUFS`).FindAllSubmatch(out, -1)
+	if len(matches) == 0 {
+		t.Fatalf("ebur128 printed no integrated loudness:\n%s", out)
+	}
+	lufs, err := strconv.ParseFloat(string(matches[len(matches)-1][1]), 64)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return lufs
 }
 
 type storymakerSSEEvent struct {
@@ -324,6 +346,25 @@ func TestStorymakerExportEndToEnd(t *testing.T) {
 	seconds, _ := strconv.ParseFloat(doc.Format.Duration, 64)
 	if want := float64(last.FramesTotal) / 30; !video || !audio || seconds < want-0.2 || seconds > want+0.2 {
 		t.Fatalf("ffprobe: video=%v audio=%v duration=%v (want %v) frames=%d streams=%+v", video, audio, seconds, want, last.FramesTotal, doc.Streams)
+	}
+	// The frame gate held: the audio ends with the video, within the 25 ms of gate.go.
+	var videoSeconds, audioSeconds float64
+	for _, st := range doc.Streams {
+		d, _ := strconv.ParseFloat(st.Duration, 64)
+		switch st.CodecType {
+		case "video":
+			videoSeconds = d
+		case "audio":
+			audioSeconds = d
+		}
+	}
+	if videoSeconds <= 0 || audioSeconds <= 0 || math.Abs(audioSeconds-videoSeconds) >= 0.025 {
+		t.Errorf("audio %v s against video %v s", audioSeconds, videoSeconds)
+	}
+	// The seeded speech sits near -20 dBFS, so the master gain is bound by the -16 LUFS target, not by the peak ceiling.
+	// The window is the one A20 pins on a seeded story.
+	if lufs := storymakerMeasureLUFS(t, s.Cfg.VideoStudio.FFmpegPath, mp4); lufs < -18.5 || lufs > -15.5 {
+		t.Errorf("the export measures %v LUFS, want -18.5 to -15.5", lufs)
 	}
 	sidecar, err := os.ReadFile(filepath.Join(s.Cfg.VirtualDesktop.WorkspaceDir, filepath.FromSlash(prefix+accepted.Job.ID+".json")))
 	if err != nil || !strings.Contains(string(sidecar), "Firewall") {

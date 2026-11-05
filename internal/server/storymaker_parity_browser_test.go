@@ -69,11 +69,15 @@ window.addEventListener('message', async (ev) => {
       const catalog = await getJSON('/img/storymaker/catalog.json');
       const files = {};
       for (const p of [catalog.rig.file].concat(catalog.entries.filter(e => e.file && e.kind !== 'sfx').map(e => e.file))) files['catalog:' + p] = await getJSON('/img/storymaker/' + p);
+      if (catalog.glyphs) catalog.glyph_data = await getJSON('/img/storymaker/' + catalog.glyphs.file);
       const fonts = [];
       for (const f of catalog.fonts) fonts.push({ name: f.name, family: f.family, weight: f.weight, data: await (await fetch(f.file)).arrayBuffer() });
       const bundles = {};
       for (const sc of project.story.scenes) if (sc.kind === 'code') bundles[sc.id] = await (await fetch(API + '/projects/' + PROJECT + '/scenes/' + sc.id + '/bundle')).text();
-      post({ type: 'load', story: project.story, catalog, audio_info: {}, assets: files, fonts, code_bundles: bundles, format: { aspect: '16:9', fps: 30, width: 1920 } });
+      const answer = await getJSON(API + '/projects/' + PROJECT + '/narration');
+      par.narrated = Object.keys(answer.narration).length;
+      par.missing = answer.missing.length;
+      post({ type: 'load', story: project.story, catalog, audio_info: { narration: answer.narration },assets: files, fonts, code_bundles: bundles, format: { aspect: '16:9', fps: 30, width: 1920 } });
     } else if (m.type === 'compiled') {
       par.report = { frame_count: m.report.frame_count, scenes: m.report.scenes };
       TARGETS = FRACTIONS.map((f) => {
@@ -260,12 +264,18 @@ func TestStorymakerParityAppPlayerAndRenderPage(t *testing.T) {
 		Report  struct {
 			FrameCount int `json:"frame_count"`
 		} `json:"report"`
+		Narrated int `json:"narrated"`
+		Missing  int `json:"missing"`
 	}
 	if err := json.Unmarshal([]byte(page.MustEval(`() => JSON.stringify(window.__par)`).Str()), &res); err != nil {
 		t.Fatal(err)
 	}
 	if res.Failure != "" || len(res.Errors) != 0 {
 		t.Fatalf("player failure %q errors %+v", res.Failure, res.Errors)
+	}
+	// firewall.json has narration in all 3 scenes and none is silent, so the app got 3 measured scenes and nothing missing.
+	if res.Narrated != 3 || res.Missing != 0 {
+		t.Fatalf("the app got %d narrated scenes and %d missing blocks", res.Narrated, res.Missing)
 	}
 	if res.Report.FrameCount != job.FramesTotal {
 		t.Fatalf("the app compiled %d frames, the export has %d", res.Report.FrameCount, job.FramesTotal)
