@@ -105,4 +105,27 @@
 
     SM.motion.pickTake = pickTake;
     SM.motion.typingKeys = typingKeys;
+
+    function hasCue(b) { return b.cue !== undefined && b.cue !== null; }
+
+    // autoSfxEvents(o) = one sfx.pop event on the landing of each show with entry pop (frozen 4.6 Auto-SFX), unless an sfx
+    // beat has the same cue or runs with:"prev" on it. o = {sceneId, log, beats, entry, lastTake}. Log rows are in beat order.
+    function autoSfxEvents(o) {
+        var cued = {}, out = [];
+        o.log.forEach(function (row) {
+            var b = o.beats[row.j];
+            if (b.do === 'sfx' && hasCue(b)) cued[b.cue] = true;
+        });
+        o.log.forEach(function (row, k) {
+            var b = o.beats[row.j], next = o.log[k + 1], after = next ? o.beats[next.j] : null;
+            if (b.do !== 'show' || b.entry !== 'pop') return;
+            if (hasCue(b) && cued[b.cue]) return;
+            if (after && after.do === 'sfx' && after.with === 'prev' && !hasCue(after)) return;
+            var pick = pickTake(o.sceneId, row.j, o.entry, 0, o.lastTake);
+            out.push({ ref: o.entry.id, t: Math.max(0, row.landing - pick.impact), take: pick.take });
+        });
+        return out;
+    }
+
+    SM.motion.autoSfxEvents = autoSfxEvents;
 })(typeof globalThis !== 'undefined' ? globalThis : self);

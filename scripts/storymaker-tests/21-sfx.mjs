@@ -99,3 +99,34 @@ check('typing: the default duration scales with rhythm', () => {
     assert.equal(frames('standard'), 36);
     assert.equal(frames('lively'), 30);
 });
+
+const autoStory = (style, beats, narration) => ({ style, scenes: [{ id: 'a', transition: 'cut', narration, beats }] });
+
+check('auto-sfx: each pop entry gets sfx.pop on its landing, and absent means off', () => {
+    const beats = [
+        { do: 'show', item: 'prop.lock', at: 'right', entry: 'pop' },
+        { do: 'show', text: 'Hallo', at: 'center', entry: 'fade' },
+        { do: 'show', item: 'prop.shield', at: 'left', entry: 'pop' }
+    ];
+    const events = sfxEvents(SM.compile(autoStory({ auto_sfx: true }, beats), {}, catalog).report);
+    assert.equal(events.length, 2, 'the fade entry gets none');
+    // Each show lasts 0.5 s. Another target starts at 40 % of the previous beat (frozen 4.6 rule c): lock 0, text 0.2,
+    // shield 0.4. A pop on a prop lands at the spring's lead fraction of its duration.
+    const lead = SM.motion.leadFraction('spring') * 0.5;
+    [lead, 0.4 + lead].forEach((landing, i) => {
+        assert.equal(events[i].ref, 'sfx.pop');
+        near(events[i].start_ms, (landing - takesOf('sfx.pop')[events[i].take].impact_ms / 1000) * 1000, 1);
+    });
+    assert.notEqual(events[0].take, events[1].take, 'the rotation covers auto pops');
+    assert.equal(sfxEvents(SM.compile(autoStory({}, beats), {}, catalog).report).length, 0, 'absent');
+    assert.equal(sfxEvents(SM.compile(autoStory({ auto_sfx: false }, beats), {}, catalog).report).length, 0, 'false');
+});
+
+check('auto-sfx: an sfx beat on the same cue or with:"prev" on the show replaces the pop', () => {
+    const text = 'eins zwei {1}drei vier {2}sieben acht';
+    const refs = beats => sfxEvents(SM.compile(autoStory({ auto_sfx: true }, beats, text), {}, catalog).report).map(e => e.ref);
+    const shown = cue => ({ do: 'show', item: 'prop.lock', at: 'right', entry: 'pop', cue });
+    assert.deepEqual(refs([shown(1), { do: 'sfx', sound: 'sfx.whoosh', cue: 1 }]), ['sfx.whoosh']);
+    assert.deepEqual(refs([shown(1), { do: 'sfx', sound: 'sfx.whoosh', cue: 2 }]).sort(), ['sfx.pop', 'sfx.whoosh'], 'another cue keeps the pop');
+    assert.deepEqual(refs([{ do: 'show', item: 'prop.lock', at: 'right', entry: 'pop' }, { do: 'sfx', sound: 'sfx.whoosh', with: 'prev' }]), ['sfx.whoosh']);
+});

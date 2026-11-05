@@ -513,6 +513,9 @@
             sfxEvents = sfxEvents.concat(SM.motion.typingKeys({ sceneId: sid, j: o.j, entry: o.entry, first: o.first, start: o.start, dur: o.dur, lastTake: lastTake }));
         });
 
+        var popEntry = c.story && c.story.style && c.story.style.auto_sfx === true ? S.sfxEntry(cat, 'sfx.pop') : null;
+        if (popEntry) sfxEvents = sfxEvents.concat(SM.motion.autoSfxEvents({ sceneId: sid, log: log, beats: beats, entry: popEntry, lastTake: lastTake }));
+
         var motionEnd = SM.camera.end(cam);
         for (var k = 0; k < entities.length; k++) { var ee = S.entityEnd(entities[k]); if (ee > motionEnd) motionEnd = ee; }
         return {
