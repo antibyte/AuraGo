@@ -36,10 +36,12 @@
         var plans = P.planAll({ scenes: scenesIn }, audioInfo || {}, cat, fmt, issues);
         var scenes = [], envPrev = null, narrationEvents = [], audioEvents = [];
         var styleFont = story.style && story.style.font || 'default';
+        var rhythmFactor = SM.motion.factor(story.style);
 
         scenesIn.forEach(function (sc, i) {
             var plan = plans[i], isCode = sc.kind === 'code';
             var envId = sc.environment || envPrev || 'env.plain-stage';
+            var envChanged = i > 0 && envId !== envPrev;
             envPrev = envId;
             var envEntry = cat.byId[envId];
             if (!isCode) {
@@ -89,6 +91,7 @@
                 code: codeInfo ? { error: codeInfo.error || null, duration: codeInfo.duration || null } : null, stages: {}
             };
             scenes.push(scene);
+            issues.push.apply(issues, SM.lint.scene({ scene: scene, index: i, plan: plan, built: built, stage: stage, cat: cat, fmt: fmt, envChanged: envChanged, factor: rhythmFactor }));
 
             // narration windows (global seconds) and, with measured audio, the audio events
             var base = scene.start_frame / fps;
@@ -114,6 +117,8 @@
             if (scene.entities.some(function (e) { return e.type === 'actor'; }) && catalog && catalog.rig && catalog.rig.file) needs['catalog:' + catalog.rig.file] = true;
         });
         if (scenes.some(function (s) { return s.kind === 'code'; }) && catalog && catalog.rig && catalog.rig.file) needs['catalog:' + catalog.rig.file] = true;
+
+        issues.push.apply(issues, SM.lint.film({ scenesIn: scenesIn, plans: plans }));
 
         var frameCount = 0;
         scenes.forEach(function (s) { if (s.end_frame > frameCount) frameCount = s.end_frame; });

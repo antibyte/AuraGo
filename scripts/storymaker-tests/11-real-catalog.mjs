@@ -255,15 +255,17 @@ check('real catalog: every character x view x expression resolves every slot to 
     }
 });
 
-check('real catalog: firewall, minimal and the cast sheet compile with only the issues of a silent phase 1', () => {
-    const allowed = new Set(['narration_missing', 'not_supported_yet', 'layout_unverified']);
+check('real catalog: firewall, minimal and the cast sheet compile with only the issues of a silent film and the lint they earn', () => {
+    // firewall s2 fades into another environment, minimal shows nothing on its first frame, the cast sheet: see below
+    const allowed = new Set(['narration_missing', 'not_supported_yet', 'layout_unverified', 'fade_between_worlds', 'first_frame_empty', 'line_unread', 'entry_monotony']);
     for (const [name, s] of [['firewall', firewall], ['minimal', story('minimal')], ['castsheet', castsheet]]) {
         const out = compileReal(s), report = out.report, codes = [...report.issues, ...report.unverified].map(i => i.code);
         assert.deepEqual(codes.filter(c => !allowed.has(c)), [], name + ': ' + JSON.stringify(report.issues.filter(i => !allowed.has(i.code))));
         assert.equal(report.catalog_version, catalog.version);
         assert.ok(out.needs.includes('catalog:rig/human.json') || name === 'minimal', name + ' needs the rig');
     }
-    assert.equal(compileReal(castsheet).report.issues.length, 0, 'the cast sheet has no issue at all');
+    // A 4-word label holds 1.7 s in the sheet's 1.2 s scenes, and every show has entry none, so only these two codes fire.
+    assert.deepEqual([...new Set(plain(compileReal(castsheet).report.issues).map(i => i.code))].sort(), ['entry_monotony', 'line_unread']);
     const ranges = compiled.report.scenes;
     assert.deepEqual(plain(ranges.map(s => s.id)), ['s1', 's2', 's3']);
     assert.ok(ranges.every((s, i) => s.end_frame > s.start_frame && (i === 0 || s.start_frame < ranges[i - 1].end_frame)), 'scenes follow each other, transitions overlap');
@@ -322,6 +324,17 @@ check('real catalog: a left-facing actor is mirrored as a whole about the root',
     const mk = at => compileReal({ cast: [{ id: 'a', character: 'char.office-man-1' }], scenes: [{ id: 's', actors: [{ cast: 'a', at, facing: 'left' }] }] }).timeline;
     const log = drawn(mk('center'), 3), flips = log.filter(l => l.startsWith('setTransform(-'));
     assert.ok(flips.length > 20, 'the rig parts are drawn under a mirrored matrix');
+});
+
+check('real catalog: title, caption and label clear the 2.6 % floor in every aspect', () => {
+    // Sizes are fractions of the canvas height: 0.07, 0.042, 0.034. The label is tightest at 0.034 x 1080 / 1080 = 3.4 %, and 9:16 raises each by 1920 / 1080.
+    for (const name of ['title', 'caption', 'label']) assert.ok(entry('text.' + name).size >= 0.026, name);
+    for (const aspect of ['16:9', '9:16', '1:1']) {
+        const out = compileReal({ format: { aspect, fps: 30 }, scenes: [{ id: 'a', beats: [
+            { do: 'show', text: 'a', entry: 'none' }, { do: 'show', text: 'b', style: 'caption', at: { x: 50, y: 80 }, entry: 'none', with: 'prev' },
+            { do: 'show', text: 'c', style: 'label', at: { x: 20, y: 50 }, entry: 'none', with: 'prev' }] }] });
+        assert.deepEqual(plain(out.report.issues).filter(i => i.code === 'text_too_small'), [], aspect);
+    }
 });
 
 // ---- the remaining rules of the catalog: views, walking, bodies, spots with a depth, fonts -------------------------------

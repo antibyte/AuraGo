@@ -48,6 +48,17 @@ const (
 	CodeCueLate = "cue_late" // warning, player
 )
 
+// Issue codes of the motion lint. Only the player's compile report emits them, never Validate.
+const (
+	CodeLineUnread        = "line_unread"         // warning
+	CodeDeadStretch       = "dead_stretch"        // warning
+	CodeFirstFrameEmpty   = "first_frame_empty"   // warning
+	CodeTextTooSmall      = "text_too_small"      // warning
+	CodeFadeBetweenWorlds = "fade_between_worlds" // warning
+	CodeEntryMonotony     = "entry_monotony"      // minor
+	CodeTransitionVariety = "transition_variety"  // minor
+)
+
 // Issue is one validation finding. Path is a JSON Pointer (RFC 6901) from the story root.
 type Issue struct {
 	Severity  string   `json:"severity"`
