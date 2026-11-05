@@ -632,6 +632,7 @@ var desktopAppMaterialsExempt = map[string]string{
 	"/css/galaxa-deluxe.css":           "theme-independent skin: the Galaxa arcade game",
 	"/css/desktop-app-sip-phone.css":   "theme-independent skin: the SIP phone hardware chrome",
 	"/css/desktop-app-minigolf.css":    "theme-independent skin: the Minigolf game scene",
+	"/css/desktop-app-aura-drift.css":  "theme-independent skin: the Aura Drift racing game and its HUD",
 	"/css/desktop-app-retro-games.css": "theme-independent skin: the Retro Games arcade player",
 	"/css/ha-switchboard.css":          "theme-independent skin: the walnut and brass Home Assistant switchboard cabinet",
 	"/css/go2rtc-source-form.css":      "no painted region: layout and hint rules only",
