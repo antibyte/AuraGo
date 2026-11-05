@@ -214,6 +214,19 @@ func (b flowMissionBridge) DeleteFlowMission(missionID string) error {
 	return err
 }
 
+// DeleteCreatedFlowMission removes only the exact disabled owner used by a pack import rollback.
+func (b flowMissionBridge) DeleteCreatedFlowMission(missionID, expectedFlowID string) error {
+	mm, err := b.missions()
+	if err != nil {
+		return err
+	}
+	err = mm.DeleteCreatedFlowMission(missionID, expectedFlowID)
+	if err == nil {
+		broadcastMissionState(b.s)
+	}
+	return err
+}
+
 // FlowRunStarted implements flows.MissionBridge. The trigger data (untrusted, at most
 // flows.MaxStoredOutputBytes of JSON) is scrubbed value by value, within the budget of what
 // the history keeps (boundFlowTriggerData), before it is encoded for the history.

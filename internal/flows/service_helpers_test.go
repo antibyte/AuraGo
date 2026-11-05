@@ -17,12 +17,13 @@ type fakeMission struct {
 }
 
 type fakeBridge struct {
-	mu         sync.Mutex
-	next       int
-	missions   map[string]*fakeMission
-	started    []RunRecord
-	finished   chan RunFinishedInfo
-	failCreate error
+	mu          sync.Mutex
+	next        int
+	missions    map[string]*fakeMission
+	started     []RunRecord
+	finished    chan RunFinishedInfo
+	failCreate  error
+	failCleanup error
 }
 
 func newFakeBridge() *fakeBridge {
@@ -39,6 +40,23 @@ func (b *fakeBridge) CreateFlowMission(flowID, name string) (string, error) {
 	id := fmt.Sprintf("mission_%d", b.next)
 	b.missions[id] = &fakeMission{flowID: flowID, name: name}
 	return id, nil
+}
+
+func (b *fakeBridge) DeleteCreatedFlowMission(missionID, expectedFlowID string) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.failCleanup != nil {
+		return b.failCleanup
+	}
+	mission := b.missions[missionID]
+	if mission == nil {
+		return nil
+	}
+	if expectedFlowID == "" || mission.flowID != expectedFlowID || mission.enabled || len(mission.bindings) != 0 {
+		return errors.New("created flow mission owner or state mismatch")
+	}
+	delete(b.missions, missionID)
+	return nil
 }
 
 func (b *fakeBridge) SyncFlowMission(missionID, name string, bindings []TriggerBinding) error {

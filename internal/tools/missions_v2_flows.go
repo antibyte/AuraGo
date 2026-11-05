@@ -232,11 +232,16 @@ func (m *MissionManagerV2) CreateFlowMission(flowID, name string) (string, error
 	if err := requireMissionMutationPermission(); err != nil {
 		return "", err
 	}
-	if strings.TrimSpace(flowID) == "" {
+	if strings.TrimSpace(flowID) == "" || strings.TrimSpace(flowID) != flowID {
 		return "", fmt.Errorf("flow id is required")
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	for _, existing := range m.missions {
+		if existing != nil && existing.FlowID == flowID {
+			return "", ErrFlowMissionOwnerConflict
+		}
+	}
 	mission := &MissionV2{
 		ID: m.newMissionIDLocked(), Name: name, ExecutionType: ExecutionFlow, FlowID: flowID,
 		Priority: "medium", Status: MissionStatusIdle, CreatedAt: time.Now(), RunnerType: MissionRunnerLocal,
@@ -324,6 +329,38 @@ func (m *MissionManagerV2) DeleteFlowMission(missionID string) error {
 	return m.save()
 }
 
+// DeleteCreatedFlowMission removes only the exact disabled, unpublished mission created for
+// this flow. It is used to clean up a pack import after a definite SQLite rollback.
+func (m *MissionManagerV2) DeleteCreatedFlowMission(missionID, expectedFlowID string) error {
+	if err := requireMissionMutationPermission(); err != nil {
+		return err
+	}
+	if strings.TrimSpace(missionID) == "" || strings.TrimSpace(expectedFlowID) == "" || strings.TrimSpace(expectedFlowID) != expectedFlowID {
+		return ErrFlowMissionOwnerMismatch
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	mission, ok := m.missions[missionID]
+	if !ok || mission == nil {
+		return nil
+	}
+	if !isFlowMission(mission) || mission.FlowID != expectedFlowID {
+		return ErrFlowMissionOwnerMismatch
+	}
+	if mission.Locked {
+		return ErrMissionLocked
+	}
+	if mission.Enabled || mission.FlowPublished || len(mission.FlowTriggers) != 0 || mission.Status != MissionStatusIdle || mission.RunCount != 0 {
+		return ErrFlowMissionCleanupRefused
+	}
+	delete(m.missions, missionID)
+	if err := m.save(); err != nil {
+		m.missions[missionID] = mission
+		return err
+	}
+	return nil
+}
+
 // ErrFlowMissionNotFound is returned (wrapped, with the mission id; the text stays "flow
 // mission not found: <id>") by SyncFlowMission and SetFlowMissionEnabled when Mission
 // Control holds no flow mission of that id. The flow API tells the user to re-create the
@@ -332,6 +369,12 @@ var ErrFlowMissionNotFound = errors.New("flow mission not found")
 
 // ErrFlowMissionOwnerMismatch means the supplied expected flow no longer owns this mission.
 var ErrFlowMissionOwnerMismatch = errors.New("flow mission owner mismatch")
+
+// ErrFlowMissionOwnerConflict rejects a second Mission Control record for the same flow.
+var ErrFlowMissionOwnerConflict = errors.New("a Mission Control entry already owns this flow")
+
+// ErrFlowMissionCleanupRefused means a new-pack mission is no longer in its created state.
+var ErrFlowMissionCleanupRefused = errors.New("flow mission cleanup refused because its state changed")
 
 func (m *MissionManagerV2) flowMissionLocked(missionID string) (*MissionV2, error) {
 	mission, ok := m.missions[missionID]

@@ -24,6 +24,8 @@ import (
 const (
 	flowsDocBodyLimit   = 4 << 20
 	flowsSmallBodyLimit = 256 << 10
+	// flowPackBodyLimit bounds the complete uploaded pack envelope, including JSON framing.
+	flowPackBodyLimit = flows.MaxLocalPackBytes
 	// flowsLogPathRunes bounds the request path a flow API log line carries.
 	flowsLogPathRunes = 200
 	// flowsInternalMessage is the whole answer of a FLOW_INTERNAL error; the cause (a
@@ -40,7 +42,7 @@ const (
 // flowsCollectionRoutes are the first path segments under /api/desktop/flows/ that
 // handleFlows dispatches as a collection route, not as a flow id. Only routes that exist
 // are listed: a new collection route in handleFlows adds its segment here.
-var flowsCollectionRoutes = map[string]bool{"secrets": true, "runs": true, "node-types": true, "templates": true, "validate": true, "ai-proposal": true}
+var flowsCollectionRoutes = map[string]bool{"secrets": true, "runs": true, "node-types": true, "templates": true, "validate": true, "ai-proposal": true, "packs": true}
 
 // flowIDPattern accepts what can be a flow id (flows.NewFlowID gives "flow_" and ten
 // characters); anything else is FLOW_NOT_FOUND before the store is asked.
@@ -50,7 +52,7 @@ var flowIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
 // /api/desktop/flows/{id}/… route takes ("" is the flow itself). Any other path is
 // FLOW_NOT_FOUND (404); a new route adds its entry here.
 var flowRouteSegments = map[string]int{"": 0, "publish-preview": 1, "publish": 1, "enabled": 1, "export": 1,
-	"versions": 1, "library": 1, "test": 1, "simulate": 1, "ai-proposal": 1, "repair-mission": 1, "run": 1, "runs": 1, "test-data": 2, "extract": 2}
+	"pack": 1, "versions": 1, "library": 1, "test": 1, "simulate": 1, "ai-proposal": 1, "repair-mission": 1, "run": 1, "runs": 1, "test-data": 2, "extract": 2}
 
 const (
 	// flowSecretValueMaxBytes bounds the value of a flow secret. Flow secrets are API
@@ -464,6 +466,8 @@ func (s *Server) handleFlows(w http.ResponseWriter, r *http.Request) {
 		s.flowsSecrets(w, r, parts[1:])
 	case parts[0] == "runs":
 		s.flowsRunRoute(w, r, parts[1:])
+	case parts[0] == "packs":
+		s.flowsPacks(w, r, parts[1:])
 	case parts[0] == "node-types":
 		s.flowsNodeTypes(w, r, parts[1:])
 	case parts[0] == "templates" && len(parts) == 1:
@@ -481,15 +485,21 @@ func (s *Server) handleFlows(w http.ResponseWriter, r *http.Request) {
 }
 
 // flowsReadOnlySafe reports whether a request other than GET or HEAD changes nothing, so
-// the read-only modes of missions and the desktop let it through: POST validate only
-// checks the document it is sent. The desktop permission (flowsRequiredScope) and the
-// same-origin check still apply.
+// the read-only modes of missions and the desktop let it through: POST validate, pack
+// preview and pack reconciliation only inspect the submitted document/proposal. The desktop
+// permission (flowsRequiredScope) and same-origin check still apply.
 func flowsReadOnlySafe(r *http.Request, parts []string) bool {
-	return flowsIsValidate(r.Method, parts)
+	return flowsIsValidate(r.Method, parts) || flowsIsPackRead(r.Method, parts)
+}
+
+// flowsIsPackRead marks only pack preview and lost-reply reconciliation as reads. Both
+// validate untrusted input without creating or changing local flow state.
+func flowsIsPackRead(method string, parts []string) bool {
+	return method == http.MethodPost && len(parts) == 2 && parts[0] == "packs" && (parts[1] == "preview" || parts[1] == "reconcile")
 }
 
 // flowsDesktopOperation is the Desktop operation of a flows request for the readonly
-// admission (checkDesktopOperation, desktop_readonly): GET, HEAD and POST validate
+// admission (checkDesktopOperation, desktop_readonly): GET, HEAD and read-only POST actions
 // (flowsReadOnlySafe) are reads, POST runs/{run}/cancel is a stop (it bypasses the readonly
 // write admission, as Mission Control's cancel does), every other request is a write. A
 // write gets a Desktop grant that a readonly switch revokes, which cancels the request.
@@ -524,8 +534,9 @@ func isFlowsAPIPath(path string) bool {
 }
 
 // flowsRequiredScope is the desktop scope a bearer token needs for a flows request (parts
-// from flowsPathParts): desktop:read for GET and HEAD, desktop:write for POST validate
-// (it only checks the document it is sent) and desktop:admin for every other request. A
+// from flowsPathParts): desktop:read for GET/HEAD and read-only pack preview/reconciliation,
+// desktop:write for POST validate (it only checks the document it is sent), and
+// desktop:admin for every other request. A
 // test or live run executes the flow's tools on the host (shell, sudo, Docker), publishing
 // and enabling create missions, cron jobs and webhooks, and secrets go into the vault, so
 // these writes need what the desktop chat and Looper runs need. Both the auth middleware
@@ -538,6 +549,8 @@ func flowsRequiredScope(method string, parts []string) string {
 		return desktopScopeRead
 	case flowsIsValidate(method, parts):
 		return desktopScopeWrite
+	case flowsIsPackRead(method, parts):
+		return desktopScopeRead
 	default:
 		return desktopScopeAdmin
 	}
@@ -765,6 +778,8 @@ func (s *Server) flowRoute(w http.ResponseWriter, r *http.Request, id string, re
 			return
 		}
 		flowsJSON(w, http.StatusOK, doc)
+	case "pack":
+		s.flowPackExport(w, r, id)
 	case "versions":
 		if len(rest) == 3 {
 			s.flowVersionNote(w, r, id, rest[1], flows.KindFlow)

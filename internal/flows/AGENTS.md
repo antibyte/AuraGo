@@ -89,6 +89,19 @@ the contracts below describe the implemented behavior of each delivered slice.
   boundary/call consume shared graph, output and log budgets; preview checks expanded graph
   limits, but a formerly successful near-limit run can still exhaust a shared runtime budget.
   `TestExtraction*` covers the transaction, reconciliation and conservative graph boundaries.
+- Local packs use the `aurago.easydrag.local-pack` v1 envelope and carry only the exact parent
+  draft plus its transitive pinned block revisions. Export sanitizes cloned documents, clears
+  manual-trigger samples and registered secrets, and hashes canonical Flow documents; preview
+  allocates a fresh identity/hash proposal without writing rows or missions. Import accepts only
+  the pure local node allowlist, remaps typed block-call references, and creates an unpublished
+  parent plus immutable revision-1 blocks and exact transitive pins in one SQL transaction.
+  The disabled Mission Control owner is created separately before that transaction. Definite
+  rollback uses exact-owner cleanup; uncertain commit retains the disabled owner and can only be
+  checked by read-only reconciliation of the full row/version/pin closure. `unknown` has no
+  records and a current-state readback is not proof of persistence. There is no automatic retry
+  or receipt ledger. Keep raw input at 32 MiB, each canonical document at 2 MiB and aggregate
+  canonical documents at 18 MiB. Verify `TestLocalPack*`, `TestFlowPackHTTP*` and
+  `TestCreateFlowMissionRejectsDuplicateOwnerIncludingOrphans`.
 - `component.each` invokes the same pinned pure block serially for at most 1,000 items, with
   an explicitly selected input, shared inputs, concurrency one and retry count zero. Stop mode
   fails without partial output; collect mode returns ordered item outputs or bounded error codes.

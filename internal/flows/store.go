@@ -176,6 +176,8 @@ type Store struct {
 	// the record back. It is nil outside tests, which use it to end the caller's context
 	// at that moment.
 	afterPublishCommit func()
+	// afterLocalPackCommit lets tests model a lost reply after a committed import.
+	afterLocalPackCommit func()
 }
 
 // OpenStore opens (and migrates) the flows database at path and creates the
