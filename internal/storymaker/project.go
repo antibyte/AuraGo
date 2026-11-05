@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"path"
 	"sort"
@@ -40,13 +41,23 @@ const MustNotExist = "-"
 // MustNotExist (create only) or an etag (the file must exist and still have it); a failed
 // precondition returns ErrConflict. Remove behaves like os.RemoveAll: a missing path is not an
 // error and a directory is removed with everything below it. List returns the base names of
-// the direct children of dir (files and directories); a missing directory is (nil, nil).
+// the direct children of dir (files and directories); a missing directory is (nil, nil). Open
+// reads a file of any size; a missing file wraps fs.ErrNotExist.
 type Store interface {
 	ReadFile(ctx context.Context, path string) (data []byte, etag string, err error)
 	WriteFile(ctx context.Context, path string, data []byte, ifMatch string) (etag string, err error)
 	Remove(ctx context.Context, path string) error
 	List(ctx context.Context, dir string) ([]string, error)
 	MkdirAll(ctx context.Context, dir string) error
+	Open(ctx context.Context, path string) (io.ReadSeekCloser, FileInfo, error)
+}
+
+// FileInfo describes a file opened with Store.Open.
+type FileInfo struct {
+	Name    string
+	Size    int64
+	ModTime time.Time
+	MIME    string
 }
 
 // ETag is the strong version of a file: the quoted SHA-256 of its bytes, the same format the

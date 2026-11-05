@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"reflect"
 	"strings"
@@ -465,5 +466,215 @@ func TestSaveCodeSceneFailureNeverLeavesAStaleBundle(t *testing.T) {
 				t.Fatalf("status is ok but the bundle was not built from the current source\nsource: %s\nbundle: %s", src, bundle)
 			}
 		})
+	}
+}
+
+// audioStoreStory has one narration block of two sentences. Each is at least 20 wide and has more
+// than 3 words, so the merge rule of SplitPieces leaves two pieces.
+func audioStoreStory() *Story {
+	return &Story{
+		Schema: Schema, Title: "Audio",
+		Format: Format{Aspect: "16:9", FPS: 30},
+		Style:  Style{Palette: DefaultPalette, Font: DefaultFont, Captions: true},
+		Voice:  &Voice{Provider: "sanotts", Language: "de"},
+		Cast:   []CastMember{},
+		Scenes: []Scene{{ID: "s1", Narration: "Der erste Satz ist lang genug. Der zweite Satz ist auch lang genug."}},
+	}
+}
+
+// audioStoreEnvelope passes ParseEnvelope: v 1, rate 100 and ceil(1000/10) = 100 levels.
+func audioStoreEnvelope() Envelope {
+	levels := make(Levels, 100)
+	for i := range levels {
+		levels[i] = 170 // -20 dBFS: round((-20+60)*255/60) = 170, above the speech threshold of byte 85
+	}
+	return Envelope{V: 1, DurationMS: 1000, Rate: 100, Levels: levels}
+}
+
+func audioStoreProject(t *testing.T) (*ProjectStore, *MemStore, string) {
+	t.Helper()
+	ps, mem, _ := newTestStore(t)
+	proj, _, _, err := ps.Create(context.Background(), "Audio", "", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return ps, mem, proj.ID
+}
+
+func TestAudioAnswerNeedsAudioAndAValidEnvelopeForEveryPiece(t *testing.T) {
+	ps, mem, id := audioStoreProject(t)
+	ctx := context.Background()
+	story := audioStoreStory()
+	block := Blocks(story)[0]
+	pieces := PiecesOf(block)
+	if len(pieces) != 2 {
+		t.Fatalf("pieces: %+v", pieces)
+	}
+	first, second := PieceKey(block.Voice, pieces[0].Text), PieceKey(block.Voice, pieces[1].Text)
+	firstChars, secondChars := runeLen(pieces[0].Text), runeLen(pieces[1].Text)
+	dir := testRoot + "/" + id + "/audio/narration/"
+	answer := func() (AudioAnswer, string) {
+		t.Helper()
+		ans, err := ps.AudioAnswer(ctx, id, story, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		raw, err := json.Marshal(ans)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return ans, string(raw)
+	}
+	wantMissing := func(chars int) {
+		t.Helper()
+		ans, raw := answer()
+		if want := []MissingBlock{{SceneID: "s1", BlockID: "s1:n", Chars: chars}}; !reflect.DeepEqual(ans.Missing, want) {
+			t.Fatalf("missing = %+v, want %+v", ans.Missing, want)
+		}
+		if ans.Chars != (CharCounts{Total: firstChars + secondChars, Missing: chars}) {
+			t.Fatalf("chars = %+v", ans.Chars)
+		}
+		if !strings.Contains(raw, `"narration":{}`) || !strings.Contains(raw, `"music":null`) {
+			t.Fatalf("answer: %s", raw)
+		}
+	}
+
+	wantMissing(firstChars + secondChars)
+
+	// Audio without an envelope counts as missing.
+	if _, err := mem.WriteFile(ctx, dir+first+".wav", []byte("stored audio"), ""); err != nil {
+		t.Fatal(err)
+	}
+	wantMissing(firstChars + secondChars)
+
+	// WriteEnvelope fills it without touching the audio, so no provider call is needed.
+	if err := ps.WriteEnvelope(ctx, id, first, audioStoreEnvelope()); err != nil {
+		t.Fatal(err)
+	}
+	wantMissing(secondChars)
+	if data, _, err := mem.ReadFile(ctx, dir+first+".wav"); err != nil || string(data) != "stored audio" {
+		t.Fatalf("audio after WriteEnvelope: %q, %v", data, err)
+	}
+
+	// An invalid env.json counts as missing too: 2000000000 ms is over the 600000 ms limit of ParseEnvelope.
+	if err := ps.WritePiece(ctx, id, second, "mp3", []byte("second audio"), audioStoreEnvelope()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := mem.WriteFile(ctx, dir+second+".env.json", []byte(`{"v":1,"duration_ms":2000000000,"rate":100,"levels":[]}`), ""); err != nil {
+		t.Fatal(err)
+	}
+	wantMissing(secondChars)
+
+	// With both envelopes valid the block is complete and the list stays an empty array.
+	if err := ps.WriteEnvelope(ctx, id, second, audioStoreEnvelope()); err != nil {
+		t.Fatal(err)
+	}
+	ans, raw := answer()
+	if ans.Missing == nil || len(ans.Missing) != 0 || ans.Chars.Missing != 0 || !strings.Contains(raw, `"missing":[]`) {
+		t.Fatalf("answer: %s", raw)
+	}
+	blocks := ans.Narration["s1"].Blocks
+	if len(blocks) != 1 || blocks[0].ID != "s1:n" || len(blocks[0].Pieces) != 2 ||
+		blocks[0].Pieces[0].Hash != first || blocks[0].Pieces[0].Ext != "wav" ||
+		blocks[0].Pieces[1].Hash != second || blocks[0].Pieces[1].Ext != "mp3" {
+		t.Fatalf("blocks: %+v", blocks)
+	}
+	if !reflect.DeepEqual(ans.Info().Narration, ans.Narration) {
+		t.Fatalf("info: %+v", ans.Info())
+	}
+}
+
+func TestPieceFilesListsOnlyPieceNames(t *testing.T) {
+	ps, mem, id := audioStoreProject(t)
+	ctx := context.Background()
+	dir := testRoot + "/" + id + "/audio/narration/"
+	a, b := strings.Repeat("a", 64), strings.Repeat("b", 64)
+	for _, name := range []string{
+		a + ".wav",
+		a + ".env.json",
+		b + ".mp3",
+		".aurago-write-abc123",
+		strings.Repeat("A", 64) + ".wav",
+		strings.Repeat("c", 64) + ".ogg",
+		strings.Repeat("d", 64) + ".meta.json",
+		"short.wav",
+	} {
+		if _, err := mem.WriteFile(ctx, dir+name, []byte("x"), ""); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err := ps.PieceFiles(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]PieceFile{a: {Ext: "wav", HasEnv: true}, b: {Ext: "mp3"}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("PieceFiles = %+v, want %+v", got, want)
+	}
+}
+
+func TestAudioAnswerMusicResolver(t *testing.T) {
+	ps, _, id := audioStoreProject(t)
+	ctx := context.Background()
+	story := audioStoreStory()
+	block := Blocks(story)[0]
+	for _, piece := range PiecesOf(block) {
+		if err := ps.WritePiece(ctx, id, PieceKey(block.Voice, piece.Text), "wav", []byte("audio"), audioStoreEnvelope()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, tc := range []struct {
+		name    string
+		resolve MusicKeyResolver
+		issue   string
+	}{
+		{"nil resolver", nil, ""},
+		{"empty key", func(context.Context, *Music) (string, error) { return "", nil }, ""},
+		{"moved source", func(context.Context, *Music) (string, error) { return "", ErrMusicSourceMissing }, "source_missing"},
+	} {
+		ans, err := ps.AudioAnswer(ctx, id, story, tc.resolve)
+		if err != nil || ans.Music != nil || ans.MusicIssue != tc.issue || len(ans.Narration["s1"].Blocks) != 1 {
+			t.Errorf("%s: %+v, %v", tc.name, ans, err)
+		}
+	}
+	injected := errors.New("injected")
+	if _, err := ps.AudioAnswer(ctx, id, story, func(context.Context, *Music) (string, error) { return "", injected }); !errors.Is(err, injected) {
+		t.Errorf("another resolver error must be returned: %v", err)
+	}
+}
+
+func TestOpenAudioReadsWhatWritePieceKept(t *testing.T) {
+	ps, _, id := audioStoreProject(t)
+	ctx := context.Background()
+	hash := strings.Repeat("a", 64)
+	// A second write of an existing piece is not an error and keeps the first audio.
+	for _, data := range []string{"first", "second"} {
+		if err := ps.WritePiece(ctx, id, hash, "wav", []byte(data), audioStoreEnvelope()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	r, info, err := ps.OpenAudio(ctx, id, "narration", hash+".wav")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	data, err := io.ReadAll(r)
+	if err != nil || string(data) != "first" || info.Name != hash+".wav" || info.Size != int64(len("first")) {
+		t.Fatalf("read %q, %v, info %+v", data, err, info)
+	}
+	for _, bad := range [][2]string{{"exports", hash + ".wav"}, {"narration", "../story.json"}, {"narration", strings.Repeat("A", 64) + ".wav"}} {
+		if _, err := ps.AudioPath(id, bad[0], bad[1]); !errors.Is(err, ErrInvalidArgument) {
+			t.Errorf("AudioPath(%q, %q) = %v", bad[0], bad[1], err)
+		}
+	}
+	if err := ps.RemovePiece(ctx, id, hash, "wav"); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := ps.OpenAudio(ctx, id, "narration", hash+".wav"); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("OpenAudio after RemovePiece: %v", err)
+	}
+	files, err := ps.PieceFiles(ctx, id)
+	if err != nil || len(files) != 0 {
+		t.Errorf("PieceFiles after RemovePiece: %+v, %v", files, err)
 	}
 }

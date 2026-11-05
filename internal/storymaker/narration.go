@@ -1,8 +1,13 @@
 package storymaker
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
 	"regexp"
 	"strconv"
 	"strings"
@@ -516,4 +521,245 @@ func WordCount(s string) int {
 		}
 	}
 	return words + (cjk+1)/2
+}
+
+// SceneAudio holds the complete blocks of one scene.
+type SceneAudio struct {
+	Blocks []AudioBlock `json:"blocks"`
+}
+
+// AudioInfo is the compile input. Music is never in it.
+type AudioInfo struct {
+	Narration map[string]SceneAudio `json:"narration"`
+}
+
+// MissingBlock names a block with at least one piece lacking audio or a valid envelope.
+type MissingBlock struct {
+	SceneID string `json:"scene_id"`
+	BlockID string `json:"block_id"`
+	Chars   int    `json:"chars"` // code points of the missing pieces' text
+}
+
+// CharCounts counts code points of piece text, which is what the cloud caps count.
+type CharCounts struct {
+	Total   int `json:"total"`
+	Missing int `json:"missing"`
+}
+
+// MusicRef names the stored music of a story.
+type MusicRef struct {
+	Key        string `json:"key"`
+	Ext        string `json:"ext"`
+	DurationMS int    `json:"duration_ms"`
+}
+
+// AudioAnswer is the body of GET /projects/{id}/narration.
+type AudioAnswer struct {
+	Narration  map[string]SceneAudio `json:"narration"`
+	Missing    []MissingBlock        `json:"missing"`
+	Chars      CharCounts            `json:"chars"`
+	Music      *MusicRef             `json:"music"`
+	MusicIssue string                `json:"music_issue,omitempty"` // "source_missing"
+}
+
+// Info returns the part of the answer that compile reads.
+func (a AudioAnswer) Info() AudioInfo { return AudioInfo{Narration: a.Narration} }
+
+// ErrMusicSourceMissing reports a file or track source that no longer exists.
+var ErrMusicSourceMissing = errors.New("storymaker: the music source is missing")
+
+// MusicKeyResolver returns the key of the story's music. "" means nothing is to be played: mode
+// none, no music, volume 0, or mode file with no source chosen yet. A nil resolver means "". A
+// file or track source that was set and no longer exists returns ("", ErrMusicSourceMissing).
+type MusicKeyResolver func(ctx context.Context, m *Music) (string, error)
+
+// PieceFile is what PieceFiles found for one piece. HasEnv says the file exists; ParseEnvelope
+// decides validity.
+type PieceFile struct {
+	Ext    string
+	HasEnv bool
+}
+
+var (
+	// storedPieceName is the whitelist of PieceFiles. It also skips leftover .aurago-write-* files.
+	storedPieceName = regexp.MustCompile(`^([0-9a-f]{64})\.(wav|mp3|env\.json)$`)
+	// storedAudioName is the whitelist of AudioPath and OpenAudio. The audio route has its own, narrower one.
+	storedAudioName = regexp.MustCompile(`^[0-9a-f]{64}\.(wav|mp3|env\.json|meta\.json|pending\.json)$`)
+)
+
+// AudioAnswer builds the answer for a decoded story. A block enters Narration only when every piece
+// has audio and a valid envelope; otherwise it enters Missing and JS estimates it. A missing music
+// source sets MusicIssue and keeps the narration; any other resolver error is returned.
+func (p *ProjectStore) AudioAnswer(ctx context.Context, id string, s *Story, resolve MusicKeyResolver) (AudioAnswer, error) {
+	files, err := p.PieceFiles(ctx, id)
+	if err != nil {
+		return AudioAnswer{}, err
+	}
+	ans := AudioAnswer{Narration: map[string]SceneAudio{}, Missing: []MissingBlock{}}
+	for _, b := range Blocks(s) {
+		pieces := PiecesOf(b)
+		inputs := make([]AudioPieceInput, 0, len(pieces))
+		missing := 0
+		for _, piece := range pieces {
+			chars := runeLen(piece.Text)
+			ans.Chars.Total += chars
+			in, ok, err := p.storedPiece(ctx, id, b.Voice, piece, files)
+			if err != nil {
+				return AudioAnswer{}, err
+			}
+			if !ok {
+				missing += chars
+				continue
+			}
+			inputs = append(inputs, in)
+		}
+		if missing > 0 {
+			ans.Chars.Missing += missing
+			ans.Missing = append(ans.Missing, MissingBlock{SceneID: b.SceneID, BlockID: b.ID, Chars: missing})
+			continue
+		}
+		scene := ans.Narration[b.SceneID]
+		scene.Blocks = append(scene.Blocks, AssembleBlock(b, inputs, s.Format.FPS))
+		ans.Narration[b.SceneID] = scene
+	}
+	// Only the resolver's error counts here, so a key leaves Music null. Batch 2C wraps this body with
+	// the lookup of the key's audio and meta files.
+	if resolve != nil {
+		if _, err := resolve(ctx, s.Music); err != nil {
+			if !errors.Is(err, ErrMusicSourceMissing) {
+				return AudioAnswer{}, fmt.Errorf("storymaker: music key: %w", err)
+			}
+			ans.MusicIssue = "source_missing"
+		}
+	}
+	return ans, nil
+}
+
+// storedPiece returns the input of a piece whose audio and valid envelope exist. Envelopes are
+// ordinary workspace files, so an unreadable or invalid one counts as missing.
+func (p *ProjectStore) storedPiece(ctx context.Context, id string, v Voice, piece Piece, files map[string]PieceFile) (AudioPieceInput, bool, error) {
+	hash := PieceKey(v, piece.Text)
+	f := files[hash]
+	if f.Ext == "" || !f.HasEnv {
+		return AudioPieceInput{}, false, nil
+	}
+	data, _, err := p.st.ReadFile(ctx, p.file(id, "audio", "narration", hash+".env.json"))
+	if err != nil {
+		if ctx.Err() != nil {
+			return AudioPieceInput{}, false, ctx.Err()
+		}
+		return AudioPieceInput{}, false, nil
+	}
+	env, err := ParseEnvelope(data)
+	if err != nil {
+		return AudioPieceInput{}, false, nil
+	}
+	return AudioPieceInput{Hash: hash, Ext: f.Ext, Chars: piece.Chars, Join: piece.Join, Env: env}, true, nil
+}
+
+// PieceFiles lists audio/narration and accepts only names matching storedPieceName. When a hash
+// has both formats the first in sorted order wins.
+func (p *ProjectStore) PieceFiles(ctx context.Context, id string) (map[string]PieceFile, error) {
+	if err := p.checkID(id); err != nil {
+		return nil, err
+	}
+	names, err := p.st.List(ctx, p.file(id, "audio", "narration"))
+	if err != nil {
+		return nil, fmt.Errorf("storymaker: list narration audio: %w", err)
+	}
+	out := make(map[string]PieceFile, len(names))
+	for _, name := range names {
+		m := storedPieceName.FindStringSubmatch(name)
+		if m == nil {
+			continue
+		}
+		f := out[m[1]]
+		if m[2] == "env.json" {
+			f.HasEnv = true
+		} else if f.Ext == "" {
+			f.Ext = m[2]
+		}
+		out[m[1]] = f
+	}
+	return out, nil
+}
+
+// AudioPath is the desktop path of an audio file, for Publisher.WriteStream. folder is narration
+// or music. The name must match storedAudioName, so it also reaches the envelope and music
+// bookkeeping files. The audio route keeps its own whitelist for what it serves.
+func (p *ProjectStore) AudioPath(id, folder, file string) (string, error) {
+	if err := p.checkID(id); err != nil {
+		return "", err
+	}
+	if folder != "narration" && folder != "music" {
+		return "", fmt.Errorf("%w: audio folder %q", ErrInvalidArgument, clip(folder, 40))
+	}
+	if !storedAudioName.MatchString(file) {
+		return "", fmt.Errorf("%w: audio file %q", ErrInvalidArgument, clip(file, 80))
+	}
+	return p.file(id, "audio", folder, file), nil
+}
+
+// OpenAudio opens a file named by AudioPath. A missing file wraps fs.ErrNotExist.
+func (p *ProjectStore) OpenAudio(ctx context.Context, id, folder, file string) (io.ReadSeekCloser, FileInfo, error) {
+	full, err := p.AudioPath(id, folder, file)
+	if err != nil {
+		return nil, FileInfo{}, err
+	}
+	return p.st.Open(ctx, full)
+}
+
+// WritePiece stores the audio create-only, so an existing file is not an error and stays, then
+// writes the envelope.
+func (p *ProjectStore) WritePiece(ctx context.Context, id, hash, ext string, data []byte, env Envelope) error {
+	full, err := p.pieceAudioPath(id, hash, ext)
+	if err != nil {
+		return err
+	}
+	if _, err := p.st.WriteFile(ctx, full, data, MustNotExist); err != nil && !errors.Is(err, ErrConflict) {
+		return fmt.Errorf("storymaker: write narration audio: %w", err)
+	}
+	return p.WriteEnvelope(ctx, id, hash, env)
+}
+
+// WriteEnvelope writes or replaces the envelope of a stored piece.
+func (p *ProjectStore) WriteEnvelope(ctx context.Context, id, hash string, env Envelope) error {
+	full, err := p.AudioPath(id, "narration", hash+".env.json")
+	if err != nil {
+		return err
+	}
+	data, err := json.Marshal(env)
+	if err != nil {
+		return fmt.Errorf("storymaker: encode envelope: %w", err)
+	}
+	if _, err := p.st.WriteFile(ctx, full, data, ""); err != nil {
+		return fmt.Errorf("storymaker: write envelope: %w", err)
+	}
+	return nil
+}
+
+// RemovePiece removes the audio and the envelope of a piece. A missing file is not an error.
+func (p *ProjectStore) RemovePiece(ctx context.Context, id, hash, ext string) error {
+	full, err := p.pieceAudioPath(id, hash, ext)
+	if err != nil {
+		return err
+	}
+	if err := p.st.Remove(ctx, full); err != nil {
+		return fmt.Errorf("storymaker: remove narration audio: %w", err)
+	}
+	env, err := p.AudioPath(id, "narration", hash+".env.json")
+	if err != nil {
+		return err
+	}
+	if err := p.st.Remove(ctx, env); err != nil {
+		return fmt.Errorf("storymaker: remove envelope: %w", err)
+	}
+	return nil
+}
+
+func (p *ProjectStore) pieceAudioPath(id, hash, ext string) (string, error) {
+	if ext != "wav" && ext != "mp3" {
+		return "", fmt.Errorf("%w: audio format %q", ErrInvalidArgument, clip(ext, 16))
+	}
+	return p.AudioPath(id, "narration", hash+"."+ext)
 }

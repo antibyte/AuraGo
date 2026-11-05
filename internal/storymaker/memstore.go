@@ -1,13 +1,17 @@
 package storymaker
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"io/fs"
 	"path"
 	"sort"
 	"strings"
 	"sync"
+
+	"aurago/internal/desktop"
 )
 
 // MemStore is an in-memory Store for tests of this package and of the packages that build on
@@ -132,6 +136,26 @@ func (m *MemStore) MkdirAll(_ context.Context, dir string) error {
 	m.mkdirs(memClean(dir))
 	return nil
 }
+
+// Open implements Store: a reader over a copy of the bytes. ModTime stays zero, because MemStore
+// keeps no times.
+func (m *MemStore) Open(_ context.Context, p string) (io.ReadSeekCloser, FileInfo, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	key := memClean(p)
+	data, ok := m.files[key]
+	if !ok {
+		return nil, FileInfo{}, fmt.Errorf("storymaker: %s: %w", p, fs.ErrNotExist)
+	}
+	info := FileInfo{Name: path.Base(key), Size: int64(len(data)), MIME: desktop.MIMETypeForName(key)}
+	return memFile{bytes.NewReader(append([]byte(nil), data...))}, info, nil
+}
+
+// memFile adds the Close that io.ReadSeekCloser needs to a bytes.Reader.
+type memFile struct{ *bytes.Reader }
+
+// Close implements io.Closer.
+func (memFile) Close() error { return nil }
 
 func (m *MemStore) mkdirs(dir string) {
 	for dir != "." && dir != "" && dir != "/" {

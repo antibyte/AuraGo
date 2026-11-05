@@ -141,6 +141,20 @@ func (st *storymakerStore) MkdirAll(ctx context.Context, dir string) error {
 	return svc.CreateDirectory(ctx, dir, desktop.SourceUser)
 }
 
+// Open implements storymaker.Store over OpenPreviewFile, which has no size limit, so audio above
+// the 50 MB limit of ReadFile can still be served.
+func (st *storymakerStore) Open(ctx context.Context, p string) (io.ReadSeekCloser, storymaker.FileInfo, error) {
+	svc, err := st.service()
+	if err != nil {
+		return nil, storymaker.FileInfo{}, err
+	}
+	file, entry, mimeType, err := svc.OpenPreviewFile(ctx, p)
+	if err != nil {
+		return nil, storymaker.FileInfo{}, mapStoreError(err)
+	}
+	return file, storymaker.FileInfo{Name: entry.Name, Size: entry.Size, ModTime: entry.ModTime, MIME: mimeType}, nil
+}
+
 // WriteStream implements render.Publisher: it creates p from r and fails when p exists. The write
 // goes through WriteFileStreamConditional, which stages the data and renames it into place.
 func (st *storymakerStore) WriteStream(ctx context.Context, p string, r io.Reader, max int64) error {
