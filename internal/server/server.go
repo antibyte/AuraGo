@@ -376,6 +376,10 @@ type Server struct {
 	storymakerBrowsers         *render.Browsers
 	storymakerRunOverride      render.RunFunc
 	storymakerAudioRunOverride render.RunFunc
+	// storymakerSynthOverride replaces the provider call of a narrate job, and
+	// storymakerFreeDiskOverride its free-space probe.
+	storymakerSynthOverride    func(ctx context.Context, cfg tools.TTSConfig, text string) ([]byte, string, error)
+	storymakerFreeDiskOverride func(path string) (int64, error)
 	// storymakerFrameObserver sees every rendered frame (the parity test hashes them).
 	storymakerFrameObserver func(n int, transport string, data []byte)
 
