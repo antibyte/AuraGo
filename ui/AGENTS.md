@@ -22,14 +22,16 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
 ## Ownership
 
 - Aura Drift (`aura-drift`, category `games`) is a first-party offline top-down racer.
-  Its nine lazy-loaded modules, stylesheet, icon and `aura_drift.*` keys in all sixteen
-  `lang/desktop/*.json` bundles are owned by `js/desktop/apps/AGENTS.md`; the catalog
-  entry belongs to `../internal/desktop/AGENTS.md`; the technical guide is
-  `../documentation/aura-drift.md` and the roadmap `../plans/2026-11-04-aura-drift-racing-plan.md`.
+  Its ten lazy-loaded modules (including the WebGL2 post pass), stylesheet, icon and
+  `aura_drift.*` keys in all sixteen `lang/desktop/*.json` bundles are owned by
+  `js/desktop/apps/AGENTS.md`; the catalog entry belongs to
+  `../internal/desktop/AGENTS.md`; the technical guide is
+  `../documentation/aura-drift.md` and the roadmap
+  `../plans/2026-11-04-aura-drift-racing-plan.md`.
   It ships no external resources, no backend and no config switch. Keep
-  `TestAuraDrift*`, `node scripts/test-aura-drift-physics.mjs` and
-  `node scripts/test-aura-drift-tracks.mjs` green; regenerate `js/desktop/bundles/main.bundle.js`
-  whenever the shell registration changes.
+  `TestAuraDrift*`, `TestDesktopAuraDrift*Browser` and
+  `node scripts/test-aura-drift-{physics,tracks,balance}.mjs` green; regenerate
+  `js/desktop/bundles/main.bundle.js` whenever the shell registration changes.
 
 - AgentMail exposes default-off `allow_delete` separately from readonly. Connection
   tests render only translated fixed error codes, with all sixteen email/AgentMail

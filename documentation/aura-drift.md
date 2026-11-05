@@ -1,0 +1,120 @@
+# Aura Drift
+
+Aura Drift (`aura-drift`, category `games`) is a first-party, offline single-player top-down
+racing game for the Virtual Desktop. It needs no provider, account, backend, network request
+or external resource. See `plans/2026-11-04-aura-drift-racing-plan.md` for the product plan
+and its remaining phases.
+
+## Playing
+
+Open **Aura Drift** from the Desktop start menu (Games). Choose a mode, a track and the
+number of laps, then start. Selecting a track applies its recommended lap count (two laps,
+about three minutes per race); 1–5 laps remain selectable. Four modes are available:
+Quick race (three AI opponents), Time trial (solo, with a ghost replay of the recorded
+best run), Cup (all six tracks in sequence) and Daily route (a seeded, validated layout
+generated from the UTC date). Weapons can be switched off in the settings; Time trial
+never uses them. Trailing AI opponents receive a bounded catch-up of at most 6% target
+speed, never extra grip; the menu discloses this in all 16 languages.
+
+| Input | Action |
+| --- | --- |
+| Arrow keys / WASD | Steer, throttle, brake |
+| Space | Fire the equipped weapon |
+| Shift | Handbrake (reduces rear grip for controlled oversteer) |
+| Ctrl / Alt | Nitro boost |
+| P / Escape | Pause and resume |
+| R | Restart the current race |
+
+Touch devices get on-screen steering, throttle, brake, fire and handbrake buttons. Focus
+loss, window deactivation and tab hiding pause the race and release every held key. Audio
+starts only after a user interaction and suspends on pause. A read-only Desktop still
+allows racing but does not write settings or personal bests.
+
+## What is implemented
+
+- **Physics:** a deterministic bicycle model with front/rear slip angles, saturating tire
+  forces, load transfer, drag, rolling resistance, brake bias, handbrake rear-grip loss,
+  damage, boost and eight surface types. It runs at a fixed 120 Hz with an accumulator and a
+  five-substep catch-up clamp; rendering is independent and interpolated by the camera.
+  All gameplay randomness comes from a seeded PRNG; particles use a separate source.
+- **Tracks:** six authored radial-harmonic layouts with different widths, grip profiles,
+  weather, lighting and checkpoint orders, plus a seeded daily generator. Closed Catmull-Rom
+  splines are arc-length parameterized into roughly 4 m samples with a 64 m spatial grid.
+  Ground and props are generated per 256 m chunk into offscreen canvases with an LRU cache
+  capped by quality tier. `AD.validateTrack` checks length, width, spacing, corner radius
+  and overlapping sections.
+- **Graphics:** Canvas 2D world renderer with streamed ground chunks, layered road/curb
+  strokes, skid-mark decals, procedural cars, particles, night lighting, weather, vignette
+  and speed accents. The High and Ultra tiers add a WebGL2 post-processing pass
+  (`aura-drift-post.js`) over the 2D frame: bright-pass bloom, short vertical wet-asphalt
+  reflections (night harbour and industry), per-biome colour grading, vignette and impact
+  chromatic aberration. Shader math is NaN-guarded and clamped; context loss, disposal and
+  a Canvas 2D fallback are implemented. Four quality tiers scale particles, weather,
+  lighting and chunk cache; `auto` selects a tier from measured frame time with a 2.5 s
+  window and hysteresis. Reduced motion disables shake, weather, speed lines and shader
+  animation.
+- **Audio:** Web Audio synthesis only. Engine oscillators, intake/tyre/wind noise, SFX and
+  adaptive music are driven by physical state; separate buses feed a master compressor.
+  Volume, mute, focus and disposal are honoured. No sample files or external URLs.
+- **Weapons:** oil slick, mine, EMP, homing rocket, MG salvo and shield, each with a
+  telegraph, cooldown, ammo and a counter. AI uses the same rules. Hazards and projectiles
+  live in the deterministic simulation.
+- **Replays:** the player's input is recorded as a compact integer tape. Time trial re-simulates
+  that tape through the identical solver to produce a ghost; the same tape is stored with a
+  personal best in browser local storage.
+- **AI and balance:** opponents use the identical solver with look-ahead pure pursuit,
+  grip- and corridor-aware corner speeds, bounded catch-up, and a two-stage recovery
+  (brief reverse, then a deterministic marshal respawn) after spins or weapon hits.
+  `scripts/test-aura-drift-balance.mjs` runs seeded AI-only laps on all six tracks and
+  checks finishers, lap times (89–117 s), wall contacts, weapon usage, catch-up bounds and
+  reproducibility. Measured tuning took the forest stage from 1481 wall contacts to 33.
+- **Accessibility:** keyboard-only start journey, visible `:focus-visible` outlines,
+  screen-reader control hint with pointer-only touch controls hidden from the accessibility
+  tree, 56 px touch targets, reduced motion, and no colour-only state in the HUD.
+- **Desktop integration:** lazy module loading, one render loop per visible window, complete
+  disposal of listeners, RAF, AudioContext, caches and observers, `isActive` gating,
+  `app_aura_drift` plus `aura_drift.*` keys in all 16 Desktop locale bundles, Standard and
+  Fruity chrome, and app-owned icon artwork.
+
+## Boundaries
+
+"Perfect physics" in the plan means deterministic, frame-rate independent, collision-safe,
+tunable and believable — not an engineering-grade vehicle simulation. The world renderer
+is Canvas 2D; WebGL2 is used for the optional High/Ultra post pass, not for scene geometry.
+There is no multiplayer, backend, agent tool, config switch, external API or deployment.
+Still open: engineering-grade tyre data, per-biome authored music themes, offline audio
+clipping capture, a full WCAG 2.2 AA review, 30-minute soak runs, acceptance on recorded
+reference hardware, a track editor, branch shortcuts and Cup aggregate scoring.
+
+## Verification
+
+```text
+node scripts/test-aura-drift-physics.mjs
+node scripts/test-aura-drift-tracks.mjs
+node scripts/test-aura-drift-balance.mjs
+node scripts/build-ui-bundles.js --check
+go test ./ui -run 'TestAuraDrift|TestDesktopBuiltinAppNamesExistInAllLanguages|TestShippedWebAssetsLoadNothingExternal' -count=1
+go test ./internal/desktop -run TestBuiltinAppsCarryStartMenuCategories -count=1
+AURAGO_RUN_BROWSER_SMOKE=1 AURAGO_BROWSER_MUTE_AUDIO=1 go test ./ui -run TestDesktopAuraDrift -count=1
+```
+
+The browser suite has three parts. `TestDesktopAuraDriftBrowser` opens the app in the real
+Desktop shell fixture, starts a race, waits out the countdown, drives with synthetic key
+events and asserts that the race reaches `running` with a positive elapsed time and speed.
+`TestDesktopAuraDriftQualityMatrixBrowser` covers all four quality tiers, Standard and
+Fruity themes, 1440×900 and 900×600 windows and reduced motion; it checks WebGL2 gating,
+chunk-cache caps, keyboard focus, 44 px touch targets and canvas sizing.
+`TestDesktopAuraDriftWetReflectionsBrowser` selects the night harbour and verifies that
+the wet pass is active and presenting. `AURAGO_BROWSER_ARTIFACT_DIR` writes screenshots to
+an ignored `reports/` folder; `AURAGO_AURA_DRIFT_MATRIX_LIMIT` trims the matrix for quick
+local runs. `window.AuraDriftApp.stats()` exposes read-only per-window state (race state,
+time, speed, pause, quality, renderer caches and post-processing status).
+
+The physics check compares state hashes for identical input tapes at 30 and 144 render FPS,
+verifies solver bounds, low-grip understeer, wall contact at maximum speed, race replay
+identity and input-tape round-tripping. The track check validates all six authored layouts,
+twenty generated daily routes, distinct shapes, spline round-trips and surface zones. The
+balance check runs seeded AI-only full laps and measures the figures described above.
+
+Ownership: `ui/js/desktop/apps/AGENTS.md` (app modules and contracts), `ui/AGENTS.md`
+(asset and locale rules), `internal/desktop/AGENTS.md` (catalog entry), and the plan above.

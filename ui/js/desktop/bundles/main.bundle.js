@@ -402,6 +402,7 @@
         workflows: 'workflow',
         music: 'audio-player',
         'music-player': 'audio-player',
+        'audio-player': 'audio-player',
         player: 'audio-player',
         noisemaker: 'audio',
         radio: 'radio',
@@ -443,6 +444,7 @@
         zipper: 'zipper',
         pixel: 'pixel',
         'galaxa-deluxe': 'galaxa-deluxe',
+        'aura-drift': 'aura-drift',
         layerling: 'layerling',
         nasscad: 'nasscad',
         'store-quakejs-rootless': 'quakejs',
@@ -665,6 +667,7 @@
             calendar: 'C',
             calculator: 'Ca',
             'music-player': 'MP',
+            'audio-player': 'MP',
             radio: 'Ra',
             openscad: 'OS',
             teevee: 'TV',
@@ -681,6 +684,7 @@
             chess: 'Ch',
             pixel: 'Px',
             'galaxa-deluxe': 'Gx',
+            'aura-drift': 'AD',
             nasscad: 'NC',
             people: 'Pp',
             'mission-control': 'MC',
@@ -911,6 +915,7 @@
             zipper: 'ZipperApp',
             pixel: 'PixelApp',
             'galaxa-deluxe': 'GalaxaDeluxe',
+            'aura-drift': 'AuraDriftApp',
             'minigolf': 'MinigolfApp',
             layerling: 'LayerlingApp',
             nasscad: 'NasscadApp',
@@ -7248,6 +7253,7 @@
             calculator: { width: 380, height: 640 },
             todo: { width: 900, height: 600 },
             'music-player': { width: 430, height: 260 },
+            'audio-player': { width: 880, height: 600 },
             radio: { width: 960, height: 660 },
             'personal-radio': { width: 1060, height: 780 },
             'rtl-sdr': { width: 1000, height: 760 },
@@ -7282,6 +7288,7 @@
             'viewer-3d': { width: 900, height: 700 },
             pixel: { width: 1100, height: 750 },
             'galaxa-deluxe': { width: 600, height: 800 },
+            'aura-drift': { width: 1120, height: 720 },
             chess: { width: 980, height: 680 },
             layerling: { width: 1280, height: 850 },
             nasscad: { width: 1280, height: 850 },
@@ -7523,6 +7530,9 @@
             if (appId === 'bookshelf' && context && context.path != null) {
                 updateWindowContext(existing.id, { path: context.path, provider: context.provider || 'local', mount_id: context.mount_id || '' });
                 window.BookshelfApp?.open?.(existing.id, context);
+            }
+            if (appId === 'audio-player' && context && context.path != null) {
+                window.AudioPlayerApp?.open?.(existing.id, context);
             }
             if (appId === 'files' && context && context.path != null) {
                 if (window.FileManager && typeof window.FileManager.navigateTo === 'function') window.FileManager.navigateTo(existing.id, context.path);
@@ -10016,7 +10026,7 @@ function wireWindow(win, id) {
 
 ;
 /* ui/js/desktop/core/session-runtime.js */
-    const SESSION_SKIP_APP_IDS = new Set(['sip-phone', 'live-speech', 'quick-connect', 'galaxa-deluxe', 'music-player']);
+    const SESSION_SKIP_APP_IDS = new Set(['sip-phone', 'live-speech', 'quick-connect', 'galaxa-deluxe', 'aura-drift', 'music-player']);
     const SESSION_CONTEXT_KEYS = ['path', 'category', 'flowId'];
     // Keys with a fixed id shape are only saved and restored when they match it.
     const SESSION_CONTEXT_PATTERNS = { flowId: /^flow_[a-z0-9]{10}$/ };
@@ -17373,7 +17383,7 @@ function updateTaskbarSystemButtonsForMobile() {
             apps.push({ label: t('desktop.app_gallery'), appId: 'gallery' }, { label: t('desktop.app_viewer'), appId: 'viewer' }, { label: t('desktop.app_code_studio'), appId: 'code-studio' });
         } else if (isMedia) {
             const ext = desktopFileExtension(name);
-            if (['mp3', 'wav', 'flac', 'ogg', 'm4a', 'opus'].includes(ext)) apps.push({ label: t('desktop.app_music_player'), appId: 'music-player' });
+            if (['mp3', 'wav', 'flac', 'ogg', 'm4a', 'opus'].includes(ext)) apps.push({ label: t('desktop.app_audio_player'), appId: 'audio-player' }, { label: t('desktop.app_music_player'), appId: 'music-player' });
             apps.push({ label: t('desktop.app_gallery'), appId: 'gallery' }, { label: t('desktop.app_viewer'), appId: 'viewer' });
         } else if (typeof isWriterFile === 'function' && isWriterFile(entry)) {
             apps.push({ label: t('desktop.app_writer'), appId: 'writer' });
@@ -18882,6 +18892,16 @@ function updateTaskbarSystemButtonsForMobile() {
         if (appId === 'todo') return renderTodo(id);
         if (appId === 'gallery') return renderGallery(id, context);
         if (appId === 'music-player') return renderMusicPlayer(id);
+        if (appId === 'audio-player') {
+            if (!window.AudioPlayerApp) {
+                window.AuraDesktopModules.loadAppScript('audio-player').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            if (typeof window.AudioPlayerApp.render === 'function') {
+                const ctx = Object.assign({}, context || {}, { esc, api, t, iconMarkup, mediaPreviewURL, mediaPreviewKind, setWindowMenus, clearWindowMenus, registerWindowCleanup, openApp, confirmDialog, promptDialog });
+                return window.AudioPlayerApp.render(contentEl(id), id, ctx);
+            }
+        }
         if (appId === 'calendar') return renderCalendar(id);
         if (appId === 'radio' && window.RadioApp && typeof window.RadioApp.render === 'function') {
             return window.RadioApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, iconMarkup, setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary }));
@@ -19126,6 +19146,18 @@ if (appId === 'pixel') {
                 openApp,
                 fileOps: window.AuraDesktopFileOps
             }));
+        }
+        if (appId === 'aura-drift') {
+            if (!window.AuraDriftApp) {
+                window.AuraDesktopModules.loadAppScript('aura-drift').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            if (typeof window.AuraDriftApp.render === 'function') {
+                return window.AuraDriftApp.render(contentEl(id), id, Object.assign({}, context || {}, {
+                    esc, t, api, readonly: desktopReadonly(),
+                    isActive: () => state.activeWindowId === id
+                }));
+            }
         }
         if (appId === 'galaxa-deluxe') {
             if (!window.GalaxaDeluxe) {

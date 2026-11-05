@@ -131,6 +131,7 @@ Daten liegen bei deiner Installation. **Gehostete Modelle sehen trotzdem ihre Re
 30. [RuView](30-ruview.md) — Experimentelles Wi-Fi-Sensing mit ESP32-Boards (erweitert Kapitel 8)
 31. [Pixel](31-pixel.md) — Ebenen-Bildeditor mit Masken, 80 Filtern, 43 Generatoren, KI-Freistellen und OpenRaster-Projekten
 32. [ECalc](32-ecalc.md) — Elektronik-Formelsammlung: Rechner mit Schaltplänen, Live-Ergebnissen und E-Reihen-Werten für Widerstände
+33. [Aura Drift](33-aura-drift.md) — Top-Down-Rennen mit deterministischer Reifenphysik, sechs Strecken und Waffen
 
 [FAQ](faq.md) · [Handbuch-Start](../README.md) · [Release Notes](../../release-notes-2026-10-audit-remediation.md)
 

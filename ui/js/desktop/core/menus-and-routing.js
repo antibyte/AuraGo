@@ -112,7 +112,7 @@
             apps.push({ label: t('desktop.app_gallery'), appId: 'gallery' }, { label: t('desktop.app_viewer'), appId: 'viewer' }, { label: t('desktop.app_code_studio'), appId: 'code-studio' });
         } else if (isMedia) {
             const ext = desktopFileExtension(name);
-            if (['mp3', 'wav', 'flac', 'ogg', 'm4a', 'opus'].includes(ext)) apps.push({ label: t('desktop.app_music_player'), appId: 'music-player' });
+            if (['mp3', 'wav', 'flac', 'ogg', 'm4a', 'opus'].includes(ext)) apps.push({ label: t('desktop.app_audio_player'), appId: 'audio-player' }, { label: t('desktop.app_music_player'), appId: 'music-player' });
             apps.push({ label: t('desktop.app_gallery'), appId: 'gallery' }, { label: t('desktop.app_viewer'), appId: 'viewer' });
         } else if (typeof isWriterFile === 'function' && isWriterFile(entry)) {
             apps.push({ label: t('desktop.app_writer'), appId: 'writer' });
@@ -1621,6 +1621,16 @@
         if (appId === 'todo') return renderTodo(id);
         if (appId === 'gallery') return renderGallery(id, context);
         if (appId === 'music-player') return renderMusicPlayer(id);
+        if (appId === 'audio-player') {
+            if (!window.AudioPlayerApp) {
+                window.AuraDesktopModules.loadAppScript('audio-player').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            if (typeof window.AudioPlayerApp.render === 'function') {
+                const ctx = Object.assign({}, context || {}, { esc, api, t, iconMarkup, mediaPreviewURL, mediaPreviewKind, setWindowMenus, clearWindowMenus, registerWindowCleanup, openApp, confirmDialog, promptDialog });
+                return window.AudioPlayerApp.render(contentEl(id), id, ctx);
+            }
+        }
         if (appId === 'calendar') return renderCalendar(id);
         if (appId === 'radio' && window.RadioApp && typeof window.RadioApp.render === 'function') {
             return window.RadioApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, iconMarkup, setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary }));
@@ -1865,6 +1875,18 @@ if (appId === 'pixel') {
                 openApp,
                 fileOps: window.AuraDesktopFileOps
             }));
+        }
+        if (appId === 'aura-drift') {
+            if (!window.AuraDriftApp) {
+                window.AuraDesktopModules.loadAppScript('aura-drift').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            if (typeof window.AuraDriftApp.render === 'function') {
+                return window.AuraDriftApp.render(contentEl(id), id, Object.assign({}, context || {}, {
+                    esc, t, api, readonly: desktopReadonly(),
+                    isActive: () => state.activeWindowId === id
+                }));
+            }
         }
         if (appId === 'galaxa-deluxe') {
             if (!window.GalaxaDeluxe) {

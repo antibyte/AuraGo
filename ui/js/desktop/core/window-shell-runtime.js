@@ -1303,6 +1303,7 @@
             calculator: { width: 380, height: 640 },
             todo: { width: 900, height: 600 },
             'music-player': { width: 430, height: 260 },
+            'audio-player': { width: 880, height: 600 },
             radio: { width: 960, height: 660 },
             'personal-radio': { width: 1060, height: 780 },
             'rtl-sdr': { width: 1000, height: 760 },
@@ -1337,6 +1338,7 @@
             'viewer-3d': { width: 900, height: 700 },
             pixel: { width: 1100, height: 750 },
             'galaxa-deluxe': { width: 600, height: 800 },
+            'aura-drift': { width: 1120, height: 720 },
             chess: { width: 980, height: 680 },
             layerling: { width: 1280, height: 850 },
             nasscad: { width: 1280, height: 850 },
@@ -1578,6 +1580,9 @@
             if (appId === 'bookshelf' && context && context.path != null) {
                 updateWindowContext(existing.id, { path: context.path, provider: context.provider || 'local', mount_id: context.mount_id || '' });
                 window.BookshelfApp?.open?.(existing.id, context);
+            }
+            if (appId === 'audio-player' && context && context.path != null) {
+                window.AudioPlayerApp?.open?.(existing.id, context);
             }
             if (appId === 'files' && context && context.path != null) {
                 if (window.FileManager && typeof window.FileManager.navigateTo === 'function') window.FileManager.navigateTo(existing.id, context.path);

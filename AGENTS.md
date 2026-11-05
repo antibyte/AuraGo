@@ -151,6 +151,7 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 - Task LLM router defaults off: operator guide `documentation/llm-router.md`, runtime `internal/agent/AGENTS.md`. Align Newspaper implementation with product/editorial/delivery/acceptance plan `documentation/newspaper-plan.md`.
 - TeeVee retains supplied wood/metal CRT skin across themes; `documentation/teevee-retro-ui-plan.md` owns source/render/validation. CRT filter/glass reflection toggle independently; native playback survives blocked textures/WebGL. One decoder; explicit source-scoped proxy reconnect. Hardware 1080p/60 and external live-stream acceptance stay separate from local fixtures.
 - HA Switchboard (`ha-switchboard`): existing HA integration/Desktop shell, walnut cabinet/silver lever per selected `switch.*`; admin-only routes preserve HA service policy and both read-only gates. Validated `ha_switchboard.board` persists order/selection/labels; live reads confirm explicit on/off writes. Follow `documentation/ha-switchboard-plan.md` and owning UI/app contracts.
+- Music Player (`audio-player`): native window app that opens when an audio file is opened from the file manager or the desktop; the fullscreen gallery lightbox stays for images and videos. A Web Audio analyser feeds the canvas spectrum (`bars`/`radial`/`wave`), ID3 tags and cover art are read from the file itself, and `AuraDesktopMediaSession` carries the OS media keys. Owns `ui/js/desktop/apps/audio-player*.js` and `ui/css/desktop-app-audio-player.css`; the WebAmp/Winamp launcher stays the separate `music-player` app.
 
 ### Dependencies, catalogs and delivery
 
@@ -217,6 +218,7 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 | EasyDrag | `internal/flows/AGENTS.md` | Flows and Decisions media authorization. |
 | Fritz!Box | `internal/fritzbox/AGENTS.md` | TR-064 integration/Desktop widget. |
 | Game Maker | `internal/gamemaker/AGENTS.md` | Studio/planning/runtime feedback/progression/lifecycle/tool validation/sprite library/exports; owns asset-pack child index. |
+| Aura Drift | `ui/js/desktop/apps/AGENTS.md`, `ui/AGENTS.md`, `internal/desktop/AGENTS.md`, `documentation/aura-drift.md`, `plans/2026-11-04-aura-drift-racing-plan.md` | Offline top-down Virtual Desktop racer: deterministic 120 Hz bicycle physics, spline tracks with chunk streaming, Canvas 2D world plus WebGL2 High/Ultra post-processing, procedural Web Audio, six counterable weapons, bounded disclosed AI catch-up, sixteen locales; verify `TestAuraDrift*`, `TestDesktopAuraDrift*Browser` and the three `scripts/test-aura-drift-*.mjs` checks. |
 | HTTP streams | `internal/httpstream/AGENTS.md` | Finite write budgets/HTTP writer compatibility. |
 | Infra | `internal/infra/AGENTS.md` | Homelab atlas/source identity/layout/durable action outcomes. |
 | FindIt | `internal/findit/AGENTS.md`, `assets/findit/AGENTS.md` | Physical inventory, typed templates, stock/project reservations, CSV, photos, QR labels, read-only agent access and Desktop integration. |

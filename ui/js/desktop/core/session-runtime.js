@@ -1,4 +1,4 @@
-    const SESSION_SKIP_APP_IDS = new Set(['sip-phone', 'live-speech', 'quick-connect', 'galaxa-deluxe', 'music-player']);
+    const SESSION_SKIP_APP_IDS = new Set(['sip-phone', 'live-speech', 'quick-connect', 'galaxa-deluxe', 'aura-drift', 'music-player']);
     const SESSION_CONTEXT_KEYS = ['path', 'category', 'flowId'];
     // Keys with a fixed id shape are only saved and restored when they match it.
     const SESSION_CONTEXT_PATTERNS = { flowId: /^flow_[a-z0-9]{10}$/ };

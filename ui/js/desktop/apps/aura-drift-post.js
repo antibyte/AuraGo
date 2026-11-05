@@ -1,0 +1,244 @@
+/* Aura Drift - optional WebGL2 post-processing over the Canvas 2D world. */
+(function () {
+    'use strict';
+    const AD = window.AuraDriftCore;
+    const clamp = AD.clamp;
+
+    const VERTEX = `#version 300 es
+in vec2 aPos;
+out vec2 vUv;
+void main() {
+    vUv = aPos * 0.5 + 0.5;
+    gl_Position = vec4(aPos, 0.0, 1.0);
+}`;
+
+    const FRAGMENT = `#version 300 es
+precision highp float;
+in vec2 vUv;
+out vec4 outColor;
+uniform sampler2D uScene;
+uniform vec2 uTexel;
+uniform vec3 uGrade;
+uniform float uTime;
+uniform float uBloom;
+uniform float uWet;
+uniform float uImpact;
+uniform float uBoost;
+uniform float uReduced;
+
+vec3 sane(vec3 c) {
+    if (!(c.r == c.r)) c.r = 0.0;
+    if (!(c.g == c.g)) c.g = 0.0;
+    if (!(c.b == c.b)) c.b = 0.0;
+    return min(max(c, vec3(0.0)), vec3(4.0));
+}
+
+float luma(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
+
+void main() {
+    vec2 uv = vUv;
+    vec2 radial = uv - 0.5;
+    float shift = (uImpact * 0.004 + uBoost * 0.0015) * (1.0 - uReduced);
+    vec3 base;
+    base.r = texture(uScene, uv + radial * shift).r;
+    base.g = texture(uScene, uv).g;
+    base.b = texture(uScene, uv - radial * shift).b;
+    base = sane(base);
+
+    /* Bright-pass bloom: eight taps, clamped so a bad frame cannot blow out. */
+    vec3 bloom = vec3(0.0);
+    if (uBloom > 0.0) {
+        vec2 step = uTexel * 3.0;
+        for (int y = -1; y <= 1; y++) {
+            for (int x = -1; x <= 1; x++) {
+                vec3 s = sane(texture(uScene, uv + vec2(float(x), float(y)) * step).rgb);
+                bloom += max(s - vec3(0.62), vec3(0.0));
+            }
+        }
+        bloom /= 9.0;
+    }
+
+    /* Wet asphalt: stretch bright highlights vertically into short reflections. */
+    vec3 wet = vec3(0.0);
+    if (uWet > 0.0) {
+        float wobble = sin(uv.y * 220.0 + uTime * 2.2) * 0.35 * (1.0 - uReduced);
+        for (int i = 1; i <= 5; i++) {
+            float d = float(i);
+            vec2 off = vec2(wobble * uTexel.x * d, uTexel.y * d * 7.0);
+            vec3 s = sane(texture(uScene, uv + off).rgb);
+            wet += max(s - vec3(0.55), vec3(0.0)) * (1.0 / (d * d));
+        }
+        wet *= vec3(0.72, 0.86, 1.0);
+    }
+
+    vec3 color = base + bloom * uBloom + wet * uWet * 0.55;
+    color *= uGrade;
+    float vignette = 1.0 - 0.22 * smoothstep(0.35, 0.78, length(radial));
+    color *= vignette;
+    outColor = vec4(sane(min(color, vec3(1.0))), 1.0);
+}`;
+
+    const GRADES = {
+        alpine: [0.96, 1.00, 0.98],
+        desert: [1.06, 0.99, 0.90],
+        harbour: [0.88, 0.96, 1.12],
+        salt: [1.04, 1.04, 1.00],
+        forest: [0.94, 1.02, 0.94],
+        industry: [1.05, 0.98, 0.92]
+    };
+
+    function compile(gl, type, source) {
+        const shader = gl.createShader(type);
+        gl.shaderSource(shader, source);
+        gl.compileShader(shader);
+        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+            const info = gl.getShaderInfoLog(shader);
+            gl.deleteShader(shader);
+            throw new Error(info || 'shader compile failed');
+        }
+        return shader;
+    }
+
+    AD.createPostProcessor = function (sourceCanvas, outputCanvas) {
+        let gl = null, program = null, texture = null, buffer = null;
+        let available = false, lost = false, quality = 'high', biome = 'alpine';
+        let uniforms = {}, time = 0;
+        let textureWidth = 0, textureHeight = 0;
+
+        function hide() {
+            outputCanvas.style.opacity = '0';
+            outputCanvas.style.pointerEvents = 'none';
+        }
+        function show() {
+            outputCanvas.style.opacity = '1';
+        }
+
+        function init() {
+            try {
+                gl = outputCanvas.getContext('webgl2', {
+                    alpha: false, antialias: false, depth: false,
+                    stencil: false, preserveDrawingBuffer: false,
+                    powerPreference: 'low-power'
+                });
+            } catch (_) { gl = null; }
+            if (!gl) { available = false; hide(); return; }
+
+            let vertex, fragment;
+            try {
+                vertex = compile(gl, gl.VERTEX_SHADER, VERTEX);
+                fragment = compile(gl, gl.FRAGMENT_SHADER, FRAGMENT);
+                program = gl.createProgram();
+                gl.attachShader(program, vertex);
+                gl.attachShader(program, fragment);
+                gl.linkProgram(program);
+                if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+                    throw new Error(gl.getProgramInfoLog(program) || 'link failed');
+                }
+            } catch (err) {
+                if (vertex) gl.deleteShader(vertex);
+                if (fragment) gl.deleteShader(fragment);
+                if (program) gl.deleteProgram(program);
+                program = null; available = false; hide();
+                return;
+            }
+            gl.deleteShader(vertex);
+            gl.deleteShader(fragment);
+
+            buffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+            const location = gl.getAttribLocation(program, 'aPos');
+            gl.enableVertexAttribArray(location);
+            gl.vertexAttribPointer(location, 2, gl.FLOAT, false, 0, 0);
+
+            texture = gl.createTexture();
+            gl.bindTexture(gl.TEXTURE_2D, texture);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+            for (const name of ['uScene', 'uTexel', 'uGrade', 'uTime', 'uBloom', 'uWet', 'uImpact', 'uBoost', 'uReduced']) {
+                uniforms[name] = gl.getUniformLocation(program, name);
+            }
+            gl.useProgram(program);
+            gl.uniform1i(uniforms.uScene, 0);
+            available = true;
+            lost = false;
+            textureWidth = 0; textureHeight = 0;
+        }
+
+        function onLost(event) {
+            event.preventDefault();
+            lost = true; available = false; hide();
+        }
+        function onRestored() {
+            if (!lost) return;
+            init();
+        }
+        outputCanvas.addEventListener('webglcontextlost', onLost);
+        outputCanvas.addEventListener('webglcontextrestored', onRestored);
+        hide();
+        init();
+
+        return {
+            get available() { return available; },
+            get enabled() { return available && (quality === 'high' || quality === 'ultra'); },
+            resize(width, height, ratio) {
+                const dpr = clamp(ratio || 1, 1, 2);
+                outputCanvas.width = Math.max(1, Math.round(width * dpr));
+                outputCanvas.height = Math.max(1, Math.round(height * dpr));
+                outputCanvas.style.width = width + 'px';
+                outputCanvas.style.height = height + 'px';
+                if (gl) gl.viewport(0, 0, outputCanvas.width, outputCanvas.height);
+                textureWidth = 0; textureHeight = 0;
+            },
+            setQuality(name) { quality = AD.QUALITY[name] ? name : 'high'; },
+            setBiome(id) { biome = GRADES[id] ? id : 'alpine'; },
+            render(race, dt, reducedMotion) {
+                if (!this.enabled) { hide(); return false; }
+                if (!gl || gl.isContextLost()) { available = false; hide(); return false; }
+                const sw = sourceCanvas.width, sh = sourceCanvas.height;
+                if (sw < 1 || sh < 1) return false;
+                time += dt;
+                gl.useProgram(program);
+                gl.activeTexture(gl.TEXTURE0);
+                gl.bindTexture(gl.TEXTURE_2D, texture);
+                if (sw !== textureWidth || sh !== textureHeight) {
+                    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, sw, sh, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+                    textureWidth = sw; textureHeight = sh;
+                }
+                gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, sourceCanvas);
+                gl.uniform2f(uniforms.uTexel, 1 / sw, 1 / sh);
+                const grade = GRADES[biome] || GRADES.alpine;
+                gl.uniform3f(uniforms.uGrade, grade[0], grade[1], grade[2]);
+                gl.uniform1f(uniforms.uTime, time);
+                gl.uniform1f(uniforms.uBloom, quality === 'ultra' ? 0.95 : 0.55);
+                gl.uniform1f(uniforms.uWet, biome === 'harbour' ? 1.0 : (biome === 'industry' ? 0.45 : 0.0));
+                const v = race && race.cars[0] ? race.cars[0].v : null;
+                gl.uniform1f(uniforms.uImpact, v ? clamp(v.impact, 0, 1) : 0);
+                gl.uniform1f(uniforms.uBoost, v ? v.boost : 0);
+                gl.uniform1f(uniforms.uReduced, reducedMotion ? 1 : 0);
+                gl.drawArrays(gl.TRIANGLES, 0, 3);
+                show();
+                return true;
+            },
+            stats() {
+                return { available: available, enabled: this.enabled, biome: biome, quality: quality, lost: lost };
+            },
+            dispose() {
+                outputCanvas.removeEventListener('webglcontextlost', onLost);
+                outputCanvas.removeEventListener('webglcontextrestored', onRestored);
+                if (gl) {
+                    if (texture) gl.deleteTexture(texture);
+                    if (buffer) gl.deleteBuffer(buffer);
+                    if (program) gl.deleteProgram(program);
+                    const ext = gl.getExtension('WEBGL_lose_context');
+                    if (ext) ext.loseContext();
+                }
+                gl = null; program = null; texture = null; buffer = null;
+                available = false; hide();
+            }
+        };
+    };
+})();
