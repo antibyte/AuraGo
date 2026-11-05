@@ -1,0 +1,603 @@
+{
+ "whoosh": {
+  "gain_db": [
+   -10.56,
+   -11.24,
+   -11.18,
+   -10.54
+  ],
+  "l50_spread_lu": 0.0,
+  "layers": [
+   "fit/whoosh.short/bamboo_swish"
+  ],
+  "takes": [
+   {
+    "file": "whoosh_1.wav",
+    "seeds": [
+     0
+    ],
+    "rerolls": 0,
+    "impact_ms": 129.5,
+    "bytes": 45838,
+    "sha256": "27838ddd5ab530b5",
+    "dur_ms": 477.0,
+    "onset_ms": 87.0,
+    "peak_ms": 129.5,
+    "end_ms": 390.0,
+    "lufs_m_max": -27.71,
+    "true_peak_dbtp": -11.5,
+    "peak_dbfs": -11.56,
+    "l50_lufs": -18.0,
+    "check_ok": true,
+    "check": "sound: clean"
+   },
+   {
+    "file": "whoosh_2.wav",
+    "seeds": [
+     1
+    ],
+    "rerolls": 0,
+    "impact_ms": 129.5,
+    "bytes": 45838,
+    "sha256": "c51fb7c3d426e831",
+    "dur_ms": 477.0,
+    "onset_ms": 89.0,
+    "peak_ms": 129.5,
+    "end_ms": 394.0,
+    "lufs_m_max": -27.53,
+    "true_peak_dbtp": -12.2,
+    "peak_dbfs": -12.24,
+    "l50_lufs": -18.0,
+    "check_ok": true,
+    "check": "sound: clean"
+   },
+   {
+    "file": "whoosh_3.wav",
+    "seeds": [
+     2
+    ],
+    "rerolls": 0,
+    "impact_ms": 129.5,
+    "bytes": 45838,
+    "sha256": "f986c2a7922977bb",
+    "dur_ms": 477.0,
+    "onset_ms": 88.8,
+    "peak_ms": 129.5,
+    "end_ms": 393.0,
+    "lufs_m_max": -27.61,
+    "true_peak_dbtp": -12.2,
+    "peak_dbfs": -12.18,
+    "l50_lufs": -18.0,
+    "check_ok": true,
+    "check": "sound: clean"
+   },
+   {
+    "file": "whoosh_4.wav",
+    "seeds": [
+     3
+    ],
+    "rerolls": 0,
+    "impact_ms": 130.5,
+    "bytes": 45838,
+    "sha256": "bb807db30dcdf242",
+    "dur_ms": 477.0,
+    "onset_ms": 89.2,
+    "peak_ms": 130.5,
+    "end_ms": 391.0,
+    "lufs_m_max": -27.5,
+    "true_peak_dbtp": -11.5,
+    "peak_dbfs": -11.54,
+    "l50_lufs": -18.0,
+    "check_ok": true,
+    "check": "sound: clean"
+   }
+  ]
+ },
+ "pop": {
+  "gain_db": [
+   -9.0,
+   -9.74,
+   -10.02,
+   -8.96
+  ],
+  "l50_spread_lu": 0.0,
+  "layers": [
+   "pop/0"
+  ],
+  "takes": [
+   {
+    "file": "pop_1.wav",
+    "seeds": [
+     1826701615
+    ],
+    "rerolls": 0,
+    "impact_ms": 3.5,
+    "bytes": 19244,
+    "sha256": "8a2cfe4907ecfab1",
+    "dur_ms": 200.0,
+    "onset_ms": 0.0,
+    "peak_ms": 3.5,
+    "end_ms": 115.0,
+    "lufs_m_max": -30.03,
+    "true_peak_dbtp": -10.0,
+    "peak_dbfs": -10.0,
+    "l50_lufs": -18.0,
+    "check_ok": true,
+    "check": "sound: clean"
+   },
+   {
+    "file": "pop_2.wav",
+    "seeds": [
+     1826701616
+    ],
+    "rerolls": 0,
+    "impact_ms": 4.5,
+    "bytes": 19244,
+    "sha256": "8a076996ed39ccaf",
+    "dur_ms": 200.0,
+    "onset_ms": 0.0,
+    "peak_ms": 4.5,
+    "end_ms": 120.0,
+    "lufs_m_max": -30.03,
+    "true_peak_dbtp": -10.7,
+    "peak_dbfs": -10.74,
+    "l50_lufs": -18.0,
+    "check_ok": true,
+    "check": "sound: clean"
+   },
+   {
+    "file": "pop_3.wav",
+    "seeds": [
+     1826701617
+    ],
+    "rerolls": 0,
+    "impact_ms": 3.5,
+    "bytes": 19244,
+    "sha256": "fba9b910c34ea1b9",
+    "dur_ms": 200.0,
+    "onset_ms": 0.0,
+    "peak_ms": 3.5,
+    "end_ms": 129.0,
+    "lufs_m_max": -30.02,
+    "true_peak_dbtp": -11.0,
+    "peak_dbfs": -11.02,
+    "l50_lufs": -18.0,
+    "check_ok": true,
+    "check": "sound: clean"
+   },
+   {
+    "file": "pop_4.wav",
+    "seeds": [
+     1826701618
+    ],
+    "rerolls": 0,
+    "impact_ms": 3.5,
+    "bytes": 19244,
+    "sha256": "9e45e2014c9e886d",
+    "dur_ms": 200.0,
+    "onset_ms": 0.0,
+    "peak_ms": 3.5,
+    "end_ms": 119.0,
+    "lufs_m_max": -30.03,
+    "true_peak_dbtp": -10.0,
+    "peak_dbfs": -9.96,
+    "l50_lufs": -18.0,
+    "check_ok": true,
+    "check": "sound: clean"
+   }
+  ]
+ },
+ "click": {
+  "gain_db": [
+   -1.83,
+   -0.5,
+   -0.67,
+   -0.5
+  ],
+  "l50_spread_lu": 0.62,
+  "layers": [
+   "fit/click/floss_lid"
+  ],
+  "takes": [
+   {
+    "file": "click_1.wav",
+    "seeds": [
+     0
+    ],
+    "rerolls": 0,
+    "impact_ms": 7.5,
+    "bytes": 12718,
+    "sha256": "cae0cc035fb73067",
+    "dur_ms": 132.0,
+    "onset_ms": 4.0,
+    "peak_ms": 7.5,
+    "end_ms": 69.0,
+    "lufs_m_max": -30.04,
+    "true_peak_dbtp": -2.8,
+    "peak_dbfs": -2.83,
+    "l50_lufs": -18.0,
+    "check_ok": true,
+    "check": "sound: clean"
+   },
+   {
+    "file": "click_2.wav",
+    "seeds": [
+     1
+    ],
+    "rerolls": 0,
+    "impact_ms": 7.5,
+    "bytes": 12718,
+    "sha256": "10f7ab91f3f30788",
+    "dur_ms": 132.0,
+    "onset_ms": 4.2,
+    "peak_ms": 7.5,
+    "end_ms": 70.0,
+    "lufs_m_max": -30.44,
+    "true_peak_dbtp": -1.5,
+    "peak_dbfs": -1.5,
+    "l50_lufs": -18.4,
+    "check_ok": true,
+    "check": "sound: clean"
+   },
+   {
+    "file": "click_3.wav",
+    "seeds": [
+     2
+    ],
+    "rerolls": 0,
+    "impact_ms": 7.5,
+    "bytes": 12718,
+    "sha256": "9d2fd15d88e96168",
+    "dur_ms": 132.0,
+    "onset_ms": 4.5,
+    "peak_ms": 7.5,
+    "end_ms": 71.0,
+    "lufs_m_max": -30.04,
+    "true_peak_dbtp": -1.6,
+    "peak_dbfs": -1.67,
+    "l50_lufs": -18.0,
+    "check_ok": true,
+    "check": "sound: clean"
+   },
+   {
+    "file": "click_4.wav",
+    "seeds": [
+     3
+    ],
+    "rerolls": 0,
+    "impact_ms": 7.5,
+    "bytes": 12718,
+    "sha256": "80b08cba555608cd",
+    "dur_ms": 132.0,
+    "onset_ms": 4.5,
+    "peak_ms": 7.5,
+    "end_ms": 69.0,
+    "lufs_m_max": -30.66,
+    "true_peak_dbtp": -1.5,
+    "peak_dbfs": -1.5,
+    "l50_lufs": -18.62,
+    "check_ok": true,
+    "check": "sound: clean"
+   }
+  ]
+ },
+ "ding": {
+  "gain_db": [
+   -16.87,
+   -16.2,
+   -16.72
+  ],
+  "l50_spread_lu": 0.0,
+  "layers": [
+   "fit/bell/small_bell"
+  ],
+  "takes": [
+   {
+    "file": "ding_1.wav",
+    "seeds": [
+     0
+    ],
+    "rerolls": 0,
+    "impact_ms": 32.5,
+    "bytes": 86444,
+    "sha256": "5774818d2c128a5b",
+    "dur_ms": 900.0,
+    "onset_ms": 1.2,
+    "peak_ms": 32.5,
+    "end_ms": 469.0,
+    "lufs_m_max": -28.74,
+    "true_peak_dbtp": -17.8,
+    "peak_dbfs": -17.87,
+    "l50_lufs": -18.0,
+    "check_ok": true,
+    "check": "sound: clean"
+   },
+   {
+    "file": "ding_2.wav",
+    "seeds": [
+     1
+    ],
+    "rerolls": 0,
+    "impact_ms": 32.5,
+    "bytes": 86444,
+    "sha256": "caee5f9b0668f0d3",
+    "dur_ms": 900.0,
+    "onset_ms": 1.0,
+    "peak_ms": 32.5,
+    "end_ms": 488.0,
+    "lufs_m_max": -28.67,
+    "true_peak_dbtp": -17.1,
+    "peak_dbfs": -17.2,
+    "l50_lufs": -18.0,
+    "check_ok": true,
+    "check": "sound: clean"
+   },
+   {
+    "file": "ding_3.wav",
+    "seeds": [
+     2
+    ],
+    "rerolls": 0,
+    "impact_ms": 32.5,
+    "bytes": 86444,
+    "sha256": "5ca184501d5ddf82",
+    "dur_ms": 900.0,
+    "onset_ms": 1.2,
+    "peak_ms": 32.5,
+    "end_ms": 440.0,
+    "lufs_m_max": -28.84,
+    "true_peak_dbtp": -17.7,
+    "peak_dbfs": -17.72,
+    "l50_lufs": -18.0,
+    "check_ok": true,
+    "check": "sound: clean"
+   }
+  ]
+ },
+ "success": {
+  "gain_db": [
+   -16.38,
+   -15.27
+  ],
+  "l50_spread_lu": 0.0,
+  "layers": [
+   "fit/bell/small_bell",
+   "fit/bell/small_bell",
+   "fit/bell/small_bell"
+  ],
+  "takes": [
+   {
+    "file": "success_1.wav",
+    "seeds": [
+     0,
+     0,
+     0
+    ],
+    "rerolls": 0,
+    "impact_ms": 1.2,
+    "bytes": 107564,
+    "sha256": "a74b35b96b1361fe",
+    "dur_ms": 1120.0,
+    "onset_ms": 1.2,
+    "peak_ms": 138.5,
+    "end_ms": 688.0,
+    "lufs_m_max": -24.53,
+    "true_peak_dbtp": -17.2,
+    "peak_dbfs": -17.38,
+    "l50_lufs": -18.0,
+    "check_ok": true,
+    "check": "sound: clean (the tail rises again by 12 dB (a second event, a roll or a double member))"
+   },
+   {
+    "file": "success_2.wav",
+    "seeds": [
+     1,
+     1,
+     1
+    ],
+    "rerolls": 0,
+    "impact_ms": 1.2,
+    "bytes": 107564,
+    "sha256": "b619063209fc250d",
+    "dur_ms": 1120.0,
+    "onset_ms": 1.2,
+    "peak_ms": 28.5,
+    "end_ms": 707.0,
+    "lufs_m_max": -24.28,
+    "true_peak_dbtp": -16.3,
+    "peak_dbfs": -16.27,
+    "l50_lufs": -18.0,
+    "check_ok": true,
+    "check": "sound: clean (the tail rises again by 12 dB (a second event, a roll or a double member))"
+   }
+  ]
+ },
+ "error": {
+  "gain_db": [
+   -19.57,
+   -18.36
+  ],
+  "l50_spread_lu": 0.0,
+  "layers": [
+   "pro_zip/down"
+  ],
+  "takes": [
+   {
+    "file": "error_1.wav",
+    "seeds": [
+     579362556
+    ],
+    "rerolls": 0,
+    "impact_ms": 0.8,
+    "bytes": 48044,
+    "sha256": "b12574f568b88f54",
+    "dur_ms": 500.0,
+    "onset_ms": 0.8,
+    "peak_ms": 41.5,
+    "end_ms": 403.0,
+    "lufs_m_max": -26.93,
+    "true_peak_dbtp": -20.5,
+    "peak_dbfs": -20.57,
+    "l50_lufs": -18.0,
+    "check_ok": true,
+    "check": "sound: clean"
+   },
+   {
+    "file": "error_2.wav",
+    "seeds": [
+     579363557
+    ],
+    "rerolls": 1,
+    "impact_ms": 0.2,
+    "bytes": 48044,
+    "sha256": "c07dcc6f77eba83c",
+    "dur_ms": 500.0,
+    "onset_ms": 0.2,
+    "peak_ms": 9.5,
+    "end_ms": 457.0,
+    "lufs_m_max": -23.72,
+    "true_peak_dbtp": -19.3,
+    "peak_dbfs": -19.36,
+    "l50_lufs": -18.0,
+    "check_ok": true,
+    "check": "sound: clean"
+   }
+  ]
+ },
+ "typing": {
+  "gain_db": [
+   -2.58,
+   -0.5,
+   -3.16,
+   -1.87,
+   -0.5,
+   -0.5
+  ],
+  "l50_spread_lu": 1.21,
+  "layers": [
+   "typing_key/thock"
+  ],
+  "takes": [
+   {
+    "file": "typing_1.wav",
+    "seeds": [
+     1826701615
+    ],
+    "rerolls": 0,
+    "impact_ms": 13.5,
+    "bytes": 32350,
+    "sha256": "e5a4ed4a4eec9f6f",
+    "dur_ms": 336.5,
+    "onset_ms": 8.8,
+    "peak_ms": 13.5,
+    "end_ms": 292.0,
+    "lufs_m_max": -30.0,
+    "true_peak_dbtp": -3.2,
+    "peak_dbfs": -3.58,
+    "l50_lufs": -18.0,
+    "check_ok": true,
+    "check": "sound: clean"
+   },
+   {
+    "file": "typing_2.wav",
+    "seeds": [
+     1826701616
+    ],
+    "rerolls": 0,
+    "impact_ms": 12.5,
+    "bytes": 29950,
+    "sha256": "ede7b0c80172fe7e",
+    "dur_ms": 311.5,
+    "onset_ms": 8.5,
+    "peak_ms": 12.5,
+    "end_ms": 259.0,
+    "lufs_m_max": -30.33,
+    "true_peak_dbtp": -1.1,
+    "peak_dbfs": -1.5,
+    "l50_lufs": -18.33,
+    "check_ok": true,
+    "check": "sound: clean"
+   },
+   {
+    "file": "typing_3.wav",
+    "seeds": [
+     1826702617
+    ],
+    "rerolls": 1,
+    "impact_ms": 12.5,
+    "bytes": 29614,
+    "sha256": "483a4ff4fc7176c3",
+    "dur_ms": 308.0,
+    "onset_ms": 8.0,
+    "peak_ms": 12.5,
+    "end_ms": 217.0,
+    "lufs_m_max": -30.01,
+    "true_peak_dbtp": -4.2,
+    "peak_dbfs": -4.16,
+    "l50_lufs": -18.0,
+    "check_ok": true,
+    "check": "sound: clean"
+   },
+   {
+    "file": "typing_4.wav",
+    "seeds": [
+     1826701618
+    ],
+    "rerolls": 0,
+    "impact_ms": 12.5,
+    "bytes": 28696,
+    "sha256": "e54bcc3c5a8013f4",
+    "dur_ms": 298.5,
+    "onset_ms": 7.8,
+    "peak_ms": 12.5,
+    "end_ms": 259.0,
+    "lufs_m_max": -29.99,
+    "true_peak_dbtp": -2.6,
+    "peak_dbfs": -2.87,
+    "l50_lufs": -18.0,
+    "check_ok": true,
+    "check": "sound: clean (the tail rises again by 8 dB (a second event, a roll or a double member))"
+   },
+   {
+    "file": "typing_5.wav",
+    "seeds": [
+     1826701619
+    ],
+    "rerolls": 0,
+    "impact_ms": 11.5,
+    "bytes": 26584,
+    "sha256": "e0a8bb52be6c30f4",
+    "dur_ms": 276.5,
+    "onset_ms": 8.0,
+    "peak_ms": 11.5,
+    "end_ms": 245.0,
+    "lufs_m_max": -30.98,
+    "true_peak_dbtp": -1.0,
+    "peak_dbfs": -1.5,
+    "l50_lufs": -19.03,
+    "check_ok": true,
+    "check": "sound: clean"
+   },
+   {
+    "file": "typing_6.wav",
+    "seeds": [
+     1826701620
+    ],
+    "rerolls": 0,
+    "impact_ms": 12.5,
+    "bytes": 29578,
+    "sha256": "5545db8665c0e3d2",
+    "dur_ms": 307.6,
+    "onset_ms": 8.0,
+    "peak_ms": 12.5,
+    "end_ms": 273.0,
+    "lufs_m_max": -31.13,
+    "true_peak_dbtp": -1.2,
+    "peak_dbfs": -1.5,
+    "l50_lufs": -19.21,
+    "check_ok": true,
+    "check": "sound: clean (the tail rises again by 8 dB (a second event, a roll or a double member))"
+   }
+  ]
+ }
+}

@@ -1,0 +1,128 @@
+{
+ "recipe": 1,
+ "tool": "earshot 0.4.0 (git 591fa3e), bank forge_v2r6+forge04r1+fit1+pluck1",
+ "sr": 48000,
+ "format": "wav pcm_s16le mono",
+ "normalise": {
+  "mode": "l50",
+  "target_lufs": -18.0,
+  "ceiling_dbfs": -1.5,
+  "scope": "take"
+ },
+ "sounds": {
+  "whoosh": {
+   "takes": 4,
+   "impact": "peak",
+   "layers": [
+    {
+     "sound": "fit/whoosh.short/bamboo_swish",
+     "at_ms": 0,
+     "gain_db": 0,
+     "edits": {}
+    }
+   ]
+  },
+  "pop": {
+   "takes": 4,
+   "impact": "peak",
+   "layers": [
+    {
+     "sound": "pop/0",
+     "at_ms": 0,
+     "gain_db": 0,
+     "edits": {}
+    }
+   ]
+  },
+  "click": {
+   "takes": 4,
+   "impact": "peak",
+   "layers": [
+    {
+     "sound": "fit/click/floss_lid",
+     "at_ms": 0,
+     "gain_db": 0,
+     "edits": {}
+    }
+   ]
+  },
+  "ding": {
+   "takes": 3,
+   "impact": "peak",
+   "layers": [
+    {
+     "sound": "fit/bell/small_bell",
+     "at_ms": 0,
+     "gain_db": 0,
+     "edits": {
+      "dur": 0.9
+     }
+    }
+   ]
+  },
+  "success": {
+   "takes": 2,
+   "impact": "onset",
+   "layers": [
+    {
+     "sound": "fit/bell/small_bell",
+     "at_ms": 0,
+     "gain_db": 0,
+     "edits": {
+      "dur": 0.8,
+      "pitch": "G7"
+     }
+    },
+    {
+     "sound": "fit/bell/small_bell",
+     "at_ms": 110,
+     "gain_db": 0,
+     "edits": {
+      "dur": 0.8,
+      "pitch": "B7"
+     }
+    },
+    {
+     "sound": "fit/bell/small_bell",
+     "at_ms": 220,
+     "gain_db": 0,
+     "edits": {
+      "dur": 0.9,
+      "pitch": "D8"
+     }
+    }
+   ]
+  },
+  "error": {
+   "takes": 2,
+   "impact": "onset",
+   "layers": [
+    {
+     "sound": "pro_zip/down",
+     "at_ms": 0,
+     "gain_db": 0,
+     "edits": {
+      "dur": 0.5
+     }
+    }
+   ]
+  },
+  "typing": {
+   "takes": 6,
+   "impact": "peak",
+   "layers": [
+    {
+     "sound": "typing_key/thock",
+     "at_ms": 0,
+     "gain_db": 0,
+     "edits": {}
+    }
+   ]
+  }
+ },
+ "reroll": {
+  "max": 3,
+  "seed_step": 1000,
+  "rule": "a take whose sfx.check is not ok is rendered again on seed+1000*j (earshot kit rule); first clean one is kept"
+ }
+}

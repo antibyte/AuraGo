@@ -1,0 +1,509 @@
+diff --git a/internal/storymaker/render/ffmpeg.go b/internal/storymaker/render/ffmpeg.go
+index fded6e0ef..1c5314084 100644
+--- a/internal/storymaker/render/ffmpeg.go
++++ b/internal/storymaker/render/ffmpeg.go
+@@ -96,6 +96,9 @@ type FFmpeg struct {
+ // StartFFmpeg starts the process. ctx ends it.
+ func StartFFmpeg(ctx context.Context, cfg FFmpegConfig) (*FFmpeg, error) {
+ 	args, err := BuildFFmpegArgs(cfg)
++	if p := os.Getenv("AURAGO_PSPIKE_ARGS"); p != "" {
++		_ = os.WriteFile(p, []byte(strings.Join(args, "")), 0o644)
++	}
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/internal/storymaker/render/parallel_spike_test.go b/internal/storymaker/render/parallel_spike_test.go
+new file mode 100644
+index 000000000..db3ce1f12
+--- /dev/null
++++ b/internal/storymaker/render/parallel_spike_test.go
+@@ -0,0 +1,231 @@
++package render
++
++import (
++	"bytes"
++	"context"
++	"crypto/sha256"
++	"encoding/hex"
++	"encoding/json"
++	"fmt"
++	"os"
++	"path/filepath"
++	"runtime"
++	"strconv"
++	"strings"
++	"sync"
++	"testing"
++	"time"
++
++	"github.com/shirou/gopsutil/v4/process"
++)
++
++// Parallel-worker spike (phase 2). Run with AURAGO_RUN_BROWSER_SMOKE=1 AURAGO_PSPIKE=1.
++//   AURAGO_PSPIKE_NS=0,1,2,4      N values; 0 = the serial production loop
++//   AURAGO_PSPIKE_C=8             chunk size
++//   AURAGO_PSPIKE_PRE=1|0         pre-roll on/off (2 frames)
++//   AURAGO_PSPIKE_ENC=host|worker where the PNG is made
++//   AURAGO_PSPIKE_RUNS=2
++//   AURAGO_PSPIKE_HASH=1          decode every frame and hash RGBA (slows the run; for parity only)
++//   AURAGO_PSPIKE_DUMP=1          keep the PNG bytes of every frame on disk
++//   AURAGO_PSPIKE_OUT=<dir>       results.jsonl and hash files go here
++//   AURAGO_PSPIKE_LABEL=<text>
++
++type spyPage struct {
++	browserPage
++	pid int
++}
++
++type memSample struct {
++	Total, Renderer, Browser, GPU, Other int64
++}
++
++func typeRSS(pid int) memSample {
++	var m memSample
++	if pid <= 0 {
++		return m
++	}
++	root, err := process.NewProcess(int32(pid))
++	if err != nil {
++		return m
++	}
++	var walk func(p *process.Process)
++	walk = func(p *process.Process) {
++		if mem, err := p.MemoryInfo(); err == nil && mem != nil {
++			rss := int64(mem.RSS)
++			cmd, _ := p.Cmdline()
++			m.Total += rss
++			switch {
++			case strings.Contains(cmd, "--type=renderer"):
++				m.Renderer += rss
++			case strings.Contains(cmd, "--type=gpu-process"):
++				m.GPU += rss
++			case !strings.Contains(cmd, "--type="):
++				m.Browser += rss
++			default:
++				m.Other += rss
++			}
++		}
++		if kids, err := p.Children(); err == nil {
++			for _, k := range kids {
++				walk(k)
++			}
++		}
++	}
++	walk(root)
++	return m
++}
++
++func TestParallelSpike(t *testing.T) {
++	chrome := browserSmoke(t)
++	if os.Getenv("AURAGO_PSPIKE") != "1" {
++		t.Skip("set AURAGO_PSPIKE=1")
++	}
++	envOr := func(k, d string) string {
++		if v := os.Getenv(k); v != "" {
++			return v
++		}
++		return d
++	}
++	ns := strings.Split(envOr("AURAGO_PSPIKE_NS", "0,1"), ",")
++	chunk, _ := strconv.Atoi(envOr("AURAGO_PSPIKE_C", "8"))
++	pre := envOr("AURAGO_PSPIKE_PRE", "1") == "1"
++	enc := envOr("AURAGO_PSPIKE_ENC", "host")
++	runs, _ := strconv.Atoi(envOr("AURAGO_PSPIKE_RUNS", "2"))
++	doHash := os.Getenv("AURAGO_PSPIKE_HASH") == "1"
++	dump := os.Getenv("AURAGO_PSPIKE_DUMP") == "1"
++	out := envOr("AURAGO_PSPIKE_OUT", t.TempDir())
++	label := envOr("AURAGO_PSPIKE_LABEL", "")
++	_ = os.MkdirAll(out, 0o755)
++
++	for _, nStr := range ns {
++		nW, _ := strconv.Atoi(strings.TrimSpace(nStr))
++		for run := 0; run < runs; run++ {
++			cfg := map[string]any{"N": nW, "C": chunk, "preroll": pre, "enc": enc}
++			cfgJSON, _ := json.Marshal(cfg)
++			tag := fmt.Sprintf("N%d_C%d_pre%v_%s%s_r%d", nW, chunk, pre, enc, label, run)
++
++			var mu sync.Mutex
++			pngSums := map[int]string{}
++			rgba := map[int]string{}
++			arrive := map[int]time.Time{}
++			var first, last time.Time
++			var totalBytes int64
++			observer := func(n int, tr string, data []byte) {
++				now := time.Now()
++				sum := sha256.Sum256(data)
++				var h string
++				if doHash {
++					h = decodedHash(t, tr, data)
++				}
++				mu.Lock()
++				if first.IsZero() {
++					first = now
++				}
++				last = time.Now()
++				totalBytes += int64(len(data))
++				pngSums[n] = hex.EncodeToString(sum[:])
++				if doHash {
++					rgba[n] = h
++				}
++				arrive[n] = now
++				mu.Unlock()
++				if dump {
++					_ = os.WriteFile(filepath.Join(out, tag+"_f"+strconv.Itoa(n)+".png"), data, 0o644)
++				}
++			}
++
++			fx := newRealFixture(t, chrome)
++			fx.deps.UI = patchedUI{FS: fx.deps.UI, edit: func(src []byte) []byte {
++				return bytes.Replace(src, []byte("var TRANSPORTS = ["), append(append([]byte("root.__SM_SPIKE_CFG = "), cfgJSON...), []byte(";\n    var TRANSPORTS = [")...), 1)
++			}}
++			fx.deps.FrameObserver = observer
++			var spy *spyPage
++			var spyMu sync.Mutex
++			fx.deps.OpenPage = func(ctx context.Context, o sessionOptions) (browserPage, error) {
++				p, err := openSession(ctx, o)
++				if err != nil {
++					return nil, err
++				}
++				s := &spyPage{browserPage: p}
++				if ss, ok := p.(*session); ok {
++					s.pid = ss.proc.PID()
++				}
++				spyMu.Lock()
++				spy = s
++				spyMu.Unlock()
++				return s, nil
++			}
++			fx.rebuild(t)
++			fx.loadFirewall(t)
++
++			stop := make(chan struct{})
++			var wg sync.WaitGroup
++			var peak memSample
++			var lastProfile string
++			wg.Add(1)
++			go func() {
++				defer wg.Done()
++				tick := time.NewTicker(300 * time.Millisecond)
++				defer tick.Stop()
++				for {
++					select {
++					case <-stop:
++						return
++					case <-tick.C:
++						spyMu.Lock()
++						s := spy
++						spyMu.Unlock()
++						if s == nil {
++							continue
++						}
++						if m := typeRSS(s.pid); m.Total > peak.Total {
++							peak = m
++						}
++						if st := s.browserPage.Status(context.Background()); strings.Contains(st, `"profile"`) {
++							lastProfile = st
++						}
++					}
++				}
++			}()
++			SpikeAcceptNanos.Store(0)
++			SpikeAcceptCount.Store(0)
++			started := time.Now()
++			job := fx.render(t)
++			elapsed := time.Since(started)
++			close(stop)
++			wg.Wait()
++			if job.Status != StatusSucceeded {
++				t.Fatalf("%s: %+v %+v", tag, job, job.Error)
++			}
++			span := last.Sub(first).Seconds()
++			var prof map[string]any
++			var st struct {
++				Profile map[string]any `json:"profile"`
++			}
++			if json.Unmarshal([]byte(lastProfile), &st) == nil {
++				prof = st.Profile
++			}
++			row := map[string]any{
++				"tag": tag, "n": nW, "c": chunk, "preroll": pre, "enc": enc, "run": run, "frames": job.FramesTotal,
++				"fps_ingest": float64(job.FramesTotal) / span, "ingest_span_s": span, "job_s": elapsed.Seconds(),
++				"avg_png_bytes": totalBytes / int64(max(job.FramesTotal, 1)),
++				"rss_mb_total": peak.Total >> 20, "rss_mb_renderer": peak.Renderer >> 20, "rss_mb_browser": peak.Browser >> 20, "rss_mb_gpu": peak.GPU >> 20, "rss_mb_other": peak.Other >> 20,
++				"cpus": runtime.NumCPU(), "profile": prof, "accept_ms_per_frame": float64(SpikeAcceptNanos.Load()) / 1e6 / float64(max(SpikeAcceptCount.Load(), 1)),
++			}
++			b, _ := json.Marshal(row)
++			t.Logf("%s", b)
++			f, _ := os.OpenFile(filepath.Join(out, "results.jsonl"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
++			f.Write(append(b, '\n'))
++			f.Close()
++			hb, _ := json.Marshal(map[string]any{"png_sha": pngSums, "rgba_sha": rgba})
++			_ = os.WriteFile(filepath.Join(out, "hashes_"+tag+".json"), hb, 0o644)
++			// the arrival log of frame n lets the analysis see stalls
++			ab := map[int]float64{}
++			for n, ts := range arrive {
++				ab[n] = ts.Sub(first).Seconds()
++			}
++			abb, _ := json.Marshal(ab)
++			_ = os.WriteFile(filepath.Join(out, "arrive_"+tag+".json"), abb, 0o644)
++		}
++	}
++}
+diff --git a/internal/storymaker/render/render.go b/internal/storymaker/render/render.go
+index 188411c44..a11007bb9 100644
+--- a/internal/storymaker/render/render.go
++++ b/internal/storymaker/render/render.go
+@@ -686,7 +686,10 @@ func (run *renderRun) accept(n int, contentType string, data []byte) (FrameOutco
+ 	if obs := run.r.deps.FrameObserver; obs != nil {
+ 		obs(n, run.transport, data)
+ 	}
++	spikeT0 := time.Now()
+ 	outcome, err := run.ingest.Accept(n, contentType, data)
++	SpikeAcceptNanos.Add(int64(time.Since(spikeT0)))
++	SpikeAcceptCount.Add(1)
+ 	if err != nil {
+ 		var ie *IngestError
+ 		if !errors.As(err, &ie) {
+diff --git a/internal/storymaker/render/spike_counters.go b/internal/storymaker/render/spike_counters.go
+new file mode 100644
+index 000000000..6bfb2415e
+--- /dev/null
++++ b/internal/storymaker/render/spike_counters.go
+@@ -0,0 +1,6 @@
++package render
++
++import "sync/atomic"
++
++// SpikeAcceptNanos and SpikeAcceptCount time Ingest.Accept (frame check plus the write into FFmpeg stdin). Spike only.
++var SpikeAcceptNanos, SpikeAcceptCount atomic.Int64
+diff --git a/ui/js/storymaker/host-core.js b/ui/js/storymaker/host-core.js
+index d1d341720..fe0e9c763 100644
+--- a/ui/js/storymaker/host-core.js
++++ b/ui/js/storymaker/host-core.js
+@@ -258,6 +258,10 @@
+         var plan = planReply.plan;
+         var codeScenes = {}, sceneIssues = [], sceneNeeds = {}, codeIds = Object.keys(plan.scenes).filter(function (k) { return plan.scenes[k].kind === 'code'; });
+         await Promise.all(codeIds.map(async function (cid) {
++            if (msg.shared_code_scenes) {   // spike: a parallel helper engine takes the scene durations of the main engine and builds nothing
++                codeScenes[cid] = msg.shared_code_scenes[cid] || {};
++                return;
++            }
+             if (self.mode === 'fallback') {
+                 codeScenes[cid] = {};
+                 self.codeErrors[cid] = 'Code scenes are not previewed in this browser. Export renders them.';
+@@ -276,6 +280,7 @@
+         }));
+         if (id !== this.loadId) throw fail('cancelled', 'superseded');
+ 
++        this.codeScenesInfo = codeScenes;
+         var compiled = await this.send({ type: 'compile', story: story, catalog: msg.catalog, audioInfo: msg.audio_info || {}, opts: Object.assign({ codeScenes: codeScenes }, sizeOpts) }, env.limits.compileDeadlineMs);
+         var report = compiled.report;
+         sceneIssues.forEach(function (i) { report.issues.push(i); });
+@@ -371,9 +376,11 @@
+             }
+         }
+         try {
+-            var out = await this.send({ type: 'render', n: n, width: width, codeFrames: codeFrames, codeErrors: this.codeErrors }, ms, transfer);
++            var out = await this.send({ type: 'render', n: n, width: width, codeFrames: codeFrames, codeErrors: this.codeErrors, png: !!opts.png }, ms, transfer);
+             this.rendered++;
+-            return out.bitmap;
++            this.lastDrawMs = out.drawMs;
++            this.lastEncMs = out.encMs;
++            return opts.png ? out.blob : out.bitmap;
+         } catch (err) {
+             var pe = asError(err);
+             if (pe.code === 'deadline') { this.dead = true; Object.keys(this.sceneChannels).forEach(function (k) { self.sceneChannels[k].kill(pe); }); }
+diff --git a/ui/js/storymaker/host-render.js b/ui/js/storymaker/host-render.js
+index 337d99024..15840114e 100644
+--- a/ui/js/storymaker/host-render.js
++++ b/ui/js/storymaker/host-render.js
+@@ -151,20 +151,143 @@
+             }
+ 
+             status.phase = 'rendering';
+-            var n = answer.from_frame > 0 ? answer.from_frame : 0;
+-            for (;;) {
+-                if (n >= limit) {
+-                    await postError(H.fail('render_failed', 'The page ran past the last frame (' + limit + ') without a done answer.'));
+-                    status.phase = 'error';
+-                    return status;
++            var cfg = win.__SM_SPIKE_CFG || {};
++            var prof = status.profile = { frames: 0, draw_ms: 0, wdraw_ms: 0, enc_ms: 0, wenc_ms: 0, post_ms: 0, idle_ms: 0, start_ms: env.now(), end_ms: 0, buf_max: 0, buf_bytes_max: 0, js_heap_max: 0, cfg: cfg };
++            function sampleHeap() { var m = win.performance && win.performance.memory; if (m && m.usedJSHeapSize > prof.js_heap_max) prof.js_heap_max = m.usedJSHeapSize; }
++
++            if (!(cfg.N > 0)) {
++                // serial path (the production loop of phase 1), instrumented
++                var n = 0;
++                for (;;) {
++                    if (n >= limit) {
++                        await postError(H.fail('render_failed', 'The page ran past the last frame (' + limit + ') without a done answer.'));
++                        status.phase = 'error';
++                        return status;
++                    }
++                    var t0 = env.now();
++                    var bmp = await engine.render(n);
++                    var t1 = env.now();
++                    ctx.clearRect(0, 0, canvas.width, canvas.height);
++                    ctx.drawImage(bmp, 0, 0);
++                    if (typeof bmp.close === 'function') bmp.close();
++                    var body = await encode(boot.transport);
++                    var t2 = env.now();
++                    var reply = await post('/frame?n=' + n, body, { 'Content-Type': 'text/plain' });
++                    var t3 = env.now();
++                    prof.frames++; prof.draw_ms += t1 - t0; prof.wdraw_ms += engine.lastDrawMs || 0; prof.enc_ms += t2 - t1; prof.post_ms += t3 - t2; prof.end_ms = t3;
++                    status.frame = n;
++                    if (reply.stop) { status.phase = 'stopped'; status.error = reply.error || ''; status.message = reply.message || ''; return status; }
++                    if (reply.restart) { n = 0; status.restarts = (status.restarts || 0) + 1; continue; }
++                    if (reply.done) { status.phase = 'done'; return status; }
++                    n++;
++                }
++            }
++
++            // ---- spike: N player workers, chunks of C frames dealt round-robin, in-order posting through a reorder buffer ----
++            var NW = cfg.N, CH = cfg.C || 8, PRE = cfg.preroll === false ? 0 : (cfg.preroll_frames || 2), CAP = NW * CH * 2, WENC = cfg.enc === 'worker';
++            var engines = [engine], helpers = [];
++            for (var hi = 1; hi < NW; hi++) { var he = H.createEngine(env); engines.push(he); helpers.push(he); }
++            await Promise.all(helpers.map(async function (he) {
++                var l = await he.load({
++                    story: story, catalog: catalog, audio_info: boot.audio_info || {}, assets: {}, fonts: fonts, code_bundles: {},
++                    format: { fps: boot.fps, width: boot.width, height: boot.height }, shared_code_scenes: engine.codeScenesInfo
++                });
++                if (l.report.frame_count !== rep.frame_count) throw H.fail('render_failed', 'A helper worker compiled ' + l.report.frame_count + ' frames, not ' + rep.frame_count + '.');
++                await l.prepare();
++            }));
++            prof.start_ms = env.now();
++            function frameHasCode(f) {
++                var plan = root.StorymakerCore.schedule.framePlan(engine.schedule, f);
++                for (var i = 0; i < plan.layers.length; i++) {
++                    var sc = engine.schedule.scenes[plan.layers[i].i];
++                    if (sc.kind === 'code' && engine.sceneChannels[sc.id] && !engine.sceneChannels[sc.id].dead) return true;
++                }
++                return false;
++            }
++            var nChunks = Math.ceil(limit / CH), chunksOf = [], codeChunks = 0, w;
++            for (w = 0; w < NW; w++) chunksOf.push([]);
++            for (var j = 0; j < nChunks; j++) {
++                var hasCode = false;
++                for (var f = j * CH; f < Math.min(limit, j * CH + CH) && !hasCode; f++) hasCode = frameHasCode(f);
++                if (hasCode) codeChunks++;
++                chunksOf[hasCode ? 0 : j % NW].push(j);
++            }
++            prof.chunks = nChunks; prof.code_chunks = codeChunks;
++
++            function wake(st) { var ws = st.waiters; st.waiters = []; for (var i = 0; i < ws.length; i++) ws[i](); }
++            function waitFor(st) { return new Promise(function (resolve) { st.waiters.push(resolve); }); }
++            function encodeBitmap(b) {
++                ctx.clearRect(0, 0, canvas.width, canvas.height);
++                ctx.drawImage(b, 0, 0);
++                if (typeof b.close === 'function') b.close();
++                return encode('png');   // toBlob copies the canvas when called, so another worker may draw next
++            }
++            async function workerLoop(st, wi) {
++                var eng = engines[wi];
++                try {
++                    for (var ci = 0; ci < chunksOf[wi].length; ci++) {
++                        var cj = chunksOf[wi][ci], s = cj * CH, e = Math.min(limit, s + CH);
++                        while (!st.abort && s - st.next >= CAP) await waitFor(st);   // too far ahead of the next frame to post
++                        if (st.abort) return;
++                        if (PRE && s > 0) {
++                            for (var p = Math.max(0, s - PRE); p < s; p++) {
++                                if (st.abort) return;
++                                var pb = await eng.render(p, { png: WENC });
++                                if (!WENC && pb && typeof pb.close === 'function') pb.close();
++                            }
++                        }
++                        for (var fn = s; fn < e; fn++) {
++                            if (st.abort) return;
++                            var a0 = env.now();
++                            var got = await eng.render(fn, { png: WENC });
++                            var a1 = env.now();
++                            prof.draw_ms += a1 - a0; prof.wdraw_ms += eng.lastDrawMs || 0; prof.wenc_ms += eng.lastEncMs || 0;
++                            var blob = WENC ? got : await encodeBitmap(got);
++                            prof.enc_ms += env.now() - a1;
++                            if (st.abort) return;
++                            st.buf[fn] = blob; st.held++; st.heldBytes += blob.size;
++                            if (st.held > prof.buf_max) prof.buf_max = st.held;
++                            if (st.heldBytes > prof.buf_bytes_max) prof.buf_bytes_max = st.heldBytes;
++                            wake(st);
++                        }
++                    }
++                } catch (err) {
++                    if (!st.err) { st.err = err; }
++                    st.abort = true; wake(st);
+                 }
+-                await drawFrame(n);
+-                var body = await encode(boot.transport);
+-                var reply = await post('/frame?n=' + n, body, { 'Content-Type': 'text/plain' });
+-                if (reply.stop) { status.phase = 'stopped'; status.error = reply.error || ''; status.message = reply.message || ''; return status; }
+-                if (reply.restart) { n = 0; status.restarts = (status.restarts || 0) + 1; continue; }
+-                if (reply.done) { status.phase = 'done'; return status; }
+-                n++;
++            }
++            async function poster(st) {
++                try {
++                    while (!st.abort) {
++                        var nn = st.next, blob = st.buf[nn];
++                        if (blob === undefined) { var i0 = env.now(); await waitFor(st); prof.idle_ms += env.now() - i0; continue; }
++                        delete st.buf[nn]; st.held--; st.heldBytes -= blob.size;
++                        var p0 = env.now();
++                        var rep2 = await post('/frame?n=' + nn, blob, { 'Content-Type': 'text/plain' });
++                        prof.post_ms += env.now() - p0; prof.frames++; prof.end_ms = env.now();
++                        status.frame = nn; sampleHeap();
++                        if (rep2.stop) { st.outcome = 'stopped'; st.reply = rep2; break; }
++                        if (rep2.restart) { st.outcome = 'restart'; break; }
++                        if (rep2.done) { st.outcome = 'done'; break; }
++                        st.next = nn + 1;
++                        if (st.next >= limit) { st.outcome = 'overrun'; break; }
++                        wake(st);
++                    }
++                } catch (err) {
++                    if (!st.err) st.err = err;
++                }
++                st.abort = true; wake(st);
++            }
++            for (;;) {
++                var st = { abort: false, next: 0, buf: {}, held: 0, heldBytes: 0, waiters: [], err: null, outcome: '', reply: null };
++                var tasks = [poster(st)];
++                for (w = 0; w < NW; w++) tasks.push(workerLoop(st, w));
++                await Promise.all(tasks);
++                if (st.err) throw st.err;
++                if (st.outcome === 'restart') { status.restarts = (status.restarts || 0) + 1; continue; }
++                if (st.outcome === 'stopped') { status.phase = 'stopped'; status.error = st.reply.error || ''; status.message = st.reply.message || ''; return status; }
++                if (st.outcome === 'done') { status.phase = 'done'; helpers.forEach(function (he) { he.dispose(); }); return status; }
++                throw H.fail('render_failed', 'The page ran past the last frame (' + limit + ') without a done answer.');
+             }
+         } catch (err) {
+             if (engine) engine.dispose();
+diff --git a/ui/js/storymaker/worker-player.js b/ui/js/storymaker/worker-player.js
+index fa5656c5c..013e088a3 100644
+--- a/ui/js/storymaker/worker-player.js
++++ b/ui/js/storymaker/worker-player.js
+@@ -6,6 +6,7 @@
+ (function (root) {
+     'use strict';
+     var SM = root.StorymakerCore || (root.StorymakerCore = {});
++    var perfNow = root.performance ? root.performance.now.bind(root.performance) : function () { return 0; };   // captured before determinism shadows it (spike)
+ 
+     function fail(code, message, extra) {
+         var e = { code: code, message: message };
+@@ -84,11 +85,19 @@
+                     codeFrames: msg.codeFrames || {}, codeErrors: msg.codeErrors || {},
+                     canvas: function (name, w, h) { return self.canvas(name, w, h); }
+                 };
++                var t0 = perfNow();
+                 SM.renderFrame(tl, msg.n, main.ctx, assetsObj, { width: width === tl.width ? 0 : width });
++                var drawMs = perfNow() - t0;
++                if (msg.png) {   // spike: encode inside the worker
++                    var blob = await main.canvas.convertToBlob({ type: 'image/png' });
++                    var cf = msg.codeFrames || {};
++                    for (var cid in cf) if (cf[cid] && typeof cf[cid].close === 'function') cf[cid].close();
++                    return { payload: { blob: blob, width: width, height: height, drawMs: drawMs, encMs: perfNow() - t0 - drawMs }, transfer: [] };
++                }
+                 var bitmap = typeof main.canvas.transferToImageBitmap === 'function' ? main.canvas.transferToImageBitmap() : main.canvas;
+                 var frames = msg.codeFrames || {};
+                 for (var id in frames) if (frames[id] && typeof frames[id].close === 'function') frames[id].close();
+-                return { payload: { bitmap: bitmap, width: width, height: height }, transfer: typeof main.canvas.transferToImageBitmap === 'function' ? [bitmap] : [] };
++                return { payload: { bitmap: bitmap, width: width, height: height, drawMs: drawMs }, transfer: typeof main.canvas.transferToImageBitmap === 'function' ? [bitmap] : [] };
+             }
+             case 'dispose':
+                 this.timeline = null;

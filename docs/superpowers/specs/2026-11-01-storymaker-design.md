@@ -930,3 +930,107 @@ Phase-1 drafting resolved or narrowed the items below. Each carries its result.
 - Comments: `released` and `stale` events; the pointer is stored with its scene ID, beat index and story rev; the after snapshot is written whatever the outcome.
 - History check and `slow_open`: the sampling worker renders in order and its probes are compared with a fresh worker; `slow_open` has starting values and sampling in Storymaker's units.
 - Glyphs: code-scene text is not glyph-checked and stays `layout_unverified`; the code-scene build reply carries the phase 3 parameter declarations.
+
+## Changes from the phase 2 plan
+
+**Narration**
+- Line 135, 499: the envelope is `audio/narration/<hash>.env.json`, a 10 ms RMS series free of the frame rate. A per-fps file per piece drifts when pieces are joined. Go builds per-frame block levels and spans at answer time.
+- Line 84: envelopes are not transferred to workers. Levels travel inline in `audio_info`.
+- Line 97: voice resolution is in `voices.go`, not `narration.go`.
+- Line 495: one sentence is one piece, not sentences grouped up to the chunk limit. An edit then re-synthesises one sentence and sentence starts are exact. Fragments under 20 width or of 3 words or fewer merge into a neighbour.
+- Line 496: sanoTTS is already serialised (`internal/tools/sanotts.go:18-27`). The narrate queue adds one call at a time for every provider.
+- Line 497: the key is computed per piece, with provider and language trimmed and lower-cased.
+- Line 498: decoding uses a new `audio_decode.go`, because `voice.DecodeWAVPCM16Source` accepts only mono s16. ffprobe is not a fallback. Music durations come from the WAV header or go-mp3's length, with no full decode.
+- Line 490: no code enforces a 400-character limit. It stays our own conservative size.
+- Line 492: per-language notes hold facts only. Listening notes wait for the user's tests, because nothing here can judge speech. The `not tested` mark ships, on the provider and language, shown for every provider in phase 2.
+- Line 494: the ElevenLabs body also needs real JSON (`tts.go:487-488`), not only the path escape.
+- Lines 494, 506: `Validate` checks the shape only, because the package does not import `internal/tools`. The check against the list runs in `POST /narrate`, which answers 409 `voice_unknown` with at most 5 alternatives. The agent's `kind=voice` discovery is phase 3.
+- Lines 484, 837: the OpenAI list is the 13 voices named in the plan; `gpt-4o-mini-tts` is hard-coded (`tts_cloud.go:21`) and shuts down 2027-01-06.
+- Line 483: `FetchXAIVoices` is a live client method, cached 5 minutes.
+- Line 487: google is offered only when active, and `POST /narrate` refuses it otherwise. Providers are listed active first, then local, then cloud, so resolution never picks a paid provider ahead of a free one.
+- Line 488: Speech Lab uses the `/ready` snapshot; no per-call voice exists.
+- Line 501: the vowel-weight rule is dropped. It erred 581-730 ms mean against 341 ms for proportional (n=30). `cueMap` places a marker at a sentence start on that sentence's onset, and proportionally over the sentence's speech inside it. Each block has `placed: span` or `proportion`, and the fallback no longer depends on the script.
+- Line 502: narration clips of different voices are matched before the stem is measured, capped at +6 dB, so a film with two speakers lands near target without a meter per clip. Clips reach the mix rate through FFmpeg in job staging.
+- Line 504: the `narration_incomplete` gate lands in batch 2C with a seeded-audio test helper. Until then a narrated story exports silently.
+- Line 505: `POST /projects` takes an optional `language`. Without it the project has `voice:null`, as in phase 1, and the voice panel writes one. `POST /narrate` answers 409 `voice_required` without a voice.
+- Line 503: a silent scene silences its narration only; say text stays spoken. A say without text draws the active caption lines of the scene narration until that narration ends, has no block and does not move the schedule. In a silent scene it draws nothing and gets a warning. A say whose actor is off stage still plays its audio, with no bubble and no lip-sync. Say text has the 1500-character limit of narration.
+- Audio is untrusted on disk: `env.json` and `meta.json` are checked when read, an invalid one counts as missing, and a piece that no longer decodes is synthesised again.
+- Daily and job caps reserve characters before the call, because a provider that answered has billed.
+
+**Motion**
+- Lines 189, 345: `exit` always walks today, so 0.35 s applies to `hide`.
+- Line 229, 364, 850: the default transition is `wipe` when the environment changes, else `fade`, for new scenes only. A stored fade between worlds still gets the lint.
+- Line 342: `emote` has no ease. The expression stays a step until phase 4.
+- Line 346: overlap measures from the anchor, the longest beat of a `with:"prev"` group, not strictly the previous beat. A short beat that runs with a long one must not start the next target's beat early.
+- Lines 348, 817: the chart lead lands with the chart beat in phase 4. Phase 2 leaves `chart` out of the schedule.
+- Line 353: for holds a run of CJK characters counts 1 word per 2 characters. The same count feeds the estimate.
+- Line 355: rhythm factors are first guesses. Code-scene API defaults are not scaled.
+- Line 357: shrink to fit runs in `text.layout`, because compile has no canvas and runs before fonts. Line 409: the phase 2 `text_too_small` reads the style size only.
+- Determinism: every seed comes from strings, since no project seed exists among the compile inputs. `Intl.Segmenter`, `\p{Script}` and `normalize` are not used in compile or the wrap, because they vary with ICU. Generated range tables from a committed Unicode 16.0.0 data file replace them.
+
+**Glyphs**
+- Lines 119, 326: Go does not read WOFF2. `glyphs.go` reads a build-generated `glyphs.json` that carries each face's coverage.
+- Line 327: Geist has only 6 Greek letters. Inter Greek and Greek Extended come first with their `unicodeRange`, or Chrome draws ω as Ω. Emoji, Thai and Hebrew are `glyph_missing`. Default-ignorables and JS whitespace are exempt, and the NFC form is checked. A silent scene's narration is not checked, because it is never drawn.
+- Line 330: no subset. `NotoSansCJKsc.otf` gets a named 17 MiB exception, because a subset breaks the per-character check. Measured: 80-120 MiB per worker, 292-330 ms load.
+- Fallback faces load on need. Render mode fetches fonts lazily.
+
+**Sound**
+- Lines 33, 312, 522, 817: the SFX set is not a CC0 download. 25 WAVs are rendered once with earshot: forge sounds are code-made, and whoosh, click, ding and success derive from CC0 Freesound recordings named in `assets/storymaker/README.md`. The output-rights reading stays open.
+- Line 99: `mix.go` lives in `render/` and is pure Go, not an FFmpeg audio graph.
+- Line 514, 589: looping uses an equal-power crossfade in `mix.go`, not `acrossfade`.
+- Lines 516-519: ducking uses a feed-forward stage in `mix.go`, not `sidechaincompress`. Both filters exist on both FFmpeg versions, so the reasons are exact stems, a 1000-clip graph, look-ahead and unit tests.
+- Lines 521, 605, 836: the meter is one FFmpeg process reading a float pipe with `ebur128` and `loudnorm` in one graph, I from ebur128 (loudnorm under-reads an 8 s film by 1.6 LU), TP from loudnorm. It is not a two-pass `loudnorm`. The gain is `min(-16-I, -1-TP, -0.1-max stem peak)`.
+- Line 522: take rotation is seeded from scene id, beat index and sound id, and the last take spans the film. Hit levels: pop 4.5/3, ding 4.5/3, success 4.5/4, error 4.5/4. Auto-SFX also skips a pop whose landing already has an sfx beat running `with:"prev"` on it.
+- Line 523: procedural effects are not built. A dev-time render with earshot gives the same repeatability. 25 WAVs ship, copied by the build.
+- Line 524, 854: no limiter. Normal shapes land at -16.0 to -17.6 LUFS. An sfx-only film ends near -22 LUFS, accepted.
+- Line 525: the preview bed plays through `<audio>`, and narration decodes in a sliding window, because a 15-minute decoded bed is 345 MB. No carve in preview.
+- Line 589: generated music length comes from the app's last compile until phase 3's check job. A stale length is absorbed by the loop or the trim. A local profile below 600 s gets the profile's limit as its duration, and the loop covers the rest.
+- Line 511 stays: modes are `generated` and `file`, with `file` XOR `track`.
+- Music jobs share the narrate queue. `POST /music` also copies file and track sources to a hash name. Decided here: wav and mp3 sources only, at most 1 GiB, 1 s to 3600 s. A moved source reports `music_issue: source_missing` and does not stop narration.
+- Generated music starts only from an explicit click, because a key changes at each pause in typing.
+
+**Rendering and export**
+- Line 83: the 10 s no-frame watchdog starts with FFmpeg, after the mix, not when the report is accepted.
+- Line 544: PNG is encoded in the worker. Worker encoding exists only for PNG, so other transports stay serial. Pre-roll is off by default and stays switchable, because every frame was byte-identical with and without it. `N = clamp(floor((cpus-2)/3),1,6)`, bounded by memory, and Go passes it in `boot.json`.
+- Line 553: the frame gate also checks audio against video within 25 ms, because the packet count does not notice a wrong audio length. `-shortest` is removed.
+- Lines 555, 773: new inputs use narrower format lists than `videostudio/probe.go:16-17`: `wav,mp3` for decoding, `f32le` for the meter, `wav` for the mix, `mov` for the gate.
+- Line 556: the restart stays an answer to `/frame`.
+- Line 560: the camera-import reason is wrong for a nested path (`video-studio-projects.js:433` accepts top-level `Videos/<file>` only). The library copy is for discoverability, and the handoff imports from `exports/`. Writing to `Videos` needs new code, `WriteStorymakerVideo`.
+- Line 562: stems and subtitles go into `exports/<slug>-<job8>/`. There is no `handoff` render option: handoff is a client action on any finished job with stems, so a closed window cannot lose it.
+- Line 563: the per-file cap in phase 2 is 2 GiB (`render.go:50`).
+- Line 577: `audio_events` has one entry per piece, adds `scene_id`, `block_id`, `piece`, `take`, and has no `gain`. Go computes every gain.
+- Line 578: `captions[]` adds `scene_id` and `block_id`.
+- Line 582, 768: a one-shot token guards `/report`, `/frame`, `/error`, `/start`, and Go validates refs, counts, times and caption text. Go also requires each measured block's pieces in order, so an empty `audio_events` cannot defeat the gate. `maxReportBytes` is 8 MiB.
+- Line 588: mixing no longer runs inside the report request, because three timers would cut it. The page long-polls `/start`.
+- Line 771: the read-only flag is re-checked before every paid call, and a revocable desktop run also cancels a call in flight. Addition: disk is estimated before any copy or decode, because the 256 MiB floor is too low for a 900 s film with stems. Every narration piece has a decode limit too, not only music.
+- Line 783: `voice_required` and `music_incomplete` join the stable code list.
+- `alimiter` is in use in Video Studio's mux at `videostudio/render.go:394`, unrelated to this mix.
+
+**Handoff and app**
+- Lines 594, 601: the handoff and the track builder live in `storymaker-handoff.js`.
+- Line 605: stems sum to the mix exactly before encoding only. After AAC the residual is about 18 dB below the mix at 64k and 23 dB at 192k. Audio is AAC 192k.
+- Line 607: the launch parameter also touches `menus-and-routing.js`, because the existing window is always reused.
+- Line 737: the export dialog is a native `<dialog>` in its own module.
+
+**After the dry run and the review**
+- A dot is no sentence end before a lower-case word or a digit, or after 1 to 3 digits, a single letter or a listed abbreviation, so "19." and "z. B." stay inside a sentence. German closing quotes count as closers.
+- A code scene without `api.duration` covers its narration. Narration or a say that runs past an explicit scene duration warns.
+- Generated music calls a provider only from the Generate click, pinned by a key in the job. A source never chosen is not a missing source.
+- The preview follows the export's bed and SFX levels from stored measurements. It is close, not equal, and the panel says so.
+- SRT writes `&` literally; only VTT uses entities.
+- The export panel offers the newest finished render after a reopen, which keeps the promise that a closed window cannot lose the handoff.
+- Both paid panels have a stop control. A scene can be set silent in the inspector. Deleting a project waits up to 15 s for its jobs.
+- `interfaces.md` section 10 in the plan folder lists the changed names and the items decided against.
+
+**Phase 1 projects after the update**
+- `style.captions` defaults to true (`contract line 61`), so every narrated phase 1 story starts drawing captions in preview and export from 2B. The voice panel has a toggle.
+- A say without text whose `who` is not the scene speaker moves from a minor issue to a blocking error.
+- A `mood` outside the presets moves from a minor issue to a blocking error in 2C.
+
+**To verify, closed:** Clip semantics, audio rates (local), OpenAI list, Ceiling and stems, Default fade, Glyph fallback, CJK in workers, Parallel memory, Procedural effects (not built), Speech Lab per-call voice (none used), Lyria length (the loop and trim cover any length), Mix limiter (none), Cue placement in speech (replaced by `cueMap`), Music shape checks (spec line 855, not adopted in phase 2).
+
+**Still open for the user's ears or hands:** voice notes and rhythm factors; sentence pause and trim margins; taste of the SFX set, especially `error` and `success`; whether per-sentence synthesis keeps good prosody, on cloud voices above all; the output-rights reading of earshot renders; whether emote and gesture beats with a cue should lead as well (spec line 852); the audible sentence gap, about 490 ms against the 350 ms the rule names; the level of non-hit SFX, which follows the music slider; the mood prompt texts. aurago-test was unreachable on 2026-11-04, so its acceptance stays open.
+
+**Still open as decisions:**
+- Whether code-scene workers should get language faces only when the scene registers `onFrame`. It would save about 100 MiB per worker, but D13 says they get them, so phase 2 keeps D13 and counts the memory in `ChooseWorkers`.
+- `audio/narration` grows with every edit and voice change, and nothing prunes it. A prune needs a rule for queued renders, whose `Plan` names hashes fixed at queue time. Deleting a project frees it.
