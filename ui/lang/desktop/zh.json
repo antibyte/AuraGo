@@ -10937,5 +10937,5 @@
   "desktop.mc_error_durable_cancel": "此任务包含已保存的运行。请在 EasyDrag 中打开要停止的运行，然后在那里停止它。",
   "aura_drift.catchup": "追及机制：落后的对手最多获得 6% 的目标速度提升，绝不增加抓地力。",
   "desktop.mc_state_unknown": "未知",
-  "aura_drift.load_error_hint": "请用 Ctrl+F5 重新加载页面。若仍无效，请清除本站点的缓存和 Service Worker。"
+  "aura_drift.load_error_hint": "请重新加载页面。若窗口仍为空白，请检查广告拦截器和本站点的缓存。"
 }

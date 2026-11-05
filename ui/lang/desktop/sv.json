@@ -10937,5 +10937,5 @@
   "desktop.mc_error_durable_cancel": "Det här uppdraget innehåller sparade körningar. Öppna körningen du vill stoppa i EasyDrag och stoppa den där.",
   "aura_drift.catchup": "Upphämtning: eftersläpande motståndare får högst 6 % högre målhastighet, aldrig mer grepp.",
   "desktop.mc_state_unknown": "Okänd",
-  "aura_drift.load_error_hint": "Ladda om sidan med Ctrl+F5. Hjälper det inte, rensa cachen och service workern för den här sidan."
+  "aura_drift.load_error_hint": "Ladda om sidan. Om fönstret förblir tomt, kontrollera annonsblockerare och den här sidans cache."
 }

@@ -3,6 +3,7 @@ package ui
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -50,10 +51,10 @@ func TestAuraDriftAppRegistration(t *testing.T) {
 	}
 
 	css := readDesktopAssetText(t, "css/desktop-app-aura-drift.css")
-	if !strings.Contains(css, ":focus-visible") || !strings.Contains(css, ".ad-sr-only") {
+	if !strings.Contains(css, ":focus-visible") || !strings.Contains(css, ".agdrift-sr-only") {
 		t.Fatal("Aura Drift stylesheet must keep keyboard focus and screen-reader affordances")
 	}
-	if !strings.Contains(css, ".ad-load-error") {
+	if !strings.Contains(css, ".agdrift-load-error") {
 		t.Fatal("Aura Drift stylesheet must style the visible stale-assets error panel")
 	}
 	uiSource := readDesktopAssetText(t, "js/desktop/apps/aura-drift-ui.js")
@@ -137,6 +138,46 @@ func TestAuraDriftShipsNoExternalResources(t *testing.T) {
 			if strings.Contains(source, forbidden) {
 				t.Fatalf("%s contains %q; the racer must stay fully offline", name, forbidden)
 			}
+		}
+	}
+}
+
+// AdGuard/EasyList hide [class^="ad-"] with display:none !important. The racer
+// once shipped ad-overlay/ad-panel and was invisible with no console error.
+// agdrift- contains no "ad" substring, so even [class*="ad"] rules miss it.
+func TestAuraDriftAvoidsAdBlockerClassPrefix(t *testing.T) {
+	t.Parallel()
+	blockedPrefix := regexp.MustCompile(`(^|[^A-Za-z0-9_-])ad-[a-z]`)
+	// Only shipped sources: this test file itself contains the pattern literal.
+	paths := []string{
+		"css/desktop-app-aura-drift.css",
+		"js/desktop/apps/aura-drift.js",
+		"js/desktop/apps/aura-drift-ui.js",
+	}
+	for _, path := range paths {
+		content := readDesktopAssetText(t, path)
+		if loc := blockedPrefix.FindStringIndex(content); loc != nil {
+			start := loc[0]
+			if start > 40 {
+				start -= 40
+			}
+			end := loc[1] + 40
+			if end > len(content) {
+				end = len(content)
+			}
+			t.Fatalf("%s still uses an ad blocker-vulnerable class: ...%s...", path, content[start:end])
+		}
+	}
+	css := readDesktopAssetText(t, "css/desktop-app-aura-drift.css")
+	for _, required := range []string{".agdrift-root", ".agdrift-overlay", ".agdrift-panel", ".agdrift-hud"} {
+		if !strings.Contains(css, required) {
+			t.Fatalf("Aura Drift stylesheet lost %s", required)
+		}
+	}
+	ui := readDesktopAssetText(t, "js/desktop/apps/aura-drift-ui.js")
+	for _, required := range []string{"agdrift-panel agdrift-menu", "agdrift-primary", "agdrift-touch-btn"} {
+		if !strings.Contains(ui, required) {
+			t.Fatalf("Aura Drift UI lost %s", required)
 		}
 	}
 }

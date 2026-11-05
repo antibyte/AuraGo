@@ -10937,5 +10937,5 @@
   "desktop.mc_error_durable_cancel": "This mission contains saved runs. Open the run you want to stop in EasyDrag and stop it there.",
   "aura_drift.catchup": "Catch-up: trailing opponents get at most 6% more target speed, never more grip.",
   "desktop.mc_state_unknown": "Unknown",
-  "aura_drift.load_error_hint": "Reload the page with Ctrl+F5. If that does not help, clear this site's cache and service worker."
+  "aura_drift.load_error_hint": "Reload the page. If the window stays empty, check ad blockers and this site's cache."
 }

@@ -69,11 +69,11 @@ stores nothing.
 
 ## If the window stays empty
 
-The browser is then holding an older copy of the game files in its service-worker
-cache. Open the Desktop in a private window as a test: if the game works there,
-clear this site's cache and service worker, then reload with Ctrl+F5. Current
-versions show a message naming the missing files instead of an empty window; if
-only the WebGL2 pass is missing, the game keeps running normally on Canvas 2D.
+The first release used class names such as `ad-overlay` and `ad-panel`. Ad blockers
+(AdGuard, uBlock, EasyList) treat `ad-` classes as advertising and hide them with
+`display: none` — the game was running but invisible, and the console stayed empty.
+Current versions use the `agdrift-` prefix and are no longer affected. If it still
+fails, whitelist the Desktop address in your ad blocker and reload the page.
 
 ## Boundaries
 

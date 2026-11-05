@@ -10937,5 +10937,5 @@
   "desktop.mc_error_durable_cancel": "Denne mission indeholder gemte kørsler. Åbn den kørsel, du vil stoppe, i EasyDrag, og stop den der.",
   "aura_drift.catchup": "Indhentning: bagudliggende modstandere får højst 6 % mere målhastighed, aldrig mere vejgreb.",
   "desktop.mc_state_unknown": "Ukendt",
-  "aura_drift.load_error_hint": "Genindlæs siden med Ctrl+F5. Hjælper det ikke, skal du rydde denne sides cache og service worker."
+  "aura_drift.load_error_hint": "Genindlæs siden. Er vinduet stadig tomt, så tjek annonceblokere og denne sides cache."
 }

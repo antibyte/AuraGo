@@ -10937,5 +10937,5 @@
   "desktop.mc_error_durable_cancel": "このミッションには保存済みの実行があります。停止したい実行を EasyDrag で開き、そこで停止してください。",
   "aura_drift.catchup": "追い上げ: 後方の対手は目標速度が最大6%上がりますが、グリップは増えません。",
   "desktop.mc_state_unknown": "不明",
-  "aura_drift.load_error_hint": "Ctrl+F5 でページを再読み込みしてください。直らない場合はこのサイトのキャッシュと Service Worker を削除してください。"
+  "aura_drift.load_error_hint": "ページを再読み込みしてください。ウィンドウが空のままなら、広告ブロッカーとこのサイトのキャッシュを確認してください。"
 }

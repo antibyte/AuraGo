@@ -107,23 +107,23 @@ func TestDesktopAuraDriftBrowser(t *testing.T) {
 	page := auraDriftFixture(t)
 	page.MustEval(`async()=>{await fixtureOpen('aura-drift');}`)
 
-	if !page.MustEval(`()=>!!document.querySelector('.ad-root .ad-menu:not([hidden])')`).Bool() {
+	if !page.MustEval(`()=>!!document.querySelector('.agdrift-root .agdrift-menu:not([hidden])')`).Bool() {
 		t.Fatal("Aura Drift menu did not mount in the desktop window")
 	}
-	if !page.MustEval(`()=>{const c=document.querySelector('.ad-world');return !!c && c.width>0 && c.height>0;}`).Bool() {
+	if !page.MustEval(`()=>{const c=document.querySelector('.agdrift-world');return !!c && c.width>0 && c.height>0;}`).Bool() {
 		t.Fatal("world canvas was not sized")
 	}
 	if !page.MustEval(`()=>{
-        const note=document.querySelector('.ad-disclosure');
-        const touch=document.querySelector('.ad-touch');
+        const note=document.querySelector('.agdrift-disclosure');
+        const touch=document.querySelector('.agdrift-touch');
         return !!note && note.textContent.length>20 && touch && touch.getAttribute('aria-hidden')==='true';
     }`).Bool() {
 		t.Fatal("catch-up disclosure or touch-control accessibility marker is missing")
 	}
 
-	page.MustElement(".ad-menu .ad-primary").MustClick()
+	page.MustElement(".agdrift-menu .agdrift-primary").MustClick()
 	page.MustEval(`()=>new Promise(resolve=>setTimeout(resolve,3600))`)
-	if !page.MustEval(`()=>document.querySelector('.ad-overlay').hidden`).Bool() {
+	if !page.MustEval(`()=>document.querySelector('.agdrift-overlay').hidden`).Bool() {
 		t.Fatal("race did not start: menu overlay is still visible")
 	}
 
@@ -156,13 +156,13 @@ func TestDesktopAuraDriftBrowser(t *testing.T) {
 		t.Fatalf("car did not accelerate during the smoke drive: %s", stats)
 	}
 	if issues := page.MustEval(`()=>{
-        const root=document.querySelector('.ad-root'),issues=[];
+        const root=document.querySelector('.agdrift-root'),issues=[];
         if(!root)return 'app root disappeared';
         const r=root.getBoundingClientRect();
         if(r.width<200||r.height<200)issues.push('window too small');
-        const world=document.querySelector('.ad-world');
-        const post=document.querySelector('.ad-post');
-        const hud=document.querySelector('.ad-hud');
+        const world=document.querySelector('.agdrift-world');
+        const post=document.querySelector('.agdrift-post');
+        const hud=document.querySelector('.agdrift-hud');
         if(world.width!==Math.round(r.width*Math.min(2,devicePixelRatio||1)))issues.push('world canvas width mismatch');
         if(!post||post.width!==world.width)issues.push('post canvas width mismatch');
         if(!hud||hud.width!==world.width)issues.push('hud canvas width mismatch');
@@ -174,6 +174,37 @@ func TestDesktopAuraDriftBrowser(t *testing.T) {
 		page.MustScreenshot(filepath.Join(dir, "aura-drift-race.png"))
 	}
 
+	auraDriftCloseWindows(page)
+	if errors := page.MustEval(`()=>JSON.stringify(fixtureErrors)`).Str(); errors != "[]" {
+		t.Fatal(errors)
+	}
+}
+
+// Cosmetic filters must not mistake the game menu for advertising.
+func TestDesktopAuraDriftContentFiltersBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	page := auraDriftFixture(t)
+	page.MustEval(`()=>{
+        const filters=document.createElement('style');
+        // Legacy cosmetic rules from EasyList/AdGuard. These must target the
+        // OLD ad-* class names: the app now ships agdrift-* and must survive.
+        filters.textContent='.ad-overlay,.ad-panel,.ad-title { display:none !important; }';
+        document.head.appendChild(filters);
+    }`)
+	page.MustEval(`async()=>{await fixtureOpen('aura-drift');}`)
+	if dir := auraDriftArtifactDir(t, "content-filters"); dir != "" {
+		page.MustScreenshot(filepath.Join(dir, "aura-drift-menu.png"))
+	}
+	if !page.MustEval(`()=>{
+        const menu=document.querySelector('.agdrift-menu');
+        return !!menu && menu.getBoundingClientRect().height>0;
+    }`).Bool() {
+		t.Fatal("content filters hid the Aura Drift menu, leaving an empty window")
+	}
+	page.MustElement(".agdrift-menu .agdrift-primary").MustClick()
+	if !page.MustEval(`()=>document.querySelector('.agdrift-overlay').hidden && AuraDriftApp.stats()[0].state==='countdown'`).Bool() {
+		t.Fatal("race did not start with cosmetic filters active")
+	}
 	auraDriftCloseWindows(page)
 	if errors := page.MustEval(`()=>JSON.stringify(fixtureErrors)`).Str(); errors != "[]" {
 		t.Fatal(errors)
@@ -194,14 +225,14 @@ func TestDesktopAuraDriftWetReflectionsBrowser(t *testing.T) {
 	page.MustWaitLoad()
 	page.MustEval(`async()=>{await fixtureReady;await fixtureOpen('aura-drift');}`)
 	page.MustEval(`()=>{
-        const track=document.querySelector('.ad-menu select');
+        const track=document.querySelector('.agdrift-menu select');
         track.value='neon-hafen';
         track.dispatchEvent(new Event('change',{bubbles:true}));
     }`)
-	if !page.MustEval(`()=>document.querySelectorAll('.ad-menu select')[1].value==='2'`).Bool() {
+	if !page.MustEval(`()=>document.querySelectorAll('.agdrift-menu select')[1].value==='2'`).Bool() {
 		t.Fatal("selecting a track did not apply its recommended lap count")
 	}
-	page.MustElement(".ad-menu .ad-primary").MustClick()
+	page.MustElement(".agdrift-menu .agdrift-primary").MustClick()
 	page.MustEval(`()=>new Promise(resolve=>setTimeout(resolve,1400))`)
 	stats := page.MustEval(`()=>JSON.stringify(window.AuraDriftApp.stats()[0]||{})`).Str()
 	t.Logf("harbour stats: %s", stats)
@@ -209,7 +240,7 @@ func TestDesktopAuraDriftWetReflectionsBrowser(t *testing.T) {
 		t.Fatalf("wet-reflection pass not active on the night harbour: %s", stats)
 	}
 	if !page.MustEval(`()=>{
-        const post=document.querySelector('.ad-post');
+        const post=document.querySelector('.agdrift-post');
         const canvas=post.getContext('webgl2');
         return !!canvas && post.style.opacity==='1' && post.width>0;
     }`).Bool() {
@@ -268,33 +299,33 @@ func TestDesktopAuraDriftQualityMatrixBrowser(t *testing.T) {
 		page.MustEval(`async theme=>{fixtureTheme(theme);await fixtureOpen('aura-drift');}`, item.theme)
 
 		mounted := page.MustEval(`()=>{
-            const overlay=document.querySelector('.ad-overlay');
-            const menu=document.querySelector('.ad-menu');
+            const overlay=document.querySelector('.agdrift-overlay');
+            const menu=document.querySelector('.agdrift-menu');
             const rect=overlay?overlay.getBoundingClientRect():null;
             return JSON.stringify({overlay:!!overlay,hidden:overlay?overlay.hidden:null,
                 menu:!!menu,menuHidden:menu?menu.hidden:null,height:rect?rect.height:0,
                 windows:aurora.state.windows.size});
         }`).Str()
 		if !page.MustEval(`()=>{
-            const overlay=document.querySelector('.ad-overlay');
-            const menu=document.querySelector('.ad-menu');
+            const overlay=document.querySelector('.agdrift-overlay');
+            const menu=document.querySelector('.agdrift-menu');
             return !!overlay && !overlay.hidden && !!menu && !menu.hidden && overlay.getBoundingClientRect().height>0;
         }`).Bool() {
 			t.Fatalf("case %d (%s): menu did not mount: %s", i, item.quality, mounted)
 		}
 		// Keyboard-only journey: every primary control must be focusable.
-		page.MustElement(".ad-menu .ad-primary").MustFocus()
-		if !page.MustEval(`()=>document.activeElement && document.activeElement.classList.contains('ad-primary')`).Bool() {
+		page.MustElement(".agdrift-menu .agdrift-primary").MustFocus()
+		if !page.MustEval(`()=>document.activeElement && document.activeElement.classList.contains('agdrift-primary')`).Bool() {
 			t.Fatalf("case %d: start button is not keyboard focusable", i)
 		}
 		if !page.MustEval(`()=>{
-            const buttons=[...document.querySelectorAll('.ad-touch-btn')];
+            const buttons=[...document.querySelectorAll('.agdrift-touch-btn')];
             return buttons.length===6 && buttons.every(b=>parseFloat(getComputedStyle(b).width)>=44);
         }`).Bool() {
 			t.Fatalf("case %d: touch targets are below the 44px product minimum", i)
 		}
 
-		page.MustElement(".ad-menu .ad-primary").MustClick()
+		page.MustElement(".agdrift-menu .agdrift-primary").MustClick()
 		page.MustEval(`()=>new Promise(resolve=>setTimeout(resolve,1400))`)
 		result := page.MustEval(`()=>JSON.stringify(window.AuraDriftApp.stats()[0]||{})`).Str()
 		t.Logf("matrix %d %s %dx%d reduced=%v: %s", i, item.quality, item.width, item.height, item.reduced, result)
@@ -326,13 +357,13 @@ func TestDesktopAuraDriftQualityMatrixBrowser(t *testing.T) {
 			t.Fatalf("case %d: post-processing must stay off below the high tier", i)
 		}
 		if issues := page.MustEval(`()=>{
-            const root=document.querySelector('.ad-root'),issues=[];
+            const root=document.querySelector('.agdrift-root'),issues=[];
             if(!root)return 'app root missing';
             const r=root.getBoundingClientRect();
-            const world=document.querySelector('.ad-world');
+            const world=document.querySelector('.agdrift-world');
             const expected=Math.round(r.width*Math.min(2,devicePixelRatio||1));
             if(world.width!==expected)issues.push('canvas '+world.width+' != '+expected);
-            if(document.querySelector('.ad-hud').width!==world.width)issues.push('hud mismatch');
+            if(document.querySelector('.agdrift-hud').width!==world.width)issues.push('hud mismatch');
             return issues.join('; ');
         }`).Str(); issues != "" {
 			t.Fatalf("case %d render surface: %s", i, issues)
@@ -358,15 +389,15 @@ func TestDesktopAuraDriftStaleLoaderBrowser(t *testing.T) {
 		page := auraDriftFixtureWithout(t, "aura-drift-post.js")
 		page.MustEval(`async()=>{await fixtureOpen('aura-drift');}`)
 		if !page.MustEval(`()=>{
-            const o=document.querySelector('.ad-overlay');
+            const o=document.querySelector('.agdrift-overlay');
             return !!o && !o.hidden && o.getBoundingClientRect().height>0;
         }`).Bool() {
 			t.Fatal("stale loader without WebGL2 module left an empty window")
 		}
-		if page.MustEval(`()=>!!document.querySelector('.ad-load-error')`).Bool() {
+		if page.MustEval(`()=>!!document.querySelector('.agdrift-load-error')`).Bool() {
 			t.Fatal("optional WebGL2 module must not trigger the load-error panel")
 		}
-		page.MustElement(".ad-menu .ad-primary").MustClick()
+		page.MustElement(".agdrift-menu .agdrift-primary").MustClick()
 		page.MustEval(`()=>new Promise(resolve=>setTimeout(resolve,3600))`)
 		page.MustEval(`()=>window.dispatchEvent(new KeyboardEvent('keydown',{code:'ArrowUp',bubbles:true}))`)
 		page.MustEval(`()=>new Promise(resolve=>setTimeout(resolve,1100))`)
@@ -391,7 +422,7 @@ func TestDesktopAuraDriftStaleLoaderBrowser(t *testing.T) {
 		page := auraDriftFixtureWithout(t, "aura-drift-core.js")
 		page.MustEval(`async()=>{await fixtureOpen('aura-drift');}`)
 		panel := page.MustEval(`()=>{
-            const p=document.querySelector('.ad-load-error');
+            const p=document.querySelector('.agdrift-load-error');
             return p ? JSON.stringify({text:p.textContent, visible:p.getBoundingClientRect().height>0}) : 'null';
         }`).Str()
 		if panel == "null" {
@@ -400,9 +431,57 @@ func TestDesktopAuraDriftStaleLoaderBrowser(t *testing.T) {
 		if !strings.Contains(panel, "aura-drift-core.js") || !strings.Contains(panel, `"visible":true`) {
 			t.Fatalf("load-error panel lacks the missing module or is invisible: %s", panel)
 		}
-		if !page.MustEval(`()=>!!document.querySelector('.ad-load-error .ad-primary')`).Bool() {
+		if !page.MustEval(`()=>!!document.querySelector('.agdrift-load-error .agdrift-primary')`).Bool() {
 			t.Fatal("load-error panel has no reload action")
 		}
 		auraDriftCloseWindows(page)
 	})
+}
+
+// Regression for the actual field failure: AdGuard/EasyList hide elements whose
+// classes start with "ad-" using display:none !important. The original racer
+// used ad-overlay/ad-panel/ad-menu, so a perfectly running game was invisible
+// with no console error. agdrift- cannot match those cosmetic filters.
+func TestDesktopAuraDriftAdBlockerBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	page := auraDriftFixture(t)
+	page.MustEval(`()=>{
+        const style=document.createElement('style');
+        style.id='agdrift-blocker-rule';
+        style.textContent='[class^="ad-"],[class*=" ad-"],.ad-overlay,.ad-panel,.ad-menu{display:none !important}';
+        document.head.appendChild(style);
+        const probe=document.createElement('div');
+        probe.id='agdrift-ad-probe';
+        probe.className='ad-probe';
+        probe.style.cssText='position:fixed;width:10px;height:10px';
+        document.body.appendChild(probe);
+    }`)
+	if !page.MustEval(`()=>getComputedStyle(document.getElementById('agdrift-ad-probe')).display==='none'`).Bool() {
+		t.Fatal("simulated ad blocker rule is not active; the regression test is invalid")
+	}
+	page.MustEval(`async()=>{await fixtureOpen('aura-drift');}`)
+	if !page.MustEval(`()=>{
+        const root=document.querySelector('.agdrift-root');
+        const overlay=document.querySelector('.agdrift-overlay');
+        if(!root||!overlay)return false;
+        if(getComputedStyle(overlay).display==='none')return false;
+        if(overlay.getBoundingClientRect().height<=0)return false;
+        const menu=document.querySelector('.agdrift-menu');
+        if(!menu||menu.hidden||getComputedStyle(menu).display==='none')return false;
+        return [...root.querySelectorAll('*')].every(node=>{
+            if(typeof node.className!=='string')return true;
+            return !/(^|\s)ad-/.test(node.className);
+        });
+    }`).Bool() {
+		t.Fatal("ad blocker simulation hid the Aura Drift UI or legacy ad- classes remain")
+	}
+	page.MustElement(".agdrift-menu .agdrift-primary").MustClick()
+	page.MustEval(`()=>new Promise(resolve=>setTimeout(resolve,3600))`)
+	if !page.MustEval(`()=>document.querySelector('.agdrift-overlay').hidden`).Bool() {
+		t.Fatal("race did not start with the ad blocker rule active")
+	}
+	auraDriftCloseWindows(page)
+	if errors := page.MustEval(`()=>JSON.stringify(fixtureErrors)`).Str(); errors != "[]" {
+		t.Fatal(errors)
+	}
 }

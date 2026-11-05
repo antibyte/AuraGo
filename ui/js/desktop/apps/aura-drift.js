@@ -33,9 +33,9 @@
 
     function showLoadError(root, t, details) {
         const overlay = document.createElement('div');
-        overlay.className = 'ad-load-error';
+        overlay.className = 'agdrift-load-error';
         const panel = document.createElement('div');
-        panel.className = 'ad-load-error-panel';
+        panel.className = 'agdrift-load-error-panel';
         const title = document.createElement('h2');
         title.textContent = t('desktop.app_error_title');
         const hint = document.createElement('p');
@@ -44,7 +44,7 @@
         detail.textContent = details.join(', ');
         const reload = document.createElement('button');
         reload.type = 'button';
-        reload.className = 'ad-primary';
+        reload.className = 'agdrift-primary';
         reload.textContent = t('aura_drift.restart');
         reload.addEventListener('click', () => window.location.reload(), { once: true });
         panel.append(title, hint, detail, reload);
@@ -122,13 +122,13 @@
         const labels = labelsFor(t);
 
         const root = document.createElement('div');
-        root.className = 'ad-root';
+        root.className = 'agdrift-root';
         const world = document.createElement('canvas');
-        world.className = 'ad-world';
+        world.className = 'agdrift-world';
         const postCanvas = document.createElement('canvas');
-        postCanvas.className = 'ad-post';
+        postCanvas.className = 'agdrift-post';
         const hudCanvas = document.createElement('canvas');
-        hudCanvas.className = 'ad-hud';
+        hudCanvas.className = 'agdrift-hud';
         root.appendChild(world);
         root.appendChild(postCanvas);
         root.appendChild(hudCanvas);

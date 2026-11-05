@@ -18,6 +18,12 @@ Vendoring scripts must rewrite upstream CDN, Google Fonts and analytics referenc
 Never use the cookieconsent `cc-` prefix for classes or IDs: cookie-banner blockers hide
 `.cc-banner`, `.cc-modal-backdrop` and similar on every site (CYD Creator uses `cydc-`,
 the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPrefix` guards it.
+The same applies to advertising-looking prefixes: AdGuard/EasyList hide `[class^="ad-"]`,
+`.ads-*`, `.advert-*` and similar with `display: none !important`, which silently blanks a
+working app with no console error. Aura Drift originally shipped `ad-overlay`/`ad-panel`
+and was invisible until every class moved to `agdrift-` (no `ad` substring at all).
+New app-scoped prefixes must contain no `ad` substring; verify
+`TestAuraDriftAvoidsAdBlockerClassPrefix` and `TestDesktopAuraDriftAdBlockerBrowser`.
 
 ## Ownership
 

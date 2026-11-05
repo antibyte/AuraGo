@@ -10937,5 +10937,5 @@
   "aura_drift.loading": "Strecke wird geladen …",
   "aura_drift.catchup": "Rückstandsausgleich: Zurückliegende Gegner erhalten höchstens 6 % mehr Zieltempo, nie mehr Grip.",
   "desktop.mc_state_unknown": "Unbekannt",
-  "aura_drift.load_error_hint": "Bitte lade die Seite mit Strg+F5 neu. Falls das nicht hilft, lösche den Cache und den Service Worker dieser Seite."
+  "aura_drift.load_error_hint": "Bitte lade die Seite neu. Bleibt das Fenster leer, prüfe Werbeblocker und den Cache dieser Seite."
 }

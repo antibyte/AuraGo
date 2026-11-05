@@ -73,12 +73,12 @@ einem schreibgeschützten Desktop wird nichts gespeichert.
 
 ## Falls das Fenster leer bleibt
 
-Dann hält der Browser eine ältere Version der Spieldateien im Service-Worker-Cache.
-Öffne den Desktop zum Test in einem privaten Fenster: Läuft das Spiel dort, lösche
-für diese Seite den Cache samt Service Worker und lade mit Strg+F5 neu. Aktuelle
-Versionen zeigen in so einem Fall eine Meldung mit den fehlenden Dateien statt
-eines leeren Fensters; fehlt nur der WebGL2-Pass, läuft das Spiel ganz normal
-weiter.
+Die erste Version benutzte Klassennamen wie `ad-overlay` und `ad-panel`. Werbeblocker
+(AdGuard, uBlock, EasyList) halten solche `ad-`-Klassen für Werbung und blenden sie
+mit `display: none` aus — das Spiel lief, man sah es nur nicht, und die Console
+blieb leer. Die aktuelle Version verwendet `agdrift-` und ist damit nicht mehr
+betroffen. Hilft das nicht, nimm die Desktop-Adresse in deinem Werbeblocker in die
+Ausnahmeliste auf und lade die Seite neu.
 
 ## Grenzen
 

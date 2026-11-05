@@ -10937,5 +10937,5 @@
   "desktop.mc_error_durable_cancel": "Dette oppdraget inneholder lagrede kjøringer. Åpne kjøringen du vil stoppe, i EasyDrag, og stopp den der.",
   "aura_drift.catchup": "Innhenting: likørende motstandere får høyst 6 % høyere målfart, aldri mer grep.",
   "desktop.mc_state_unknown": "Ukjent",
-  "aura_drift.load_error_hint": "Last siden på nytt med Ctrl+F5. Hjelper det ikke, tøm denne sidens cache og service worker."
+  "aura_drift.load_error_hint": "Last siden på nytt. Er vinduet fortsatt tomt, sjekk annonseblokkere og denne sidens cache."
 }

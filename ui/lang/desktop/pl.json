@@ -10937,5 +10937,5 @@
   "desktop.mc_error_durable_cancel": "Ta misja zawiera zapisane wykonania. Otwórz w EasyDrag wykonanie, które chcesz zatrzymać, i zatrzymaj je tam.",
   "aura_drift.catchup": "Wyrównanie: tracący rywale dostają najwyżej 6% większą prędkość docelową, nigdy więcej przyczepności.",
   "desktop.mc_state_unknown": "Nieznany",
-  "aura_drift.load_error_hint": "Odśwież stronę klawiszami Ctrl+F5. Jeśli to nie pomoże, wyczyść pamięć podręczną i service worker tej strony."
+  "aura_drift.load_error_hint": "Odśwież stronę. Jeśli okno pozostaje puste, sprawdź blokady reklam i pamięć podręczną tej strony."
 }

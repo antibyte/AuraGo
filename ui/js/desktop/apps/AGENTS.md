@@ -3493,15 +3493,20 @@ buttons and menu popovers remain excluded from those gestures.
   affordances, and full disposal of listeners, RAF, AudioContext, WebGL
   resources, caches and observers. Visible strings use `aura_drift.*` plus
   `desktop.app_aura_drift` in all sixteen `ui/lang/desktop/*.json` files.
-  A stale service-worker cache may serve an old `module-loader.js`; the shell
-  therefore checks required factories before boot, shows a translated
-  `aura_drift.load_error_hint` panel with missing file names when one is absent,
-  and degrades the optional WebGL2 post pass to a no-op so Canvas 2D stays
-  playable (`post.degraded` in stats). `TestDesktopAuraDriftStaleLoaderBrowser`
-  covers both cases by serving a loader with one script removed.
-  `window.AuraDriftApp.stats()` is a read-only per-window diagnostic used by the
-  `TestDesktopAuraDrift*Browser` checks (drive/dispose, five-case quality
-  matrix, night-harbour wet pass, stale loader; `AURAGO_RUN_BROWSER_SMOKE=1`).
+  All DOM classes use the `agdrift-` prefix: the original `ad-` prefix was hidden
+  by AdGuard/EasyList `[class^="ad-"]` rules, leaving a running but invisible app
+  with no console error. Never reintroduce a prefix containing `ad`; verify
+  `TestAuraDriftAvoidsAdBlockerClassPrefix` and
+  `TestDesktopAuraDriftAdBlockerBrowser` (which injects a real blocker rule).
+  A partially loaded module set is also handled: the shell checks required
+  factories before boot, shows a translated `aura_drift.load_error_hint` panel
+  with missing file names when one is absent, and degrades the optional WebGL2
+  post pass to a no-op so Canvas 2D stays playable (`post.degraded` in stats).
+  `TestDesktopAuraDriftStaleLoaderBrowser` covers both cases by serving a loader
+  with one script removed. `window.AuraDriftApp.stats()` is a read-only
+  per-window diagnostic used by the `TestDesktopAuraDrift*Browser` checks
+  (drive/dispose, five-case quality matrix, night-harbour wet pass, stale loader,
+  ad blocker; `AURAGO_RUN_BROWSER_SMOKE=1`).
   Verify
   `TestAuraDrift*`, `node scripts/test-aura-drift-{physics,tracks,balance}.mjs`;
   see `documentation/aura-drift.md`.
