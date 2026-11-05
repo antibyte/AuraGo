@@ -10,6 +10,58 @@
     const BASE = '/api/desktop/storymaker';
     const CATALOG_BASE = '/img/storymaker/';
     const MAX_JSON_BYTES = 16 * 1048576;
+    const AUDIO_KEY_RE = /^[0-9a-f]{64}$/;
+    const AUDIO_EXTS = ['wav', 'mp3'];
+    const EVENTS_WAIT_MIN_MS = 1000;
+    const EVENTS_WAIT_MAX_MS = 30000;
+    const EVENT_SOURCE_CLOSED = 2;
+
+    // The only place that builds an audio address. '' means refused: a key that is not 64 lower-case hex digits, or an ext other
+    // than wav and mp3.
+    function audioUrl(id, folder, key, ext) {
+        if (typeof key !== 'string' || !AUDIO_KEY_RE.test(key) || AUDIO_EXTS.indexOf(ext) < 0) return '';
+        return BASE + '/projects/' + encodeURIComponent(id) + '/audio/' + folder + '/' + key + '.' + ext;
+    }
+
+    // An event stream that comes back. The browser retries a dropped connection by itself, but an error answer such as a 502 from a
+    // proxy or a 401 closes an EventSource for good. This then opens a new one after a wait of 1 s, doubling up to 30 s, and an open
+    // resets the wait. Every new connection starts with the project's unfinished and latest jobs (initialJobs on the server), so the
+    // panels learn what ended meanwhile and need no poll of their own. A throw from the first open() goes to the caller.
+    function reopeningSource(open) {
+        const listeners = [];
+        let source = null, timer = null, closed = false, wait = EVENTS_WAIT_MIN_MS;
+
+        function retryLater() {
+            timer = setTimeout(() => {
+                timer = null;
+                try { attach(open()); } catch (_) { retryLater(); }
+            }, wait);
+            wait = Math.min(wait * 2, EVENTS_WAIT_MAX_MS);
+        }
+
+        function attach(next) {
+            source = next;
+            listeners.forEach(([name, fn]) => next.addEventListener(name, fn));
+            next.addEventListener('open', () => { wait = EVENTS_WAIT_MIN_MS; });
+            next.addEventListener('error', () => {
+                if (!closed && timer === null && next === source && next.readyState === EVENT_SOURCE_CLOSED) retryLater();
+            });
+        }
+
+        attach(open());
+        return {
+            addEventListener(name, fn) {
+                listeners.push([name, fn]);
+                source.addEventListener(name, fn);
+            },
+            close() {
+                closed = true;
+                clearTimeout(timer);
+                timer = null;
+                source.close();
+            }
+        };
+    }
 
     function createApi(options) {
         const o = options || {};
@@ -101,11 +153,25 @@
                 return body.job || body;
             },
 
+            // {providers}; works read-only
+            voices() { return json('GET', '/voices'); },
+            // the AudioAnswer of the stored story: {narration, missing, chars, music, music_issue?}
+            narration(id) { return json('GET', '/projects/' + encodeURIComponent(id) + '/narration'); },
+            // {job}: 202 a new job, 200 the job already running, 200 {job: null} when nothing is missing
+            narrate(id) { return json('POST', '/projects/' + encodeURIComponent(id) + '/narrate'); },
+            async listJobs(id) {
+                const body = await json('GET', '/projects/' + encodeURIComponent(id) + '/jobs');
+                return Array.isArray(body.jobs) ? body.jobs : [];
+            },
+            // audio addresses, only from values of the parent's own /narration answer; '' means refused
+            narrationUrl(id, hash, ext) { return audioUrl(id, 'narration', hash, ext); },
+            musicUrl(id, key, ext) { return audioUrl(id, 'music', key, ext); },
+
             // events(projectId, onJob, onState) -> {close()}; onState('open' | 'error')
             events(projectId, onJob, onState) {
                 if (!makeEventSource) return { close() {} };
                 let source = null;
-                try { source = makeEventSource(BASE + '/projects/' + encodeURIComponent(projectId) + '/events'); } catch (_) { return { close() {} }; }
+                try { source = reopeningSource(() => makeEventSource(BASE + '/projects/' + encodeURIComponent(projectId) + '/events')); } catch (_) { return { close() {} }; }
                 source.addEventListener('job', event => {
                     let body = null;
                     try { body = JSON.parse(event.data); } catch (_) { return; }

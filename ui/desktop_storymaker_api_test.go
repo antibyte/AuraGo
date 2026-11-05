@@ -152,6 +152,84 @@ async function rejects(promise, check, what) {
   eq(faces.assets['font:sm-cjk/400'].byteLength, 9 * 1048576, 'the CJK face passes over 8 MiB through its max_bytes');
   eq(faces.missing.sort(), ['font:sm-cjk/700', 'font:sm-nope/400'], 'a face answers only at weight 400');
   await rejects(S.createApi({ fetch: staticFetch }).fontBuffer('/fonts/qr/NotoSansCJKsc.otf'), err => eq(err.message, 'The font is too large.', 'the default cap stays 8 MiB'), 'font cap');
+  // the phase 2 calls, each on its route
+  answers['GET ' + base + '/voices'] = json({ providers: [{ id: 'phonon' }] });
+  eq((await api.voices()).providers[0].id, 'phonon', 'voices');
+  call = calls.pop();
+  eq([call.method, call.url], ['GET', base + '/voices'], 'voices route');
+  answers['GET ' + base + '/projects/' + id + '/narration'] = json({ narration: {}, missing: [], chars: { total: 0, missing: 0 }, music: null });
+  eq((await api.narration(id)).missing, [], 'narration');
+  call = calls.pop();
+  eq([call.method, call.url], ['GET', base + '/projects/' + id + '/narration'], 'narration route');
+  answers['GET ' + base + '/projects/' + id + '/jobs'] = json({ jobs: [{ id: 'n1', kind: 'narrate' }] });
+  eq((await api.listJobs(id)).map(j => j.id), ['n1'], 'listJobs gives the array');
+  call = calls.pop();
+  eq([call.method, call.url], ['GET', base + '/projects/' + id + '/jobs'], 'jobs route');
+  answers['POST ' + base + '/projects/' + id + '/narrate'] = json({ job: { id: 'n2', kind: 'narrate' } }, 202);
+  eq((await api.narrate(id)).job.id, 'n2', 'narrate gives {job}');
+  call = calls.pop();
+  eq([call.method, call.url, call.body === undefined], ['POST', base + '/projects/' + id + '/narrate', true], 'narrate route, empty body');
+  answers['POST ' + base + '/projects/' + id + '/narrate'] = json({ job: null });
+  eq((await api.narrate(id)).job, null, 'nothing missing answers job null');
+  calls.pop();
+
+  // audio addresses: lower-case hex hash and wav or mp3 only; an empty string means refused
+  const hash = 'a'.repeat(64);
+  eq(api.narrationUrl(id, hash, 'wav'), base + '/projects/' + id + '/audio/narration/' + hash + '.wav', 'narration url');
+  eq(api.narrationUrl(id, 'A'.repeat(64), 'wav'), '', 'an upper-case hash is refused');
+  eq(api.narrationUrl(id, hash, 'ogg'), '', 'ogg is refused');
+  eq(api.narrationUrl(id, '../' + hash, 'wav'), '', 'a path is refused');
+  eq(api.musicUrl(id, hash, 'mp3'), base + '/projects/' + id + '/audio/music/' + hash + '.mp3', 'music url');
+
+  // the extra fields of an error body survive both error functions
+  answers['POST ' + base + '/projects'] = json({ error: 'narration_unavailable', code: 'narration_unavailable', message: 'no voice', languages: ['de', 'en'] }, 422);
+  await rejects(api.createProject({ title: 'x', language: 'xx' }), err => eq(err.data.languages, ['de', 'en'], 'errorFromResponse keeps languages'), 'refused create');
+  eq(S.errors.normalize({ status: 422, body: { code: 'narration_unavailable', languages: ['de'] } }).data.languages, ['de'], 'normalizeError keeps languages');
+  eq(S.errors.describe(t, { status: 422, code: 'narration_unavailable' }), 'storymaker.error.narration_unavailable', 'a 422 narration_unavailable has its own sentence');
+  eq(S.errors.describe(t, { status: 409, code: 'narration_unavailable' }), 'storymaker.error.narration_unavailable', 'a 409 narration_unavailable has its own sentence');
+  eq(S.errors.describe(t, { status: 409, code: 'voice_unknown' }), 'storymaker.error.voice_unknown', 'voice_unknown has its own sentence');
+
+  // the event stream: the browser retries a dropped connection by itself, and a stream it closed for good comes back after a wait
+  const sources = [], timers = [], states = [], jobIds = [];
+  const fakeSource = url => {
+    const heard = {};
+    const source = {
+      url, readyState: 0,
+      addEventListener(name, fn) { (heard[name] = heard[name] || []).push(fn); },
+      close() { source.readyState = 2; },
+      fire(name, event) { (heard[name] || []).forEach(fn => fn(event || {})); }
+    };
+    sources.push(source);
+    return source;
+  };
+  const clock = { setTimeout: context.setTimeout, clearTimeout: context.clearTimeout };
+  context.setTimeout = (fn, ms) => { const timer = { fn, ms }; timers.push(timer); return timer; };
+  context.clearTimeout = timer => { if (timers.indexOf(timer) >= 0) timers.splice(timers.indexOf(timer), 1); };
+  const stream = S.createApi({ fetch: fetcher, EventSource: fakeSource }).events(id, seen => jobIds.push(seen.id), state => states.push(state));
+  eq(sources.map(item => item.url), [base + '/projects/' + id + '/events'], 'one stream on its route');
+  sources[0].fire('error');
+  eq([timers.length, sources.length, states], [0, 1, ['error']], 'a connection the browser still retries stays with the browser');
+  const closeForGood = () => { const last = sources[sources.length - 1]; last.readyState = 2; last.fire('error'); };
+  const waits = [];
+  for (let i = 0; i < 7; i++) {
+    closeForGood();
+    const timer = timers.shift();
+    waits.push(timer.ms);
+    timer.fn();
+  }
+  eq(waits, [1000, 2000, 4000, 8000, 16000, 30000, 30000], 'the wait doubles up to 30 s');
+  eq(sources.length, 8, 'each wait opens a new stream');
+  const reopened = sources[7];
+  reopened.fire('job', { data: JSON.stringify({ job: { id: 'n9', kind: 'narrate', status: 'interrupted' } }) });
+  eq(jobIds, ['n9'], 'a reopened stream hands its jobs on');
+  reopened.fire('open');
+  eq(states[states.length - 1], 'open', 'a reopened stream reports its state');
+  closeForGood();
+  eq(timers.map(timer => timer.ms), [1000], 'an open resets the wait');
+  stream.close();
+  reopened.fire('error');
+  eq([timers.length, sources.length], [0, 8], 'close ends the wait and opens nothing more');
+  Object.assign(context, clock);
   console.log('storymaker app api ok');
 })().catch(err => { console.error(err.stack || err); process.exit(1); });
 `
