@@ -120,6 +120,9 @@ func TestStringOrArrayEncodesNonStringItemsAsCompactJSON(t *testing.T) {
 }
 
 func TestDispatchAgentMailListMessages(t *testing.T) {
+	if testutil.RunTLSFixtureSubprocess(t) {
+		return
+	}
 	srv := testutil.NewHTTPSServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/v0/inboxes/inbox-1/messages" {
 			t.Fatalf("path = %q", r.URL.Path)

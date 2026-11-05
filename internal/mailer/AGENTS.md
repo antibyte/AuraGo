@@ -16,6 +16,12 @@ remain in the Vault and are resolved only when an adapter is created.
   operator-selected LAN/loopback mail servers stay supported; unspecified,
   multicast, link-local and known metadata targets are refused. Injected dialers
   are trusted internal/test dependencies, never account-controlled settings.
+- Validated IPv4/IPv6 families race with a 300 ms fallback (earlier after a failed
+  primary family), under the caller deadline. Cancel pending dials and close late
+  losing connections; never re-resolve a target during fallback.
+- IMAP password/OAuth authentication failures retain ErrMailAuthentication and
+  their original cause. Public classifiers keep cancellation, timeout and broken
+  transport outcomes distinct from credential rejection.
 - AgentMail inherits `../agentmail/AGENTS.md`; server source capabilities remove
   permanent deletion unless `agentmail.allow_delete` is explicitly enabled.
 

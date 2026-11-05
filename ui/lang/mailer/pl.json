@@ -359,5 +359,6 @@
   "mailer.rule_run_unknown_help": "Nie udało się potwierdzić wyniku działania. Przed ponowieniem sprawdź stan u dostawcy; działanie mogło już zostać wykonane.",
   "mailer.rule_run_failed": "Działanie nie powiodło się",
   "mailer.rule_run_failed_help": "To działanie nie powiodło się. Przed ponowieniem sprawdź wiadomość i stan u dostawcy.",
-  "mailer.rule_run_error_details": "Szczegóły techniczne"
+  "mailer.rule_run_error_details": "Szczegóły techniczne",
+  "mailer.test_busy": "Test połączenia już trwa. Poczekaj chwilę i spróbuj ponownie."
 }

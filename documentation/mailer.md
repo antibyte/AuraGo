@@ -56,6 +56,8 @@ Connection tests across Integrations and Mailer share two concurrent slots and
 start at most once per second. A busy response starts no network operation; wait
 briefly before testing again. Tests authenticate without sending mail. Public
 failures use fixed error categories rather than provider response text.
+Desktop test buttons are disabled while a probe runs. A busy response shows a
+translated wait/retry notice; it does not indicate invalid mail credentials.
 
 **Remove from Mailer** unlinks the connection. It does not delete the shared
 integration or a provider mailbox. Manage shared credentials and integration

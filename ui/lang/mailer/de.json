@@ -359,5 +359,6 @@
   "mailer.rule_run_unknown_help": "Das Ergebnis der Aktion ist unklar. Prüfe zuerst den Zustand beim Anbieter, bevor Du sie erneut ausführst; sie könnte bereits erfolgt sein.",
   "mailer.rule_run_failed": "Aktion fehlgeschlagen",
   "mailer.rule_run_failed_help": "Diese Aktion ist fehlgeschlagen. Prüfe Nachricht und Anbieterstatus, bevor Du sie erneut ausführst.",
-  "mailer.rule_run_error_details": "Technische Details"
+  "mailer.rule_run_error_details": "Technische Details",
+  "mailer.test_busy": "Ein Verbindungstest läuft bereits. Warte kurz und versuche es erneut."
 }

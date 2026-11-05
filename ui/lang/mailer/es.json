@@ -359,5 +359,6 @@
   "mailer.rule_run_unknown_help": "No se pudo confirmar el resultado de la acción. Comprueba el estado en el proveedor antes de reintentar; puede que ya se haya ejecutado.",
   "mailer.rule_run_failed": "Acción fallida",
   "mailer.rule_run_failed_help": "Esta acción falló. Comprueba el mensaje y el estado del proveedor antes de reintentarla.",
-  "mailer.rule_run_error_details": "Detalles técnicos"
+  "mailer.rule_run_error_details": "Detalles técnicos",
+  "mailer.test_busy": "Ya hay una prueba de conexión en curso. Espera un momento y vuelve a intentarlo."
 }

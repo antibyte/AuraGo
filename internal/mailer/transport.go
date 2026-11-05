@@ -18,6 +18,9 @@ import (
 	"github.com/emersion/go-sasl"
 )
 
+// ErrMailAuthentication marks the authentication step while retaining its cause.
+var ErrMailAuthentication = errors.New("mail authentication failed")
+
 type TransportConfig struct {
 	ID, Source, Name, Address                  string
 	ReceiveProtocol, ReceiveTLS                string
@@ -214,11 +217,11 @@ func dialIMAP(ctx context.Context, cfg TransportConfig) (*imapclient.Client, net
 		e = c.Authenticate(xoauth2Client{username: cfg.Username, token: token})
 		if e != nil {
 			c.Logout()
-			return fail(c, e)
+			return fail(c, fmt.Errorf("%w: %w", ErrMailAuthentication, e))
 		}
 	} else if err = c.Login(cfg.Username, cfg.Password); err != nil {
 		c.Logout()
-		return fail(c, err)
+		return fail(c, fmt.Errorf("%w: %w", ErrMailAuthentication, err))
 	}
 	return c, conn, stop, nil
 }

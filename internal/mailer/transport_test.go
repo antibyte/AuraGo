@@ -9,13 +9,64 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"errors"
+	"fmt"
 	"io"
 	"math/big"
 	"net"
 	"net/textproto"
+	"strings"
 	"testing"
 	"time"
 )
+
+func TestIMAPAuthenticationRejectionKeepsFixedMarker(t *testing.T) {
+	for _, method := range []string{"password", "oauth"} {
+		t.Run(method, func(t *testing.T) {
+			serverTLS, clientTLS := smtpFixtureTLS(t)
+			client, server := net.Pipe()
+			defer client.Close()
+			defer server.Close()
+			conn := tls.Server(server, serverTLS)
+			done := make(chan struct{})
+			go func() {
+				defer close(done)
+				defer server.Close()
+				_ = conn.SetDeadline(time.Now().Add(5 * time.Second))
+				fmt.Fprint(conn, "* OK [CAPABILITY IMAP4rev1 AUTH=XOAUTH2] fixture\r\n")
+				scanner := bufio.NewScanner(conn)
+				for scanner.Scan() {
+					fields := strings.Fields(scanner.Text())
+					if len(fields) < 2 {
+						return
+					}
+					switch strings.ToUpper(fields[1]) {
+					case "CAPABILITY":
+						fmt.Fprintf(conn, "* CAPABILITY IMAP4rev1 AUTH=XOAUTH2\r\n%s OK done\r\n", fields[0])
+					case "LOGIN", "AUTHENTICATE":
+						fmt.Fprintf(conn, "%s NO [AUTHENTICATIONFAILED] Invalid credentials (Failure)\r\n", fields[0])
+					case "LOGOUT":
+						fmt.Fprintf(conn, "* BYE closing\r\n%s OK done\r\n", fields[0])
+						return
+					}
+				}
+			}()
+			cfg := TransportConfig{IMAPHost: "127.0.0.1", Username: "fixture", Password: "fixture-password", TLSConfig: clientTLS,
+				DialContext: func(context.Context, string, string) (net.Conn, error) { return client, nil }}
+			if method == "oauth" {
+				cfg.OAuthSource = "fixture"
+				cfg.Token = func(context.Context, string, bool) (string, error) { return "fixture-token", nil }
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			err := TestIMAPAuth(ctx, cfg)
+			if !errors.Is(err, ErrMailAuthentication) || !strings.Contains(err.Error(), "Invalid credentials") {
+				t.Fatalf("IMAP authentication rejection lost its marker or cause: %v", err)
+			}
+			<-done
+		})
+	}
+}
 
 func TestReadOnlyPOP3KeepsFolderListingCapability(t *testing.T) {
 	account := AccountFromTransportConfig(TransportConfig{ID: "read-only", Source: "email", ReceiveProtocol: "pop3", ReadOnly: true})

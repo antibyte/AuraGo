@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
+	"io"
 	"net"
 	"net/http"
 	"net/textproto"
@@ -72,7 +73,9 @@ func mailConnectionErrorCode(err error) string {
 		}
 	case errors.As(err, &smtpErr) && (smtpErr.Code == 530 || smtpErr.Code == 534 || smtpErr.Code == 535):
 		return "auth_failed"
-	case strings.Contains(strings.ToLower(err.Error()), "login failed"), strings.Contains(strings.ToLower(err.Error()), "authentication failed"):
+	case errors.As(err, &netErr), errors.Is(err, io.EOF), errors.Is(err, io.ErrUnexpectedEOF), errors.Is(err, io.ErrClosedPipe), errors.Is(err, net.ErrClosed):
+		return "connection_failed"
+	case errors.Is(err, mailer.ErrMailAuthentication):
 		return "auth_failed"
 	default:
 		return "connection_failed"

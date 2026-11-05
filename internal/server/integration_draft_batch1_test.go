@@ -165,6 +165,9 @@ func TestWebDAVTestUsesDraftValues(t *testing.T) {
 }
 
 func TestAgentMailTestUsesDraftValues(t *testing.T) {
+	if testutil.RunTLSFixtureSubprocess(t) {
+		return
+	}
 	s := newDraftTestServer(t)
 	probe := &draftProbe{}
 	srv := testutil.NewHTTPSServer(t, probe)
