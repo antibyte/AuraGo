@@ -89,7 +89,11 @@ func TestAuraDriftSurveyBrowser(t *testing.T) {
 			page := browser.MustPage("").Timeout(2 * time.Minute)
 			t.Cleanup(func() { page.Close() })
 			page.MustSetViewport(1280, 720, 1, false)
-			page.MustNavigate(server.URL + "/harness")
+			url := server.URL + "/harness"
+			if quality := os.Getenv("AURAGO_AURA_DRIFT_QUALITY"); quality != "" {
+				url += "?quality=" + quality
+			}
+			page.MustNavigate(url)
 			page.MustWaitLoad()
 			page.MustEval(`async()=>{await window.AuraDriftHarnessReady;}`)
 			page.MustEval(`async()=>{for(let i=0;i<100&&!document.querySelector('.agdrift-root');i++)await new Promise(r=>setTimeout(r,50));}`)

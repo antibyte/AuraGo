@@ -4,42 +4,28 @@
     const AD = window.AuraDriftCore;
     const clamp = AD.clamp;
 
-    AD.createCamera = function () {
-        return {
-            x: 0, y: 0, scale: 5.2, shake: 0, lookX: 0, lookY: 0, punch: 0,
-            update(v, dt, quality, reducedMotion) {
-                const speed = Math.max(0, v.vx);
-                const boost = v.boost ? 1 : 0;
-                let targetScale = quality.lowZoom ? 5.0 : clamp(7.0 - speed * 0.02, 5.2, 7.0);
-                /* Nitro punches the field of view in: the speed reads in the
-                   frame, not only on the dial. */
-                if (!quality.lowZoom) targetScale *= 1 - boost * 0.06;
-                this.scale = AD.smooth(this.scale, targetScale, boost ? 7 : 2.4, dt);
-                const cos = Math.cos(v.psi), sin = Math.sin(v.psi);
-                const lead = reducedMotion ? 0 : clamp(speed * 0.55, 0, 42);
-                /* Drift lean: the camera looks into the slide so the apex of
-                   the corner stays in frame while the car is sideways. */
-                const lateral = reducedMotion ? 0 : clamp(-v.vy * 0.55, -16, 16);
-                this.lookX = AD.smooth(this.lookX, cos * lead - sin * lateral, 3, dt);
-                this.lookY = AD.smooth(this.lookY, sin * lead + cos * lateral, 3, dt);
-                this.punch = AD.smooth(this.punch, boost, 9, dt);
-                this.x = v.x + this.lookX;
-                this.y = v.y + this.lookY;
-                this.shake = Math.max(0, this.shake - dt * 2.4);
-            }
-        };
-    };
-
+    /* The 2D fallback renderer (renderer interface of section 1.5). The world is
+       drawn rotated so the chase heading points up the screen: the pose from the
+       shared camera carries heading, simX, simY and scale2d. */
     AD.createRenderer = function (canvas, settings) {
         const c = canvas.getContext('2d', { alpha: false });
-        let width = 960, height = 540, dpr = 1;
+        let width = 960, height = 540, dpr = 1, diag = Math.hypot(960, 540);
         let quality = AD.QUALITY.high;
+        let theta = 0;                 /* current screen rotation, see AD.screenRotation */
+        let showcaseSpec = { carId: 'vektor', livery: 0, biomeId: 'alpine' };
+        let showcaseTime = 0;
+        let lastRace = null;
+
+        /* Rotated worlds show a disc, not a rectangle. */
+        function onScreen(sx, sy, margin) {
+            return Math.hypot(sx - width / 2, sy - height / 2) < diag / 2 + (margin || 0);
+        }
         const chunks = new Map();
         const decals = [];
         const particles = [];
         const lights = [];
         const furniture = [];
-        let frame = 0;
+        let frame = 0, fxTick = 0;
         let camPrevX = 0, camPrevY = 0, camVX = 0, camVY = 0;
 
         function getChunk(track, cx, cy) {
@@ -236,8 +222,7 @@
                 const x2 = p.x + p.nx * hw + p.tx * a1, y2 = p.y + p.ny * hw + p.ty * a1;
                 const x3 = p.x - p.nx * hw + p.tx * a1, y3 = p.y - p.ny * hw + p.ty * a1;
                 const q0 = worldToScreen(x0, y0, cam), q1 = worldToScreen(x1, y1, cam);
-                if ((q0[0] < -40 && q1[0] < -40) || (q0[0] > width + 40 && q1[0] > width + 40) ||
-                    (q0[1] < -40 && q1[1] < -40) || (q0[1] > height + 40 && q1[1] > height + 40)) continue;
+                if (!onScreen((q0[0] + q1[0]) / 2, (q0[1] + q1[1]) / 2, hw * cam.scale + 40)) continue;
                 c.beginPath();
                 c.moveTo(q0[0], q0[1]);
                 c.lineTo(q1[0], q1[1]);
@@ -267,8 +252,7 @@
                     worldToScreen(x + p.tx * len * 0.5 + p.nx * wide * 0.5, y + p.ty * len * 0.5 + p.ny * wide * 0.5, cam),
                     worldToScreen(x - p.tx * len * 0.5 + p.nx * wide * 0.5, y - p.ty * len * 0.5 + p.ny * wide * 0.5, cam)
                 ];
-                if (q.every(v => v[0] < -30 || v[0] > width + 30)) continue;
-                if (q.every(v => v[1] < -30 || v[1] > height + 30)) continue;
+                if (!onScreen((q[0][0] + q[2][0]) / 2, (q[0][1] + q[2][1]) / 2, (len + wide) * cam.scale * 0.5 + 30)) continue;
                 c.fillStyle = track.biome.night ? 'rgba(8,12,18,0.30)' : 'rgba(24,26,30,0.17)';
                 c.beginPath();
                 c.moveTo(q[0][0], q[0][1]);
@@ -343,7 +327,7 @@
             c.lineCap = 'round';
             for (const d of decals) {
                 const [sx, sy] = worldToScreen(d.x, d.y, cam);
-                if (sx < -20 || sx > width + 20 || sy < -20 || sy > height + 20) continue;
+                if (!onScreen(sx, sy, 20)) continue;
                 const fade = clamp((d.life === undefined ? 26 : d.life) / 8, 0, 1);
                 const alpha = d.alpha * 0.42 * (0.25 + 0.75 * fade);
                 if (alpha <= 0.01) continue;
@@ -360,15 +344,34 @@
            per car class, with wheels, lights and damage drawn on top. */
         function drawCar(car, cam, ghost) {
             const v = car.v || car;
-            const [sx, sy] = worldToScreen(v.x, v.y, cam);
-            AD.drawCar(c, car, sx, sy, cam.scale, {
+            let [sx, sy] = worldToScreen(v.x, v.y, cam);
+            if (v.out || v.cloak > 0 && !car.isPlayer) return;
+            let scale = cam.scale;
+            const lifted = v.z > 0.05;
+            if (lifted && onScreen(sx, sy, 110)) {
+                /* The shadow stays on the ground and shrinks; the car rises along
+                   the screen's up axis (rotated back into world drawing space). */
+                const h = Math.min(v.z, 6);
+                c.save();
+                c.translate(sx, sy); c.rotate(v.psi);
+                c.fillStyle = 'rgba(0,0,0,' + (0.34 / (1 + h * 0.25)).toFixed(3) + ')';
+                c.beginPath();
+                c.ellipse(0, 0, 2.5 * cam.scale / (1 + h * 0.08), 1.2 * cam.scale / (1 + h * 0.08), 0, 0, Math.PI * 2);
+                c.fill();
+                c.restore();
+                const rise = h * cam.scale * 0.9;
+                sx += -rise * Math.sin(theta);
+                sy += -rise * Math.cos(theta);
+                scale *= 1 + h * 0.03;
+            }
+            AD.drawCar(c, car, sx, sy, scale, {
                 ghost: ghost,
                 night: !!carNight,
                 lighting: quality.lighting,
                 bloom: quality.bloom,
                 frame: frame,
-                width: width,
-                height: height
+                noShadow: lifted,
+                onScreen: onScreen
             });
         }
 
@@ -421,7 +424,7 @@
         function drawParticles(cam) {
             for (const p of particles) {
                 const [sx, sy] = worldToScreen(p.x, p.y, cam);
-                if (sx < 0 || sx > width || sy < 0 || sy > height) continue;
+                if (!onScreen(sx, sy, 0)) continue;
                 const fade = clamp(p.life / p.max, 0, 1);
                 const smoke = p.kind === 'smoke';
                 c.globalAlpha = fade * (smoke ? 0.24 : 0.8);
@@ -450,7 +453,7 @@
             if (!reducedMotion) {
                 for (const light of lights) {
                     const [sx, sy] = worldToScreen(light.x, light.y, cam);
-                    if (sx < -100 || sx > width + 100 || sy < -100 || sy > height + 100) continue;
+                    if (!onScreen(sx, sy, 100)) continue;
                     const glow = c.createRadialGradient(sx, sy, 0, sx, sy, 18 * cam.scale);
                     glow.addColorStop(0, 'rgba(255,196,120,0.30)');
                     glow.addColorStop(0.4, 'rgba(255,178,92,0.12)');
@@ -464,7 +467,7 @@
             c.save();
             for (const light of lights) {
                 const [sx, sy] = worldToScreen(light.x, light.y, cam);
-                if (sx < -60 || sx > width + 60 || sy < -60 || sy > height + 60) continue;
+                if (!onScreen(sx, sy, 60)) continue;
                 c.fillStyle = 'rgba(12,16,22,0.85)';
                 c.beginPath(); c.arc(sx, sy, 1.1 * cam.scale, 0, Math.PI * 2); c.fill();
                 c.fillStyle = 'rgba(255,214,150,0.95)';
@@ -592,10 +595,187 @@
 
         let carNight = false;
 
+        /* Simple glyphs for the sim objects the old top-down art never knew:
+           ramps, boost pads, destructibles, animals, hazards and beams. */
+        function drawFeatures(race, cam) {
+            const fs = race.features;
+            if (!fs) return;
+            const k = cam.scale;
+            for (const ramp of fs.ramps) {
+                const [sx, sy] = worldToScreen(ramp.x, ramp.y, cam);
+                if (!onScreen(sx, sy, ramp.length * k)) continue;
+                c.save(); c.translate(sx, sy); c.rotate(ramp.psi);
+                const g = c.createLinearGradient(0, 0, ramp.length * k, 0);
+                g.addColorStop(0, '#6b7280'); g.addColorStop(1, '#e5e7eb');
+                c.fillStyle = g;
+                c.fillRect(0, -ramp.width * k / 2, ramp.length * k, ramp.width * k);
+                c.strokeStyle = '#fbbf24'; c.lineWidth = Math.max(1.5, 0.3 * k);
+                c.strokeRect(0, -ramp.width * k / 2, ramp.length * k, ramp.width * k);
+                c.restore();
+            }
+            for (const pad of fs.pads) {
+                const [sx, sy] = worldToScreen(pad.x, pad.y, cam);
+                if (!onScreen(sx, sy, pad.length * k)) continue;
+                c.save(); c.translate(sx, sy); c.rotate(pad.psi);
+                c.fillStyle = 'rgba(34,211,238,0.28)';
+                c.fillRect(-pad.length * k / 2, -pad.width * k / 2, pad.length * k, pad.width * k);
+                c.strokeStyle = '#67e8f9'; c.lineWidth = Math.max(1.5, 0.35 * k);
+                c.beginPath();
+                for (let i = -1; i <= 1; i++) {
+                    const x = i * pad.length * k * 0.28;
+                    c.moveTo(x - 0.9 * k, -pad.width * k * 0.3); c.lineTo(x + 0.9 * k, 0); c.lineTo(x - 0.9 * k, pad.width * k * 0.3);
+                }
+                c.stroke(); c.restore();
+            }
+            for (const d of fs.destructibles) {
+                const [sx, sy] = worldToScreen(d.x, d.y, cam);
+                if (!onScreen(sx, sy, 40)) continue;
+                const lift = d.z > 0.05 ? Math.min(d.z, 5) * k * 0.6 : 0;
+                c.fillStyle = d.kind === 'cone' ? '#fb923c' : d.kind === 'hay' ? '#e4c15a' : d.kind === 'barrel' ? '#3b82f6' : '#27272a';
+                c.beginPath(); c.arc(sx - lift * Math.sin(theta), sy - lift * Math.cos(theta), Math.max(1.5, d.r * k), 0, Math.PI * 2); c.fill();
+                c.strokeStyle = 'rgba(0,0,0,0.45)'; c.lineWidth = 1; c.stroke();
+            }
+            for (const a of fs.animals) {
+                const [sx, sy] = worldToScreen(a.x, a.y, cam);
+                if (!onScreen(sx, sy, 40)) continue;
+                const lift = a.z > 0.05 ? Math.min(a.z, 6) * k * 0.7 : 0;
+                c.save(); c.translate(sx - lift * Math.sin(theta), sy - lift * Math.cos(theta)); c.rotate(a.psi || 0);
+                c.fillStyle = a.kind === 'cow' ? '#f5f5f4' : a.kind === 'penguin' ? '#1f2937' : '#d6c7a8';
+                c.beginPath(); c.ellipse(0, 0, 1.3 * k, 0.8 * k, 0, 0, Math.PI * 2); c.fill();
+                c.fillStyle = '#292524';
+                c.beginPath(); c.arc(1.4 * k, 0, 0.45 * k, 0, Math.PI * 2); c.fill();
+                c.restore();
+            }
+            for (const crossing of fs.crossings) {
+                const [sx, sy] = worldToScreen(crossing.x, crossing.y, cam);
+                if (!onScreen(sx, sy, 60)) continue;
+                c.strokeStyle = 'rgba(250,204,21,0.5)'; c.lineWidth = Math.max(1, 0.25 * k);
+                c.setLineDash([k, k]);
+                c.beginPath(); c.arc(sx, sy, crossing.half * k * 0.5, 0, Math.PI * 2); c.stroke();
+                c.setLineDash([]);
+            }
+        }
+
+        function drawBeams(race, cam) {
+            for (const b of race.beams || []) {
+                if (b.type === 'rail') {
+                    const p = worldToScreen(b.x, b.y, cam), q = worldToScreen(b.x2, b.y2, cam);
+                    c.strokeStyle = 'rgba(244,114,182,0.9)'; c.lineWidth = Math.max(2, 0.5 * cam.scale);
+                    c.beginPath(); c.moveTo(p[0], p[1]); c.lineTo(q[0], q[1]); c.stroke();
+                } else if (b.type === 'tether') {
+                    const a = race.cars[b.a], d = race.cars[b.b];
+                    if (!a || !d) continue;
+                    const p = worldToScreen(a.v.x, a.v.y, cam), q = worldToScreen(d.v.x, d.v.y, cam);
+                    c.strokeStyle = 'rgba(203,213,225,0.9)'; c.lineWidth = Math.max(1.5, 0.25 * cam.scale);
+                    c.beginPath(); c.moveTo(p[0], p[1]); c.lineTo(q[0], q[1]); c.stroke();
+                } else if (b.type === 'flame') {
+                    const car = race.cars[b.car];
+                    if (!car) continue;
+                    const v = car.v, p = worldToScreen(v.x + Math.cos(v.psi) * 2.4, v.y + Math.sin(v.psi) * 2.4, cam);
+                    const g = c.createRadialGradient(p[0], p[1], 0, p[0], p[1], 6 * cam.scale);
+                    g.addColorStop(0, 'rgba(255,220,120,0.9)'); g.addColorStop(1, 'rgba(255,90,20,0)');
+                    c.fillStyle = g;
+                    c.beginPath(); c.arc(p[0], p[1], 6 * cam.scale, 0, Math.PI * 2); c.fill();
+                }
+            }
+        }
+
+        /* Ring, glyph or bar for every hazard and projectile type of section 2.5. */
+        function drawHazards(race, cam) {
+            const k = cam.scale;
+            for (const h of race.hazards) {
+                const [sx, sy] = worldToScreen(h.x, h.y, cam);
+                if (!onScreen(sx, sy, h.r * k + 20)) continue;
+                if (h.type === 'oil' || h.type === 'ice') {
+                    const ice = h.type === 'ice';
+                    const g = c.createRadialGradient(sx, sy, 0, sx, sy, h.r * k);
+                    g.addColorStop(0, ice ? 'rgba(186,230,253,0.75)' : 'rgba(30,26,44,0.8)');
+                    g.addColorStop(0.7, ice ? 'rgba(125,211,252,0.5)' : 'rgba(10,10,14,0.66)');
+                    g.addColorStop(1, ice ? 'rgba(125,211,252,0)' : 'rgba(10,10,14,0)');
+                    c.fillStyle = g;
+                    c.beginPath(); c.ellipse(sx, sy, h.r * k, h.r * k * 0.7, 0, 0, Math.PI * 2); c.fill();
+                } else if (h.type === 'black_hole') {
+                    const g = c.createRadialGradient(sx, sy, 0, sx, sy, h.r * k);
+                    g.addColorStop(0, 'rgba(0,0,0,0.95)'); g.addColorStop(0.35, 'rgba(76,29,149,0.5)'); g.addColorStop(1, 'rgba(76,29,149,0)');
+                    c.fillStyle = g;
+                    c.beginPath(); c.arc(sx, sy, h.r * k, 0, Math.PI * 2); c.fill();
+                } else if (h.type === 'disco') {
+                    c.strokeStyle = 'hsla(' + (frame * 6 % 360) + ',90%,65%,0.8)'; c.lineWidth = 2;
+                    c.beginPath(); c.arc(sx, sy, h.r * k, 0, Math.PI * 2); c.stroke();
+                    c.fillStyle = 'rgba(255,255,255,0.8)';
+                    c.beginPath(); c.arc(sx, sy, 0.9 * k, 0, Math.PI * 2); c.fill();
+                } else if (h.type === 'cow_shadow') {
+                    const at = h.tx !== undefined ? worldToScreen(h.tx, h.ty, cam) : [sx, sy];
+                    c.fillStyle = 'rgba(0,0,0,0.4)';
+                    c.beginPath(); c.ellipse(at[0], at[1], 3 * k, 2 * k, 0, 0, Math.PI * 2); c.fill();
+                } else {
+                    const armed = h.arm > 0;
+                    c.strokeStyle = armed ? '#f97316' : '#ffd166';
+                    c.lineWidth = 2;
+                    c.beginPath(); c.arc(sx, sy, h.r * k, 0, Math.PI * 2); c.stroke();
+                    c.fillStyle = armed ? 'rgba(249,115,22,0.25)' : 'rgba(255,209,102,0.3)';
+                    c.beginPath(); c.arc(sx, sy, h.r * k * 0.55, 0, Math.PI * 2); c.fill();
+                    if (!armed && frame % 30 < 15) {
+                        c.fillStyle = 'rgba(255,120,60,0.9)';
+                        c.beginPath(); c.arc(sx, sy, 1.2 * k, 0, Math.PI * 2); c.fill();
+                    }
+                }
+            }
+            for (const p of race.projectiles) {
+                const [sx, sy] = worldToScreen(p.x, p.y, cam);
+                if (!onScreen(sx, sy, 60)) continue;
+                const lift = (p.z || 0) * k * 0.6;
+                const px = sx - lift * Math.sin(theta), py = sy - lift * Math.cos(theta);
+                const trail = (len, colour, w) => {
+                    c.strokeStyle = colour; c.lineWidth = w;
+                    c.beginPath(); c.moveTo(px, py);
+                    c.lineTo(px - Math.cos(p.psi) * len * k, py - Math.sin(p.psi) * len * k); c.stroke();
+                };
+                if (p.type === 'rocket' || p.type === 'harpoon') {
+                    trail(8, 'rgba(255,170,100,0.7)', 2.2 * k);
+                    c.fillStyle = p.type === 'rocket' ? '#fb7185' : '#e2e8f0';
+                    c.beginPath(); c.arc(px, py, 1.5 * k, 0, Math.PI * 2); c.fill();
+                } else if (p.type === 'bullet') {
+                    trail(3.4, 'rgba(250,204,21,0.85)', 1.2 * k);
+                } else if (p.type === 'duck') {
+                    c.fillStyle = '#facc15';
+                    c.beginPath(); c.arc(px, py, 1.3 * k, 0, Math.PI * 2); c.fill();
+                    c.fillStyle = '#f97316'; c.fillRect(px + 1.1 * k, py - 0.3 * k, 0.8 * k, 0.6 * k);
+                } else if (p.type === 'emp_charge' || p.type === 'rail_charge') {
+                    c.strokeStyle = p.type === 'emp_charge' ? '#7dd3fc' : '#f472b6'; c.lineWidth = 2;
+                    c.beginPath(); c.arc(px, py, (2 + (frame % 20) * 0.15) * k, 0, Math.PI * 2); c.stroke();
+                } else {
+                    c.fillStyle = p.type === 'cow' ? '#fafaf9' : p.type === 'glove' ? '#ef4444' : '#a78bfa';
+                    c.beginPath(); c.arc(px, py, 1.4 * k, 0, Math.PI * 2); c.fill();
+                    c.strokeStyle = 'rgba(0,0,0,0.5)'; c.lineWidth = 1; c.stroke();
+                }
+            }
+        }
+
+        function drawShowcase(dt, reduced) {
+            if (!reduced) showcaseTime += dt;
+            const biome = AD.BIOMES && AD.BIOMES[showcaseSpec.biomeId];
+            c.save();
+            c.setTransform(dpr, 0, 0, dpr, 0, 0);
+            c.fillStyle = (biome && biome.ground) || '#1b2330';
+            c.fillRect(0, 0, width, height);
+            const g = c.createRadialGradient(width / 2, height / 2, 20, width / 2, height / 2, Math.max(width, height) * 0.7);
+            g.addColorStop(0, 'rgba(255,255,255,0.12)'); g.addColorStop(1, 'rgba(0,0,0,0.5)');
+            c.fillStyle = g; c.fillRect(0, 0, width, height);
+            const v = AD.createVehicle(0, 0, showcaseTime * 0.5 + 0.6, AD.carIndex(showcaseSpec.carId));
+            const size = Math.min(width, height) / 4.6 * 0.7;
+            AD.drawCar(c, { v: v, isPlayer: false }, width / 2, height / 2, size, { frame: 0, noShadow: false });
+            c.restore();
+        }
+
         return {
+            kind: 'canvas2d',
+            /* The shell owns the real post pass; the 2D renderer only carries the interface slot. */
+            post: { available: false, enabled: false, setQuality() {}, setBiome() {}, resize() {}, render() { return false; }, stats() { return { available: false, enabled: false, degraded: true }; }, dispose() {} },
             resize(w, h, ratio) {
                 width = Math.max(320, Math.round(w));
                 height = Math.max(240, Math.round(h));
+                diag = Math.hypot(width, height);
                 dpr = clamp(ratio || 1, 1, 2);
                 canvas.width = Math.round(width * dpr);
                 canvas.height = Math.round(height * dpr);
@@ -639,34 +819,115 @@
             smoke(x, y, colour) {
                 spawn('smoke', x, y, { vx: (Math.random() - 0.5) * 5, vy: (Math.random() - 0.5) * 5, life: 0.75, size: 1.5, colour: colour || '#c9cbd0' });
             },
-            render(race, cam, dt, reducedMotion, alpha) {
+            setShowcase(spec) { showcaseSpec = Object.assign({}, showcaseSpec, spec || {}); },
+            showcase(dt, reducedMotion) { drawShowcase(dt, reducedMotion); },
+            /* Sim events to the old burst, smoke and decal effects. */
+            event(evt) {
+                const heavy = !!evt.heavy;
+                switch (evt.type) {
+                    case 'hit': this.burst('spark', evt.x, evt.y, heavy ? 18 : 8, '#ffb347'); break;
+                    case 'pickup': this.burst('spark', evt.x, evt.y, 10, '#8ce9ff'); break;
+                    case 'respawn': this.burst('spark', evt.x, evt.y, 14, '#a8e08a'); break;
+                    case 'emp_pulse': this.burst('spark', evt.x, evt.y, 22, '#7dd3fc'); break;
+                    case 'wall_hit': this.burst('spark', evt.x, evt.y, heavy ? 12 : 5, '#ffb347'); break;
+                    case 'car_hit': this.burst('spark', evt.x, evt.y, heavy ? 16 : 7, '#ffd166'); break;
+                    case 'smash': this.burst('spark', evt.x, evt.y, 8, '#e4c15a'); break;
+                    case 'animal_hit': this.burst('spark', evt.x, evt.y, 12, '#f5f5f4'); break;
+                    case 'turbo_burst': this.burst('boost', evt.x, evt.y, 16, '#8ce9ff'); break;
+                    case 'boost_pad': this.burst('boost', evt.x, evt.y, 8, '#67e8f9'); break;
+                    case 'takeoff': for (let i = 0; i < 4; i++) this.smoke(evt.x, evt.y, '#c9cbd0'); break;
+                    case 'landing':
+                        for (let i = 0; i < (evt.quality === 'crash' ? 10 : 5); i++) this.smoke(evt.x, evt.y, '#c9cbd0');
+                        break;
+                    case 'cow_land': case 'bomb_blast': case 'frost_burst':
+                        this.burst('spark', evt.x, evt.y, 24, evt.type === 'frost_burst' ? '#bae6fd' : '#fb923c'); break;
+                    case 'eliminated': this.burst('spark', evt.x, evt.y, 30, '#fb7185'); break;
+                    default: break;
+                }
+            },
+            /* Continuous effects: dust, tyre marks, nitro plume, damage smoke, spray. */
+            emit(race) {
+                if (!race || race.state !== 'running') return;
+                fxTick++;
+                const v = race.cars[0].v;
+                const speed = Math.max(0, v.vx);
+                const surface = v.surface || 'asphalt';
+                const dustColour =
+                    surface === 'sand' ? '#d8b078' :
+                    surface === 'gravel' ? '#a89a84' :
+                    surface === 'mud' ? '#6b5a42' :
+                    surface === 'snow' ? '#eef4fb' :
+                    surface === 'wet' ? '#9db4c8' :
+                    surface === 'ice' ? '#e2edf5' :
+                    surface === 'salt' ? '#f2f2ea' :
+                    race.track.biome.night ? '#8fa4bd' : '#c9cbd0';
+                /* Every car lays its own dust: rivals sliding through a corner
+                   are part of the picture, not just the player's car. */
+                for (const car of race.cars) {
+                    const cv = car.v;
+                    if (cv.out || cv.airborne) continue;
+                    const cs = Math.max(0, cv.vx);
+                    if (cv.slip <= 2.4 || cs <= 8 || quality.particles <= 0) continue;
+                    if (fxTick % 2 !== 0 && car.isPlayer) continue;
+                    if (fxTick % 3 !== 0 && !car.isPlayer) continue;
+                    const cos = Math.cos(cv.psi), sin = Math.sin(cv.psi);
+                    for (const side of [-1, 1]) {
+                        const x = cv.x - cos * 1.7 + sin * side * 1.05;
+                        const y = cv.y - sin * 1.7 - cos * side * 1.05;
+                        this.smoke(x, y, dustColour);
+                        if (car.isPlayer) this.addDecal(x, y, cv.psi, Math.min(1, cv.slip / 9));
+                    }
+                }
+                const flame = v.boost || v.overdrive > 0 || v.burst > 0;
+                if (flame && speed > 12 && fxTick % 3 === 0) {
+                    this.burst('boost', v.x - Math.cos(v.psi) * 2.4, v.y - Math.sin(v.psi) * 2.4, 2, v.overdrive > 0 ? '#fb923c' : '#8ce9ff');
+                }
+                if (v.damage > 62 && speed > 4 && fxTick % 7 === 0) this.smoke(v.x, v.y - 1.2, '#5c5c62');
+                if (v.impact > 0.55 && quality.particles > 0) this.burst('spark', v.x, v.y, 3, '#ffb347');
+                /* Water thrown up on wet asphalt and powder on snow. */
+                const wet = surface === 'wet', snow = surface === 'snow';
+                if ((wet || snow) && speed > 14 && fxTick % 2 === 0) {
+                    const cos = Math.cos(v.psi), sin = Math.sin(v.psi);
+                    this.smoke(v.x - cos * 2.1 + sin * 0.9, v.y - sin * 2.1 - cos * 0.9, wet ? '#b9cede' : '#f3f8ff');
+                }
+            },
+            render(race, pose, dt, reducedMotion) {
+                lastRace = race;
                 frame += 1;
-                camVX = (cam.x - camPrevX) / Math.max(dt, 1e-4);
-                camVY = (cam.y - camPrevY) / Math.max(dt, 1e-4);
+                const cam = { x: pose.simX, y: pose.simY, scale: pose.scale2d || 5.6 };
+                theta = AD.screenRotation(pose.heading || 0);
+                /* Camera velocity in screen space leans the rain. */
+                const wvx = (cam.x - camPrevX) / Math.max(dt, 1e-4), wvy = (cam.y - camPrevY) / Math.max(dt, 1e-4);
                 camPrevX = cam.x; camPrevY = cam.y;
+                camVX = wvx * Math.cos(theta) - wvy * Math.sin(theta);
                 const track = race.track;
                 carNight = !!track.biome.night;
-                const shake = reducedMotion ? 0 : cam.shake;
+                const shake = reducedMotion ? 0 : (pose.shake || 0);
                 const ox = shake ? (Math.random() - 0.5) * shake * 8 : 0;
                 const oy = shake ? (Math.random() - 0.5) * shake * 8 : 0;
                 c.save();
-                c.translate(ox, oy);
                 c.fillStyle = track.biome.ground;
-                c.fillRect(-10, -10, width + 20, height + 20);
+                c.fillRect(0, 0, width, height);
+                c.translate(ox, oy);
 
-                const halfW = width / (2 * cam.scale), halfH = height / (2 * cam.scale);
-                const minCx = Math.floor((cam.x - halfW - AD.CHUNK_METRES) / AD.CHUNK_METRES);
-                const maxCx = Math.floor((cam.x + halfW + AD.CHUNK_METRES) / AD.CHUNK_METRES);
-                const minCy = Math.floor((cam.y - halfH - AD.CHUNK_METRES) / AD.CHUNK_METRES);
-                const maxCy = Math.floor((cam.y + halfH + AD.CHUNK_METRES) / AD.CHUNK_METRES);
+                /* The world turns about the screen centre so the heading points up. */
+                c.save();
+                c.translate(width / 2, height / 2); c.rotate(theta); c.translate(-width / 2, -height / 2);
+                const reach = diag / (2 * cam.scale);
+                const chunkPx = AD.CHUNK_METRES * cam.scale;
+                const minCx = Math.floor((cam.x - reach - AD.CHUNK_METRES) / AD.CHUNK_METRES);
+                const maxCx = Math.floor((cam.x + reach + AD.CHUNK_METRES) / AD.CHUNK_METRES);
+                const minCy = Math.floor((cam.y - reach - AD.CHUNK_METRES) / AD.CHUNK_METRES);
+                const maxCy = Math.floor((cam.y + reach + AD.CHUNK_METRES) / AD.CHUNK_METRES);
                 for (let cx = minCx; cx <= maxCx; cx++) {
                     for (let cy = minCy; cy <= maxCy; cy++) {
-                        const chunk = getChunk(track, cx, cy);
                         const [sx, sy] = worldToScreen(cx * AD.CHUNK_METRES, cy * AD.CHUNK_METRES, cam);
-                        c.drawImage(chunk.canvas, sx, sy, AD.CHUNK_METRES * cam.scale, AD.CHUNK_METRES * cam.scale);
+                        if (!onScreen(sx + chunkPx / 2, sy + chunkPx / 2, chunkPx * 0.72)) continue;
+                        const chunk = getChunk(track, cx, cy);
+                        c.drawImage(chunk.canvas, sx, sy, chunkPx, chunkPx);
                         for (const prop of chunk.props) {
-                            const [px, py] = worldToScreen(cx * AD.CHUNK_METRES + (prop.x - cx * AD.CHUNK_METRES),
-                                cy * AD.CHUNK_METRES + (prop.y - cy * AD.CHUNK_METRES), cam);
+                            const [px, py] = worldToScreen(prop.x, prop.y, cam);
+                            if (!onScreen(px, py, prop.size * 4 * cam.scale)) continue;
                             AD.drawProp(c, prop, px, py, cam.scale);
                         }
                     }
@@ -681,15 +942,17 @@
                    tyre walls, marshal posts and the biome set pieces. */
                 for (const item of furniture) {
                     const [sx, sy] = worldToScreen(item.x, item.y, cam);
-                    if (sx < -220 || sx > width + 220 || sy < -220 || sy > height + 220) continue;
+                    if (!onScreen(sx, sy, 220)) continue;
                     AD.drawFurniture(c, item, sx, sy, cam.scale, frame);
                 }
+                drawFeatures(race, cam);
 
-                /* Pickups, hazards and projectiles live in world space. */
-                for (const pad of race.pickups) {
-                    if (race.time - pad.taken < 8) continue;
-                    const [sx, sy] = worldToScreen(pad.x, pad.y, cam);
-                    if (sx < -20 || sx > width + 20 || sy < -20 || sy > height + 20) continue;
+                /* Crates, hazards, projectiles and beams live in world space. */
+                const crates = (race.features && race.features.crates) || race.pickups || [];
+                for (const crate of crates) {
+                    if (race.time - crate.taken < 8) continue;
+                    const [sx, sy] = worldToScreen(crate.x, crate.y, cam);
+                    if (!onScreen(sx, sy, 20)) continue;
                     c.save(); c.translate(sx, sy); c.rotate(frame * 0.02);
                     const halo = c.createRadialGradient(0, 0, 0, 0, 0, 4 * cam.scale);
                     halo.addColorStop(0, 'rgba(120,230,255,0.35)');
@@ -702,50 +965,8 @@
                     c.fillRect(-1.1 * cam.scale, -1.1 * cam.scale, 2.2 * cam.scale, 2.2 * cam.scale);
                     c.restore();
                 }
-                for (const h of race.hazards) {
-                    const [sx, sy] = worldToScreen(h.x, h.y, cam);
-                    if (sx < -20 || sx > width + 20 || sy < -20 || sy > height + 20) continue;
-                    if (h.type === 'oil') {
-                        const oil = c.createRadialGradient(sx, sy, 0, sx, sy, h.r * cam.scale);
-                        oil.addColorStop(0, 'rgba(30,26,44,0.8)');
-                        oil.addColorStop(0.7, 'rgba(10,10,14,0.66)');
-                        oil.addColorStop(1, 'rgba(10,10,14,0)');
-                        c.fillStyle = oil;
-                        c.beginPath(); c.ellipse(sx, sy, h.r * cam.scale, h.r * cam.scale * 0.7, 0, 0, Math.PI * 2); c.fill();
-                    } else {
-                        const armed = h.arm > 0;
-                        c.strokeStyle = armed ? '#f97316' : '#ffd166';
-                        c.lineWidth = 2;
-                        c.beginPath(); c.arc(sx, sy, h.r * cam.scale, 0, Math.PI * 2); c.stroke();
-                        c.fillStyle = armed ? 'rgba(249,115,22,0.25)' : 'rgba(255,209,102,0.3)';
-                        c.beginPath(); c.arc(sx, sy, h.r * cam.scale * 0.55, 0, Math.PI * 2); c.fill();
-                        if (!armed && frame % 30 < 15) {
-                            c.fillStyle = 'rgba(255,120,60,0.9)';
-                            c.beginPath(); c.arc(sx, sy, 1.2 * cam.scale, 0, Math.PI * 2); c.fill();
-                        }
-                    }
-                }
-                for (const p of race.projectiles) {
-                    const [sx, sy] = worldToScreen(p.x, p.y, cam);
-                    if (p.type === 'rocket') {
-                        const tail = c.createLinearGradient(
-                            sx - Math.cos(p.psi) * 8 * cam.scale, sy - Math.sin(p.psi) * 8 * cam.scale, sx, sy);
-                        tail.addColorStop(0, 'rgba(255,140,80,0)');
-                        tail.addColorStop(1, 'rgba(255,190,120,0.7)');
-                        c.strokeStyle = tail; c.lineWidth = 2.2 * cam.scale;
-                        c.beginPath();
-                        c.moveTo(sx - Math.cos(p.psi) * 8 * cam.scale, sy - Math.sin(p.psi) * 8 * cam.scale);
-                        c.lineTo(sx, sy); c.stroke();
-                        c.fillStyle = '#fb7185';
-                        c.beginPath(); c.arc(sx, sy, 1.5 * cam.scale, 0, Math.PI * 2); c.fill();
-                    } else {
-                        c.strokeStyle = 'rgba(250,204,21,0.85)'; c.lineWidth = 1.2 * cam.scale;
-                        c.beginPath();
-                        c.moveTo(sx, sy);
-                        c.lineTo(sx - Math.cos(p.psi) * 3.4 * cam.scale, sy - Math.sin(p.psi) * 3.4 * cam.scale);
-                        c.stroke();
-                    }
-                }
+                drawHazards(race, cam);
+                drawBeams(race, cam);
 
                 if (race.ghost && race.ghost.active) drawCar(race.ghost, cam, true);
                 for (const car of race.cars) drawCar(car, cam, false);
@@ -753,6 +974,9 @@
                 updateParticles(dt);
                 drawParticles(cam);
                 drawLighting(race, cam, reducedMotion);
+                c.restore();
+
+                /* Screen-space finish: weather, night tint and vignette do not rotate. */
                 drawWeather(race, cam, dt, reducedMotion);
                 if (track.biome.night) {
                     c.fillStyle = 'rgba(6,12,26,0.20)';
@@ -762,9 +986,18 @@
                 c.restore();
             },
             dispose() {
-                chunks.clear(); decals.length = 0; particles.length = 0; lights.length = 0;
+                chunks.clear(); decals.length = 0; particles.length = 0; lights.length = 0; furniture.length = 0;
+                lastRace = null;
             },
-            stats() { return { chunks: chunks.size, decals: decals.length, particles: particles.length }; }
+            stats() {
+                const cond = lastRace && lastRace.conditions ? lastRace.conditions.state : null;
+                return {
+                    kind: 'canvas2d', calls: 0, triangles: 0, geometries: 0, textures: 0,
+                    particles: particles.length, props: furniture.length, standIns: 0,
+                    wetness: cond && cond.kind === 'rain' ? cond.intensity : 0,
+                    chunks: chunks.size, decals: decals.length, projection: null
+                };
+            }
         };
     };
 })();

@@ -60,6 +60,14 @@
             document.head.appendChild(script);
         });
         await window.AuraDesktopModules.loadAppAssets('aura-drift');
+        if (window.AuraDriftHarnessParams.quality) {
+            try {
+                const key = 'aurago.desktop.aura-drift.v1';
+                const saved = JSON.parse(localStorage.getItem(key) || '{}');
+                saved.quality = window.AuraDriftHarnessParams.quality;
+                localStorage.setItem(key, JSON.stringify(saved));
+            } catch (_) { /* private mode: keep the default tier */ }
+        }
         window.AuraDriftApp.render(document.getElementById('host'), 'dev', { t, isActive: () => true, readonly: false });
         const debug = window.AuraDriftApp.debug;
         const p = window.AuraDriftHarnessParams;

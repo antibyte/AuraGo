@@ -15,10 +15,12 @@ export const SIM_MODULES = [
     'features', 'weapons', 'projectiles', 'modes', 'ai', 'race'
 ].map(name => 'ui/js/desktop/apps/aura-drift-' + name + '.js');
 
-export function loadSim() {
+/* extra: more module names (for example 'camera') loaded after the simulation. */
+export function loadSim(extra) {
     const sandbox = { window: {}, console };
     vm.createContext(sandbox);
-    for (const file of SIM_MODULES) {
+    const more = (extra || []).map(name => 'ui/js/desktop/apps/aura-drift-' + name + '.js');
+    for (const file of SIM_MODULES.concat(more)) {
         vm.runInContext(readFileSync(path.join(root, file), 'utf8'), sandbox, { filename: file });
     }
     return sandbox.window.AuraDriftCore;

@@ -12,7 +12,7 @@
 }
 .agdrift-root [hidden] { display: none !important; }
 
-.agdrift-world, .agdrift-post, .agdrift-hud {
+.agdrift-gl, .agdrift-world, .agdrift-post, .agdrift-hud {
     position: absolute;
     inset: 0;
     display: block;

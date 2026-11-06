@@ -53,6 +53,18 @@
                 return [[116, -26], [96, -46], [48, -54], [-16, -56], [-74, -54], [-108, -44],
                     [-116, -26], [-118, 0], [-116, 26], [-108, 44], [-74, 54], [-16, 56],
                     [48, 54], [96, 46], [116, 26]];
+            case 'van':
+                return [[118, -30], [106, -48], [78, -56], [-96, -58], [-118, -50], [-122, 0],
+                    [-118, 50], [-96, 58], [78, 56], [106, 48], [118, 30]];
+            case 'mower':
+                return [[100, -34], [76, -50], [20, -54], [-60, -52], [-100, -38], [-106, 0],
+                    [-100, 38], [-60, 52], [20, 54], [76, 50], [100, 34]];
+            case 'sofa':
+                return [[112, -46], [70, -56], [-40, -56], [-102, -62], [-124, -48], [-126, 0],
+                    [-124, 48], [-102, 62], [-40, 56], [70, 56], [112, 46], [122, 0]];
+            case 'truck':
+                return [[124, -38], [112, -56], [44, -60], [-108, -62], [-124, -50], [-126, 0],
+                    [-124, 50], [-108, 62], [44, 60], [112, 56], [124, 38]];
             default: /* gt */
                 return [[120, -24], [100, -44], [56, -54], [-6, -56], [-64, -54], [-104, -46],
                     [-118, -30], [-120, 0], [-118, 30], [-104, 46], [-64, 54], [-6, 56],
@@ -164,6 +176,31 @@
             g.globalAlpha = 1;
         }
 
+        /* Fallback marks for the four work vehicles: one glyph each. */
+        if (car.shape === 'van') {
+            g.fillStyle = '#fff4e0';
+            g.fillRect(-80, -50, 70, 14);                 /* serving hatch */
+            g.fillStyle = '#f472b6';
+            g.beginPath(); g.arc(20, 0, 20, 0, Math.PI * 2); g.fill();   /* the cone on the roof */
+            g.fillStyle = '#fff4e0';
+            g.beginPath(); g.arc(20, 0, 9, 0, Math.PI * 2); g.fill();
+        } else if (car.shape === 'mower') {
+            g.fillStyle = 'rgba(20,24,18,0.55)';
+            g.beginPath(); g.arc(10, 0, 40, 0, Math.PI * 2); g.fill();   /* the cutting deck */
+            g.strokeStyle = 'rgba(240,240,230,0.6)'; g.lineWidth = 3;
+            g.beginPath(); g.moveTo(-100, -20); g.lineTo(-60, -8); g.moveTo(-100, 20); g.lineTo(-60, 8); g.stroke();
+        } else if (car.shape === 'sofa') {
+            g.fillStyle = 'rgba(30,20,12,0.5)';
+            g.fillRect(-122, -58, 26, 116);               /* backrest */
+            g.fillStyle = 'rgba(255,255,255,0.14)';
+            g.fillRect(-90, -48, 80, 44); g.fillRect(-90, 4, 80, 44);   /* seat cushions */
+        } else if (car.shape === 'truck') {
+            g.fillStyle = 'rgba(12,14,20,0.5)';
+            g.fillRect(-110, -54, 150, 108);              /* load bed */
+            g.fillStyle = '#c9ced6';
+            g.fillRect(-122, -48, 8, 10); g.fillRect(-122, 38, 8, 10);   /* exhaust stacks */
+        }
+
         /* Rear wing for the prototype and the GT. */
         if (car.shape === 'wedge' || car.shape === 'gt') {
             g.fillStyle = 'rgba(14,16,22,0.92)';
@@ -267,11 +304,15 @@
         g.restore();
     }
 
-    /* opts: { ghost, night, lighting, bloom, frame, reducedMotion } */
+    /* opts: { ghost, night, lighting, bloom, frame, reducedMotion, noShadow,
+       onScreen(sx, sy, margin) }. onScreen replaces the rectangular cull: the 2D
+       world is rotated, so the visible area is a circle around the screen centre. */
     AD.drawCar = function (g, car, sx, sy, scale, opts) {
         const v = car.v || car;
         const options = opts || {};
-        if (sx < -110 || sx > (options.width || 99999) + 110 || sy < -110 || sy > (options.height || 99999) + 110) return;
+        if (typeof options.onScreen === 'function') {
+            if (!options.onScreen(sx, sy, 110)) return;
+        } else if (sx < -110 || sx > (options.width || 99999) + 110 || sy < -110 || sy > (options.height || 99999) + 110) return;
         const ghost = !!options.ghost;
         const index = (v.car && v.carIndex !== undefined) ? v.carIndex % AD.CARS.length : 0;
         const sprite = AD.carSprite(index);
@@ -286,7 +327,7 @@
         if (ghost) g.globalAlpha = 0.34;
 
         /* Soft contact shadow offset away from the key light. */
-        if (!ghost) {
+        if (!ghost && !options.noShadow) {
             g.fillStyle = 'rgba(0,0,0,0.34)';
             g.beginPath();
             g.ellipse(-len * 0.06 + len * 0.05, len * 0.05, len * 0.55, wid * 0.56, 0, 0, Math.PI * 2);
