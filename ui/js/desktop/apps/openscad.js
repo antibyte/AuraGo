@@ -1326,7 +1326,7 @@ model();`;
             <div class="oscad-empty-icon">${icon(ctx, 'openscad', 'O', 'oscad-empty-glyph', 44)}</div>
             <strong>${esc(t(ctx, 'desktop.openscad.empty_preview_title', 'No preview yet'))}</strong>
             <span>${esc(t(ctx, 'desktop.openscad.empty_preview_hint', 'Render your model to see an interactive preview here.'))}</span>
-            ${ro ? '' : `<button type="button" class="oscad-btn oscad-primary oscad-empty-cta" data-oscad-empty-render>${icon(ctx, 'run', 'R', 'oscad-btn-icon', 15)}<span>${esc(t(ctx, 'desktop.openscad.render_now', 'Render now'))}</span></button><kbd class="oscad-empty-kbd">Ctrl+Enter</kbd>`}
+            ${ro ? '' : `<div class="oscad-empty-actions"><button type="button" class="oscad-btn oscad-primary oscad-empty-cta" data-oscad-empty-render>${icon(ctx, 'run', 'R', 'oscad-btn-icon', 15)}<span>${esc(t(ctx, 'desktop.openscad.render_now', 'Render now'))}</span></button><kbd class="oscad-empty-kbd">Ctrl+Enter</kbd></div>`}
         </div>`;
         const cta = panel.querySelector('[data-oscad-empty-render]');
         if (cta) cta.addEventListener('click', () => renderSource(state));
@@ -1463,12 +1463,7 @@ model();`;
             }
             p3d.bgTexture = texture;
             p3d.scene.background = texture;
-            if (p3d.mesh && p3d.mesh.material && p3d.mesh.material.color) {
-                p3d.mesh.material.color.set(state.lightPreview ? 0x5f87a8 : 0x2dd4bf);
-            }
-            if (p3d.shadowPlane && p3d.shadowPlane.material) {
-                p3d.shadowPlane.material.opacity = state.lightPreview ? 0.16 : 0.3;
-            }
+            applyPreviewStageLook(state);
         }
         syncShellControls(state);
         if (!p3d) renderViewport(state);
@@ -1700,7 +1695,8 @@ model();`;
             }
             if (p3d.gridHelper) {
                 try { p3d.gridHelper.geometry && p3d.gridHelper.geometry.dispose(); } catch (_) {}
-                try { p3d.gridHelper.material && p3d.gridHelper.material.dispose(); } catch (_) {}
+                const gridMats = Array.isArray(p3d.gridHelper.material) ? p3d.gridHelper.material : [p3d.gridHelper.material];
+                gridMats.forEach(mat => { try { mat && mat.dispose && mat.dispose(); } catch (_) {} });
             }
             if (p3d.bgTexture) {
                 try { p3d.bgTexture.dispose(); } catch (_) {}
@@ -1717,21 +1713,101 @@ model();`;
         }
     }
 
+    function previewStageLook(light) {
+        if (light) {
+            return {
+                sky: '#fbfcfd', mid: '#eef3f6', floor: '#e4ebf0',
+                model: 0x3d6480, roughness: 0.42, metalness: 0.06,
+                grid: 0x7d93a6, gridMajor: 0x4e6578, gridOpacity: 0.45,
+                hemiSky: 0xf7f9fb, hemiGround: 0xc5ced6, hemi: 0.55,
+                key: 0xfff6ea, keyIntensity: 1.25,
+                fill: 0xd7e3f0, fillIntensity: 0.35,
+                rim: 0xf0d7a8, rimIntensity: 0.12,
+                shadow: 0.16
+            };
+        }
+        return {
+            sky: '#1b3348', mid: '#10202e', floor: '#070e16',
+            model: 0xd7a441, roughness: 0.48, metalness: 0.08,
+            grid: 0x6e8190, gridMajor: 0xc4a36a, gridOpacity: 0.28,
+            hemiSky: 0xc9d7e6, hemiGround: 0x3a3328, hemi: 0.42,
+            key: 0xfff3e0, keyIntensity: 1.35,
+            fill: 0xb9c8da, fillIntensity: 0.26,
+            rim: 0xe7c48a, rimIntensity: 0.16,
+            shadow: 0.3
+        };
+    }
+
+    function makePreviewGrid(size, divisions, look) {
+        const grid = new THREE.GridHelper(size, divisions, look.gridMajor, look.grid);
+        grid.userData.gridSize = size;
+        grid.userData.gridDivisions = divisions;
+        const mats = Array.isArray(grid.material) ? grid.material : [grid.material];
+        mats.forEach(mat => {
+            if (!mat) return;
+            mat.transparent = true;
+            mat.opacity = look.gridOpacity;
+        });
+        return grid;
+    }
+
+    function replacePreviewGrid(p3d, look) {
+        const grid = p3d && p3d.gridHelper;
+        if (!grid || !window.THREE) return;
+        const next = makePreviewGrid(grid.userData.gridSize || 500, grid.userData.gridDivisions || 25, look);
+        next.position.copy(grid.position);
+        next.visible = grid.visible;
+        if (grid.parent) {
+            grid.parent.add(next);
+            grid.parent.remove(grid);
+        }
+        try { grid.geometry && grid.geometry.dispose(); } catch (_) {}
+        const mats = Array.isArray(grid.material) ? grid.material : [grid.material];
+        mats.forEach(mat => { try { mat && mat.dispose && mat.dispose(); } catch (_) {} });
+        p3d.gridHelper = next;
+    }
+
+    function applyPreviewStageLook(state) {
+        const p3d = state.preview3D;
+        if (!p3d || !window.THREE) return;
+        const look = previewStageLook(!!state.lightPreview);
+        const material = p3d.mesh && p3d.mesh.material;
+        if (material) {
+            if (material.color) material.color.set(look.model);
+            if (material.roughness !== undefined) material.roughness = look.roughness;
+            if (material.metalness !== undefined) material.metalness = look.metalness;
+        }
+        replacePreviewGrid(p3d, look);
+        if (p3d.shadowPlane && p3d.shadowPlane.material) p3d.shadowPlane.material.opacity = look.shadow;
+        if (p3d.hemi && p3d.hemi.color && p3d.hemi.groundColor) {
+            p3d.hemi.color.set(look.hemiSky);
+            p3d.hemi.groundColor.set(look.hemiGround);
+            p3d.hemi.intensity = look.hemi;
+        }
+        if (p3d.keyLight && p3d.keyLight.color) {
+            p3d.keyLight.color.set(look.key);
+            p3d.keyLight.intensity = look.keyIntensity;
+        }
+        if (p3d.fillLight && p3d.fillLight.color) {
+            p3d.fillLight.color.set(look.fill);
+            p3d.fillLight.intensity = look.fillIntensity;
+        }
+        if (p3d.rimLight && p3d.rimLight.color) {
+            p3d.rimLight.color.set(look.rim);
+            p3d.rimLight.intensity = look.rimIntensity;
+        }
+    }
+
     function previewBackgroundTexture(state) {
         const canvas = document.createElement('canvas');
         canvas.width = 2;
         canvas.height = 256;
         const g = canvas.getContext('2d');
+        const look = previewStageLook(!!state.lightPreview);
         const grad = g.createLinearGradient(0, 0, 0, 256);
-        if (state.lightPreview) {
-            grad.addColorStop(0, '#fcfeff');
-            grad.addColorStop(0.55, '#eef3f7');
-            grad.addColorStop(1, '#dce6ee');
-        } else {
-            grad.addColorStop(0, '#101d2d');
-            grad.addColorStop(0.55, '#0a1420');
-            grad.addColorStop(1, '#050b12');
-        }
+        grad.addColorStop(0, look.sky);
+        grad.addColorStop(0.55, look.mid);
+        grad.addColorStop(1, look.floor);
         g.fillStyle = grad;
         g.fillRect(0, 0, 2, 256);
         return new THREE.CanvasTexture(canvas);
@@ -1798,29 +1874,28 @@ model();`;
         controls.update();
         const onDblClick = () => resetPreviewView(state);
         renderer.domElement.addEventListener('dblclick', onDblClick);
-        const hemi = new THREE.HemisphereLight(0xbdd7ff, 0x2a241a, 0.45);
+        const look = previewStageLook(!!state.lightPreview);
+        const hemi = new THREE.HemisphereLight(look.hemiSky, look.hemiGround, look.hemi);
         scene.add(hemi);
-        const key = new THREE.DirectionalLight(0xfff1dd, 1.55);
+        const key = new THREE.DirectionalLight(look.key, look.keyIntensity);
         key.position.set(60, 90, 40);
         key.castShadow = true;
         key.shadow.mapSize.set(2048, 2048);
         key.shadow.bias = -0.0004;
         scene.add(key);
         scene.add(key.target);
-        const fill = new THREE.DirectionalLight(0x9fc4ff, 0.4);
+        const fill = new THREE.DirectionalLight(look.fill, look.fillIntensity);
         fill.position.set(-50, 30, -40);
         scene.add(fill);
-        const rim = new THREE.DirectionalLight(0x5eead4, 0.32);
+        const rim = new THREE.DirectionalLight(look.rim, look.rimIntensity);
         rim.position.set(-20, 40, 70);
         scene.add(rim);
-        let gridHelper = new THREE.GridHelper(500, 25, 0x42d7c8, 0x42d7c8);
-        gridHelper.material.transparent = true;
-        gridHelper.material.opacity = 0.22;
+        let gridHelper = makePreviewGrid(500, 25, look);
         scene.add(gridHelper);
         if (!state.showAxes) gridHelper.visible = false;
         // Each scene owns its record and download; results for a replaced scene are dropped.
         const controller = new AbortController();
-        const p3d = { scene, camera, renderer, controls, gridHelper, mesh: null, onDblClick, bgTexture, keyLight: key, shadowPlane: null, resizeObserver: null, lastWidth: width, lastHeight: height, abort: controller };
+        const p3d = { scene, camera, renderer, controls, gridHelper, mesh: null, onDblClick, bgTexture, hemi, keyLight: key, fillLight: fill, rimLight: rim, shadowPlane: null, resizeObserver: null, lastWidth: width, lastHeight: height, abort: controller };
         state.preview3D = p3d;
         if (window.ResizeObserver) {
             const resizeObserver = new ResizeObserver(() => resizePreviewRenderer(state, mount));
@@ -1837,10 +1912,11 @@ model();`;
             const geometry = loader.parse(buffer);
             if (!geometry) return;
             geometry.computeVertexNormals();
+            const stage = previewStageLook(!!state.lightPreview);
             const material = new THREE.MeshStandardMaterial({
-                color: state.lightPreview ? 0x5f87a8 : 0x2dd4bf,
-                roughness: 0.38,
-                metalness: 0.18,
+                color: stage.model,
+                roughness: stage.roughness,
+                metalness: stage.metalness,
                 flatShading: false,
                 transparent: false,
                 wireframe: state.viewportShading === 'wireframe'
@@ -1855,18 +1931,17 @@ model();`;
             const center = box.getCenter(new THREE.Vector3());
             const floorY = box.min.y;
             scene.remove(gridHelper);
-            gridHelper.geometry.dispose();
-            gridHelper.material.dispose();
-            gridHelper = new THREE.GridHelper(Math.max(10, size * 3.2), 32, 0x42d7c8, 0x3b6f74);
-            gridHelper.material.transparent = true;
-            gridHelper.material.opacity = 0.22;
+            try { gridHelper.geometry && gridHelper.geometry.dispose(); } catch (_) {}
+            const oldMats = Array.isArray(gridHelper.material) ? gridHelper.material : [gridHelper.material];
+            oldMats.forEach(mat => { try { mat && mat.dispose && mat.dispose(); } catch (_) {} });
+            gridHelper = makePreviewGrid(Math.max(10, size * 3.2), 32, stage);
             gridHelper.position.set(center.x, floorY - size * 0.002, center.z);
             gridHelper.visible = state.showAxes !== false;
             scene.add(gridHelper);
             p3d.gridHelper = gridHelper;
             const shadowPlane = new THREE.Mesh(
                 new THREE.PlaneGeometry(size * 4, size * 4),
-                new THREE.ShadowMaterial({ color: 0x000000, opacity: state.lightPreview ? 0.16 : 0.3 })
+                new THREE.ShadowMaterial({ color: 0x000000, opacity: stage.shadow })
             );
             shadowPlane.rotation.x = -Math.PI / 2;
             shadowPlane.position.set(center.x, floorY - size * 0.004, center.z);

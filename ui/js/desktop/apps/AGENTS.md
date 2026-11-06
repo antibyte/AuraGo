@@ -4960,7 +4960,11 @@ registration lives in `internal/desktop/types.go`.
   targeting the box center, and a `ResizeObserver` that keeps renderer size
   and camera aspect in sync (no stretched canvas on window/fullscreen
   resize). `cleanupPreview` disposes geometry, materials, background
-  texture, and disconnects the observer.
+  texture, and disconnects the observer. The shaded part is brass
+  (`#d7a441`) on the dark stage and ink blue (`#3d6480`) on the light
+  stage; grid and lights follow that stage and do not reuse the chrome
+  accent. `previewStageLook` is the only palette, and the background
+  toggle repaints mesh, grid, shadow and lights from it.
 - OpenSCAD keyboard shortcuts (Ctrl+Enter render, Esc cancel, F fit view,
   Ctrl+S save draft) are attached in `wireKeyboardShortcuts` and removed
   in `dispose`; splitters support pointer drag, double-click to collapse,

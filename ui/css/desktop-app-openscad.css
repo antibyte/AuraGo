@@ -9,18 +9,20 @@
     --oscad-text: var(--vd-text);
     --oscad-muted: var(--vd-theme-muted);
     /* App materials. The --oscad-bg/-surface/-border/-glass family above is forced by the shared theme bridge,
-       so the material roles get their own names. The accent follows the theme's primary colour (hover borders,
-       focus rings, splitters, spinner); the brand badge keeps the app accent. */
-    --oscad-brand: var(--vd-accent, #42d7c8);
+       so the material roles get their own names. Chrome accent, badge, focus and cursor follow the theme
+       primary. --oscad-mark is only the shaded preview part (brass), never a second UI accent. */
+    --oscad-brand: var(--vd-accent, #2f8f86);
     --oscad-accent: var(--vd-mat-primary-color, var(--oscad-brand));
-    --oscad-warm: var(--vd-amber, #ffb85c);
-    --oscad-danger: var(--vd-coral, #ff7180);
+    --oscad-mark: #d7a441;
+    --oscad-mark-ink: #1c1408;
+    --oscad-warm: var(--vd-amber, #e0a15a);
+    --oscad-danger: var(--vd-coral, #e06a78);
     --oscad-glass: var(--vd-theme-chrome-bg);
     --oscad-glass-border: var(--vd-theme-border);
     --oscad-line: var(--vd-mat-divider, var(--oscad-border));
-    --oscad-accent-gradient: linear-gradient(135deg, var(--oscad-accent), #65c7ff);
+    --oscad-accent-gradient: linear-gradient(180deg, color-mix(in srgb, var(--oscad-accent) 82%, white), var(--oscad-accent));
     --oscad-icon-filter: none;
-    --oscad-icon-filter-strong: brightness(0) saturate(100%) invert(11%) sepia(10%) saturate(900%) hue-rotate(140deg) brightness(95%) contrast(95%);
+    --oscad-icon-filter-strong: brightness(0);
     position: relative;
     display: grid;
     grid-template-rows: auto minmax(0, 1fr);
@@ -29,8 +31,7 @@
     min-height: 0;
     color: var(--oscad-text);
     background: var(--vd-mat-canvas,
-        radial-gradient(circle at 18% 8%, color-mix(in srgb, var(--oscad-accent) 14%, transparent), transparent 34%),
-        radial-gradient(circle at 82% 78%, rgba(255, 184, 92, 0.08), transparent 30%),
+        radial-gradient(ellipse at 50% -10%, color-mix(in srgb, var(--oscad-mark) 9%, transparent), transparent 46%),
         var(--oscad-bg));
     overflow: hidden;
 }
@@ -113,8 +114,10 @@
     height: 34px;
     border-radius: 10px;
     color: #061014;
-    background: linear-gradient(135deg, var(--oscad-brand), #65c7ff 62%, var(--oscad-warm));
-    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.24);
+    background: var(--oscad-accent);
+    box-shadow:
+        inset 0 1px 0 color-mix(in srgb, white 32%, transparent),
+        0 8px 18px color-mix(in srgb, var(--oscad-accent) 28%, transparent);
 }
 
 .oscad-brand h2 {
@@ -127,8 +130,9 @@
     line-height: 1.05;
     font-weight: var(--vd-mat-heading-weight, 850);
     color: var(--vd-mat-heading-color, var(--oscad-text));
-    letter-spacing: var(--vd-mat-heading-tracking, normal);
+    letter-spacing: var(--vd-mat-heading-tracking, -0.02em);
     text-transform: var(--vd-mat-heading-transform, none);
+    text-wrap: balance;
 }
 
 .oscad-brand p,
@@ -151,8 +155,11 @@
 
 .oscad-run-meta {
     display: flex;
+    flex: 0 1 auto;
     flex-wrap: wrap;
+    justify-content: flex-end;
     gap: 6px;
+    min-width: 0;
     min-height: 26px;
     align-items: center;
     font-size: 11px;
@@ -175,15 +182,17 @@
 }
 
 .oscad-dirty {
-    color: #111820;
+    color: var(--oscad-mark-ink);
     border-color: transparent;
     background: var(--oscad-warm);
 }
 
 .oscad-header-actions {
     display: flex;
+    flex: 0 0 auto;
     flex-wrap: wrap;
     align-items: center;
+    justify-content: flex-end;
     gap: 6px;
 }
 
@@ -417,14 +426,22 @@
     min-width: 0;
     min-height: 0;
     overflow: hidden;
-    border: 1px solid var(--oscad-line);
+    border: 1px solid color-mix(in srgb, white 8%, var(--oscad-line));
     border-radius: 14px;
     background: #050a10;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 22px 42px rgba(0, 0, 0, 0.22);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.06),
+        inset 0 -48px 80px rgba(0, 0, 0, 0.28),
+        0 18px 36px rgba(0, 0, 0, 0.28);
 }
 
 .openscad-app.light-preview .oscad-panel {
     background: #f2f6f8;
+    border-color: rgba(22, 42, 61, 0.14);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.8),
+        inset 0 -36px 70px rgba(22, 42, 61, 0.05),
+        0 16px 32px rgba(22, 42, 61, 0.12);
 }
 
 .openscad-app.busy .oscad-panel::after {
@@ -435,7 +452,7 @@
     width: 26px;
     height: 26px;
     border-radius: 50%;
-    border: 3px solid rgba(66, 215, 200, 0.2);
+    border: 3px solid color-mix(in srgb, var(--oscad-accent) 22%, transparent);
     border-top-color: var(--oscad-accent);
     animation: oscad-spin 780ms linear infinite;
 }
@@ -613,7 +630,7 @@
     width: 42px;
     height: 42px;
     border-radius: 50%;
-    border: 4px solid rgba(66, 215, 200, 0.2);
+    border: 4px solid color-mix(in srgb, var(--oscad-accent) 22%, transparent);
     border-top-color: var(--oscad-accent);
     animation: oscad-spin 780ms linear infinite;
 }
@@ -651,16 +668,16 @@
     font-size: 13.5px;
     font-weight: 740;
     background:
-        radial-gradient(circle at 50% 32%, rgba(66, 215, 200, 0.08), transparent 42%),
-        repeating-linear-gradient(0deg, rgba(148, 184, 202, 0.05) 0 1px, transparent 1px 34px),
-        repeating-linear-gradient(90deg, rgba(148, 184, 202, 0.05) 0 1px, transparent 1px 34px);
+        radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--oscad-mark) 14%, transparent), transparent 46%),
+        repeating-linear-gradient(0deg, rgba(148, 184, 202, 0.055) 0 1px, transparent 1px 32px),
+        repeating-linear-gradient(90deg, rgba(148, 184, 202, 0.055) 0 1px, transparent 1px 32px);
 }
 
 .openscad-app.light-preview .oscad-empty {
     background:
-        radial-gradient(circle at 50% 32%, rgba(66, 215, 200, 0.14), transparent 42%),
-        repeating-linear-gradient(0deg, rgba(22, 42, 61, 0.05) 0 1px, transparent 1px 34px),
-        repeating-linear-gradient(90deg, rgba(22, 42, 61, 0.05) 0 1px, transparent 1px 34px);
+        radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--oscad-mark) 18%, transparent), transparent 46%),
+        repeating-linear-gradient(0deg, rgba(22, 42, 61, 0.06) 0 1px, transparent 1px 32px),
+        repeating-linear-gradient(90deg, rgba(22, 42, 61, 0.06) 0 1px, transparent 1px 32px);
 }
 
 .oscad-empty strong {
@@ -685,24 +702,40 @@
 }
 
 .oscad-empty span {
-    max-width: 420px;
+    max-width: 38ch;
+    line-height: 1.45;
+}
+
+.oscad-empty-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 4px;
 }
 
 .oscad-empty-icon {
     display: grid;
     place-items: center;
-    width: 84px;
-    height: 84px;
-    margin-bottom: 4px;
-    border: 1px solid var(--oscad-glass-border);
-    border-radius: 24px;
+    width: 76px;
+    height: 76px;
+    margin-bottom: 2px;
+    border: 1px solid color-mix(in srgb, var(--oscad-accent) 35%, transparent);
+    border-radius: 22px;
     color: #061014;
-    background: linear-gradient(135deg, rgba(66, 215, 200, 0.9), rgba(101, 199, 255, 0.9));
-    box-shadow: 0 18px 44px rgba(66, 215, 200, 0.22);
+    background: var(--oscad-accent);
+    box-shadow:
+        inset 0 1px 0 color-mix(in srgb, white 34%, transparent),
+        0 16px 32px color-mix(in srgb, var(--oscad-accent) 24%, transparent);
 }
 
 .oscad-empty-cta {
     margin-top: 6px;
+}
+
+.oscad-empty-actions .oscad-empty-cta {
+    margin-top: 0;
 }
 
 .oscad-empty-kbd {
@@ -775,7 +808,7 @@
 
 .oscad-primary:hover:not(:disabled) {
     background: var(--vd-mat-primary-hover, var(--oscad-accent-gradient));
-    box-shadow: var(--vd-mat-primary-shadow, 0 8px 22px rgba(66, 215, 200, 0.3));
+    box-shadow: var(--vd-mat-primary-shadow, 0 8px 18px color-mix(in srgb, var(--oscad-accent) 32%, transparent));
 }
 
 /* Active tabs, pressed toggles and checked segments are the theme's selection material. */
@@ -793,9 +826,9 @@
 }
 
 .oscad-cancel {
-    color: #fff;
-    border-color: rgba(255, 113, 128, 0.32);
-    background: rgba(255, 113, 128, 0.18);
+    color: var(--oscad-danger);
+    border-color: color-mix(in srgb, var(--oscad-danger) 42%, transparent);
+    background: color-mix(in srgb, var(--oscad-danger) 14%, transparent);
 }
 
 .oscad-btn:hover:not(:disabled),
@@ -803,6 +836,13 @@
 .oscad-tab:hover:not(:disabled) {
     transform: translateY(-1px);
     border-color: color-mix(in srgb, var(--oscad-accent) 70%, transparent);
+}
+
+.oscad-btn:active:not(:disabled),
+.oscad-icon-btn:active:not(:disabled),
+.oscad-tab:active:not(:disabled),
+.oscad-seg:active:not(:disabled) {
+    transform: translateY(1px);
 }
 
 /* Plain buttons take the theme's hover material; primary, agent, cancel and the active states keep their fill. */
@@ -936,11 +976,10 @@
     margin: 10px 0 0;
     padding-top: 12px;
     border-top: 1px solid var(--oscad-line);
-    font-size: 10px;
-    font-weight: 700;
-    line-height: 1.6;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.55;
     color: var(--oscad-muted);
-    opacity: 0.8;
 }
 
 .oscad-chips {
@@ -1046,6 +1085,16 @@
     outline-offset: 1px;
 }
 
+.oscad-select:focus,
+.oscad-input:focus,
+.oscad-defines-text:focus,
+.oscad-define-number:focus,
+.oscad-define-text:focus {
+    outline: none;
+    border-color: color-mix(in srgb, var(--oscad-accent) 65%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--oscad-accent) 16%, transparent);
+}
+
 .oscad-select,
 .oscad-input {
     width: 100%;
@@ -1100,10 +1149,10 @@
 
 .oscad-mode-hint {
     margin: -2px 0 0;
-    font-size: 10px;
-    font-weight: 700;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.4;
     color: var(--oscad-muted);
-    opacity: 0.75;
 }
 
 /* ---------- Agent slide-over ---------- */
@@ -1198,8 +1247,7 @@
     min-height: 80px;
     border: 1px dashed var(--oscad-line);
     border-radius: 12px;
-    background:
-        radial-gradient(circle at 50% 0%, rgba(66, 215, 200, 0.06), transparent 60%);
+    background: color-mix(in srgb, var(--oscad-accent) 6%, transparent);
 }
 
 .oscad-msg-user,
@@ -1254,7 +1302,7 @@
 .oscad-chat:focus {
     outline: none;
     border-color: color-mix(in srgb, var(--oscad-accent) 60%, transparent);
-    box-shadow: 0 0 0 3px rgba(66, 215, 200, 0.14);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--oscad-accent) 18%, transparent);
 }
 
 .oscad-send-btn {
@@ -1329,6 +1377,7 @@
 
 .oscad-file:hover {
     border-color: color-mix(in srgb, var(--oscad-accent) 45%, transparent);
+    background: var(--vd-mat-hover, color-mix(in srgb, var(--oscad-accent) 6%, var(--vd-mat-card-color, var(--oscad-surface))));
 }
 
 .oscad-file-main {
@@ -1414,6 +1463,13 @@
     align-items: center;
     gap: 10px;
     flex-wrap: wrap;
+    padding: 4px 0 8px;
+    border-bottom: 1px solid var(--oscad-line);
+}
+
+.oscad-define-row:last-child {
+    border-bottom: 0;
+    padding-bottom: 0;
 }
 
 .oscad-define-label {
@@ -1438,9 +1494,9 @@
 
 .oscad-define-slider {
     flex: 1 1 auto;
-    min-width: 60px;
-    height: 6px;
-    border-radius: 3px;
+    min-width: 72px;
+    height: 8px;
+    border-radius: 999px;
     background: var(--vd-mat-field-color, rgba(255, 255, 255, 0.08));
     box-shadow: inset 0 0 0 1px var(--vd-mat-field-border, transparent);
     appearance: none;
@@ -1449,21 +1505,21 @@
 
 .oscad-define-slider::-webkit-slider-thumb {
     appearance: none;
-    width: 14px;
-    height: 14px;
+    width: 18px;
+    height: 18px;
     border-radius: 50%;
-    background: var(--vd-mat-primary-color, var(--oscad-accent-gradient));
-    border: none;
+    background: var(--vd-mat-primary-color, var(--oscad-accent));
+    border: 2px solid #061014;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.22);
     cursor: pointer;
 }
 
 .oscad-define-slider::-moz-range-thumb {
-    width: 14px;
-    height: 14px;
+    width: 18px;
+    height: 18px;
     border-radius: 50%;
-    background: var(--vd-mat-primary-color, var(--oscad-accent-gradient));
-    border: none;
+    background: var(--vd-mat-primary-color, var(--oscad-accent));
+    border: 2px solid #061014;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.22);
     cursor: pointer;
 }
@@ -1520,40 +1576,66 @@
     border-bottom: 1px dashed rgba(255, 184, 92, 0.30);
 }
 
-.oscad-source .tok-keyword {
-    color: #ff8aa0;
-    font-weight: bold;
+.oscad-source .tok-keyword,
+.oscad-source .tok-operator {
+    color: #ff9aab;
+    font-weight: 700;
 }
 
 .oscad-source .tok-string {
-    color: #b5e687;
+    color: #b7d98a;
 }
 
 .oscad-source .tok-number {
-    color: #ffd07a;
+    color: #e7c27a;
 }
 
 .oscad-source .tok-bool {
-    color: #a4d8ff;
-    font-weight: bold;
+    color: #9ec8ea;
+    font-weight: 700;
 }
 
 .oscad-source .tok-special {
-    color: #c084fc;
-    font-weight: bold;
+    color: #d2b0ea;
+    font-weight: 700;
 }
 
 .oscad-source .tok-comment {
-    color: #7a8b9c;
+    color: #8b9bab;
     font-style: italic;
 }
 
 .oscad-source .tok-function {
-    color: #42d7c8;
+    color: var(--oscad-mark);
 }
 
-.oscad-source .tok-operator {
-    color: #ff8aa0;
+.desktop-body[data-scheme="light"] .oscad-source .tok-keyword,
+.desktop-body[data-scheme="light"] .oscad-source .tok-operator {
+    color: #9d2340;
+}
+
+.desktop-body[data-scheme="light"] .oscad-source .tok-string {
+    color: #246b32;
+}
+
+.desktop-body[data-scheme="light"] .oscad-source .tok-number {
+    color: #8a5610;
+}
+
+.desktop-body[data-scheme="light"] .oscad-source .tok-bool {
+    color: #1a567f;
+}
+
+.desktop-body[data-scheme="light"] .oscad-source .tok-special {
+    color: #69348e;
+}
+
+.desktop-body[data-scheme="light"] .oscad-source .tok-comment {
+    color: #5d6b7a;
+}
+
+.desktop-body[data-scheme="light"] .oscad-source .tok-function {
+    color: #7a5310;
 }
 
 .oscad-source-fallback {
@@ -1680,8 +1762,19 @@
 @media (prefers-reduced-motion: reduce) {
     .oscad-btn,
     .oscad-icon-btn,
-    .oscad-tab {
+    .oscad-tab,
+    .oscad-seg {
         transition: none;
+    }
+
+    .oscad-btn:hover:not(:disabled),
+    .oscad-icon-btn:hover:not(:disabled),
+    .oscad-tab:hover:not(:disabled),
+    .oscad-btn:active:not(:disabled),
+    .oscad-icon-btn:active:not(:disabled),
+    .oscad-tab:active:not(:disabled),
+    .oscad-seg:active:not(:disabled) {
+        transform: none;
     }
 
     .openscad-app.busy .oscad-panel::after {
