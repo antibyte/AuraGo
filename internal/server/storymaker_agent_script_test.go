@@ -421,3 +421,46 @@ func TestStorymakerAgentScriptedJobNative(t *testing.T) {
 func TestStorymakerAgentScriptedJobTextMode(t *testing.T) {
 	smScriptRunHappyJob(t, smScriptTextModel, true)
 }
+
+func TestStorymakerAgentScriptedWeakModel(t *testing.T) {
+	// Flat fields: the scene sits beside operation and scene_id instead of inside data.
+	invalid := smScriptSceneOne()
+	invalid["operation"], invalid["scene_id"] = "put_scene", "s1"
+	invalid["actors"] = []any{map[string]any{"cast": "anna", "at": "left", "pose": "moonwalk"}}
+	flat := smScriptSceneTwo()
+	flat["operation"], flat["scene_id"] = "put_scene", "s2"
+
+	client := &smScriptClient{turns: map[string][]smScriptTurn{
+		storymaker.PhaseOutline: {{tool: "outline", args: map[string]any{"data": smScriptOutlineData()}}},
+		storymaker.PhaseCast: {
+			{prose: "Ich suche jetzt die Besetzung aus."},
+			smScriptStoryCall("set_meta", "", smScriptMetaData()),
+		},
+		storymaker.PhaseFill: {
+			{tool: "execute_shell", args: map[string]any{"command": "whoami"}},
+			{tool: storymaker.ToolStory, args: invalid},
+			smScriptStoryCall("patch_scene", "s1", map[string]any{
+				"actors": []any{map[string]any{"cast": "anna", "at": "left", "pose": "present"}},
+			}),
+			{tool: storymaker.ToolStory, args: flat},
+		},
+	}}
+	env := newSMScriptEnv(t, smScriptNativeModel, client)
+	job := smScriptWait(t, env.rt.agent, smScriptEnqueue(t, env.rt.agent, env).ID)
+	smScriptRequireReady(t, job)
+
+	st := smScriptStory(t, env)
+	smScriptRequireFilled(t, st, "s1", "s2")
+	if got := st.Scenes[0].Actors[0].Pose; got != "present" {
+		t.Fatalf("the patch did not reach the saved scene: pose = %q", got)
+	}
+	if !client.saw(`"status":"draft"`) {
+		t.Fatal("the invalid put_scene did not answer with a draft")
+	}
+	if !client.saw("tool_scope_denied") {
+		t.Fatal("execute_shell was not refused by the tool scope")
+	}
+	if !client.saw("Your last reply had no Storymaker tool call.") {
+		t.Fatal("the prose reply got no recovery nudge")
+	}
+}
