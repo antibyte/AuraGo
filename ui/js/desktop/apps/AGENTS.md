@@ -1091,7 +1091,11 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   keys in all sixteen locales.
 - The app owns a scoped dark skin (`.rg-*`, neon browser + cabinet player) that is
   identical under Standard and Fruity; fonts are the bundled Press Start 2P and
-  Px437 IBM VGA ("Retro Games VGA").
+  Px437 IBM VGA ("Retro Games VGA"). Scanlines sit behind the chrome and on
+  thumbnails. A list request sets `is-loading` on `.rg-app` until that response
+  paints. Escape in the search clears a query. Arrow, Home and End movement in
+  the grid scrolls the next card into view. The back label shrinks before the
+  cabinet marquee overflows.
 - No `innerHTML` in the three files: archive.org titles and makers reach the DOM
   only via `textContent`/attributes. Thumbnails load from
   `https://archive.org/services/img/<id>` with `referrerpolicy="no-referrer"`.
