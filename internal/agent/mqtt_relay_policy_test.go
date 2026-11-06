@@ -14,6 +14,7 @@ import (
 func mqttRelayPolicyFixture() (*config.Config, *DispatchContext) {
 	cfg := &config.Config{}
 	cfg.MQTT.Enabled = true
+	cfg.MQTT.RelayToAgent = true
 	cfg.MQTT.Broker = "mqtt://broker.invalid:1883"
 	cfg.MQTT.AllowUnauthenticatedRelay, cfg.MQTT.AllowUntrustedTransport = true, true
 	cfg.MQTT.RelayTopics = []string{"home/input"}
@@ -68,6 +69,44 @@ func TestMQTTRelayRevocationIntersectsCapturedAndLiveGrants(t *testing.T) {
 	call.Params["topic"] = "home/new"
 	if checkMQTTRelayAction(call, dc, DescribeAction(call, dc)) == nil {
 		t.Fatal("a live grant widened a captured run")
+	}
+}
+
+func TestMQTTRelaySourceRevocationIntersectsCapturedAndLive(t *testing.T) {
+	for _, tc := range []struct {
+		name, source, topic string
+		revoke              func(*config.Config)
+	}{
+		{"generic", "mqtt", "home/input", func(cfg *config.Config) { cfg.MQTT.RelayToAgent = false }},
+		{"frigate_disabled", "frigate", "frigate/events", func(cfg *config.Config) { cfg.Frigate.Enabled = false }},
+		{"frigate_events", "frigate", "frigate/events", func(cfg *config.Config) { cfg.Frigate.EventRelay = false }},
+		{"frigate_reviews", "frigate", "frigate/reviews", func(cfg *config.Config) { cfg.Frigate.ReviewRelay = false }},
+		{"frigate_prefix", "frigate", "frigate/events", func(cfg *config.Config) { cfg.Frigate.MQTTTopicPrefix = "other" }},
+	} {
+		for _, snapshot := range []string{"captured", "live"} {
+			t.Run(tc.name+"/"+snapshot, func(t *testing.T) {
+				captured, dc := mqttRelayPolicyFixture()
+				captured.Frigate.Enabled = true
+				captured.Frigate.EventRelay = true
+				captured.Frigate.ReviewRelay = true
+				captured.MQTT.RelayTopics = []string{tc.topic}
+				dc.MessageSource, dc.MQTTRelayTopic = tc.source, tc.topic
+				live := *captured
+				captured.AuthorizationSnapshots = func() (*config.Config, *config.Config) { return captured, &live }
+				call := ToolCall{Action: "mqtt_publish", Params: map[string]any{"topic": "home/light/set", "payload": "ON"}}
+				if refusal := checkMQTTRelayAction(call, dc, DescribeAction(call, dc)); refusal != nil {
+					t.Fatalf("enabled source refused: %+v", refusal)
+				}
+				if snapshot == "captured" {
+					tc.revoke(captured)
+				} else {
+					tc.revoke(&live)
+				}
+				if checkMQTTRelayAction(call, dc, DescribeAction(call, dc)) == nil {
+					t.Fatal("disabled relay source retained permission for an in-flight action")
+				}
+			})
+		}
 	}
 }
 

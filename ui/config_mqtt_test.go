@@ -91,7 +91,7 @@ func TestMQTTConfigRelayPermissionsSaveReloadBrowser(t *testing.T) {
 	page.MustEval(`async () => { await selectSection('mqtt', {scrollBehavior:'auto'}); }`)
 	waitForJSBool(t, page, `() => !!document.querySelector('[data-path="mqtt.relay_topics"]')`)
 	const want = `[{"tool":"mqtt_publish","operation":"publish","target":"mqtt:home/light/set"},{"tool":"home_assistant","operation":"call_service","target":"ha:light.desk/light.turn_on"}]`
-	assertGrants := func(got string) {
+	assertGrants := func(got, want string) {
 		t.Helper()
 		var actual, expected []map[string]string
 		if json.Unmarshal([]byte(got), &actual) != nil || json.Unmarshal([]byte(want), &expected) != nil || !reflect.DeepEqual(actual, expected) {
@@ -112,20 +112,49 @@ func TestMQTTConfigRelayPermissionsSaveReloadBrowser(t *testing.T) {
             input.value = target;
             input.dispatchEvent(new Event('input', {bubbles:true}));
         }
+        await selectSection('overview', {scrollBehavior:'auto'});
+        await selectSection('mqtt', {scrollBehavior:'auto'});
+        const targets = Array.from(document.querySelectorAll('[data-mqtt-grant-target]'), input => input.value);
+        if (JSON.stringify(targets) !== '["mqtt:home/light/set","ha:light.desk/light.turn_on"]') return 'draft grants lost on navigation';
         await saveConfig();
         const response = await fetch('/api/config');
         const saved = (await response.json()).mqtt;
         if (JSON.stringify(saved.relay_topics) !== '["home/input","frigate/events"]') return 'topics missing';
         return JSON.stringify(saved.relay_grants);
     }`).String()
-	assertGrants(got)
+	assertGrants(got, want)
 	page.MustNavigate(page.MustInfo().URL).MustWaitLoad()
 	waitForJSBool(t, page, `() => document.querySelectorAll('[data-mqtt-relay-grant]').length === 2`)
-	assertGrants(page.MustEval(`() => document.getElementById('mqtt-relay-grants-value').value`).String())
+	assertGrants(page.MustEval(`() => document.getElementById('mqtt-relay-grants-value').value`).String(), want)
 	page.MustEval(`() => mqttRemoveGrant(document.querySelector('[data-mqtt-relay-grant] button'))`)
 	if !page.MustEval(`() => AuraConfigState.get('mqtt.relay_grants').length === 1 && hasUnsavedConfigChanges()`).Bool() {
 		t.Fatal("removing a grant did not become a pending configuration change")
 	}
+	got = page.MustEval(`async () => {
+        const input = document.querySelector('[data-mqtt-grant-target]');
+        input.value = 'ha:light.bedroom/light.turn_on';
+        input.dispatchEvent(new Event('input', {bubbles:true}));
+        await selectSection('overview', {scrollBehavior:'auto'});
+        await selectSection('mqtt', {scrollBehavior:'auto'});
+        const targets = Array.from(document.querySelectorAll('[data-mqtt-grant-target]'), input => input.value);
+        if (JSON.stringify(targets) !== '["ha:light.bedroom/light.turn_on"]') return 'removed or edited grant lost on navigation';
+        mqttAddGrant();
+        const row = Array.from(document.querySelectorAll('[data-mqtt-relay-grant]')).at(-1);
+        const select = row.querySelector('[data-mqtt-grant-action]');
+        select.value = 'mqtt_publish|publish';
+        select.dispatchEvent(new Event('change', {bubbles:true}));
+        const target = row.querySelector('[data-mqtt-grant-target]');
+        target.value = 'mqtt:home/fan/set';
+        target.dispatchEvent(new Event('input', {bubbles:true}));
+        await saveConfig();
+        const response = await fetch('/api/config');
+        return JSON.stringify((await response.json()).mqtt.relay_grants);
+    }`).String()
+	const edited = `[{"tool":"home_assistant","operation":"call_service","target":"ha:light.bedroom/light.turn_on"},{"tool":"mqtt_publish","operation":"publish","target":"mqtt:home/fan/set"}]`
+	assertGrants(got, edited)
+	page.MustNavigate(page.MustInfo().URL).MustWaitLoad()
+	waitForJSBool(t, page, `() => document.querySelectorAll('[data-mqtt-relay-grant]').length === 2`)
+	assertGrants(page.MustEval(`() => document.getElementById('mqtt-relay-grants-value').value`).String(), edited)
 }
 
 func TestMQTTConfigTopicsEditSaveReloadBrowser(t *testing.T) {
@@ -186,8 +215,10 @@ func TestMQTTConfigTopicsEditSaveReloadBrowser(t *testing.T) {
 		t.Fatalf("saved allow_unauthenticated_relay = %s", got)
 	}
 	page.MustEval(`async () => {
-        configData.mqtt.availability.enabled = true;
-        await renderMQTTSection();
+        const toggle = document.querySelector('[data-path="mqtt.availability.enabled"]');
+        if (!toggle.classList.contains('on')) toggle.click();
+        await selectSection('overview', {scrollBehavior:'auto'});
+        await selectSection('mqtt', {scrollBehavior:'auto'});
     }`)
 	waitForJSBool(t, page, `() => !!document.querySelector('[data-path="mqtt.availability.qos"]')`)
 	if !page.MustEval(`() => document.querySelector('[data-path="mqtt.availability.qos"]').dataset.type === 'number'`).Bool() {

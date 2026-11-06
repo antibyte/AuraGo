@@ -61,7 +61,7 @@ function mqttChangeGrant(select) {
 
 async function renderMQTTSection(section) {
     if (section) _mqttSection = section; else section = _mqttSection;
-    const data = configData['mqtt'] || {};
+    const data = (window.AuraConfigState ? AuraConfigState.get('mqtt') : configData['mqtt']) || {};
     const enabled = data.enabled === true;
     const tls = data.tls || {};
     const buf = data.buffer || {};

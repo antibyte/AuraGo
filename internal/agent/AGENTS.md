@@ -14,8 +14,8 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 
 - MQTT/Frigate relays have server-owned ingress topics and non-nil native/skill
   scopes. `mqtt_relay_policy.go` checks exact tool/operation/target grants and
-  ingress filters against both captured and current authorization snapshots,
-  independently of `agent.action_policy.enabled`. Respect live read-only,
+  ingress filters and source enablement against captured and live authorization
+  snapshots, independently of `agent.action_policy.enabled`. Respect live read-only,
   Home Assistant service policy and destination/credential replacement. MQTT
   mutations have canonical operations/targets; publish and HA service calls
   retain registered-secret egress protection. Relay accounting uses category

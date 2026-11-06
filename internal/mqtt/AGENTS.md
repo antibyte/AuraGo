@@ -92,15 +92,18 @@ Broker configuration, subscriptions, relays, and mission dispatch.
   config-merger, including upgrades. Never materialize a transport grandfather.
   A client login does not identify publishers; broker ACLs must restrict them.
 - Every MQTT/Frigate tool dispatch rechecks exact grants and its server-owned
-  ingress topic against captured and live authorization snapshots, even with
-  the general action policy disabled. Preserve stricter run scopes, read-only
-  gates, HA service rules and registered-secret egress refusal. Supported actions
-  are MQTT read/publish/subscribe/unsubscribe, HA entity reads/services and owner
+  ingress topic and source enablement against captured and live authorization
+  snapshots, even with the general action policy disabled. Preserve stricter
+  run scopes, read-only gates, HA service rules and registered-secret egress
+  refusal. Supported actions are MQTT read/publish/subscribe/unsubscribe,
+  HA entity reads/services and owner
   notifications. Bind MQTT targets to exact topics/filters, HA writes to every
   explicit entity and service, and notifications to one configured channel.
   Reject broad HA selectors, unresolved targets, code, MCP and delegation.
   Revocation never widens an existing run; connection/credential replacement
   must not keep using a captured HA/notification destination.
+  Disabling the originating generic/Frigate relay or its event/review kind, or
+  changing its prefix blocks further dispatches; another relay cannot substitute.
 - Frigate prefixes remain literal MQTT topics. Invalid prefixes create neither
   subscriptions nor runs; the loader accepts the file and security hints explain
   the refusal. Status keeps connection/subscription diagnostics and adds pause

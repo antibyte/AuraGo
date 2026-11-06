@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"aurago/internal/config"
+	"aurago/internal/mqtt"
 )
 
 // MQTTRelayAllowedTools narrows discovery; dispatch separately checks every grant.
@@ -41,7 +42,11 @@ func checkMQTTRelayAction(tc ToolCall, dc *DispatchContext, action ActionDescrip
 		}
 	}
 	for _, cfg := range []*config.Config{dc.Cfg, current} {
-		if config.MQTTRelayPauseReason(cfg) != "" || !config.MQTTRelayTopicAllowed(cfg, dc.MQTTRelayTopic) {
+		sourceEnabled := cfg.MQTT.RelayToAgent
+		if dc.MessageSource == "frigate" {
+			_, sourceEnabled = mqtt.FrigateRelayKind(cfg, dc.MQTTRelayTopic)
+		}
+		if !sourceEnabled || config.MQTTRelayPauseReason(cfg) != "" || !config.MQTTRelayTopicAllowed(cfg, dc.MQTTRelayTopic) {
 			return deny()
 		}
 	}
