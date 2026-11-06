@@ -6,6 +6,8 @@ import (
 	"slices"
 	"strings"
 
+	"aurago/internal/storymaker"
+
 	"github.com/sashabaranov/go-openai"
 )
 
@@ -86,9 +88,17 @@ func scopeRecoveryFields(dc *DispatchContext, denied string) ([]string, string) 
 	}
 	names, studio := allowedToolList(dc.AllowedTools)
 	owner := gameMakerOperationOwners()[denied]
+	storymakerJob := storymakerJobScope(dc)
+	if storymakerJob {
+		owner = storymaker.OperationOwners()[denied]
+	}
 	switch {
 	case len(names) == 0:
 		return names, "No tool is available in this run; answer without a tool call."
+	case storymakerJob && owner != "" && !dispatchToolAllowed(dc, owner):
+		return names, fmt.Sprintf("%s is an operation of %s, which is not available in this phase. Call one of allowed_tools by its exact name.", echoedToolName(denied), owner)
+	case storymakerJob:
+		return names, "Call one of allowed_tools by its exact name; operations such as put_scene go in the operation argument."
 	case studio && owner != "" && !dispatchToolAllowed(dc, owner):
 		return names, fmt.Sprintf("%s is an operation of %s, which is not available in this phase. Call one of allowed_tools by its exact name.", echoedToolName(denied), owner)
 	case studio:

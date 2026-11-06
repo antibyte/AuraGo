@@ -158,6 +158,11 @@ func DescribeAction(tc ToolCall, dc *DispatchContext) ActionDescriptor {
 		}
 	}
 	applyExtendedActionRisk(&a, tc, dc, args)
+	if tc.Action == "storymaker_story" {
+		// The server binds this tool to the job's project, so the remove_ keyword
+		// does not make remove_scene high-risk. A deny rule still applies.
+		a.HighRisk = false
+	}
 	a.targets, a.targetUnknown = canonicalActionTargets(tc, dc)
 	a.Target = actionTargetSummary(a.targets)
 	return a
@@ -318,7 +323,7 @@ func checkDispatchActionPolicy(ctx context.Context, tc ToolCall, dc *DispatchCon
 			break
 		}
 	}
-	private := dc.ExecutionHooks != nil && dc.ToolScopeRestricted && dispatchToolAllowed(dc, tc.Action) && (strings.HasPrefix(tc.Action, "game_maker_") || strings.HasPrefix(tc.Action, "cyd_creator_"))
+	private := dc.ExecutionHooks != nil && dc.ToolScopeRestricted && dispatchToolAllowed(dc, tc.Action) && (strings.HasPrefix(tc.Action, "game_maker_") || strings.HasPrefix(tc.Action, "cyd_creator_") || strings.HasPrefix(tc.Action, "storymaker_"))
 	missingCatalog := !enabled && !private
 	if missingCatalog {
 		// Private prepared-profile hooks retain their existing policy-off route;
