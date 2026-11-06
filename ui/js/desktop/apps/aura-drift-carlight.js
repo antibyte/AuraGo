@@ -44,6 +44,72 @@
         material.customProgramCacheKey = () => key;
     };
 
+    const SHARED_TUNE = {
+        glass: m => { m.envMapIntensity = 1.8; m.depthWrite = false; m.roughness = 0.05; },
+        chrome: m => { m.metalness = 1; m.roughness = 0.1; m.envMapIntensity = 1.5; },
+        tyre: m => { m.envMapIntensity = 0.35; },
+        trim: m => { m.envMapIntensity = 0.7; }
+    };
+
+    /* A near-black accent (Big Bertha's #2a2a2a) would turn its flames and trim into holes in the
+       paint, so dark accents are lifted to a warm orange. fx uses the same colour for flames. */
+    AD.accentColour = function (carDef) {
+        const hex = String(carDef.accent || '#ffffff');
+        const n = parseInt(hex.slice(1), 16);
+        const lum = (0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255;
+        return lum < 0.3 ? '#ffa01e' : hex;
+    };
+
+    AD.carPaint = function (T, hex, gl, vertexColors, ghost, rim) {
+        const base = { color: hex, vertexColors: vertexColors, roughness: gl.clearcoat ? 0.28 : 0.3, metalness: gl.clearcoat ? 0.35 : 0.25 };
+        const m = gl.clearcoat
+            ? new T.MeshPhysicalMaterial(Object.assign(base, { clearcoat: 1, clearcoatRoughness: 0.08 }))
+            : new T.MeshStandardMaterial(base);
+        m.envMapIntensity = gl.clearcoat ? 1.0 : 1.35;
+        if (ghost) { m.transparent = true; m.opacity = 0.35; m.depthWrite = false; } else if (rim && AD.carShade) AD.carShade(m, rim);
+        return m;
+    };
+
+    /* Shared template materials are tuned once, by their GLB name. */
+    AD.carTune = function (src) {
+        if (SHARED_TUNE[src.name] && !src.userData.adTuned) { SHARED_TUNE[src.name](src); src.userData.adTuned = true; }
+    };
+
+    /* Per-frame shadow-caster gate for cars on the lean tier (gl.casters 1): only cars near the camera cast, and
+       only their painted shell. High tiers keep every part casting (set once by the rig). */
+    const BODY = { paint: 1, paint_accent: 1 };
+    AD.carCast = function (rig, near, gl) {
+        if (!gl || gl.casters !== 1 || rig.castNear === near) return;
+        rig.castNear = near;
+        rig.group.traverse(o => { if (o.isMesh) o.castShadow = !!near && !!gl.shadows && !!BODY[o.userData.srcName]; });
+    };
+
+    /* The four wheels as one instanced draw per car. Every wheel node of a car carries the same tyre mesh, the
+       right-hand ones mirrored in z; a wheel spins, so a half turn about y (hub out, no mirror) is equivalent.
+       The original wheel nodes stay in the rig as the animated transforms and are only hidden. */
+    AD.carWheelInst = function (T, wheels, root) {
+        if (wheels.length !== 4 || wheels.some(w => !w.node.isMesh)) return null;
+        const src = wheels[0].node;
+        const im = new T.InstancedMesh(src.geometry, src.material, 4);
+        im.frustumCulled = false;
+        im.userData.srcName = src.userData.srcName || (src.material && src.material.name) || 'tyre';
+        const flip = new T.Matrix4().makeRotationY(Math.PI), m = new T.Matrix4();
+        for (const w of wheels) w.node.visible = false;
+        root.add(im);
+        return {
+            mesh: im,
+            sync() {
+                wheels.forEach((w, i) => {
+                    w.node.updateMatrix();
+                    m.copy(w.node.matrix);
+                    if (w.node.position.z > 0) m.multiply(flip);
+                    im.setMatrixAt(i, m);
+                });
+                im.instanceMatrix.needsUpdate = true;
+            }
+        };
+    };
+
     function glowTexture(T) {
         const c = document.createElement('canvas');
         c.width = c.height = 64;

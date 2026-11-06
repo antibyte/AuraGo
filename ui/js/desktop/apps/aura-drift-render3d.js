@@ -555,6 +555,37 @@
                     wetness: wetness, chunks: ts ? ts.chunks || 0 : 0, projection: projection, tier: tier
                 };
             },
+            /* Draw-call accounting for tuning: visible meshes per scene child, main pass and shadow pass. */
+            breakdown() {
+                const frustum = new T.Frustum(), mat = new T.Matrix4(), sphere = new T.Sphere();
+                mat.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+                frustum.setFromProjectionMatrix(mat);
+                const box = glq.shadows ? glq.shadowBox * 0.75 : 0, cx = sun.target.position.x, cz = sun.target.position.z;
+                const out = {};
+                const add = (key, main, shadow, tris) => {
+                    const e = out[key] || (out[key] = { main: 0, shadow: 0, tris: 0, meshes: 0 });
+                    e.main += main; e.shadow += shadow; e.tris += tris; e.meshes++;
+                };
+                const visit = (o, key, depth) => {
+                    if (!o.visible) return;
+                    if ((o.isMesh || o.isPoints || o.isLine) && o.geometry) {
+                        const g = o.geometry, n = Array.isArray(o.material) ? (g.groups.length || 1) : 1;
+                        let seen = true, near = true;
+                        if (o.frustumCulled) {
+                            if (!g.boundingSphere) g.computeBoundingSphere();
+                            sphere.copy(g.boundingSphere).applyMatrix4(o.matrixWorld);
+                            seen = frustum.intersectsSphere(sphere);
+                            near = Math.abs(sphere.center.x - cx) < box + sphere.radius && Math.abs(sphere.center.z - cz) < box + sphere.radius;
+                        }
+                        const idx = g.index ? g.index.count : (g.attributes.position ? g.attributes.position.count : 0);
+                        const tris = (o.isInstancedMesh ? o.count : 1) * idx / 3;
+                        add(key.indexOf('stage') > 0 ? key + '|' + (o.parent && o.parent.name) + '|' + o.name + (o.isInstancedMesh ? ':I' + o.count : '') : key, seen ? n : 0, o.castShadow && glq.shadows && near ? n : 0, tris * (seen ? 1 : 0));
+                    }
+                    for (const c of o.children) visit(c, depth <= 2 && key.indexOf('stage') > 0 || depth === 1 ? key + '/' + (c.name || (c.isMesh ? 'mesh:' + (c.material && c.material.name || '') : c.type)) : key, depth + 1);
+                };
+                scene.children.forEach((c, i) => visit(c, c.name || ((c.isLight ? 'light:' : '') + c.type + '#' + i), 1));
+                return out;
+            },
             dispose() {
                 if (disposed) return;
                 disposed = true;

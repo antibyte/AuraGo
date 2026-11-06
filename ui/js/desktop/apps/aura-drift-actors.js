@@ -10,32 +10,6 @@
     const clamp = AD.clamp;
     const CRATE_RESPAWN = 8;
 
-    const SHARED_TUNE = {
-        glass: m => { m.envMapIntensity = 1.8; m.depthWrite = false; m.roughness = 0.05; },
-        chrome: m => { m.metalness = 1; m.roughness = 0.1; m.envMapIntensity = 1.5; },
-        tyre: m => { m.envMapIntensity = 0.35; },
-        trim: m => { m.envMapIntensity = 0.7; }
-    };
-
-    /* A near-black accent (Big Bertha's #2a2a2a) would turn its flames and trim into holes in the
-       paint, so dark accents are lifted to a warm orange. fx uses the same colour for flames. */
-    AD.accentColour = function (carDef) {
-        const hex = String(carDef.accent || '#ffffff');
-        const n = parseInt(hex.slice(1), 16);
-        const lum = (0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255;
-        return lum < 0.3 ? '#ffa01e' : hex;
-    };
-
-    function paintMaterial(T, hex, gl, vertexColors, ghost, rim) {
-        const base = { color: hex, vertexColors: vertexColors, roughness: gl.clearcoat ? 0.28 : 0.3, metalness: gl.clearcoat ? 0.35 : 0.25 };
-        const m = gl.clearcoat
-            ? new T.MeshPhysicalMaterial(Object.assign(base, { clearcoat: 1, clearcoatRoughness: 0.08 }))
-            : new T.MeshStandardMaterial(base);
-        m.envMapIntensity = gl.clearcoat ? 1.0 : 1.35;
-        if (ghost) { m.transparent = true; m.opacity = 0.35; m.depthWrite = false; } else if (rim && AD.carShade) AD.carShade(m, rim);
-        return m;
-    }
-
     function spring(s, key, target, k, c, dt) {
         const n = Math.max(1, Math.ceil(dt / 0.012));
         const h = dt / n;
@@ -84,7 +58,7 @@
             else if (src.name === 'brake_light') { brakeMat = brakeMat || own(src.clone()); o.material = brakeMat; }
             else if (src.name === 'head_light') { headMat = headMat || own(src.clone()); o.material = headMat; }
             else {
-                if (SHARED_TUNE[src.name] && !src.userData.adTuned) { SHARED_TUNE[src.name](src); src.userData.adTuned = true; }
+                AD.carTune(src);
                 if (rig.ghost) {
                     if (!sharedDone.has(src)) {
                         const c = own(src.clone());
@@ -103,11 +77,11 @@
             for (const [list, hex] of [[paintMeshes, paintHex], [accentMeshes, accentHex]]) {
                 if (!list.length) continue;
                 const old = list[0].material;
-                const mat = own(paintMaterial(T, hex, gl, !!list[0].geometry.attributes.color, rig.ghost, opts.rim));
+                const mat = own(AD.carPaint(T, hex, gl, !!list[0].geometry.attributes.color, rig.ghost, opts.rim));
                 for (const o of list) o.material = mat;
                 if (old && owned.indexOf(old) >= 0) { old.dispose(); owned.splice(owned.indexOf(old), 1); }
             }
-            rig.gl = gl;
+            rig.gl = gl; rig.castNear = undefined;
             root.traverse(o => {
                 if (!o.isMesh) return;
                 const n = o.userData.srcName;
@@ -129,6 +103,8 @@
             wheels.push({ node: node, front: name.indexOf('_f') > 0, radius: radius });
         }
         rig.wheels = wheels;
+        const wInst = AD.carWheelInst ? AD.carWheelInst(T, wheels, root) : null;
+        if (wInst) owned.push(wInst.mesh);
         rig.parts = { cone: pick('cone'), blade: pick('blade'), gnome: pick('gnome'), lamp: pick('lamp'), cushion: pick('cushion') };
         if (rig.parts.cushion) rig.parts.cushionY = rig.parts.cushion.position.y;
 
@@ -225,6 +201,7 @@
                 w.node.rotation.y = w.front ? -v.steer : 0;
                 w.node.rotation.z = -(w.spin || 0);
             }
+            if (wInst) wInst.sync();
             const p = rig.parts;
             if (p.blade) p.blade.rotation.y = st.blade;
             if (p.cone) { p.cone.rotation.z = clamp(st.ax * 0.011, -0.4, 0.4); p.cone.rotation.x = clamp(-st.lat * 0.011, -0.4, 0.4); }
@@ -396,7 +373,7 @@
             per.length = 0;
             for (const k of Object.keys(pools)) delete pools[k];
         }
-        function shadowFlags(obj) { obj.traverse(o => { if (o.isMesh) o.castShadow = !!gl.shadows; }); }
+        function shadowFlags(obj) { obj.traverse(o => { if (o.isMesh) o.castShadow = gl.casters === 2; }); }
         function cloneNamed(obj, names) {
             const found = {};
             obj.traverse(o => {
@@ -533,7 +510,7 @@
             const add = (list, name, getter, pulse, kind) => {
                 if (!list || !list.length) return null;
                 const tpl = getter(name), inst = instancedFrom(T, tpl, list.length, pulse);
-                inst.tpl = tpl; inst.list = list; inst.shadows(!!gl.shadows && kind !== 'flat');
+                inst.tpl = tpl; inst.list = list; inst.shadows(gl.casters === 2 && kind !== 'flat');
                 stage.add(inst.group); insts.push(inst);
                 return inst;
             };
@@ -609,11 +586,12 @@
                 inst.flush();
             }
             /* animals */
-            const list = fs.animals || [];
+            const list = fs.animals || [], near = list.map((a, i) => ({ i: i, d: Math.hypot(a.x - viewer.x, a.y - viewer.y) })).sort((p, q) => p.d - q.d);
+            const cap = gl.casters === 2 ? 99 : 3;
             for (let i = 0; i < list.length; i++) {
                 const a = list[i], rig = f.animals[i];
                 if (!rig) continue;
-                const far = Math.hypot(a.x - viewer.x, a.y - viewer.y) > 420;
+                const far = near.findIndex(e => e.i === i) >= cap || near.find(e => e.i === i).d > (gl.casters === 2 ? 420 : 190);
                 rig.group.visible = !far;
                 if (far) continue;
                 rig.group.position.set(a.x, a.z || 0, a.y);
@@ -890,7 +868,7 @@
                 gl = next;
                 for (const s of slots.concat(ghostSlot ? [ghostSlot] : [])) s.rig.setGl(gl);
                 for (const s of slots) s.blob.material.opacity = gl.shadows ? 0.5 : 0.8;
-                if (feat) for (const i of feat.insts) i.shadows(!!gl.shadows);
+                if (feat) for (const i of feat.insts) i.shadows(gl.casters === 2);
                 for (const name of Object.keys(pools)) for (const o of pools[name].items) shadowFlags(o.group);
             },
             update(r, dt, pose, reducedNow) {
@@ -921,6 +899,7 @@
                 for (const s of slots) {
                     const v = s.actor.v;
                     s.rig.update(v, dt, ctx);
+                    AD.carCast(s.rig, Math.hypot(v.x - viewer.x, v.y - viewer.y) < 42, gl);
                     updateCarFx(s, r, dt);
                     if (v.steerWobble > 0 && !reduced) s.rig.group.rotation.x += Math.sin(time * 28) * 0.06;
                     if (s.launch) applyLaunch(s, r);

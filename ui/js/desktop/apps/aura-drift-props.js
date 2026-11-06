@@ -456,6 +456,8 @@
             const counts = new Map();
             for (const p of placements) { const k = p.biome + '/' + p.name; counts.set(k, (counts.get(k) || 0) + 1); }
             const shadows = glq.shadows > 0;
+            /* casters: 0 none, 1 repeated tall props (trees) on daylight biomes only, 2 everything (the 180-call medium budget). */
+            const lean = glq.casters === 1 && !(AD.LOOK[biomeId] && AD.LOOK[biomeId].night);
             for (const [key, total] of counts) {
                 const [biome, name] = key.split('/');
                 if (name === 'gantry') continue;
@@ -486,7 +488,7 @@
                         mesh.instanceMatrix.setUsage(T.DynamicDrawUsage);
                         mesh.setColorAt(0, colour.setRGB(1, 1, 1));
                         mesh.instanceColor.setUsage(T.DynamicDrawUsage);
-                        mesh.castShadow = shadows && (tallish || total < 12) && part.role !== 'rotor';
+                        mesh.castShadow = shadows && glq.casters !== 0 && (glq.casters === 2 ? (tallish || total < 12) : (lean && tallish && total >= 12)) && part.role !== 'rotor';
                         mesh.receiveShadow = shadows;
                         group.add(mesh);
                         part.mesh = mesh;
@@ -534,7 +536,7 @@
                     const next = mats.map(m => { const c = m.clone(); owned.push(c); return c; });
                     o.material = Array.isArray(o.material) ? next : next[0];
                     if (/^light_/.test(o.name) || (o.parent && /^light_/.test(o.parent.name))) lights.push(o);
-                    o.castShadow = glq.shadows > 0;
+                    o.castShadow = glq.shadows > 0 && glq.casters === 2;
                 }
             });
             group.add(g);
@@ -711,7 +713,7 @@
             rebuild() { build(); },
             setQuality(next) {
                 if (!next) return;
-                const changed = next.props !== glq.props || next.shadows !== glq.shadows;
+                const changed = next.props !== glq.props || next.shadows !== glq.shadows || next.casters !== glq.casters;
                 glq = next;
                 if (changed) build();
             },

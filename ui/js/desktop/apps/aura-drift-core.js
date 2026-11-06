@@ -136,7 +136,7 @@
             particles: 70, weather: 0.25, lighting: false, bloom: false, chunkCache: 24, detail: 0.35,
             gl: {
                 dpr: 1, shadows: 0, shadowBox: 0, post: false, bloom: 'off', aa: 'none', msaa: 0, gtao: false,
-                particles: 300, skid: 800, props: 300, propRadius: 220, terrainCell: 16, lights: 0,
+                particles: 300, skid: 800, props: 300, propRadius: 220, terrainCell: 16, terrainBlock: 2, casters: 0, lights: 0,
                 clearcoat: false, envSize: 64, weather: 0.4, calls: 120, triangles: 250000
             }
         },
@@ -144,7 +144,7 @@
             particles: 180, weather: 0.6, lighting: true, bloom: false, chunkCache: 40, detail: 0.7,
             gl: {
                 dpr: 1.25, shadows: 1024, shadowBox: 90, post: true, bloom: 'half', aa: 'fxaa', msaa: 0, gtao: false,
-                particles: 900, skid: 2000, props: 700, propRadius: 320, terrainCell: 8, lights: 2,
+                particles: 900, skid: 2000, props: 700, propRadius: 320, terrainCell: 8, terrainBlock: 2, casters: 1, lights: 2,
                 clearcoat: false, envSize: 128, weather: 0.7, calls: 180, triangles: 500000
             }
         },
@@ -152,7 +152,7 @@
             particles: 380, weather: 1, lighting: true, bloom: true, chunkCache: 64, detail: 1,
             gl: {
                 dpr: 1.5, shadows: 2048, shadowBox: 140, post: true, bloom: 'full', aa: 'smaa', msaa: 0, gtao: false,
-                particles: 2000, skid: 3000, props: 1400, propRadius: 480, terrainCell: 8, lights: 4,
+                particles: 2000, skid: 3000, props: 1400, propRadius: 480, terrainCell: 8, terrainBlock: 1, casters: 2, lights: 4,
                 clearcoat: true, envSize: 256, weather: 1, calls: 260, triangles: 900000
             }
         },
@@ -160,7 +160,7 @@
             particles: 620, weather: 1.4, lighting: true, bloom: true, chunkCache: 96, detail: 1.35,
             gl: {
                 dpr: 2, shadows: 2048, shadowBox: 180, post: true, bloom: 'full', aa: 'smaa', msaa: 4, gtao: true,
-                particles: 3500, skid: 4000, props: 2200, propRadius: 700, terrainCell: 8, lights: 6,
+                particles: 3500, skid: 4000, props: 2200, propRadius: 700, terrainCell: 8, terrainBlock: 1, casters: 2, lights: 6,
                 clearcoat: true, envSize: 256, weather: 1.3, calls: 350, triangles: 1500000
             }
         }

@@ -209,6 +209,8 @@
             renderer.resize(w, h, dpr);
             post.resize(w, h, dpr);
             hud.resize(w, h, dpr);
+            /* Touch pads are two 56 px rows plus padding: lift the gauges clear of them. */
+            if (typeof hud.setInset === 'function') hud.setInset(window.matchMedia && window.matchMedia('(pointer: coarse)').matches ? 140 : 0);
         }
         const observer = window.ResizeObserver ? new ResizeObserver(resize) : null;
         if (observer) observer.observe(root);
@@ -579,6 +581,7 @@
                 return startRace(cfg, { intro: false });
             },
             snapshot,
+            breakdown() { return renderer.breakdown ? renderer.breakdown() : null; },
             setCamera(mode) { camera.setMode(mode); },
             warp(fraction) {
                 if (!race) return;
@@ -737,6 +740,7 @@
         debug: {
             start(config) { const d = currentDebug(); return d ? d.start(config) : Promise.resolve(false); },
             snapshot() { const d = currentDebug(); return d ? d.snapshot() : null; },
+            breakdown() { const d = currentDebug(); return d ? d.breakdown() : null; },
             setCamera(mode) { const d = currentDebug(); if (d) d.setCamera(mode); },
             warp(fraction) { const d = currentDebug(); if (d) d.warp(fraction); },
             give(id) { const d = currentDebug(); if (d) d.give(id); },

@@ -509,7 +509,7 @@
             geos.push(geo);
             const mesh = new T.Mesh(geo, mat);
             mesh.receiveShadow = true;
-            mesh.castShadow = near;
+            mesh.castShadow = near && !(rule.kind === 'flat' && q && q.casters === 1);
             mesh.matrixAutoUpdate = false;
             group.add(mesh);
             stats.chunks++;
@@ -519,7 +519,8 @@
         for (let cy = cy0; cy <= cy1; cy += 2) {
             for (let cx = cx0; cx <= cx1; cx += 2) {
                 const nr = [isNear(cx, cy), isNear(cx + 1, cy), isNear(cx, cy + 1), isNear(cx + 1, cy + 1)];
-                if (!nr[0] && !nr[1] && !nr[2] && !nr[3]) { add(cx * SIZE, cy * SIZE, SIZE * 2, farCell, false); continue; }
+                const anyNear = nr[0] || nr[1] || nr[2] || nr[3];
+                if (!anyNear || (q && q.terrainBlock === 2)) { add(cx * SIZE, cy * SIZE, SIZE * 2, anyNear ? nearCell : farCell, anyNear); continue; }
                 for (let k = 0; k < 4; k++) add((cx + (k & 1)) * SIZE, (cy + (k >> 1)) * SIZE, SIZE, nr[k] ? nearCell : farCell, nr[k]);
             }
         }
