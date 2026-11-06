@@ -81,10 +81,10 @@ async function runRender(opts = {}) {
     canvas.toBlob = (cb, type, quality) => cb({ __blob: true, type, quality });
     const win = { document: { body: { style: {} }, documentElement: { style: {} } }, requestAnimationFrame: fn => setTimeout(fn, 0) };
     canvas.style = {};
-    const workers = [];
+    const workers = opts.workers || [];
     const env = {
         hasWorkers: true,
-        createWorker(role, text) { const w = new InProcessWorker(role, text, {}); workers.push(w); return w; },
+        createWorker(role, text) { const w = new InProcessWorker(role, text, {}); workers.push(w); if (opts.onWorker) opts.onWorker(w, workers.length); return w; },
         setTimer: (fn, ms) => { if (opts.timers) opts.timers.push(ms); return setTimeout(fn, ms); }, clearTimer: h => clearTimeout(h), now: () => Date.now(), limits: { ...TEST_LIMITS, ...(opts.limits || {}) }
     };
     const status = await H.mountRender({ canvas, base: RBASE, fetch: server.fetch, window: win, env });
@@ -300,6 +300,53 @@ check('render mode: catalog.glyphs is fetched into catalog.glyph_data', async ()
     assert.equal(r.status.phase, 'stopped', JSON.stringify(r.status));
     assert.ok(r.server.gets.includes(RBASE + '/catalog/glyphs.json'));
     assert.deepEqual(plain(loadMsg.catalog.glyph_data), glyphData);
+});
+
+check('render mode: with boot.workers the helpers load and prepare before the report, and frames post in order', async () => {
+    const workers = [];
+    let atReport = null;
+    const r = await runRender({
+        workers, boot: { workers: 3, chunk: 8 },
+        report: () => {
+            atReport = workers.filter(w => w.role === 'player').map(w => w.received.includes('assets'));
+            return { start: true };
+        }
+    });
+    assert.equal(r.status.phase, 'done', JSON.stringify(r.status));
+    assert.deepEqual(atReport, [true, true, true], 'all three player workers hold their assets when the report goes out');
+    assert.equal(workers.filter(w => w.role === 'scene').length, 1, 'the code scene has one worker, in the main engine');
+    const count = r.server.posts.find(p => p.path === '/report').report.frame_count;
+    assert.deepEqual(r.frames.map(f => f.n), [...Array(count).keys()]);
+    assert.ok(r.frames.every(f => typeof f.body.size === 'number' && f.headers['Content-Type'] === 'text/plain'), 'the blobs come from the workers, as CORS-simple requests');
+    assert.equal(r.status.workers, 3);
+});
+
+check('render mode: a helper that compiles another frame count ends the job with render_failed before the report', async () => {
+    const r = await runRender({
+        story: minimal, noCode: true, boot: { workers: 2, chunk: 8 },
+        // The second worker of a story without code scenes is the helper: its compile answer gains one frame.
+        onWorker(w, count) {
+            if (count !== 2) return;
+            const deliver = w.deliverToHost.bind(w);
+            w.deliverToHost = data => deliver(data && data.report ? { ...data, report: { ...data.report, frame_count: data.report.frame_count + 1 } } : data);
+        }
+    });
+    assert.equal(r.status.phase, 'error');
+    assert.equal(r.status.error, 'render_failed');
+    assert.equal(r.server.posts.filter(p => p.path === '/report').length, 0);
+    assert.equal(r.server.posts.find(p => p.path === '/error').error.code, 'render_failed');
+});
+
+check('render mode: workers 1 and every other transport keep the serial path', async () => {
+    const one = [], webp = [];
+    const single = await runRender({ story: minimal, noCode: true, workers: one, boot: { workers: 1, chunk: 8 } });
+    assert.equal(single.status.phase, 'done');
+    assert.equal(one.filter(w => w.role === 'player').length, 1);
+    assert.equal(single.frames[0].body.type, 'image/png', 'encoded on the visible canvas');
+    const other = await runRender({ transport: 'webp', story: minimal, noCode: true, workers: webp, boot: { workers: 3, chunk: 8 } });
+    assert.equal(other.status.phase, 'done');
+    assert.equal(webp.filter(w => w.role === 'player').length, 1);
+    assert.equal(other.frames[0].body.type, 'image/webp');
 });
 
 check('host bundle is small and self-contained: no codescene, rig or compile in the document realm', () => {

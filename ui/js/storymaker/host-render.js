@@ -27,7 +27,7 @@
         var doFetch = opts.fetch || function (url, init) { return win.fetch(url, init); };
         var env = H.defaultEnv(base, opts.env || {});
         var status = win.__smStatus = { phase: 'boot', frame: -1 };
-        var engine = null;
+        var engine = null, helpers = [];
 
         // The token of the first boot.json answer stays here, and post() and waitForStart() read it. A failure text names a label or a route and
         // never a URL, because a URL holds the secret prefix and this text reaches __smStatus, POST /error and the job record.
@@ -136,6 +136,23 @@
             });
             await loaded.prepare();
             var rep = loaded.report;
+            // Parallel path: only PNG is encoded in the worker, and a main engine in the document-realm fallback stays serial.
+            // The helpers start before the report, so their start-up cannot trip the 10 s frame watchdog of Go.
+            var parallel = boot.transport === 'png' && boot.workers > 1 && boot.chunk > 0 && engine.mode === 'workers';
+            if (parallel) {
+                for (var hi = 1; hi < boot.workers; hi++) helpers.push(H.createEngine(env));
+                await Promise.all(helpers.map(async function (helper) {
+                    var made = await helper.load({
+                        story: story, catalog: catalog, audio_info: boot.audio_info || {}, assets: {}, fonts: [], code_bundles: {},
+                        format: { fps: boot.fps, width: boot.width, height: boot.height }, shared_code_scenes: engine.codeScenesInfo
+                    });
+                    if (helper.mode !== 'workers') throw H.fail('render_failed', 'A helper worker could not start.');
+                    if (made.report.frame_count !== rep.frame_count || JSON.stringify(helper.schedule) !== JSON.stringify(engine.schedule)) {
+                        throw H.fail('render_failed', 'A helper worker compiled ' + made.report.frame_count + ' frames, not ' + rep.frame_count + '.');
+                    }
+                    await made.prepare();
+                }));
+            }
             status.phase = 'reporting';
             var answer = await post('/report', JSON.stringify(rep), { 'Content-Type': 'application/json' });
             // Go answers at once and mixes in the background. A stand-in may still answer {start:true}.
@@ -192,6 +209,16 @@
             }
 
             status.phase = 'rendering';
+            if (parallel) {
+                var outcome = await H.runPool({
+                    engines: [engine].concat(helpers), limit: limit, chunk: boot.chunk, preRoll: boot.pre_roll > 0 ? boot.pre_roll : 0, status: status,
+                    post: function (f, blob) { return post('/frame?n=' + f, blob, { 'Content-Type': 'text/plain' }); }
+                });
+                helpers.forEach(function (helper) { helper.dispose(); });
+                status.phase = outcome.phase;
+                if (outcome.phase === 'stopped') { status.error = outcome.error; status.message = outcome.message; }
+                return status;
+            }
             var n = 0;
             for (;;) {
                 if (n >= limit) {
@@ -209,6 +236,7 @@
             }
         } catch (err) {
             if (engine) engine.dispose();
+            helpers.forEach(function (helper) { helper.dispose(); });
             status.phase = 'error';
             status.error = H.asError(err).code;
             status.message = H.asError(err).message;
