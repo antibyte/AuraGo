@@ -155,6 +155,7 @@ type storymakerAgentJob struct {
 	adviceDone bool
 	roundsLeft int
 	summary    string
+	before     *storymaker.Story
 
 	mu   sync.Mutex
 	info storymaker.AgentJobInfo
@@ -644,11 +645,13 @@ func (j *storymakerAgentJob) emitCheck(report storymaker.CheckReport) {
 	j.emit(agentEventCheck, map[string]any{"issues": len(report.Issues), "advice": len(report.Advice), "rounds_left": report.RoundsLeft, "compile": report.Compile})
 }
 
-// keepAnswer remembers the last text reply. It is released only with the outcome ready_unverified.
+// keepAnswer remembers the last text reply. A revise job keeps the reply of its revise loop, because the
+// per-request lines live there. It is released only with the outcome ready_unverified.
 func (j *storymakerAgentJob) keepAnswer(answer string) {
-	if answer != "" {
-		j.summary = answer
+	if answer == "" || (j.payload.Kind == storymaker.AgentKindRevise && j.summary != "") {
+		return
 	}
+	j.summary = answer
 }
 
 // runCheckRound is the check step: one model loop, only if the report asks for one. Advice gets one chance per job.
@@ -721,12 +724,19 @@ func (j *storymakerAgentJob) publishOutcome(ctx context.Context, in storymaker.O
 	progress.Drafts = in.Progress.Drafts
 	in.Progress = progress
 	outcome, checks := storymaker.DecideOutcome(in)
+	var changed, unchanged, removed []string
+	if j.before != nil {
+		if after := j.readStory(ctx); after != nil {
+			changed, unchanged, removed = storymaker.ChangedScenes(j.before, after)
+		}
+	}
 	j.emit(agentEventOutcome, map[string]any{"outcome": outcome})
 	j.update(func(info *storymaker.AgentJobInfo) {
 		info.Outcome, info.OpenChecks = outcome, checks
 		info.Phase, info.SceneID = "", ""
 		info.ScenesTotal, info.ScenesDone, info.StoryETag = progress.ScenesTotal, progress.ScenesDone, progress.ETag
 		info.DurationSeconds = in.Check.TotalSeconds
+		info.ChangedScenes, info.UnchangedScenes, info.RemovedScenes = changed, unchanged, removed
 		if outcome == storymaker.OutcomeReadyUnverified {
 			info.Summary = storymakerAgentSummary(j.summary)
 		}
@@ -743,6 +753,7 @@ func (j *storymakerAgentJob) publishOutcome(ctx context.Context, in storymaker.O
 
 // runRevise is the revise order: the revise loop, then the same steps as create from the check on.
 func (j *storymakerAgentJob) runRevise(ctx context.Context) {
+	j.before = j.readStory(ctx)
 	answer, _ := j.runPhase(ctx, storymakerAgentLoop{phase: storymaker.PhaseRevise})
 	j.keepAnswer(answer)
 	if ctx.Err() != nil {

@@ -99,7 +99,10 @@ func TestStorymakerReviseKeepsOtherScenes(t *testing.T) {
 	const changed = "Die zweite Szene ist jetzt neu."
 	s.LLMClient = &storymakerReviseClient{replies: []string{
 		`{"action":"storymaker_story","operation":"patch_scene","scene_id":"s2","data":{"narration":"` + changed + `"}}`,
+		// A first prose reply gets the recovery nudge, so the accepted answer is the second one.
 		"Szene 2 ist neu.",
+		"Szene 2 ist neu.",
+		"Pruefung abgeschlossen.",
 	}}
 
 	p := createStorymakerProject(t, s, token)
@@ -149,6 +152,13 @@ func TestStorymakerReviseKeepsOtherScenes(t *testing.T) {
 	}
 	if done.Agent == nil || done.Agent.Kind != storymaker.AgentKindRevise {
 		t.Fatalf("agent block = %+v", done.Agent)
+	}
+	if !reflect.DeepEqual(done.Agent.ChangedScenes, []string{"s2"}) ||
+		!reflect.DeepEqual(done.Agent.UnchangedScenes, []string{"s1", "s3"}) || len(done.Agent.RemovedScenes) != 0 {
+		t.Fatalf("scene lists = changed %v, unchanged %v, removed %v", done.Agent.ChangedScenes, done.Agent.UnchangedScenes, done.Agent.RemovedScenes)
+	}
+	if done.Agent.Outcome == storymaker.OutcomeReadyUnverified && done.Agent.Summary != "Szene 2 ist neu." {
+		t.Fatalf("summary = %q, want the revise reply", done.Agent.Summary)
 	}
 
 	after := storymakerReviseScenes(t, rt, p.Project.ID)
