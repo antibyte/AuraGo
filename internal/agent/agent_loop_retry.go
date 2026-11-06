@@ -28,8 +28,9 @@ func handleAgentLoopRecoveries(s *agentLoopState, content string, tc ToolCall, p
 	}
 
 	if _, building := normalizedAllowedToolSet(s.runCfg.AllowedTools)["game_maker_validate"]; !building &&
-		!tc.IsTool && strings.TrimSpace(content) != "" && s.runCfg.RunComplete != nil && s.gameMakerRun() {
+		!tc.IsTool && strings.TrimSpace(content) != "" && s.runCfg.RunComplete != nil && (s.gameMakerRun() || s.runCfg.RecoveryNudge != nil) {
 		// Planning requires a submitted design, regardless of prose or completion markers.
+		// A run with its own nudge gets the same single correction.
 		if s.announcementCount > 0 {
 			return content, tc, false, false
 		}
@@ -119,6 +120,8 @@ func handleAgentLoopRecoveries(s *agentLoopState, content string, tc ToolCall, p
 			tc.Action)
 		if s.gameMakerRun() {
 			xmlFeedback = formatGameMakerXMLFallbackFeedback(tc.Action, s.useNativeFunctions)
+		} else if s.runCfg.RecoveryNudge != nil {
+			xmlFeedback = formatIsolatedXMLFallbackFeedback(tc.Action, s.useNativeFunctions)
 		} else if len(content) > xmlFallbackContentMaxBytes {
 			xmlFeedback += " IMPORTANT: To edit existing files, use the `file_editor` tool with" +
 				" `str_replace` or `insert_after` — it modifies only the targeted section and" +

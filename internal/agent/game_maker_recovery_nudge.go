@@ -37,6 +37,9 @@ func (s *agentLoopState) gameMakerRun() bool {
 
 // announcementFeedback is the nudge for a text-only reply that made no tool call.
 func (s *agentLoopState) announcementFeedback() string {
+	if s.runCfg.RecoveryNudge != nil {
+		return s.runCfg.RecoveryNudge(s.useNativeFunctions)
+	}
 	if s.gameMakerRun() {
 		return formatGameMakerAnnouncementFeedback(s.useNativeFunctions, s.runCfg.AllowedTools)
 	}
@@ -69,6 +72,19 @@ func formatGameMakerAnnouncementFeedback(useNativeFunctions bool, allowedTools [
 		return feedback + " If this phase's work is done, reply with one short sentence; the server then checks the saved files."
 	}
 	return feedback + " Planning ends only when a design is accepted, so submit it with set_design."
+}
+
+// formatIsolatedXMLFallbackFeedback is the note for a run with its own
+// RecoveryNudge. The generic note points at discover_tools and file_editor, which
+// such a run cannot call.
+func formatIsolatedXMLFallbackFeedback(action string, useNativeFunctions bool) string {
+	next := "one raw JSON object with the tool name in its action field"
+	if useNativeFunctions {
+		next = "the native function-calling mechanism"
+	}
+	return fmt.Sprintf("NOTE: You called '%s' using a proprietary XML tool-call format. "+
+		"The call has already been executed and its action is COMPLETE — do NOT repeat it. "+
+		"Continue with the next step of the task. For future calls use %s.", action, next)
 }
 
 // formatGameMakerXMLFallbackFeedback is the Studio form of the note sent after a

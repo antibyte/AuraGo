@@ -1223,6 +1223,9 @@ type RunConfig struct {
 	// tool-result bookkeeping and return without another dispatch or LLM request.
 	// It must inspect authoritative state, never model prose or tool-output text.
 	RunComplete func() bool
+	// RecoveryNudge, when set, replaces the generic feedback for a text-only reply
+	// in an isolated run. native says which call form the model must use.
+	RecoveryNudge func(native bool) string
 	// Checkpoint retains a private, provider-native conversation at completed
 	// tool boundaries and on exit. It must not publish messages as user chat.
 	Checkpoint func([]openai.ChatCompletionMessage) error
