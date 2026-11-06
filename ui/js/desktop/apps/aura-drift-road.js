@@ -146,7 +146,7 @@
             case 'salt': return (u, v, lo, hi, o) => {
                 const crack = p.crack ? p.crack[(Math.floor(v * N) % N) * N + Math.floor(u * N)] : 0;
                 const wheel = lanes(u, 0.27, 0.73, 0.07);
-                const m = 0.95 + 0.12 * (lo - 0.5) + 0.1 * (hi - 0.5) + crack - 0.06 * wheel;
+                const m = 0.95 + 0.12 * (lo - 0.5) + 0.1 * (hi - 0.5) + crack * 0.6 - 0.06 * wheel;
                 o.r = base[0] * m; o.g = base[1] * m * 0.99; o.b = base[2] * m * (0.97 + 0.03 * lo);
                 o.k = 0.62 + 0.2 * (hi - 0.5) + (crack < -0.2 ? 0.25 : 0) - 0.15 * wheel;
                 paintLines(o, u, v, lo);
@@ -168,34 +168,34 @@
         const r = AD.rng(seed), rd = a => Math.floor(r() * a);
         const a = mode === 'a';
         for (let i = 0; i < p.patches; i++) {
-            const x = 20 + rd(N - 150), y = 20 + rd(N - 90), w = 50 + rd(110), h = 24 + rd(60);
+            const x = 20 + rd(N - 100), y = 20 + rd(N - 60), w = 22 + rd(56), h = 12 + rd(30);
             const dark = r() < 0.6;
-            g.fillStyle = a ? (dark ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.06)') : 'rgba(215,215,215,0.9)';
+            g.fillStyle = a ? (dark ? 'rgba(0,0,0,0.055)' : 'rgba(255,255,255,0.03)') : 'rgba(215,215,215,0.9)';
             g.fillRect(x, y, w, h);
-            g.strokeStyle = a ? 'rgba(0,0,0,0.26)' : 'rgb(255,255,255)';
-            g.lineWidth = 1;
+            g.strokeStyle = a ? 'rgba(0,0,0,0.1)' : 'rgb(255,255,255)';
+            g.lineWidth = 0.7;
             g.strokeRect(x + 0.5, y + 0.5, w, h);
         }
         g.lineCap = 'round';
         for (let i = 0; i < p.seams; i++) {
             const y = 30 + rd(N - 60);
-            g.strokeStyle = a ? 'rgba(8,8,10,0.55)' : 'rgb(255,255,255)';
-            g.lineWidth = 2;
+            g.strokeStyle = a ? 'rgba(8,8,10,0.3)' : 'rgb(255,255,255)';
+            g.lineWidth = 1;
             g.beginPath(); g.moveTo(0, y);
             for (let x = 0; x <= N; x += 32) g.lineTo(x, y + (r() - 0.5) * 3);
             g.stroke();
         }
         for (let i = 0; i < p.cracks; i++) {
             let x = 30 + rd(N - 60), y = 30 + rd(N - 60), ang = r() * 6.283;
-            const len = 6 + rd(16);
-            g.strokeStyle = a ? 'rgba(6,6,8,0.6)' : 'rgb(255,255,255)';
-            g.lineWidth = 0.6 + r() * 0.7;
+            const len = 3 + rd(7);
+            g.strokeStyle = a ? 'rgba(6,6,8,0.34)' : 'rgb(255,255,255)';
+            g.lineWidth = 0.4 + r() * 0.45;
             g.beginPath(); g.moveTo(x, y);
             for (let s = 0; s < len; s++) {
                 ang += (r() - 0.5) * 1.1;
-                x += Math.cos(ang) * 7; y += Math.sin(ang) * 7;
+                x += Math.cos(ang) * 3.5; y += Math.sin(ang) * 3.5;
                 g.lineTo(x, y);
-                if (r() < 0.12) { g.moveTo(x, y); const bx = x + Math.cos(ang + 1) * 18, by = y + Math.sin(ang + 1) * 18; g.lineTo(bx, by); g.moveTo(x, y); }
+                if (r() < 0.12) { g.moveTo(x, y); const bx = x + Math.cos(ang + 1) * 8, by = y + Math.sin(ang + 1) * 8; g.lineTo(bx, by); g.moveTo(x, y); }
             }
             g.stroke();
         }
@@ -206,23 +206,30 @@
         const roadRgb = W.hexRgb(biome.road), lineRgb = W.hexRgb(biome.line);
         const tint = (c, k) => c.map(v => clamp(v * k, 0, 255));
         const p = { dashes: dashes, lines: lines, line: lineRgb, lineStrength: 1, patches: 0, seams: 0, cracks: 0 };
-        const nk = look.night ? 1.5 : 1;
-        if (kind === 'asphalt') { p.base = tint(roadRgb, 1.5 * nk); p.patches = 8; p.seams = 4; p.cracks = 26; }
-        else if (kind === 'wet') { p.base = tint(roadRgb, 1.35 * nk); p.patches = 5; p.seams = 3; p.cracks = 14; }
+        const nk = (look.night ? 1.5 : 1) * (look.roadLift || 1);
+        if (kind === 'asphalt') { p.base = tint(roadRgb, 1.5 * nk); p.patches = 6; p.seams = 2; p.cracks = 44; p.grain = 0.24; }
+        else if (kind === 'wet') { p.base = tint(roadRgb, 1.35 * nk); p.patches = 4; p.seams = 2; p.cracks = 24; p.grain = 0.2; }
         else if (kind === 'gravel') p.base = [150, 141, 128];
         else if (kind === 'sand') p.base = [226, 190, 128];
         else if (kind === 'mud') p.base = [92, 70, 50];
         else if (kind === 'snow') p.base = [242, 247, 253];
         else if (kind === 'ice') { p.base = [158, 208, 238]; p.crack = W.voronoi(N, 9, 31); }
-        else if (kind === 'salt') { p.base = tint(roadRgb, 1.1); p.crack = W.voronoi(N, 22, 5); p.patches = 2; p.cracks = 4; }
+        else if (kind === 'salt') { p.base = tint(roadRgb, 1.1); p.crack = W.voronoi(N, 46, 5); p.patches = 2; p.cracks = 6; p.grain = 0.12; }
         else p.base = tint(roadRgb, 1.4);
         const fn = surfaceFactory(kind, p);
         const ca = canvas(N), cr = canvas(N), ga = ca.getContext('2d'), gr = cr.getContext('2d');
         const ia = ga.createImageData(N, N), ir = gr.createImageData(N, N), da = ia.data, dr = ir.data, o = { r: 0, g: 0, b: 0, k: 0 };
+        /* Fine aggregate: per-pixel grain with a few bright chips, so the surface reads at car scale. */
+        let gs = AD.hashString(biome.road + kind + 'grain') >>> 0;
+        const grain = () => { gs = (Math.imul(gs, 1664525) + 1013904223) >>> 0; return gs / 4294967296; };
         for (let j = 0; j < N; j++) {
             for (let i = 0; i < N; i++) {
                 const q = j * N + i;
                 fn(i / N, j / N, tn.lo[q], tn.hi[q], o);
+                if (p.grain) {
+                    const n = grain(), f = 1 + (n - 0.5) * p.grain + (n > 0.985 ? 0.22 : 0);
+                    o.r *= f; o.g *= f; o.b *= f;
+                }
                 da[q * 4] = o.r; da[q * 4 + 1] = o.g; da[q * 4 + 2] = o.b; da[q * 4 + 3] = 255;
                 const k = clamp(o.k, 0, 1) * 255;
                 dr[q * 4] = dr[q * 4 + 1] = dr[q * 4 + 2] = k; dr[q * 4 + 3] = 255;
@@ -599,7 +606,7 @@
                     const spec = WET_MAT[e.kind];
                     e.mat.roughness = lerp(spec.a, spec.b, wet);
                     e.mat.color.setScalar(lerp(1, spec.dark, wet));
-                    if (spec.coat > 0 && e.mat.clearcoat !== undefined) e.mat.clearcoat = 0.001 + spec.coat * wet;
+                    if (spec.coat > 0 && e.mat.clearcoat !== undefined) e.mat.clearcoat = 0.001 + spec.coat * wet * (look.roadCoat === undefined ? 1 : look.roadCoat);
                 }
             },
             stats() { return stats; },

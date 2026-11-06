@@ -10,6 +10,7 @@
  *   terrain      vertex colour palette { low, mid, high, rock } for T3.3
  *   headlights   headlamp emission for cars (night biomes burn bright)
  *   wet          base road wetness 0..1
+ *   roadLift     base road albedo multiplier, roadCoat clearcoat multiplier (both optional, default 1)
  * TERRAIN[biome] height rules (metres), interpreted by terrain.js.
  * SCATTER[biome] prop name -> { min, max, rate } : band from the road edge, count per 100 m per side. */
 (function () {
@@ -34,7 +35,7 @@
         harbour: look({
             time: 'blue hour neon', sunEl: 6, sunAz: 250, sun: '#8fb4ff', skyTop: '#141c44', skyHorizon: '#d36a7a', fog: '#2a3050', fogFar: 650,
             exposure: 1.0, bloom: 0.8, grade: 'teal-magenta', hemiSky: '#4a5a9c', hemiGround: '#2a2438', hemi: 1.3, sunPower: 2.4, env: 1.1,
-            ground: '#252d3d', night: true, headlights: 1.6, wet: 0.7,
+            ground: '#252d3d', night: true, headlights: 1.6, wet: 0.7, roadCoat: 0.3,
             terrain: { low: '#222c3c', mid: '#2c3a50', high: '#3d4c62', rock: '#4a5568' }
         }),
         salt: look({
@@ -62,7 +63,7 @@
         metro: look({
             time: 'midnight neon', sunEl: 4, sunAz: 270, sun: '#7f8cff', skyTop: '#0c0a22', skyHorizon: '#5a2a7a', fog: '#1a1436', fogFar: 520,
             exposure: 1.0, bloom: 0.95, grade: 'magenta', hemiSky: '#4a3a8a', hemiGround: '#241a38', hemi: 1.4, sunPower: 2.2, env: 1.1, ground: '#2a2d36',
-            night: true, headlights: 1.8, wet: 0.6,
+            night: true, headlights: 1.8, wet: 0.6, roadLift: 1.45,
             terrain: { low: '#262a32', mid: '#31353f', high: '#444956', rock: '#3a3a48' }
         })
     };
