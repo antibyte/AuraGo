@@ -141,6 +141,12 @@ func handleStorymaker(s *Server) http.HandlerFunc {
 				handleStorymakerProjectJobs(s, w, r, id)
 			case len(parts) == 3 && parts[2] == "narration":
 				handleStorymakerNarration(s, w, r, id)
+			case len(parts) == 3 && parts[2] == "make-silent":
+				handleStorymakerMakeSilent(s, w, r, id)
+			case len(parts) == 3 && parts[2] == "restore-speech":
+				handleStorymakerRestoreSpeech(s, w, r, id)
+			case len(parts) == 4 && parts[2] == "agent" && parts[3] == "revise":
+				handleStorymakerAgentRevise(s, w, r, id)
 			case len(parts) == 3 && parts[2] == "narrate":
 				handleStorymakerNarrate(s, w, r, id)
 			case len(parts) == 5 && parts[2] == "audio":
@@ -152,6 +158,8 @@ func handleStorymaker(s *Server) http.HandlerFunc {
 			default:
 				writeStorymakerError(w, http.StatusNotFound, "not_found", "Storymaker endpoint not found.", nil)
 			}
+		case len(parts) == 2 && parts[0] == "agent" && parts[1] == "jobs":
+			handleStorymakerAgentJobs(s, w, r)
 		case len(parts) == 2 && parts[0] == "jobs":
 			handleStorymakerJob(s, w, r, parts[1])
 		case len(parts) == 3 && parts[0] == "jobs" && parts[2] == "cancel":
@@ -284,6 +292,7 @@ func handleStorymakerStatus(s *Server, w http.ResponseWriter, r *http.Request) {
 	}
 	status["transport"] = render.ChooseTransport(cfg.Storymaker.Render.Transport)
 	status["catalog_version"] = rt.catalog.Version()
+	status["agent"] = s.storymakerAgentStatus(cfg)
 	w.Header().Set("Cache-Control", "no-store")
 	writeStorymakerJSON(w, http.StatusOK, status)
 }
@@ -413,6 +422,9 @@ func handleStorymakerProject(s *Server, w http.ResponseWriter, r *http.Request, 
 			status = []storymaker.CodeSceneStatus{}
 		}
 		body := map[string]any{"project": project, "etag": etag, "code_scenes": status}
+		if has, err := acc.rt.projects.HasSilentBackup(ctx, id); err == nil && has {
+			body["silent_backup"] = true
+		}
 		story, decodeIssues, derr := storymaker.DecodeStory(data, lim)
 		if derr != nil {
 			// A story.json edited by hand can be unreadable: the app shows the issues and the text.
