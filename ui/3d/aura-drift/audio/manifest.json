@@ -18,16 +18,13 @@
       "sfx/impact-metal-3.ogg"
     ],
     "scrape.metal": [
-      "sfx/scrape-metal-1.ogg",
-      "sfx/scrape-metal-2.ogg"
+      "sfx/scrape-metal-1.ogg"
     ],
     "tyre.squeal": [
-      "sfx/tyre-squeal-1.ogg",
-      "sfx/tyre-squeal-2.ogg"
+      "sfx/tyre-squeal-1.ogg"
     ],
     "explosion.small": [
-      "sfx/explosion-small-1.ogg",
-      "sfx/explosion-small-2.ogg"
+      "sfx/explosion-small-1.ogg"
     ],
     "explosion.big": [
       "sfx/explosion-big-1.ogg",
@@ -35,12 +32,10 @@
     ],
     "crate.break": [
       "sfx/crate-break-1.ogg",
-      "sfx/crate-break-2.ogg",
-      "sfx/crate-break-3.ogg"
+      "sfx/crate-break-2.ogg"
     ],
     "prop.hay": [
-      "sfx/prop-hay-1.ogg",
-      "sfx/prop-hay-2.ogg"
+      "sfx/prop-hay-1.ogg"
     ],
     "prop.cone": [
       "sfx/prop-cone-1.ogg",
@@ -56,20 +51,17 @@
       "sfx/prop-tyres-2.ogg"
     ],
     "crowd.cheer": [
-      "sfx/crowd-cheer-1.ogg",
-      "sfx/crowd-cheer-2.ogg"
+      "sfx/crowd-cheer-1.ogg"
     ],
     "crowd.aww": [
       "sfx/crowd-aww-1.ogg",
       "sfx/crowd-aww-2.ogg"
     ],
     "animal.cow": [
-      "sfx/animal-cow-1.ogg",
-      "sfx/animal-cow-2.ogg"
+      "sfx/animal-cow-1.ogg"
     ],
     "animal.sheep": [
-      "sfx/animal-sheep-1.ogg",
-      "sfx/animal-sheep-2.ogg"
+      "sfx/animal-sheep-1.ogg"
     ],
     "animal.penguin": [
       "sfx/animal-penguin-1.ogg",
@@ -411,46 +403,383 @@
     "menu": "music/menu.ogg",
     "results": "music/results.ogg"
   },
-  "sources": [],
-  "overrides": [],
+  "sources": [
+    {
+      "id": "oga-cannon-fire",
+      "title": "Cannon Fire",
+      "author": "Thimras",
+      "page": "https://opengameart.org/content/cannon-fire",
+      "download": "https://opengameart.org/sites/default/files/cannon_fire_0.ogg",
+      "file": "cannon_fire_0.ogg",
+      "bytes": 179939,
+      "sha256": "2b21ffa41e5c3be4eecdfbd3490544f5aa8b6d1581787265863e13de1a8e599d",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/"
+    },
+    {
+      "id": "oga-sfx-loops",
+      "title": "30 CC0 SFX Loops",
+      "author": "rubberduck",
+      "page": "https://opengameart.org/content/30-cc0-sfx-loops",
+      "download": "https://opengameart.org/sites/default/files/sfx_loops.zip",
+      "file": "sfx_loops.zip",
+      "bytes": 3526706,
+      "sha256": "9c013474c7e56192a0d1b2840535a1e1d8b93166948d4a9f7136bb6c3d5421cd",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/"
+    },
+    {
+      "id": "oga-wood-metal",
+      "title": "100 CC0 Wood and Metal SFX",
+      "author": "rubberduck",
+      "page": "https://opengameart.org/content/100-cc0-woodmetal-sfx",
+      "download": "https://opengameart.org/sites/default/files/100-CC0-wood-metal-SFX.zip",
+      "file": "100-CC0-wood-metal-SFX.zip",
+      "bytes": 1990361,
+      "sha256": "be6eba63b03409ac0c77787a956b1503a7c186403d04aef9725c52644a4b7878",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/"
+    },
+    {
+      "id": "oga-breaking-falling",
+      "title": "75 CC0 Breaking, Falling and Hit SFX",
+      "author": "rubberduck",
+      "page": "https://opengameart.org/content/75-cc0-breaking-falling-hit-sfx",
+      "download": "https://opengameart.org/sites/default/files/sfx_breaking_and_falling.zip",
+      "file": "sfx_breaking_and_falling.zip",
+      "bytes": 1624406,
+      "sha256": "e6ee04d91c5f4d30cfda1260d2c9d1faf96fda36319287215fbd07bcb1a80451",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/"
+    },
+    {
+      "id": "bsb-2385",
+      "title": "Cow moos #5 (BigSoundBank sound 2385)",
+      "author": "Joseph Sardin (BigSoundBank)",
+      "page": "https://bigsoundbank.com/",
+      "download": "https://bigsoundbank.com/UPLOAD/ogg/2385.ogg",
+      "file": "2385.ogg",
+      "bytes": 35874,
+      "sha256": "b06fb4bbf7076742db6ab8b2d6891a29f0d2b45d8472bec82357f75276103471",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/"
+    },
+    {
+      "id": "bsb-2346",
+      "title": "Sheep #4 (BigSoundBank sound 2346)",
+      "author": "Joseph Sardin (BigSoundBank)",
+      "page": "https://bigsoundbank.com/",
+      "download": "https://bigsoundbank.com/UPLOAD/ogg/2346.ogg",
+      "file": "2346.ogg",
+      "bytes": 11482,
+      "sha256": "74515d72d733d6c8f9ab8d087fda80a3a6addf2def9ae3c7684ca5fbb47d17d4",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/"
+    },
+    {
+      "id": "bsb-0237",
+      "title": "Shouts and applauses of teens #2 (BigSoundBank sound 0237)",
+      "author": "Joseph Sardin (BigSoundBank)",
+      "page": "https://bigsoundbank.com/",
+      "download": "https://bigsoundbank.com/UPLOAD/ogg/0237.ogg",
+      "file": "0237.ogg",
+      "bytes": 187299,
+      "sha256": "4348fcd8b0dd6c3a65e76e3e0e6d957827850f7493c3f2264b1103c144cced8c",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/"
+    },
+    {
+      "id": "bsb-2371",
+      "title": "Screeching tires #4 (BigSoundBank sound 2371)",
+      "author": "Joseph Sardin (BigSoundBank)",
+      "page": "https://bigsoundbank.com/",
+      "download": "https://bigsoundbank.com/UPLOAD/ogg/2371.ogg",
+      "file": "2371.ogg",
+      "bytes": 57954,
+      "sha256": "c1351fec2d0e750a9c452746b7de783c55f5f6fb21525cbf0eb5295734224149",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/"
+    },
+    {
+      "id": "bsb-0543",
+      "title": "Metal bucket (BigSoundBank sound 0543)",
+      "author": "Joseph Sardin (BigSoundBank)",
+      "page": "https://bigsoundbank.com/",
+      "download": "https://bigsoundbank.com/UPLOAD/ogg/0543.ogg",
+      "file": "0543.ogg",
+      "bytes": 576786,
+      "sha256": "7f41544f07a54642cad98ce00a57409b4a874151605f3cc73d7934d7b7ece6a1",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/"
+    },
+    {
+      "id": "bsb-0137",
+      "title": "Feet in leaves #1 (BigSoundBank sound 0137)",
+      "author": "Joseph Sardin (BigSoundBank)",
+      "page": "https://bigsoundbank.com/",
+      "download": "https://bigsoundbank.com/UPLOAD/ogg/0137.ogg",
+      "file": "0137.ogg",
+      "bytes": 2378279,
+      "sha256": "8a976268d3dea98181fff0720d4477ed095ec52a28ea7e5c50095a55c852cbeb",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/"
+    },
+    {
+      "id": "bsb-0265",
+      "title": "Beach small waves (BigSoundBank sound 0265)",
+      "author": "Joseph Sardin (BigSoundBank)",
+      "page": "https://bigsoundbank.com/",
+      "download": "https://bigsoundbank.com/UPLOAD/ogg/0265.ogg",
+      "file": "0265.ogg",
+      "bytes": 1772423,
+      "sha256": "1987766061eb8988fa2345d3788e664a741fbc3702fe529cafb7f680bcf6eddf",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/"
+    },
+    {
+      "id": "bsb-0100",
+      "title": "Forest (BigSoundBank sound 0100)",
+      "author": "Joseph Sardin (BigSoundBank)",
+      "page": "https://bigsoundbank.com/",
+      "download": "https://bigsoundbank.com/UPLOAD/ogg/0100.ogg",
+      "file": "0100.ogg",
+      "bytes": 1490580,
+      "sha256": "419df5947cf7518e5dd8b99eed322797f30e6ffbf41888ea45ed50fbd7876de2",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/"
+    },
+    {
+      "id": "bsb-1779",
+      "title": "Sun and heat #1 (BigSoundBank sound 1779)",
+      "author": "Joseph Sardin (BigSoundBank)",
+      "page": "https://bigsoundbank.com/",
+      "download": "https://bigsoundbank.com/UPLOAD/ogg/1779.ogg",
+      "file": "1779.ogg",
+      "bytes": 3632098,
+      "sha256": "af7e2f170532eb57bdd2a396e9665ac3b22dd7f19b3695c41a8f421840cb9f61",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/"
+    }
+  ],
+  "overrides": [
+    {
+      "group": "animal.cow",
+      "source": "bsb-2385",
+      "members": [
+        "2385.ogg"
+      ],
+      "end": 3.4,
+      "fadeOut": {
+        "start": 3.2,
+        "duration": 0.2
+      }
+    },
+    {
+      "group": "animal.sheep",
+      "source": "bsb-2346",
+      "members": [
+        "2346.ogg"
+      ],
+      "fadeOut": {
+        "start": 0.68,
+        "duration": 0.1
+      }
+    },
+    {
+      "group": "crowd.cheer",
+      "source": "bsb-0237",
+      "members": [
+        "0237.ogg"
+      ],
+      "start": 0,
+      "end": 3,
+      "fadeOut": {
+        "start": 2.35,
+        "duration": 0.65
+      }
+    },
+    {
+      "group": "tyre.squeal",
+      "source": "bsb-2371",
+      "members": [
+        "2371.ogg"
+      ],
+      "start": 2,
+      "end": 4,
+      "crossfade": 0.4,
+      "trimSilence": false,
+      "loop": true
+    },
+    {
+      "group": "scrape.metal",
+      "source": "bsb-0543",
+      "members": [
+        "0543.ogg"
+      ],
+      "start": 9,
+      "end": 11,
+      "crossfade": 0.3,
+      "trimSilence": false,
+      "loop": true
+    },
+    {
+      "group": "explosion.small",
+      "source": "oga-cannon-fire",
+      "members": [
+        "cannon_fire_0.ogg"
+      ],
+      "end": 1.8,
+      "fadeOut": {
+        "start": 1.1,
+        "duration": 0.7
+      }
+    },
+    {
+      "group": "impact.light",
+      "source": "oga-breaking-falling",
+      "members": [
+        "bfh1_wood_hit_01.ogg",
+        "bfh1_wood_hit_02.ogg",
+        "bfh1_wood_hit_03.ogg"
+      ]
+    },
+    {
+      "group": "impact.heavy",
+      "source": "oga-breaking-falling",
+      "members": [
+        "bfh1_hit_01.ogg",
+        "bfh1_metal_hit_03.ogg",
+        "bfh1_hit_06.ogg"
+      ]
+    },
+    {
+      "group": "impact.metal",
+      "source": "oga-wood-metal",
+      "members": [
+        "metal_close_01.ogg",
+        "metal_sheet_04.ogg",
+        "metal_sheet_06.ogg"
+      ]
+    },
+    {
+      "group": "crate.break",
+      "source": "oga-wood-metal",
+      "members": [
+        "wood_breaking_01.ogg",
+        "wood_breaking_02.ogg"
+      ]
+    },
+    {
+      "group": "prop.hay",
+      "source": "bsb-0137",
+      "members": [
+        "0137.ogg"
+      ],
+      "start": 46.5,
+      "end": 47.5,
+      "fadeIn": 0.02,
+      "fadeOut": {
+        "start": 0.75,
+        "duration": 0.25
+      },
+      "trimSilence": false
+    },
+    {
+      "group": "prop.cone",
+      "source": "oga-wood-metal",
+      "members": [
+        "misc_07.ogg",
+        "misc_15.ogg",
+        "misc_08.ogg"
+      ]
+    },
+    {
+      "group": "prop.barrel",
+      "source": "oga-breaking-falling",
+      "members": [
+        "bfh1_hit_02.ogg",
+        "bfh1_hit_08.ogg"
+      ]
+    },
+    {
+      "group": "amb.sea",
+      "source": "bsb-0265",
+      "members": [
+        "0265.ogg"
+      ],
+      "start": 24,
+      "end": 32,
+      "crossfade": 1.5,
+      "trimSilence": false,
+      "loop": true
+    },
+    {
+      "group": "amb.forest",
+      "source": "bsb-0100",
+      "members": [
+        "0100.ogg"
+      ],
+      "start": 18,
+      "end": 24,
+      "crossfade": 1,
+      "trimSilence": false,
+      "loop": true
+    },
+    {
+      "group": "amb.machinery",
+      "source": "oga-sfx-loops",
+      "members": [
+        "machine_08.ogg"
+      ],
+      "start": 0,
+      "end": 4.5,
+      "crossfade": 0.3,
+      "trimSilence": false,
+      "loop": true
+    },
+    {
+      "group": "amb.desert",
+      "source": "bsb-1779",
+      "members": [
+        "1779.ogg"
+      ],
+      "start": 18,
+      "end": 24,
+      "crossfade": 1,
+      "trimSilence": false,
+      "loop": true
+    }
+  ],
   "files": [
-    {"path":"sfx/impact-light-1.ogg","bytes":5763,"sha256":"465a00b899f028d6355b9f8645834922cdffb4676da51ba4661449c96c7e4b46","seconds":0.3,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"sfx/impact-light-2.ogg","bytes":5628,"sha256":"49c45176555c4c3489ffbaf9c71787af1774cb7d072eff6da336c43b6d49fe1a","seconds":0.3,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"sfx/impact-light-3.ogg","bytes":5611,"sha256":"73eb673f2ab410b81f1b8d514478c801e61f13f35e6fd61618d7dd6d145a53ca","seconds":0.3,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"sfx/impact-heavy-1.ogg","bytes":11056,"sha256":"920b9366516e9ac65f99daea3d73bdec98a72f40649f0ae3c066b092f69c19df","seconds":1.1,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"sfx/impact-heavy-2.ogg","bytes":11041,"sha256":"dedada933af8f89d99c118179ece8ac78d802dddd0a35e125cd380973f70e7f2","seconds":1.1,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"sfx/impact-heavy-3.ogg","bytes":10917,"sha256":"553d53bcae0346b5f02164fdb04676e0baa3e680ec4549bdb2d4fa8a63a92b7f","seconds":1.1,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"sfx/impact-metal-1.ogg","bytes":6521,"sha256":"b67b3620989c863b9fdf3d317847bb8ec82e77cc8b1306a2fcf96202f4d898d4","seconds":1.1,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"sfx/impact-metal-2.ogg","bytes":6472,"sha256":"a9d4c6e11e112b5e06bfc46b60d63a1c242be694607648e4dfc041c781bddc95","seconds":1.1,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"sfx/impact-metal-3.ogg","bytes":6430,"sha256":"1ecec12728b19fa983ab4aadf389cb51acaed104b9d4acaa7bada9bf69931734","seconds":1.1,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"sfx/scrape-metal-1.ogg","bytes":20974,"sha256":"86ae75aceb0c1c4c2921b682e6a4784dac7b495f0eebfa01cf222434e520f972","seconds":1.8,"channels":1,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"sfx/scrape-metal-2.ogg","bytes":20968,"sha256":"ce7d900f7602806db04f0ffdadfe3643f67868b5210d538e996fabd501dfba6c","seconds":1.8,"channels":1,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"sfx/tyre-squeal-1.ogg","bytes":24397,"sha256":"3c99a22d72756655168a454f30f6e22e2dbb049d3ced0b2766cd7fcf047a8d03","seconds":2,"channels":1,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"sfx/tyre-squeal-2.ogg","bytes":24215,"sha256":"d3463724edccd138a8f3ea53a56c69462929a13f54952165094cc49c765c37b8","seconds":2,"channels":1,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"sfx/explosion-small-1.ogg","bytes":16234,"sha256":"dada6fcdeebfac1902f572d84b61b26b63e5b21ae7f24fd96eeb85087fc5e711","seconds":1.9,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"sfx/explosion-small-2.ogg","bytes":16430,"sha256":"6f71fea9e6043433052c4362d8bb46689dffa2e6edf3514256d0f0ea4e5e3d36","seconds":1.9,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
+    {"path":"sfx/impact-light-1.ogg","bytes":5311,"sha256":"9a88bccd5d2d7fa61c6c76f69b451f7af55bccc07966a61e37ad15b1affea5e6","seconds":0.247687,"channels":1,"loop":false,"origin":"oga-breaking-falling","member":"bfh1_wood_hit_01.ogg","license":"CC0-1.0"},
+    {"path":"sfx/impact-light-2.ogg","bytes":5750,"sha256":"e84627763bb0f1f6975c8c98f07a87e683ed1eb8f76d2fce579a2222cf936ec8","seconds":0.281519,"channels":1,"loop":false,"origin":"oga-breaking-falling","member":"bfh1_wood_hit_02.ogg","license":"CC0-1.0"},
+    {"path":"sfx/impact-light-3.ogg","bytes":5927,"sha256":"ff272bcfd6a92f9f42276e59d10bf4cc3c0b8d985af612d1237d7eccb333a3cb","seconds":0.403152,"channels":1,"loop":false,"origin":"oga-breaking-falling","member":"bfh1_wood_hit_03.ogg","license":"CC0-1.0"},
+    {"path":"sfx/impact-heavy-1.ogg","bytes":8723,"sha256":"b624e7b31a30abe98c2415ad183089facac9c2f5d9ba413fc44ea36e8d2aaf38","seconds":0.729297,"channels":1,"loop":false,"origin":"oga-breaking-falling","member":"bfh1_hit_01.ogg","license":"CC0-1.0"},
+    {"path":"sfx/impact-heavy-2.ogg","bytes":6959,"sha256":"977055f4c09196f9b75fa6337a0beddadb17148a997436dcd8e46ea3efb6a5e7","seconds":0.444059,"channels":1,"loop":false,"origin":"oga-breaking-falling","member":"bfh1_metal_hit_03.ogg","license":"CC0-1.0"},
+    {"path":"sfx/impact-heavy-3.ogg","bytes":6276,"sha256":"5004385d26a8095630d2339f991935e9b0795490542238acfedf09559911d8f8","seconds":0.595079,"channels":1,"loop":false,"origin":"oga-breaking-falling","member":"bfh1_hit_06.ogg","license":"CC0-1.0"},
+    {"path":"sfx/impact-metal-1.ogg","bytes":9054,"sha256":"3e78b6eb6bfcde66277782d764e7257e51f58d8176c76981c516d70f3311a7f4","seconds":0.841837,"channels":1,"loop":false,"origin":"oga-wood-metal","member":"metal_close_01.ogg","license":"CC0-1.0"},
+    {"path":"sfx/impact-metal-2.ogg","bytes":6844,"sha256":"3da63747f91d5ea8c0944df7a5ec1f89b93a32d31e1a6910c7d705f529d9103f","seconds":0.400091,"channels":1,"loop":false,"origin":"oga-wood-metal","member":"metal_sheet_04.ogg","license":"CC0-1.0"},
+    {"path":"sfx/impact-metal-3.ogg","bytes":8535,"sha256":"6b3af5f28b091c15041e298f2c3ccdce3cbaa8765ee98bb0b270f1f15182fb6b","seconds":0.59322,"channels":1,"loop":false,"origin":"oga-wood-metal","member":"metal_sheet_06.ogg","license":"CC0-1.0"},
+    {"path":"sfx/scrape-metal-1.ogg","bytes":19071,"sha256":"086929220d780e8af5c81d1356f8e78139aa4a9875c6cb582db59f7afbfe0c4c","seconds":1.702313,"channels":1,"loop":true,"origin":"bsb-0543","member":"0543.ogg","license":"CC0-1.0"},
+    {"path":"sfx/tyre-squeal-1.ogg","bytes":16936,"sha256":"020953503cff1dfa77d2a8ef1c71157cdd0cc785c44388f31bb1a89e0443afe5","seconds":1.6,"channels":1,"loop":true,"origin":"bsb-2371","member":"2371.ogg","license":"CC0-1.0"},
+    {"path":"sfx/explosion-small-1.ogg","bytes":17112,"sha256":"1646dbc864b86bd7feebf9bf6ee6cb84976d166bd4184803b975b314b6e3eaf8","seconds":1.8,"channels":1,"loop":false,"origin":"oga-cannon-fire","member":"cannon_fire_0.ogg","license":"CC0-1.0"},
     {"path":"sfx/explosion-big-1.ogg","bytes":29622,"sha256":"78a4779250780a3da55bf1f1897c4c968a2447cfa6ee866ce225188ce6cf98f3","seconds":3.7,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
     {"path":"sfx/explosion-big-2.ogg","bytes":29745,"sha256":"4e29831910c6ccfa10682c233d3f614009b45d81bb9f41e3800b096b50c05bfc","seconds":3.7,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"sfx/crate-break-1.ogg","bytes":9171,"sha256":"593441d3ff962dbf290e5950d167da6b3fee0df55cd1bdcd6cacf6071162d283","seconds":0.7,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"sfx/crate-break-2.ogg","bytes":9211,"sha256":"ef9be075d0eece2be385c066b6c2478720d477de885149c7345b10e85f9b463b","seconds":0.7,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"sfx/crate-break-3.ogg","bytes":9391,"sha256":"e3ab4073c0fae4f7f2689421263ad7dcef22e8f332da9b024b7520af0645e0be","seconds":0.7,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"sfx/prop-hay-1.ogg","bytes":9336,"sha256":"8967c31df9dd870d07805ab930149fc9a387d1b30104fe9ccdf102ba157502d3","seconds":0.7,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"sfx/prop-hay-2.ogg","bytes":8013,"sha256":"eecaea936603606b76e495d032763e8745a01307d2cee2c4316dabe3727f713a","seconds":0.7,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"sfx/prop-cone-1.ogg","bytes":7139,"sha256":"c44c48994c38f54bed001fab6bd512268b64c75311ee4d88098b68992b6336fd","seconds":0.8,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"sfx/prop-cone-2.ogg","bytes":7149,"sha256":"888159b43bdfc7e7e8cb2a7c551f50bdac48676579b2938e2ae13c8da3dcfedc","seconds":0.8,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"sfx/prop-cone-3.ogg","bytes":7147,"sha256":"b8916063ff1842b0feb9e34c2bc840e80148fc9d870fe9b8064c3391c29006a7","seconds":0.8,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"sfx/prop-barrel-1.ogg","bytes":5229,"sha256":"1df21d8ceb3286357c5e66c2e44d82682a761263425b5b0e20d664446995d7c3","seconds":0.9,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"sfx/prop-barrel-2.ogg","bytes":5297,"sha256":"fa313a6f9217ec534e9c665afd21727672c3722bb89634c99326591c5bf0680b","seconds":0.9,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
+    {"path":"sfx/crate-break-1.ogg","bytes":8398,"sha256":"1dc3f1cbb0015a598ca366aca9a0814a160fdcf56b3492c7d76afa1df10c615e","seconds":0.545737,"channels":1,"loop":false,"origin":"oga-wood-metal","member":"wood_breaking_01.ogg","license":"CC0-1.0"},
+    {"path":"sfx/crate-break-2.ogg","bytes":8027,"sha256":"acada30ddfaf38c95f5b58e0093e96d015fe20e47d016130a6d46712b7e58308","seconds":0.568503,"channels":1,"loop":false,"origin":"oga-wood-metal","member":"wood_breaking_02.ogg","license":"CC0-1.0"},
+    {"path":"sfx/prop-hay-1.ogg","bytes":14407,"sha256":"d928327699741cbe9800cd7dfd4d050f4a798545a3fea662416263e6aa5f7f97","seconds":1,"channels":1,"loop":false,"origin":"bsb-0137","member":"0137.ogg","license":"CC0-1.0"},
+    {"path":"sfx/prop-cone-1.ogg","bytes":11834,"sha256":"abb571c3a52e6dcc8d9903c5017b9ee0e78fee12c9633bc5eff9c5cd0edb5534","seconds":0.928753,"channels":1,"loop":false,"origin":"oga-wood-metal","member":"misc_07.ogg","license":"CC0-1.0"},
+    {"path":"sfx/prop-cone-2.ogg","bytes":7786,"sha256":"a4a4046ea6697c4fb129e27cb2c0724b27a04b8122618d88288cc6139efce8bd","seconds":0.472925,"channels":1,"loop":false,"origin":"oga-wood-metal","member":"misc_15.ogg","license":"CC0-1.0"},
+    {"path":"sfx/prop-cone-3.ogg","bytes":6978,"sha256":"de734f412a2e86f1accc2fc5ceaa9b614011f9f4e3cc3b49b1f8d38dcc927422","seconds":0.367007,"channels":1,"loop":false,"origin":"oga-wood-metal","member":"misc_08.ogg","license":"CC0-1.0"},
+    {"path":"sfx/prop-barrel-1.ogg","bytes":9605,"sha256":"0da7c432ece7143e7d95599950976dadc8d575e3261d7ca21479b2eb997213ea","seconds":0.794807,"channels":1,"loop":false,"origin":"oga-breaking-falling","member":"bfh1_hit_02.ogg","license":"CC0-1.0"},
+    {"path":"sfx/prop-barrel-2.ogg","bytes":7001,"sha256":"e1c801816bc9998c72df25a3d446fd933f0547f8a7c0ccc95d62fb8b4faabac7","seconds":0.389252,"channels":1,"loop":false,"origin":"oga-breaking-falling","member":"bfh1_hit_08.ogg","license":"CC0-1.0"},
     {"path":"sfx/prop-tyres-1.ogg","bytes":6223,"sha256":"6a60862b33ffae983cd08c017d0e76f8a7adfdaded3669028434dafc3c65dd07","seconds":0.55,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
     {"path":"sfx/prop-tyres-2.ogg","bytes":6253,"sha256":"1bc660c983a6b2c5dd02860f640c1e9d45780ef3c48c75cb445c0fbc929157f9","seconds":0.55,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"sfx/crowd-cheer-1.ogg","bytes":29945,"sha256":"b6eebf72f4710cd72d666643cf7d1d5b37eee722c1165edc100a8364e075d4c7","seconds":2.8,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"sfx/crowd-cheer-2.ogg","bytes":30365,"sha256":"1932fca9ce06a79d3098a694bfe0dba158097f9f2748abdcf6d190f96bdaa5f4","seconds":2.8,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
+    {"path":"sfx/crowd-cheer-1.ogg","bytes":36770,"sha256":"6a50a0c23926dac14c6f54c56190dbbb597c32de27cf8aa583a677cdf3201017","seconds":3,"channels":1,"loop":false,"origin":"bsb-0237","member":"0237.ogg","license":"CC0-1.0"},
     {"path":"sfx/crowd-aww-1.ogg","bytes":16625,"sha256":"26edb1961e50165b9ce590f4bbc79317c50ffe3e0926c6c5b30323a279e78eac","seconds":2.3,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
     {"path":"sfx/crowd-aww-2.ogg","bytes":16714,"sha256":"a1ea158eebf38728eda41d0e20f373c7bd5020385f5a50e781bdd96d621ae58b","seconds":2.3,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"sfx/animal-cow-1.ogg","bytes":11594,"sha256":"3b0abce1963803d04d88095e7b5899608a345713d58e389cb613d1a4be1ff944","seconds":1.5,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"sfx/animal-cow-2.ogg","bytes":12903,"sha256":"1336478010be92aefc8244c13b017e2cc2f3d0fc7481066cbf18acf4920d8f80","seconds":1.7,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"sfx/animal-sheep-1.ogg","bytes":11293,"sha256":"05ddf4dc9a45caf9881973a388a151369fb001fccbd8d3c3b0f7fcf1ed887540","seconds":0.95,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"sfx/animal-sheep-2.ogg","bytes":12125,"sha256":"dd0f01997c358eb4b5edbcc5bb0d336b4425d97c9b6ccd082c9cb84b2dd915a1","seconds":1.05,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
+    {"path":"sfx/animal-cow-1.ogg","bytes":33599,"sha256":"efd22eece207451b22bb3063d88552f9aa181494274c732e0c15c5028e4e3697","seconds":3.361633,"channels":1,"loop":false,"origin":"bsb-2385","member":"2385.ogg","license":"CC0-1.0"},
+    {"path":"sfx/animal-sheep-1.ogg","bytes":10123,"sha256":"6b63ef11e9e3ba6e6a69b1eeb837d02a53289c78f8e5e094d4aa659dc68b8279","seconds":0.778821,"channels":1,"loop":false,"origin":"bsb-2346","member":"2346.ogg","license":"CC0-1.0"},
     {"path":"sfx/animal-penguin-1.ogg","bytes":15332,"sha256":"44148c69431be6cb8ee56cb096cb026975757b3d245025cf44a8efee6bd77fbc","seconds":1.5,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
     {"path":"sfx/animal-penguin-2.ogg","bytes":14963,"sha256":"752688cb89ab564e06939ef3ba04949da4022f7fa4b9aec612da11b05609cdb7","seconds":1.5,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
     {"path":"sfx/animal-llama-1.ogg","bytes":11537,"sha256":"0073f1257e2c4f5e02cd84ddd3bbf8f38abff3017b419da6007e3db3d1bb526b","seconds":1.25,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
@@ -458,12 +787,12 @@
     {"path":"sfx/animal-crab-1.ogg","bytes":8810,"sha256":"7f7ccc47b80b6e7d5e00a9cd2fa98682208119cf9e126bad9d65a0380157f244","seconds":1,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
     {"path":"sfx/animal-crab-2.ogg","bytes":7882,"sha256":"ea0904a064310d23f419f66e166e00e1a4626503d658a163940c73c0834be57f","seconds":1,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
     {"path":"sfx/amb-wind-1.ogg","bytes":57417,"sha256":"566f037d57fd27f061d55533b040524e35c4e2a07bd02099a9a3d3ab14b5ff18","seconds":6,"channels":1,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"sfx/amb-sea-1.ogg","bytes":70945,"sha256":"7e099e494afb09ea2a2ea8c493ee536b9899a0cc0a1b366650adf3f9e9ce1e8b","seconds":8,"channels":1,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"sfx/amb-forest-1.ogg","bytes":76414,"sha256":"aa8e96d2f1f40a673b7e1888e7be7feeb75dcc004b227d72088e3c6a7ac82034","seconds":8.5,"channels":1,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"sfx/amb-machinery-1.ogg","bytes":51342,"sha256":"6c23d2c36cfe1e0981d8d8ecb2e61971116bac51d93420b2f2b04e0cb97917c2","seconds":5.5,"channels":1,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
+    {"path":"sfx/amb-sea-1.ogg","bytes":64029,"sha256":"e0831de3f779943bcfcb0a9890fe12aa9a24dbb31eb86b369fc28b8388f75cdb","seconds":6.5,"channels":1,"loop":true,"origin":"bsb-0265","member":"0265.ogg","license":"CC0-1.0"},
+    {"path":"sfx/amb-forest-1.ogg","bytes":50218,"sha256":"8fd3ad4265936a2620a8fc9992f285d81f24ebcff6e155f00560df340c276110","seconds":5,"channels":1,"loop":true,"origin":"bsb-0100","member":"0100.ogg","license":"CC0-1.0"},
+    {"path":"sfx/amb-machinery-1.ogg","bytes":37528,"sha256":"bcfa959033715637e15d275e6d876166ddde5fb6e0922ecd516967aa7be8636c","seconds":4.2,"channels":1,"loop":true,"origin":"oga-sfx-loops","member":"machine_08.ogg","license":"CC0-1.0"},
     {"path":"sfx/amb-city-1.ogg","bytes":58561,"sha256":"e49bcc2f3b0496fabb12ca92fe9b8ac8dc8b78a7624245239cc0edf1d1abc347","seconds":7.5,"channels":1,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
     {"path":"sfx/amb-snow-1.ogg","bytes":67719,"sha256":"1a93e50238ace8fe1c28091eabec9e518ec7f373ee349a61a2e5a02ff200ed1d","seconds":7,"channels":1,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"sfx/amb-desert-1.ogg","bytes":66949,"sha256":"935e76fa3a3949101dfab8e38e3d9ece6ed00c356321685bc4470885a7dc214c","seconds":6.8,"channels":1,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
+    {"path":"sfx/amb-desert-1.ogg","bytes":46367,"sha256":"7f9dc351d61b151efdfa6d960d735d0431dcf5fb2c182276a690c157ff1d2e44","seconds":5,"channels":1,"loop":true,"origin":"bsb-1779","member":"1779.ogg","license":"CC0-1.0"},
     {"path":"sfx/weapon-oil-1.ogg","bytes":9406,"sha256":"15e9958abc80f8ff1cf634634aaec89e654c3c0b9c0c1dbd67857911150ed59c","seconds":0.95,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
     {"path":"sfx/weapon-oil-2.ogg","bytes":9546,"sha256":"23fcc5ab87a8777dd5fb9f2aab7f27da358a89b29a406ec1a81d50f1ad255794","seconds":0.95,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
     {"path":"sfx/weapon-mine-drop-1.ogg","bytes":6801,"sha256":"bea4fb45fcb6b0b01f78291462d89d380458f1c88eaeebb68a14f1ae365a2628","seconds":0.95,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},

@@ -4,8 +4,8 @@ Aura Drift ist ein Rennspiel direkt auf dem Virtuellen Desktop. Es läuft komple
 kein Konto, kein Provider, keine Netzwerkverbindung. Im Schnellrennen fährst du gegen fünf
 KI-Gegner, im Zeitfahren jagst du deine Bestzeit, in der Drift-Attacke sammelst du Punkte
 für Stil, und in Ausscheidung oder Heiße Kartoffel musst du dich einfach nur länger halten
-als die anderen. Autos, Strecken und Sounds sind eigens für AuraGo gebaut, es wird nichts
-heruntergeladen.
+als die anderen. Autos und Strecken sind eigens für AuraGo gebaut, die Sounds teils synthetisiert und teils
+gemeinfreie Aufnahmen, die mit dem Spiel ausgeliefert werden; es wird nichts heruntergeladen.
 
 Die 3D-Ansicht ist der Standard. Kann dein Browser oder deine Grafikkarte kein 3D, schaltet
 das Spiel auf eine flache 2D-Ansicht um. Das Fahrverhalten bleibt dabei gleich.
@@ -183,9 +183,12 @@ Autos gleich.
 
 ## Sound
 
-Alle Klänge erzeugt der eigene Code von AuraGo: eine Motorschleife für jedes Auto, Einschläge,
-Tierrufe, Waffengeräusche und eine Musik, die sich pro Gegend ändert. Nichts wurde aufgenommen,
-nichts wird heruntergeladen. Kann eine Klangdatei nicht geladen werden, springt das Spiel auf
+Die Motorschleifen, die Musik, die sich pro Gegend ändert, und die meisten Effekte erzeugt der
+eigene Code von AuraGo. Einige Effekte (Kuh, Schaf, Jubel, quietschende Reifen, Metallkratzen,
+kleine Explosion, Einschläge, Kisten, Heu, Kegel, Fässer sowie die Ambiente von Meer, Wald,
+Maschinen und Wüste) sind kurze gemeinfreie CC0-Aufnahmen, die mit dem Spiel ausgeliefert werden;
+die Nachweise stehen in `ui/3d/aura-drift/audio/LICENSE.txt`. Beim Spielen wird nichts
+heruntergeladen. Kann eine Klangdatei nicht geladen werden, springt das Spiel auf
 synthetisierte Klänge zurück.
 
 ## Einstellungen

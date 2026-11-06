@@ -144,6 +144,6 @@ gloss), a warm key sun, cool fill, rim, a cream ground with soft shadows, livery
   biome scenery kits): 6 938 976 bytes (6.6 MiB) in total. `manifest.json` records each file's size,
   hash and car measurements, and `LICENSE.txt` the licence.
 - The sound pack is generated from `scripts/build-aura-drift-audio.mjs` into `ui/3d/aura-drift/audio/`;
-  see [`audio/README.md`](audio/README.md). Every file is own synthesis; nothing is downloaded.
+  see [`audio/README.md`](audio/README.md). Engines, music and most groups are own synthesis; 17 sfx groups are hash-pinned CC0 recordings.
 - Visual acceptance on a real screen is still pending. Use the survey and the dev harness
   (`node scripts/aura-drift-dev-server.mjs`, then `/harness`) described in `documentation/aura-drift.md`.

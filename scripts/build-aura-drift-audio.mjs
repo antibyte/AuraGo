@@ -227,10 +227,12 @@ function musicGain(stems, tmp) {
 
 // ---- recordings (overrides) ----
 async function materialize(source, sourcesDir, tmp) {
-    const file = path.join(sourcesDir, source.file);
+    // the download sits in <dir>/<source id>/<file> (one folder per source) or directly in <dir>/<file>
+    const nested = path.join(sourcesDir, source.id, source.file);
+    const file = await fs.stat(nested).then(stat => stat.isFile(), () => false) ? nested : path.join(sourcesDir, source.file);
     const bytes = await fs.readFile(file).catch(() => fail(`Missing ${source.file} in ${sourcesDir}; download it from ${source.download}`));
     if (bytes.length !== source.bytes || sha256(bytes) !== source.sha256) fail(`${source.file} does not match sources.json (expected ${source.bytes} bytes, SHA-256 ${source.sha256}); download it again from ${source.download}`);
-    if (!isArchive(source)) return sourcesDir;
+    if (!isArchive(source)) return path.dirname(file);
     for (const name of run(tarCommand(), ['-tf', file]).split(/\r?\n/).filter(Boolean)) {
         if (/^([a-zA-Z]:|[\\/])/.test(name) || name.split(/[\\/]/).includes('..')) fail(`${source.file} contains an unsafe member: ${name}`);
     }

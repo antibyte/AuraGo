@@ -8,10 +8,11 @@ Own the Blender 5.2 generator of the Aura Drift model pack and its pure-Python k
 - Authoring: this directory. `runtime-entry.mjs` belongs to the three.js vendor bundle, not to the kit.
 - Runtime payload: `ui/3d/aura-drift/v1/` (20 GLBs, `manifest.json`, `LICENSE.txt`). Written only by
   `generate.py`, the manifest only by `--only manifest`.
-- Audio inputs: `audio/sources.json` (empty CC0 override hook, `sources` and `overrides` both empty)
+- Audio inputs: `audio/sources.json` (13 hash-pinned CC0 sources, 17 sfx group overrides)
   and `audio/README.md`. The sound pack itself is `ui/3d/aura-drift/audio/` and is written only by
-  `scripts/build-aura-drift-audio.mjs --write`; its synthesis code is in `scripts/aura-drift-synth/`.
-  Nothing is downloaded today; every shipped file is own synthesis.
+  `scripts/build-aura-drift-audio.mjs --write --sources D:\tmp\agdrift-cc0` (downloads in one folder per source id,
+  never committed); its synthesis code is in `scripts/aura-drift-synth/`. Credits are in
+  `ui/3d/aura-drift/audio/LICENSE.txt`; engines, music and all other groups are own synthesis.
 - Check: `scripts/test-aura-drift-assets.mjs`.
 - Preview renders and scratch builds go outside the repository (`D:\tmp\agdrift-shots`, `D:\tmp\agdrift-build`).
 - Generated scratch folders under `assets/aura-drift/build/` are git-ignored.

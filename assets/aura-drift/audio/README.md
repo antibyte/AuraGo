@@ -1,14 +1,19 @@
 # Aura Drift audio
 
 Every sound of Aura Drift 3D is shipped as Ogg Vorbis under `ui/3d/aura-drift/audio/` and described by
-`ui/3d/aura-drift/audio/manifest.json` (the file the game reads). Nothing is downloaded: the whole pack is
+`ui/3d/aura-drift/audio/manifest.json` (the file the game reads). Engines, music and most sound groups are
 **own synthesis** (seeded JavaScript DSP, no random numbers, no clock), so a rebuild reproduces the same
-bytes. Approved CC0 recordings can replace single sound groups later with one small data change (below).
+bytes. Seventeen sfx groups are approved CC0 recordings instead (hash-pinned in `sources.json`, credited in
+`ui/3d/aura-drift/audio/LICENSE.txt`): `animal.cow`, `animal.sheep`, `crowd.cheer`, `tyre.squeal`, `scrape.metal`,
+`explosion.small`, `impact.light`, `impact.heavy`, `impact.metal`, `crate.break`, `prop.hay`, `prop.cone`,
+`prop.barrel`, `amb.sea`, `amb.forest`, `amb.machinery` and `amb.desert`. Every other group stays synthesis
+(`crowd.aww`, `animal.penguin`, `animal.llama`, `explosion.big`, `prop.tyres`, `amb.wind`, `amb.city`, `amb.snow`,
+weapons, stingers, horns, UI). The originals are not committed; a group is replaced with one small data change (below).
 
 - Build and verification: `scripts/build-aura-drift-audio.mjs`
 - Synthesis code: `scripts/aura-drift-synth/*.mjs` (`dsp.mjs` toolkit, `kit.mjs` shared sound parts,
   `engines.mjs`, `sfx-world.mjs`, `sfx-weapons.mjs`, `sfx-comic.mjs`, `music*.mjs`, `registry.mjs`)
-- Data input: `assets/aura-drift/audio/sources.json` (`sources` and `overrides`, both empty today)
+- Data input: `assets/aura-drift/audio/sources.json` (`sources`: 13 hash-pinned CC0 downloads, `overrides`: 17 sfx groups)
 - Contract test: `scripts/test-aura-drift-audio.mjs`
 
 ## Commands
@@ -16,7 +21,7 @@ bytes. Approved CC0 recordings can replace single sound groups later with one sm
 | Command | Purpose |
 | --- | --- |
 | `node scripts/build-aura-drift-audio.mjs [--check]` | Read-only verification of the committed pack (no ffmpeg). Fails when a file, hash, budget or the synth scripts changed without a rebuild. |
-| `node scripts/build-aura-drift-audio.mjs --write [--sources DIR]` | Renders everything with worker threads, encodes with ffmpeg 8 or newer (libvorbis, bit-exact) and replaces the pack. `--sources` is only needed when `overrides` is not empty. |
+| `node scripts/build-aura-drift-audio.mjs --write [--sources DIR]` | Renders everything with worker threads, encodes with ffmpeg 8 or newer (libvorbis, bit-exact) and replaces the pack. `--sources` is needed because `overrides` is not empty; each download sits in `DIR/<source id>/<file>` (or directly in `DIR/<file>`). Archives need bsdtar or the Windows `tar.exe`. |
 | `node scripts/build-aura-drift-audio.mjs --preview DIR [--only REGEX]` | Writes normalised float WAVs for listening or analysis, nothing in the repo changes. Job ids look like `sfx:weapon.horn_blast:0`, `engine:vektor:mid`, `music:alpine`. |
 | `node scripts/build-aura-drift-audio.mjs --list` | Prints every job id. |
 | `node scripts/test-aura-drift-audio.mjs [--fast]` | Manifest groups against the runtime contract, engine set, aligned music stems, budgets, decoded peak and loudness checks. |
@@ -46,6 +51,9 @@ Output names match `^(sfx|engine|music)/[a-z0-9-]+\.ogg$`.
 
 - sfx: peak -1 dBFS, engine: peak -3 dBFS. Dense, clipped sounds overshoot after lossy coding, so the
   build decodes every sfx and engine file and lowers the gain until the decoded peak honours the target.
+- recordings: peak -1 dBFS like the synthesis, so a replaced group needs a new `AD.GROUP_GAIN_DB` trim in
+  `ui/js/desktop/apps/aura-drift-audio-bank.js`: old trim plus the active-RMS difference between the old synthesis and the recording
+  (frames within 30 dB of the loudest 20 ms frame), capped at +4 dB. `impact.heavy` hits that cap and sits about 0.3 dB under its target.
 - music: **one gain per biome**, chosen so that the three stems playing together measure -16 LUFS (peak limited to -1 dBFS).
   Stems keep their relative balance; `bed` alone is therefore quieter than the full mix, as intended for dynamic layers.
 

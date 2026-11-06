@@ -18,10 +18,10 @@
        -15..-17, weapons and comic stingers -17..-18, props and animals -19..-21, tyres and loops
        -23..-27, ambience -32. Boosts are capped at +4 dB; the master limiter catches peaks. */
     AD.GROUP_GAIN_DB = {
-        'impact.light': 2.5, 'impact.heavy': 0, 'impact.metal': 2, 'scrape.metal': -11.5, 'tyre.squeal': -13, 'explosion.small': -7, 'explosion.big': -2, 'crate.break': 3.5,
-        'prop.hay': -3.5, 'prop.cone': 0.5, 'prop.barrel': -5, 'prop.tyres': -7.5, 'crowd.cheer': -8.5, 'crowd.aww': -9.5,
-        'animal.cow': -8.5, 'animal.sheep': -7.5, 'animal.penguin': -5.5, 'animal.llama': -9, 'animal.crab': -1.5,
-        'amb.wind': -17.5, 'amb.sea': -18, 'amb.forest': -17.5, 'amb.machinery': -18, 'amb.city': -18, 'amb.snow': -18, 'amb.desert': -17,
+        'impact.light': 2.6, 'impact.heavy': 4, 'impact.metal': 3.8, 'scrape.metal': -2.5, 'tyre.squeal': -6.2, 'explosion.small': 2.5, 'explosion.big': -2, 'crate.break': 3.4,
+        'prop.hay': -1.7, 'prop.cone': 2.4, 'prop.barrel': -1.4, 'prop.tyres': -7.5, 'crowd.cheer': -5.2, 'crowd.aww': -9.5,
+        'animal.cow': -8.7, 'animal.sheep': -7.4, 'animal.penguin': -5.5, 'animal.llama': -9, 'animal.crab': -1.5,
+        'amb.wind': -17.5, 'amb.sea': -10, 'amb.forest': -14.1, 'amb.machinery': -8.1, 'amb.city': -18, 'amb.snow': -18, 'amb.desert': -16.4,
         'weapon.oil': -3.5, 'weapon.mine_drop': -1.5, 'weapon.emp_charge': -13.5, 'weapon.emp_pulse': -5.5, 'weapon.rocket_fire': -10.5, 'weapon.rocket_lock': -17.5,
         'weapon.mg': -3, 'weapon.shield_on': -4, 'weapon.shield_hit': 1, 'weapon.duck_launch': -0.5, 'weapon.duck_quack': -1.5, 'weapon.rail_charge': -14.5,
         'weapon.rail_fire': -5, 'weapon.flame_loop': -14, 'weapon.frost_throw': -3.5, 'weapon.frost_burst': 0.5, 'weapon.horn_blast': -8.5, 'weapon.hole_loop': -15,
