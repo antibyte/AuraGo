@@ -47,6 +47,7 @@ type storymakerRuntime struct {
 	usage    *storymakerNarrationUsage // daily characters of the cloud voices
 
 	agent      *render.Manager       // the agent queue
+	agentLog   *agentEventLog        // the agent events of the stream
 	agentUsage *storymakerAgentUsage // daily agent jobs of the app and the chat tool
 
 	musicMu      sync.Mutex
@@ -119,6 +120,7 @@ func (s *Server) newStorymakerRuntime(dataDir string) (*storymakerRuntime, error
 		usage:    newStorymakerNarrationUsage(filepath.Join(dir, "narrate")),
 	}
 	rt.agentUsage = newStorymakerAgentUsage(filepath.Join(dir, "agent"))
+	rt.agentLog = newAgentEventLog(filepath.Join(dir, "agent", "events"))
 	if s.storymakerBrowsers != nil {
 		rt.browsers = s.storymakerBrowsers
 	}

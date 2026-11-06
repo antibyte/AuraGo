@@ -728,7 +728,9 @@ func handleStorymakerJobCancel(s *Server, w http.ResponseWriter, r *http.Request
 
 // handleStorymakerEvents streams job changes of a project as server-sent events: an event "job"
 // with {"job": ...} for every state or progress change, from all queues. On connect it sends every
-// unfinished job plus the merged latest five, so a reloaded app finds a running export.
+// unfinished job plus the merged latest five, so a reloaded app finds a running export. An event
+// "agent" carries {job_id, seq, at, type, ...}: on connect the events of the unfinished agent job or
+// else the latest one, then each new event. The client dedupes by job id and seq.
 func handleStorymakerEvents(s *Server, w http.ResponseWriter, r *http.Request, id string) {
 	if r.Method != http.MethodGet {
 		writeStorymakerMethodError(w, "GET")
@@ -759,6 +761,22 @@ func handleStorymakerEvents(s *Server, w http.ResponseWriter, r *http.Request, i
 	defer unsubscribeAudio()
 	agentEvents, unsubscribeAgent := agentJobs.Subscribe(id)
 	defer unsubscribeAgent()
+	agentLines, unsubscribeAgentLines := acc.rt.agentLog.subscribe(id)
+	defer unsubscribeAgentLines()
+	agentSeq := map[string]int{}
+	sendAgentEvents := func() bool {
+		job, ok := acc.rt.agentStreamJob(id)
+		if !ok {
+			return true
+		}
+		for _, line := range acc.rt.agentLog.after(job.ID, agentSeq[job.ID]) {
+			if _, err := fmt.Fprintf(w, "event: agent\ndata: %s\n\n", line.Data); err != nil {
+				return false
+			}
+			agentSeq[job.ID] = line.Seq
+		}
+		return true
+	}
 	revRender, revAudio, revAgent := renderJobs.Revision(), audioJobs.Revision(), agentJobs.Revision()
 	send := func(job render.Job) bool {
 		data, err := json.Marshal(map[string]any{"job": job})
@@ -778,6 +796,9 @@ func handleStorymakerEvents(s *Server, w http.ResponseWriter, r *http.Request, i
 		if !send(initial[i]) {
 			return
 		}
+	}
+	if !sendAgentEvents() {
+		return
 	}
 	flusher.Flush()
 	heartbeat := time.NewTicker(15 * time.Second)
@@ -811,6 +832,11 @@ func handleStorymakerEvents(s *Server, w http.ResponseWriter, r *http.Request, i
 				if !send(job) {
 					return
 				}
+			}
+			flusher.Flush()
+		case <-agentLines:
+			if !sendAgentEvents() {
+				return
 			}
 			flusher.Flush()
 		case <-heartbeat.C:
