@@ -7,6 +7,7 @@ export const storymakerHostParts = [
   'ui/js/storymaker/schedule.js',
   'ui/js/storymaker/host-core.js',
   'ui/js/storymaker/host-app.js',
+  'ui/js/storymaker/host-pool.js',
   'ui/js/storymaker/host-render.js',
   'ui/js/storymaker/host.js'
 ];

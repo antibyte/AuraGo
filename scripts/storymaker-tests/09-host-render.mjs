@@ -305,7 +305,7 @@ check('render mode: catalog.glyphs is fetched into catalog.glyph_data', async ()
 check('host bundle is small and self-contained: no codescene, rig or compile in the document realm', () => {
     const host = storymakerHostParts.map(read).join('\n');
     assert.ok(!/SM\.rig =|SM\.compile =|SM\.codescene =|SM\.render =/.test(host));
-    assert.ok(storymakerHostParts.length === 5 && storymakerHostParts[0].endsWith('schedule.js'));
+    assert.ok(storymakerHostParts.length === 6 && storymakerHostParts[0].endsWith('schedule.js'));
     const ctx = loadHost();
     assert.ok(ctx.StorymakerHost.mount && ctx.StorymakerHost.mountApp && ctx.StorymakerHost.mountRender && ctx.StorymakerCore.schedule);
     assert.throws(() => ctx.StorymakerHost.mount({ mode: 'nope', canvas: {}, base: 'x' }), /Unknown Storymaker mode/);
