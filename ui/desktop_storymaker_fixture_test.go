@@ -306,6 +306,8 @@ func (f *storymakerFixture) project(w http.ResponseWriter, r *http.Request, rout
 		f.render(w, r, id, raw)
 	case rest == "music" && r.Method == http.MethodPost:
 		f.writeJSON(w, http.StatusOK, map[string]any{"job": nil})
+	case rest == "jobs" && r.Method == http.MethodGet:
+		f.jobList(w, id)
 	case rest == "events" && r.Method == http.MethodGet:
 		f.events(w, r, id)
 	default:
@@ -488,6 +490,19 @@ func (f *storymakerFixture) job(w http.ResponseWriter, r *http.Request, route st
 		}
 	}
 	f.writeJSON(w, http.StatusOK, map[string]any{"job": f.jobBody(job)})
+}
+
+// jobList answers GET /projects/{id}/jobs like the real handler: the jobs of the project, newest first.
+func (f *storymakerFixture) jobList(w http.ResponseWriter, id string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	jobs := []map[string]any{}
+	for i := len(f.order) - 1; i >= 0; i-- {
+		if job := f.jobs[f.order[i]]; job.ProjectID == id {
+			jobs = append(jobs, f.jobBody(job))
+		}
+	}
+	f.writeJSON(w, http.StatusOK, map[string]any{"jobs": jobs})
 }
 
 func (f *storymakerFixture) events(w http.ResponseWriter, r *http.Request, id string) {

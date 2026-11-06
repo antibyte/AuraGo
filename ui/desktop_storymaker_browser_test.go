@@ -359,6 +359,33 @@ func storymakerTour(t *testing.T, fixture storymakerBackend) {
 	storymakerClick(t, page, `[data-stm="open-project"]`)
 	storymakerWait(t, page, `()=>document.querySelector('[data-stm="narration"]')?.value.includes('knocks at the door') && document.querySelectorAll('[data-stm="scene"]').length===2`)
 
+	// The way back to a finished export: the reopened panel offers the newest one, also one that ended while the project was closed.
+	storymakerClick(t, page, `[data-stm="export"]`)
+	storymakerClick(t, page, `[data-stm="export-last"]`)
+	storymakerWait(t, page, `()=>!!document.querySelector('[data-stm="export-path"]')`)
+	firstPath := storymakerText(page, `[data-stm="export-path"]`)
+	storymakerClick(t, page, `[data-stm="export-again"]`)
+	storymakerWait(t, page, `()=>!!document.querySelector('[data-stm="export-start"]') && !document.querySelector('[data-stm="export-start"]').disabled`)
+	storymakerClick(t, page, `[data-stm="export-start"]`)
+	storymakerClick(t, page, `[data-stm="export-confirm"]`)
+	storymakerWait(t, page, `()=>!!document.querySelector('[data-stm="export-progress"]')`)
+	storymakerClick(t, page, `[data-stm="export-close"]`)
+	storymakerClick(t, page, `[data-stm="back"]`)
+	storymakerWait(t, page, `()=>document.querySelectorAll('[data-stm="open-project"]').length===1 && !document.querySelector('.stm-player')`)
+	for i := 0; i < 4; i++ {
+		fixture.advance()
+	}
+	storymakerClick(t, page, `[data-stm="open-project"]`)
+	storymakerWait(t, page, `()=>document.querySelector('[data-stm="narration"]')?.value.includes('knocks at the door') && document.querySelectorAll('[data-stm="scene"]').length===2`)
+	storymakerClick(t, page, `[data-stm="export"]`)
+	storymakerClick(t, page, `[data-stm="export-last"]`)
+	storymakerWait(t, page, `()=>!!document.querySelector('[data-stm="export-path"]')`)
+	if path := storymakerText(page, `[data-stm="export-path"]`); path == firstPath || !strings.HasSuffix(path, ".mp4") {
+		t.Fatalf("the way back shows %q, the first export was %q", path, firstPath)
+	}
+	storymakerNoErrors(t, page)
+	storymakerClick(t, page, `[data-stm="export-close"]`)
+
 	// Delete asks the desktop dialog first: refusing keeps the project, confirming removes the folder.
 	storymakerClick(t, page, `[data-stm="back"]`)
 	storymakerClick(t, page, `[data-stm="delete-project"]`)

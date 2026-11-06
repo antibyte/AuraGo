@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"aurago/internal/config"
 	"aurago/internal/desktop"
 	"aurago/internal/storymaker"
 	"aurago/internal/tools"
@@ -112,6 +113,7 @@ func smappPageWith(t *testing.T, s *Server, prepare func(origin string)) (*rod.P
 		}
 	})
 	mux.Handle(storymakerAPIBase+"/", handleStorymaker(s))
+	mux.Handle(videoStudioAPIBase+"/", handleVideoStudio(s))
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
 
@@ -317,8 +319,166 @@ func smappMaxVolume(t *testing.T, ffmpeg, file string) float64 {
 	return value
 }
 
+// smappStudio is the page's one Video Studio instance, as a JS expression.
+const smappStudio = `[...(window.VideoStudioApp?.instances?.values()||[])][0]`
+
+// smappEnableVideoStudio switches on the real Video Studio that the handoff talks to.
+func smappEnableVideoStudio(t *testing.T, s *Server) {
+	t.Helper()
+	s.Cfg.VideoStudio.Enabled = true
+	if err := config.NormalizeVideoStudioConfig(&s.Cfg.VideoStudio); err != nil {
+		t.Fatal(err)
+	}
+	s.integrationCtx = context.Background()
+	manager, err := s.videoStudioManager()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(manager.close)
+}
+
+// smappVideoStudio calls the real Video Studio API and decodes the answer.
+func smappVideoStudio(t *testing.T, origin, method, path, body string, into any) {
+	t.Helper()
+	req, err := http.NewRequest(method, origin+videoStudioAPIBase+path, strings.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if body != "" {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	data, _ := io.ReadAll(res.Body)
+	if res.StatusCode >= 300 {
+		t.Fatalf("%s %s = %d %s", method, path, res.StatusCode, data)
+	}
+	if err := json.Unmarshal(data, into); err != nil {
+		t.Fatalf("%s %s: %v\n%s", method, path, err, data)
+	}
+}
+
+// smappOpenDecoyStudio creates a Video Studio project and opens a window on it. The shell always reuses that window, so the
+// handoff must go through the reuse branch of window-shell-runtime.js. This is why the tour needs the rebuilt main.bundle.js.
+func smappOpenDecoyStudio(t *testing.T, page *rod.Page, origin string) string {
+	t.Helper()
+	var decoy struct {
+		ID string `json:"id"`
+	}
+	smappVideoStudio(t, origin, http.MethodPost, "/projects", `{"name":"Decoy"}`, &decoy)
+	page.MustEval(`()=>{auditTest.openApp('video-studio');}`)
+	smappWait(t, page, `()=>{const s=`+smappStudio+`;return !!s&&s.studioReady&&s.projectId===`+smappJS(decoy.ID)+`;}`)
+	return decoy.ID
+}
+
+// smappExportDialog fills the open export dialog and starts the export: SRT, VTT and Open in Video Studio, which forces stems.
+func smappExportDialog(t *testing.T, page *rod.Page) {
+	t.Helper()
+	smappWait(t, page, `()=>document.querySelector('[data-stm="export-dialog"]')?.open===true`)
+	smappClick(t, page, `[data-stm="export-opt-srt"]`)
+	smappClick(t, page, `[data-stm="export-opt-vtt"]`)
+	smappClick(t, page, `[data-stm="export-opt-handoff"]`)
+	smappWait(t, page, `()=>{const q=n=>document.querySelector('[data-stm="'+n+'"]');return q('export-opt-srt').checked&&q('export-opt-vtt').checked&&q('export-opt-handoff').checked&&q('export-opt-stems').checked&&q('export-opt-stems').disabled&&!q('export-stems-forced').hidden;}`)
+	smappClick(t, page, `[data-stm="export-confirm"]`)
+	smappWait(t, page, `()=>document.querySelector('[data-stm="export-dialog"]').open===false`)
+}
+
+// smappCheckHandoff checks the finished export: each extra shows in its row of the panel and lies on disk, the handoff switched
+// the open Video Studio window to a new project, that project has the tracks of frozen section 5, and the panel's button runs
+// the handoff again.
+func smappCheckHandoff(t *testing.T, page *rod.Page, s *Server, origin, id, decoyID string) {
+	t.Helper()
+	folder := strings.TrimSuffix(smappText(page, `[data-stm="export-path"]`), ".mp4")
+	for extra, name := range map[string]string{"narration": "narration.wav", "srt": "captions.srt", "vtt": "captions.vtt"} {
+		shown := smappText(page, `[data-stm="export-extras"] [data-extra="`+extra+`"] [data-stm="export-extra-path"]`)
+		if shown != folder+"/"+name {
+			t.Errorf("the finished export shows %q for %s, want %s/%s", shown, extra, folder, name)
+		}
+		info, err := os.Stat(filepath.Join(s.Cfg.VirtualDesktop.WorkspaceDir, filepath.FromSlash(folder+"/"+name)))
+		if err != nil || info.Size() == 0 {
+			t.Errorf("%s/%s on disk: %v", folder, name, err)
+		}
+	}
+
+	var list struct {
+		Jobs []struct {
+			Kind        string `json:"kind"`
+			Status      string `json:"status"`
+			FramesTotal int    `json:"frames_total"`
+		} `json:"jobs"`
+	}
+	smappGet(t, origin, "/projects/"+id+"/jobs", &list)
+	frames := 0
+	for _, job := range list.Jobs {
+		if job.Kind == "render" && job.Status == "succeeded" {
+			frames = job.FramesTotal
+			break
+		}
+	}
+	if frames <= 0 {
+		t.Fatalf("no finished render in %+v", list.Jobs)
+	}
+
+	smappWaitFor(t, page, `()=>{const s=`+smappStudio+`;return !!s&&s.projectId!==`+smappJS(decoyID)+`&&!s.dirty&&(s.project?.tracks||[]).some(t=>t.clips.length>0);}`, 5*time.Minute)
+	if got := page.MustEval(`()=>[...auditTest.state.windows.values()].filter(w=>w.appId==='video-studio').length`).Int(); got != 1 {
+		t.Fatalf("%d Video Studio windows, want the one reused window", got)
+	}
+	projectID := page.MustEval(`()=>` + smappStudio + `.projectId`).String()
+
+	var handed struct {
+		Project struct {
+			Width  int `json:"width"`
+			Height int `json:"height"`
+			FPS    int `json:"fps"`
+			Assets []struct {
+				ID string `json:"id"`
+			} `json:"assets"`
+			Tracks []struct {
+				Kind  string `json:"kind"`
+				Clips []struct {
+					AssetID       string `json:"asset_id"`
+					Duration      int    `json:"duration"`
+					AudioDetached bool   `json:"audio_detached"`
+				} `json:"clips"`
+			} `json:"tracks"`
+		} `json:"project"`
+	}
+	smappVideoStudio(t, origin, http.MethodGet, "/projects/"+projectID, "", &handed)
+	p := handed.Project
+	if p.Width != 1920 || p.Height != 1080 || p.FPS != 30 {
+		t.Errorf("Video Studio canvas = %dx%d at %d fps", p.Width, p.Height, p.FPS)
+	}
+	// One video track and at least the narration track. Each asset (the MP4 and each stem) sits in one clip on its own track.
+	if len(p.Tracks) < 2 || p.Tracks[0].Kind != "video" || len(p.Assets) != len(p.Tracks) {
+		t.Fatalf("handoff project: %+v", p)
+	}
+	for i, track := range p.Tracks {
+		if i > 0 && track.Kind != "audio" {
+			t.Errorf("track %d has kind %q, want audio", i, track.Kind)
+		}
+		if len(track.Clips) != 1 || track.Clips[0].Duration <= 0 || track.Clips[0].Duration > frames {
+			t.Errorf("track %d clips = %+v, film has %d frames", i, track.Clips, frames)
+		}
+	}
+	if len(p.Tracks[0].Clips) == 1 && !p.Tracks[0].Clips[0].AudioDetached {
+		t.Error("the video clip must have audio_detached")
+	}
+
+	// The finished job keeps its button. A click runs the handoff again, and a second new project opens in the same window.
+	smappWait(t, page, `()=>{const b=document.querySelector('[data-stm="export-handoff"]');return !!b&&!b.disabled;}`)
+	if got := smappText(page, `[data-stm="export-handoff-error"]`); got != "" {
+		t.Fatalf("the handoff reports an error: %q", got)
+	}
+	smappClick(t, page, `[data-stm="export-handoff"]`)
+	smappWaitFor(t, page, `()=>{const s=`+smappStudio+`;return !!s&&s.projectId!==`+smappJS(projectID)+`&&s.projectId!==`+smappJS(decoyID)+`&&!s.dirty&&(s.project?.tracks||[]).some(t=>t.clips.length>0);}`, 5*time.Minute)
+}
+
 func TestStorymakerAppRealServerBrowser(t *testing.T) {
 	s := storymakerRealServer(t)
+	smappEnableVideoStudio(t, s)
 	// A stub synth behind the real narrate job: no provider call and no cost. The key only makes the provider ready.
 	var synthCalls atomic.Int32
 	s.Cfg.TTS.Provider = "openai"
@@ -478,19 +638,14 @@ func TestStorymakerAppRealServerBrowser(t *testing.T) {
 		t.Fatal("a side tab overflows the side panel")
 	}
 
-	// The gate: narration text without audio stops the export. The panel names the scene and offers the voice panel, and the same
-	// export passes once the narrate job has stored the audio. The code scene code2 is still selected.
+	// The gate: narration text without audio stops the export. The fresh /narration answer keeps the start off and the panel names
+	// the reason, and the same export passes once the narrate job has stored the audio. The code scene code2 is still selected.
 	smappClick(t, page, `[data-stm="side-tab"][data-tab="scene"]`)
 	page.MustElement(`[data-stm="narration"]`).MustInput("Every packet gets checked.")
 	smappWait(t, page, `()=>document.querySelector('[data-stm="save-state"]')?.dataset.state==='saved'`)
 	smappClick(t, page, `[data-stm="export"]`)
-	smappWait(t, page, `()=>!!document.querySelector('[data-stm="export-start"]') && !document.querySelector('[data-stm="export-start"]').disabled`)
-	smappClick(t, page, `[data-stm="export-start"]`)
-	smappWait(t, page, `()=>document.querySelector('[data-stm="export-refused"]')?.dataset.code==='narration_incomplete'`)
-	if missing := smappText(page, `[data-stm="export-missing"]`); !strings.Contains(missing, "code2") {
-		t.Fatalf("the refusal does not name the scene: %q", missing)
-	}
-	smappClick(t, page, `[data-stm="export-go-voice"]`)
+	smappWait(t, page, `()=>!!document.querySelector('[data-stm="export-blockers"] [data-reason="narration"]') && document.querySelector('[data-stm="export-start"]').disabled`)
+	smappClick(t, page, `[data-stm="export-close"]`)
 	smappWait(t, page, `()=>document.querySelector('[data-stm="export-panel"]').hidden`)
 	smappNarrateByRoute(t, origin, id)
 	smappNoErrors(t, page)
@@ -502,7 +657,9 @@ func TestStorymakerAppRealServerBrowser(t *testing.T) {
 	if !page.MustEval(`()=>document.querySelectorAll('[data-stm="export-caps"] [data-ok="true"]').length===2`).Bool() {
 		t.Fatal("FFmpeg and the browser should both be listed as ready")
 	}
+	decoyID := smappOpenDecoyStudio(t, page, origin)
 	smappClick(t, page, `[data-stm="export-start"]`)
+	smappExportDialog(t, page)
 	smappWait(t, page, `()=>!!document.querySelector('[data-stm="export-progress"]')`)
 	renderStart := time.Now()
 	smappWaitFor(t, page, `()=>!!document.querySelector('[data-stm="export-path"]') || !!document.querySelector('[data-stm="export-failed"]')`, 6*time.Minute)
@@ -534,6 +691,7 @@ func TestStorymakerAppRealServerBrowser(t *testing.T) {
 	if peak := smappMaxVolume(t, s.Cfg.VideoStudio.FFmpegPath, mp4); peak < -30 {
 		t.Fatalf("the export has no audible track: max_volume %.1f dB", peak)
 	}
+	smappCheckHandoff(t, page, s, origin, id, decoyID)
 	windows := page.MustEval(`()=>auditTest.state.windows.size`).Int()
 	page.MustEval(`()=>document.querySelector('[data-stm="export-show"]').click()`)
 	smappWait(t, page, fmt.Sprintf(`()=>auditTest.state.windows.size===%d`, windows+1))
@@ -545,6 +703,13 @@ func TestStorymakerAppRealServerBrowser(t *testing.T) {
 	smappWait(t, page, `()=>document.querySelectorAll('[data-stm="open-project"]').length===1 && !document.querySelector('.stm-player')`)
 	smappClick(t, page, `[data-stm="open-project"]`)
 	smappWait(t, page, `()=>document.querySelector('[data-stm="narration"]')?.value.includes('knocks at the door') && document.querySelectorAll('[data-stm="scene"]').length===2`)
+
+	// The way back to the finished export: the reopened panel reads the real job list and shows the result with its handoff.
+	smappClick(t, page, `[data-stm="export"]`)
+	smappClick(t, page, `[data-stm="export-last"]`)
+	smappWait(t, page, `()=>document.querySelector('[data-stm="export-path"]')?.textContent===`+smappJS(path)+` && !!document.querySelector('[data-stm="export-handoff"]')`)
+	smappNoErrors(t, page)
+	smappClick(t, page, `[data-stm="export-close"]`)
 
 	// Delete asks the desktop dialog first: refusing keeps the project, confirming removes the folder.
 	smappClick(t, page, `[data-stm="back"]`)
