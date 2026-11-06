@@ -989,6 +989,7 @@ func Start(opts StartOptions) error {
 			withdrawLocalWikipediaTool(s.LocalWiki)
 		}
 		withdrawRetroGamesTool(s.RetroGames)
+		withdrawStorymakerAgentFacade(s)
 		s.shutdownPersonDetection(context.Background())
 		s.personAlertAgents.stop()
 		serverCancel()
@@ -1044,6 +1045,7 @@ func Start(opts StartOptions) error {
 			wikiCancel()
 		}
 		withdrawRetroGamesTool(s.RetroGames)
+		withdrawStorymakerAgentFacade(s)
 		retroCtx, retroCancel := context.WithTimeout(context.Background(), 10*time.Second)
 		s.shutdownRetroGames(retroCtx)
 		retroCancel()
@@ -2004,6 +2006,7 @@ func newServerFromOptions(opts StartOptions) *Server {
 	publishLocalWikipediaTool(s.LocalWiki)
 	s.RetroGames = newRetroGamesService(cfg, logger)
 	publishRetroGamesTool(s.RetroGames)
+	publishStorymakerAgentFacade(s)
 	return s
 }
 
