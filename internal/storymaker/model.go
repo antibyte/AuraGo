@@ -62,6 +62,14 @@ const (
 // CodeGlyphMissing is an error of Validate: a drawn text has a character that no font of the catalog covers.
 const CodeGlyphMissing = "glyph_missing"
 
+// Issue codes of the agent job. Only the job's lint and check emit them, never Validate.
+const (
+	CodeSceneUnfilled = "scene_unfilled"
+	CodeOverTarget    = "over_target"
+	CodeOverBudget    = "over_budget"
+	CodeCompileFailed = "compile_failed"
+)
+
 // Issue is one validation finding. Path is a JSON Pointer (RFC 6901) from the story root.
 type Issue struct {
 	Severity  string   `json:"severity"`

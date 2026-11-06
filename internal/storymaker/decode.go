@@ -94,6 +94,70 @@ func DecodeStory(data []byte, lim Limits) (Story, []Issue, error) {
 	return s, nil, nil
 }
 
+// DecodeScene parses one scene object strictly, with the same unknown-field findings as DecodeStory.
+// Paths start at the scene, not at the story root. A missing id is no finding, because the caller
+// binds it. A failure returns a *DecodeError and its issues.
+func DecodeScene(data []byte) (Scene, []Issue, error) {
+	if limit := DefaultLimits().MaxStoryBytes; len(data) > limit {
+		return sceneFailure(Issue{
+			Severity: SeverityError, Path: "", Code: CodeTooLarge,
+			Message: fmt.Sprintf("The scene is %d bytes; the limit is %d bytes.", len(data), limit),
+			Fix:     "Shorten the narration or use fewer beats.",
+		})
+	}
+	data = bytes.TrimPrefix(data, []byte("\xef\xbb\xbf"))
+	if len(bytes.TrimSpace(data)) == 0 {
+		return sceneFailure(syntaxIssue("The scene is empty.", "Send the scene as one JSON object."))
+	}
+	var tree any
+	dec := json.NewDecoder(bytes.NewReader(data))
+	if err := dec.Decode(&tree); err != nil {
+		return sceneFailure(sceneJSONIssue(data, err))
+	}
+	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
+		return sceneFailure(syntaxIssue("There is more data after the scene object.", "Send exactly one JSON object."))
+	}
+	root, ok := tree.(map[string]any)
+	if !ok {
+		return sceneFailure(syntaxIssue("The scene must be a JSON object.", `Start with {"environment":"env.office","beats":[...]}.`))
+	}
+	var hits []unknownHit
+	collectUnknown(root, reflect.TypeOf(Scene{}), "", &hits)
+	if len(hits) > 0 {
+		order := keyOrder(data)
+		sort.SliceStable(hits, func(i, j int) bool { return order[hits[i].path] < order[hits[j].path] })
+		if len(hits) > maxDecodeIssues {
+			hits = hits[:maxDecodeIssues]
+		}
+		issues := make([]Issue, 0, len(hits))
+		for _, h := range hits {
+			issues = append(issues, h.issue())
+		}
+		return sceneFailure(issues...)
+	}
+	var sc Scene
+	strict := json.NewDecoder(bytes.NewReader(data))
+	strict.DisallowUnknownFields()
+	if err := strict.Decode(&sc); err != nil {
+		return sceneFailure(sceneJSONIssue(data, err))
+	}
+	return sc, nil, nil
+}
+
+func sceneFailure(issues ...Issue) (Scene, []Issue, error) {
+	return Scene{}, issues, &DecodeError{Code: issues[0].Code, Message: issues[0].Message, Issues: issues}
+}
+
+// sceneStoryWords turns the story wording of jsonErrorIssue into scene wording.
+var sceneStoryWords = strings.NewReplacer("the story", "the scene", "The story", "The scene", "complete story", "complete scene")
+
+func sceneJSONIssue(data []byte, err error) Issue {
+	is := jsonErrorIssue(data, err)
+	is.Message = sceneStoryWords.Replace(is.Message)
+	is.Fix = sceneStoryWords.Replace(is.Fix)
+	return is
+}
+
 func syntaxIssue(msg, fix string) Issue {
 	return Issue{Severity: SeverityError, Path: "", Code: CodeInvalidJSON, Message: msg, Fix: fix}
 }

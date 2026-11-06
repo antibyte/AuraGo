@@ -51,6 +51,31 @@ func HasErrors(issues []Issue) bool {
 	return false
 }
 
+// IssueModelFixable says whether the agent can fix an issue with its story tools: every error of
+// Validate, scene_unfilled, and compile_failed that names a scene. Code scenes and render deadlines
+// are outside its tools.
+func IssueModelFixable(i Issue) bool {
+	switch i.Code {
+	case CodeSceneUnfilled:
+		return true
+	case CodeCompileFailed:
+		return i.SceneID != ""
+	case CodeCodeError, CodeDeadline:
+		return false
+	}
+	return i.Severity == SeverityError
+}
+
+// IssueAdvisory says whether a lint code earns one optional fix loop. These codes never block the
+// outcome and are not listed as open checks.
+func IssueAdvisory(code string) bool {
+	switch code {
+	case CodeFirstFrameEmpty, CodeDeadStretch, CodeFadeBetweenWorlds, CodeCueLate:
+		return true
+	}
+	return false
+}
+
 // exampleJSON renders {"field":"value"} for the fix text of an issue.
 func exampleJSON(field, value string) string {
 	b, _ := json.Marshal(map[string]string{field: value})
