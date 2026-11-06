@@ -7593,6 +7593,7 @@
             }
             if (appId === 'easydrag' && context && window.EasyDragApp && typeof window.EasyDragApp.open === 'function') window.EasyDragApp.open(existing.id, context);
             if (appId === 'retro-games' && context && context.game && window.RetroGamesApp && typeof window.RetroGamesApp.open === 'function') window.RetroGamesApp.open(existing.id, context);
+            if (appId === 'storymaker' && context && typeof context.projectId === 'string' && context.projectId) window.StorymakerApp?.open?.(existing.id, context.projectId);
             if (appId === 'ecalc' && context && context.launch && window.ECalcApp && typeof window.ECalcApp.launch === 'function') window.ECalcApp.launch(existing.id, context.launch);
             if (appId === 'detective' && context && context.case_id && window.DetectiveApp && typeof window.DetectiveApp.open === 'function') {
                 updateWindowContext(existing.id, context);
@@ -23398,6 +23399,7 @@ if (appId === 'pixel') {
             const launch = {};
             if (event.payload.path) launch.path = event.payload.path;
             if (typeof event.payload.game === 'string' && /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(event.payload.game)) launch.game = event.payload.game;
+            if (event.payload.app_id === 'storymaker' && typeof event.payload.project_id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(event.payload.project_id)) launch.projectId = event.payload.project_id;
             if (event.payload.app_id === 'ecalc') {
                 const ecalcLaunch = sanitizeECalcLaunch(event.payload.ecalc);
                 if (ecalcLaunch) launch.launch = ecalcLaunch;

@@ -1640,6 +1640,7 @@
             }
             if (appId === 'easydrag' && context && window.EasyDragApp && typeof window.EasyDragApp.open === 'function') window.EasyDragApp.open(existing.id, context);
             if (appId === 'retro-games' && context && context.game && window.RetroGamesApp && typeof window.RetroGamesApp.open === 'function') window.RetroGamesApp.open(existing.id, context);
+            if (appId === 'storymaker' && context && typeof context.projectId === 'string' && context.projectId) window.StorymakerApp?.open?.(existing.id, context.projectId);
             if (appId === 'ecalc' && context && context.launch && window.ECalcApp && typeof window.ECalcApp.launch === 'function') window.ECalcApp.launch(existing.id, context.launch);
             if (appId === 'detective' && context && context.case_id && window.DetectiveApp && typeof window.DetectiveApp.open === 'function') {
                 updateWindowContext(existing.id, context);

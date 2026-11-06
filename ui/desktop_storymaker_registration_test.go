@@ -64,6 +64,7 @@ func TestDesktopStorymakerRegistration(t *testing.T) {
 	foundation := rawDesktopAssetText(t, "js/desktop/core/desktop-foundation.js")
 	routing := rawDesktopAssetText(t, "js/desktop/core/menus-and-routing.js")
 	shell := rawDesktopAssetText(t, "js/desktop/core/window-shell-runtime.js")
+	bootstrap := rawDesktopAssetText(t, "js/desktop/core/sdk-events-bootstrap.js")
 	bundle := rawDesktopAssetText(t, "js/desktop/bundles/main.bundle.js")
 	for _, m := range []struct{ name, source, marker string }{
 		{"foundation", foundation, "storymaker: 'StorymakerApp',"},
@@ -72,12 +73,21 @@ func TestDesktopStorymakerRegistration(t *testing.T) {
 		{"routing", routing, "window.StorymakerApp.render(contentEl(id), id, Object.assign({}, context || {}, {"},
 		{"size", shell, "storymaker: { width: 1320, height: 840 },"},
 		{"min size", shell, "if (appId === 'storymaker') return { width: 640, height: 480 };"},
+		{"running window launch", shell, "if (appId === 'storymaker' && context && typeof context.projectId === 'string' && context.projectId) window.StorymakerApp?.open?.(existing.id, context.projectId);"},
+		{"launch event", bootstrap, "launch.projectId = event.payload.project_id;"},
 	} {
 		if !strings.Contains(m.source, m.marker) {
 			t.Errorf("%s lacks %q", m.name, m.marker)
 		}
 		if !strings.Contains(bundle, m.marker) {
 			t.Errorf("main.bundle.js lacks the %s marker %q (run npm run build:ui)", m.name, m.marker)
+		}
+	}
+	// A launch names the project to open, for a new window and for a running one.
+	root := rawDesktopAssetText(t, "js/desktop/apps/storymaker.js")
+	for _, marker := range []string{"launchProjectId: typeof c.projectId === 'string' ? c.projectId : ''", "window.StorymakerApp = { render, dispose, open };"} {
+		if !strings.Contains(root, marker) {
+			t.Errorf("storymaker.js lacks %q", marker)
 		}
 	}
 	// The window hands the app what it needs: translation, dialogs, read-only state, the way to open Files.

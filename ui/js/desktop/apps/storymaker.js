@@ -2,7 +2,7 @@
 // listen to), the start screen and the editor layout (toolbar, scene strip, stage with the player iframe and the scrubber,
 // inspector and library, code tab, issues panel, banners), the save pipeline (edits are debounced, saved with If-Match and
 // answered with the server's story; a conflict offers reload or overwrite), the player loading and thumbnails, the project
-// event stream and the window disposal. Loaded last; publishes window.StorymakerApp = {render, dispose}. Classic script.
+// event stream and the window disposal. Loaded last; publishes window.StorymakerApp = {render, dispose, open}. Classic script.
 (function () {
     'use strict';
 
@@ -29,7 +29,7 @@
             catalog: null, thumbs: new Map(), dirty: false, disposed: false, loadSeq: 0, thumbSeq: 0, conflict: false,
             wantFrame: null, seekBusy: false, seekSent: -1, seekTimer: 0,
             handoffWish: new Set(),
-            view: 'loading', parts: {}, root: null, content: null, liveTimer: 0
+            view: 'loading', parts: {}, root: null, content: null, liveTimer: 0, launchProjectId: typeof c.projectId === 'string' ? c.projectId : ''
         };
         inst.assets = S.createAssets(inst.api);
         Object.defineProperty(inst, 'readonly', { get() { return inst.ctxReadonly || inst.forcedReadonly || !!(inst.status && inst.status.read_only); } });
@@ -90,11 +90,19 @@
             if (inst.disposed) return;
             if (inst.status && inst.status.enabled === false) { showRoot(inst, stateCard(inst, 'storymaker.state.disabled_title', 'storymaker.state.disabled_text')); return; }
             inst.bus.emit('status');
+            if ((await openLaunchProject(inst)) || inst.disposed) return;
             await showProjects(inst);
         } catch (err) {
             if (inst.disposed || (err && err.aborted)) return;
             showRoot(inst, startFailure(inst, err));
         }
+    }
+
+    // A launch that names a project opens it directly. A project that is gone falls back to the list.
+    async function openLaunchProject(inst) {
+        const id = inst.launchProjectId;
+        inst.launchProjectId = '';
+        return id ? openProject(inst, id) : false;
     }
 
     async function showProjects(inst) {
@@ -964,5 +972,16 @@
         inst.bag.dispose();
     }
 
-    window.StorymakerApp = { render, dispose };
+    // A running window opens the project a launch names. Typed edits are saved first; if that fails the
+    // user decides, and a refusal keeps the current project open.
+    async function open(windowId, projectId) {
+        const inst = instances.get(windowId);
+        if (!inst || typeof projectId !== 'string' || !projectId) return false;
+        if (inst.view === 'loading') { inst.launchProjectId = projectId; return true; }
+        if (inst.view === 'editor' && inst.projectId === projectId) return true;
+        if (!(await beforeClose(inst)) || inst.disposed) return false;
+        return openProject(inst, projectId);
+    }
+
+    window.StorymakerApp = { render, dispose, open };
 })();

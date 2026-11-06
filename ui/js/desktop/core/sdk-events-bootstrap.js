@@ -455,6 +455,7 @@
             const launch = {};
             if (event.payload.path) launch.path = event.payload.path;
             if (typeof event.payload.game === 'string' && /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(event.payload.game)) launch.game = event.payload.game;
+            if (event.payload.app_id === 'storymaker' && typeof event.payload.project_id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(event.payload.project_id)) launch.projectId = event.payload.project_id;
             if (event.payload.app_id === 'ecalc') {
                 const ecalcLaunch = sanitizeECalcLaunch(event.payload.ecalc);
                 if (ecalcLaunch) launch.launch = ecalcLaunch;
