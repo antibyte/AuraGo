@@ -286,9 +286,43 @@
         }
     }
 
+    /* Victory lap (state 'finished'): the result is already built, and every car, the player's slot included, keeps driving
+       under the opponent controller so the results never sit over a parked car. Only vehicle state moves: events are muted,
+       and the tape, tally, style, tricks, weapons, scoring and race.time stay untouched, so the recorded race and its result
+       are bit-identical with or without the lap. Nothing here uses the race rng. */
+    const OUTRO_SPEED = 34;
+    function outroStep(race, dt) {
+        race.outro = (race.outro || 0) + dt;
+        const was = race.muteEvents;
+        race.muteEvents = true;
+        for (const car of race.cars) {
+            const v = car.v;
+            if (v.out) continue;
+            if (v.airborne) { v.airborne = false; v.z = 0; v.vz = 0; v.roll = 0; v.pitch = 0; v.rollRate = 0; v.pitchRate = 0; v.spinRate = 0; }
+            const tally = car.tally;
+            car.tally = null;
+            const input = AD.aiInput(race, car);
+            input.fire = 0; input.boost = 0;
+            if (v.vx > OUTRO_SPEED) input.throttle = 0;
+            const env = environmentAt(race, car);
+            AD.stepVehicle(v, input, dt, env);
+            AD.resolveWall(v, env.sample, dt);
+            car.tally = tally;
+        }
+        for (let i = 0; i < race.cars.length; i++) {
+            const a = race.cars[i];
+            if (a.v.out) continue;
+            for (let j = i + 1; j < race.cars.length; j++) {
+                const b = race.cars[j];
+                if (!b.v.out) AD.resolveCarPair(a.v, b.v, (a.v.car.radius + b.v.car.radius) / 2);
+            }
+        }
+        race.muteEvents = was;
+    }
+
     AD.stepRace = function (race, dt) {
         if (race.state === 'countdown') { countdownStep(race, dt); return; }
-        if (race.state === 'finished') return;
+        if (race.state === 'finished') { outroStep(race, dt); return; }
         race.time += dt;
 
         /* Player rescue (key T): a one-shot request, never part of the tape, so time

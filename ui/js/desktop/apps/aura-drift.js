@@ -666,12 +666,10 @@
                 const every = Math.max(1, (opts && opts.renderEvery) | 0) || 30;
                 let left = Math.round(seconds / AD.STEP), ticks = 0, rendered = 0;
                 while (left-- > 0 && race && !paused) {
-                    if (race.state !== 'finished') {
-                        if (!autopilot && playing() && (race.state === 'running' || race.state === 'countdown')) readInput();
-                        stepOnce(AD.STEP);
-                        drainEvents();
-                        if (race.state === 'finished' && race.cars[0].isPlayer) finishRace();
-                    }
+                    if (!autopilot && playing() && (race.state === 'running' || race.state === 'countdown')) readInput();
+                    stepOnce(AD.STEP);
+                    drainEvents();
+                    if (race.state === 'finished' && race.cars[0].isPlayer) finishRace();
                     if (++ticks % every === 0) { presentTick(Math.min(0.05, AD.STEP * every)); rendered++; }
                 }
                 return { time: race ? race.time : 0, state: race ? race.state : view, rendered: rendered, results: resultsShown };

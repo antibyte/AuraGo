@@ -287,10 +287,15 @@
                     pose.fov = params.fov;
                     pose.roll = 0;
                 } else if (st.script === 'orbit') {
-                    st.orbit += reduced ? 0 : step * 0.35;
-                    const a = reduced ? st.h + 0.6 : st.h + 0.6 + st.orbit;
-                    pose.eye = [v.x + Math.cos(a) * 12, v.z * 0.6 + 4, v.y + Math.sin(a) * 12];
-                    pose.target = [v.x, v.z + 0.8, v.y];
+                    /* Victory lap: the car keeps driving, so this is a slow high chase that sways behind it. At 10.5 m up and 13 m back
+                       it stays above the gantry (7 m), the stands (8.9 m) and every prop, which the scatter keeps well off the road.
+                       Reduced motion: a fixed 3/4 view from behind-right of the moving car. */
+                    st.orbit += reduced ? 0 : step * 0.4;
+                    const phi = reduced ? 0.7 : 0.95 * Math.sin(st.orbit);
+                    const a = st.h + Math.PI + phi;
+                    pose.eye = [v.x + Math.cos(a) * 13, v.z * 0.6 + 10.5, v.y + Math.sin(a) * 13];
+                    pose.target = [v.x + Math.cos(st.h) * 5, v.z + 0.8, v.y + Math.sin(st.h) * 5];
+                    pose.fov = 58;
                     pose.roll = 0;
                 }
             }

@@ -163,6 +163,37 @@ check('input tape round-trips steering sign', unpacked.steer < -0.45 && unpacked
     check('held brake brakes a car shunted forward to speed', stopped.vx < 16 && stopped.vx > -0.5, 'vx=' + stopped.vx);
 }
 
+/* Victory lap: after the finish every car keeps driving (player slot under the AI), but the result, tape, tally, style,
+   clock and events stay exactly as they were at the finish. */
+{
+    const track = AD.buildTrack(AD.trackById('alpenpass'));
+    const race = AD.createRace({ track, mode: 'quick', laps: 1, opponents: 3, weapons: true, seed: 777 });
+    race.cars[0].ai.aggression = 0.9;
+    race.cars[0].ai.skill = 0.95;
+    let guard = 0;
+    while (race.state !== 'finished' && guard++ < 90000) {
+        if (race.state === 'running') Object.assign(race.playerInput, AD.aiInput(race, race.cars[0]));
+        AD.stepRace(race, AD.STEP);
+        race.events.length = 0;
+    }
+    check('quick race with the AI in the player slot finishes', race.state === 'finished' && !!race.result, 'steps=' + guard);
+    const frozen = () => JSON.stringify([race.result, race.time, race.cars.map(c => [c.tally, c.style, c.tricks, c.tape.length, c.lap, c.finished, c.finishTime, c.weapon, c.ammo]), race.standings.map(c => c.index), race.hazards.length, race.projectiles.length]);
+    const before = frozen();
+    const start = race.cars.map(c => [c.v.x, c.v.y]);
+    let events = 0, finite = true;
+    for (let i = 0; i < 1800; i++) {
+        AD.stepRace(race, AD.STEP);
+        events += race.events.length;
+        for (const c of race.cars) finite = finite && AD.vehicleState(c.v).every(Number.isFinite);
+    }
+    const moved = race.cars.map((c, i) => Math.hypot(c.v.x - start[i][0], c.v.y - start[i][1]));
+    check('outro: the result and every scored counter are unchanged', frozen() === before);
+    check('outro: no events are emitted', events === 0, 'events=' + events);
+    check('outro: the player car keeps driving', moved[0] > 60, 'moved=' + moved[0].toFixed(1));
+    check('outro: rivals keep driving', moved.slice(1).every(d => d > 60), moved.map(d => d.toFixed(0)).join(','));
+    check('outro: vehicle state stays finite', finite);
+}
+
 if (failures.length) {
     console.error('\n' + failures.length + ' physics check(s) failed');
     process.exit(1);
