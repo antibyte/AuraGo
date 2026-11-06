@@ -558,3 +558,66 @@ func TestStorymakerAgentCancelAndTimeoutKeepValidScenes(t *testing.T) {
 		smScriptRequireKept(t, env)
 	})
 }
+
+// A narration the agent job joined (Coalesce returned a job that was already queued or running) is not
+// the job's to cancel. One it started itself is.
+func TestStorymakerAgentLeavesAJoinedNarrationRunning(t *testing.T) {
+	for _, joined := range []bool{true, false} {
+		t.Run(fmt.Sprintf("joined=%v", joined), func(t *testing.T) {
+			started := make(chan struct{})
+			release := make(chan struct{})
+			m, err := render.NewManager(render.ManagerOptions{
+				Dir:     t.TempDir(),
+				Kinds:   []string{render.KindNarrate},
+				Workers: 1,
+				Run: func(ctx context.Context, job render.Job, payload any, h *render.Handle) (render.Output, error) {
+					close(started)
+					select {
+					case <-ctx.Done():
+						return render.Output{}, ctx.Err()
+					case <-release:
+						return render.Output{}, nil
+					}
+				},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(m.Close)
+			t.Cleanup(func() { close(release) })
+			job, _, err := m.Enqueue(render.EnqueueRequest{ProjectID: "p1", Kind: render.KindNarrate, Coalesce: true, Payload: storymakerNarratePayload{ProjectID: "p1"}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			select {
+			case <-started:
+			case <-time.After(30 * time.Second):
+				t.Fatal("the narrate job never started")
+			}
+			j := &storymakerAgentJob{rt: &storymakerRuntime{narrate: m}, job: render.Job{ProjectID: "p1"}}
+			ctx, cancel := context.WithCancel(context.Background())
+			cancel()
+			if got := j.waitNarration(ctx, job.ID, time.Minute, joined); got != storymakerCheckNarrationPending {
+				t.Fatalf("waitNarration = %q, want %q", got, storymakerCheckNarrationPending)
+			}
+			if joined {
+				time.Sleep(100 * time.Millisecond)
+			} else {
+				deadline := time.Now().Add(30 * time.Second)
+				for time.Now().Before(deadline) {
+					if cur, _ := m.Get(job.ID); cur.Terminal() {
+						break
+					}
+					time.Sleep(5 * time.Millisecond)
+				}
+			}
+			cur, _ := m.Get(job.ID)
+			if joined && cur.Terminal() {
+				t.Fatalf("a joined narration was stopped: %+v", cur)
+			}
+			if !joined && cur.Status != render.StatusCancelled {
+				t.Fatalf("a narration the job started was not cancelled: %+v", cur)
+			}
+		})
+	}
+}

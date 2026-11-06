@@ -797,9 +797,11 @@ func storymakerAgentNarrateJobCheck(job render.Job) string {
 }
 
 // waitNarration waits for the narrate job within the bound. A cancelled agent job takes its narrate
-// job along, so nothing is billed after a cancel. A job that outlasts the bound keeps running and
-// reads as pending.
-func (j *storymakerAgentJob) waitNarration(ctx context.Context, jobID string, wait time.Duration) string {
+// job along, so nothing is billed after a cancel, but only a job it started itself: a joined job
+// (joined true) is a narration that was already queued or running, possibly the user's own, and it
+// keeps running. Both cases read as pending. A job that outlasts the bound keeps running and reads
+// as pending.
+func (j *storymakerAgentJob) waitNarration(ctx context.Context, jobID string, wait time.Duration, joined bool) string {
 	events, unsubscribe := j.rt.narrate.Subscribe(j.job.ProjectID)
 	defer unsubscribe()
 	timer := time.NewTimer(wait)
@@ -814,7 +816,9 @@ func (j *storymakerAgentJob) waitNarration(ctx context.Context, jobID string, wa
 		}
 		select {
 		case <-ctx.Done():
-			j.rt.narrate.Cancel(jobID)
+			if !joined {
+				j.rt.narrate.Cancel(jobID)
+			}
 			return storymakerCheckNarrationPending
 		case <-timer.C:
 			return storymakerCheckNarrationPending
@@ -861,7 +865,7 @@ func (j *storymakerAgentJob) narrate(runCtx, jobCtx context.Context) string {
 	if refusal := storymakerNarrateRefusal(read, j.s, acc, storymakerBlocksToSynthesize(&story, answer), answer); refusal != nil {
 		return storymakerAgentRefusalCheck(refusal.Code)
 	}
-	queued, _, err := j.rt.narrate.Enqueue(render.EnqueueRequest{ProjectID: id, Kind: render.KindNarrate, Coalesce: true, Payload: storymakerNarratePayload{ProjectID: id}})
+	queued, joined, err := j.rt.narrate.Enqueue(render.EnqueueRequest{ProjectID: id, Kind: render.KindNarrate, Coalesce: true, Payload: storymakerNarratePayload{ProjectID: id}})
 	switch {
 	case errors.Is(err, render.ErrBusy):
 		return storymakerCheckNarrationPending
@@ -875,7 +879,7 @@ func (j *storymakerAgentJob) narrate(runCtx, jobCtx context.Context) string {
 			wait = left
 		}
 	}
-	return j.waitNarration(runCtx, queued.ID, wait)
+	return j.waitNarration(runCtx, queued.ID, wait, joined)
 }
 
 // finalCheck reads the report after narration with a second Studio. The compile cache of the job's
