@@ -295,6 +295,7 @@
         else if (e.code === 'desktop_readonly') key = 'storymaker.error.readonly';
         else if (e.code === 'storymaker_disabled') key = 'storymaker.error.disabled';
         else if (context === 'render' && (e.code === 'invalid_story' || e.code === 'code_error' || e.code === 'narration_incomplete' || e.code === 'music_incomplete')) key = 'storymaker.job_error.' + e.code;
+        else if (AGENT_ERROR_KEYS.has(e.code)) key = AGENT_ERROR_KEYS.get(e.code);
         else if (e.code === 'story_unreadable') key = 'storymaker.error.story_unreadable';
         else if (e.code === 'narration_unavailable') key = 'storymaker.error.narration_unavailable';
         else if (e.code === 'voice_unknown') key = 'storymaker.error.voice_unknown';
@@ -313,8 +314,20 @@
         return e.message ? base + ' ' + e.message : base;
     }
 
-    // The job error codes of the spec (Error handling) that a render or a narrate job can end with.
-    const JOB_ERROR_CODES = ['invalid_story', 'storymaker_disabled', 'browser_unavailable', 'ffmpeg_unavailable', 'render_failed', 'render_timeout', 'cancelled', 'busy', 'code_error', 'narration_failed', 'narration_unavailable', 'voice_required', 'budget_exceeded', 'narration_incomplete', 'music_failed', 'music_incomplete'];
+    // The refusals of the agent routes. They come before the general status rules, because a 429 or a 422 here means something else.
+    const AGENT_ERROR_KEYS = new Map([
+        ['agent_disabled', 'storymaker.agent.off'],
+        ['agent_job_active', 'storymaker.error.agent_job_active'],
+        ['story_not_empty', 'storymaker.error.story_not_empty'],
+        ['model_too_small', 'storymaker.error.model_too_small'],
+        ['llm_unavailable', 'storymaker.error.llm_unavailable'],
+        ['daily_limit_reached', 'storymaker.error.daily_limit_reached'],
+        ['invalid_topic', 'storymaker.agent.prompt_required'],
+        ['invalid_instruction', 'storymaker.agent.prompt_required']
+    ]);
+
+    // The job error codes of the spec (Error handling) that a render, a narrate or an agent job can end with.
+    const JOB_ERROR_CODES = ['invalid_story', 'storymaker_disabled', 'browser_unavailable', 'ffmpeg_unavailable', 'render_failed', 'render_timeout', 'cancelled', 'busy', 'code_error', 'narration_failed', 'narration_unavailable', 'voice_required', 'budget_exceeded', 'narration_incomplete', 'music_failed', 'music_incomplete', 'model_error'];
 
     function describeJobError(t, error) {
         const code = error && typeof error.code === 'string' ? error.code : '';
