@@ -480,6 +480,9 @@ func handleStorymakerStory(s *Server, w http.ResponseWriter, r *http.Request, id
 		return
 	}
 	lim := storymakerLimits(acc.cfg)
+	if refuseStorymakerWhileAgentRuns(w, acc.rt, id) {
+		return
+	}
 	body, err := io.ReadAll(io.LimitReader(r.Body, int64(lim.MaxStoryBytes)+1))
 	if err != nil {
 		writeStorymakerError(w, http.StatusBadRequest, "invalid_request", "The request body could not be read.", nil)
@@ -545,6 +548,9 @@ func handleStorymakerCode(s *Server, w http.ResponseWriter, r *http.Request, id,
 	case http.MethodPut:
 		acc, ok := storymakerAuthorize(s, w, r, desktopScopeWrite, desktopWrite, true)
 		if !ok {
+			return
+		}
+		if refuseStorymakerWhileAgentRuns(w, acc.rt, id) {
 			return
 		}
 		ifMatch := ""
@@ -629,6 +635,9 @@ func handleStorymakerRender(s *Server, w http.ResponseWriter, r *http.Request, i
 	}
 	match, ok := requireStorymakerMatch(w, r)
 	if !ok {
+		return
+	}
+	if refuseStorymakerWhileAgentRuns(w, acc.rt, id) {
 		return
 	}
 	key := strings.TrimSpace(r.Header.Get("Idempotency-Key"))

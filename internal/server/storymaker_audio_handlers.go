@@ -115,6 +115,9 @@ func handleStorymakerNarrate(s *Server, w http.ResponseWriter, r *http.Request, 
 	if !ok {
 		return
 	}
+	if refuseStorymakerWhileAgentRuns(w, acc.rt, id) {
+		return
+	}
 	story, answer, ok := s.storymakerStoryAudio(w, r, acc, id)
 	if !ok {
 		return
