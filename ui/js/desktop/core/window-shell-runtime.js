@@ -1650,6 +1650,10 @@
                 if (window.VideoStudioApp?.instances?.has(existing.id)) window.VideoStudioApp.receiveImport(existing.id, offer);
                 else if (!existing.pendingCameraImport) existing.pendingCameraImport = offer;
             }
+            if (appId === 'video-studio' && context && !context.sessionRestore && typeof context.projectId === 'string' && context.projectId) {
+                if (window.VideoStudioApp?.instances?.has(existing.id)) window.VideoStudioApp.openProject(existing.id, context.projectId);
+                else existing.pendingProjectId = context.projectId;
+            }
             if (context && context.path) recordRecentFile(context.path, appId, context.pathKind);
             return;
         }

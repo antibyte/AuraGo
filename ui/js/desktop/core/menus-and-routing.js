@@ -1646,8 +1646,8 @@
         }
         if (appId === 'video-studio' && window.VideoStudioApp && typeof window.VideoStudioApp.render === 'function') {
             const win = state.windows.get(id);
-            const launch = Object.assign({}, context || {}, win?.pendingCameraImport || {});
-            if (win) delete win.pendingCameraImport;
+            const launch = Object.assign({}, context || {}, win?.pendingCameraImport || {}, win?.pendingProjectId ? { projectId: win.pendingProjectId } : {});
+            if (win) { delete win.pendingCameraImport; delete win.pendingProjectId; }
             return window.VideoStudioApp.render(contentEl(id), id, withDesktopFileDialogs(launch, {
                 esc, api, t, iconMarkup, readonly: desktopReadonly(), confirmDialog, promptDialog, setWindowMenus, clearWindowMenus,
                 setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; }

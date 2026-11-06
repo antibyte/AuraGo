@@ -344,6 +344,8 @@
         if (!s || s.studioReady || s.disposed) return;
         s.studioReady = true;
         if (P.beginCameraImport) P.beginCameraImport(s);
+        // An id stored while the first load ran (openProject) opens now.
+        if (s.ctx.projectId && s.ctx.projectId !== s.projectId) openProject(s.id, s.ctx.projectId);
     }
     async function initialize(s) {
         const response = await request(API + '/status', { signal: s.abort.signal });
@@ -372,7 +374,11 @@
             return;
         }
         await loadProjects(s);
-        if (!s.project && s.projects.length) await loadProject(s, s.projects[0].id);
+        if (!s.project && s.projects.length) {
+            // A launch may name the project. One that is gone falls back to the first.
+            const named = s.ctx.projectId && s.projects.some(item => item.id === s.ctx.projectId);
+            await loadProject(s, named ? s.ctx.projectId : s.projects[0].id);
+        }
         else if (!s.project) renderEmptyProject(s);
         populateCanvas(s);
         renderUI(s);
@@ -877,9 +883,21 @@
         return s && s.preview && typeof s.preview.capture === 'function' ? s.preview.capture(rect) : null;
     }
 
+    // Opens a project in a live window (the Storymaker handoff). Before the first load ends, the id waits in the context. Afterwards the
+    // list is read again, because the project may be new, and switchProject saves dirty work first.
+    async function openProject(id, projectId) {
+        const s = instances.get(id);
+        if (!s || s.disposed || s.featureDisabled || !projectId) return;
+        if (!s.studioReady) { s.ctx.projectId = projectId; return; }
+        try {
+            await loadProjects(s);
+            if (!s.disposed && s.projects.some(item => item.id === projectId)) await switchProject(s, projectId);
+        } catch (_) { showNotice(s, 'loadFailed', 'Could not open this project.', true); }
+    }
+
     function receiveImport(id, context) {
         if (P.receiveCameraImport) P.receiveCameraImport(instances.get(id), context || {});
     }
 
-    window.VideoStudioApp = { render: appRender, dispose, instances, capturePreview, receiveImport };
+    window.VideoStudioApp = { render: appRender, dispose, instances, capturePreview, receiveImport, openProject };
 })();
