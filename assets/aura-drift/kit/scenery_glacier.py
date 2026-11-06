@@ -9,7 +9,7 @@ import math
 
 from . import scenery_b_common as c
 from .core import Model
-from .shapes import arc_band, box, cylinder, cylinder_x, ellipsoid, extrude_z, revolve, revolve_x, sphere, strut, torus, xf
+from .shapes import arc_band, box, cylinder, cylinder_x, cylinder_z, ellipsoid, extrude_z, revolve, revolve_x, sphere, strut, torus, xf
 
 SNOW = "#f2f7ff"
 SNOW_SHADE = "#c9d8f0"
@@ -206,10 +206,55 @@ def station():
     return p
 
 
+def ice_spire():
+    """Towering cluster of jagged blue-cyan glacial serac needles rising from a snow pillow with a glowing fissure."""
+    p = c.Piece("ice_spire")
+    p.add(c.lump(2.6, 0.75, 2.3, "spire-snow", 7, 3, 0.16, flat_bottom=True), xf((0.0, 0.35, 0.0)), SNOW, grad=0.2)
+    specs = (
+        ((0.0, 0.0, 0.0), 1.35, 9.2, (4, 0, -5), "#7fd4ff"),
+        ((1.4, 0.0, 0.8), 0.95, 6.4, (-9, 20, -14), "#9be4ff"),
+        ((-1.3, 0.0, -0.7), 1.05, 7.1, (10, -15, 12), "#68bfff"),
+        ((0.5, 0.0, -1.4), 0.72, 4.5, (-12, 30, 10), "#b8f0ff"),
+    )
+    for pos, r, h, rot, col in specs:
+        p.add(revolve([(0.0, 0.0), (r, 0.0), (r * 0.62, h * 0.68), (0.0, h)], 6), xf(pos, rot), col, grad=0.35)
+    p.add_flat(box(0.35, 2.2, 0.22), xf((0.75, 1.2, 0.35), (0, 0, -12)), "#6ff4ff", mat="glow_cyan")
+    return p
+
+
+def snow_cat():
+    """Tracked polar snow-groomer vehicle with caterpillar tracks, hazard snow-plow blade, orange cab and roof radar."""
+    p = c.Piece("snow_cat")
+    O, D = "#ff7a24", "#242834"
+    # Twin articulated caterpillar track pods
+    for side in (-1, 1):
+        tz = side * 1.35
+        p.add(box(3.4, 0.72, 0.62, 0.12, 1), xf((0.0, 0.42, tz)), D, grad=0.25)
+        for wx in (-1.25, -0.42, 0.42, 1.25):
+            p.add(cylinder_z(0.28, 0.28, 0.68, 7), xf((wx, 0.36, tz)), "#e8b838", grad=0.15, jitter=0.0)
+    # Chassis deck, orange expedition cab & warm windows
+    p.add(box(3.6, 0.45, 2.2, 0.05, 1), xf((0.0, 0.95, 0.0)), "#3a4156", grad=0.3)
+    p.add(box(2.5, 1.45, 2.0, 0.10, 1), xf((0.15, 1.85, 0.0)), O, grad=0.35)
+    p.add_flat(c.wall_quad((1.42, 1.95, 0.0), (1, 0.18, 0), 1.65, 0.68), None, "#ffe2a0", mat="glow_warm")
+    for side in (-1, 1):
+        p.add_flat(c.wall_quad((0.2, 1.95, side * 1.02), (0, 0, side), 1.6, 0.62), None, "#ffe2a0", mat="glow_warm")
+    # Front angled snow-plow blade + hydraulic arms
+    for side in (-0.65, 0.65):
+        p.add(strut((1.6, 0.75, side), (2.55, 0.55, side), 0.09, 4), None, "#8d90a6", grad=0.2)
+    p.add(box(0.28, 0.95, 3.3, 0.05, 1), xf((2.68, 0.62, 0.0), (0, 12, -8)), "#ffc928", grad=0.3)
+    # Roof cargo rack, radar dome & amber strobe bar
+    p.add(box(1.8, 0.12, 1.6), xf((0.0, 2.65, 0.0)), "#8d90a6", grad=0.2)
+    p.add(sphere(0.42, 7, 4), xf((-0.35, 2.95, 0.0)), "#f4f6fa", grad=0.2)
+    p.add_flat(box(0.24, 0.16, 0.95), xf((0.85, 2.74, 0.0)), "#ffc15e", mat="glow_amber")
+    for side in (-0.68, 0.68):
+        p.add_flat(box(0.08, 0.22, 0.34), xf((1.42, 1.35, side)), "#fff2cc", mat="glow_warm")
+    return p
+
+
 def build():
     c.ensure_materials()
     model = Model("scenery-glacier")
-    for name, piece in (("ice_block", ice_block()), ("ice_arch", ice_arch()), ("snow_pine", snow_pine()), ("igloo", igloo()), ("research_station", station())):
+    for name, piece in (("ice_block", ice_block()), ("ice_arch", ice_arch()), ("snow_pine", snow_pine()), ("igloo", igloo()), ("research_station", station()), ("ice_spire", ice_spire()), ("snow_cat", snow_cat())):
         piece.bake()
         model.mesh("prop-" + name, piece.items())
     return model

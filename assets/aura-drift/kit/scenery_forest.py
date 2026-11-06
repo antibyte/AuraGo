@@ -196,10 +196,55 @@ def hunting_hide():
     return p
 
 
+def fern_glade():
+    """Woodland floor glade: mossy boulders, hollow fallen log, rosette of fern fronds and glowing fairy toadstools."""
+    p = c.Piece("fern_glade")
+    p.add(c.lump(1.3, 0.75, 1.1, "fern-rk1", 6, 3, 0.2, flat_bottom=True), xf((-0.7, 0.38, -0.5)), "#6e7a72", grad=0.4)
+    p.add(c.lump(0.95, 0.35, 0.85, "fern-moss", 6, 3, 0.16), xf((-0.7, 0.78, -0.5)), "#4db84e", grad=0.3)
+    p.add(cylinder_z(0.36, 0.36, 2.5, 6), xf((0.75, 0.34, 0.2), (0, 22, 0)), "#6a4328", grad=0.35)
+    for k in range(7):
+        a = 360.0 * k / 7.0
+        p.add(ellipsoid(1.15, 0.12, 0.28, 5, 3), xf((0.0, 0.65, 0.0), (0, a, -26)) @ xf((0.85, 0.0, 0.0)), "#38a648", grad=0.25)
+    for mx, mz, col in ((0.45, -0.85, "#ff5a3c"), (-0.25, 0.95, "#ffd23c"), (1.15, -0.45, "#ff6fb0")):
+        p.add(strut((mx, 0.0, mz), (mx, 0.42, mz), 0.07, 4), None, "#f6efdc", grad=0.2)
+        p.add(ellipsoid(0.24, 0.14, 0.24, 6, 3), xf((mx, 0.46, mz)), col, grad=0.2)
+    return p
+
+
+def watermill():
+    """Half-timbered forest cottage with stone foundation, mossy gable roof, wooden millrace and spoked paddle-wheel."""
+    p = c.Piece("watermill")
+    p.add(box(4.8, 1.4, 3.8, 0.06, 1), xf((0.0, 0.7, 0.0)), "#7d828f", grad=0.45)
+    p.add(box(4.6, 2.2, 3.6, 0.06, 1), xf((0.0, 2.5, 0.0)), "#f2e8d2", grad=0.3)
+    for x in (-2.2, 0.0, 2.2):
+        p.add(box(0.16, 2.2, 3.72), xf((x, 2.5, 0.0)), "#5a3622", grad=0.2)
+    for z in (-1.82, 1.82):
+        p.add(box(4.7, 0.16, 0.12), xf((0.0, 2.5, z)), "#5a3622", grad=0.2)
+    gable = [(2.4, 3.55), (0.0, 5.35), (-2.4, 3.55)]
+    p.add(extrude_z(gable, -1.82, 1.82), None, "#f2e8d2", grad=0.3)
+    roof = [(2.95, 3.35), (0.0, 5.55), (-2.95, 3.35), (-2.68, 3.12), (0.0, 5.15), (2.68, 3.12)]
+    p.add(extrude_z(roof, -2.25, 2.25), None, "#b8442e", grad=0.35)
+    p.add(box(0.85, 1.6, 0.85, 0.04, 1), xf((-1.2, 5.4, -0.8)), "#7d828f", grad=0.35)
+    p.add_flat(c.wall_quad((0.0, 2.5, 1.84), (0, 0, 1), 0.9, 0.85), None, "#ffe2a0", mat="glow_warm")
+    # Spoked wooden waterwheel on the -Z wall + elevated wooden millrace flume
+    wz = -2.25
+    p.add(cylinder_z(0.28, 0.28, 0.8, 7), xf((0.4, 1.85, wz)), "#5a3622", grad=0.2)
+    for r in (1.55, 1.25):
+        for k in range(8):
+            a0, a1 = math.tau * k / 8.0, math.tau * (k + 1) / 8.0
+            p.add(strut((0.4 + r * math.cos(a0), 1.85 + r * math.sin(a0), wz), (0.4 + r * math.cos(a1), 1.85 + r * math.sin(a1), wz), 0.09, 4), None, "#7a4a2a", grad=0.2)
+    for k in range(8):
+        a = math.tau * k / 8.0
+        p.add(strut((0.4, 1.85, wz), (0.4 + 1.55 * math.cos(a), 1.85 + 1.55 * math.sin(a), wz), 0.07, 4), None, "#8a552b", grad=0.2)
+    p.add(box(3.8, 0.35, 0.65, 0.03, 1), xf((-0.8, 3.65, wz)), "#7a4a2a", grad=0.25)
+    p.add_flat(box(3.6, 0.12, 0.45), xf((-0.8, 3.82, wz)), "#5ff4ff", mat="glow_cyan")
+    return p
+
+
 def build():
     c.ensure_materials()
     model = Model("scenery-forest")
-    for name, piece in (("oak", oak()), ("birch", birch()), ("mushroom_cluster", mushroom_cluster()), ("log_pile", log_pile()), ("hunting_hide", hunting_hide())):
+    for name, piece in (("oak", oak()), ("birch", birch()), ("mushroom_cluster", mushroom_cluster()), ("log_pile", log_pile()), ("hunting_hide", hunting_hide()), ("fern_glade", fern_glade()), ("watermill", watermill())):
         piece.bake()
         model.mesh("prop-" + name, piece.items())
     return model

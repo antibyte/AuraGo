@@ -4,11 +4,12 @@
 """
 
 PROPS = {
-    "grandstand": {"tags": ["hero"]},
+    "grandstand": {"tags": ["hero", "crowd"]},
+    "fan_camp": {"tags": ["hero", "crowd"]},
     "hoarding": {"tags": ["tall"]},
     "marshal_post": {"tags": []},
     "gnome_statue": {"tags": ["hero", "tall"]},
-    "hotdog_stand": {"tags": []},
+    "hotdog_stand": {"tags": ["hero"]},
     "camper_van": {"tags": ["hero"]},
     "inflatable_arch": {"tags": ["tall"]},
     "road_sign": {"tags": ["scatter"]},

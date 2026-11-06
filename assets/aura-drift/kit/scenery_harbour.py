@@ -8,7 +8,7 @@ import math
 
 from . import scenery_a_common as c
 from .core import Model
-from .scenery_harbour_b import fishing_boat, neon_sign
+from .scenery_harbour_b import buoy_cluster, fishing_boat, neon_sign, tugboat
 from .shapes import box, cylinder, ellipsoid, revolve, sphere, strut, xf
 
 BOXES = [("#d8402e", -1.35, 0.0, 0.0, 0.0), ("#2f6fd6", 1.35, 0.0, 0.0, 1.0), ("#f2b72d", -1.35, 2.6, 0.0, -0.5), ("#1fa890", 1.35, 2.6, 0.0, 2.0), ("#ff7a2e", 0.1, 5.2, 0.6, 3.0)]
@@ -139,7 +139,7 @@ def lighthouse():
 def build():
     c.ensure_materials()
     model = Model("scenery-harbour")
-    for name, piece in (("container_stack", container_stack()), ("crane", crane()), ("lighthouse", lighthouse()), ("fishing_boat", fishing_boat()), ("neon_sign", neon_sign())):
+    for name, piece in (("container_stack", container_stack()), ("crane", crane()), ("lighthouse", lighthouse()), ("fishing_boat", fishing_boat()), ("neon_sign", neon_sign()), ("tugboat", tugboat()), ("buoy_cluster", buoy_cluster())):
         piece.bake(ao_height=2.6 if name != "crane" else 3.5)
         model.mesh("prop-" + name, piece.items())
     return model

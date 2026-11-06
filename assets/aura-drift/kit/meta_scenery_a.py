@@ -13,6 +13,8 @@ PROPS = {
         "rock_b": {"tags": ["scatter"]},
         "chalet": {"tags": ["hero"]},
         "cablecar_pylon": {"tags": ["tall"]},
+        "flower_meadow": {"tags": ["scatter"]},
+        "hay_barn": {"tags": ["hero"]},
     },
     "desert": {
         "cactus_a": {"tags": ["scatter"]},
@@ -20,6 +22,8 @@ PROPS = {
         "mesa_rock": {"tags": ["hero", "tall", "far"]},
         "water_tower": {"tags": ["hero", "tall"]},
         "windmill_pump": {"tags": ["hero", "tall"]},
+        "rock_arch": {"tags": ["hero", "tall", "far"]},
+        "palm_oasis": {"tags": ["hero", "tall"]},
     },
     "harbour": {
         "container_stack": {"tags": ["hero"]},
@@ -27,11 +31,15 @@ PROPS = {
         "lighthouse": {"tags": ["hero", "tall", "far"]},
         "fishing_boat": {"tags": ["hero"]},
         "neon_sign": {"tags": ["tall"]},
+        "tugboat": {"tags": ["hero"]},
+        "buoy_cluster": {"tags": ["scatter", "tall"]},
     },
     "salt": {
         "salt_crystal": {"tags": ["scatter"]},
         "ufo": {"tags": ["hero"]},
         "rover": {"tags": []},
         "flag": {"tags": ["scatter", "tall"]},
+        "radar_dome": {"tags": ["hero", "tall", "far"]},
+        "geyser_pool": {"tags": ["hero"]},
     },
 }

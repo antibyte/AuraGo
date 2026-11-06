@@ -168,10 +168,54 @@ def cablecar_pylon():
     return p
 
 
+def flower_meadow():
+    """Alpine pasture patch: mossy hummocks, limestone boulders, split-rail fence and mountain wildflowers."""
+    p = c.Piece("flower_meadow")
+    for x, z, rx, ry, rz in ((0.0, 0.0, 2.2, 0.45, 1.9), (-1.1, 0.8, 1.3, 0.38, 1.2), (1.2, -0.7, 1.4, 0.40, 1.1)):
+        p.add(c.lump(rx, ry, rz, ("mead", x, z), 7, 3, 0.14, flat_bottom=True), xf((x, ry * 0.4, z)), "#3e8c45", grad=0.35)
+    p.add(c.lump(0.85, 0.65, 0.75, "mead-r1", 6, 3, 0.2, flat_bottom=True), xf((-0.9, 0.35, -0.6)), "#8d96a8", grad=0.4)
+    p.add(c.lump(0.55, 0.45, 0.50, "mead-r2", 6, 3, 0.2, flat_bottom=True), xf((-0.3, 0.25, -0.95)), "#a2abbd", grad=0.35)
+    for z in (-1.5, 0.0, 1.5):
+        p.add(strut((-1.6, 0.0, z), (-1.6, 1.15, z), 0.09, 5), None, "#6e472b", grad=0.3)
+    for y in (0.48, 0.88):
+        p.add(box(0.10, 0.10, 3.3), xf((-1.52, y, 0.0)), "#8a5a36", grad=0.25)
+    tones = ("#ffd238", "#3b78ff", "#ff66a8", "#fff9ee")
+    rng = p.rng
+    for i in range(10):
+        fx, fz = rng.uniform(-1.1, 1.4), rng.uniform(-1.2, 1.2)
+        p.add(sphere(0.14, 5, 3), xf((fx, 0.36 + rng.uniform(0.0, 0.12), fz)), tones[i % 4], grad=0.1, jitter=0.0)
+    return p
+
+
+def hay_barn():
+    """Traditional Alpine timber hay barn (Stadel) on stone piers with hayloft, hay bales and milk churns."""
+    p = c.Piece("hay_barn")
+    for sx in (-2.2, 2.2):
+        for sz in (-1.8, 1.8):
+            p.add(box(0.65, 0.75, 0.65, 0.04, 1), xf((sx, 0.38, sz)), "#8d929e", grad=0.35)
+    p.add(box(5.4, 0.22, 4.4, 0.04, 1), xf((0, 0.82, 0)), "#7a4e2d", grad=0.25)
+    p.add(box(5.0, 2.9, 4.0, 0.08, 1), xf((0, 2.35, 0)), "#5c3820", grad=0.45)
+    for k in range(4):
+        p.add(box(5.12, 0.12, 4.12), xf((0, 1.25 + k * 0.68, 0)), "#472a16", grad=0.2)
+    gable = [(2.6, 3.75), (0.0, 5.45), (-2.6, 3.75)]
+    p.add(extrude_z(gable, -2.02, 2.02), None, "#4d2e18", grad=0.35)
+    roof = [(3.2, 3.55), (0.0, 5.65), (-3.2, 3.55), (-2.9, 3.32), (0.0, 5.25), (2.9, 3.32)]
+    p.add(extrude_z(roof, -2.55, 2.55), None, "#4a3b32", grad=0.35)
+    p.add(box(0.95, 1.05, 0.12), xf((0.0, 4.35, 2.04)), "#8c5832", grad=0.2)
+    p.add(box(0.14, 0.14, 0.95), xf((0.0, 5.05, 2.35)), "#6e472b", grad=0.2)
+    p.add(box(1.7, 2.0, 0.12), xf((0.0, 1.92, 2.04)), "#7a4b2a", grad=0.25)
+    p.add_flat(sphere(0.16, 6, 3), xf((1.15, 2.75, 2.15)), "#ffe29a", mat="glow_warm")
+    for bx, by, bz in ((1.8, 0.42, 2.45), (2.45, 0.42, 2.25), (2.1, 1.15, 2.35)):
+        p.add(box(0.75, 0.72, 0.95, 0.08, 1), xf((bx, by, bz)), "#ebb844", grad=0.3)
+    for mz in (-1.45, -1.95):
+        p.add(strut((-1.6, 0.0, mz), (-1.6, 0.78, mz), 0.22, 7, 0.16), None, "#c9d2e2", grad=0.25)
+    return p
+
+
 def build():
     c.ensure_materials()
     model = Model("scenery-alpine")
-    for name, piece in (("pine_a", pine_a()), ("pine_b", pine_b()), ("rock_a", rock_a()), ("rock_b", rock_b()), ("chalet", chalet()), ("cablecar_pylon", cablecar_pylon())):
+    for name, piece in (("pine_a", pine_a()), ("pine_b", pine_b()), ("rock_a", rock_a()), ("rock_b", rock_b()), ("chalet", chalet()), ("cablecar_pylon", cablecar_pylon()), ("flower_meadow", flower_meadow()), ("hay_barn", hay_barn())):
         piece.bake()
         model.mesh("prop-" + name, piece.items())
     return model

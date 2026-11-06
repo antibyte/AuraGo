@@ -83,16 +83,16 @@
 
     function band(min, max, rate) { return { min: min, max: max, rate: rate }; }
     AD.SCATTER = {
-        alpine: { pine_a: band(10, 160, 3), pine_b: band(14, 180, 2), rock_a: band(8, 120, 1.2), rock_b: band(20, 200, 0.8), chalet: band(40, 180, 0.08), cablecar_pylon: band(80, 260, 0.05) },
-        desert: { cactus_a: band(8, 140, 1.6), cactus_b: band(12, 160, 1), mesa_rock: band(60, 400, 0.2), water_tower: band(40, 200, 0.05), windmill_pump: band(30, 200, 0.08) },
-        harbour: { container_stack: band(12, 140, 0.8), crane: band(60, 240, 0.08), lighthouse: band(200, 300, 0.02), fishing_boat: band(40, 200, 0.15), neon_sign: band(8, 60, 0.2) },
-        salt: { salt_crystal: band(8, 200, 1.2), rover: band(30, 200, 0.03), flag: band(15, 100, 0.1) },
-        forest: { oak: band(8, 120, 3), birch: band(10, 150, 2.5), mushroom_cluster: band(6, 40, 1), log_pile: band(10, 70, 0.2), hunting_hide: band(20, 80, 0.06) },
-        industry: { silo: band(20, 200, 0.2), smokestack: band(60, 300, 0.1), pipes: band(10, 80, 0.4), forklift: band(12, 60, 0.1), pylon: band(40, 260, 0.1) },
-        glacier: { ice_block: band(8, 120, 1), ice_arch: band(30, 160, 0.1), snow_pine: band(10, 150, 1.8), igloo: band(20, 120, 0.06), research_station: band(80, 260, 0.03) },
+        alpine: { pine_a: band(10, 160, 3), pine_b: band(14, 180, 2), rock_a: band(8, 120, 1.2), rock_b: band(20, 200, 0.8), flower_meadow: band(8, 95, 1.4), chalet: band(40, 180, 0.08), hay_barn: band(28, 160, 0.09), cablecar_pylon: band(80, 260, 0.05) },
+        desert: { cactus_a: band(8, 140, 1.6), cactus_b: band(12, 160, 1), mesa_rock: band(60, 400, 0.2), rock_arch: band(45, 320, 0.14), palm_oasis: band(26, 170, 0.1), water_tower: band(40, 200, 0.05), windmill_pump: band(30, 200, 0.08) },
+        harbour: { container_stack: band(12, 140, 0.8), crane: band(60, 240, 0.08), lighthouse: band(200, 300, 0.02), fishing_boat: band(40, 200, 0.15), tugboat: band(36, 190, 0.12), buoy_cluster: band(18, 140, 0.35), neon_sign: band(8, 60, 0.2) },
+        salt: { salt_crystal: band(8, 200, 1.2), geyser_pool: band(22, 160, 0.12), radar_dome: band(45, 240, 0.06), rover: band(30, 200, 0.03), flag: band(15, 100, 0.1) },
+        forest: { oak: band(8, 120, 3), birch: band(10, 150, 2.5), fern_glade: band(7, 85, 1.6), mushroom_cluster: band(6, 40, 1), log_pile: band(10, 70, 0.2), hunting_hide: band(20, 80, 0.06), watermill: band(26, 130, 0.08) },
+        industry: { silo: band(20, 200, 0.2), smokestack: band(60, 300, 0.1), cooling_tower: band(55, 280, 0.09), chem_tank: band(18, 130, 0.16), pipes: band(10, 80, 0.4), forklift: band(12, 60, 0.1), pylon: band(40, 260, 0.1) },
+        glacier: { ice_block: band(8, 120, 1), ice_spire: band(12, 150, 0.85), ice_arch: band(30, 160, 0.1), snow_pine: band(10, 150, 1.8), igloo: band(20, 120, 0.06), snow_cat: band(16, 95, 0.09), research_station: band(80, 260, 0.03) },
         metro: {
             skyscraper_a: band(16, 90, 1.2), skyscraper_b: band(16, 90, 1), skyscraper_c: band(30, 160, 1), billboard: band(8, 30, 0.2),
-            street_lamp: band(6, 8, 1), food_truck: band(8, 30, 0.1), taxi: band(8, 30, 0.2)
+            street_lamp: band(6, 8, 1), food_truck: band(8, 30, 0.1), taxi: band(8, 30, 0.2), metro_entrance: band(10, 42, 0.14), arcade_kiosk: band(9, 36, 0.16)
         }
     };
 

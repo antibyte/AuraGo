@@ -7,12 +7,32 @@ Props stand on y = 0, centred, front toward +X. ``prop-hoarding`` and ``prop-roa
 
 import math
 
-from .core import Model
+from .core import Model, rng_for
 from .shapes import box, cylinder, cylinder_x, cylinder_z, ellipsoid, extrude_z, sphere, torus, xf
-from .shared_stands import gnome_statue, grandstand, inflatable_arch
+from .shared_stands import fan_camp, gnome_statue, grandstand, inflatable_arch, person
 from .toy import Parts, add_face_uv, ensure_materials, ground_ao, install_name_hook, quad_facing_x, tube
 
 RED, WHITE, NAVY, STEEL = "#e8262d", "#fff7ec", "#252f5c", "#c9d3e3"
+
+
+def attach_prop(model, name, p, shade="auto", ao_top=1.5, ao_low=0.78):
+    """Attach a prop to ``model``; if ``p`` has animated crowd parts, export ``frame``, ``crowd``, ``crowd_arms`` children."""
+    ao = ground_ao(ao_top, ao_low)
+    p.bake(ao)
+    crowd = getattr(p, "crowd", None)
+    arms = getattr(p, "crowd_arms", None)
+    if crowd or arms:
+        root = model.empty("prop-" + name)
+        model.mesh("%s|frame" % name, p.items(), shade=shade, parent=root)
+        if crowd and crowd.items():
+            crowd.bake(ao)
+            model.mesh("%s|crowd" % name, crowd.items(), shade=shade, parent=root)
+        if arms and arms.items():
+            arms.bake(ao)
+            model.mesh("%s|crowd_arms" % name, arms.items(), shade=shade, parent=root)
+    else:
+        model.mesh("prop-" + name, p.items(), shade=shade)
+
 
 
 def card(model, name, frame, shape):
@@ -65,25 +85,31 @@ def marshal_post(model):
         p.add("toy", box(0.09, 0.07, 0.66), xf((1.15, 0.3 + 0.38 * k, 0.0)), tint=STEEL)
     p.add("toy", cylinder(0.14, 0.14, 0.2, 8), xf((-0.8, 4.6, -0.8)), tint=RED)
     p.add("glow_red", sphere(0.25, 8, 4), xf((-0.8, 4.85, -0.8)), tint="#ffd0c0")
-    # the marshal: vest, head, helmet, waving arm with a yellow flag (a toy-sized hero)
-    p.add("toy", ellipsoid(0.34, 0.52, 0.3, 8, 4), xf((0.25, 2.98, 0.0)), tint="#ffe14d")
-    p.add("toy", sphere(0.26, 8, 4), xf((0.25, 3.62, 0.0)), tint="#f0b48a")
-    p.add("toy", sphere(0.3, 8, 3), xf((0.25, 3.74, 0.0), scale=(1.0, 0.7, 1.0)), tint=WHITE)
-    p.add("toy", box(0.12, 0.7, 0.12), xf((0.25, 3.3, 0.5), rot=(-35, 0, 0)), tint="#ffe14d")
-    p.add("toy", cylinder(0.03, 0.03, 1.5, 5), xf((0.25, 3.9, 0.85)), tint=STEEL)
-    p.add("toy", extrude_z([(0.0, 0.0), (0.0, 0.7), (0.9, 0.35)], -0.015, 0.015), xf((0.25, 4.35, 0.85), rot=(0, -90, 0)), tint="#ffe14d")
+    # the marshal: animated body in crowd + waving yellow flag in crowd_arms
+    p.crowd = Parts()
+    p.crowd_arms = Parts()
+    for sz in (-0.11, 0.11):
+        p.crowd.add("toy", box(0.14, 0.34, 0.12), xf((0.25, 2.55, sz)), tint=NAVY)
+    p.crowd.add("toy", ellipsoid(0.34, 0.52, 0.3, 8, 4), xf((0.25, 2.98, 0.0)), tint="#ffe14d")
+    p.crowd.add("toy", box(0.42, 0.10, 0.44), xf((0.26, 2.98, 0.0)), tint=WHITE)
+    p.crowd.add("toy", sphere(0.26, 8, 4), xf((0.25, 3.62, 0.0)), tint="#f0b48a")
+    p.crowd.add("toy", box(0.08, 0.08, 0.32), xf((0.46, 3.64, 0.0)), tint="#1b2236")
+    p.crowd.add("toy", sphere(0.3, 8, 3), xf((0.25, 3.74, 0.0), scale=(1.0, 0.7, 1.0)), tint=WHITE)
+    p.crowd_arms.add("toy", box(0.12, 0.7, 0.12), xf((0.25, 3.3, 0.5), rot=(-35, 0, 0)), tint="#ffe14d")
+    p.crowd_arms.add("toy", cylinder(0.03, 0.03, 1.5, 5), xf((0.25, 3.9, 0.85)), tint=STEEL)
+    p.crowd_arms.add("toy", extrude_z([(0.0, 0.0), (0.0, 0.7), (0.9, 0.35)], -0.015, 0.015), xf((0.25, 4.35, 0.85), rot=(0, -90, 0)), tint="#ffe14d")
     p.add("toy", cylinder(0.11, 0.11, 0.48, 8), xf((-0.92, 2.75, 0.65)), tint=RED)
     p.add("chrome", cylinder(0.04, 0.04, 0.12, 6), xf((-0.92, 3.04, 0.65)), tint=STEEL)
     p.add("matte", cylinder_x(0.08, 0.26, 0.38, 8), xf((0.88, 2.85, -0.78), rot=(0, 22, 10)), tint=STEEL)
     for sz in (-0.55, 0.55):
         p.add("matte", ellipsoid(0.32, 0.14, 0.22, 6, 3), xf((0.85, 0.14, sz)), tint="#c9b486")
-    p.bake(ground_ao(2.0, 0.8))
-    model.mesh("prop-marshal_post", p.items(), shade="auto")
+    attach_prop(model, "marshal_post", p, shade="auto", ao_top=2.0, ao_low=0.8)
 
 
 def hotdog_stand(model):
-    """Striped food cart with a scalloped awning and a giant mustard hotdog on top."""
+    """Striped food cart with a scalloped awning, giant mustard hotdog, chef and animated hungry fans."""
     p = Parts()
+    rng = rng_for("hotdog_stand")
     p.add("toy", box(3.0, 1.2, 1.9, 0.1, 1), xf((0, 1.2, 0)), tint="#2f78f0")
     p.add("toy", box(3.04, 0.2, 1.94), xf((0, 1.05, 0)), tint=WHITE)
     p.add("toy", box(3.3, 0.14, 2.2, 0.04, 1), xf((0.1, 1.86, 0)), tint="#fff1d6")
@@ -108,13 +134,16 @@ def hotdog_stand(model):
         p.add("toy", cylinder(0.075, 0.07, 0.24, 6), xf((1.15, 2.04, dz)), tint=tone)
         p.add("toy", cylinder(0.03, 0.01, 0.09, 5), xf((1.15, 2.2, dz)), tint=tone)
     p.add("chrome", box(0.22, 0.24, 0.18, 0.02, 1), xf((1.12, 2.04, 0.22)), tint=STEEL)
-    p.bake(ground_ao(1.5, 0.8))
-    model.mesh("prop-hotdog_stand", p.items(), shade="auto")
+    # Chef & two cheering fans beside the stand
+    person(p, rng, 0.35, 0.0, 1.38, True, s=1.35, standing=True)
+    person(p, rng, 1.25, 0.0, -1.35, False, s=1.35, standing=True)
+    attach_prop(model, "hotdog_stand", p, shade="auto", ao_top=1.5, ao_low=0.8)
 
 
 def camper_van(model):
-    """Retro two-tone camper van with a pop-up roof, surfboard, awning and a spare wheel (nose toward +X)."""
+    """Retro two-tone camper van with a pop-up roof, surfboard, awning, spare wheel and animated campers."""
     p = Parts()
+    rng = rng_for("camper_van")
     low = [(-2.6, 0.38), (-2.6, 1.5), (1.5, 1.5), (2.45, 1.25), (2.6, 0.9), (2.6, 0.38)]
     p.add("toy", extrude_z(low, -1.05, 1.05, 0.12, 2), tint="#35c6bd")
     cab = [(-2.5, 1.5), (-2.5, 2.75), (0.9, 2.75), (1.9, 1.95), (2.0, 1.5)]
@@ -153,12 +182,15 @@ def camper_van(model):
     for cx, tone in ((-1.15, "#ff7a59"), (0.35, "#35c6bd")):
         p.add("toy", box(0.52, 0.06, 0.52), xf((cx, 0.36, 1.95)), tint=tone)
         p.add("toy", box(0.52, 0.58, 0.06), xf((cx, 0.64, 1.72), rot=(-14, 0, 0)), tint=tone)
-    p.bake(ground_ao(1.4, 0.78))
-    model.mesh("prop-camper_van", p.items(), shade="auto")
+    # Animated campers under the awning
+    person(p, rng, 0.35, 0.38, 1.95, True, s=1.32, standing=False)
+    person(p, rng, -1.15, 0.0, 2.45, True, s=1.35, standing=True)
+    attach_prop(model, "camper_van", p, shade="auto", ao_top=1.4, ao_low=0.78)
 
 
 ORDER = (
     ("grandstand", grandstand, "auto"),
+    ("fan_camp", fan_camp, "auto"),
     ("gnome_statue", gnome_statue, "auto"),
     ("inflatable_arch", inflatable_arch, "auto"),
 )
@@ -169,9 +201,7 @@ def build():
     install_name_hook()
     model = Model("shared")
     for name, make, shade in ORDER:
-        parts = make()
-        parts.bake(ground_ao(1.5, 0.78))
-        model.mesh("prop-" + name, parts.items(), shade=shade)
+        attach_prop(model, name, make(), shade=shade)
     for make in (hoarding, marshal_post, road_sign, hotdog_stand, camper_van):
         make(model)
     return model

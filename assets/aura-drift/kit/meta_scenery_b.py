@@ -12,6 +12,8 @@ PROPS = {
         "mushroom_cluster": {"tags": ["hero"]},
         "log_pile": {"tags": []},
         "hunting_hide": {"tags": []},
+        "fern_glade": {"tags": ["scatter"]},
+        "watermill": {"tags": ["hero", "tall"]},
     },
     "industry": {
         "silo": {"tags": ["hero", "tall"]},
@@ -19,6 +21,8 @@ PROPS = {
         "pipes": {"tags": ["scatter"]},
         "forklift": {"tags": []},
         "pylon": {"tags": ["tall"]},
+        "cooling_tower": {"tags": ["hero", "tall", "far"]},
+        "chem_tank": {"tags": ["hero"]},
     },
     "glacier": {
         "ice_block": {"tags": ["scatter"]},
@@ -26,6 +30,8 @@ PROPS = {
         "snow_pine": {"tags": ["scatter"]},
         "igloo": {"tags": []},
         "research_station": {"tags": ["hero"]},
+        "ice_spire": {"tags": ["scatter", "tall"]},
+        "snow_cat": {"tags": ["hero"]},
     },
     "metro": {
         "skyscraper_a": {"tags": ["tall"]},
@@ -35,5 +41,7 @@ PROPS = {
         "street_lamp": {"tags": ["scatter"]},
         "food_truck": {"tags": []},
         "taxi": {"tags": []},
+        "metro_entrance": {"tags": ["hero"]},
+        "arcade_kiosk": {"tags": ["hero", "tall"]},
     },
 }

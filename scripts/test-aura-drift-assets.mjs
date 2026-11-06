@@ -55,20 +55,28 @@ FILES['animals.glb'] = {
 };
 FILES['shared.glb'] = {
   kind: 'shared',
-  nodes: ['grandstand', 'hoarding', 'marshal_post', 'gnome_statue', 'hotdog_stand', 'camper_van', 'inflatable_arch', 'road_sign'].map(n => `prop-${n}`),
-  children: { 'prop-hoarding': ['face'], 'prop-road_sign': ['face'] },
+  nodes: ['grandstand', 'fan_camp', 'hoarding', 'marshal_post', 'gnome_statue', 'hotdog_stand', 'camper_van', 'inflatable_arch', 'road_sign'].map(n => `prop-${n}`),
+  children: {
+    'prop-hoarding': ['face'],
+    'prop-road_sign': ['face'],
+    'prop-grandstand': ['frame', 'crowd', 'crowd_arms'],
+    'prop-fan_camp': ['frame', 'crowd', 'crowd_arms'],
+    'prop-marshal_post': ['frame', 'crowd', 'crowd_arms'],
+    'prop-hotdog_stand': ['frame', 'crowd', 'crowd_arms'],
+    'prop-camper_van': ['frame', 'crowd', 'crowd_arms'],
+  },
   maxTriangles: 36000,
-  maxBytes: Math.floor(1.3 * MIB),
+  maxBytes: Math.floor(1.5 * MIB),
 };
 const SCENERY = {
-  alpine: ['pine_a', 'pine_b', 'rock_a', 'rock_b', 'chalet', 'cablecar_pylon'],
-  desert: ['cactus_a', 'cactus_b', 'mesa_rock', 'water_tower', 'windmill_pump'],
-  harbour: ['container_stack', 'crane', 'lighthouse', 'fishing_boat', 'neon_sign'],
-  salt: ['salt_crystal', 'ufo', 'rover', 'flag'],
-  forest: ['oak', 'birch', 'mushroom_cluster', 'log_pile', 'hunting_hide'],
-  industry: ['silo', 'smokestack', 'pipes', 'forklift', 'pylon'],
-  glacier: ['ice_block', 'ice_arch', 'snow_pine', 'igloo', 'research_station'],
-  metro: ['skyscraper_a', 'skyscraper_b', 'skyscraper_c', 'billboard', 'street_lamp', 'food_truck', 'taxi'],
+  alpine: ['pine_a', 'pine_b', 'rock_a', 'rock_b', 'chalet', 'cablecar_pylon', 'flower_meadow', 'hay_barn'],
+  desert: ['cactus_a', 'cactus_b', 'mesa_rock', 'water_tower', 'windmill_pump', 'rock_arch', 'palm_oasis'],
+  harbour: ['container_stack', 'crane', 'lighthouse', 'fishing_boat', 'neon_sign', 'tugboat', 'buoy_cluster'],
+  salt: ['salt_crystal', 'ufo', 'rover', 'flag', 'radar_dome', 'geyser_pool'],
+  forest: ['oak', 'birch', 'mushroom_cluster', 'log_pile', 'hunting_hide', 'fern_glade', 'watermill'],
+  industry: ['silo', 'smokestack', 'pipes', 'forklift', 'pylon', 'cooling_tower', 'chem_tank'],
+  glacier: ['ice_block', 'ice_arch', 'snow_pine', 'igloo', 'research_station', 'ice_spire', 'snow_cat'],
+  metro: ['skyscraper_a', 'skyscraper_b', 'skyscraper_c', 'billboard', 'street_lamp', 'food_truck', 'taxi', 'metro_entrance', 'arcade_kiosk'],
 };
 const SCENERY_CHILDREN = { desert: { 'prop-windmill_pump': ['rotor'] }, metro: { 'prop-billboard': ['face'] } };
 for (const [biome, props] of Object.entries(SCENERY)) {
@@ -81,7 +89,7 @@ for (const [biome, props] of Object.entries(SCENERY)) {
     maxBytes: Math.floor(1.1 * MIB),
   };
 }
-const PROP_BUDGET = { scatter: 450, default: 1200, hero: 4500 };
+const PROP_BUDGET = { scatter: 450, default: 1200, hero: 4500, crowd: 14000 };
 
 const failures = [];
 function fail(message) {
@@ -329,7 +337,7 @@ for (const name of present) {
       }
       if (!top.has(required) || !prop) continue;
       const tags = prop.tags || [];
-      const budget = tags.includes('hero') ? PROP_BUDGET.hero : tags.includes('scatter') ? PROP_BUDGET.scatter : PROP_BUDGET.default;
+      const budget = tags.includes('crowd') ? PROP_BUDGET.crowd : tags.includes('hero') ? PROP_BUDGET.hero : tags.includes('scatter') ? PROP_BUDGET.scatter : PROP_BUDGET.default;
       const count = nodeTriangles(json, top.get(required));
       if (count > budget) fail(`${name}: "${required}" has ${count} triangles, over the ${budget} budget for tags [${tags.join(', ')}]`);
       if (prop.triangles !== count) fail(`${name}: manifest triangles for ${required} (${prop.triangles}) != counted ${count}`);

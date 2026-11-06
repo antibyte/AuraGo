@@ -2,7 +2,7 @@
   "version": 1,
   "blender": "5.2.2",
   "generator": "assets/aura-drift/generate.py",
-  "totalBytes": 7255528,
+  "totalBytes": 8868048,
   "files": [
     {
       "name": "animals.glb",
@@ -76,65 +76,65 @@
     },
     {
       "name": "scenery-alpine.glb",
-      "bytes": 232876,
-      "sha256": "9f0f7159f86d9be1a69dc5ae9c7e29658f5e7cf147294514523885d82dcbe7cd",
-      "triangles": 3230,
+      "bytes": 311248,
+      "sha256": "c356098cc9c1307a502516da993d2ebdfc2bfafa6905af1ab0c09372cd9e931f",
+      "triangles": 4214,
       "kind": "scenery"
     },
     {
       "name": "scenery-desert.glb",
-      "bytes": 225088,
-      "sha256": "c37aa27e8be700a15d1dc5f19de2f2779b4f82a13167f907df66243a1aae494c",
-      "triangles": 3188,
+      "bytes": 361140,
+      "sha256": "0fb0b83028a48aa128f4355122a5ebf8b4806a9035f98d00cf6519fb3375e3d4",
+      "triangles": 4868,
       "kind": "scenery"
     },
     {
       "name": "scenery-forest.glb",
-      "bytes": 264552,
-      "sha256": "69b2ac9a2dad6d3aaa18e94d6685126791a77a49eeb377bc3d9f354a2f5bf26f",
-      "triangles": 3614,
+      "bytes": 336176,
+      "sha256": "e9294f8edd80522d5464895d55af003a466ee835e6e691ccebb3ad5672dd8add",
+      "triangles": 4528,
       "kind": "scenery"
     },
     {
       "name": "scenery-glacier.glb",
-      "bytes": 225860,
-      "sha256": "2b8dbb2b04ebcd1a7460f871f8b71101401df6f4c0b604f0a317aa886664742e",
-      "triangles": 3040,
+      "bytes": 278236,
+      "sha256": "531c25c9c216d79ee4b3072951d6b9709be947a46f6eeb41013b67ac8d823acf",
+      "triangles": 3740,
       "kind": "scenery"
     },
     {
       "name": "scenery-harbour.glb",
-      "bytes": 472144,
-      "sha256": "28a7791c2d8585de5e1992df2de8dadd1b5dc69a2ab93b1ad28403e15fbd6129",
-      "triangles": 6554,
+      "bytes": 578308,
+      "sha256": "3d7a1cde833affe32b7544a011c3e05ab9f968047448ff7b277da8d89fc0ec3d",
+      "triangles": 8036,
       "kind": "scenery"
     },
     {
       "name": "scenery-industry.glb",
-      "bytes": 317184,
-      "sha256": "de3cdc8c954ee3096d3c202e7bfff1366892ff1eb46cbfcc2ea807f78250c049",
-      "triangles": 4456,
+      "bytes": 387588,
+      "sha256": "539c1e811c928aea8f56f651ee11ba072c9482ff96c8e60150a05c37f67f3c18",
+      "triangles": 5396,
       "kind": "scenery"
     },
     {
       "name": "scenery-metro.glb",
-      "bytes": 413520,
-      "sha256": "bb7cadca8f7087ceef48983851936f49198e626e3e2d17e87f3823d2b2498df2",
-      "triangles": 5554,
+      "bytes": 511888,
+      "sha256": "f1a5a5a3651f26d676248cad3f6c927a10aaa07e25b4162041775dd506ada653",
+      "triangles": 6896,
       "kind": "scenery"
     },
     {
       "name": "scenery-salt.glb",
-      "bytes": 162612,
-      "sha256": "7004db95021f30fbec168eb2b81073661b0310c377210726d065fdcaa78b7205",
-      "triangles": 2244,
+      "bytes": 240976,
+      "sha256": "57579c48c50f4b6693133787026968883777bdf5ca8b01bb4f66b4a53187fb3a",
+      "triangles": 3276,
       "kind": "scenery"
     },
     {
       "name": "shared.glb",
-      "bytes": 577784,
-      "sha256": "51b9f45eb2beaa2f936a3de1bd9c61f3bc18509d62cc4c566fff37f119132f1d",
-      "triangles": 9398,
+      "bytes": 1498580,
+      "sha256": "2015cbea01290cf95986832c0729012025f4121b7ea668b29dd7dce85a41f77f",
+      "triangles": 22250,
       "kind": "shared"
     },
     {
@@ -411,6 +411,26 @@
         ],
         "triangles": 1338
       },
+      "flower_meadow": {
+        "file": "scenery-alpine.glb",
+        "node": "prop-flower_meadow",
+        "radius": 2.305,
+        "height": 1.15,
+        "tags": [
+          "scatter"
+        ],
+        "triangles": 404
+      },
+      "hay_barn": {
+        "file": "scenery-alpine.glb",
+        "node": "prop-hay_barn",
+        "radius": 3.2,
+        "height": 5.65,
+        "tags": [
+          "hero"
+        ],
+        "triangles": 580
+      },
       "pine_a": {
         "file": "scenery-alpine.glb",
         "node": "prop-pine_a",
@@ -487,6 +507,29 @@
         ],
         "triangles": 396
       },
+      "palm_oasis": {
+        "file": "scenery-desert.glb",
+        "node": "prop-palm_oasis",
+        "radius": 4.711,
+        "height": 8.226,
+        "tags": [
+          "hero",
+          "tall"
+        ],
+        "triangles": 1116
+      },
+      "rock_arch": {
+        "file": "scenery-desert.glb",
+        "node": "prop-rock_arch",
+        "radius": 8.209,
+        "height": 10.95,
+        "tags": [
+          "hero",
+          "tall",
+          "far"
+        ],
+        "triangles": 564
+      },
       "water_tower": {
         "file": "scenery-desert.glb",
         "node": "prop-water_tower",
@@ -520,6 +563,16 @@
           "scatter"
         ],
         "triangles": 356
+      },
+      "fern_glade": {
+        "file": "scenery-forest.glb",
+        "node": "prop-fern_glade",
+        "radius": 1.8,
+        "height": 1.433,
+        "tags": [
+          "scatter"
+        ],
+        "triangles": 320
       },
       "hunting_hide": {
         "file": "scenery-forest.glb",
@@ -556,6 +609,17 @@
           "scatter"
         ],
         "triangles": 350
+      },
+      "watermill": {
+        "file": "scenery-forest.glb",
+        "node": "prop-watermill",
+        "radius": 2.95,
+        "height": 6.2,
+        "tags": [
+          "hero",
+          "tall"
+        ],
+        "triangles": 594
       }
     },
     "glacier": {
@@ -577,6 +641,17 @@
         ],
         "triangles": 188
       },
+      "ice_spire": {
+        "file": "scenery-glacier.glb",
+        "node": "prop-ice_spire",
+        "radius": 2.933,
+        "height": 9.143,
+        "tags": [
+          "scatter",
+          "tall"
+        ],
+        "triangles": 136
+      },
       "igloo": {
         "file": "scenery-glacier.glb",
         "node": "prop-igloo",
@@ -595,6 +670,16 @@
         ],
         "triangles": 1832
       },
+      "snow_cat": {
+        "file": "scenery-glacier.glb",
+        "node": "prop-snow_cat",
+        "radius": 2.502,
+        "height": 3.37,
+        "tags": [
+          "hero"
+        ],
+        "triangles": 564
+      },
       "snow_pine": {
         "file": "scenery-glacier.glb",
         "node": "prop-snow_pine",
@@ -607,6 +692,17 @@
       }
     },
     "harbour": {
+      "buoy_cluster": {
+        "file": "scenery-harbour.glb",
+        "node": "prop-buoy_cluster",
+        "radius": 1.948,
+        "height": 4.78,
+        "tags": [
+          "scatter",
+          "tall"
+        ],
+        "triangles": 436
+      },
       "container_stack": {
         "file": "scenery-harbour.glb",
         "node": "prop-container_stack",
@@ -660,9 +756,41 @@
           "tall"
         ],
         "triangles": 1200
+      },
+      "tugboat": {
+        "file": "scenery-harbour.glb",
+        "node": "prop-tugboat",
+        "radius": 4.412,
+        "height": 7.0,
+        "tags": [
+          "hero"
+        ],
+        "triangles": 1046
       }
     },
     "industry": {
+      "chem_tank": {
+        "file": "scenery-industry.glb",
+        "node": "prop-chem_tank",
+        "radius": 4.774,
+        "height": 4.9,
+        "tags": [
+          "hero"
+        ],
+        "triangles": 440
+      },
+      "cooling_tower": {
+        "file": "scenery-industry.glb",
+        "node": "prop-cooling_tower",
+        "radius": 6.8,
+        "height": 23.99,
+        "tags": [
+          "hero",
+          "tall",
+          "far"
+        ],
+        "triangles": 500
+      },
       "forklift": {
         "file": "scenery-industry.glb",
         "node": "prop-forklift",
@@ -714,6 +842,17 @@
       }
     },
     "metro": {
+      "arcade_kiosk": {
+        "file": "scenery-metro.glb",
+        "node": "prop-arcade_kiosk",
+        "radius": 2.6,
+        "height": 6.56,
+        "tags": [
+          "hero",
+          "tall"
+        ],
+        "triangles": 668
+      },
       "billboard": {
         "file": "scenery-metro.glb",
         "node": "prop-billboard",
@@ -731,6 +870,16 @@
         "height": 4.95,
         "tags": [],
         "triangles": 1006
+      },
+      "metro_entrance": {
+        "file": "scenery-metro.glb",
+        "node": "prop-metro_entrance",
+        "radius": 2.58,
+        "height": 5.225,
+        "tags": [
+          "hero"
+        ],
+        "triangles": 674
       },
       "skyscraper_a": {
         "file": "scenery-metro.glb",
@@ -793,6 +942,28 @@
         ],
         "triangles": 272
       },
+      "geyser_pool": {
+        "file": "scenery-salt.glb",
+        "node": "prop-geyser_pool",
+        "radius": 4.3,
+        "height": 5.013,
+        "tags": [
+          "hero"
+        ],
+        "triangles": 600
+      },
+      "radar_dome": {
+        "file": "scenery-salt.glb",
+        "node": "prop-radar_dome",
+        "radius": 5.078,
+        "height": 10.99,
+        "tags": [
+          "hero",
+          "tall",
+          "far"
+        ],
+        "triangles": 432
+      },
       "rover": {
         "file": "scenery-salt.glb",
         "node": "prop-rover",
@@ -831,7 +1002,18 @@
         "tags": [
           "hero"
         ],
-        "triangles": 1660
+        "triangles": 2164
+      },
+      "fan_camp": {
+        "file": "shared.glb",
+        "node": "prop-fan_camp",
+        "radius": 3.189,
+        "height": 3.8,
+        "tags": [
+          "hero",
+          "crowd"
+        ],
+        "triangles": 2140
       },
       "gnome_statue": {
         "file": "shared.glb",
@@ -850,9 +1032,10 @@
         "radius": 13.4,
         "height": 11.153,
         "tags": [
-          "hero"
+          "hero",
+          "crowd"
         ],
-        "triangles": 3196
+        "triangles": 12864
       },
       "hoarding": {
         "file": "shared.glb",
@@ -869,8 +1052,10 @@
         "node": "prop-hotdog_stand",
         "radius": 1.86,
         "height": 5.007,
-        "tags": [],
-        "triangles": 1094
+        "tags": [
+          "hero"
+        ],
+        "triangles": 1586
       },
       "inflatable_arch": {
         "file": "shared.glb",
@@ -888,7 +1073,7 @@
         "radius": 1.425,
         "height": 5.1,
         "tags": [],
-        "triangles": 600
+        "triangles": 648
       },
       "road_sign": {
         "file": "shared.glb",

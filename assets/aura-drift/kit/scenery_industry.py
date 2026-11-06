@@ -195,10 +195,47 @@ def pylon():
     return p
 
 
+def cooling_tower():
+    """Hyperboloid power-plant cooling tower with diagonal base struts, red/white rim bands, beacons and steam cloud."""
+    p = c.Piece("cooling_tower")
+    p.add(cylinder(6.4, 6.8, 0.8, 12), xf((0.0, 0.4, 0.0)), CONCRETE, grad=0.35)
+    for k in range(10):
+        a0, a1 = math.tau * k / 10.0, math.tau * (k + 0.5) / 10.0
+        p.add(strut((6.1 * math.cos(a0), 0.7, 6.1 * math.sin(a0)), (5.5 * math.cos(a1), 2.8, 5.5 * math.sin(a1)), 0.18, 4), None, CONCRETE, grad=0.3)
+    profile = [(0.0, 2.6), (5.6, 2.6), (4.6, 6.5), (3.8, 11.0), (3.55, 14.5), (3.9, 17.5), (4.3, 19.2), (0.0, 19.2)]
+    band = lambda x, y, z: "#d8402e" if 16.2 < y < 17.6 else ("#f4f4f8" if y >= 17.6 else CONCRETE)
+    p.add(revolve(profile, 14), None, band, grad=0.35)
+    for k in range(4):
+        a = math.tau * k / 4.0
+        p.add_flat(sphere(0.24, 5, 3), xf((4.35 * math.cos(a), 19.35, 4.35 * math.sin(a))), "#ff7a6a", mat="glow_red")
+    for idx, (sx, sy, sz, sr) in enumerate(((0.0, 19.8, 0.0, 2.6), (0.8, 21.4, -0.5, 2.1), (-0.7, 22.8, 0.6, 1.7))):
+        p.add(c.lump(sr, sr * 0.7, sr, ("ct-steam", idx), 7, 3, 0.14), xf((sx, sy, sz)), "#eef2fa", grad=0.2, jitter=0.0)
+    return p
+
+
+def chem_tank():
+    """Horizontal pressurized chemical storage vessel on concrete saddles with hazard stripe, catwalk and cyan gauge."""
+    p = c.Piece("chem_tank")
+    for x in (-2.4, 2.4):
+        p.add(box(0.75, 1.5, 3.0, 0.04, 1), xf((x, 0.75, 0.0)), CONCRETE, grad=0.4)
+    p.add(cylinder_x(1.55, 1.55, 6.6, 12), xf((0.0, 2.35, 0.0)), "#e4e8f2", grad=0.35)
+    for side in (-1, 1):
+        p.add(sphere(1.55, 10, 5), xf((side * 3.3, 2.35, 0.0)), "#e4e8f2", grad=0.35)
+    p.add(cylinder_x(1.58, 1.58, 0.9, 12), xf((0.0, 2.35, 0.0)), "#f2b72d", grad=0.2, jitter=0.0)
+    # Top catwalk platform, handrails & glowing cyan level sight-glass
+    p.add(box(5.2, 0.12, 1.1), xf((0.0, 4.02, 0.0)), DARK, grad=0.2)
+    for z in (-0.5, 0.5):
+        p.add(strut((-2.5, 4.05, z), (-2.5, 4.85, z), 0.05, 4), None, "#f2b72d", grad=0.1)
+        p.add(strut((2.5, 4.05, z), (2.5, 4.85, z), 0.05, 4), None, "#f2b72d", grad=0.1)
+        p.add(strut((-2.5, 4.85, z), (2.5, 4.85, z), 0.05, 4), None, "#f2b72d", grad=0.1)
+    p.add_flat(box(0.22, 1.6, 0.12), xf((1.4, 2.35, 1.56)), "#6ff4ff", mat="glow_cyan")
+    return p
+
+
 def build():
     c.ensure_materials()
     model = Model("scenery-industry")
-    for name, piece in (("silo", silo()), ("smokestack", smokestack()), ("pipes", pipes()), ("forklift", forklift()), ("pylon", pylon())):
+    for name, piece in (("silo", silo()), ("smokestack", smokestack()), ("pipes", pipes()), ("forklift", forklift()), ("pylon", pylon()), ("cooling_tower", cooling_tower()), ("chem_tank", chem_tank())):
         piece.bake()
         model.mesh("prop-" + name, piece.items())
     return model

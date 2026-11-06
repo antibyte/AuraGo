@@ -6,7 +6,7 @@ Imported by ``scenery_harbour``; bow and sign face point toward +X.
 import math
 
 from . import scenery_a_common as c
-from .shapes import box, ellipsoid, loft, prism, sphere, spline, strut, torus, xf
+from .shapes import box, ellipsoid, loft, prism, revolve, sphere, spline, strut, torus, xf
 
 
 def fishing_boat():
@@ -103,4 +103,54 @@ def neon_sign():
     p.add(box(0.3, 0.06, 0.1), xf((0.66, 9.46, 2.0)), "#ff9a2a", grad=0.0, jitter=0.0)
     p.add(box(0.6, 0.08, 0.2), xf((-0.2, 9.2, 2.3), (0, 0, 10)), "#a9b0c4", grad=0.0, jitter=0.0)
     p.add(box(0.6, 0.08, 0.2), xf((-0.2, 9.2, 1.7), (0, 0, 10)), "#a9b0c4", grad=0.0, jitter=0.0)
+    return p
+
+
+def tugboat():
+    """Chunky red-and-black harbour tugboat with tyre fenders, two-tier wheelhouse, twin diesel stacks and radar mast."""
+    p = c.Piece("tugboat")
+    xs = [-4.2, -3.6, -2.0, 0.0, 2.0, 3.5, 4.4]
+    width = spline([(-4.2, 1.4), (-3.6, 2.1), (-1.5, 2.4), (1.5, 2.35), (3.5, 1.8), (4.4, 0.65)])
+    rings = [[(x, 2.1 - 1.55 * math.sin(math.pi * k / 8), width(x) * math.cos(math.pi * k / 8)) for k in range(9)] for x in xs]
+    p.add(loft(rings), None, lambda x, y, z: "#1e222e" if y < 1.35 else "#d6382c", grad=0.35)
+    deck = [(x, width(x) * 0.92) for x in xs] + [(x, -width(x) * 0.92) for x in reversed(xs)]
+    p.add(prism(deck, 2.08, 2.22), None, "#7a5234", grad=0.15)
+    # Rubber tyre fenders hung along both gunwales + heavy bow pushing fender
+    for side in (-1, 1):
+        for fx in (-2.4, -0.8, 0.8, 2.4):
+            p.add(torus(0.36, 0.13, 8, 4), xf((fx, 1.75, side * (width(fx) + 0.06))), "#222630", grad=0.1)
+    p.add(box(0.55, 0.75, 1.5, 0.08, 1), xf((4.35, 1.85, 0.0)), "#222630", grad=0.2)
+    # Two-tier deckhouse & wheelhouse with warm bridge windows
+    p.add(box(3.8, 1.35, 3.0, 0.08, 1), xf((-0.4, 2.85, 0.0)), "#f5efe0", grad=0.3)
+    p.add(box(2.2, 1.35, 2.3, 0.08, 1), xf((0.2, 4.15, 0.0)), "#ff8a24", grad=0.3)
+    p.add(box(2.5, 0.18, 2.6, 0.04, 1), xf((0.2, 4.90, 0.0)), "#f5efe0", grad=0.2)
+    p.add_flat(box(0.08, 0.62, 1.7), xf((1.32, 4.25, 0.0)), "#ffe2a0", mat="glow_warm")
+    for side in (-1, 1):
+        p.add_flat(box(1.4, 0.62, 0.08), xf((0.2, 4.25, side * 1.16)), "#ffe2a0", mat="glow_warm")
+    # Twin yellow diesel smokestacks & radar mast
+    for side in (-0.65, 0.65):
+        p.add(strut((-1.4, 3.5, side), (-1.6, 5.4, side), 0.28, 7, 0.24), None, "#ffd238", grad=0.3)
+        p.add(strut((-1.58, 5.15, side), (-1.62, 5.5, side), 0.26, 7), None, "#222630", grad=0.1)
+    p.add(strut((0.2, 4.95, 0.0), (0.2, 6.65, 0.0), 0.08, 5), None, "#d8dce8", grad=0.2)
+    p.add(box(0.18, 0.12, 1.25), xf((0.2, 6.25, 0.0)), "#f5efe0", grad=0.1)
+    p.add_flat(sphere(0.20, 6, 3), xf((0.2, 6.80, 0.0)), "#7af4ff", mat="glow_cyan")
+    return p
+
+
+def buoy_cluster():
+    """Nautical sea-mark & dock mooring cluster: lattice bell buoy with beacon, timber pilings and lobster crates."""
+    p = c.Piece("buoy_cluster")
+    p.add(torus(1.05, 0.38, 8, 4), xf((0.0, 0.35, 0.0), (90, 0, 0)), "#e03c2e", grad=0.25)
+    p.add(revolve([(0.0, 0.3), (0.85, 0.3), (0.68, 1.25), (0.0, 1.25)], 8), None, "#f5efe0", grad=0.3)
+    for k in range(4):
+        a = math.tau * k / 4.0 + 0.4
+        p.add(strut((0.68 * math.cos(a), 1.2, 0.68 * math.sin(a)), (0.22 * math.cos(a), 4.1, 0.22 * math.sin(a)), 0.07, 4), None, "#e03c2e", grad=0.3)
+    p.add(revolve([(0.0, 2.4), (0.36, 2.4), (0.24, 2.95), (0.0, 2.95)], 7), None, "#ffd238", grad=0.2)
+    p.add(box(0.65, 0.16, 0.65, 0.03, 1), xf((0.0, 4.18, 0.0)), "#252f5c", grad=0.2)
+    p.add_flat(sphere(0.26, 6, 3), xf((0.0, 4.52, 0.0)), "#ffe2a0", mat="glow_warm")
+    # Timber mooring pilings & lobster crates beside the buoy
+    for px, pz, h in ((-1.55, 1.15, 2.4), (-1.85, 0.55, 1.95)):
+        p.add(strut((px, 0.0, pz), (px, h, pz), 0.22, 6), None, "#6a4328", grad=0.35)
+        p.add(torus(0.24, 0.06, 7, 4), xf((px, h * 0.72, pz), (90, 0, 0)), "#d8c398", grad=0.1)
+    p.add(box(0.85, 0.58, 0.65, 0.04, 1), xf((1.35, 0.29, -0.95)), "#b97d4a", grad=0.3)
     return p

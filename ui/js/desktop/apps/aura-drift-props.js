@@ -12,26 +12,26 @@
     const SEG = 100;
     const CELL = 128;
     const DEF_META = { radius: 3, height: 6, tags: [] };
-    const NATURAL = /^(pine|snow_pine|oak|birch|rock|cactus|salt_crystal|ice_block|mushroom|log_pile|mesa)/;
+    const NATURAL = /^(pine|snow_pine|oak|birch|rock|cactus|salt_crystal|ice_block|ice_spire|mushroom|log_pile|mesa|flower_meadow|fern_glade|palm_oasis|geyser_pool)/;
 
     function band(min, max, rate, scale) { return { min: min, max: max, rate: rate, scale: scale || 1 }; }
     /* Extra far silhouettes beyond the SCATTER bands: tall heroes on the horizon (drawn out to 1.8 x propRadius). */
     const BACKDROP = {
-        alpine: { pine_a: band(170, 460, 1.4, 1.7), rock_b: band(220, 520, 0.7, 2.6), cablecar_pylon: band(300, 700, 0.05, 1.4) },
-        desert: { mesa_rock: band(280, 900, 0.3, 2.4), windmill_pump: band(160, 500, 0.03, 1.4) },
-        harbour: { crane: band(220, 600, 0.1, 1.4), lighthouse: band(300, 800, 0.02, 1.5), container_stack: band(150, 420, 0.3, 1.6) },
-        salt: { salt_crystal: band(220, 700, 0.5, 3.0), flag: band(150, 500, 0.04, 2.0) },
-        forest: { oak: band(130, 300, 1.8, 1.6), birch: band(140, 320, 1.2, 1.5) },
-        industry: { smokestack: band(280, 800, 0.14, 1.5), silo: band(200, 520, 0.2, 1.6), pylon: band(260, 800, 0.12, 1.5) },
-        glacier: { ice_arch: band(200, 520, 0.06, 2.2), snow_pine: band(150, 420, 1.0, 1.6), research_station: band(320, 640, 0.02, 1.6) },
+        alpine: { pine_a: band(170, 460, 1.4, 1.7), rock_b: band(220, 520, 0.7, 2.6), hay_barn: band(180, 420, 0.06, 1.5), cablecar_pylon: band(300, 700, 0.05, 1.4) },
+        desert: { mesa_rock: band(280, 900, 0.3, 2.4), rock_arch: band(220, 760, 0.18, 2.1), palm_oasis: band(180, 460, 0.06, 1.6), windmill_pump: band(160, 500, 0.03, 1.4) },
+        harbour: { crane: band(220, 600, 0.1, 1.4), lighthouse: band(300, 800, 0.02, 1.5), container_stack: band(150, 420, 0.3, 1.6), tugboat: band(160, 480, 0.08, 1.4) },
+        salt: { salt_crystal: band(220, 700, 0.5, 3.0), radar_dome: band(220, 680, 0.06, 1.8), flag: band(150, 500, 0.04, 2.0) },
+        forest: { oak: band(130, 300, 1.8, 1.6), birch: band(140, 320, 1.2, 1.5), watermill: band(150, 340, 0.05, 1.5) },
+        industry: { smokestack: band(280, 800, 0.14, 1.5), cooling_tower: band(240, 760, 0.12, 1.6), silo: band(200, 520, 0.2, 1.6), pylon: band(260, 800, 0.12, 1.5) },
+        glacier: { ice_arch: band(200, 520, 0.06, 2.2), ice_spire: band(180, 520, 0.35, 2.0), snow_pine: band(150, 420, 1.0, 1.6), research_station: band(320, 640, 0.02, 1.6) },
         metro: { skyscraper_a: band(150, 520, 1.3, 1.5), skyscraper_b: band(150, 520, 1.1, 1.5), skyscraper_c: band(170, 560, 1.1, 1.5) }
     };
     /* Glowing things the water and the salt mirror reflect as vertical streaks: name -> [colour, height above ground]. */
     const EMIT = {
-        neon_sign: ['#ff4fa3', 9], crane: ['#ff6fb4', 19], lighthouse: ['#ffcf7a', 18], fishing_boat: ['#ffcf7a', 6],
-        ufo: ['#7dffb0', 40], rover: ['#fff2c0', 3]
+        neon_sign: ['#ff4fa3', 9], crane: ['#ff6fb4', 19], lighthouse: ['#ffcf7a', 18], fishing_boat: ['#ffcf7a', 6], tugboat: ['#7af4ff', 6.5], buoy_cluster: ['#ffcf7a', 4.5],
+        ufo: ['#7dffb0', 40], rover: ['#fff2c0', 3], radar_dome: ['#7af4ff', 9], cooling_tower: ['#ff5a52', 19], metro_entrance: ['#ff7ac0', 4.6], arcade_kiosk: ['#5ff4ff', 5.2]
     };
-    const WATER_ONLY = { fishing_boat: true };
+    const WATER_ONLY = { fishing_boat: true, tugboat: true, buoy_cluster: true };
     /* The SCATTER rates keep their proportions; this lifts them so each biome reads dense and framed. */
     const DENSITY = { alpine: 2.2, desert: 3.2, harbour: 3.2, salt: 3.4, forest: 1.8, industry: 4, glacier: 2.0, metro: 1.3 };
 
@@ -148,7 +148,7 @@
 
     /* ---- trackside furniture ------------------------------------------------------------------ */
     const FURN_META = {
-        grandstand: { r: 13.4, h: 8.9 }, hoarding: { r: 4.9, h: 5.5 }, marshal_post: { r: 1.6, h: 5.1 }, gnome_statue: { r: 1.5, h: 5.4 },
+        grandstand: { r: 13.4, h: 8.9 }, fan_camp: { r: 3.5, h: 4.3 }, hoarding: { r: 4.9, h: 5.5 }, marshal_post: { r: 1.6, h: 5.1 }, gnome_statue: { r: 1.5, h: 5.4 },
         hotdog_stand: { r: 1.9, h: 5 }, camper_van: { r: 2.9, h: 3.6 }, inflatable_arch: { r: 7.7, h: 10.9 }, road_sign: { r: 1, h: 3.9 }
     };
     AD.BRAND_COUNT = 8;
@@ -203,6 +203,7 @@
         for (let s = 250; s < length - 150; s += 500) add('gnome_statue', s, ((s / 500) % 2 ? 1 : -1) * (hw(s) + 5.5), { angle: 0.4 });
         [0.18, 0.62].forEach((f, i) => add('hotdog_stand', length * f, (i ? 1 : -1) * (hw(length * f) + 7), { angle: 0.3 }));
         [0.09, 0.33, 0.57, 0.8].forEach((f, i) => add('camper_van', length * f, (i % 2 ? 1 : -1) * (hw(length * f) + 16 + (i % 3) * 4), { jitter: 0.4 * (i - 1.5) }));
+        [0.24, 0.48, 0.74].forEach((f, i) => add('fan_camp', length * f, (i % 2 ? -1 : 1) * (hw(length * f) + 8.5), { angle: 0.2 }));
         /* Silly signs 120 m before every crossing and every ramp. */
         const signSpots = [];
         if (fs) { for (const c of fs.crossings) signSpots.push(c.signS !== undefined ? c.signS : c.s - 120); for (const r of fs.ramps) signSpots.push(r.s - 120); }
@@ -397,6 +398,22 @@
             mat.customProgramCacheKey = () => 'agdrift-sway-' + strength;
         }
 
+        function cheered(mat, isArms) {
+            mat.onBeforeCompile = shader => {
+                shader.uniforms.uWind = wind;
+                shader.vertexShader = 'uniform float uWind;\n' + shader.vertexShader.replace('#include <begin_vertex>',
+                    '#include <begin_vertex>\n#ifdef USE_INSTANCING\n float iph = instanceMatrix[3].x * 0.19 + instanceMatrix[3].z * 0.23;\n#else\n float iph = 0.0;\n#endif\n' +
+                    ' float cph = sin(transformed.z * 1.45) * 2.1 + cos(transformed.x * 1.6) * 1.8 + iph;\n' +
+                    ' float ola = max(0.0, sin(uWind * 4.2 - transformed.z * 0.35 + iph));\n' +
+                    ' float hop = abs(sin(uWind * 5.8 + cph)) * 0.14 + ola * 0.25;\n' +
+                    ' transformed.y += hop;\n' +
+                    ' transformed.z += sin(uWind * 5.1 + cph * 1.3) * (0.08 + ola * 0.07);\n' +
+                    ' transformed.x += cos(uWind * 4.5 + cph) * 0.05;\n' +
+                    (isArms ? ' transformed.y += sin(uWind * 10.6 + cph * 2.1) * 0.11;\n transformed.z += cos(uWind * 9.8 + cph * 1.7) * 0.14;\n transformed.x += sin(uWind * 8.6 + cph * 1.4) * 0.08;\n' : ''));
+            };
+            mat.customProgramCacheKey = () => 'agdrift-cheer-' + (isArms ? 'a' : 'b');
+        }
+
         function brandMaterial(srcMat, i) {
             if (brandMats[i]) return brandMats[i];
             const accent = (track.biome && track.biome.accent) || '#ffffff';
@@ -418,12 +435,13 @@
                 if (!o.isMesh) return;
                 /* GLTFLoader numbers repeated node names (face, face_1), so match the prefix. */
                 const named = re => re.test(o.name) || !!(o.parent && re.test(o.parent.name));
-                const nm = named(/^face(_\d+)?$/) ? 'face' : named(/^rotor(_\d+)?$/) ? 'rotor' : '';
+                const nm = named(/^face(_\d+)?$/) ? 'face' : named(/^rotor(_\d+)?$/) ? 'rotor' : named(/^crowd_arms(_\d+)?$/) ? 'crowd_arms' : named(/^crowd(_\d+)?$/) ? 'crowd' : '';
                 const mat = Array.isArray(o.material) ? o.material[0] : o.material;
                 const m = mat.clone();
                 if (nm !== 'face' && o.geometry.attributes.color) m.vertexColors = true;
                 if (m.emissiveIntensity && (m.emissive && m.emissive.getHex() !== 0)) m.emissiveIntensity *= look.glow || (night ? 1.5 : 1.1);
-                if (nm === '' && /^(pine|snow_pine|oak|birch|flag)/.test(name)) swayed(m, name === 'flag' ? 0.0022 : 0.0012);
+                if (nm === 'crowd' || nm === 'crowd_arms') cheered(m, nm === 'crowd_arms');
+                else if (nm === '' && /^(pine|snow_pine|oak|birch|flag)/.test(name)) swayed(m, name === 'flag' ? 0.0022 : 0.0012);
                 owned.push(m);
                 parts.push({ geo: o.geometry, mat: m, local: inv.clone().multiply(o.matrixWorld), role: nm, count: 0, mesh: null, faces: null, tris: o.geometry.index ? o.geometry.index.count / 3 : o.geometry.attributes.position.count / 3 });
             });
@@ -614,7 +632,7 @@
                 const cost = k.tris * (k.cast ? 2 : 1);
                 if (used + cost > budget) break;
                 used += cost; n++;
-                compose(p, p.name === 'fishing_boat' ? 0.15 : 0);
+                compose(p, WATER_ONLY[p.name] ? 0.15 : 0);
                 const tint = tintFor(p);
                 for (const part of k.parts) {
                     M.multiplyMatrices(place, part.local);
@@ -639,7 +657,7 @@
                         if (f && f.count < f.mesh.instanceMatrix.count) f.mesh.setMatrixAt(f.count++, M);
                     } else if (part.mesh && part.count < part.mesh.instanceMatrix.count) {
                         if (part.role === 'rotor') live.push({ kind: 'rotor', part: part, slot: part.count, base: place.clone() });
-                        else if (p.name === 'fishing_boat') live.push({ kind: 'boat', part: part, slot: part.count, base: place.clone(), phase: p.x * 0.07 + p.y * 0.11 });
+                        else if (WATER_ONLY[p.name]) live.push({ kind: 'boat', part: part, slot: part.count, base: place.clone(), phase: p.x * 0.07 + p.y * 0.11 });
                         part.mesh.setMatrixAt(part.count, M);
                         part.mesh.setColorAt(part.count, tint);
                         part.count++;

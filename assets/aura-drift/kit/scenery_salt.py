@@ -120,10 +120,48 @@ def flag():
     return p
 
 
+def radar_dome():
+    """Salt-flat telemetry radome station on stilts with geodesic sphere, glowing cyan ring, solar wings and dish."""
+    p = c.Piece("radar_dome")
+    for k in range(6):
+        a = math.tau * k / 6.0
+        lx, lz = 2.7 * math.cos(a), 2.7 * math.sin(a)
+        p.add(strut((lx, 0.0, lz), (lx * 0.78, 3.2, lz * 0.78), 0.22, 6), None, "#7d87a2", grad=0.4)
+    p.add(cylinder(2.9, 3.1, 0.55, 8), xf((0.0, 3.35, 0.0)), "#e4e6f4", grad=0.3)
+    p.add(cylinder(2.4, 2.5, 1.2, 8), xf((0.0, 4.15, 0.0)), "#2d3550", grad=0.3)
+    p.add_flat(cylinder(2.48, 2.48, 0.18, 10), xf((0.0, 4.45, 0.0)), "#7af4ff", mat="glow_cyan")
+    p.add(sphere(2.65, 10, 5), xf((0.0, 6.75, 0.0)), SALT_WHITE, grad=0.35, jitter=0.02)
+    p.add(strut((0.0, 9.2, 0.0), (0.0, 10.6, 0.0), 0.08, 5), None, "#d8dce8", grad=0.2)
+    p.add_flat(sphere(0.24, 6, 3), xf((0.0, 10.75, 0.0)), "#ff8ac8", mat="glow_pink")
+    # Solar wings on +/-Z
+    for side in (-1, 1):
+        p.add(box(1.4, 0.08, 2.4, 0.02, 1), xf((0.0, 3.65, side * 3.9), (side * -12, 0, 0)), "#2a58b8", grad=0.15)
+    return p
+
+
+def geyser_pool():
+    """Steaming turquoise mineral spring & salt-terraced geyser with pastel crystal rims and rising steam puffs."""
+    p = c.Piece("geyser_pool")
+    p.add(cylinder(3.8, 4.3, 0.36, 12), xf((0.0, 0.18, 0.0)), SALT_WHITE, grad=0.3)
+    p.add(cylinder(2.9, 3.3, 0.34, 12), xf((0.0, 0.48, 0.0)), "#e9e4fa", grad=0.25)
+    p.add_flat(cylinder(2.45, 2.55, 0.12, 12), xf((0.0, 0.66, 0.0)), "#5ff4ff", mat="glow_cyan")
+    # Rim salt lumps & pastel crystal spires
+    for k in range(8):
+        a = math.tau * k / 8.0
+        rx, rz = 2.85 * math.cos(a), 2.85 * math.sin(a)
+        p.add(c.lump(0.75, 0.42, 0.65, ("gey-rim", k), 6, 3, 0.2, flat_bottom=True), xf((rx, 0.55, rz)), SALT_WHITE, grad=0.3)
+        if k % 2 == 0:
+            p.add(crystal(0.36, 1.45), xf((rx * 1.05, 0.4, rz * 1.05), (k * 4 - 8, k * 25, 10)), "#ffc6e4" if k % 4 == 0 else "#b8ecff", grad=0.2)
+    # Billowing white steam cloud puffs rising from the thermal vent
+    for idx, (sx, sy, sz, sr) in enumerate(((0.0, 1.3, 0.0, 0.72), (0.25, 2.2, -0.18, 0.88), (-0.22, 3.25, 0.20, 1.05), (0.15, 4.35, -0.12, 0.85))):
+        p.add(c.lump(sr, sr * 0.78, sr, ("gey-steam", idx), 7, 4, 0.14), xf((sx, sy, sz)), "#ffffff", grad=0.15)
+    return p
+
+
 def build():
     c.ensure_materials()
     model = Model("scenery-salt")
-    for name, piece in (("salt_crystal", salt_crystal()), ("ufo", ufo()), ("rover", rover()), ("flag", flag())):
+    for name, piece in (("salt_crystal", salt_crystal()), ("ufo", ufo()), ("rover", rover()), ("flag", flag()), ("radar_dome", radar_dome()), ("geyser_pool", geyser_pool())):
         piece.bake(ao_height=2.4)
         root = model.mesh("prop-" + name, piece.items())
         if name == "ufo":

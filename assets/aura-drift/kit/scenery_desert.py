@@ -144,10 +144,54 @@ def windmill_rotor():
     return r
 
 
+def rock_arch():
+    """Sculpted terracotta sandstone natural arch spanning two desert buttresses with scrub bushes."""
+    p = c.Piece("rock_arch")
+    tones = ("#b84b2c", "#d66838", "#e88f4c", "#c95832")
+    for side in (-1, 1):
+        bz = side * 5.2
+        p.add(c.lump(2.6, 3.2, 2.8, ("arch-base", side), 7, 4, 0.18, flat_bottom=True), xf((0.0, 1.8, bz)), tones[0], grad=0.45)
+        p.add(c.lump(2.0, 3.0, 2.1, ("arch-mid", side), 7, 4, 0.18), xf((0.0, 4.8, bz * 0.82)), tones[1], grad=0.4)
+        p.add(c.lump(1.6, 2.2, 1.8, ("arch-top", side), 7, 3, 0.16), xf((0.0, 7.4, bz * 0.56)), tones[2], grad=0.35)
+    for k in range(7):
+        a = math.pi * (0.16 + 0.68 * k / 6.0)
+        az = 5.0 * math.cos(a)
+        ay = 4.6 + 5.2 * math.sin(a)
+        p.add(c.lump(1.45, 1.15, 1.65, ("arch-span", k), 7, 3, 0.16), xf((0.0, ay, az)), tones[k % len(tones)], grad=0.35)
+    for idx, (x, z, r) in enumerate(((1.8, -6.4, 0.9), (-1.5, 6.2, 1.1), (1.4, 4.2, 0.75))):
+        p.add(c.lump(r, r * 0.7, r, ("arch-talus", idx), 6, 3, 0.2, flat_bottom=True), xf((x, r * 0.4, z)), "#a44226", grad=0.35)
+        p.add(c.lump(0.55, 0.45, 0.55, ("arch-bush", idx), 6, 3, 0.2, flat_bottom=True), xf((x * 0.8, 0.28, z * 0.9)), "#5f8c44", grad=0.3)
+    return p
+
+
+def palm_oasis():
+    """Desert oasis spring: shimmering turquoise pool rimmed with sandstone boulders and three curved date palms."""
+    p = c.Piece("palm_oasis")
+    p.add(cylinder(3.4, 3.8, 0.28, 12), xf((0.0, 0.14, 0.0)), "#d89a5b", grad=0.3)
+    p.add(cylinder(2.7, 2.8, 0.10, 12), xf((0.0, 0.26, 0.0)), "#2fd4c8", grad=0.1, jitter=0.0)
+    for k in range(7):
+        a = math.tau * k / 7.0
+        rx, rz = 3.1 * math.cos(a), 3.1 * math.sin(a)
+        p.add(c.lump(0.75, 0.48, 0.68, ("oasis-rk", k), 6, 3, 0.2, flat_bottom=True), xf((rx, 0.26, rz)), "#c46238", grad=0.35)
+    # Three curved desert date palms with drooping frond crowns and coconuts
+    for idx, (px, pz, lean_x, lean_z, h) in enumerate(((-1.4, -1.8, -0.8, -0.6, 7.2), (1.6, -1.5, 0.9, -0.5, 6.4), (-0.4, 2.2, -0.3, 0.9, 5.6))):
+        pts = [(px + lean_x * (t ** 1.5), h * t, pz + lean_z * (t ** 1.5)) for t in (0.0, 0.25, 0.5, 0.75, 1.0)]
+        for s0, s1 in zip(pts, pts[1:]):
+            p.add(strut(s0, s1, 0.24, 6, 0.18), None, "#7a4e2d", grad=0.35)
+        tx, ty, tz = pts[-1]
+        for c_i in range(3):
+            ca = math.tau * c_i / 3.0
+            p.add(sphere(0.18, 5, 3), xf((tx + 0.22 * math.cos(ca), ty - 0.18, tz + 0.22 * math.sin(ca))), "#4d2e18", grad=0.2)
+        for f_i in range(6):
+            fa = 60.0 * f_i + idx * 20.0
+            p.add(ellipsoid(1.35, 0.14, 0.36, 6, 3), xf((tx, ty + 0.1, tz), (0, fa, -24)) @ xf((0.95, 0, 0)), "#2f9e54", grad=0.25)
+    return p
+
+
 def build():
     c.ensure_materials()
     model = Model("scenery-desert")
-    for name, piece in (("cactus_a", cactus_a()), ("cactus_b", cactus_b()), ("mesa_rock", mesa_rock()), ("water_tower", water_tower())):
+    for name, piece in (("cactus_a", cactus_a()), ("cactus_b", cactus_b()), ("mesa_rock", mesa_rock()), ("water_tower", water_tower()), ("rock_arch", rock_arch()), ("palm_oasis", palm_oasis())):
         piece.bake()
         model.mesh("prop-" + name, piece.items())
     root = model.mesh("prop-windmill_pump", windmill_pump().bake().items())

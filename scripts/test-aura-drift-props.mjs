@@ -86,9 +86,14 @@ check('no tall prop on the inner side of a tight curve near the road', sight.len
 
 /* Every biome is dense and shows its own signature props. */
 const signature = {
-    alpine: ['pine_a', 'rock_a'], desert: ['cactus_a', 'mesa_rock'], harbour: ['container_stack', 'neon_sign', 'fishing_boat'],
-    salt: ['salt_crystal'], forest: ['oak', 'birch'], industry: ['pipes', 'silo'], glacier: ['ice_block', 'snow_pine'],
-    metro: ['skyscraper_a', 'skyscraper_b', 'skyscraper_c', 'street_lamp']
+    alpine: ['pine_a', 'rock_a', 'flower_meadow', 'hay_barn'],
+    desert: ['cactus_a', 'mesa_rock', 'rock_arch', 'palm_oasis'],
+    harbour: ['container_stack', 'neon_sign', 'fishing_boat', 'tugboat', 'buoy_cluster'],
+    salt: ['salt_crystal', 'geyser_pool', 'radar_dome'],
+    forest: ['oak', 'birch', 'fern_glade', 'watermill'],
+    industry: ['pipes', 'silo', 'cooling_tower', 'chem_tank'],
+    glacier: ['ice_block', 'snow_pine', 'ice_spire', 'snow_cat'],
+    metro: ['skyscraper_a', 'skyscraper_b', 'skyscraper_c', 'street_lamp', 'metro_entrance', 'arcade_kiosk']
 };
 for (const track of tracks) {
     const list = AD.scatterProps(track, track.biomeId, metaFor(track.biomeId));
@@ -109,6 +114,7 @@ for (const track of tracks) {
     const bad = [];
     if (count('gantry') !== 1) bad.push('gantry ' + count('gantry'));
     if (count('grandstand') !== 4) bad.push('grandstands ' + count('grandstand'));
+    if (count('fan_camp') !== 3) bad.push('fan_camps ' + count('fan_camp'));
     if (count('inflatable_arch') !== 2) bad.push('arches ' + count('inflatable_arch'));
     if (count('hoarding') < 3) bad.push('hoardings ' + count('hoarding'));
     if (brands.size < 2) bad.push('brands ' + brands.size);
