@@ -112,7 +112,7 @@
         let size = { w: 960, h: 540, dpr: 1 };
         let look = AD.LOOK.alpine, track = null, race = null, lost = false, disposed = false, held = true;
         let env = null, envKey = '', wetness = 0, time = 0, gen = 0;
-        let actors = null, terrain = null, road = null, sky = null, props = null, fx = null, fallback = null;
+        let actors = null, carLights = null, terrain = null, road = null, sky = null, props = null, fx = null, fallback = null;
         let post = null, realPost = null;
         let shadowMode = '', discoCount = 0;
 
@@ -228,9 +228,9 @@
         /* ---- per-track objects ------------------------------------------- */
         function stop(mod) { if (mod && typeof mod.dispose === 'function') { try { mod.dispose(); } catch (_) { /* partial module */ } } }
         function disposeTrack() {
-            stop(actors); stop(terrain); stop(road); stop(sky); stop(props); stop(fx); stop(fallback);
+            stop(actors); stop(carLights); stop(terrain); stop(road); stop(sky); stop(props); stop(fx); stop(fallback);
             for (const m of [terrain, road]) if (m && m.group) m.group.removeFromParent();
-            actors = terrain = road = sky = props = fx = fallback = null;
+            actors = carLights = terrain = road = sky = props = fx = fallback = null;
             wetness = 0; discoCount = 0;
         }
         function buildTrack() {
@@ -252,6 +252,7 @@
             if (!terrain && !sky) fallback = makeFallback();
             actors = AD.createActors(T, scene, glq);
             actors.setRace(race);
+            if (typeof AD.createCarLights === 'function') carLights = AD.createCarLights(T, scene, glq, camera, look);
             if (typeof AD.createFx === 'function') fx = AD.createFx(T, scene, glq);
             const mine = ++gen;
             AD.assets.loadBiome(id).then(() => { if (mine === gen && props && typeof props.rebuild === 'function') props.rebuild(); });
@@ -416,6 +417,10 @@
         }
 
         /* ---- the interface ------------------------------------------------ */
+        const carHalf = i => {
+            const p = actors && actors.carPoints(i);
+            return p ? Math.hypot(p.nose[0] - p.car[0], p.nose[2] - p.car[2]) : 2.2;
+        };
         const projectVec = new T.Vector3();
         function projectX(p) {
             projectVec.set(p[0], p[1], p[2]).project(camera);
@@ -473,6 +478,7 @@
                 if (actors) actors.setQuality(glq);
                 if (fx && fx.setQuality) fx.setQuality(glq);
                 if (props && props.setQuality) props.setQuality(glq);
+                if (carLights) carLights.setQuality(glq);
                 if (show) show.rig && show.rig.setGl(glq);
                 if (realPost) realPost.setQuality(glq);
             },
@@ -502,6 +508,7 @@
                 const v = r.cars[0].v;
                 if (!track || track !== r.track) { track = r.track; buildTrack(); applySun(); }
                 actors.update(r, dt);
+                if (carLights) carLights.update(r, carHalf);
                 if (fallback) { fallback.dome.position.copy(camera.position); }
                 if (sky && sky.update) sky.update(dt, pose, r.conditions ? r.conditions.state : null);
                 if (props && props.update) props.update(pose, r);

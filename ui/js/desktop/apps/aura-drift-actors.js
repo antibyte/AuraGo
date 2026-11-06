@@ -26,13 +26,13 @@
         return lum < 0.3 ? '#ffa01e' : hex;
     };
 
-    function paintMaterial(T, hex, gl, vertexColors, ghost) {
+    function paintMaterial(T, hex, gl, vertexColors, ghost, rim) {
         const base = { color: hex, vertexColors: vertexColors, roughness: gl.clearcoat ? 0.28 : 0.3, metalness: gl.clearcoat ? 0.35 : 0.25 };
         const m = gl.clearcoat
             ? new T.MeshPhysicalMaterial(Object.assign(base, { clearcoat: 1, clearcoatRoughness: 0.08 }))
             : new T.MeshStandardMaterial(base);
         m.envMapIntensity = gl.clearcoat ? 1.0 : 1.35;
-        if (ghost) { m.transparent = true; m.opacity = 0.35; m.depthWrite = false; }
+        if (ghost) { m.transparent = true; m.opacity = 0.35; m.depthWrite = false; } else if (rim && AD.carShade) AD.carShade(m, rim);
         return m;
     }
 
@@ -103,7 +103,7 @@
             for (const [list, hex] of [[paintMeshes, paintHex], [accentMeshes, accentHex]]) {
                 if (!list.length) continue;
                 const old = list[0].material;
-                const mat = own(paintMaterial(T, hex, gl, !!list[0].geometry.attributes.color, rig.ghost));
+                const mat = own(paintMaterial(T, hex, gl, !!list[0].geometry.attributes.color, rig.ghost, opts.rim));
                 for (const o of list) o.material = mat;
                 if (old && owned.indexOf(old) >= 0) { old.dispose(); owned.splice(owned.indexOf(old), 1); }
             }
@@ -323,7 +323,7 @@
             polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, fog: false
         });
         let gl = q || AD.QUALITY.high.gl;
-        let slots = [], ghostSlot = null, race = null, night = false, checkAt = 0, time = 0, standIns = -1;
+        let slots = [], ghostSlot = null, race = null, night = false, carRim = null, checkAt = 0, time = 0, standIns = -1;
         let reduced = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
         const viewer = { x: 0, y: 0 };
         const tmp = { m: new T.Matrix4(), m2: new T.Matrix4(), q: new T.Quaternion(), p: new T.Vector3(), s: new T.Vector3(), e: new T.Euler(), a: new T.Vector3(), v: new T.Vector3(), c: new T.Color() };
@@ -845,7 +845,7 @@
         /* ---- slots -------------------------------------------------------------------------------- */
         function makeSlot(actor, isGhost) {
             const carDef = actor.v.car;
-            const rig = AD.createCarRig(T, carDef, { livery: actor.livery | 0, ghost: isGhost, gl: gl, night: night });
+            const rig = AD.createCarRig(T, carDef, { livery: actor.livery | 0, ghost: isGhost, gl: gl, night: night, rim: carRim });
             root.add(rig.group);
             let blob = null;
             if (!isGhost) {
@@ -880,6 +880,7 @@
                 rebuildStage();
                 if (!race) return;
                 night = !!(race.track && race.track.biome && race.track.biome.night);
+                carRim = AD.carRimFor ? AD.carRimFor(AD.LOOK[race.track.biomeId]) : null;
                 for (const car of race.cars) slots.push(makeSlot(car, false));
                 if (race.ghost) ghostSlot = makeSlot(race.ghost, true);
             },

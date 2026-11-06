@@ -38,6 +38,8 @@ func auraDriftSurveyScenes() []auraDriftSurveyScene {
 			`async()=>{await AuraDriftApp.debug.start({mode:'quick'});AuraDriftApp.debug.give(%q);AuraDriftApp.debug.fire();}`, weapon)})
 	}
 	scenes = append(scenes,
+		auraDriftSurveyScene{"night-high", `async()=>{const tr=AuraDriftCore.TRACKS.find(x=>x.biome==='metro');await AuraDriftApp.debug.start({mode:'quick',trackId:tr.id});AuraDriftApp.debug.setCamera('high');}`},
+		auraDriftSurveyScene{"night-bumper", `async()=>{const tr=AuraDriftCore.TRACKS.find(x=>x.biome==='harbour');await AuraDriftApp.debug.start({mode:'quick',trackId:tr.id});AuraDriftApp.debug.setCamera('drone');}`},
 		auraDriftSurveyScene{"trick-air", `async()=>{await AuraDriftApp.debug.start({mode:'time_trial'});}`},
 		auraDriftSurveyScene{name: "menu"},
 		auraDriftSurveyScene{name: "results", setup: `async()=>{AuraDriftApp.debug.results({});}`},
