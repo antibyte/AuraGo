@@ -20,6 +20,7 @@ import (
 
 	"aurago/internal/storymaker"
 	"aurago/internal/storymaker/render"
+	"aurago/internal/tools"
 
 	"github.com/go-rod/rod/lib/launcher"
 )
@@ -388,5 +389,290 @@ func TestStorymakerExportEndToEnd(t *testing.T) {
 		}
 	case <-replayCtx.Done():
 		t.Error("a new event stream sent no snapshot of the finished job")
+	}
+}
+
+// narratedE2EWAV is what the stub synth returns: a 24 kHz mono s16 WAV of ms milliseconds. A square wave of amplitude 3277
+// (0.1 of full scale) has an RMS of -20 dBFS, above the -40 dBFS speech threshold. The first and last 100 ms are silent, so
+// the piece has a speech span with margins, as real speech does.
+func narratedE2EWAV(ms int) []byte {
+	const rate = 24000
+	frames := rate * ms / 1000
+	pcm := make([]byte, 0, frames*2)
+	for i := 0; i < frames; i++ {
+		var v int16
+		if i >= rate/10 && i < frames-rate/10 {
+			v = 3277
+			if i/27%2 == 1 { // a period of 54 samples, about 444 Hz
+				v = -3277
+			}
+		}
+		pcm = append(pcm, byte(v), byte(uint16(v)>>8))
+	}
+	le16 := func(v int) []byte { return []byte{byte(v), byte(v >> 8)} }
+	le32 := func(v int) []byte { return []byte{byte(v), byte(v >> 8), byte(v >> 16), byte(v >> 24)} }
+	wav := []byte("RIFF")
+	wav = append(wav, le32(36+len(pcm))...)
+	wav = append(wav, "WAVEfmt "...)
+	wav = append(wav, le32(16)...)
+	wav = append(wav, le16(1)...) // PCM
+	wav = append(wav, le16(1)...) // mono
+	wav = append(wav, le32(rate)...)
+	wav = append(wav, le32(rate*2)...)
+	wav = append(wav, le16(2)...)  // block align
+	wav = append(wav, le16(16)...) // bits per sample
+	wav = append(wav, "data"...)
+	wav = append(wav, le32(len(pcm))...)
+	return append(wav, pcm...)
+}
+
+// narratedE2ECues reads an SRT or VTT file. It checks that the cue times ascend and end inside the film, and returns the cue
+// text without whitespace, so a line break cannot matter.
+func narratedE2ECues(t *testing.T, name string, data []byte, filmMS int) string {
+	t.Helper()
+	ms := func(stamp string) int {
+		whole, frac, ok := strings.Cut(strings.ReplaceAll(stamp, ",", "."), ".")
+		millis, err := strconv.Atoi(frac)
+		if !ok || err != nil {
+			t.Fatalf("%s: bad time %q", name, stamp)
+		}
+		seconds := 0
+		for _, part := range strings.Split(whole, ":") {
+			n, err := strconv.Atoi(part)
+			if err != nil {
+				t.Fatalf("%s: bad time %q", name, stamp)
+			}
+			seconds = seconds*60 + n
+		}
+		return seconds*1000 + millis
+	}
+	var text strings.Builder
+	cues, last := 0, -1
+	lines := strings.Split(strings.ReplaceAll(string(data), "\r\n", "\n"), "\n")
+	for i, line := range lines {
+		from, to, timing := strings.Cut(line, " --> ")
+		switch {
+		case timing:
+			start, end := ms(strings.TrimSpace(from)), ms(strings.Fields(to)[0])
+			if start >= end || start < last || end > filmMS {
+				t.Errorf("%s: cue %d to %d after a start at %d, film %d ms", name, start, end, last, filmMS)
+			}
+			cues++
+			last = start
+		case strings.TrimSpace(line) == "" || line == "WEBVTT":
+		case i+1 < len(lines) && strings.Contains(lines[i+1], " --> "): // an SRT cue number
+		default:
+			text.WriteString(strings.Join(strings.Fields(line), ""))
+		}
+	}
+	if cues == 0 {
+		t.Fatalf("%s has no cue:\n%s", name, data)
+	}
+	return text.String()
+}
+
+// TestStorymakerNarratedExportEndToEnd runs the whole narrated path through the HTTP handlers: create with a language, save a
+// narration, narrate with a stub synth, then render with every option, and look at each output on disk.
+func TestStorymakerNarratedExportEndToEnd(t *testing.T) {
+	s := storymakerRealServer(t)
+	// sanotts is ready without a key (tools.TTSReady) and lists de, so the project voice resolves to it. The stub replaces
+	// the synthesis itself.
+	s.Cfg.TTS.Provider = "sanotts"
+	// Each sentence has a width of 20 or more and more than 3 words, so SplitPieces keeps one piece per sentence: 2 calls.
+	const first, second = "Anna arbeitet von zu Hause.", "Plötzlich klopft jemand an die Tür."
+	narration := first + " " + second
+	calls := make(chan string, 16)
+	s.storymakerSynthOverride = func(_ context.Context, _ tools.TTSConfig, text string) ([]byte, string, error) {
+		calls <- text
+		return narratedE2EWAV(60 * len(text)), "wav", nil
+	}
+
+	mux := http.NewServeMux()
+	mux.Handle(storymakerAPIBase+"/", handleStorymaker(s))
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	base := srv.URL + storymakerAPIBase
+	call := func(method, path string, body []byte, headers map[string]string) (*http.Response, []byte) {
+		t.Helper()
+		req, err := http.NewRequest(method, base+path, bytes.NewReader(body))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for k, v := range headers {
+			req.Header.Set(k, v)
+		}
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+		data, _ := io.ReadAll(res.Body)
+		return res, data
+	}
+	waitJob := func(jobID string, limit time.Duration) render.Job {
+		t.Helper()
+		deadline := time.Now().Add(limit)
+		for {
+			res, body := call(http.MethodGet, "/jobs/"+jobID, nil, nil)
+			var got struct {
+				Job render.Job `json:"job"`
+			}
+			if err := json.Unmarshal(body, &got); err != nil || res.StatusCode != http.StatusOK {
+				t.Fatalf("GET job %d: %s", res.StatusCode, body)
+			}
+			if got.Job.Terminal() {
+				return got.Job
+			}
+			if time.Now().After(deadline) {
+				t.Fatalf("job %s is still %s after %v", jobID, got.Job.Status, limit)
+			}
+			time.Sleep(250 * time.Millisecond)
+		}
+	}
+
+	// Create with a language: the story has the resolved voice.
+	res, body := call(http.MethodPost, "/projects", []byte(`{"title":"Narrated end to end","language":"de"}`), map[string]string{"Content-Type": "application/json"})
+	var created struct {
+		Project storymaker.Project `json:"project"`
+		Story   storymaker.Story   `json:"story"`
+		ETag    string             `json:"etag"`
+	}
+	if err := json.Unmarshal(body, &created); err != nil || res.StatusCode != http.StatusCreated {
+		t.Fatalf("create %d: %s", res.StatusCode, body)
+	}
+	if v := created.Story.Voice; v == nil || v.Provider != "sanotts" || v.Language != "de" {
+		t.Fatalf("resolved voice = %+v", created.Story.Voice)
+	}
+	id := created.Project.ID
+
+	// Save the narration.
+	created.Story.Scenes[0].Narration = narration
+	storyJSON, err := storymaker.CanonicalJSON(created.Story)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, body = call(http.MethodPut, "/projects/"+id+"/story", storyJSON, map[string]string{"If-Match": created.ETag, "Content-Type": "application/json"})
+	var saved struct {
+		ETag   string             `json:"etag"`
+		Issues []storymaker.Issue `json:"issues"`
+	}
+	if err := json.Unmarshal(body, &saved); err != nil || res.StatusCode != http.StatusOK || storymaker.HasErrors(saved.Issues) {
+		t.Fatalf("save story %d: %s", res.StatusCode, body)
+	}
+
+	// Narrate with the stub: one call per sentence, in order, and nothing is missing afterwards.
+	res, body = call(http.MethodPost, "/projects/"+id+"/narrate", nil, nil)
+	var narrate struct {
+		Job *render.Job `json:"job"`
+	}
+	if err := json.Unmarshal(body, &narrate); err != nil || res.StatusCode != http.StatusAccepted || narrate.Job == nil || narrate.Job.Kind != render.KindNarrate {
+		t.Fatalf("narrate %d: %s", res.StatusCode, body)
+	}
+	if got := waitJob(narrate.Job.ID, 2*time.Minute); got.Status != render.StatusSucceeded {
+		t.Fatalf("narrate job %+v error %+v", got, got.Error)
+	}
+	if len(calls) != 2 {
+		t.Fatalf("the stub synth ran %d times, want 2", len(calls))
+	}
+	if a, b := <-calls, <-calls; a != first || b != second {
+		t.Fatalf("synthesised %q and %q", a, b)
+	}
+	res, body = call(http.MethodGet, "/projects/"+id+"/narration", nil, nil)
+	var answer storymaker.AudioAnswer
+	if err := json.Unmarshal(body, &answer); err != nil || res.StatusCode != http.StatusOK {
+		t.Fatalf("narration %d: %s", res.StatusCode, body)
+	}
+	blocks := answer.Narration["s1"].Blocks
+	if len(answer.Missing) != 0 || len(blocks) != 1 || len(blocks[0].Pieces) != 2 {
+		t.Fatalf("narration answer: %s", body)
+	}
+
+	// Render with every option.
+	options := []byte(`{"burn_in_captions":true,"srt":true,"vtt":true,"stems":true,"quality":"high"}`)
+	res, body = call(http.MethodPost, "/projects/"+id+"/render", options, map[string]string{"If-Match": saved.ETag, "Idempotency-Key": "i1-1", "Content-Type": "application/json"})
+	var accepted struct {
+		Job render.Job `json:"job"`
+	}
+	if err := json.Unmarshal(body, &accepted); err != nil || res.StatusCode != http.StatusAccepted {
+		t.Fatalf("render %d: %s", res.StatusCode, body)
+	}
+	job := waitJob(accepted.Job.ID, 8*time.Minute)
+	if job.Status != render.StatusSucceeded || job.Output == nil {
+		t.Fatalf("the export did not succeed: %+v error %+v", job, job.Error)
+	}
+	if len(job.Warnings) != 0 || job.FramesTotal <= 0 || job.FramesDone != job.FramesTotal {
+		t.Fatalf("job warnings %+v, frames %d of %d", job.Warnings, job.FramesDone, job.FramesTotal)
+	}
+
+	// The layout of frozen section 3. The film has no music and no sfx, so those two stems are omitted.
+	out := job.Output
+	const slug = "Narrated-end-to-end"
+	exports := "Documents/Storymaker/" + id + "/exports/"
+	folder := exports + slug + "-" + job.ID[:8]
+	if out.Path != folder+".mp4" || out.SRT != folder+"/captions.srt" || out.VTT != folder+"/captions.vtt" {
+		t.Fatalf("output = %+v", out)
+	}
+	if out.Stems == nil || out.Stems.Narration != folder+"/narration.wav" || out.Stems.Music != "" || out.Stems.SFX != "" {
+		t.Fatalf("stems = %+v", out.Stems)
+	}
+	onDisk := func(desktopPath string) string {
+		t.Helper()
+		file := filepath.Join(s.Cfg.VirtualDesktop.WorkspaceDir, filepath.FromSlash(desktopPath))
+		if info, err := os.Stat(file); err != nil || info.Size() == 0 {
+			t.Fatalf("%s: %v", desktopPath, err)
+		}
+		return file
+	}
+
+	// ffprobe sees every frame and the AAC track in the MP4, and PCM in the stem.
+	ffmpeg := s.Cfg.VideoStudio.FFmpegPath
+	var video, audio, stem bool
+	for _, st := range storymakerFFprobe(t, ffmpeg, onDisk(out.Path)).Streams {
+		video = video || st.CodecType == "video" && st.NbFrames == strconv.Itoa(job.FramesTotal)
+		audio = audio || st.CodecType == "audio" && st.CodecName == "aac"
+	}
+	for _, st := range storymakerFFprobe(t, ffmpeg, onDisk(out.Stems.Narration)).Streams {
+		stem = stem || st.CodecType == "audio" && strings.HasPrefix(st.CodecName, "pcm_")
+	}
+	if !video || !audio || !stem {
+		t.Fatalf("ffprobe: video with %d frames %v, AAC %v, PCM stem %v", job.FramesTotal, video, audio, stem)
+	}
+
+	// The subtitles hold the narration, inside the film. filmMS is round(frames*1000/fps), as in the report validation.
+	fps := created.Story.Format.FPS
+	filmMS := (job.FramesTotal*1000 + fps/2) / fps
+	if blocks[0].DurationMS > filmMS {
+		t.Errorf("narration of %d ms in a film of %d ms", blocks[0].DurationMS, filmMS)
+	}
+	want := strings.Join(strings.Fields(narration), "")
+	for _, name := range []string{out.SRT, out.VTT} {
+		data, err := os.ReadFile(onDisk(name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := narratedE2ECues(t, name, data, filmMS); got != want {
+			t.Errorf("%s text = %q, want %q", name, got, want)
+		}
+	}
+
+	// The library copy has the MP4's size. Videos is DataDir/generated_videos.
+	library := filepath.Join(s.Cfg.Directories.DataDir, "generated_videos", "Storymaker", slug+".mp4")
+	if info, err := os.Stat(library); err != nil || info.Size() != out.Size || out.Library != "Videos/Storymaker/"+slug+".mp4" {
+		t.Errorf("library copy: %v, job says %q and %d bytes", err, out.Library, out.Size)
+	}
+
+	// The record next to the MP4 names the extras and the loudness.
+	recordJSON, err := os.ReadFile(onDisk(exports + job.ID + ".json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var record map[string]any
+	if err := json.Unmarshal(recordJSON, &record); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"stems", "srt", "vtt", "library", "loudness"} {
+		if record[key] == nil {
+			t.Errorf("the job record has no %q: %s", key, recordJSON)
+		}
 	}
 }
