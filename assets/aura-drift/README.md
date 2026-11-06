@@ -37,6 +37,7 @@ node scripts/test-aura-drift-assets.mjs        # AURAGO_AURA_DRIFT_ASSETS_PARTIA
 | `manifest.py` | scans GLBs, writes `manifest.json` + `LICENSE.txt` |
 | `cars_common.py` | `CarBuilder`, `wheel_accum`: everything a car needs |
 | `car_vektor.py` | the reference car, read it first |
+| `polish_props.py` | Six extra trackside props: `balloon_bunch` and `photo_tower` (shared, return `toy.Parts`), `trail_marker`, `sunshade`, `signal_mast` and `holo_arrow` (fill a scenery `Piece`) |
 | `generate.py` (parent dir) | CLI. Group modules expose `build() -> core.Model` (one model = one GLB, named like the file stem) |
 
 ## Frames
@@ -141,8 +142,9 @@ gloss), a warm key sun, cool fill, rim, a cream ground with soft shadows, livery
 ## Pack and status
 
 - `ui/3d/aura-drift/v1/` holds 20 GLBs (eight cars, `items`, `track`, `animals`, `shared`, eight
-  biome scenery kits): 6 938 976 bytes (6.6 MiB) in total. `manifest.json` records each file's size,
-  hash and car measurements, and `LICENSE.txt` the licence.
+  biome scenery kits): 9 041 340 bytes (8.62 MiB) in total, including the six polish props above.
+  `manifest.json` records each file's size, hash and car measurements, and `LICENSE.txt` the licence.
+  `shared.glb` may use up to 1.75 MiB; all other per-file budgets stay as the validator lists them.
 - The sound pack is generated from `scripts/build-aura-drift-audio.mjs` into `ui/3d/aura-drift/audio/`;
   see [`audio/README.md`](audio/README.md). Engines, music and most groups are own synthesis; 17 sfx groups are hash-pinned CC0 recordings.
 - Visual acceptance on a real screen is still pending. Use the survey and the dev harness

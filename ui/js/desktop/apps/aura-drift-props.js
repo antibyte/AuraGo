@@ -29,7 +29,8 @@
     /* Glowing things the water and the salt mirror reflect as vertical streaks: name -> [colour, height above ground]. */
     const EMIT = {
         neon_sign: ['#ff4fa3', 9], crane: ['#ff6fb4', 19], lighthouse: ['#ffcf7a', 18], fishing_boat: ['#ffcf7a', 6], tugboat: ['#7af4ff', 6.5], buoy_cluster: ['#ffcf7a', 4.5],
-        ufo: ['#7dffb0', 40], rover: ['#fff2c0', 3], radar_dome: ['#7af4ff', 9], cooling_tower: ['#ff5a52', 19], metro_entrance: ['#ff7ac0', 4.6], arcade_kiosk: ['#5ff4ff', 5.2]
+        ufo: ['#7dffb0', 40], rover: ['#fff2c0', 3], radar_dome: ['#7af4ff', 9], cooling_tower: ['#ff5a52', 19], metro_entrance: ['#ff7ac0', 4.6], arcade_kiosk: ['#5ff4ff', 5.2],
+        signal_mast: ['#ff6fb4', 6.4], holo_arrow: ['#5ff4ff', 4.2]
     };
     const WATER_ONLY = { fishing_boat: true, tugboat: true, buoy_cluster: true };
     /* The SCATTER rates keep their proportions; this lifts them so each biome reads dense and framed. */
@@ -149,7 +150,8 @@
     /* ---- trackside furniture ------------------------------------------------------------------ */
     const FURN_META = {
         grandstand: { r: 13.4, h: 8.9 }, fan_camp: { r: 3.5, h: 4.3 }, hoarding: { r: 4.9, h: 5.5 }, marshal_post: { r: 1.6, h: 5.1 }, gnome_statue: { r: 1.5, h: 5.4 },
-        hotdog_stand: { r: 1.9, h: 5 }, camper_van: { r: 2.9, h: 3.6 }, inflatable_arch: { r: 7.7, h: 10.9 }, road_sign: { r: 1, h: 3.9 }
+        hotdog_stand: { r: 1.9, h: 5 }, camper_van: { r: 2.9, h: 3.6 }, inflatable_arch: { r: 7.7, h: 10.9 }, road_sign: { r: 1, h: 3.9 },
+        balloon_bunch: { r: 1.1, h: 5.6 }, photo_tower: { r: 1.4, h: 6.9 }
     };
     AD.BRAND_COUNT = 8;
     AD.SIGN_COUNT = 16;
@@ -186,6 +188,9 @@
         })()));
         for (const s of [length - 52, 52]) for (const side of [-1, 1]) add('grandstand', s, side * (hw(s) + 12.8), { extra: { tint: 0.5 } });
         track.sectors.forEach((s, i) => add('inflatable_arch', s, 0, { across: true, span: 15.4, extra: { special: 'arch', tint: i } }));
+        /* Polish kit: balloon bunches near the stands, camera towers beside the sector arches. */
+        for (const s of [length - 92, 92]) for (const side of [-1, 1]) add('balloon_bunch', s, side * (hw(s) + 7.2), { angle: 0.5 });
+        track.sectors.forEach((s, i) => { const ts = s + 14; add('photo_tower', ts, (i % 2 ? 1 : -1) * (hw(ts) + 10.5), { angle: 0.6 }); });
         /* Hoardings every 200 m on straights, angled at the oncoming driver, each with its own brand. */
         let slot = 0;
         for (let s = 130; s < length - 110; s += 200) {

@@ -20,14 +20,16 @@
         'weapon.hole_loop', 'weapon.disco_on', 'weapon.glove', 'weapon.harpoon_fire', 'weapon.harpoon_clank', 'weapon.cow_launch', 'weapon.cow_land', 'weapon.cloak_on', 'weapon.overdrive_on',
         'sting.perfect', 'sting.pancake', 'sting.strike', 'sting.slingshot', 'sting.moo', 'sting.trick', 'turbo.1', 'turbo.2', 'turbo.3', 'turbo.tick', 'pad.boost', 'ramp.launch',
         'land.soft', 'land.hard', 'roulette.tick', 'roulette.done', 'bomb.tick', 'bomb.blast', 'jingle.softeis', 'horn.<carId>', 'ufo.beam',
-        'ui.count', 'ui.go', 'ui.lap', 'ui.bank', 'whoosh', 'stinger.final_lap', 'stinger.disco', 'fanfare.win', 'fanfare.podium', 'fanfare.lose'
+        'ui.count', 'ui.go', 'ui.lap', 'ui.bank', 'whoosh', 'stinger.final_lap', 'stinger.disco', 'fanfare.win', 'fanfare.podium', 'fanfare.lose',
+        'sting.near_miss', 'sting.style_bank', 'sting.drift_link', 'sting.cloak', 'sting.sector'
     ];
 
     /* Groups that make the first race sound right; fetched right after the engine of the chosen car. */
     const CORE_GROUPS = [
         'ui.count', 'ui.go', 'ui.lap', 'ui.bank', 'impact.light', 'impact.heavy', 'impact.metal', 'explosion.small', 'explosion.big', 'crate.break',
         'turbo.1', 'turbo.2', 'turbo.3', 'turbo.tick', 'pad.boost', 'ramp.launch', 'land.soft', 'land.hard', 'whoosh', 'tyre.squeal', 'scrape.metal',
-        'sting.perfect', 'sting.trick', 'sting.slingshot', 'prop.hay', 'prop.cone', 'prop.barrel', 'prop.tyres'
+        'sting.perfect', 'sting.trick', 'sting.slingshot', 'prop.hay', 'prop.cone', 'prop.barrel', 'prop.tyres',
+        'sting.near_miss', 'sting.style_bank', 'sting.drift_link', 'sting.cloak', 'sting.sector'
     ];
     const BIOME_AMBIENCE = {
         alpine: 'amb.wind', desert: 'amb.desert', harbour: 'amb.sea', salt: 'amb.desert', forest: 'amb.forest', industry: 'amb.machinery', glacier: 'amb.snow', metro: 'amb.city'
@@ -271,10 +273,12 @@
                     if (evt.heavy) P('impact.metal', sp, { gain: 0.5 * k, delay: 0.02 });
                     break;
                 }
+                case 'drift_start': if (evt.car === 0 && fresh('drift_link', 0.18)) P('sting.drift_link', CENTER, { gain: 0.7 }); break;
                 case 'drift_level': if (evt.car === 0) P('turbo.tick', CENTER, { rate: 1 + (evt.level || 1) * 0.1, vary: 0 }); break;
                 case 'turbo_burst': P('turbo.' + clamp(Math.round(evt.level || 1), 1, 3), evt.car === 0 ? CENTER : sp); break;
-                case 'style_bank': if (evt.car === 0) P('ui.bank', CENTER, { rate: 1 + Math.min(8, evt.multiplier || 1) * 0.03, vary: 0 }); break;
-                case 'near_miss': if (evt.car === 0 || evt.other === 0) { if (fresh('near', 0.15)) P('whoosh', sp || CENTER, { gain: 0.9 }); } break;
+                case 'style_bank': if (evt.car === 0) { P('ui.bank', CENTER, { rate: 1 + Math.min(8, evt.multiplier || 1) * 0.03, vary: 0 }); P('sting.style_bank', CENTER, { rate: 1 + Math.min(8, evt.multiplier || 1) * 0.02, gain: 0.7, delay: 0.04 }); } break;
+                case 'near_miss': if (evt.car === 0 || evt.other === 0) { if (fresh('near', 0.15)) { P('whoosh', sp || CENTER, { gain: 0.9 }); P('sting.near_miss', sp || CENTER, { gain: 0.8, delay: 0.02 }); } } break;
+                case 'sector': if (evt.car === 0) P('sting.sector', CENTER, { gain: 0.7 }); break;
                 case 'slingshot': if (evt.car === 0) P('sting.slingshot', CENTER); break;
                 case 'takeoff': P('ramp.launch', evt.car === 0 ? CENTER : sp); break;
                 case 'trick': if (evt.car === 0) P('sting.trick', CENTER, { rate: 1 + Math.min(5, evt.chain || 0) * 0.05 }); break;
@@ -338,7 +342,8 @@
                 case 'cow_land': P('weapon.cow_land', sp); if (sp && sp.gain > 0.3) duck(6, 0.4); break;
                 case 'duck_launch': if (fresh('weapon.duck_launch' + evt.car, 0.12)) P('weapon.duck_launch', sp || CENTER); for (let i = 0; i < Math.min(3, evt.count || 3); i++) P('weapon.duck_quack', sp || CENTER, { delay: 0.15 + i * 0.13, rate: 0.9 + i * 0.1, gain: 0.7 }); break;
                 case 'duck_hit': P('weapon.duck_quack', sp); break;
-                case 'cloak_on': P('weapon.cloak_on', sp || CENTER); break;
+                case 'cloak_on': P('weapon.cloak_on', sp || CENTER); P('sting.cloak', sp || CENTER, { gain: 0.75 }); break;
+                case 'cloak_off': if (evt.car === 0) P('sting.cloak', CENTER, { rate: 0.85, gain: 0.5 }); break;
                 case 'overdrive_on': P('weapon.overdrive_on', sp || CENTER); break;
                 case 'eliminated':
                     P('explosion.big', sp || CENTER);

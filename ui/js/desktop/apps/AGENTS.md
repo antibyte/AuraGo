@@ -3538,8 +3538,18 @@ buttons and menu popovers remain excluded from those gestures.
 - Audio: `aura-drift-audio-bank.js` plays the Ogg pack under `ui/3d/aura-drift/audio`
   (priority loading, sfx variants, four-layer engines per car, three-stem biome music) and
   falls back to the live Web Audio synthesis in `aura-drift-engine.js` and `aura-drift-music.js` when a
-  sample is missing or fails. Every file is own synthesis; `assets/aura-drift/audio/sources.json`
-  is an empty CC0 override hook (no downloads).
+  sample is missing or fails. Engines, music and most groups are own synthesis; 17 sfx groups are
+  hash-pinned CC0 recordings declared in `assets/aura-drift/audio/sources.json` and credited in
+  the pack's `LICENSE.txt`. Adding a group means adding a seeded recipe under
+  `scripts/aura-drift-synth/`, rebuilding the pack with `build-aura-drift-audio.mjs --write`,
+  and extending `AD.AUDIO_GROUPS`, `CORE_GROUPS`, `AD.GROUP_GAIN_DB`, `AD.SYNTH_FALLBACK` and the
+  event switch together.
+- Polish: `aura-drift-fx.js` owns a quiet camera-relative biome mote layer (one `MOTES` profile
+  per biome, scaled by the particle tier, disabled by `fx.setReducedMotion` from `render3d.js`)
+  and one-shot feedback for near misses, style banks, sectors, cloak changes and bomb ticks.
+  `AD.SCATTER` (`aura-drift-look.js`) and `AD.furnitureProps` (`aura-drift-props.js`) place the
+  six `kit/polish_props.py` models; every new prop needs a manifest node, a validator entry and
+  a placement rule, otherwise it is only dead weight in the GLB.
 - Road markings (curbs, dashed centre line, worn racing-line bands, checkered start/finish)
   are world-anchored: dash patterns scale with the camera zoom and never animate with frame
   time. Braking fades out at standstill; a held brake engages a bounded reverse, and steering
@@ -5740,6 +5750,11 @@ registration lives in `internal/desktop/types.go`.
   with zoom/rotate/flip/copy/download/print and an Edit in Pixel action; the
   desktop, Files and media previews route those images to the Viewer window
   (tiff/tif/ora stay in Pixel, videos stay in the Gallery lightbox).
+  The image type reads its path from `currentPath` (the window's own path) for
+  the inline download URL and for the Edit in Pixel action; the file name in
+  the toolbar is `data-viewer-title` and carries the pixel size after load.
+  Verify `TestDesktopViewerImagePathContract` and
+  `TestDesktopViewerImageBrowser` (`AURAGO_RUN_BROWSER_SMOKE=1`).
   No child DOX file needed.
 - `teevee.js` - IPTV player; `teevee-catalog.js` owns catalog loading,
   stream identities, search and display labels. Catalog HTTP throws the

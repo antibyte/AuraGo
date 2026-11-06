@@ -196,15 +196,22 @@ weather motion are removed by reduced motion.
 
 - Runtime: `ui/js/vendor/aura-drift/three-runtime.js`, a three.js **0.186.1 (r186)** IIFE bundle
   (908 369 bytes, manifest and licence beside it in `ui/js/vendor/aura-drift/`).
-- Models: 20 GLB files, 6.9 MiB in total, under `ui/3d/aura-drift/v1`: eight cars, `items`,
+- Models: 20 GLB files, 9 041 340 bytes (8.62 MiB) in total, under `ui/3d/aura-drift/v1`: eight cars, `items`,
   `track`, `animals`, `shared` props and eight biome scenery kits. `manifest.json` records
   per-file size, hash and car measurements; `LICENSE.txt` lists the licence. The models are made
   by `assets/aura-drift/generate.py` (Blender 5.2, deterministic output) and are untextured:
-  chunky low-poly toy shapes, glossy paint through vertex colours and materials.
+  chunky low-poly toy shapes, glossy paint through vertex colours and materials. The polish round
+  added six props from `assets/aura-drift/kit/polish_props.py`: a balloon bunch and a camera tower
+  beside the stands on every track, plus an alpine waymark, a desert parasol, a harbour signal
+  mast and a metro holo arrow in their biomes.
 - Look: golden-hour diorama lighting, hemisphere and sun, a sky shader with the biome palette,
   shadow maps by tier, weather (rain, snow, fog, haze) drawn in the sky, terrain and props,
   instanced car lamps, reverse lights, softeis roof beacon, road underglow pools, exhaust
-  backfire pops and wingtip aero vortex streaks.
+  backfire pops and wingtip aero vortex streaks. A quiet camera-relative mote layer gives each
+  biome its own air (pollen, sand, sea spray, fireflies, embers, ice crystals, neon bokeh);
+  it is scaled by the quality tier and switched off by reduced motion. Near misses, style banks,
+  sector splits, cloak changes, bomb ticks and high-speed driving also have their own particle
+  feedback.
 - The 3D view needs WebGL2. Without it the game falls back to the Canvas 2D view.
 - On `auto`, a software GL renderer (the renderer string matches SwiftShader, llvmpipe or
   software) is rejected and the 2D view is used. An explicit graphics tier still accepts it.
@@ -279,7 +286,11 @@ described by its `manifest.json`, which marks each file `own-synthesis` or with 
 
 - **Sound effects (about 2.0 MB):** weapons, impacts, scrapes, tyre squeals, explosions, crate
   and prop breaks, crowd and animal calls, biome ambience beds and comic stingers and fanfares.
-  Groups with several members are variants; one is picked at random.
+  Groups with several members are variants; one is picked at random. The polish round added five
+  own-synthesis stinger groups (12 variants) from `scripts/aura-drift-synth/sfx-polish.mjs`:
+  `sting.near_miss`, `sting.style_bank`, `sting.drift_link`, `sting.cloak` and `sting.sector`,
+  so near misses, drift-chain links, banked style, cloak changes and sector splits now have
+  their own audible feedback.
 - **Engines (about 0.66 MB):** eight cars times four layers (idle, low, mid, high), two seconds,
   mono and seamless. The player's engine crossfades the four layers by rpm with equal power;
   each rival plays the mid layer of its own car, spatialised.
@@ -290,7 +301,10 @@ described by its `manifest.json`, which marks each file `own-synthesis` or with 
   the live Web Audio synthesis (the earlier engine, music and bed code), so the game plays
   without the pack.
 - **Loudness:** sound effects and engines have decoded-peak targets; each biome's music has one
-  gain that puts the three stems together at -16 LUFS.
+  gain that puts the three stems together at -16 LUFS. An earshot `measure` pass on the 12 polish
+  stingers reports no clipped samples, true peaks of -0.9 to -1.7 dBTP and -17.0 to -8.7 LUFS
+  (the three 0.3 s ticks are too short for a LUFS reading). Bells and ticks attack in 0 to 2 ms,
+  the whoosh and shimmer swells in 61 to 216 ms. **No human listening pass has happened yet.**
 
 The build (`scripts/build-aura-drift-audio.mjs`) renders deterministically and `--check` verifies
 the committed pack without ffmpeg. See `assets/aura-drift/audio/README.md` for the synthesis

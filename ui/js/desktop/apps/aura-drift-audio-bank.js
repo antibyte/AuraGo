@@ -32,7 +32,8 @@
         'roulette.tick': -6, 'roulette.done': -5.5, 'bomb.tick': -7.5, 'bomb.blast': -7, 'jingle.softeis': -7,
         'horn.vektor': -8, 'horn.kobalt': -10, 'horn.lumen': -9.5, 'horn.tundra': -10.5, 'horn.softeis': -3, 'horn.maehkoenig': -5, 'horn.couch': -10, 'horn.bertha': -8.5,
         'ufo.beam': -11.5, 'ui.count': -11, 'ui.go': -5.5, 'ui.lap': -6.5, 'ui.bank': -6.5, 'whoosh': -9,
-        'stinger.final_lap': -3, 'stinger.disco': 0.5, 'fanfare.win': -4, 'fanfare.podium': -3.5, 'fanfare.lose': -7
+        'stinger.final_lap': -3, 'stinger.disco': 0.5, 'fanfare.win': -4, 'fanfare.podium': -3.5, 'fanfare.lose': -7,
+        'sting.near_miss': -7.5, 'sting.style_bank': -7, 'sting.drift_link': -9, 'sting.cloak': -8, 'sting.sector': -7.5
     };
 
     /* Live recipes. 't' = tone(freq, dur, type, level, sweep, delay); 'n' = noise(level, dur, freq, filter, delay, q). */
@@ -112,7 +113,12 @@
         'stinger.disco': run([660, 880, 1100, 1320], 0.14),
         'fanfare.win': run([523, 659, 784, 1046], 0.13),
         'fanfare.podium': run([523, 659, 784], 0.13),
-        'fanfare.lose': [T(330, 0.3, 'triangle', 0.12, 260), T(247, 0.5, 'triangle', 0.12, 200, 0.3)]
+        'fanfare.lose': [T(330, 0.3, 'triangle', 0.12, 260), T(247, 0.5, 'triangle', 0.12, 200, 0.3)],
+        'sting.near_miss': [N(0.12, 0.3, 1400), T(900, 0.3, 'sine', 0.06, 400)],
+        'sting.style_bank': run([784, 988, 1175, 1568], 0.07),
+        'sting.drift_link': [T(640, 0.12, 'triangle', 0.08, 220), N(0.05, 0.05, 2400)],
+        'sting.cloak': [N(0.08, 0.6, 2200, 'bandpass', 0, 0.8), T(520, 0.5, 'sine', 0.06, 700)],
+        'sting.sector': run([659, 988], 0.1)
     };
     for (const id of ['vektor', 'kobalt', 'lumen', 'tundra', 'softeis', 'maehkoenig', 'couch', 'bertha']) AD.SYNTH_FALLBACK['horn.' + id] = HORN;
 

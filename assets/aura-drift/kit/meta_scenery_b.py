@@ -43,5 +43,6 @@ PROPS = {
         "taxi": {"tags": []},
         "metro_entrance": {"tags": ["hero"]},
         "arcade_kiosk": {"tags": ["hero", "tall"]},
+        "holo_arrow": {"tags": ["scatter"]},
     },
 }

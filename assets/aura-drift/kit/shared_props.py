@@ -8,6 +8,7 @@ Props stand on y = 0, centred, front toward +X. ``prop-hoarding`` and ``prop-roa
 import math
 
 from .core import Model, rng_for
+from .polish_props import balloon_bunch, photo_tower
 from .shapes import box, cylinder, cylinder_x, cylinder_z, ellipsoid, extrude_z, sphere, torus, xf
 from .shared_stands import fan_camp, gnome_statue, grandstand, inflatable_arch, person
 from .toy import Parts, add_face_uv, ensure_materials, ground_ao, install_name_hook, quad_facing_x, tube
@@ -204,4 +205,6 @@ def build():
         attach_prop(model, name, make(), shade=shade)
     for make in (hoarding, marshal_post, road_sign, hotdog_stand, camper_van):
         make(model)
+    attach_prop(model, "balloon_bunch", balloon_bunch(), shade="auto")
+    attach_prop(model, "photo_tower", photo_tower(), shade="auto")
     return model

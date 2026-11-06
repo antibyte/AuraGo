@@ -5,9 +5,14 @@ Own the Blender 5.2 generator of the Aura Drift model pack and its pure-Python k
 `generate.py` is a thin CLI; the humans' guide with the helper reference is [`README.md`](README.md).
 
 ## Ownership
-- Authoring: this directory. `runtime-entry.mjs` belongs to the three.js vendor bundle, not to the kit.
-- Runtime payload: `ui/3d/aura-drift/v1/` (20 GLBs, `manifest.json`, `LICENSE.txt`). Written only by
-  `generate.py`, the manifest only by `--only manifest`.
+- Authoring: this directory. `kit/polish_props.py` owns the six extra trackside props (shared
+  balloon bunch and camera tower; alpine waymark, desert parasol, harbour signal mast, metro holo
+  arrow); the shared builders return `toy.Parts`, the scenery builders fill a `Piece`.
+  `runtime-entry.mjs` belongs to the three.js vendor bundle, not to the kit.
+- Runtime payload: `ui/3d/aura-drift/v1/` (20 GLBs, 9 041 340 bytes, `manifest.json`, `LICENSE.txt`).
+  Written only by `generate.py`, the manifest only by `--only manifest`. Adding a prop means adding
+  its node to `scripts/test-aura-drift-assets.mjs`, its tags to `kit/meta_*.py`, and its placement
+  to `AD.SCATTER` or `AD.furnitureProps` so it is actually visible.
 - Audio inputs: `audio/sources.json` (13 hash-pinned CC0 sources, 17 sfx group overrides)
   and `audio/README.md`. The sound pack itself is `ui/3d/aura-drift/audio/` and is written only by
   `scripts/build-aura-drift-audio.mjs --write --sources D:\tmp\agdrift-cc0` (downloads in one folder per source id,
@@ -27,7 +32,8 @@ Own the Blender 5.2 generator of the Aura Drift model pack and its pure-Python k
   or the manifest.
 - Car body materials are exactly `paint`, `paint_accent`, `trim`, `glass`, `chrome`, `head_light`, `brake_light`;
   wheels use `tyre`.
-- Budgets live in the validator (cars 14000 triangles and 480 KB, pack 18 MiB). Check after each build.
+- Budgets live in the validator (cars 14000 triangles and 480 KB, shared.glb 1.75 MiB, scenery
+  kits 1.1 MiB each, pack 18 MiB; per-prop 450/1200/4500/14000 triangles by tag). Check after each build.
 
 ## Verification
 - `"D:\Blender 5.2\blender.exe" --background --factory-startup --python <abs>/assets/aura-drift/generate.py -- --only cars,manifest --out <abs>`

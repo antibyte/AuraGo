@@ -2,7 +2,7 @@
   "version": 1,
   "blender": "5.2.2",
   "generator": "assets/aura-drift/generate.py",
-  "totalBytes": 8868048,
+  "totalBytes": 9041340,
   "files": [
     {
       "name": "animals.glb",
@@ -76,16 +76,16 @@
     },
     {
       "name": "scenery-alpine.glb",
-      "bytes": 311248,
-      "sha256": "c356098cc9c1307a502516da993d2ebdfc2bfafa6905af1ab0c09372cd9e931f",
-      "triangles": 4214,
+      "bytes": 323056,
+      "sha256": "24a4689a927ee35d7a4b659c7ebdf58190b3da91482735d5a0cfb3209b818410",
+      "triangles": 4370,
       "kind": "scenery"
     },
     {
       "name": "scenery-desert.glb",
-      "bytes": 361140,
-      "sha256": "0fb0b83028a48aa128f4355122a5ebf8b4806a9035f98d00cf6519fb3375e3d4",
-      "triangles": 4868,
+      "bytes": 379888,
+      "sha256": "b2fa998ace1daf70de4c823eae838fd8d9c900046f00e6810b44657a6573410d",
+      "triangles": 5132,
       "kind": "scenery"
     },
     {
@@ -104,9 +104,9 @@
     },
     {
       "name": "scenery-harbour.glb",
-      "bytes": 578308,
-      "sha256": "3d7a1cde833affe32b7544a011c3e05ab9f968047448ff7b277da8d89fc0ec3d",
-      "triangles": 8036,
+      "bytes": 614168,
+      "sha256": "0cbea758260a053f0c54b613f2604e822d9ef99d19c173925aaea36d97193b57",
+      "triangles": 8510,
       "kind": "scenery"
     },
     {
@@ -118,9 +118,9 @@
     },
     {
       "name": "scenery-metro.glb",
-      "bytes": 511888,
-      "sha256": "f1a5a5a3651f26d676248cad3f6c927a10aaa07e25b4162041775dd506ada653",
-      "triangles": 6896,
+      "bytes": 525352,
+      "sha256": "6a7f1e366930a0caf88a59bc677ff59186873736cc0d6478715ab5322d0fbac6",
+      "triangles": 7036,
       "kind": "scenery"
     },
     {
@@ -132,9 +132,9 @@
     },
     {
       "name": "shared.glb",
-      "bytes": 1498580,
-      "sha256": "2015cbea01290cf95986832c0729012025f4121b7ea668b29dd7dce85a41f77f",
-      "triangles": 22250,
+      "bytes": 1591992,
+      "sha256": "c65b0f5d31e9c3161a0127f20c63ea6aaed958a28852bf383f7d09fc34ef02bf",
+      "triangles": 24084,
       "kind": "shared"
     },
     {
@@ -472,6 +472,16 @@
           "scatter"
         ],
         "triangles": 196
+      },
+      "trail_marker": {
+        "file": "scenery-alpine.glb",
+        "node": "prop-trail_marker",
+        "radius": 0.515,
+        "height": 2.74,
+        "tags": [
+          "scatter"
+        ],
+        "triangles": 156
       }
     },
     "desert": {
@@ -529,6 +539,14 @@
           "far"
         ],
         "triangles": 564
+      },
+      "sunshade": {
+        "file": "scenery-desert.glb",
+        "node": "prop-sunshade",
+        "radius": 1.85,
+        "height": 3.74,
+        "tags": [],
+        "triangles": 264
       },
       "water_tower": {
         "file": "scenery-desert.glb",
@@ -757,6 +775,16 @@
         ],
         "triangles": 1200
       },
+      "signal_mast": {
+        "file": "scenery-harbour.glb",
+        "node": "prop-signal_mast",
+        "radius": 0.82,
+        "height": 6.92,
+        "tags": [
+          "tall"
+        ],
+        "triangles": 474
+      },
       "tugboat": {
         "file": "scenery-harbour.glb",
         "node": "prop-tugboat",
@@ -870,6 +898,16 @@
         "height": 4.95,
         "tags": [],
         "triangles": 1006
+      },
+      "holo_arrow": {
+        "file": "scenery-metro.glb",
+        "node": "prop-holo_arrow",
+        "radius": 1.226,
+        "height": 4.44,
+        "tags": [
+          "scatter"
+        ],
+        "triangles": 140
       },
       "metro_entrance": {
         "file": "scenery-metro.glb",
@@ -994,6 +1032,17 @@
       }
     },
     "shared": {
+      "balloon_bunch": {
+        "file": "shared.glb",
+        "node": "prop-balloon_bunch",
+        "radius": 0.938,
+        "height": 6.12,
+        "tags": [
+          "hero",
+          "tall"
+        ],
+        "triangles": 1346
+      },
       "camper_van": {
         "file": "shared.glb",
         "node": "prop-camper_van",
@@ -1074,6 +1123,17 @@
         "height": 5.1,
         "tags": [],
         "triangles": 648
+      },
+      "photo_tower": {
+        "file": "shared.glb",
+        "node": "prop-photo_tower",
+        "radius": 1.185,
+        "height": 6.47,
+        "tags": [
+          "hero",
+          "tall"
+        ],
+        "triangles": 488
       },
       "road_sign": {
         "file": "shared.glb",

@@ -15,6 +15,7 @@ PROPS = {
         "cablecar_pylon": {"tags": ["tall"]},
         "flower_meadow": {"tags": ["scatter"]},
         "hay_barn": {"tags": ["hero"]},
+        "trail_marker": {"tags": ["scatter"]},
     },
     "desert": {
         "cactus_a": {"tags": ["scatter"]},
@@ -24,6 +25,7 @@ PROPS = {
         "windmill_pump": {"tags": ["hero", "tall"]},
         "rock_arch": {"tags": ["hero", "tall", "far"]},
         "palm_oasis": {"tags": ["hero", "tall"]},
+        "sunshade": {"tags": []},
     },
     "harbour": {
         "container_stack": {"tags": ["hero"]},
@@ -33,6 +35,7 @@ PROPS = {
         "neon_sign": {"tags": ["tall"]},
         "tugboat": {"tags": ["hero"]},
         "buoy_cluster": {"tags": ["scatter", "tall"]},
+        "signal_mast": {"tags": ["tall"]},
     },
     "salt": {
         "salt_crystal": {"tags": ["scatter"]},

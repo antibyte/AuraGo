@@ -55,7 +55,7 @@ FILES['animals.glb'] = {
 };
 FILES['shared.glb'] = {
   kind: 'shared',
-  nodes: ['grandstand', 'fan_camp', 'hoarding', 'marshal_post', 'gnome_statue', 'hotdog_stand', 'camper_van', 'inflatable_arch', 'road_sign'].map(n => `prop-${n}`),
+  nodes: ['grandstand', 'fan_camp', 'hoarding', 'marshal_post', 'gnome_statue', 'hotdog_stand', 'camper_van', 'inflatable_arch', 'road_sign', 'balloon_bunch', 'photo_tower'].map(n => `prop-${n}`),
   children: {
     'prop-hoarding': ['face'],
     'prop-road_sign': ['face'],
@@ -66,17 +66,17 @@ FILES['shared.glb'] = {
     'prop-camper_van': ['frame', 'crowd', 'crowd_arms'],
   },
   maxTriangles: 36000,
-  maxBytes: Math.floor(1.5 * MIB),
+  maxBytes: Math.floor(1.75 * MIB),
 };
 const SCENERY = {
-  alpine: ['pine_a', 'pine_b', 'rock_a', 'rock_b', 'chalet', 'cablecar_pylon', 'flower_meadow', 'hay_barn'],
-  desert: ['cactus_a', 'cactus_b', 'mesa_rock', 'water_tower', 'windmill_pump', 'rock_arch', 'palm_oasis'],
-  harbour: ['container_stack', 'crane', 'lighthouse', 'fishing_boat', 'neon_sign', 'tugboat', 'buoy_cluster'],
+  alpine: ['pine_a', 'pine_b', 'rock_a', 'rock_b', 'chalet', 'cablecar_pylon', 'flower_meadow', 'hay_barn', 'trail_marker'],
+  desert: ['cactus_a', 'cactus_b', 'mesa_rock', 'water_tower', 'windmill_pump', 'rock_arch', 'palm_oasis', 'sunshade'],
+  harbour: ['container_stack', 'crane', 'lighthouse', 'fishing_boat', 'neon_sign', 'tugboat', 'buoy_cluster', 'signal_mast'],
   salt: ['salt_crystal', 'ufo', 'rover', 'flag', 'radar_dome', 'geyser_pool'],
   forest: ['oak', 'birch', 'mushroom_cluster', 'log_pile', 'hunting_hide', 'fern_glade', 'watermill'],
   industry: ['silo', 'smokestack', 'pipes', 'forklift', 'pylon', 'cooling_tower', 'chem_tank'],
   glacier: ['ice_block', 'ice_arch', 'snow_pine', 'igloo', 'research_station', 'ice_spire', 'snow_cat'],
-  metro: ['skyscraper_a', 'skyscraper_b', 'skyscraper_c', 'billboard', 'street_lamp', 'food_truck', 'taxi', 'metro_entrance', 'arcade_kiosk'],
+  metro: ['skyscraper_a', 'skyscraper_b', 'skyscraper_c', 'billboard', 'street_lamp', 'food_truck', 'taxi', 'metro_entrance', 'arcade_kiosk', 'holo_arrow'],
 };
 const SCENERY_CHILDREN = { desert: { 'prop-windmill_pump': ['rotor'] }, metro: { 'prop-billboard': ['face'] } };
 for (const [biome, props] of Object.entries(SCENERY)) {

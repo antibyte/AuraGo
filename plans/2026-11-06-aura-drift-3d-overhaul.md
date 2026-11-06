@@ -844,17 +844,22 @@ The other 14 languages are properly translated, including jokes, and are not mac
 | `items.glb` | `item-crate`, `item-gnome_mine`, `item-rubber_duck`, `item-rocket`, `item-bratwurst`, `item-boxing_glove`, `item-disco_ball`, `item-harpoon`, `item-air_horn`, `item-frost_grenade` | ≤ 12000 total | ≤ 450 KB |
 | `track.glb` | `track-ramp`, `track-boost_pad`, `track-cone`, `track-hay_bale`, `track-barrel`, `track-tyre_stack`, `track-barrier_segment`, `track-gantry` (children `light_1`..`light_5`), `track-rumble_bars` | ≤ 12000 | ≤ 450 KB |
 | `animals.glb` | `animal-cow`, `animal-sheep`, `animal-penguin`, `animal-crab`, `animal-llama` | ≤ 1800 each | ≤ 320 KB |
-| `shared.glb` | `prop-grandstand` (with crowd vertex colours), `prop-hoarding` (child `face`), `prop-marshal_post`, `prop-gnome_statue`, `prop-hotdog_stand`, `prop-camper_van`, `prop-inflatable_arch`, `prop-road_sign` (child `face`) | ≤ 36000 | ≤ 1.3 MiB |
-| `scenery-alpine.glb` | `pine_a`, `pine_b`, `rock_a`, `rock_b`, `chalet`, `cablecar_pylon` | ≤ 30000 each file | ≤ 1.1 MiB each |
-| `scenery-desert.glb` | `cactus_a`, `cactus_b`, `mesa_rock`, `water_tower`, `windmill_pump` (child `rotor`) | | |
-| `scenery-harbour.glb` | `container_stack`, `crane`, `lighthouse`, `fishing_boat`, `neon_sign` | | |
-| `scenery-salt.glb` | `salt_crystal`, `ufo`, `rover`, `flag` | | |
-| `scenery-forest.glb` | `oak`, `birch`, `mushroom_cluster`, `log_pile`, `hunting_hide` | | |
-| `scenery-industry.glb` | `silo`, `smokestack`, `pipes`, `forklift`, `pylon` | | |
-| `scenery-glacier.glb` | `ice_block`, `ice_arch`, `snow_pine`, `igloo`, `research_station` | | |
-| `scenery-metro.glb` | `skyscraper_a`, `skyscraper_b`, `skyscraper_c`, `billboard` (child `face`), `street_lamp`, `food_truck`, `taxi` | | |
+| `shared.glb` | `prop-grandstand` (with crowd vertex colours), `prop-fan_camp`, `prop-hoarding` (child `face`), `prop-marshal_post`, `prop-gnome_statue`, `prop-hotdog_stand`, `prop-camper_van`, `prop-inflatable_arch`, `prop-road_sign` (child `face`), `prop-balloon_bunch`, `prop-photo_tower` | ≤ 36000 | ≤ 1.75 MiB |
+| `scenery-alpine.glb` | `pine_a`, `pine_b`, `rock_a`, `rock_b`, `chalet`, `cablecar_pylon`, `flower_meadow`, `hay_barn`, `trail_marker` | ≤ 30000 each file | ≤ 1.1 MiB each |
+| `scenery-desert.glb` | `cactus_a`, `cactus_b`, `mesa_rock`, `water_tower`, `windmill_pump` (child `rotor`), `rock_arch`, `palm_oasis`, `sunshade` | | |
+| `scenery-harbour.glb` | `container_stack`, `crane`, `lighthouse`, `fishing_boat`, `neon_sign`, `tugboat`, `buoy_cluster`, `signal_mast` | | |
+| `scenery-salt.glb` | `salt_crystal`, `ufo`, `rover`, `flag`, `radar_dome`, `geyser_pool` | | |
+| `scenery-forest.glb` | `oak`, `birch`, `mushroom_cluster`, `log_pile`, `hunting_hide`, `fern_glade`, `watermill` | | |
+| `scenery-industry.glb` | `silo`, `smokestack`, `pipes`, `forklift`, `pylon`, `cooling_tower`, `chem_tank` | | |
+| `scenery-glacier.glb` | `ice_block`, `ice_arch`, `snow_pine`, `igloo`, `research_station`, `ice_spire`, `snow_cat` | | |
+| `scenery-metro.glb` | `skyscraper_a`, `skyscraper_b`, `skyscraper_c`, `billboard` (child `face`), `street_lamp`, `food_truck`, `taxi`, `metro_entrance`, `arcade_kiosk`, `holo_arrow` | | |
 
-Scenery nodes are named `prop-<name>`. Per-prop tri budget: tag `scatter` ≤ 450, default ≤ 1200, `hero` ≤ 4500. Total pack ≤ 18 MiB (18874368 bytes). Also `manifest.json` and `LICENSE.txt` (MIT).
+Scenery nodes are named `prop-<name>`. The polish round added six props from `kit/polish_props.py`:
+`balloon_bunch` and `photo_tower` (shared, placed as furniture), `trail_marker` (alpine), `sunshade`
+(desert), `signal_mast` (harbour) and `holo_arrow` (metro). Per-prop tri budget: tag `scatter` ≤ 450,
+default ≤ 1200, `hero` ≤ 4500, `crowd` ≤ 14000. Total pack ≤ 18 MiB (18874368 bytes). Also
+`manifest.json` and `LICENSE.txt` (MIT). The exact node lists live in
+`scripts/test-aura-drift-assets.mjs`; the shipped pack is 20 GLBs / 9 041 340 bytes (8.62 MiB).
 
 ### 3.2 Frames and scale
 - glTF frame: Y up, metres.
