@@ -135,7 +135,7 @@ const document = {
 const context = { console, document, setTimeout, clearTimeout };
 context.globalThis = context; context.window = context;
 vm.createContext(context);
-for (const name of ['storymaker-core.js', 'storymaker-model.js', 'storymaker-dialog.js', 'storymaker-export.js']) {
+for (const name of ['storymaker-core.js', 'storymaker-model.js', 'storymaker-dialog.js', 'storymaker-handoff.js', 'storymaker-export.js']) {
   vm.runInContext(fs.readFileSync(path.join(dir, name), 'utf8'), context, { filename: name });
 }
 const S = context.StorymakerParts;
@@ -716,8 +716,12 @@ func TestStorymakerExportDialogInNode(t *testing.T) {
 }
 
 const storymakerExportDialogScript = `
-load(['storymaker-core.js', 'storymaker-dialog.js']);
+load(['storymaker-core.js', 'storymaker-handoff.js', 'storymaker-dialog.js']);
 const S = context.StorymakerParts;
+// What Video Studio answers when the dialog opens. The real studioReady decides.
+const vsReady = { enabled: true, desktop_enabled: true, ffmpeg_ready: true, read_only: false };
+let vsAnswer = () => Promise.resolve(vsReady);
+S.handoff.status = () => vsAnswer();
 function makeInst(captions, job) {
   const inst = {
     t: key => key, domId: name => 'test-' + name, handoffWish: new Set(), sent: [],
@@ -768,6 +772,28 @@ function makeInst(captions, job) {
   await settle();
   eq(refused.handoffWish.size, 0, 'no job, no wish');
 
+  // A studio that can take the film keeps the option and shows no reason.
+  eq([handoff.disabled, one(dialog.el, 'export-opt-handoff-reason').hidden], [false, true], 'the option stays');
+
+  // A studio that cannot, or a status read that fails: the option is off with its reason, and a tick made before the answer goes back
+  // with its forced stems.
+  const unavailable = [() => Promise.resolve(Object.assign({}, vsReady, { read_only: true })), () => Promise.reject(new Error('offline'))];
+  for (const answer of unavailable) {
+    vsAnswer = answer;
+    const off = makeInst(true, { id: 'job-8' });
+    const offDialog = S.createExportDialog(off);
+    offDialog.open();
+    const offHandoff = one(offDialog.el, 'export-opt-handoff');
+    const offStems = one(offDialog.el, 'export-opt-stems');
+    const reason = one(offDialog.el, 'export-opt-handoff-reason');
+    offHandoff.checked = true; offHandoff.fire('change');
+    await settle();
+    eq([offHandoff.checked, offHandoff.disabled, offStems.checked, offStems.disabled, reason.hidden, reason.textContent], [false, true, false, false, false, 'storymaker.handoff.unavailable'], 'the option is off with its reason');
+    one(offDialog.el, 'export-confirm').click();
+    await settle();
+    eq([off.sent[0].stems, off.handoffWish.size], [false, 0], 'no stems and no wish');
+  }
+
   console.log('storymaker export dialog ok');
 })().catch(fail);
 `
@@ -796,7 +822,7 @@ func TestStorymakerExportStartInNode(t *testing.T) {
 }
 
 const storymakerExportStartScript = `
-load(['storymaker-core.js', 'storymaker-model.js', 'storymaker-dialog.js', 'storymaker-export.js']);
+load(['storymaker-core.js', 'storymaker-model.js', 'storymaker-dialog.js', 'storymaker-handoff.js', 'storymaker-export.js']);
 const S = context.StorymakerParts;
 const renders = [];
 const job = { id: 'job-1', project_id: 'p1', kind: 'render', status: 'queued', progress: 0 };
@@ -916,7 +942,7 @@ const storymakerExportFinishedScript = `
 load(['storymaker-core.js', 'storymaker-model.js', 'storymaker-dialog.js', 'storymaker-export.js']);
 const S = context.StorymakerParts;
 // The handoff module joins the app after this task. Here no job offers it.
-S.handoff = { canOffer: () => false, run: () => Promise.resolve({ projectId: '' }) };
+S.handoff = { canOffer: () => false, stemFailed: () => false, run: () => Promise.resolve({ projectId: '' }) };
 function finished(output, warnings) {
   const opened = [];
   const inst = {

@@ -44,6 +44,12 @@
         let cancelling = false;
         let pollTimer = 0;
         let copied = 0;
+        let vsStatus = null;
+        let vsAskedFor = '';
+        let handingOff = false;
+        let handoffError = '';
+        const handoffProjects = new Map();   // job id -> the Video Studio project of a failed try, so a retry fills it and adds no other
+        let lastJob = null;   // the newest render that left a result, also one from before this panel
         let refused = null;   // the last gate answer of a start: {code, data}
         let disposed = false;   // a panel that is gone takes up no job and polls nothing
 
@@ -187,10 +193,26 @@
                 output.size ? el('p', { class: 'stm-hint', text: S.format.bytes(output.size) }) : null,
                 extrasView(output),
                 warningsView(job),
+                handoffUnavailable(),
                 el('div', { class: 'stm-actions' },
                     el('button', { type: 'button', class: 'stm-btn stm-btn-primary', dataset: { stm: 'export-show' }, disabled: !dir || typeof inst.ctx.openApp !== 'function' || null, onClick: () => { if (dir) inst.ctx.openApp('files', { path: dir }); } }, icon('folder'), el('span', { text: t('storymaker.export.show_in_files') })),
                     el('button', { type: 'button', class: 'stm-btn', dataset: { stm: 'export-copy' }, onClick: () => copyPath(output.path) }, icon('copy'), el('span', { text: copied && Date.now() - copied < 2500 ? t('storymaker.export.copied') : t('storymaker.export.copy_path') })),
+                    handoffAction(),
                     el('button', { type: 'button', class: 'stm-btn stm-btn-quiet', dataset: { stm: 'export-again' }, onClick: () => { job = null; paint(); } }, el('span', { text: t('storymaker.export.again') }))));
+        }
+
+        // A stem that failed would leave that sound out of the Video Studio project, so canOffer refuses and the panel says why.
+        function handoffUnavailable() {
+            return S.handoff.stemFailed(job) ? el('p', { class: 'stm-hint', dataset: { stm: 'export-handoff-unavailable' }, text: t('storymaker.handoff.unavailable') }) : null;
+        }
+
+        // The Video Studio action of a finished job, shown only when S.handoff.canOffer agrees. el() takes the array and skips the null.
+        function handoffAction() {
+            if (!S.handoff.canOffer(job, vsStatus)) return null;
+            return [
+                el('button', { type: 'button', class: 'stm-btn', dataset: { stm: 'export-handoff' }, disabled: handingOff || typeof inst.ctx.openApp !== 'function' || null, onClick: () => openInStudio() }, icon('film'), el('span', { text: handingOff ? t('storymaker.handoff.opening') : t('storymaker.handoff.open') })),
+                handoffError ? el('code', { class: 'stm-cap-issue', dataset: { stm: 'export-handoff-error' }, text: handoffError }) : null
+            ];
         }
 
         function failedView() {
@@ -269,6 +291,7 @@
             if (refused) view.appendChild(refusedView());
             view.appendChild(el('div', { class: 'stm-actions' },
                 el('button', { type: 'button', class: 'stm-btn stm-btn-primary', dataset: { stm: 'export-start' }, ariaHaspopup: 'dialog', disabled: blocked || starting || null, onClick: () => optionsDialog().open() }, icon('film'), el('span', { text: starting ? t('storymaker.export.starting') : t('storymaker.export.open_options') }))));
+            if (lastJob) view.appendChild(el('button', { type: 'button', class: 'stm-btn stm-btn-quiet', dataset: { stm: 'export-last' }, onClick: () => apply(lastJob, true) }, icon('film'), el('span', { text: t('storymaker.export.last_export') })));
             return view;
         }
 
@@ -314,7 +337,7 @@
         }
 
         // apply(next, adopt): a job event of this project. Without a tracked job only an active one is taken up (a start by
-        // another window); a finished one is shown when this panel started it (adopt).
+        // another window); a finished one is shown only on request (adopt): this panel started it, its handoff was wished, or the user chose it.
         function apply(next, adopt) {
             if (disposed || !next || typeof next !== 'object' || typeof next.id !== 'string') return;
             if (next.project_id && inst.projectId && next.project_id !== inst.projectId) return;
@@ -324,6 +347,10 @@
             const was = job ? job.status : '';
             job = next;
             if (!isActive()) cancelling = false;
+            if (job.status === 'succeeded' || job.status === 'interrupted') lastJob = job;
+            // A wish ends with its job: a job without a film has nothing to hand over, and its ending shows once.
+            if (!isActive() && job.status !== 'succeeded') inst.handoffWish.delete(job.id);
+            checkHandoff();
             if (was && was !== job.status && !isActive()) {
                 inst.notify(job.status === 'succeeded' ? t('storymaker.export.done') : job.status === 'cancelled' ? t('storymaker.export.cancelled') : job.status === 'interrupted' ? t('storymaker.export.interrupted') : S.errors.describeJob(t, job.error), job.status === 'succeeded' ? 'info' : 'error');
             }
@@ -354,6 +381,53 @@
                 starting = false;
                 paint();
             }
+        }
+
+        // Reads the Video Studio status once per finished job with stems. A wish from the export dialog starts the handoff here, so it
+        // needs no further click.
+        async function checkHandoff() {
+            if (!job || job.status !== 'succeeded' || !job.output || !job.output.stems || vsAskedFor === job.id) return;
+            const id = job.id;
+            vsAskedFor = id;
+            handoffError = '';
+            try { vsStatus = await S.handoff.status(); } catch (_) { vsStatus = null; }
+            if (!job || job.id !== id) return;
+            const wished = inst.handoffWish.delete(id);
+            if (wished && S.handoff.canOffer(job, vsStatus)) { openInStudio(); return; }
+            if (wished) inst.notify(t('storymaker.handoff.unavailable'), 'error');
+            paint();
+        }
+
+        async function openInStudio() {
+            if (handingOff || !job) return;
+            handingOff = true;
+            handoffError = '';
+            paint();
+            try {
+                await S.handoff.run(inst, job, handoffProjects);
+            } catch (err) {
+                handoffError = String(err && err.message || '').slice(0, 400);
+                inst.notify(t('storymaker.handoff.failed'), 'error');
+            } finally {
+                handingOff = false;
+                paint();
+            }
+        }
+
+        // Reads the newest render that left a result, so one that ended while no panel watched it stays reachable. The job list has no
+        // cut; the replay of the event stream holds only the latest five jobs of both queues. A wish from this session starts its
+        // handoff here, and any other job waits behind the button of the start view.
+        async function loadLastJob() {
+            const id = inst.projectId;
+            let jobs;
+            try { jobs = await inst.api.listJobs(id); } catch (_) { return; }
+            if (disposed || inst.projectId !== id) return;
+            const found = jobs.find(item => item.kind === 'render' && (item.status === 'succeeded' || item.status === 'interrupted'));
+            if (!found) return;
+            if (!lastJob) lastJob = found;
+            if (job) return;
+            if (inst.handoffWish.has(found.id)) apply(found, true);
+            else if (open) paint();
         }
 
         async function cancel() {
@@ -412,7 +486,7 @@
         };
 
         const off = [
-            inst.bus.on('job', next => { if (next && next.kind === 'render') apply(next, false); }),
+            inst.bus.on('job', next => { if (next && next.kind === 'render') apply(next, inst.handoffWish.has(next.id)); }),
             inst.bus.on('report', () => { if (open) paint(); }),
             // An audio answer ends an audio refusal and a changed story ends a story refusal. The audio answer of a save can land after
             // the 422 of the same start, and that must not wipe the reason.
@@ -424,6 +498,7 @@
         ];
         paint();
 
+        loadLastJob();
         return {
             el: root,
             open: openPanel,
@@ -433,6 +508,7 @@
             dispose() {
                 clearTimeout(pollTimer);
                 disposed = true;
+                job = null;
                 document.removeEventListener('pointerdown', onDocumentPointer, true);
                 document.removeEventListener('keydown', onDocumentKey, true);
                 off.forEach(fn => fn());

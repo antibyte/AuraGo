@@ -670,7 +670,7 @@ const job = extra => Object.assign({ id: 'n1', project_id: 'p1', kind: 'narrate'
 
 function makeInst(answer) {
   const inst = {
-    t, bus: S.createBus(), selected: 0, projectId: 'p1', readonly: false, status: {}, issues: [], report: null, etag: '', ctx: {},
+    t, bus: S.createBus(), selected: 0, projectId: 'p1', readonly: false, status: {}, issues: [], report: null, etag: '', ctx: {}, handoffWish: new Set(),
     audioInfo: answer,
     story: { schema: 'storymaker/1', voice: { provider: 'piper', voice: 'de_DE-thorsten-high', language: 'de' }, style: { palette: 'sunny', font: 'default', captions: true }, scenes: [{ id: 's1' }, { id: 's2' }] },
     domId: suffix => 'stm-test-' + suffix,

@@ -55,12 +55,24 @@
             const stems = checkbox('stems', 'storymaker.export.stems', values.stems);
             const note = el('p', { class: 'stm-hint', hidden: true, dataset: { stm: 'export-stems-forced' }, text: t('storymaker.export.stems_forced') });
             let stemsWanted = values.stems;
-            const handoff = checkbox('handoff', 'storymaker.export.open_in_studio', values.handoff, () => {
+            const unavailable = el('p', { class: 'stm-hint', hidden: true, dataset: { stm: 'export-opt-handoff-reason' }, text: t('storymaker.handoff.unavailable') });
+            const syncStems = () => {
                 const forced = handoff.input.checked;
                 if (forced && !stems.input.disabled) stemsWanted = stems.input.checked;
                 stems.input.checked = forced || stemsWanted;
                 stems.input.disabled = forced;
                 note.hidden = !forced;
+            };
+            const handoff = checkbox('handoff', 'storymaker.export.open_in_studio', values.handoff, syncStems);
+            // Asked each time the form opens, so nobody waits for a whole render to learn that Video Studio cannot take the film. A failed
+            // read counts as unavailable. The option stays usable until the answer, because the first status read tests the server's
+            // encoders and can take seconds; a tick made meanwhile goes back with its forced stems. checkHandoff in storymaker-export.js
+            // checks again when the render ends, for a status that changed.
+            S.handoff.status().then(S.handoff.studioReady, () => false).then(ready => {
+                if (ready) return;
+                handoff.input.disabled = true;
+                unavailable.hidden = false;
+                if (handoff.input.checked) { handoff.input.checked = false; syncStems(); }
             });
             const read = () => ({ quality: quality.value, burnIn: burnIn.input.checked, srt: srt.input.checked, vtt: vtt.input.checked, stems: stems.input.checked, handoff: handoff.input.checked });
             S.clear(node);
@@ -71,6 +83,7 @@
             node.appendChild(stems.row);
             node.appendChild(handoff.row);
             node.appendChild(note);
+            node.appendChild(unavailable);
             node.appendChild(el('div', { class: 'stm-actions' },
                 el('button', { type: 'button', class: 'stm-btn stm-btn-quiet', dataset: { stm: 'export-dialog-cancel' }, onClick: () => close() }, el('span', { text: t('storymaker.export.dialog_cancel') })),
                 el('button', { type: 'button', class: 'stm-btn stm-btn-primary', dataset: { stm: 'export-confirm' }, onClick: () => submit(read()) }, icon('film'), el('span', { text: t('storymaker.export.start') }))));
