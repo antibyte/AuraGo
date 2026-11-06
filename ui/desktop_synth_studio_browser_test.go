@@ -20,7 +20,7 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 	html = regexp.MustCompile(`(?s)<script\b[^>]*>.*?</script>`).ReplaceAllString(html, "")
 	html = regexp.MustCompile(`\{\{[^}]*\}\}`).ReplaceAllString(html, "")
 	html = strings.Replace(html, "</head>", `<link rel="stylesheet" href="/css/desktop-app-synth-studio.css"><style>body{margin:0}.vd-shell{height:100vh}</style></head>`, 1)
-	scripts := []string{"/synth-shell.js", "/js/desktop/apps/writer-session.js", "/js/vendor/synth-studio/gm-data.js", "/js/desktop/apps/synth-studio-presets.js", "/js/vendor/synth-studio/tone-midi-2.0.28.bundle.js", "/js/desktop/apps/synth-studio-model.js", "/js/desktop/apps/synth-studio-fx.js", "/js/desktop/apps/synth-studio-music.js", "/js/desktop/apps/synth-studio-voices.js", "/js/desktop/apps/synth-studio-audio.js", "/js/desktop/apps/synth-studio-midi.js", "/js/desktop/apps/synth-studio-storage.js", "/js/desktop/apps/synth-studio-editor.js", "/js/desktop/apps/synth-studio-workspace.js", "/js/desktop/apps/synth-studio-compose.js", "/js/desktop/apps/synth-studio-performance.js", "/js/desktop/apps/synth-studio-stage.js", "/js/desktop/apps/synth-studio.js", "/testdata/synth-studio-fixture.js"}
+	scripts := []string{"/synth-shell.js", "/js/desktop/apps/writer-session.js", "/js/vendor/synth-studio/gm-data.js", "/js/desktop/apps/synth-studio-presets.js", "/js/vendor/synth-studio/tone-midi-2.0.28.bundle.js", "/js/desktop/apps/synth-studio-model.js", "/js/desktop/apps/synth-studio-fx.js", "/js/desktop/apps/synth-studio-music.js", "/js/desktop/apps/synth-studio-voices.js", "/js/desktop/apps/synth-studio-audio.js", "/js/desktop/apps/synth-studio-export.js", "/js/desktop/apps/synth-studio-midi.js", "/js/desktop/apps/synth-studio-storage.js", "/js/desktop/apps/synth-studio-editor.js", "/js/desktop/apps/synth-studio-workspace.js", "/js/desktop/apps/synth-studio-compose.js", "/js/desktop/apps/synth-studio-performance.js", "/js/desktop/apps/synth-studio-stage.js", "/js/desktop/apps/synth-studio.js", "/testdata/synth-studio-fixture.js"}
 	var tags strings.Builder
 	for _, path := range scripts {
 		fmt.Fprintf(&tags, `<script src="%s"></script>`, path)
@@ -105,6 +105,11 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 	waitForJSBool(t, page, `()=>{const p=document.querySelector('[data-master-panel]');return !!p&&p.hidden}`)
 	page.MustEval(`()=>{const p=synthInstance().project(),t=p.tracks[1];synthInstance().editor.select(t.id,t.clips[0].id);window.generatorOriginal=JSON.stringify(synthInstance().project());}`)
 	page.MustElement("[data-work-tab=performance]").MustClick()
+	check("chord and strum arp modes are offered", `()=>{const s=document.querySelector('[data-music=order]');return !!s?.querySelector('option[value=chord]')&&!!s?.querySelector('option[value=strum]');}`)
+	check("live performance effects are offered", `()=>document.querySelectorAll('[data-stage=fxFilter],[data-stage=fxStutter]').length===2`)
+	check("live performance effects are enabled", `()=>!document.querySelector('[data-stage=fxFilter]').disabled&&!document.querySelector('[data-stage=fxStutter]').disabled`)
+	page.MustEval(`()=>document.querySelector('[data-stage=fxStutter]').click()`)
+	check("stem export is offered", `()=>!!document.querySelector('[data-export] option[value=stems]')`)
 	page.MustEval(`()=>{const e=document.querySelector('[data-music=generator]');e.value='arp';e.dispatchEvent(new Event('change',{bubbles:true}));}`)
 	page.MustElement("[data-compose=generate]").MustClick()
 	check("preview keeps original unchanged", `()=>JSON.stringify(synthInstance().project())===generatorOriginal&&!document.querySelector('.ss-preview').hidden`)
@@ -116,6 +121,18 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 	check("generator produces editable notes", `()=>synthInstance().project().tracks[1].clips[0].notes.length===8`)
 	page.MustElement("[data-action=undo]").MustClick()
 	check("generator is one undo step", `()=>JSON.stringify(synthInstance().project())===generatorOriginal`)
+	page.MustEval(`()=>{const set=(s,v)=>{const e=document.querySelector(s);e.value=v;e.dispatchEvent(new Event('change',{bubbles:true}));};set('[data-music=generator]','progression');set('[data-music=progression]','pop');set('[data-music=progression_rate]',1);}`)
+	page.MustEval(`()=>document.querySelector('[data-compose=generate]').click()`)
+	page.MustEval(`()=>document.querySelector('[data-compose=apply]').click()`)
+	check("progression generator writes diatonic chords", `()=>{const n=synthInstance().project().tracks[1].clips[0].notes;return n.length>=3&&n.length%3===0&&n.every(x=>[0,2,4,5,7,9,11].includes(((x.pitch%12)+12)%12));}`)
+	page.MustElement("[data-action=undo]").MustClick()
+	check("progression is one undo step", `()=>JSON.stringify(synthInstance().project())===generatorOriginal`)
+	page.MustEval(`()=>{const set=(s,v)=>{const e=document.querySelector(s);e.value=v;e.dispatchEvent(new Event('change',{bubbles:true}));};set('[data-music=generator]','groove');set('[data-music=groove_transpose]',1);}`)
+	page.MustEval(`()=>document.querySelector('[data-compose=generate]').click()`)
+	page.MustEval(`()=>document.querySelector('[data-compose=apply]').click()`)
+	check("groove lab transposes the clip", `()=>{const before=JSON.parse(generatorOriginal).tracks[1].clips[0].notes,after=synthInstance().project().tracks[1].clips[0].notes,a=after.map(n=>n.pitch).sort((x,y)=>x-y),b=before.map(n=>n.pitch+1).sort((x,y)=>x-y);return a.length===b.length&&a.every((x,i)=>x===b[i]);}`)
+	page.MustElement("[data-action=undo]").MustClick()
+	check("groove lab is one undo step", `()=>JSON.stringify(synthInstance().project())===generatorOriginal`)
 	check("rapid chord changes cancel pending audition", `async()=>{
         const audio=synthInstance().audio,unlock=audio.unlock,noteOn=audio.noteOn,resolvers=[];let sounding=0;
         audio.unlock=()=>new Promise(r=>resolvers.push(r));audio.noteOn=()=>{sounding++;return()=>sounding--;};

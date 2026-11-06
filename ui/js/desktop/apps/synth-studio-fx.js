@@ -515,6 +515,120 @@
     return p;
   }
 
+  // Tape: a short, modulated delay adds wow and flutter, then a soft clipper
+  // and a low pass round off the repeats like a worn cassette.
+  function createTape(context) {
+    const p = makeProcessor(context);
+    const delay = context.createDelay(0.05);
+    delay.delayTime.value = 0.012;
+    const wow = context.createOscillator();
+    wow.type = "sine";
+    wow.frequency.value = 0.6;
+    const flutter = context.createOscillator();
+    flutter.type = "triangle";
+    flutter.frequency.value = 6.2;
+    const wowDepth = context.createGain();
+    wowDepth.gain.value = 0.0016;
+    const flutterDepth = context.createGain();
+    flutterDepth.gain.value = 0.0004;
+    wow.connect(wowDepth); wowDepth.connect(delay.delayTime);
+    flutter.connect(flutterDepth); flutterDepth.connect(delay.delayTime);
+    const shaper = context.createWaveShaper();
+    shaper.oversample = "2x";
+    const tone = context.createBiquadFilter();
+    tone.type = "lowpass";
+    tone.frequency.value = 3800;
+    tone.Q.value = 0.5;
+    p.wetIn.connect(delay);
+    delay.connect(shaper);
+    shaper.connect(tone);
+    tone.connect(p.wet);
+    wow.start(0);
+    flutter.start(0);
+    p.oscillators.push(wow, flutter);
+    p.nodes.push(delay, wowDepth, flutterDepth, shaper, tone);
+    p.update = (spec, at, smooth) => {
+      const mix = clamp(spec.mix, 0, 1, 0.35);
+      set(p.dry.gain, 1 - mix, at, smooth);
+      set(p.wet.gain, mix, at, smooth);
+      const rate = clamp(spec.rate, 0.1, 8, 0.6);
+      const depth = clamp(spec.depth, 0, 1, 0.4);
+      set(wow.frequency, rate, at, smooth);
+      set(flutter.frequency, clamp(rate * 9, 5, 18, 6), at, smooth);
+      set(wowDepth.gain, depth * 0.0035, at, smooth);
+      set(flutterDepth.gain, depth * 0.0007, at, smooth);
+      const drive = clamp(spec.drive, 0, 1, 0.25);
+      if (shaper.__drive !== drive) {
+        shaper.curve = softClipCurve(drive);
+        shaper.__drive = drive;
+      }
+      set(tone.frequency, 1200 + clamp(spec.tone, 0, 1, 0.4) * 9000, at, smooth);
+    };
+    return p;
+  }
+
+  function createAutopan(context) {
+    const p = makeProcessor(context);
+    const panner = context.createStereoPanner ? context.createStereoPanner() : context.createGain();
+    const lfo = context.createOscillator();
+    lfo.type = "sine";
+    lfo.frequency.value = 0.8;
+    const depth = context.createGain();
+    depth.gain.value = 0.7;
+    if (panner.pan) {
+      lfo.connect(depth);
+      depth.connect(panner.pan);
+    }
+    p.wetIn.connect(panner);
+    panner.connect(p.wet);
+    lfo.start(0);
+    p.oscillators.push(lfo);
+    p.nodes.push(panner, depth);
+    p.update = (spec, at, smooth) => {
+      const mix = clamp(spec.mix, 0, 1, 0.5);
+      set(p.dry.gain, 1 - mix, at, smooth);
+      set(p.wet.gain, mix, at, smooth);
+      set(lfo.frequency, clamp(spec.rate, 0.05, 12, 0.8), at, smooth);
+      set(depth.gain, clamp(spec.depth, 0, 1, 0.7), at, smooth);
+    };
+    return p;
+  }
+
+  // Ring mod blends the dry signal into a carrier-modulated copy, so depth 0
+  // passes the signal and depth 1 is the classic metallic product.
+  function createRingmod(context) {
+    const p = makeProcessor(context);
+    const carrier = context.createOscillator();
+    carrier.type = "sine";
+    carrier.frequency.value = 440;
+    const carrierDepth = context.createGain();
+    carrierDepth.gain.value = 0.6;
+    const ring = context.createGain();
+    ring.gain.value = 0.4;
+    carrier.connect(carrierDepth);
+    carrierDepth.connect(ring.gain);
+    const tone = context.createBiquadFilter();
+    tone.type = "lowpass";
+    tone.frequency.value = 6000;
+    p.wetIn.connect(ring);
+    ring.connect(tone);
+    tone.connect(p.wet);
+    carrier.start(0);
+    p.oscillators.push(carrier);
+    p.nodes.push(carrierDepth, ring, tone);
+    p.update = (spec, at, smooth) => {
+      const mix = clamp(spec.mix, 0, 1, 0.35);
+      set(p.dry.gain, 1 - mix, at, smooth);
+      set(p.wet.gain, mix, at, smooth);
+      set(carrier.frequency, clamp(spec.freq, 20, 4000, 440), at, smooth);
+      const depth = clamp(spec.depth, 0, 1, 0.6);
+      set(ring.gain, 1 - depth, at, smooth);
+      set(carrierDepth.gain, depth, at, smooth);
+      set(tone.frequency, 800 + clamp(spec.tone, 0, 1, 0.5) * 8000, at, smooth);
+    };
+    return p;
+  }
+
   const BUILDERS = {
     chorus: createChorus,
     phaser: createPhaser,
@@ -527,7 +641,10 @@
     width: createWidth,
     cabinet: createCabinet,
     delay: createDelay,
-    reverb: createReverb
+    reverb: createReverb,
+    tape: createTape,
+    autopan: createAutopan,
+    ringmod: createRingmod
   };
 
   function createInsert(context, spec) {
@@ -611,6 +728,12 @@
     sideGain.gain.value = 0.5;
     const sideNeg = context.createGain();
     sideNeg.gain.value = -0.5;
+    const perfFilter = context.createBiquadFilter();
+    perfFilter.type = "lowpass";
+    perfFilter.frequency.value = 20000;
+    perfFilter.Q.value = 0.7;
+    const perfGate = context.createGain();
+    perfGate.gain.value = 1;
     const analyser = typeof context.createAnalyser === "function" ? context.createAnalyser() : null;
     if (analyser) { analyser.fftSize = 2048; analyser.smoothingTimeConstant = 0.75; }
 
@@ -630,12 +753,14 @@
     sideGain.connect(merger, 0, 0);
     sideNeg.connect(merger, 0, 1);
     merger.connect(width);
-    if (analyser) { width.connect(analyser); analyser.connect(context.destination); }
-    else width.connect(context.destination);
+    width.connect(perfFilter);
+    perfFilter.connect(perfGate);
+    if (analyser) { perfGate.connect(analyser); analyser.connect(context.destination); }
+    else perfGate.connect(context.destination);
 
     const master = {
       input,
-      output: analyser || width,
+      output: analyser || perfGate,
       gain,
       low,
       mid,
@@ -645,8 +770,47 @@
       midGain,
       sideGain,
       sideNeg,
+      perfFilter,
+      perfGate,
       analyser,
       settings,
+      perform(kind, secondsPerBeat) {
+        const at = context.currentTime;
+        const beat = clamp(secondsPerBeat, 0.05, 2, 0.5);
+        if (kind === "filter") {
+          const frequency = perfFilter.frequency;
+          const span = beat * 1.5;
+          try { frequency.cancelScheduledValues(at); } catch (_) {}
+          frequency.setValueAtTime(Math.max(18000, Math.min(20000, Number(frequency.value) || 20000)), at);
+          if (typeof frequency.exponentialRampToValueAtTime === "function") {
+            frequency.exponentialRampToValueAtTime(220, at + span * 0.45);
+            frequency.exponentialRampToValueAtTime(18000, at + span);
+          } else {
+            frequency.setValueAtTime(220, at + span * 0.45);
+            frequency.setValueAtTime(18000, at + span);
+          }
+          set(perfFilter.Q, 7, at, false);
+          set(perfFilter.Q, 0.7, at + span, true);
+          return true;
+        }
+        if (kind === "stutter") {
+          const step = beat / 4;
+          const gainParam = perfGate.gain;
+          try { gainParam.cancelScheduledValues(at); } catch (_) {}
+          for (let index = 0; index < 16; index++) gainParam.setValueAtTime(index % 2 ? 0.02 : 1, at + index * step);
+          gainParam.setValueAtTime(1, at + 16 * step);
+          return true;
+        }
+        return false;
+      },
+      resetPerformance() {
+        const at = context.currentTime;
+        try { perfFilter.frequency.cancelScheduledValues(at); } catch (_) {}
+        perfFilter.frequency.setValueAtTime(20000, at);
+        try { perfGate.gain.cancelScheduledValues(at); } catch (_) {}
+        perfGate.gain.setValueAtTime(1, at);
+        set(perfFilter.Q, 0.7, at, false);
+      },
       update(next, at, smooth) {
         Object.assign(settings, next || {});
         set(gain.gain, clamp(settings.volume, 0, 1.5, 0.78), at, smooth);

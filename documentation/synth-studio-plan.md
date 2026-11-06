@@ -21,6 +21,12 @@ Decisions taken while implementing: four insert slots per track, a real format v
 instead of widening v2, the sound designer stays deferred, and the showcase keeps
 the "Neon Sketch" identity.
 
+Later additions (2026-11-06): the rack grows to 15 inserts with tape, auto pan and
+ring mod; the Performance workbench adds the Groove lab, chord-progression and
+bassline generators, reverse-clip, the arpeggiator latch, chord/strum arp modes
+and the momentary Live FX (filter drop, stutter); stem export packages per-track
+WAVs as a ZIP. The behavioural contract remains `documentation/synth-studio.md`.
+
 ## Goal and scope
 
 Synth Studio already ships as a complete browser-rendered instrument: 80 factory

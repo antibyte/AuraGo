@@ -788,6 +788,7 @@
 
     function stop() {
       manual.clear();playGeneration++;
+      mix?.masterStrip?.resetPerformance?.();
       const tick = currentTick();
       if (playback) finishPlayback(tick, true);
       else {
@@ -887,7 +888,13 @@
     // influences the audio path.
     function spectrum(bins = 64){if(!analyser||!spectrumSamples)return null;analyser.getByteFrequencyData(spectrumSamples);const out=new Array(bins).fill(0);const step=spectrumSamples.length/bins;for(let i=0;i<bins;i++){let sum=0;const from=Math.floor(i*step);const to=Math.max(from+1,Math.floor((i+1)*step));for(let j=from;j<to&&j<spectrumSamples.length;j++)sum+=spectrumSamples[j];out[i]=sum/(to-from);}return out;}
 
-    return { unlock, play, stop, currentTick, meter, spectrum, setManual, setAutomation, running:()=>!!playback, elapsed:()=>playback?Math.max(0,context.currentTime-playback.transportStart):0, setStopAfter:seconds=>playback?.stopAfter(seconds), clock:()=>ensureContext().currentTime, scheduleNote, noteOn, addController, panic, setVolume, updateTracks, queueProject, pendingChange, dispose };
+    function performance(kind) {
+      if (!mix || !context || !mix.masterStrip) return false;
+      const secondsPerBeat = 60 / clamp(currentInfo?.tempo || 120, 20, 300, 120);
+      return mix.masterStrip.perform ? mix.masterStrip.perform(kind, secondsPerBeat) : false;
+    }
+
+    return { unlock, play, stop, currentTick, meter, spectrum, performance, setManual, setAutomation, running:()=>!!playback, elapsed:()=>playback?Math.max(0,context.currentTime-playback.transportStart):0, setStopAfter:seconds=>playback?.stopAfter(seconds), clock:()=>ensureContext().currentTime, scheduleNote, noteOn, addController, panic, setVolume, updateTracks, queueProject, pendingChange, dispose };
   }
 
   function checkRenderBudget(info, events, startTick, endTick, durationSeconds, secPerTick, seedEvents = events) {

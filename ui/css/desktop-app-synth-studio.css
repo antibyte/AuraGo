@@ -263,8 +263,10 @@
 .ss-app .ss-editor-header button{font-size:13px}
 @container (max-width:540px){.ss-app .ss-chord-pads{grid-template-columns:repeat(4,minmax(0,1fr))}.ss-app .ss-generator-controls{gap:10px}.ss-app .ss-compose label{max-width:100%}}
 .ss-app .ss-stage{border-bottom:1px solid var(--ss-line);padding-bottom:16px;margin-bottom:16px}
-.ss-app .ss-stage-heading,.ss-app .ss-take-controls{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.ss-app .ss-stage-heading,.ss-app .ss-take-controls,.ss-app .ss-performance-fx{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
 .ss-app .ss-stage-heading strong{margin-right:auto;font-size:14px;font-weight:var(--vd-mat-heading-weight,700);font-family:var(--vd-mat-heading-font,inherit);color:var(--vd-mat-heading-color,inherit);letter-spacing:var(--vd-mat-heading-tracking,normal);text-transform:var(--vd-mat-heading-transform,none)}
+.ss-app .ss-performance-fx{margin-top:8px}
+.ss-app .ss-performance-fx strong{margin-right:auto;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--ss-muted)}
 .ss-app .ss-stage button{min-height:36px;font-size:13px}
 .ss-app .ss-scene-pads{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:8px;margin:12px 0}
 .ss-app .ss-scene-pads button{min-height:64px;min-width:44px;display:flex;flex-direction:column;justify-content:center;gap:5px;overflow:hidden;box-shadow:inset 0 -3px 0 color-mix(in srgb,var(--ss-scene-color,var(--ss-muted)) 45%,transparent);background:linear-gradient(180deg,color-mix(in srgb,var(--ss-scene-color,var(--ss-muted)) 15%,transparent),transparent)}

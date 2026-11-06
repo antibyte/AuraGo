@@ -34,6 +34,7 @@ assert.deepEqual(Array.from(assets.scripts), [
     '/js/desktop/apps/synth-studio-model.js', '/js/desktop/apps/synth-studio-fx.js', '/js/desktop/apps/synth-studio-music.js',
     '/js/desktop/apps/synth-studio-voices.js',
     '/js/desktop/apps/synth-studio-audio.js',
+    '/js/desktop/apps/synth-studio-export.js',
     '/js/desktop/apps/synth-studio-midi.js',
     '/js/desktop/apps/synth-studio-storage.js',
     '/js/desktop/apps/synth-studio-editor.js',

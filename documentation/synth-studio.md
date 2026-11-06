@@ -131,11 +131,22 @@ notice explains that sound automation remains in WAV.
 The Performance workbench provides eight diatonic chord pads, major/natural-minor
 scale assistance, a live/printable arpeggiator, seeded melodic/rhythmic variations
 and a Euclidean drum generator. Hold pads or use the screen/typing/MIDI keyboard
-for live arpeggios. Choose a clip, prepare a preview, compare Original/Variation
-in a loop, then Apply or Cancel. Apply writes ordinary notes as one undo step.
-The visible seed, input notes and controls determine repeatable results. Scale
-constraints affect new notes only; fitting existing notes requires an explicit
-generator preview and Apply. New projects default to C major with constraints off.
+for live arpeggios; the latch switch keeps the last chord running after release
+and starts a new one on the next key. The arpeggiator order also offers chord
+stabs and strummed chords, with the same note output printed or played live.
+Choose a clip, prepare a preview, compare
+Original/Variation in a loop, then Apply or Cancel. Apply writes ordinary notes
+as one undo step. The visible seed, input notes and controls determine repeatable
+results. Scale constraints affect new notes only; fitting existing notes requires
+an explicit generator preview and Apply. New projects default to C major with
+constraints off.
+
+The Groove lab quantizes, swings, humanizes and transposes an existing clip with
+one deterministic, seeded pass. The chord-progression generator writes a whole
+diatonic progression (pop, ballad, jazz, minor, epic or canon) into the clip, and
+the bassline generator follows the same progression with root, octave, walking or
+driving-eighth patterns. Reverse clip mirrors the selected clip in time. All four
+use the same preview, comparison and one-step Apply flow as the other tools.
 
 ## Scenes, automation and performance takes
 
@@ -187,15 +198,29 @@ a new filename in the regular picker.
 Autosave stays suspended until that copy succeeds, protecting the original file.
 Draft recovery and conditional writes continue to apply.
 
+The export menu offers WAV, MIDI and stems. Stems render one post-fader,
+pre-master WAV per track with notes, then package them as a store-only ZIP with
+UTF-8 names. Tracks without notes are skipped; the master level, EQ, compression,
+limiting and width are neutralized while the project's plate/echo character and
+post-fader sends are preserved, so the stems can be mixed elsewhere.
+
 ## Effect chain and master strip
 
 Every track carries an ordered chain of up to four effect inserts plus two sends.
 The available inserts are chorus, phaser, tremolo, flanger, rotary, bitcrush,
-soft clip, three-band EQ, stereo width, cabinet, delay and reverb. Each insert
+soft clip, three-band EQ, stereo width, cabinet, delay, reverb, tape, auto pan
+and ring mod. Tape adds wow/flutter and soft saturation, auto pan moves the
+signal across the stereo field, and ring mod blends in a carrier-modulated
+metallic layer. Each insert
 exposes its own character parameters — mix, rate, depth, feedback, tone and
 type-specific values — instead of a single fixed sound. The chain runs after the
 track pan, so stereo effects work on a real stereo signal, and the reverb and
 delay sends leave the fader, so the track volume also controls its own tails.
+
+The Performance workbench also carries two momentary Live FX after the master
+strip: Filter drop sweeps the master low-pass down and back over 1.5 beats, and
+Stutter gates the mix sixteen times over one bar. They follow the current tempo,
+are performance-only, and never enter the project, WAV mixdown or stem export.
 
 The Master button in the transport opens the master strip: output level, the
 compressor with threshold, ratio, knee, attack and release, a three-band EQ, a
@@ -236,15 +261,18 @@ version's scope.
 ## Maintenance and validation
 
 The lazily loaded `synth-studio-*` modules separate the validated project/MIDI
-format, the effect rack, native Web Audio renderer, Desktop persistence and
-editor. The effect rack lives in `synth-studio-fx.js` and owns the insert
-processors, the master strip and the send buses; the schema that validates an
-insert lives in `synth-studio-model.js`. Factory sound
+format, the effect rack, native Web Audio renderer, stem packaging, Desktop
+persistence and editor. The effect rack lives in `synth-studio-fx.js` and owns
+the insert processors, the master strip, the Live FX nodes and the send buses;
+the schema that validates an insert lives in `synth-studio-model.js`. Stem
+isolation, CRC-32 and the store-only ZIP writer live in
+`synth-studio-export.js`. Factory sound
 data and the MIDI parser are vendored with licenses under
 `ui/js/vendor/synth-studio/`; no runtime CDN is used.
 
 Run `node scripts/test-synth-studio-model.js`,
 `node scripts/test-synth-studio-audio.mjs`,
+`node scripts/test-synth-studio-export.mjs`,
 `node scripts/test-synth-studio-recording.mjs`,
 `node scripts/test-synth-studio-storage.mjs`,
 `node scripts/test-synth-studio-registration.mjs`, UI bundle

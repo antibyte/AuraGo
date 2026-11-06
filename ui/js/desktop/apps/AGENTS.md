@@ -612,12 +612,25 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   the next bar without restarting transport; cancel obsolete reserved voices even
   inside look-ahead. Stop/deadline takes priority over queued changes. Verify scheduler tests
   and responsive browser flows when changing these contracts.
-- `synth-studio-music.js` owns deterministic scale/chord/arp/variation/rhythm
-  transforms; `synth-studio-compose.js` owns preview/apply and held live inputs.
-  Preview/cancel never changes the project; Apply commits ordinary notes once.
+- `synth-studio-music.js` owns deterministic scale/chord/arp/variation/rhythm,
+  groove, transpose, reverse, chord-progression and bassline transforms;
+  `synth-studio-compose.js` owns preview/apply, held live inputs and the arp
+  latch. Preview/cancel never changes the project; Apply commits ordinary notes
+  once. Groove humanisation is seeded and repeatable; progression and bassline
+  follow the selected harmony rather than fixed pitches. The arpeggiator's chord
+  and strum orders schedule every chord voice per step; live and printed output
+  share `arpPitches`/`arpeggio`.
   Format v2 stores harmony, bar-range scenes and track automation; all automation
   counts toward the event/byte limits. v1 validation preserves v1. Upgrade in
   memory and require a create-only v2 copy before enabling autosave.
+- `synth-studio-fx.js` and the `FX_TYPES` table in `synth-studio-model.js` share
+  one 15-insert rack, including tape, auto pan and ring mod. Every builder routes
+  its wet path and works identically in live playback and offline WAV rendering.
+  The master strip also owns the momentary Live FX nodes (filter drop, stutter);
+  they are performance-only and must stay out of project data and offline renders.
+- `synth-studio-export.js` owns stem isolation, CRC-32 and the store-only ZIP
+  writer. Stems solo one track, mute the rest, neutralize the master strip and
+  reuse `SynthStudioAudio.renderWav`; tracks without notes are skipped.
 - `synth-studio-performance.js` owns pure scene expansion, sustain-to-duration
   conversion, automation reduction and take limits. `synth-studio-stage.js` owns
   scene pads, XY/manual override, point editing and temporary take recovery.
