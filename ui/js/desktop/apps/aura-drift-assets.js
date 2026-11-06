@@ -37,7 +37,7 @@
 
     const st = {
         refs: 0, gen: 0, manifest: null, manifestP: null, files: {}, pending: {}, standIn: {}, standNames: {},
-        asked: 0, done: 0, loaded: 0, failed: 0
+        asked: 0, done: 0, loaded: 0, failed: 0, manifestSettled: false
     };
     const queue = [];
     let running = 0;
@@ -55,23 +55,32 @@
         return new Promise(resolve => { queue.push(() => work().then(resolve, resolve)); pump(); });
     }
 
-    AD.assetsFetchBytes = path => fetch(AD.assetURL(path), { cache: 'force-cache' }).then(r => {
-        if (!r.ok) throw new Error('asset ' + r.status);
-        return r.arrayBuffer();
-    });
-    AD.assetsFetchJson = path => fetch(AD.assetURL(path)).then(r => {
-        if (!r.ok) throw new Error('asset ' + r.status);
-        return r.json();
-    });
+    /* A stalled request must end as a failure so stand-ins take over; the abort also covers reading the body. */
+    const FETCH_TIMEOUT_MS = 20000;
+    function fetchTimed(path, init, read) {
+        const ctl = typeof AbortController === 'function' ? new AbortController() : null;
+        const timer = ctl ? setTimeout(() => ctl.abort(), FETCH_TIMEOUT_MS) : 0;
+        const options = Object.assign({}, init, ctl ? { signal: ctl.signal } : {});
+        return fetch(AD.assetURL(path), options).then(r => {
+            if (!r.ok) throw new Error('asset ' + r.status);
+            return read(r);
+        }).then(v => { clearTimeout(timer); return v; }, e => { clearTimeout(timer); throw e; });
+    }
+    AD.assetsFetchBytes = path => fetchTimed(path, { cache: 'force-cache' }, r => r.arrayBuffer());
+    AD.assetsFetchJson = path => fetchTimed(path, {}, r => r.json());
 
     function loadManifest() {
         if (st.manifest) return Promise.resolve(st.manifest);
         if (!st.manifestP) {
             const gen = st.gen;
             st.manifestP = AD.assetsFetchJson(ROOT + 'manifest.json').then(m => {
-                if (gen === st.gen) st.manifest = m;
+                if (gen === st.gen) { st.manifest = m; st.manifestSettled = true; }
                 return m;
-            }).catch(() => { st.manifestP = null; return null; });
+            }).catch(() => {
+                /* Cleared so a later window can retry; progress no longer waits for it. */
+                if (gen === st.gen) { st.manifestP = null; st.manifestSettled = true; }
+                return null;
+            });
         }
         return st.manifestP;
     }
@@ -100,12 +109,12 @@
             return AD.assetsFetchBytes(ROOT + name).then(bytes => new T.GLTFLoader().parseAsync(bytes, ''));
         }).then(gltf => {
             st.done++;
-            if (!gltf || !gltf.scene) { st.failed++; return null; }
+            if (!gltf || !gltf.scene) { st.failed++; if (gen === st.gen) delete st.pending[name]; return null; }
             if (gen !== st.gen) { disposeObject(gltf.scene); return null; }
             st.loaded++;
             st.files[name] = gltf.scene;
             return gltf.scene;
-        }, () => { st.done++; st.failed++; return null; });
+        }, () => { st.done++; st.failed++; if (gen === st.gen) delete st.pending[name]; return null; });
         return st.pending[name];
     }
 
@@ -191,7 +200,7 @@
         for (const root of Object.values(st.standIn)) disposeObject(root);
         st.gen++;
         st.manifest = null; st.manifestP = null; st.files = {}; st.pending = {}; st.standIn = {}; st.standNames = {};
-        st.asked = 0; st.done = 0; st.loaded = 0; st.failed = 0;
+        st.asked = 0; st.done = 0; st.loaded = 0; st.failed = 0; st.manifestSettled = false;
     }
 
     AD.assets = {
@@ -229,7 +238,7 @@
             });
         },
         isStandIn(obj) { return Object.values(st.standIn).indexOf(obj) >= 0; },
-        progress() { return st.asked ? Math.min(1, st.done / st.asked) : 1; },
+        progress() { return st.manifestSettled && st.asked ? Math.min(1, st.done / st.asked) : 0; },
         stats() { return { loaded: st.loaded, failed: st.failed, standIns: Object.keys(st.standNames).length, names: Object.keys(st.standNames) }; },
         fetchBytes: AD.assetsFetchBytes,
         fetchJson: AD.assetsFetchJson

@@ -339,6 +339,24 @@ func TestDesktopAuraDriftKeyboardJourneyBrowser(t *testing.T) {
 		t.Fatalf("second Escape did not resume: %s", raw)
 	}
 
+	// Another desktop window taking the focus fires no blur: the active-window
+	// check must pause the race (and with it suspend the audio) all the same.
+	page.MustEval(`async()=>{await fixtureOpen('calculator');}`)
+	auraDriftSleep(page, 400)
+	if stats, raw := auraDriftReadStats(t, page); !stats.Paused {
+		t.Fatalf("another window taking the focus did not pause the race: %s", raw)
+	}
+	page.MustEval(`()=>{const w=[...aurora.state.windows.values()].find(x=>x.appId!=='aura-drift');aurora.closeWindow(w.id);}`)
+	auraDriftSleep(page, 200)
+	if stats, raw := auraDriftReadStats(t, page); !stats.Paused {
+		t.Fatalf("refocusing resumed the race without the player pressing resume: %s", raw)
+	}
+	page.MustElement(".agdrift-pause .agdrift-primary").MustClick()
+	auraDriftSleep(page, 150)
+	if stats, raw := auraDriftReadStats(t, page); stats.Paused {
+		t.Fatalf("Resume after refocus did not resume: %s", raw)
+	}
+
 	// Focus loss pauses the race.
 	page.MustEval(`()=>window.dispatchEvent(new Event('blur'))`)
 	auraDriftSleep(page, 150)

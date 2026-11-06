@@ -426,7 +426,8 @@
         const barFill = el('i');
         bar.appendChild(barFill);
         const loadText = el('p', 'agdrift-load-text', L('aura_drift.settings.loading_assets'));
-        loading.append(loadTitle, bar, loadText);
+        const cancelBtn = button(labels.menu, 'agdrift-secondary', () => { sound('back'); if (callbacks.onCancel) callbacks.onCancel(); });
+        loading.append(loadTitle, bar, loadText, cancelBtn);
 
         /* ---- results ---------------------------------------------------- */
         results.setAttribute('role', 'dialog');
@@ -577,7 +578,7 @@
                 showcase();
                 show(menu, true);
             },
-            showLoading() { this.progress(0); show(loading, false); },
+            showLoading() { this.progress(0); show(loading, false); focusFirst(cancelBtn); },
             progress(p) {
                 const pct = Math.max(0, Math.min(100, Math.round((isFinite(p) ? p : 0) * 100)));
                 barFill.style.width = pct + '%';

@@ -295,12 +295,20 @@
     };
     kit.GLYPHS = GLYPHS;
 
+    /* Bounded canvas caches: sizes are quantised to 4 px steps (the window size changes continuously)
+       and the oldest entry goes once a cache holds 64 canvases. */
+    const CACHE_MAX = 64;
+    const quantPx = px => Math.max(4, Math.round(px / 4) * 4);
+    function cacheSet(map, key, value) {
+        map.set(key, value);
+        while (map.size > CACHE_MAX) map.delete(map.keys().next().value);
+    }
     const glyphCache = new Map();
     /* Draws the weapon icon of `id` centred at (x, y), `size` CSS px wide. */
     AD.drawWeaponGlyph = function (c, id, x, y, size, dpr) {
         const draw = GLYPHS[id];
         if (!draw) return;
-        const px = Math.max(8, Math.round(size * (dpr || 1)));
+        const px = Math.max(8, quantPx(size * (dpr || 1)));
         const key = id + '@' + px;
         let img = glyphCache.get(key);
         if (!img) {
@@ -310,7 +318,7 @@
             g.translate(px / 2, px / 2);
             g.scale(px * 0.5 * 0.9, px * 0.5 * 0.9);
             draw(g);
-            glyphCache.set(key, img);
+            cacheSet(glyphCache, key, img);
         }
         c.drawImage(img, x - size / 2, y - size / 2, size, size);
     };
@@ -384,7 +392,7 @@
     }
     /* (x, y) is the top left of the size x size square. */
     AD.drawPortrait = function (c, driverId, x, y, size, dpr) {
-        const px = Math.max(16, Math.round(size * (dpr || 1)));
+        const px = Math.max(16, quantPx(size * (dpr || 1)));
         const key = driverId + '@' + px;
         let img = portraitCache.get(key);
         if (!img) {
@@ -392,7 +400,7 @@
             img = document.createElement('canvas');
             img.width = img.height = px;
             paintPortrait(img.getContext('2d'), String(driverId), px, d);
-            portraitCache.set(key, img);
+            cacheSet(portraitCache, key, img);
         }
         c.drawImage(img, x, y, size, size);
     };

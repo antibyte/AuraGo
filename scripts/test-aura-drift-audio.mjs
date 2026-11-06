@@ -292,6 +292,19 @@ await checkMusicRuntime();
         let thrown = null;
         const guard = (what, fn) => { try { fn(); } catch (e) { thrown = thrown || `${what}: ${e && e.stack || e}`; } };
         for (let i = 0; i < 4; i++) guard('update', () => audio.update(race, true, pose));
+        if (withSamples) {
+            guard('stopWorld', () => {
+                audio.event({ type: 'flame_start', car: 0, x: 3, y: 1 }, race);
+                audio.event({ type: 'hole_open', x: 5, y: 2 }, race);
+                audio.update(race, true, pose);
+                const before = audio.worldLoopCount();
+                audio.stopWorld();
+                ok(before >= 1, `${label}: expected live world loops before stopWorld, got ${before}`);
+                ok(audio.worldLoopCount() === 0, `${label}: stopWorld left ${audio.worldLoopCount()} world loops`);
+                audio.setView('menu'); audio.setView('results'); audio.setView('race');
+                audio.stopWorld(); audio.stopWorld();
+            });
+        }
         for (const type of EVENT_TYPES) for (const evt of payloads(type)) guard(`event ${type} ${JSON.stringify(evt)}`, () => audio.event(evt, race));
         guard('finish', () => audio.event({ type: 'finish', t: 1, car: 0, time: 80 }, race));
         guard('flame', () => { audio.event({ type: 'flame_start', car: 2 }, race); audio.update(race, true, pose); audio.event({ type: 'weapon_end', id: 'flamethrower', car: 2 }, race); audio.event({ type: 'hole_open', x: 5, y: 5, r: 9, owner: 0 }, race); audio.update(race, true, pose); audio.event({ type: 'hole_close', x: 5, y: 5 }, race); });

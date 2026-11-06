@@ -71,6 +71,8 @@
         };
     }
 
+    const LOAD_DEADLINE_MS = 12000;
+
     function dispose(id) {
         const entry = instances.get(id);
         if (!entry) return;
@@ -177,7 +179,7 @@
         let cupScores = [0, 0, 0, 0, 0, 0];
         let view = 'menu';             /* menu -> loading -> play -> results (the results panel overlays 'play') */
         let paused = false, raf = 0, last = 0, frozen = false, startToken = 0, assetsHeld = false;
-        let lastPose = null, aspect = 16 / 9, pausedGlAt = 0;
+        let lastPose = null, aspect = 16 / 9, pausedGlAt = 0, inactive = false;
         let pendingResults = null, resultsShown = false, appliedQuality = settings.quality;
         let tier = governor.tier;
         let reducedMotion = settings.reducedMotion ||
@@ -273,6 +275,7 @@
                 startRace(currentConfig, { intro: true });
             },
             onUi(kind) { audio.ui(kind); },
+            onCancel() { showMenu(); },
             /* Garage selection: the live 3D showcase follows car, livery and the track's biome. */
             onShowcase(spec) {
                 settings.car = spec.carId;
@@ -327,6 +330,8 @@
             const mode = config.mode || 'quick';
             const playerCar = config.carId || settings.car;
             if (banter && typeof banter.dispose === 'function') banter.dispose();
+            /* A new race starts silent: no flame, hole, tyre or scrape loop of the last one survives. */
+            audio.stopWorld();
             race = AD.createRace({
                 track: track,
                 mode: mode,
@@ -392,14 +397,33 @@
                 livery: config.livery !== undefined ? config.livery : settings.livery,
                 biomeId: track.biomeId
             });
-            return Promise.all(preload.map(p => Promise.resolve(p).catch(() => null))).then(() => {
-                if (token === startToken && instances.get(id) === entry) beginRace(track, config, opts);
-                return true;
+            /* The race starts when the assets arrive or after a soft deadline; stand-ins cover what is
+               missing and the actors swap in the real models when they land. */
+            return new Promise(resolve => {
+                let done = false;
+                const timer = setTimeout(finish, LOAD_DEADLINE_MS);
+                function finish() {
+                    clearTimeout(timer);
+                    if (done) return;
+                    done = true;
+                    if (token === startToken && instances.get(id) === entry) {
+                        try { beginRace(track, config, opts); } catch (error) { startFailed(error); }
+                    }
+                    resolve(true);
+                }
+                Promise.all(preload.map(p => Promise.resolve(p).catch(() => null))).then(finish, finish);
             });
+        }
+
+        function startFailed(error) {
+            if (window.console && console.error) console.error('Aura Drift: the race could not start', error);
+            showMenu();
+            showLoadError(root, t, [String(error && error.message ? error.message : error)]);
         }
 
         function showMenu() {
             startToken++;
+            audio.stopWorld();
             race = null;
             view = 'menu';
             paused = false;
@@ -409,6 +433,8 @@
             audio.setBiome('alpine');
             if (typeof audio.setView === 'function') audio.setView('menu');
             ui.showMenu(bests);
+            /* Pause suspended the context; the garage music and the menu clicks need it back. */
+            if (!inactive) audio.resume();
         }
 
         function setPaused(value) {
@@ -459,6 +485,7 @@
             if (!race || !race.result || race.result.saved) return;
             const result = race.result;
             result.saved = true;
+            audio.stopWorld();
             const track = race.track, carId = race.cars[0].v.car.id;
             /* Bests: a time-trial lap record (with a complete tape, D5) or a drift-attack score.
                A quick-race tape is never stored: weapons and rescue would desync the ghost. */
@@ -549,11 +576,25 @@
             if (playing() && !resultsShown) hud.render(race, dt, settings, lastPose); else clearHud();
         }
 
+        /* Another desktop window took the focus: fires neither blur nor visibilitychange. */
+        function onInactive() {
+            pressed.clear();
+            if (playing() && !paused && race.state !== 'finished') setPaused(true);
+            else audio.suspend();
+        }
+
         function loop(now) {
             raf = requestAnimationFrame(loop);
             const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
             last = now;
-            if (!isActive() || document.hidden) return;
+            if (!isActive() || document.hidden) {
+                if (!inactive) { inactive = true; onInactive(); }
+                return;
+            }
+            if (inactive) {
+                inactive = false;
+                if (!paused) audio.resume();
+            }
             try {
                 frame(now, dt);
             } catch (error) {
@@ -750,7 +791,12 @@
                 };
             },
             onKeyDown(event) {
-                if (!isActive() || view !== 'play' || !race || !race.cars[0].isPlayer) return;
+                if (!isActive()) return;
+                if (view === 'loading') {
+                    if (event.code === 'Escape') { event.preventDefault(); showMenu(); }
+                    return;
+                }
+                if (view !== 'play' || !race || !race.cars[0].isPlayer) return;
                 /* Menus own the keyboard: only the race itself may swallow arrows and Space. */
                 if (event.code === 'KeyP' || event.code === 'Escape') {
                     if (race.state !== 'finished') setPaused(!paused);
@@ -786,7 +832,11 @@
                 if (document.hidden) {
                     pressed.clear();
                     if (playing() && !paused && race.state !== 'finished') setPaused(true);
-                } else last = performance.now();
+                    else audio.suspend();
+                } else {
+                    last = performance.now();
+                    if (!paused && !inactive) audio.resume();
+                }
             }
         };
         instances.set(id, entry);

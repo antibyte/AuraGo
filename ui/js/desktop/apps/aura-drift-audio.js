@@ -40,6 +40,8 @@
     const PROP_GROUP = { hay: 'prop.hay', cone: 'prop.cone', barrel: 'prop.barrel', tyre: 'prop.tyres' };
     const REVERB = { harbour: 0.34, industry: 0.30, metro: 0.26, glacier: 0.22, alpine: 0.16, forest: 0.12, salt: 0.06, desert: 0.06 };
     const RANGE = 120;
+    /* Engine bus level per view: silent in the garage, a low bed under the results, full in a race. */
+    const ENGINE_BED = { menu: 0, results: 0.3, race: 1 };
     const MASTER_TRIM = 1.0;            /* volume 1 = full scale into the glue compressor and the -3 dB limiter */
 
     AD.createAudio = function (settings) {
@@ -90,7 +92,7 @@
             master = ctx.createGain();
             master.gain.value = muted ? 0 : volume * MASTER_TRIM;
             master.connect(comp).connect(limiter).connect(ctx.destination);
-            engineBus = ctx.createGain(); engineBus.gain.value = 1; engineBus.connect(master);
+            engineBus = ctx.createGain(); engineBus.gain.value = ENGINE_BED[view] === undefined ? 1 : ENGINE_BED[view]; engineBus.connect(master);
             sfxBus = ctx.createGain(); sfxBus.gain.value = 1; sfxBus.connect(master);
             ambBus = ctx.createGain(); ambBus.gain.value = 0.8; ambBus.connect(master);
             musicBus = ctx.createGain(); musicBus.gain.value = 0.32; musicBus.connect(master);
@@ -178,6 +180,20 @@
         function stopWorldLoop(key) {
             const l = worldLoops.get(key);
             if (l) { l.h.stop(0.12); worldLoops.delete(key); }
+        }
+
+        /* Ends every long-running world loop and the tyre and scrape loops (race end, restart, menu). */
+        function stopWorld() {
+            for (const key of Array.from(worldLoops.keys())) stopWorldLoop(key);
+            for (const name of ['squeal', 'scrape']) {
+                const h = loops[name];
+                if (h && !h.ended) { try { h.stop(0.1); } catch (_) { /* gone */ } }
+                loops[name] = null;
+            }
+            if (ctx) {
+                const now = ctx.currentTime;
+                for (const g of [rollGain, windGain, surfaceGain, sprayGain]) if (g) g.gain.setTargetAtTime(0, now, 0.05);
+            }
         }
 
         function roulette(sp) {
@@ -401,7 +417,10 @@
             setView(next) {
                 view = next === 'menu' || next === 'results' ? next : 'race';
                 if (ctx && music) music.setView(view);
+                if (ctx && engineBus) engineBus.gain.setTargetAtTime(ENGINE_BED[view], ctx.currentTime, 0.25);
             },
+            stopWorld,
+            worldLoopCount() { return worldLoops.size; },
             horn,
             update(race, active, pose) {
                 if (!ctx || !running) return;
