@@ -45,6 +45,7 @@
         let pollTimer = 0;
         let copied = 0;
         let vsStatus = null;
+        let vsReadFailed = false;   // the last status read threw: Video Studio may be fine, so the button stays and a click asks again
         let vsAskedFor = '';
         let handingOff = false;
         let handoffError = '';
@@ -208,7 +209,8 @@
 
         // The Video Studio action of a finished job, shown only when S.handoff.canOffer agrees. el() takes the array and skips the null.
         function handoffAction() {
-            if (!S.handoff.canOffer(job, vsStatus)) return null;
+            const retry = vsReadFailed && job.status === 'succeeded' && !!(job.output && job.output.stems) && !S.handoff.stemFailed(job);
+            if (!retry && !S.handoff.canOffer(job, vsStatus)) return null;
             return [
                 el('button', { type: 'button', class: 'stm-btn', dataset: { stm: 'export-handoff' }, disabled: handingOff || typeof inst.ctx.openApp !== 'function' || null, onClick: () => openInStudio() }, icon('film'), el('span', { text: handingOff ? t('storymaker.handoff.opening') : t('storymaker.handoff.open') })),
                 handoffError ? el('code', { class: 'stm-cap-issue', dataset: { stm: 'export-handoff-error' }, text: handoffError }) : null
@@ -383,6 +385,11 @@
             }
         }
 
+        // Reads the Video Studio status into vsStatus. A read that throws leaves null and sets vsReadFailed; an answer clears it.
+        async function readStudioStatus() {
+            try { vsStatus = await S.handoff.status(); vsReadFailed = false; } catch (_) { vsStatus = null; vsReadFailed = true; }
+        }
+
         // Reads the Video Studio status once per finished job with stems. A wish from the export dialog starts the handoff here, so it
         // needs no further click.
         async function checkHandoff() {
@@ -390,7 +397,7 @@
             const id = job.id;
             vsAskedFor = id;
             handoffError = '';
-            try { vsStatus = await S.handoff.status(); } catch (_) { vsStatus = null; }
+            await readStudioStatus();
             if (!job || job.id !== id) return;
             const wished = inst.handoffWish.delete(id);
             if (wished && S.handoff.canOffer(job, vsStatus)) { openInStudio(); return; }
@@ -402,8 +409,18 @@
             if (handingOff || !job) return;
             handingOff = true;
             handoffError = '';
+            const started = job;
             paint();
             try {
+                // After a failed status read the click asks again, and the guard above holds meanwhile.
+                if (vsReadFailed) {
+                    await readStudioStatus();
+                    if (disposed || job !== started) return;
+                    if (vsReadFailed || !S.handoff.canOffer(job, vsStatus)) {
+                        inst.notify(t('storymaker.handoff.unavailable'), 'error');
+                        return;
+                    }
+                }
                 await S.handoff.run(inst, job, handoffProjects);
             } catch (err) {
                 handoffError = String(err && err.message || '').slice(0, 400);

@@ -319,6 +319,61 @@ function setup(listJobs) {
   eq(one(root, 'export-handoff-unavailable').textContent, 'storymaker.handoff.unavailable', 'the panel says why');
   exporter.dispose();
 
+  // A status read that fails once: the button stays, a click asks again and runs once; a read that fails again runs nothing.
+  runs.length = 0;
+  const readStatus = S.handoff.status;
+  const readyStatus = { enabled: true, desktop_enabled: true, ffmpeg_ready: true, read_only: false };
+  let reads = 0;
+  S.handoff.status = () => (++reads === 1 ? Promise.reject(new Error('offline')) : Promise.resolve(readyStatus));
+  inst = setup(answering([finished('flaky')]));
+  const flakyNotices = [];
+  inst.notify = (text, kind) => flakyNotices.push([text, kind]);
+  exporter = S.createExport(inst);
+  root = exporter.el;
+  await settle();
+  exporter.open();
+  one(root, 'export-last').click();
+  await settle();
+  one(root, 'export-handoff');
+  eq(runs, [], 'a failed read starts nothing');
+  one(root, 'export-handoff').click();
+  one(root, 'export-handoff').click();
+  await settle();
+  eq([runs, reads, flakyNotices], [['flaky'], 2, []], 'the click reads again and runs once');
+  exporter.dispose();
+
+  runs.length = 0;
+  S.handoff.status = () => Promise.reject(new Error('offline'));
+  inst = setup(answering([finished('flaky2')]));
+  const failNotices = [];
+  inst.notify = (text, kind) => failNotices.push([text, kind]);
+  exporter = S.createExport(inst);
+  root = exporter.el;
+  await settle();
+  exporter.open();
+  one(root, 'export-last').click();
+  await settle();
+  one(root, 'export-handoff').click();
+  await settle();
+  eq(runs, [], 'a second failed read runs nothing');
+  eq(failNotices, [['storymaker.handoff.unavailable', 'error']], 'the notice is sent');
+  eq(one(root, 'export-handoff').disabled, false, 'the guard is released and the button stays');
+  exporter.dispose();
+
+  // A read that answered with enabled false draws no button.
+  S.handoff.status = () => Promise.resolve(Object.assign({}, readyStatus, { enabled: false }));
+  inst = setup(answering([finished('off')]));
+  exporter = S.createExport(inst);
+  root = exporter.el;
+  await settle();
+  exporter.open();
+  one(root, 'export-last').click();
+  await settle();
+  one(root, 'export-done');
+  eq(byStm(root, 'export-handoff').length, 0, 'an answer that says no draws no button');
+  exporter.dispose();
+  S.handoff.status = readStatus;
+
   // A failed run keeps its project for the next click.
   const kept = [];
   S.handoff.run = (_, job, projects) => { kept.push(projects.get(job.id) || ''); projects.set(job.id, 'vs1'); return Promise.reject(new Error('timed out')); };
@@ -349,6 +404,8 @@ const opened = [];
 const polled = {};
 let stuck = false;
 let broken = false;
+let nextId = 'vs1';
+let editedTracks = [];
 // The timer fires at once and records its delay, so 120 s of polling takes no real time.
 context.setTimeout = (fn, ms) => { delays.push(ms); fn(); return 0; };
 const answer = (value, status, headers) => new Response(JSON.stringify(value), { status: status || 200, headers: Object.assign({ 'Content-Type': 'application/json' }, headers || {}) });
@@ -364,8 +421,8 @@ const stored = {
 context.fetch = (url, init) => {
   calls.push({ url, method: init.method, headers: init.headers, body: init.body, credentials: init.credentials });
   const route = init.method + ' ' + url;
-  if (route === 'POST ' + API + '/projects') return Promise.resolve(answer({ id: 'vs1', project: stored, etag: '"created"' }, 201, { ETag: '"created"' }));
-  if (route === 'POST ' + API + '/projects/vs1/media') {
+  if (route === 'POST ' + API + '/projects') return Promise.resolve(answer({ id: nextId, project: stored, etag: '"created"' }, 201, { ETag: '"created"' }));
+  if (route === 'POST ' + API + '/projects/vs1/media' || route === 'POST ' + API + '/projects/vs2/media') {
     const name = path.basename(JSON.parse(init.body).source_path).replace(/\.wav$/, '').replace(/^film.*$/, 'video');
     return Promise.resolve(answer({ asset: { id: 'a-' + name }, media_url: 'x', job: { id: 'probe-' + name, status: 'queued' } }, 202));
   }
@@ -376,8 +433,10 @@ context.fetch = (url, init) => {
     const running = stuck || (id === 'probe-video' && polled[id] === 1);
     return Promise.resolve(answer({ id, status: broken ? 'failed' : running ? 'running' : 'succeeded' }));
   }
-  if (route === 'GET ' + API + '/projects/vs1') return Promise.resolve(answer({ id: 'vs1', project: stored, etag: '"fresh"' }, 200, { ETag: '"fresh"' }));
-  if (route === 'PUT ' + API + '/projects/vs1') return Promise.resolve(answer({ id: 'vs1', project: stored, etag: '"saved"' }, 200, { ETag: '"saved"' }));
+  const projectId = route.endsWith('/projects/vs2') ? 'vs2' : 'vs1';
+  const current = projectId === 'vs1' ? Object.assign({}, stored, { tracks: editedTracks }) : stored;
+  if (route === 'GET ' + API + '/projects/' + projectId) return Promise.resolve(answer({ id: projectId, project: current, etag: '"fresh"' }, 200, { ETag: '"fresh"' }));
+  if (route === 'PUT ' + API + '/projects/' + projectId) return Promise.resolve(answer({ id: projectId, project: current, etag: '"saved"' }, 200, { ETag: '"saved"' }));
   return Promise.resolve(answer({ code: 'not_found', message: 'no route ' + route }, 404));
 };
 const inst = { t: key => key, disposed: false, story: { title: 'Firewall', format: { aspect: '9:16', fps: 25 } }, project: { title: 'Firewall' }, ctx: { openApp: (app, launch) => opened.push([app, launch]) } };
@@ -453,6 +512,25 @@ const job = { id: 'job1', status: 'succeeded', frames_total: 250, output: { path
   eq(calls.slice(0, 3).map(call => call.headers['Idempotency-Key']), ['storymaker-job1-video', 'storymaker-job1-narration', 'storymaker-job1-sfx'], 'the same import keys');
   eq(opened, [['video-studio', { projectId: 'vs1' }]], 'the retry opens it');
   eq(projects.size, 0, 'a finished handoff forgets the project, so a later click cannot overwrite edits made in Video Studio');
+
+  // A kept project that holds clips by the retry was edited in Video Studio: it stays untouched and the retry makes a new project.
+  stuck = true;
+  refused = null;
+  try { await S.handoff.run(inst, job, projects); } catch (err) { refused = err; }
+  if (!refused) throw new Error('the failed run must reject');
+  eq(Array.from(projects), [['job1', 'vs1']], 'the second failed run keeps vs1');
+  stuck = false;
+  editedTracks = [{ id: 'track-x', kind: 'video', name: 'mine', clips: [{ id: 'clip-x', asset_id: 'a-video', start: 0, duration: 10 }] }];
+  nextId = 'vs2';
+  calls.length = 0; opened.length = 0;
+  eq(await S.handoff.run(inst, job, projects), { projectId: 'vs2' }, 'an edited project gets a new one');
+  eq(calls.some(call => call.method === 'PUT' && call.url.endsWith('/projects/vs1')), false, 'no PUT reaches the edited project');
+  eq(calls.some(call => call.method === 'PUT' && call.url.endsWith('/projects/vs2')), true, 'the new project is filled');
+  eq(calls.some(call => call.method === 'POST' && call.url.endsWith('/projects')), true, 'a new project was created');
+  eq(opened, [['video-studio', { projectId: 'vs2' }]], 'the new project opens');
+  eq(projects.size, 0, 'the finished handoff forgets it');
+  editedTracks = [];
+  nextId = 'vs1';
 
   // A kept project that was deleted in Video Studio is given up once.
   calls.length = 0;

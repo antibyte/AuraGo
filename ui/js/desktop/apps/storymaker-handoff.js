@@ -43,6 +43,7 @@
     const POLL_LIMIT_MS = 120000;
     const MAX_NAME_CHARS = 120;
     const PROBE_FAILED = 'handoff_probe_failed';
+    const PROJECT_EDITED = 'handoff_project_edited';
 
     // One Video Studio request: {body, etag}. A failure is thrown in the app's error shape (S.errors).
     async function call(method, path, headers, body) {
@@ -106,7 +107,7 @@
 
     // Imports the MP4 and each stem into the project, waits for the probes, reads the project back for its ETag and assets and writes
     // the tracks with If-Match.
-    async function fillProject(inst, job, projectId) {
+    async function fillProject(inst, job, projectId, reused) {
         const output = job.output || {};
         const stems = output.stems || {};
         const sources = [['video', output.path]].concat(STEMS.filter(name => stems[name]).map(name => [name, stems[name]]));
@@ -121,6 +122,8 @@
         await waitForProbes(inst, probes);
         const fresh = await call('GET', base);
         const project = fresh.body.project;
+        // A kept project that holds clips now was edited in Video Studio after the failed try, and the PUT would replace them.
+        if (reused && (project.tracks || []).some(track => track && Array.isArray(track.clips) && track.clips.length > 0)) throw refused('', PROJECT_EDITED);
         const tracks = buildTracks(project, assets, Number(job.frames_total) || 0, {
             video: inst.t('storymaker.handoff.track_video'),
             narration: inst.t('storymaker.handoff.track_narration'),
@@ -133,20 +136,22 @@
     // run(inst, job, projects) -> {projectId}: creates the project, fills it and opens Video Studio on it. projects is the panel's Map from
     // job id to Video Studio project, and it is optional. It keeps the project of a failed try, so a retry fills that one and adds no
     // other: the import keys are per project, so the repeated imports replay the first ones and double no asset. A finished handoff
-    // drops the entry, so a later click starts a new project and cannot overwrite edits made in Video Studio.
+    // drops the entry, so a later click starts a new project and cannot overwrite edits made in Video Studio. A kept project that holds
+    // clips by the retry was edited there, so it stays untouched and the retry makes a new project.
     async function run(inst, job, projects) {
         const kept = projects || new Map();
         const reused = kept.get(job.id);
         const projectId = reused || (await call('POST', '/projects', null, projectSpec(inst))).body.id;
         kept.set(job.id, projectId);
         try {
-            await fillProject(inst, job, projectId);
+            await fillProject(inst, job, projectId, !!reused);
         } catch (err) {
             // A 404 on a kept project means it was deleted in Video Studio. A failed probe replays as failed for the same key, so only a
             // new project can try the file again.
             const gone = reused && err && err.status === 404;
-            if (gone || (err && err.code === PROBE_FAILED)) kept.delete(job.id);
-            if (gone) return run(inst, job, kept);
+            const edited = reused && err && err.code === PROJECT_EDITED;
+            if (gone || edited || (err && err.code === PROBE_FAILED)) kept.delete(job.id);
+            if (gone || edited) return run(inst, job, kept);
             throw err;
         }
         inst.ctx.openApp('video-studio', { projectId });
