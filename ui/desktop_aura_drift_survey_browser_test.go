@@ -20,6 +20,13 @@ type auraDriftSurveyScene struct {
 
 func auraDriftSurveyScenes() []auraDriftSurveyScene {
 	scenes := []auraDriftSurveyScene{}
+	// custom: the JS in the file named by AURAGO_AURA_DRIFT_CUSTOM (an async function expression). It may set
+	// window.__steps = [async()=>..., ...]; each step runs and is screenshot as custom-<n>.png.
+	if file := os.Getenv("AURAGO_AURA_DRIFT_CUSTOM"); file != "" {
+		if data, err := os.ReadFile(file); err == nil {
+			scenes = append(scenes, auraDriftSurveyScene{"custom", strings.TrimSpace(string(data))})
+		}
+	}
 	biomes := []string{"alpine", "desert", "harbour", "salt", "forest", "industry", "glacier", "metro"}
 	for _, biome := range biomes {
 		scenes = append(scenes, auraDriftSurveyScene{"biome-" + biome, fmt.Sprintf(
@@ -115,6 +122,15 @@ func TestAuraDriftSurveyBrowser(t *testing.T) {
 			png := filepath.Join(outDir, scene.name+".png")
 			page.MustScreenshot(png)
 			t.Logf("wrote %s", png)
+			if scene.name == "custom" {
+				steps := page.MustEval(`()=>(window.__steps||[]).length`).Int()
+				for i := 0; i < steps; i++ {
+					page.MustEval(fmt.Sprintf(`async()=>{await window.__steps[%d]();await new Promise(r=>setTimeout(r,300));}`, i))
+					png := filepath.Join(outDir, fmt.Sprintf("custom-%d.png", i))
+					page.MustScreenshot(png)
+					t.Logf("wrote %s log=%s", png, page.MustEval(`()=>JSON.stringify(window.__log||null)`).String())
+				}
+			}
 			if errs != "[]" {
 				t.Fatalf("uncaught errors in scene %s: %s", scene.name, errs)
 			}

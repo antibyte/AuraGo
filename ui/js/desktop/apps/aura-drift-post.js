@@ -90,7 +90,7 @@
         forest: grade({ sat: 1.24, con: 1.1, gain: [1.0, 1.04, 0.9], shadow: [0.86, 1.05, 1.0], high: [1.08, 1.02, 0.8], split: 0.65, thresh: 1.3, bloom: 0.7 }),
         industry: grade({ sat: 1.18, con: 1.14, gain: [1.06, 0.98, 0.86], shadow: [0.88, 0.95, 1.14], high: [1.14, 0.98, 0.76], split: 0.7, thresh: 1.15, bloom: 0.6 }),
         glacier: grade({ sat: 1.2, con: 1.12, gain: [0.94, 1.0, 1.1], shadow: [0.8, 0.98, 1.22], high: [0.92, 1.04, 1.14], split: 0.75, thresh: 1.15, bloom: 0.55 }),
-        metro: grade({ sat: 1.26, con: 1.18, gain: [1.0, 0.96, 1.06], lift: [0.002, 0, 0.012], shadow: [0.78, 0.92, 1.24], high: [1.14, 0.9, 1.1], split: 0.85, pink: 0.35, thresh: 1.4, bloom: 0.36 })
+        metro: grade({ sat: 1.26, con: 1.18, gain: [1.0, 0.96, 1.06], lift: [0.002, 0, 0.012], shadow: [0.78, 0.92, 1.24], high: [1.14, 0.9, 1.1], split: 0.85, pink: 0.35, thresh: 1.5, bloom: 0.32 })
     };
 
     function tierName(gl) {

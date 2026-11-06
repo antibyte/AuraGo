@@ -422,7 +422,7 @@
                 const mat = Array.isArray(o.material) ? o.material[0] : o.material;
                 const m = mat.clone();
                 if (nm !== 'face' && o.geometry.attributes.color) m.vertexColors = true;
-                if (m.emissiveIntensity && (m.emissive && m.emissive.getHex() !== 0)) m.emissiveIntensity *= night ? 1.5 : 1.1;
+                if (m.emissiveIntensity && (m.emissive && m.emissive.getHex() !== 0)) m.emissiveIntensity *= look.glow || (night ? 1.5 : 1.1);
                 if (nm === '' && /^(pine|snow_pine|oak|birch|flag)/.test(name)) swayed(m, name === 'flag' ? 0.0022 : 0.0012);
                 owned.push(m);
                 parts.push({ geo: o.geometry, mat: m, local: inv.clone().multiply(o.matrixWorld), role: nm, count: 0, mesh: null, faces: null, tris: o.geometry.index ? o.geometry.index.count / 3 : o.geometry.attributes.position.count / 3 });

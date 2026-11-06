@@ -631,6 +631,9 @@
                 return startRace(cfg, { intro: false });
             },
             snapshot,
+            /* Scene access for visual forensics (survey scripts): the live three.js scene and camera, or null in 2D. */
+            race() { return race; },
+            three() { return renderer && renderer.scene ? { scene: renderer.scene, camera: renderer.camera, T: window.AuraDriftThree } : null; },
             breakdown() { return renderer.breakdown ? renderer.breakdown() : null; },
             setCamera(mode) { camera.setMode(mode); },
             warp(fraction) {
@@ -817,6 +820,8 @@
             start(config) { const d = currentDebug(); return d ? d.start(config) : Promise.resolve(false); },
             snapshot() { const d = currentDebug(); return d ? d.snapshot() : null; },
             breakdown() { const d = currentDebug(); return d ? d.breakdown() : null; },
+            three() { const d = currentDebug(); return d ? d.three() : null; },
+            race() { const d = currentDebug(); return d ? d.race() : null; },
             setCamera(mode) { const d = currentDebug(); if (d) d.setCamera(mode); },
             warp(fraction) { const d = currentDebug(); if (d) d.warp(fraction); },
             give(id) { const d = currentDebug(); if (d) d.give(id); },

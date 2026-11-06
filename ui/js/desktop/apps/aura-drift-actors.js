@@ -413,10 +413,26 @@
             core.scale.setScalar(0.8); halo.scale.setScalar(4.5);
             return { group: grp(core, halo) };
         };
+        /* A slick is 14 m wide and fills the lower screen behind the car, so it must read as glossy oil on the road, not as a
+           black hole: a translucent dark pool with a soft edge, plus an additive rainbow film on the rim. */
+        const oilPool = canvasTex(128, (g, n) => {
+            const gr = g.createRadialGradient(n / 2, n / 2, 0, n / 2, n / 2, n / 2);
+            gr.addColorStop(0, 'rgba(14,12,24,0.78)'); gr.addColorStop(0.62, 'rgba(18,14,30,0.66)'); gr.addColorStop(0.9, 'rgba(24,18,40,0.3)'); gr.addColorStop(1, 'rgba(24,18,40,0)');
+            g.fillStyle = gr; g.fillRect(0, 0, n, n);
+        });
+        const oilFilm = canvasTex(128, (g, n) => {
+            const cg = g.createConicGradient(0.6, n / 2, n / 2);
+            ['#ff4fa0', '#ffb347', '#7dff8a', '#4fc3ff', '#9a6bff', '#ff4fa0'].forEach((c, i, a) => cg.addColorStop(i / (a.length - 1), c));
+            g.fillStyle = cg; g.fillRect(0, 0, n, n);
+            g.globalCompositeOperation = 'destination-in';
+            const m = g.createRadialGradient(n / 2, n / 2, 0, n / 2, n / 2, n / 2);
+            m.addColorStop(0, 'rgba(0,0,0,0)'); m.addColorStop(0.42, 'rgba(0,0,0,0)'); m.addColorStop(0.7, 'rgba(0,0,0,0.85)'); m.addColorStop(0.92, 'rgba(0,0,0,0.3)'); m.addColorStop(1, 'rgba(0,0,0,0)');
+            g.fillStyle = m; g.fillRect(0, 0, n, n);
+        });
         makers.oil = () => {
-            const body = new T.Mesh(oilGeo, basic(road({ color: 0x07070b, opacity: 0.93 })));
-            const sheen = new T.Mesh(oilGeo, basic(road(Object.assign({ color: 0x6a4cff, opacity: 0.22 }, ADD))));
-            sheen.scale.set(0.55, 1, 0.5); sheen.position.set(0.18, 0.01, -0.12);
+            const body = new T.Mesh(oilGeo, basic(road({ map: oilPool, color: 0xffffff, opacity: 0.9 })));
+            const sheen = new T.Mesh(oilGeo, basic(road(Object.assign({ map: oilFilm, color: 0xffffff, opacity: 0.3 }, ADD))));
+            sheen.position.y = 0.01;
             return { group: grp(body, sheen), body: body, sheen: sheen };
         };
         makers.ice = () => {
@@ -617,7 +633,7 @@
                     const o = get('oil').next(), s = h.r * grow;
                     place(o, h.x, 0.05, h.y, h.x * 0.37);
                     o.group.scale.set(s, 1, s * 0.88);
-                    o.body.material.opacity = 0.93 * fade; o.sheen.material.opacity = 0.24 * fade;
+                    o.body.material.opacity = 0.9 * fade; o.sheen.material.opacity = 0.3 * fade;
                 } else if (h.type === 'ice') {
                     const o = get('ice').next(), s = h.r * grow, k = grow * fade + 0.001;
                     place(o, h.x, 0.05, h.y, 0);
