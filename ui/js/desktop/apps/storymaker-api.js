@@ -172,6 +172,16 @@
             narration(id) { return json('GET', '/projects/' + encodeURIComponent(id) + '/narration'); },
             // {job}: 202 a new job, 200 the job already running, 200 {job: null} when nothing is missing
             narrate(id) { return json('POST', '/projects/' + encodeURIComponent(id) + '/narrate'); },
+            // {project_id, job}: a new agent job. With project_id it writes that blank project, without it the server creates one.
+            agentStart(spec) { return json('POST', '/agent/jobs', { headers: jsonHeaders(), body: JSON.stringify(spec) }); },
+            // {job}: an agent job that changes the story of this project
+            agentRevise(id, instruction) {
+                return json('POST', '/projects/' + encodeURIComponent(id) + '/agent/revise', { headers: jsonHeaders(), body: JSON.stringify({ instruction }) });
+            },
+            // {etag, issues, story, changed}: the scenes lose their speech, and the old story stays as a backup on the server
+            makeSilent(id, etag) { return json('POST', '/projects/' + encodeURIComponent(id) + '/make-silent', { headers: { 'If-Match': etag } }); },
+            // {etag, issues, story}: the backup of make-silent comes back
+            restoreSpeech(id, etag) { return json('POST', '/projects/' + encodeURIComponent(id) + '/restore-speech', { headers: { 'If-Match': etag } }); },
             async listJobs(id) {
                 const body = await json('GET', '/projects/' + encodeURIComponent(id) + '/jobs');
                 return Array.isArray(body.jobs) ? body.jobs : [];
@@ -180,8 +190,8 @@
             narrationUrl(id, hash, ext) { return audioUrl(id, 'narration', hash, ext); },
             musicUrl(id, key, ext) { return audioUrl(id, 'music', key, ext); },
 
-            // events(projectId, onJob, onState) -> {close()}; onState('open' | 'error')
-            events(projectId, onJob, onState) {
+            // events(projectId, onJob, onState, onAgent) -> {close()}; onState('open' | 'error'); onAgent gets the body of each agent event
+            events(projectId, onJob, onState, onAgent) {
                 if (!makeEventSource) return { close() {} };
                 let source = null;
                 try { source = reopeningSource(() => makeEventSource(BASE + '/projects/' + encodeURIComponent(projectId) + '/events')); } catch (_) { return { close() {} }; }
@@ -190,6 +200,11 @@
                     try { body = JSON.parse(event.data); } catch (_) { return; }
                     const job = body && body.job ? body.job : body;
                     if (job && typeof job === 'object' && typeof job.id === 'string') onJob(job);
+                });
+                source.addEventListener('agent', event => {
+                    let body = null;
+                    try { body = JSON.parse(event.data); } catch (_) { return; }
+                    if (onAgent && body && typeof body === 'object' && typeof body.job_id === 'string') onAgent(body);
                 });
                 source.addEventListener('open', () => onState && onState('open'));
                 source.addEventListener('error', () => onState && onState('error'));

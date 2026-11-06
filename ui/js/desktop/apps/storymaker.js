@@ -29,15 +29,21 @@
             catalog: null, thumbs: new Map(), dirty: false, disposed: false, loadSeq: 0, thumbSeq: 0, conflict: false,
             wantFrame: null, seekBusy: false, seekSent: -1, seekTimer: 0,
             handoffWish: new Set(),
+            agentLocked: false, silentBackup: false,
             view: 'loading', parts: {}, root: null, content: null, liveTimer: 0, launchProjectId: typeof c.projectId === 'string' ? c.projectId : ''
         };
         inst.assets = S.createAssets(inst.api);
-        Object.defineProperty(inst, 'readonly', { get() { return inst.ctxReadonly || inst.forcedReadonly || !!(inst.status && inst.status.read_only); } });
+        Object.defineProperty(inst, 'readonly', { get() { return inst.agentLocked || desktopReadonly(inst); } });
         inst.domId = suffix => 'stm-' + String(windowId).replace(/[^A-Za-z0-9_-]/g, '_') + '-' + suffix;
         return inst;
     }
 
     // ---- small shared pieces ---------------------------------------------------------------------------------------------------
+
+    // Read-only for a reason outside this project. The lock of an agent job comes on top of this and has its own banner.
+    function desktopReadonly(inst) {
+        return inst.ctxReadonly || inst.forcedReadonly || !!(inst.status && inst.status.read_only);
+    }
 
     function notify(inst, text, kind) {
         if (inst.disposed || !text) return;
@@ -194,6 +200,8 @@
         inst.conflict = false;
         inst.playerErrors = [];
         inst.draftIssues = [];
+        inst.agentLocked = false;
+        inst.silentBackup = false;
         inst.bus.clear();
     }
 
@@ -223,8 +231,9 @@
             inst.playing = false;
             inst.tab = 'stage';
             inst.saveState = 'saved';
+            inst.silentBackup = !!data.silent_backup;
             buildEditor(inst);
-            inst.events = inst.api.events(inst.projectId, job => inst.bus.emit('job', job));
+            inst.events = inst.api.events(inst.projectId, job => inst.bus.emit('job', job), null, event => inst.bus.emit('agent', event));
             reloadPlayer(inst);
             return true;
         } catch (err) {
@@ -261,7 +270,8 @@
             editStory: (fn, options) => editStory(inst, fn, options),
             showIssues: () => toggleIssues(inst, true),
             showPanel: name => showPanel(inst, name),
-            reloadPlayer: () => reloadPlayer(inst)
+            reloadPlayer: () => reloadPlayer(inst),
+            reloadProject: () => reloadProject(inst)
         });
 
         const aspect = inst.story.format && inst.story.format.aspect ? inst.story.format.aspect : '16:9';
@@ -284,9 +294,10 @@
         const exporter = S.createExport(inst);
         const music = S.createMusicPanel(inst);
         const voice = S.createVoicePanel(inst);
+        const agent = S.createAgentPanel(inst);
         stage.appendChild(voice.marker);
         code.el.hidden = true;
-        inst.parts.strip = strip; inst.parts.transport = transport; inst.parts.inspector = inspector; inst.parts.library = library; inst.parts.code = code; inst.parts.exporter = exporter; inst.parts.music = music; inst.parts.voice = voice;
+        inst.parts.strip = strip; inst.parts.transport = transport; inst.parts.inspector = inspector; inst.parts.library = library; inst.parts.code = code; inst.parts.exporter = exporter; inst.parts.music = music; inst.parts.voice = voice; inst.parts.agent = agent;
 
         const backButton = el('button', { type: 'button', class: 'stm-btn stm-btn-quiet', dataset: { stm: 'back' }, onClick: () => leaveProject(inst) }, icon('left'), el('span', { text: t('storymaker.back_to_projects') }));
         const title = el('h2', { class: 'stm-title', dataset: { stm: 'project-title' }, text: inst.project.title || inst.projectId });
@@ -310,8 +321,13 @@
             type: 'button', class: 'stm-tab', role: 'tab', dataset: { stm: 'side-tab', tab: 'music' }, ariaSelected: String(inst.sideTab === 'music'),
             onClick: () => setSideTab(inst, 'music')
         }, icon('sparkle'), el('span', { text: t('storymaker.side_music') })));
+        sideTabs.push(el('button', {
+            type: 'button', class: 'stm-tab', role: 'tab', dataset: { stm: 'side-tab', tab: 'agent' }, ariaSelected: String(inst.sideTab === 'agent'),
+            onClick: () => setSideTab(inst, 'agent')
+        }, icon('film'), el('span', { text: t('storymaker.side_agent') })));
         const side = el('aside', { class: 'stm-side', dataset: { stm: 'side' } }, el('div', { class: 'stm-tabs stm-tabs-small', role: 'tablist', ariaLabel: t('storymaker.inspector.title') }, sideTabs), inspector.el, library.el, voice.el);
         side.appendChild(music.el);
+        side.appendChild(agent.el);
         const center = el('main', { class: 'stm-center' }, el('div', { class: 'stm-stage-wrap', dataset: { stm: 'stage-wrap' } }, stage, transport.el), code.el, issuesPanel);
         const body = el('div', { class: 'stm-body' }, strip.el, center, side);
         const bannerArea = el('div', { class: 'stm-banners', dataset: { stm: 'banners' } });
@@ -691,7 +707,12 @@
         const t = inst.t;
         const area = inst.parts.bannerArea;
         S.clear(area);
-        const add = (key, tone, text, actions) => area.appendChild(el('div', { class: 'stm-banner', role: 'status', dataset: { banner: key, tone } }, icon(tone === 'bad' ? 'alert' : 'info'), el('span', { text }), actions || null));
+        const add = (key, tone, text, actions) => {
+            // While only the agent's lock makes the editor read-only, the read-only banner would name the wrong reason.
+            if (key === 'readonly' && !desktopReadonly(inst)) return;
+            area.appendChild(el('div', { class: 'stm-banner', role: 'status', dataset: { banner: key, tone } }, icon(tone === 'bad' ? 'alert' : 'info'), el('span', { text }), actions || null));
+        };
+        if (inst.agentLocked) add('agent_locked', 'info', t('storymaker.banner.agent_locked'));
         if (inst.readonly) add('readonly', 'info', t('storymaker.banner.readonly'));
         if (inst.conflict) {
             add('conflict', 'bad', t('storymaker.banner.conflict'), el('span', { class: 'stm-actions' },
@@ -814,7 +835,7 @@
 
     function handleSaveError(inst, err) {
         const e = S.errors.normalize(err);
-        if (e.status === 412) { inst.conflict = true; inst.saveState = 'error'; }
+        if (e.status === 412 || e.code === 'agent_job_active') { inst.conflict = true; inst.saveState = 'error'; }
         else if (e.code === 'desktop_readonly') { inst.forcedReadonly = true; inst.saveState = 'error'; inst.bus.emit('readonly'); }
         else if (e.status === 422) { inst.saveState = 'error'; inst.issues = e.issues.length ? e.issues : inst.issues; inst.bus.emit('issues'); }
         else inst.saveState = e.network ? 'offline' : 'error';
@@ -891,6 +912,12 @@
             inst.dirty = false;
             inst.conflict = false;
             inst.saveState = 'saved';
+            inst.silentBackup = !!data.silent_backup;
+            // The agent sets the title of the film, and the toolbar should show it.
+            if (data.project) {
+                inst.project = data.project;
+                if (inst.parts.title) inst.parts.title.textContent = data.project.title || inst.projectId;
+            }
             inst.selected = S.clamp(inst.selected, 0, Math.max(0, S.model.scenesOf(inst.story).length - 1));
             paintBanners(inst);
             afterStorySaved(inst);

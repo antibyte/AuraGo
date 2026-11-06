@@ -245,6 +245,24 @@ progress.stm-progress::-moz-progress-bar { background: var(--vd-mat-primary, var
 .stm-music-status { display: grid; gap: var(--ds-space-2); margin-top: var(--ds-space-2); }
 .stm-music-status p { margin: 0; }
 .stm-music-bad { color: var(--stm-bad-text); }
+.stm-agent { display: none; padding: 0 var(--ds-space-3) var(--ds-space-3); }
+.stm-app [data-sidetab="agent"] .stm-agent { display: grid; gap: var(--ds-space-3); }
+.stm-app [data-sidetab="agent"] .stm-side > :not(.stm-tabs, .stm-agent) { display: none; }
+.stm-agent .stm-field { margin: 0; }
+.stm-agent-form { display: grid; gap: var(--ds-space-3); }
+.stm-agent-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--ds-space-2); }
+.stm-agent-steps, .stm-agent-checks { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.stm-agent-step { display: flex; align-items: center; gap: var(--ds-space-2); color: var(--vd-theme-muted); }
+.stm-agent-step[data-state="current"] { color: var(--vd-text); font-weight: 600; }
+.stm-agent-step[data-state="done"] { color: var(--stm-ok-text); }
+.stm-agent-outcome { display: grid; gap: var(--ds-space-2); padding: var(--ds-space-3); border: 1px solid var(--vd-mat-card-border, var(--vd-theme-border)); border-radius: var(--vd-mat-card-radius, var(--ds-radius-md)); background: var(--vd-mat-card, var(--vd-theme-panel-bg)); }
+.stm-agent-outcome[data-outcome="ready_unverified"] { border-color: var(--stm-ok); }
+.stm-agent-outcome[data-outcome="incomplete"] { border-color: var(--stm-warn); }
+.stm-agent-outcome[data-outcome="failed"] { border-color: var(--stm-bad); }
+.stm-agent-outcome h3, .stm-agent-outcome p { margin: 0; }
+.stm-agent-outcome h3 { color: var(--vd-mat-heading-color, var(--vd-text)); font-size: 14px; }
+.stm-agent-check { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--ds-space-2); font-size: 12px; }
+.stm-agent-check code { font-family: var(--stm-mono); }
 
 /* Export dialog */
 .stm-export-dialog { width: min(440px, calc(100vw - 32px)); max-height: min(80vh, 640px); padding: var(--ds-space-4); overflow: auto; border: 1px solid var(--vd-mat-card-border, var(--vd-theme-border)); border-radius: var(--vd-mat-card-radius, var(--ds-radius-md)); background: var(--vd-mat-card, var(--vd-theme-panel-bg)); box-shadow: var(--vd-mat-card-shadow, 0 12px 32px color-mix(in srgb, var(--vd-text) 22%, transparent)); color: var(--vd-text); }

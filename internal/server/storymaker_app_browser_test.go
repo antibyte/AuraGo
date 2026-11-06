@@ -21,11 +21,14 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/desktop"
+	"aurago/internal/llm"
 	"aurago/internal/storymaker"
+	"aurago/internal/storymaker/render"
 	"aurago/internal/tools"
 
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/launcher"
+	"github.com/sashabaranov/go-openai"
 )
 
 // The Storymaker app tour against the REAL handlers. ui/desktop_storymaker_browser_test.go runs the same app against a stand-in
@@ -476,6 +479,57 @@ func smappCheckHandoff(t *testing.T, page *rod.Page, s *Server, origin, id, deco
 	smappWaitFor(t, page, `()=>{const s=`+smappStudio+`;return !!s&&s.projectId!==`+smappJS(projectID)+`&&s.projectId!==`+smappJS(decoyID)+`&&!s.dirty&&(s.project?.tracks||[]).some(t=>t.clips.length>0);}`, 5*time.Minute)
 }
 
+// smappInstallAgentStub switches the agent on and gives the agent queue a stub run function: no model call and no cost. The stub
+// sets the transition of the last scene, reports the new story etag, and waits until the job is cancelled. The client is never
+// called; it only makes the main route count as configured.
+func smappInstallAgentStub(t *testing.T, s *Server) {
+	t.Helper()
+	s.Cfg.Storymaker.Agent.Enabled = true
+	s.Cfg.LLM.Model = "tour-model"
+	s.LLMClient = llm.WrapOpenAIClient(openai.NewClient("test-only"))
+	rt, err := s.storymakerRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	rt.agent.Close()
+	stub, err := render.NewManager(render.ManagerOptions{
+		Dir:       filepath.Join(storymakerDir(rt.dataDir), "agent-tour"),
+		Kinds:     []string{render.KindAgent},
+		MaxQueued: 8,
+		Workers:   1,
+		Run: func(ctx context.Context, job render.Job, payload any, h *render.Handle) (render.Output, error) {
+			data, etag, err := rt.projects.LoadStory(ctx, job.ProjectID)
+			if err != nil {
+				return render.Output{}, err
+			}
+			var doc map[string]any
+			if err := json.Unmarshal(data, &doc); err != nil {
+				return render.Output{}, err
+			}
+			scenes, _ := doc["scenes"].([]any)
+			if len(scenes) == 0 {
+				return render.Output{}, fmt.Errorf("the story of %s has no scene", job.ProjectID)
+			}
+			scenes[len(scenes)-1].(map[string]any)["transition"] = "cut"
+			next, err := json.Marshal(doc)
+			if err != nil {
+				return render.Output{}, err
+			}
+			saved, err := rt.projects.SaveStory(ctx, job.ProjectID, next, etag)
+			if err != nil {
+				return render.Output{}, err
+			}
+			h.SetAgent(storymaker.AgentJobInfo{Kind: "revise", Phase: storymaker.PhaseRevise, ScenesDone: 1, ScenesTotal: len(scenes), StoryETag: saved})
+			<-ctx.Done()
+			return render.Output{}, ctx.Err()
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rt.agent = stub
+}
+
 func TestStorymakerAppRealServerBrowser(t *testing.T) {
 	s := storymakerRealServer(t)
 	smappEnableVideoStudio(t, s)
@@ -487,6 +541,7 @@ func TestStorymakerAppRealServerBrowser(t *testing.T) {
 		synthCalls.Add(1)
 		return smappStubSpeech(0.8), "wav", nil
 	}
+	smappInstallAgentStub(t, s)
 	page, origin := smappPage(t, s)
 	started := time.Now()
 
@@ -633,7 +688,22 @@ func TestStorymakerAppRealServerBrowser(t *testing.T) {
 	smappWait(t, page, `()=>`+waveDrawn+`==='true'`)
 	smappNoErrors(t, page)
 
-	// Four side tabs stay inside the side panel: the strip wraps instead of clipping the last tab.
+	// The AI author: a revise job from the panel. The stub writes the story while the job runs, so the editor locks and shows the
+	// lock banner, and the panel reloads by itself: the transition select of the selected code scene shows the stub's value.
+	// Cancel ends the job, the lock goes and the written scene stays.
+	smappClick(t, page, `[data-stm="side-tab"][data-tab="agent"]`)
+	smappWait(t, page, `()=>{const b=document.querySelector('[data-stm="agent-start"]');return !!b&&b.dataset.mode==='revise'&&!b.disabled;}`)
+	page.MustEval(setField, `[data-stm="agent-prompt"]`, "Use a cut into the code scene.")
+	smappClick(t, page, `[data-stm="agent-start"]`)
+	smappWait(t, page, `()=>!!document.querySelector('[data-banner="agent_locked"]') && document.querySelector('[data-stm="transition"]')?.value==='cut' && !!document.querySelector('[data-stm="agent-step"][data-phase="revise"][data-state="current"]')`)
+	smappClick(t, page, `[data-stm="agent-cancel"]`)
+	smappWait(t, page, `()=>!document.querySelector('[data-banner="agent_locked"]') && document.querySelector('[data-stm="agent-state"]')?.dataset.state==='cancelled'`)
+	if got := smappStored(t, origin, id)["scenes"].([]any)[1].(map[string]any)["transition"]; got != "cut" {
+		t.Fatalf("the transition after the cancelled job = %v, want the stub's cut", got)
+	}
+	smappNoErrors(t, page)
+
+	// Five side tabs stay inside the side panel: the strip wraps instead of clipping the last tab.
 	if !page.MustEval(`()=>{const r=document.querySelector('[data-stm="side"]').getBoundingClientRect().right;return [...document.querySelectorAll('[data-stm="side-tab"]')].every(b=>b.getBoundingClientRect().right<=r);}`).Bool() {
 		t.Fatal("a side tab overflows the side panel")
 	}
