@@ -19,6 +19,7 @@
 # Local runtime state, build scratch and browser-test artifacts.
 /data/
 /tmp/
+/scripts/woof-reference/out/
 /ui/reports/
 METRICS_DASHBOARD_DATA_SOURCES.md
 # Lock files (runtime)

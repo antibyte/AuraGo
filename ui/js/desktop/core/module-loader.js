@@ -78,6 +78,8 @@
                 '/js/desktop/apps/aura-drift-music.js',
                 '/js/desktop/apps/aura-drift-ui.js',
                 '/js/desktop/apps/aura-drift-ui-cards.js',
+                '/js/desktop/apps/aura-drift-woof-lines.js',
+                '/js/desktop/apps/aura-drift-woof.js',
                 '/js/desktop/apps/aura-drift.js'
             ]
         },

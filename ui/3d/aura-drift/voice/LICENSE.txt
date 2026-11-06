@@ -1,0 +1,127 @@
+# Underdog Non-Commercial License 1.0
+
+Copyright 2026 Conway ("Underdog", "we", "us").
+
+This license covers each model Underdog releases under it, as named in that model's card (for example, Underdog Woof).
+By downloading, running, copying or building on the Model, you ("you") agree to these terms.
+
+## The short version
+
+- **Free for non-commercial use.** Personal projects, research, teaching and non-profits can use the Model and publish
+  what it makes.
+- **Credit Underdog.** Put "Underdog Woof" or "underdog.ai" in the title or description of anything you publish with
+  its audio, and show "Voice by Underdog Woof" in any app or product that uses it.
+- **Commercial use needs a license.** Using the Model or its audio in a paid product, an ad, a monetized video, a
+  company's work or anything else that earns money needs a commercial license: license@conway.tech.
+- **No training on Woof.** Don't use the Model or its audio to train, fine-tune or distill another model that makes
+  speech or audio.
+- **Free inside Underdog.** Using the Model through underdog.ai and Underdog's own apps is always free.
+
+The terms below are the full license. Where they differ from this summary, the terms below apply.
+
+## 1. Definitions
+
+- **Model**: the weights, code, configuration, voices and documentation we release under this license, in any format.
+- **Outputs**: audio or other content made with the Model or a Derivative.
+- **Derivative**: any modified version of the Model, including fine-tunes, merges and converted versions; any model
+  created, initialized, improved or trained, in whole or in part, from the Model's weights, activations or Outputs; and
+  any dataset made up of, or built mainly from, Outputs.
+- **Commercial Use**: any use by or for a company or other for-profit organization, and any use that earns money or
+  supports something that does, directly or indirectly. This includes using the Model or Outputs in a paid or
+  ad-supported product or service, in advertising or sponsored or monetized content, as a hosted service or API, and
+  in a business's internal operations.
+- **Non-Commercial Use**: personal projects, academic research, teaching, and work by non-profit organizations, in
+  each case where nothing is sold, licensed or monetized.
+- **Underdog Products**: underdog.ai and the apps, services and features that Underdog itself operates.
+
+## 2. What you may do for free
+
+Subject to these terms, we grant you a worldwide, non-exclusive, non-transferable, royalty-free license to use, run,
+copy and modify the Model, to share the Model and your modified versions of it, and to use and publish Outputs, for
+Non-Commercial Use only.
+
+Anyone may also use the Model free of charge through Underdog Products, including for commercial purposes. That covers
+the product as we provide it, not taking the Model out of an Underdog Product to run it elsewhere.
+
+A company may test the Model internally for up to 30 days to decide whether to buy a commercial license. Testing
+means trying it out, not running it in production or for customers.
+
+## 3. Commercial Use needs a commercial license
+
+Any Commercial Use of the Model, a Derivative or Outputs requires a separate written commercial license from
+Underdog. Write to license@conway.tech. Without one, this license grants no commercial rights.
+
+## 4. Credit
+
+If you use the Model or a Derivative under this license, you must credit Underdog:
+
+- **Published audio.** When you publish or share Outputs, include "Underdog Woof" or "underdog.ai" in the title or
+  description where the audio is posted.
+- **Apps and products.** Wherever Outputs are played or the feature is offered, show "Voice by Underdog Woof" with a
+  link to underdog.ai, where users can see it. An audio-only product puts it in its about or settings screen and in its
+  listing.
+- **Model cards, READMEs, papers and listings.** Say that the work is, or is derived from, Underdog Woof, and link to
+  this license.
+- **Sharing the Model or a modified version.** Include this license and the NOTICE file unchanged, and say what you
+  changed.
+
+A commercial license may set different credit terms in writing.
+
+## 5. Outputs and training
+
+As between you and Underdog, you own the Outputs you make, to the extent the law allows, and you may use them for
+Non-Commercial Use under this license, or for Commercial Use under a commercial license.
+
+You may not use the Model, a Derivative or any Outputs to train, fine-tune, distill or otherwise improve any other
+model that generates speech or audio, unless a commercial license from Underdog allows it. Every Derivative is covered
+by this license; if you share one, you must share it under this license, and you may not add terms that take away any
+of these conditions.
+
+Outputs may not be unique, and the Model may make the same or similar Outputs for others. You are responsible for your
+inputs and your Outputs. Underdog does not review Outputs and makes no promise about their accuracy or fitness for any
+purpose.
+
+## 6. Responsible use
+
+Don't use the Model, a Derivative or Outputs to impersonate a real person without their consent, to deceive people
+about whether they are hearing a machine, to commit fraud, or for anything illegal. Don't use them to clone or imitate
+a real person's voice without that person's consent. Follow all laws that apply to your use.
+
+## 7. Third-party components
+
+Parts of the Model come from work by others under their own licenses, listed in the NOTICE file. Underdog Woof's audio
+decoder is adapted from Kyutai's Mimi, and its training data includes LibriTTS-R and Emilia-YODAS, all CC-BY 4.0. This
+license doesn't restrict any rights you have in those works under their own licenses, and you must follow those
+licenses too.
+
+## 8. Names and trademarks
+
+This license doesn't grant permission to use Underdog's names, logos or trademarks, except for the credit in section 4
+and for reproducing the NOTICE file. Don't suggest that Underdog endorses, sponsors or is affiliated with you or your
+product.
+
+## 9. Ending the license
+
+If you break these terms, your rights under this license end automatically. If it is your first breach and you fix it
+within 30 days of learning about it, your rights come back. If you sue anyone claiming that the Model infringes your
+rights, your license ends on the day you file.
+
+## 10. No warranty; limited liability
+
+Unless required by applicable law or agreed to in writing, Underdog provides the Model, its Outputs and any Derivative
+"AS IS", WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied, including any warranties or
+conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. You are solely responsible
+for deciding whether to use the Model and assume all risks of doing so.
+
+IN NO EVENT AND UNDER NO LEGAL THEORY, WHETHER IN TORT (INCLUDING NEGLIGENCE), CONTRACT OR OTHERWISE, UNLESS REQUIRED
+BY APPLICABLE LAW OR AGREED TO IN WRITING, WILL UNDERDOG BE LIABLE TO YOU FOR DAMAGES, INCLUDING ANY DIRECT, INDIRECT,
+SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES ARISING FROM THIS LICENSE OR FROM THE USE OR INABILITY TO USE THE MODEL,
+ITS OUTPUTS OR ANY DERIVATIVE, EVEN IF UNDERDOG HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+
+## 11. General
+
+This license is governed by the laws of California, and disputes go to the courts of San Francisco County. If part of
+it can't be enforced, the rest still applies. We may publish new versions of this license; a Model released under a
+version stays available to you under that version.
+
+Questions and commercial licensing: license@conway.tech.

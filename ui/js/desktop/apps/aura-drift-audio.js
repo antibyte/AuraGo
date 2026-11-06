@@ -47,7 +47,7 @@
     AD.createAudio = function (settings) {
         const Ctor = window.AudioContext || window.webkitAudioContext;
         let ctx = null, master = null, comp = null, limiter = null;
-        let engineBus = null, sfxBus = null, ambBus = null, musicBus = null, reverb = null, reverbSend = null;
+        let engineBus = null, sfxBus = null, ambBus = null, musicBus = null, voiceBus = null, reverb = null, reverbSend = null;
         let bank = null, engine = null, music = null;
         let noise = null;
         let volume = settings.volume, muted = settings.muted;
@@ -96,6 +96,9 @@
             sfxBus = ctx.createGain(); sfxBus.gain.value = 1; sfxBus.connect(master);
             ambBus = ctx.createGain(); ambBus.gain.value = 0.8; ambBus.connect(master);
             musicBus = ctx.createGain(); musicBus.gain.value = 0.32; musicBus.connect(master);
+            /* The voice commentary has its own bus: it speaks over the race and must
+             * not push the limiter into clipping. */
+            voiceBus = ctx.createGain(); voiceBus.gain.value = 0.9; voiceBus.connect(master);
             reverb = ctx.createConvolver();
             reverb.buffer = makeImpulse(1.9, 2.6);
             reverbSend = ctx.createGain(); reverbSend.gain.value = 0;
@@ -443,6 +446,20 @@
             stopWorld,
             worldLoopCount() { return worldLoops.size; },
             horn,
+            /* The voice commentary: samples arrive from the Woof worker at 24 kHz and
+             * the context resamples them on playback. */
+            voice(samples, rate) {
+                if (!ctx || !voiceBus || !samples || !samples.length) return 0;
+                const buffer = ctx.createBuffer(1, samples.length, rate || 24000);
+                const target = buffer.getChannelData(0);
+                for (let i = 0; i < samples.length; i++) target[i] = samples[i];
+                const src = ctx.createBufferSource();
+                src.buffer = buffer;
+                src.connect(voiceBus);
+                src.start();
+                liveNodes.push(src);
+                return buffer.duration;
+            },
             update(race, active, pose) {
                 if (!ctx || !running) return;
                 const v = race.cars[0].v;
@@ -483,7 +500,7 @@
                 liveNodes = [];
                 if (ctx) { try { ctx.close(); } catch (_) { /* already closed */ } }
                 ctx = null; master = null; comp = null; limiter = null; reverb = null; reverbSend = null;
-                bank = null; engine = null; music = null;
+                bank = null; engine = null; music = null; voiceBus = null;
                 loops.squeal = null; loops.scrape = null;
             }
         };

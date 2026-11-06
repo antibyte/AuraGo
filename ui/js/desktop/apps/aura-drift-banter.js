@@ -51,7 +51,9 @@
             if (!allowed(type, driverId)) return;
             const text = t(key);
             if (!text || text === key) return;
-            pending = { driverId: driverId, text: AD.fmt(text, {}), wait: DELAY };
+            /* The key travels with the line: the voice commentary reads the english
+             * original of the same line, whatever language the radio shows. */
+            pending = { driverId: driverId, text: AD.fmt(text, {}), key: key, wait: DELAY };
             lastSpoken = clock;
             lastDriver = driverId;
             lastType[type] = clock;
@@ -153,7 +155,7 @@
             if (!pending) return null;
             pending.wait -= dt;
             if (pending.wait > 0) return null;
-            const out = { driverId: pending.driverId, text: pending.text };
+            const out = { driverId: pending.driverId, text: pending.text, key: pending.key };
             pending = null;
             return out;
         }

@@ -29,6 +29,9 @@
         mode: params.get('mode') || '',
         quality: params.get('quality') || '',
         camera: params.get('camera') || '',
+        /* The voice commentary pulls a 40 MB model: the harness stays offline unless
+           it is asked for, so the browser tests never wait for the network. */
+        voice: params.get('voice') === '1',
         autostart: params.get('autostart') === '1',
         seed: params.get('seed') || ''
     };
@@ -60,14 +63,14 @@
             document.head.appendChild(script);
         });
         await window.AuraDesktopModules.loadAppAssets('aura-drift');
-        if (window.AuraDriftHarnessParams.quality) {
-            try {
-                const key = 'aurago.desktop.aura-drift.v1';
-                const saved = JSON.parse(localStorage.getItem(key) || '{}');
-                saved.quality = window.AuraDriftHarnessParams.quality;
-                localStorage.setItem(key, JSON.stringify(saved));
-            } catch (_) { /* private mode: keep the default tier */ }
-        }
+        try {
+            const key = 'aurago.desktop.aura-drift.v1';
+            const saved = JSON.parse(localStorage.getItem(key) || '{}');
+            if (window.AuraDriftHarnessParams.quality) saved.quality = window.AuraDriftHarnessParams.quality;
+            /* The voice commentary is off unless the harness is asked for it. */
+            saved.voice = !!window.AuraDriftHarnessParams.voice;
+            localStorage.setItem(key, JSON.stringify(saved));
+        } catch (_) { /* private mode: keep the default tier */ }
         window.AuraDriftApp.render(document.getElementById('host'), 'dev', { t, isActive: () => true, readonly: false });
         const debug = window.AuraDriftApp.debug;
         const p = window.AuraDriftHarnessParams;

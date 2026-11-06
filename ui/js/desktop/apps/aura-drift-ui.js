@@ -245,6 +245,20 @@
         toggle(labels.weaponsOff, !settings.weapons, v => { settings.weapons = !v; changed(); });
         toggle(labels.reducedMotion, settings.reducedMotion, v => { settings.reducedMotion = v; changed(); });
         toggle(labels.showGhost, settings.showGhost, v => { settings.showGhost = v; changed(); });
+        /* The voice commentary (Underdog Woof) speaks the banter lines. */
+        toggle(labels.voice, settings.voice !== false, v => { settings.voice = v; changed(); });
+        pages.settings.appendChild(el('p', 'agdrift-note', L('aura_drift.voice_note')));
+        /* The licence of the model asks for the credit with a link to its home. */
+        const voiceCredit = el('p', 'agdrift-note');
+        const creditLink = el('a', null, L('aura_drift.voice_credit'));
+        const creditUrl = L('aura_drift.voice_credit_url');
+        if (creditUrl && creditUrl.indexOf('underdog.ai') >= 0) {
+            creditLink.href = creditUrl;
+            creditLink.target = '_blank';
+            creditLink.rel = 'noopener noreferrer';
+        }
+        voiceCredit.appendChild(creditLink);
+        pages.settings.appendChild(voiceCredit);
 
         const resetLabel = L('aura_drift.settings.reset_bests');
         const resetBtn = button(resetLabel, 'agdrift-secondary agdrift-reset');

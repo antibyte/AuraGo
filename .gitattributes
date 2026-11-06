@@ -62,6 +62,7 @@ internal/server/testdata/cyd_builder_stub/** text eol=lf
 
 # Binaries — never convert
 *.exe   binary
+*.npz   binary
 bin/aurago_linux        binary
 bin/config-merger_linux binary
 bin/aurago_linux_arm64        binary

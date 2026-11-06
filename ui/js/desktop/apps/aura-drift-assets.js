@@ -57,16 +57,38 @@
 
     /* A stalled request must end as a failure so stand-ins take over; the abort also covers reading the body. */
     const FETCH_TIMEOUT_MS = 20000;
-    function fetchTimed(path, init, read) {
+    function fetchTimed(path, init, read, timeoutMs) {
         const ctl = typeof AbortController === 'function' ? new AbortController() : null;
-        const timer = ctl ? setTimeout(() => ctl.abort(), FETCH_TIMEOUT_MS) : 0;
+        const timer = ctl ? setTimeout(() => ctl.abort(), timeoutMs || FETCH_TIMEOUT_MS) : 0;
         const options = Object.assign({}, init, ctl ? { signal: ctl.signal } : {});
         return fetch(AD.assetURL(path), options).then(r => {
             if (!r.ok) throw new Error('asset ' + r.status);
             return read(r);
         }).then(v => { clearTimeout(timer); return v; }, e => { clearTimeout(timer); throw e; });
     }
-    AD.assetsFetchBytes = path => fetchTimed(path, { cache: 'force-cache' }, r => r.arrayBuffer());
+    /* A big file wants to know how far it is: the reader reports while it comes in. */
+    function readBytes(r, onProgress) {
+        if (!onProgress || !r.body || typeof r.body.getReader !== 'function') return r.arrayBuffer();
+        const total = Number(r.headers.get('content-length')) || 0;
+        const reader = r.body.getReader();
+        const chunks = [];
+        let got = 0;
+        return (async () => {
+            for (;;) {
+                const part = await reader.read();
+                if (part.done) break;
+                chunks.push(part.value);
+                got += part.value.length;
+                onProgress(total ? got / total : 0, got);
+            }
+            const all = new Uint8Array(got);
+            let at = 0;
+            for (const chunk of chunks) { all.set(chunk, at); at += chunk.length; }
+            return all.buffer;
+        })();
+    }
+    AD.assetsFetchBytes = (path, onProgress, timeoutMs) =>
+        fetchTimed(path, { cache: 'force-cache' }, r => readBytes(r, onProgress), timeoutMs);
     AD.assetsFetchJson = path => fetchTimed(path, {}, r => r.json());
 
     function loadManifest() {

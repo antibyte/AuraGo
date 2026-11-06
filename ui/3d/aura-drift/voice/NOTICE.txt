@@ -1,0 +1,17 @@
+Underdog Woof
+Copyright 2026 Conway
+
+Licensed under the Underdog Non-Commercial License 1.0 (see LICENSE). Free for non-commercial use with credit: put
+"Underdog Woof" or "underdog.ai" in the title or description of anything you publish with its audio, and show
+"Voice by Underdog Woof" in any app that uses it. Commercial use needs a commercial license: license@conway.tech.
+
+This product includes material derived from the following works:
+
+Mimi, by Kyutai (https://huggingface.co/kyutai/mimi), licensed under CC-BY 4.0
+(https://creativecommons.org/licenses/by/4.0/). The audio decoder in this repository is adapted from Mimi's decoder
+and has been changed.
+
+LibriTTS-R, by Yuma Koizumi et al. (https://www.openslr.org/141/), licensed under CC-BY 4.0. Used as training data.
+
+Emilia-YODAS, by the Amphion team (https://huggingface.co/datasets/amphion/Emilia-Dataset), licensed under CC-BY 4.0.
+Used as training data.

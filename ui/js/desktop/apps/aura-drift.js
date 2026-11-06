@@ -97,7 +97,8 @@
             high: 'aura_drift.high', ultra: 'aura_drift.ultra',
             sound: 'aura_drift.sound', muted: 'aura_drift.muted',
             weaponsOff: 'aura_drift.weapons_off', reducedMotion: 'aura_drift.reduced_motion',
-            showGhost: 'aura_drift.show_ghost', controlsHint: 'aura_drift.controls_hint',
+            showGhost: 'aura_drift.show_ghost', voice: 'aura_drift.voice',
+            controlsHint: 'aura_drift.controls_hint',
             bestLap: 'aura_drift.best_lap', record: 'aura_drift.record',
             start: 'aura_drift.start', pause: 'aura_drift.pause',
             resume: 'aura_drift.resume', restart: 'aura_drift.restart',
@@ -169,6 +170,9 @@
 
         const hud = AD.createHud(hudCanvas, labels, t);
         const audio = AD.createAudio(settings);
+        /* The voice commentary is optional: without the module the radio stays text. */
+        const voice = typeof AD.createVoiceCommentary === 'function'
+            ? AD.createVoiceCommentary({ audio: audio, enabled: settings.voice !== false }) : null;
         const camera = AD.createChaseCamera({ mode: settings.camera });
         const scheduler = AD.createScheduler();
         const timeWarp = AD.createTimeWarp({ reduced: false });
@@ -295,6 +299,8 @@
             onSettings(next) {
                 AD.saveSettings(next, readonly);
                 audio.setSettings(next);
+                /* The voice commentary may be switched off in the settings. */
+                if (voice) voice.setEnabled(next.voice !== false);
                 reducedMotion = next.reducedMotion ||
                     (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
                 timeWarp.reduced = !!reducedMotion;
@@ -332,6 +338,9 @@
             if (banter && typeof banter.dispose === 'function') banter.dispose();
             /* A new race starts silent: no flame, hole, tyre or scrape loop of the last one survives. */
             audio.stopWorld();
+            /* During the race the voice speaks the lines of the race, the warm up of
+             * the other lines waits in the background. */
+            if (voice) voice.setRacing(true);
             race = AD.createRace({
                 track: track,
                 mode: mode,
@@ -424,6 +433,7 @@
         function showMenu() {
             startToken++;
             audio.stopWorld();
+            if (voice) voice.setRacing(false);
             race = null;
             view = 'menu';
             paused = false;
@@ -486,6 +496,8 @@
             const result = race.result;
             result.saved = true;
             audio.stopWorld();
+            /* The race is over: the voice may warm up the lines of the next one. */
+            if (voice) voice.setRacing(false);
             const track = race.track, carId = race.cars[0].v.car.id;
             /* Bests: a time-trial lap record (with a complete tape, D5) or a drift-attack score.
                A quick-race tape is never stored: weapons and rescue would desync the ghost. */
@@ -560,7 +572,12 @@
             audio.update(race, true, lastPose);
             if (banter) {
                 const msg = banter.update(dt);
-                if (msg && typeof hud.radio === 'function') hud.radio(msg);
+                if (msg) {
+                    if (typeof hud.radio === 'function') hud.radio(msg);
+                    /* The radio text is in the language of the game, the voice speaks
+                     * the english original of the same line. */
+                    if (voice) voice.say(msg);
+                }
             }
             if (pendingResults) {
                 pendingResults.wait -= dt;
@@ -623,7 +640,10 @@
                 audio.update(race, true, lastPose);
                 if (banter) {
                     const msg = banter.update(dt);
-                    if (msg && typeof hud.radio === 'function') hud.radio(msg);
+                    if (msg) {
+                        if (typeof hud.radio === 'function') hud.radio(msg);
+                        if (voice) voice.say(msg);
+                    }
                 }
                 if (race.state === 'finished' && race.cars[0].isPlayer) finishRace();
             }
@@ -764,6 +784,7 @@
                 audio.dispose();
                 ui.destroy();
                 if (banter && typeof banter.dispose === 'function') banter.dispose();
+                if (voice && typeof voice.dispose === 'function') voice.dispose();
                 if (assetsHeld && AD.assets && typeof AD.assets.release === 'function') AD.assets.release();
                 assetsHeld = false;
             },

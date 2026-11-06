@@ -469,6 +469,8 @@
 .agdrift-secondary:disabled { opacity: 0.4; cursor: default; }
 .agdrift-secondary.is-armed::before { background: rgba(255, 90, 78, 0.5); border-left-color: var(--agdrift-hot); }
 .agdrift-note { margin: 10px 0 0; font-size: 12px; line-height: 1.5; color: var(--agdrift-dim); }
+.agdrift-note a { color: var(--agdrift-hot); text-decoration: underline; }
+.agdrift-note a:hover { text-decoration: none; }
 
 /* ---- controls table ----------------------------------------------------- */
 .agdrift-controls { display: grid; gap: 4px; }

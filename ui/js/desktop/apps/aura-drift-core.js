@@ -221,6 +221,8 @@
         return {
             quality: 'auto', volume: 0.65, muted: false,
             reducedMotion: false, weapons: true, showGhost: true,
+            /* The voice commentary (Underdog Woof) speaks the banter lines. */
+            voice: true,
             car: 'vektor', livery: 0, camera: 'chase'
         };
     };

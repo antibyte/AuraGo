@@ -48,6 +48,8 @@ var auraDriftModules = []string{
 	"aura-drift-music.js",
 	"aura-drift-ui.js",
 	"aura-drift-ui-cards.js",
+	"aura-drift-woof-lines.js",
+	"aura-drift-woof.js",
 	"aura-drift.js",
 }
 
@@ -86,6 +88,14 @@ func TestAuraDriftAppRegistration(t *testing.T) {
 	for _, path := range []string{
 		filepath.Join("css", "desktop-app-aura-drift.css"),
 		filepath.Join("img", "desktop-icons", "aura-drift.svg"),
+		// The voice commentary runs in a worker of its own.
+		filepath.Join("js", "desktop", "apps", "aura-drift-woof-worker.js"),
+		filepath.Join("js", "desktop", "apps", "aura-drift-woof-runtime.js"),
+		filepath.Join("js", "desktop", "apps", "aura-drift-woof-text.js"),
+		// The weights of the voice ship with the game: the racer stays offline.
+		filepath.Join("3d", "aura-drift", "voice", "woof_int8.npz"),
+		filepath.Join("3d", "aura-drift", "voice", "LICENSE.txt"),
+		filepath.Join("3d", "aura-drift", "voice", "NOTICE.txt"),
 	} {
 		if _, err := os.Stat(path); err != nil {
 			t.Fatalf("missing Aura Drift asset %s: %v", path, err)
@@ -158,6 +168,8 @@ func TestAuraDriftLocaleKeysCoverAllLanguages(t *testing.T) {
 		"aura_drift.medium", "aura_drift.high", "aura_drift.ultra",
 		"aura_drift.sound", "aura_drift.muted", "aura_drift.weapons_off",
 		"aura_drift.reduced_motion", "aura_drift.show_ghost",
+		"aura_drift.voice", "aura_drift.voice_note",
+		"aura_drift.voice_credit", "aura_drift.voice_credit_url",
 		"aura_drift.controls_hint", "aura_drift.best_lap", "aura_drift.record",
 		"aura_drift.start", "aura_drift.pause", "aura_drift.resume",
 		"aura_drift.restart", "aura_drift.menu", "aura_drift.results",
@@ -288,7 +300,11 @@ func TestAuraDriftLocaleKeysCoverAllLanguages(t *testing.T) {
 func TestAuraDriftShipsNoExternalResources(t *testing.T) {
 	t.Parallel()
 
-	for _, name := range auraDriftModules {
+	// The voice commentary runs in a worker of its own, so it is not in the module
+	// list, but it belongs to the racer and must stay offline as well.
+	names := append(append([]string{}, auraDriftModules...),
+		"aura-drift-woof-worker.js", "aura-drift-woof-runtime.js", "aura-drift-woof-text.js")
+	for _, name := range names {
 		source := readDesktopAssetText(t, filepath.Join("js", "desktop", "apps", name))
 		for _, forbidden := range []string{"https://", "http://", "fetch(", "XMLHttpRequest", "import("} {
 			if forbidden == "fetch(" && name == "aura-drift-assets.js" {
