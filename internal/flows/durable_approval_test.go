@@ -23,11 +23,30 @@ type durableApprovalCatalogEnv struct {
 
 func (e durableApprovalCatalogEnv) ApprovalAuthAvailable() bool { return e.authReady }
 
-type durableApprovalTestKeys struct{ unavailable atomic.Bool }
+type durableApprovalTestKeys struct {
+	unavailable atomic.Bool
+	calls       atomic.Int32
+	entered     chan struct{}
+	block       <-chan struct{}
+}
 
 func (k *durableApprovalTestKeys) CheckpointKey(ctx context.Context, _ bool) ([]byte, error) {
+	k.calls.Add(1)
 	if err := ctx.Err(); err != nil {
 		return nil, err
+	}
+	if k.entered != nil {
+		select {
+		case k.entered <- struct{}{}:
+		default:
+		}
+	}
+	if k.block != nil {
+		select {
+		case <-k.block:
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
 	}
 	if k.unavailable.Load() {
 		return nil, errors.New("checkpoint key unavailable")
@@ -37,9 +56,19 @@ func (k *durableApprovalTestKeys) CheckpointKey(ctx context.Context, _ bool) ([]
 
 type durableApprovalTestBridge struct {
 	*durableStatusBridge
-	approvalCalls atomic.Int32
-	failAt        int32
-	projections   atomic.Int32
+	approvalCalls       atomic.Int32
+	authorizeCalls      atomic.Int32
+	denyAuthorizationAt atomic.Int32
+	failAt              int32
+	projections         atomic.Int32
+}
+
+func (b *durableApprovalTestBridge) AuthorizeDurable(ctx context.Context, flowID, missionID string, revision int) error {
+	call := b.authorizeCalls.Add(1)
+	if denyAt := b.denyAuthorizationAt.Load(); denyAt > 0 && call >= denyAt {
+		return errors.New("durable authority revoked")
+	}
+	return b.durableStatusBridge.AuthorizeDurable(ctx, flowID, missionID, revision)
 }
 
 func (b *durableApprovalTestBridge) DurableApprovalAllowed(ctx context.Context) error {

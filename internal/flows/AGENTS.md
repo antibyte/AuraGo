@@ -16,7 +16,7 @@ the contracts below describe the implemented behavior of each delivered slice.
   Missing/null groups on an ordinary draft save retain the current groups under the same
   revision CAS; explicit `[]` clears them.
   Version restore replaces the entire document. Collapse and layout locks remain UI state.
-  Store schema 5 is a downgrade guard; migration backs up schema 4 before any writes and never
+  Store schema 5 is a downgrade guard; an upgrade starting at schema 4 backs it up before any writes and never
   rewrites existing documents or hashes. Exports scrub registered secrets from group text.
   An export with nonempty groups uses wire schema 2 so older importers refuse it; the dedicated
   import parser accepts export schemas 1 and 2 and converts to stored schema 1. Group-free
@@ -54,7 +54,7 @@ the contracts below describe the implemented behavior of each delivered slice.
   cancellation, taint fences and shared output/log budgets, with no second Runner.
   Inputs use the boundary node key's `data` object; call outputs expose declared fields directly.
 - Recorded child history belongs to an actual parent step sequence, never a child run or SSE
-  stream. A v7 migration backs up v6 before writes and retains old runs as `legacy_unknown`.
+  stream. An upgrade starting at v6 backs it up before writes; v7 retains old runs as `legacy_unknown`.
   A parent step and its frozen trace or bounded omission marker commit in one transaction;
   pending history on a terminal/crashed run reads as incomplete. Document reads verify the
   exact frame against the run-owned pin and canonical version hash. Simulation uses the same
@@ -96,7 +96,9 @@ the contracts below describe the implemented behavior of each delivered slice.
   the pure local node allowlist, remaps typed block-call references, and creates an unpublished
   parent plus immutable revision-1 blocks and exact transitive pins in one SQL transaction.
   The disabled Mission Control owner is created separately before that transaction. Definite
-  rollback uses exact-owner cleanup; uncertain commit retains the disabled owner and can only be
+  rollback uses exact-owner cleanup. A panic attempts best-effort rollback, removes only that exact owner
+  when rollback/no transaction is confirmed before any commit attempt, and rethrows the original panic.
+  Cleanup logs contain only safe identities and fixed text. Any attempted or uncertain commit retains the disabled owner and can only be
   checked by read-only reconciliation of the full row/version/pin closure. `unknown` has no
   records and a current-state readback is not proof of persistence. There is no automatic retry
   or receipt ledger. Keep raw input at 32 MiB, each canonical document at 2 MiB and aggregate
@@ -129,10 +131,10 @@ the contracts below describe the implemented behavior of each delivered slice.
   explicit pure-logic allowlist executes; other known steps require bounded, typed fixtures.
   Unknown types and invalid ports fail closed. File fixtures accept path strings or typed
   FileRef objects; these references are never opened by simulation. A production engine refuses `ModeSimulation`.
-  Snapshot requests, validate the exact draft revision, and freeze one explicit simulation time
+  Snapshot requests, require a positive exact draft revision, and freeze one explicit simulation time
   (`at`, otherwise current time); return it as `started_at`. Never derive resumable state from
   these results or store them as real runs. Verify `TestSimulation*`.
-- Explicit edited real-test input refuses exact redaction placeholders and actual truncated
+- Explicit edited real-test input and direct sample writes refuse exact redaction placeholders and actual truncated
   preview markers before saving samples or starting work. Omitted input may still select the
   original server-side sample; ordinary strings containing marker text remain valid.
 - Named simulation scenarios encrypt the name, trigger data, fixtures and assertions with the
@@ -208,7 +210,8 @@ the contracts below describe the implemented behavior of each delivered slice.
 - Hooks (`OutputsFunc`, `OutputFieldsFunc`, `EffectsFunc`, `Validate`, `AvailabilityFunc`) see the RAW
   node: params unresolved (a template is still a string), any type, nil or huge. Keep them pure, cheap,
   deterministic and panic-free; a panic is recovered but still fails the run or is reported as an
-  issue. `OutputPorts(nil)` and `FieldsOf(nil)` ignore their hooks. Any new caller of a hook (for example
+  issue. `OutputPorts(nil)` and `FieldsOf(nil)` ignore their hooks; `DefaultPort` returns empty on a hook panic.
+  Any new caller of a hook (for example
   a 1b catalog API calling `AvailabilityFunc`) must go through `catchPanic`.
 - Set `UntrustedOutput` on a def whose output an attacker can influence (web, mail, webhook, chat) and
   `SensitiveSink` on a `ParamSpec` where such data is dangerous (command, code, script, path, url,
@@ -258,7 +261,9 @@ the contracts below describe the implemented behavior of each delivered slice.
 - Templates may only reference upstream nodes (validator rule). A template that is exactly one `{{…}}`
   keeps its JSON type; otherwise it renders text (`Stringify`). Evaluated text is never evaluated again.
 - Limits: assembled template text 8 MiB; params nest at most 32 levels; `CollectTemplateRefs` returns at
-  most 1000 refs+problems and cuts display paths to 40 runes per segment; `join`, `replace` and `split`
+  most 1000 refs+problems and cuts display paths to 40 runes per segment. `TemplateRef.RootParam`
+  retains the full top-level key for taint, sink and extraction-boundary checks; display paths never identify params.
+  `join`, `replace` and `split`
   are capped (8 MiB, 8 MiB, 100000 parts); regex `matches` is capped at 200 bytes and 1000 compiled
   instructions (`maxPatternInsts`). `compilePattern` judges the size from the parse tree first
   (`patternInstBound`: an upper bound of the program, repeat counts multiplied, saturating), so a pattern that is
@@ -419,7 +424,8 @@ the contracts below describe the implemented behavior of each delivered slice.
   runs waiting (`RunnerConfig`, default 20), `skip` drops triggers while a live run is admitted or
   queued (no run id), `parallel` only obeys the global limit. The global queue is FIFO.
   `MaxQueuedPerFlow` also caps, separately, the flow's runs waiting for a global slot; `Start` then
-  returns `ErrQueueFull`.
+  returns `ErrQueueFull`. A run admitted as immediately runnable can lose that slot before its final
+  enqueue; this race permits one extra pending run beyond the admission-time queue cap.
 - `dispatchLocked` hands out free global slots in arrival order (tickets) to waiting runs and to parked runs that
   resume. Counted (live) runs of one flow hold at most `MaxSlotsPerFlow` slots (default `max(1, MaxParallelRuns/2)`,
   S5); a run over it keeps its place and does not block others (`fitsLocked`; test runs always fit). `Start` refuses
@@ -478,15 +484,18 @@ the contracts below describe the implemented behavior of each delivered slice.
 - Before v1-to-v2 migration of any on-disk database, `OpenStore` creates a unique SQLite snapshot in a
   `.flows-v1-backup-*` sibling directory, verifies integrity and syncs the backup. A failed backup blocks
   migration. Version 2 creates `flow_test_scenarios` and `flow_checkpoints` transactionally and writes the
-  version last; an unexpected pre-existing target table fails closed. In-memory databases need no disk backup.
-  Version 3 similarly backs up v2 before atomically installing block version/run pin tables and indexes;
-  version 4 backs up v3 and atomically installs folders, flow metadata and version notes. Version 5
-  backs up v4 and advances only the compatibility marker so old binaries cannot discard groups. Version 6
-  backs up v5 and adds the checked, admission-owned `flow_runs.durable` marker and immutable
+  version last with a compare-and-swap against the exact previously read marker (accepted whitespace and
+  leading zeros included); an unexpected pre-existing target table fails closed. In-memory databases need no disk backup.
+  Version 3 installs block version/run pin tables and indexes; version 4 installs folders, flow metadata
+  and version notes. Their existing v2/v3 snapshot rules remain in force. Version 5
+  advances only the compatibility marker so old binaries cannot discard groups. Version 6
+  adds the checked, admission-owned `flow_runs.durable` marker and immutable
   `durable_mission_id`; old rows default to false and an empty owner. Version 7 adds child-run history.
   Version 8 backs up v7 and transactionally adds `flow_durable_gates`, preserving existing child history,
   immutable run owners and opaque encrypted checkpoint bytes; a failed migration leaves the marker and v7
-  data intact. Older binaries refuse v8 before writing.
+  data intact. Older binaries refuse v8 before writing. For an existing v4/v5/v6 store, snapshot the entry
+  state before any writes and v7 before v8; do not add intermediate v5/v6 snapshots during the chained upgrade.
+  A v7 entry needs only its pre-v8 snapshot. A fresh database needs none.
   Existing v4 stores complete this migration before baseline schema writes. Incomplete
   or incompatible v3/v4 ownership constraints fail closed before other writes. Verify
   `TestFlowsV2Migration*`, `TestFlowsV3*`, `TestFlowsV4*`, `TestFlowsV5*`, `TestFlowsV6*` and `TestC16OpenStoreRefusesANewerSchema`.
@@ -505,7 +514,8 @@ the contracts below describe the implemented behavior of each delivered slice.
   Vault key inside the write transaction; existing generations never create a replacement key. Explicit cancellation
   uses generation CAS and remains key-free; legacy unmarked checkpoints stay incompatible and explicitly cancellable.
   The separate history projector rereads authoritative marker-bound metadata and never calls ordinary completion
-  hooks. It retries in bounded pages even while processing is off. SSE remains open during a committed wait.
+  hooks. It retries in bounded pages even while processing is configured off, unless the runtime fault pause
+  is set. SSE remains open during a committed wait.
   Resumed workers emit step completions only after the corresponding checkpoint commits, and never publish a
   speculative step-start after an unproven lease. The private local Vault-key provider is the sole callback
   permitted under the checkpoint admission write lock, to preserve its empty-store key-creation proof.
@@ -513,6 +523,16 @@ the contracts below describe the implemented behavior of each delivered slice.
   checkpoint rows and pre-checkpoint durable runs at 64. Scans reject more than one million JSON values.
   Checkpoint status diagnostics are serialized and bounded, and retain checkpoints through ordinary run pruning.
   Scenario and checkpoint keys are separate, agent-hidden Vault entries; backups need their matching Vault keys.
+- Scheduler, history reconciliation and direct history projection recover internal panics into a separate,
+  mutex-protected runtime fault state, never the general startup failure. Scheduler admission releases locks,
+  contexts, registrations and capacity before latching the pause; queue ownership transfers exactly once.
+  The pause cancels durable admission/worker tokens, blocks new starts, recovery and approval decisions until
+  restart, and exposes `runtime_unavailable` in capability, run and approval diagnostics. Ordinary flows,
+  read-only diagnosis and explicit generation-fenced Stop remain available. Retain committed checkpoints;
+  never retry an uncertain write or invent a terminal event. An already-started commit may settle while
+  cancellation takes effect; reconcile its outcome by reading, never replaying the decision. Restart repeats normal authority, generation and
+  original-deadline checks; deadlines continue during the pause. Log fixed worker identity, known run ID and
+  stack, never raw panic values or checkpoint/review content.
 - `logic.durable_approval` is an explicit human boundary in the same pure-local durable allowlist. Durable mode
   remains default-off; publication, admission and resume require current durable authority and usable owner-login
   authorization. A committed pending gate stores only bounded identity/digest metadata in SQL; its full summary
@@ -528,6 +548,10 @@ the contracts below describe the implemented behavior of each delivered slice.
   key-independent and records no human decision. Terminal metadata retains the digest, never the review payload.
   `DurableRunStatus` retains the latest gate ID after checkpoint removal; a terminal run is historical and does
   not offer Stop. Existing retained-checkpoint Stop behavior, including legacy checkpoints, remains unchanged.
+  Approval lists share the single cancellable diagnostic slot. Each bounded page probes key availability once,
+  clears key bytes immediately, and reads each distinct flow once, retaining only small derived metadata.
+  Authorization remains per item; decision requests freshly validate authority and generation. No cache crosses
+  requests, and list reads never decrypt review contents.
   Verify `TestDurableApprovalProcessLossResumesSameRunOnce` for process loss before and after decision commit,
   pinned revision and one continuation; `TestDurableApprovalDecisionCASAndStopBoundaries` for inbox/CAS,
   deadline precision, expiry and key-independent Stop; and `TestDurableApprovalAuthOwnerRollbackFailClosed` for
@@ -640,7 +664,8 @@ the contracts below describe the implemented behavior of each delivered slice.
   The server's `flowLLM` also scans the rendered prompt and puts a fixed guard instruction first in the system
   message (never follow instructions found in the data; see Integration).
 - `ai.step`: one `Services.LLM` call in text mode; in fields mode at most one more (a repair), tokens summed.
-  Limits: prompt plus instructions 256 KiB, answer text 1 MiB (`FLOW_OUTPUT_TOO_LARGE`, the node's own cap; the
+  Limits: final prompt, instructions (including field hints) and serialized JSON schema together 256 KiB
+  before each stepper call, including repair (`FLOW_PARAM_INVALID`, no truncation or further call); answer text 1 MiB (`FLOW_OUTPUT_TOO_LARGE`, the node's own cap; the
   server's `LLMStepper` refuses answers over 256 KiB first, see Integration), 50 fields, a field description 500
   runes, a model name 200 bytes. `FLOW_AI_UNAVAILABLE` (no stepper), `FLOW_AI_OUTPUT_INVALID`
   (retried), `FLOW_AI_OUTPUT_CUT` (an answer cut off at the token limit; set by the stepper, not retried, and no
@@ -678,7 +703,8 @@ the contracts below describe the implemented behavior of each delivered slice.
   instructions (they become the system message and are fenced like the prompt; untrusted data belongs in the
   prompt, which is no sink), and the `ai.decision` `images` and `questions` params. The `ai.decision` `state` param is not a sink.
   `OutputIndependent` are the message, the pdf and notify titles (not the planner title, a sink), subject, body,
-  document and file content, the MQTT payload and the planner description.
+  document and file content, the MQTT payload, the planner description and durable approval `summary`/`review_data`.
+  Approval review content belongs only to the encrypted pending checkpoint; successful output is `{"approved":true}`.
 - Secrets: a `secret_ref` param (`http.request` `auth_secret`) holds only the vault key, written out: a template
   in it is refused when publishing (any node type) and `http.request` refuses it at run time too
   (`FLOW_PARAM_INVALID`, checked on the raw param before the vault is read), so outside data never picks the entry.
@@ -841,7 +867,7 @@ the contracts below describe the implemented behavior of each delivered slice.
   switch and the live revision (clear when disabled; when enabled re-arm only stale timers, `staleTimers`: a
   node or repeat the live revision lacks, or a trigger without its timer; matching timers keep their fire time,
   a due one-off too). An unreadable snapshot (`FlowMissions` returns nil) leaves that flow's mission entry and
-  timers unchanged and warns; at fire time the same unreadability (`ErrMissionControlUnavailable`) leaves the occurrence and retries it. Only a readable disabled flow loses its timers. It deletes nothing: it warns about a flow without its mission and, with the extension, a
+  timers unchanged and warns; at fire time the same unreadability (`ErrMissionControlUnavailable`) leaves the occurrence and retries it. A legacy bridge without the snapshot extension cannot prove that a false enabled flag means disabled, so reconciliation retains its timers; explicit disable still removes them. Only a readable disabled flow loses its timers. It deletes nothing: it warns about a flow without its mission and, with the extension, a
   flow mission without its flow that Mission Control still holds at report time.
   `Publish` never recreates a missing mission (the sync fails after the store published). `Shutdown` waits for a
   reconciliation in progress and ends its lock waits. Limit: `staleTimers` compares node ids and repeat kinds
@@ -910,6 +936,9 @@ the contracts below describe the implemented behavior of each delivered slice.
   runs on Linux (aurago-test), not locally on Windows.
 - Schema and approval focused regressions: `TestFlowsV[2-8]`, `TestClaimedDurableStateMatchesRunIdentity`,
   `TestDurableRunnerWakeCompletesSameRun`, `TestRegisterCatalogCounts` and `TestDescribeNodeTypesRealCatalog`.
+- Runtime fault and diagnostic bounds: `TestDurableRuntimeFault*`, `TestDurableSchedulerPanic*`,
+  `TestDurableHistoryReconcilePanic*` and `TestDurableApprovalListPageBoundsKeyAndDiagnosticWait`;
+  run this focused set with the Linux race detector when changing their synchronization.
 - Run timing-sensitive tests alone in a fresh process. On Windows the first local-time format in a
   process costs about 48 ms; gate such tests on a `started` channel, not on a short run timeout.
 - `fakeClock` keeps abandoned waiters until `Advance` passes their deadline; `WaitForWaiters` counts them.

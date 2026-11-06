@@ -129,14 +129,15 @@ type pendingRun struct {
 	counted bool
 	// waited is set when the run joined a queue (its flow's or the global one); only such a
 	// run asks RunnerConfig.Gate before it executes.
-	waited        bool
-	size          int      // encoded size of the trigger data (MaxPendingBytes)
-	ticket        uint64   // arrival order in the global queue (dispatchLocked)
-	slot          *runSlot // set at launch
-	durableCtx    context.Context
-	durableCancel context.CancelFunc
-	durableToken  *blockAdmission
-	durableResume *durableResume
+	waited           bool
+	size             int      // encoded size of the trigger data (MaxPendingBytes)
+	ticket           uint64   // arrival order in the global queue (dispatchLocked)
+	slot             *runSlot // set at launch
+	durableCtx       context.Context
+	durableCancel    context.CancelFunc
+	durableToken     *blockAdmission
+	durableResume    *durableResume
+	durableTokenOnce sync.Once
 }
 
 // activeRun is a launched run: its flow and mode, for CancelFlow and CancelFlowMode, and
@@ -180,6 +181,7 @@ type Runner struct {
 	durable              map[string]durableReservation
 	durableStarted       bool
 	durableExpiryStarted bool
+	durableFaulted       bool
 	recoveryErr          error
 	flowSlots            map[string]int // global slots held by counted runs, per flow (MaxSlotsPerFlow)
 	flowQueue            map[string][]*pendingRun
@@ -190,6 +192,8 @@ type Runner struct {
 	cancels              map[string]activeRun
 	baseCtx              context.Context
 	baseStop             context.CancelFunc
+	durableRuntimeCtx    context.Context
+	durableRuntimeStop   context.CancelFunc
 	blockAdmissionCtx    context.Context
 	blockAdmissionStop   context.CancelFunc
 	blockAdmissions      chan struct{}
@@ -204,6 +208,8 @@ type Runner struct {
 	testOnEvent func(RunEvent)
 	// testWrapDurableSet is installed only by tests before a recovery worker starts.
 	testWrapDurableSet func(ExecuteFunc) ExecuteFunc
+	// testAfterDurableSlot injects a scheduler panic while its admission resources are owned.
+	testAfterDurableSlot func()
 }
 
 // NewRunner creates a runner. Call Shutdown when done.
@@ -230,6 +236,7 @@ func NewRunner(engine *Engine, store *Store, hooks RunnerHooks, cfg RunnerConfig
 		logger = slog.Default()
 	}
 	ctx, cancel := context.WithCancel(context.Background())
+	durableCtx, durableCancel := context.WithCancel(ctx)
 	blockCtx, blockCancel := context.WithCancel(context.Background())
 	r := &Runner{
 		engine: engine, store: store, hooks: hooks, cfg: cfg, logger: logger,
@@ -242,6 +249,8 @@ func NewRunner(engine *Engine, store *Store, hooks RunnerHooks, cfg RunnerConfig
 		cancels:            map[string]activeRun{},
 		baseCtx:            ctx,
 		baseStop:           cancel,
+		durableRuntimeCtx:  durableCtx,
+		durableRuntimeStop: durableCancel,
 		blockAdmissionCtx:  blockCtx,
 		blockAdmissionStop: blockCancel,
 		blockAdmissions:    make(chan struct{}, 4),
@@ -306,11 +315,14 @@ func (r *Runner) StartContext(ctx context.Context, req StartRequest) (StartResul
 		}
 	}
 	if hasDurable {
+		if r.durableRuntimeFaulted() {
+			return StartResult{}, ErrDurableUnavailable
+		}
 		if !r.cfg.DurableEnabled {
 			return StartResult{}, ErrDurableDisabled
 		}
 		r.mu.Lock()
-		ready := r.durableStarted
+		ready := r.durableStarted && !r.durableFaulted
 		r.mu.Unlock()
 		if !ready {
 			return StartResult{}, ErrDurableUnavailable
@@ -347,6 +359,7 @@ func (r *Runner) StartContext(ctx context.Context, req StartRequest) (StartResul
 	admissionCtx := context.Background()
 	var cancel context.CancelFunc
 	var stop func() bool
+	var stopDurable func() bool
 	var token *blockAdmission
 	defer func() {
 		if token != nil {
@@ -354,6 +367,9 @@ func (r *Runner) StartContext(ctx context.Context, req StartRequest) (StartResul
 		}
 		if stop != nil {
 			stop()
+		}
+		if stopDurable != nil {
+			stopDurable()
 		}
 		if cancel != nil {
 			cancel()
@@ -368,8 +384,14 @@ func (r *Runner) StartContext(ctx context.Context, req StartRequest) (StartResul
 		}
 		admissionCtx, cancel = context.WithTimeout(ctx, 30*time.Second)
 		stop = context.AfterFunc(r.blockAdmissionCtx, cancel)
+		if hasDurable {
+			stopDurable = context.AfterFunc(r.durableRuntimeCtx, cancel)
+		}
 		if r.blockAdmissionCtx.Err() != nil {
 			return StartResult{}, ErrRunnerClosed
+		}
+		if hasDurable && r.durableRuntimeFaulted() {
+			return StartResult{}, ErrDurableUnavailable
 		}
 		if err := admissionCtx.Err(); err != nil {
 			return StartResult{}, err
@@ -382,6 +404,9 @@ func (r *Runner) StartContext(ctx context.Context, req StartRequest) (StartResul
 		}
 		token = r.blockAdmissionTokens.add(req.Flow.ID, req.missionID, req.Mode, cancel, hasDurable)
 		if hasDurable {
+			if r.durableRuntimeFaulted() {
+				return StartResult{}, ErrDurableUnavailable
+			}
 			if containsDurableApproval(req.Flow) {
 				approvalAuthority, ok := r.cfg.DurableAuthority.(DurableApprovalAuthority)
 				if !ok || approvalAuthority.DurableApprovalAllowed(admissionCtx) != nil {
@@ -482,8 +507,14 @@ func (r *Runner) StartContext(ctx context.Context, req StartRequest) (StartResul
 
 	if req.blocks != nil || req.durable {
 		if err := admissionCtx.Err(); err != nil {
+			if req.durable && r.durableRuntimeFaulted() {
+				return StartResult{}, ErrDurableUnavailable
+			}
 			return StartResult{}, err
 		}
+	}
+	if req.durable && r.durableRuntimeFaulted() {
+		return StartResult{}, ErrDurableUnavailable
 	}
 	p, err := r.newPending(admissionCtx, req, counted, size)
 	if err != nil {
@@ -493,14 +524,19 @@ func (r *Runner) StartContext(ctx context.Context, req StartRequest) (StartResul
 		return StartResult{}, err
 	}
 	var result StartResult
+	var acceptErr error
 	accept := func() {
+		r.mu.Lock()
+		defer r.mu.Unlock()
 		if p.rec.Durable {
-			p.durableCtx, p.durableCancel = context.WithCancel(r.baseCtx)
+			if r.durableFaulted {
+				acceptErr = ErrDurableUnavailable
+				return
+			}
+			p.durableCtx, p.durableCancel = context.WithCancel(r.durableRuntimeCtx)
 			p.durableToken = r.durableActive.add(p.rec.FlowID, p.req.missionID, p.rec.Mode, p.durableCancel, true)
 			durableSlotOwned = false // owned by p until it stops or suspends
 		}
-		r.mu.Lock()
-		defer r.mu.Unlock()
 		result = StartResult{RunID: p.rec.ID, Status: StartQueued}
 		if exclusive && r.busyLocked(flowID) {
 			p.waited = true
@@ -516,10 +552,19 @@ func (r *Runner) StartContext(ctx context.Context, req StartRequest) (StartResul
 			r.startMu.Unlock()
 			startLocked = false
 			r.finishUnstarted(p, "FLOW_CANCELLED", "the run was cancelled before it started")
+			if req.durable && r.durableRuntimeFaulted() {
+				return StartResult{}, ErrDurableUnavailable
+			}
 			return StartResult{}, err
 		}
 	} else {
 		accept()
+	}
+	if acceptErr != nil {
+		r.startMu.Unlock()
+		startLocked = false
+		r.finishUnstarted(p, "FLOW_CANCELLED", "durable processing is unavailable")
+		return StartResult{}, acceptErr
 	}
 	return result, nil
 }
@@ -932,13 +977,15 @@ func (r *Runner) runAndRecord(ctx context.Context, p *pendingRun) (res RunResult
 }
 
 func (r *Runner) projectDurable(runID string) {
-	if r.cfg.DurableHistory == nil {
+	if r.cfg.DurableHistory == nil || r.durableRuntimeFaulted() {
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(r.durableRuntimeCtx, 5*time.Second)
 	defer cancel()
-	if err := r.cfg.DurableHistory.ProjectDurableRun(ctx, runID); err != nil {
-		r.logger.Warn("durable history projection unavailable", "run", runID)
+	if err := r.callDurableHistoryProjector(ctx, runID, "runner_history_projector"); err != nil {
+		if !r.durableRuntimeFaulted() {
+			r.logger.Warn("durable history projection unavailable", "run", runID)
+		}
 	}
 }
 
@@ -1099,13 +1146,14 @@ func (r *Runner) finishUnstarted(p *pendingRun, code, msg string) {
 }
 
 func (r *Runner) releaseDurableToken(p *pendingRun) {
-	if p.durableToken == nil {
-		return
-	}
-	r.durableActive.remove(p.durableToken)
-	p.durableCancel()
-	<-r.durableSlots
-	p.durableToken = nil
+	p.durableTokenOnce.Do(func() {
+		if p.durableToken == nil {
+			return
+		}
+		r.durableActive.remove(p.durableToken)
+		p.durableCancel()
+		<-r.durableSlots
+	})
 }
 
 // IsBusy reports whether the flow has an admitted or queued live run.
@@ -1171,6 +1219,7 @@ func (r *Runner) Shutdown(ctx context.Context) error {
 	r.startMu.Unlock()
 
 	r.baseStop()
+	r.durableRuntimeStop()
 	for _, p := range pending {
 		if p.durableResume != nil {
 			r.releaseDurableToken(p)

@@ -56,6 +56,16 @@ func (s *Service) ListDurableApprovals(ctx context.Context, cursor string) (Dura
 	if err != nil {
 		return page, err
 	}
+	if !s.runner.durableRuntimeFaulted() {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithCancel(ctx)
+		stop := context.AfterFunc(s.runner.durableRuntimeCtx, cancel)
+		defer func() { stop(); cancel() }()
+	}
+	if err := s.acquireDurableDiagnostic(ctx); err != nil {
+		return page, err
+	}
+	defer func() { <-s.runner.durableDiagnostics }()
 	query := `SELECT g.gate_id,g.run_id,g.flow_id,f.name,g.revision,g.node_id,g.node_key,g.admission_owner,g.gate_generation,g.content_digest,g.expires_at,g.state,g.created_at,g.decided_at,g.decision,g.actor,
 		EXISTS(SELECT 1 FROM flow_checkpoints c WHERE c.run_id=g.run_id)
 		FROM flow_durable_gates g JOIN flows f ON f.id=g.flow_id WHERE g.state='pending'`
@@ -92,13 +102,81 @@ func (s *Service) ListDurableApprovals(ctx context.Context, cursor string) (Dura
 		checkpointsPresent = checkpointsPresent[:durableApprovalPageSize]
 		page.NextCursor = encodeDurableApprovalCursor(last)
 	}
+	checks := &durableApprovalPageChecks{flows: make(map[string]durableApprovalFlowCheck)}
 	for i := range page.Items {
+		if err := ctx.Err(); err != nil {
+			return DurableApprovalPage{Items: make([]DurableApprovalItem, 0)}, err
+		}
 		item := &page.Items[i]
-		item.BlockedReason = s.durableApprovalBlockedReason(ctx, *item)
+		item.BlockedReason = s.durableApprovalPageBlockedReason(ctx, *item, checks)
 		item.CanDecide = item.BlockedReason == ""
 		item.ReviewAvailable = checkpointsPresent[i] && item.BlockedReason != DurableApprovalBlockKeyUnavailable && item.BlockedReason != DurableApprovalBlockCheckpoint
 	}
 	return page, nil
+}
+
+type durableApprovalFlowCheck struct {
+	missionID string
+	hasLive   bool
+}
+
+// This cache is scoped to one bounded page and stores only fields needed to
+// validate approvals; document contents never live past a single read.
+type durableApprovalPageChecks struct {
+	flows        map[string]durableApprovalFlowCheck
+	keyChecked   bool
+	keyAvailable bool
+}
+
+func (s *Service) durableApprovalPageBlockedReason(ctx context.Context, item DurableApprovalItem, checks *durableApprovalPageChecks) string {
+	if item.State != DurableApprovalPending {
+		return DurableApprovalBlockDecided
+	}
+	if !s.now().Before(item.ExpiresAt) {
+		return DurableApprovalBlockDeadline
+	}
+	if s.runner.durableRuntimeFaulted() {
+		return DurableRuntimeUnavailableCode
+	}
+	if !s.cfg.DurableEnabled {
+		return DurableApprovalBlockDurableDisabled
+	}
+	manager, ok := s.bridge.(DurableAuthority)
+	if !ok {
+		return DurableApprovalBlockDurableDisabled
+	}
+	enabled, err := manager.DurableEnabled(ctx)
+	if err != nil || !enabled || manager.DurableAllowed(ctx) != nil {
+		return DurableApprovalBlockDurableDisabled
+	}
+	if auth, ok := s.bridge.(DurableApprovalAuthority); !ok || auth.DurableApprovalAllowed(ctx) != nil {
+		return DurableApprovalBlockAuthUnavailable
+	}
+	flow, ok := checks.flows[item.FlowID]
+	if !ok {
+		rec, err := s.requireFlow(ctx, item.FlowID)
+		flow = durableApprovalFlowCheck{hasLive: err == nil && rec.Live != nil}
+		if err == nil {
+			flow.missionID = rec.MissionID
+		}
+		checks.flows[item.FlowID] = flow
+	}
+	if !flow.hasLive || flow.missionID != item.AdmissionOwner || manager.AuthorizeDurable(ctx, item.FlowID, item.AdmissionOwner, item.Revision) != nil {
+		return DurableApprovalBlockStale
+	}
+	if s.services.CheckpointKeys == nil {
+		return DurableApprovalBlockKeyUnavailable
+	}
+	if !checks.keyChecked {
+		checks.keyChecked = true
+		key, err := s.services.CheckpointKeys.CheckpointKey(ctx, false)
+		checks.keyAvailable = err == nil && len(key) == 32
+		clear(key)
+	}
+	if !checks.keyAvailable {
+		return DurableApprovalBlockKeyUnavailable
+	}
+	return ""
 }
 
 func scanDurableApprovalItem(rows *sql.Rows) (DurableApprovalItem, bool, error) {
@@ -205,6 +283,9 @@ func (s *Service) durableApprovalBlockedReason(ctx context.Context, item Durable
 	if item.State != DurableApprovalPending {
 		return DurableApprovalBlockDecided
 	}
+	if s.runner.durableRuntimeFaulted() {
+		return DurableRuntimeUnavailableCode
+	}
 	if !s.now().Before(item.ExpiresAt) {
 		return DurableApprovalBlockDeadline
 	}
@@ -291,6 +372,13 @@ func (s *Service) DecideDurableApproval(ctx context.Context, gateID string, gate
 	if actor != "local_admin" {
 		return DurableApprovalResult{}, ErrDurableApprovalAuthUnavailable
 	}
+	if s.runner.durableRuntimeFaulted() {
+		return DurableApprovalResult{}, ErrDurableApprovalUnavailable
+	}
+	decisionCtx, cancelDecision := context.WithCancel(ctx)
+	stopRuntime := context.AfterFunc(s.runner.durableRuntimeCtx, cancelDecision)
+	defer func() { stopRuntime(); cancelDecision() }()
+	ctx = decisionCtx
 	if (decision != DurableApprovalDecisionApprove && decision != DurableApprovalDecisionReject) || gateGeneration <= 0 || len(contentDigest) != 64 {
 		return DurableApprovalResult{}, ErrDurableApprovalConflict
 	}
@@ -308,6 +396,9 @@ func (s *Service) DecideDurableApproval(ctx context.Context, gateID string, gate
 		return DurableApprovalResult{}, ErrDurableApprovalConflict
 	}
 	if !s.now().Before(item.ExpiresAt) {
+		if s.runner.durableRuntimeFaulted() {
+			return DurableApprovalResult{}, ErrDurableApprovalUnavailable
+		}
 		_ = s.expireDurableApproval(ctx, item)
 		return DurableApprovalResult{}, ErrDurableApprovalConflict
 	}
@@ -322,12 +413,18 @@ func (s *Service) DecideDurableApproval(ctx context.Context, gateID string, gate
 		return DurableApprovalResult{}, ErrDurableApprovalUnavailable
 	}
 	if !s.now().Before(item.ExpiresAt) {
+		if s.runner.durableRuntimeFaulted() {
+			return DurableApprovalResult{}, ErrDurableApprovalUnavailable
+		}
 		_ = s.expireDurableApproval(ctx, item)
 		return DurableApprovalResult{}, ErrDurableApprovalConflict
 	}
 	resumeGeneration := int64(0)
 	decisionAt := time.Time{}
 	err = withCheckpointKeyMode(ctx, s.store.db, s.services.CheckpointKeys, false, func(tx *sql.Tx, key []byte) error {
+		if s.runner.durableRuntimeFaulted() || ctx.Err() != nil {
+			return ErrDurableApprovalUnavailable
+		}
 		if err := lockDurableGuardTx(ctx, tx); err != nil {
 			return err
 		}
@@ -354,6 +451,9 @@ func (s *Service) DecideDurableApproval(ctx context.Context, gateID string, gate
 		}
 		if err := verifyDurableClaimGuard(ctx, tx, item.RunID, durableClaimGuard{flowID: item.FlowID, missionID: item.AdmissionOwner, revision: item.Revision, document: document}); err != nil {
 			return errCheckpointConflict
+		}
+		if s.runner.durableRuntimeFaulted() || ctx.Err() != nil {
+			return ErrDurableApprovalUnavailable
 		}
 		if decision == DurableApprovalDecisionReject {
 			result, err := tx.ExecContext(ctx, `UPDATE flow_durable_gates SET state='rejected',decision='reject',actor=?,decided_at=? WHERE gate_id=? AND run_id=? AND gate_generation=? AND content_digest=? AND state='pending' AND expires_at>?`, actor, formatTime(decisionAt), gateID, item.RunID, gateGeneration, contentDigest, formatTime(decisionAt))
@@ -420,17 +520,26 @@ func (s *Service) DecideDurableApproval(ctx context.Context, gateID string, gate
 		return nil
 	})
 	if err != nil {
+		if s.runner.durableRuntimeFaulted() {
+			return DurableApprovalResult{}, ErrDurableApprovalUnavailable
+		}
 		if errors.Is(err, errCheckpointConflict) || errors.Is(err, ErrDurableApprovalConflict) {
 			current, readErr := s.getDurableApprovalItem(ctx, gateID)
 			if readErr == nil && current.GateGeneration == gateGeneration && current.ContentDigest == contentDigest && current.Decision == decision && current.Actor == actor && current.State == map[string]string{DurableApprovalDecisionApprove: DurableApprovalApproved, DurableApprovalDecisionReject: DurableApprovalRejected}[decision] {
 				return s.durableApprovalResult(ctx, current, true, nil)
 			}
 			if !s.now().Before(item.ExpiresAt) {
+				if s.runner.durableRuntimeFaulted() {
+					return DurableApprovalResult{}, ErrDurableApprovalUnavailable
+				}
 				_ = s.expireDurableApproval(ctx, item)
 			}
 			return DurableApprovalResult{}, ErrDurableApprovalConflict
 		}
 		if !s.now().Before(item.ExpiresAt) {
+			if s.runner.durableRuntimeFaulted() {
+				return DurableApprovalResult{}, ErrDurableApprovalUnavailable
+			}
 			_ = s.expireDurableApproval(ctx, item)
 			return DurableApprovalResult{}, ErrDurableApprovalConflict
 		}

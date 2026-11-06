@@ -24,7 +24,7 @@ func (s *Service) startDurableScheduler() {
 		return
 	}
 	r.mu.Lock()
-	if r.closed || r.durableExpiryStarted {
+	if r.closed || r.durableFaulted || r.durableExpiryStarted {
 		r.mu.Unlock()
 		return
 	}
@@ -40,10 +40,18 @@ func (s *Service) startDurableScheduler() {
 	r.mu.Unlock()
 	go func() {
 		defer r.wg.Done()
+		defer func() {
+			if recover() != nil {
+				r.faultDurableRuntime("scheduler")
+			}
+		}()
 		for {
-			s.recoverDurableDue(r.baseCtx)
+			if r.durableRuntimeFaulted() || r.durableRuntimeCtx.Err() != nil {
+				return
+			}
+			s.recoverDurableDue(r.durableRuntimeCtx)
 			select {
-			case <-r.baseCtx.Done():
+			case <-r.durableRuntimeCtx.Done():
 				return
 			case <-s.services.clock().After(time.Second):
 			}
@@ -55,69 +63,119 @@ func (s *Service) startDurableScheduler() {
 // original run ID and per-flow reservation. Failed claims are never retried.
 func (s *Service) recoverDurableDue(ctx context.Context) {
 	r := s.runner
+	if r.durableRuntimeFaulted() || ctx.Err() != nil {
+		return
+	}
 	reservations, err := s.store.durableReservations(ctx)
 	if err != nil {
 		return
 	}
 	for _, item := range reservations {
-		if ctx.Err() != nil {
+		if ctx.Err() != nil || r.durableRuntimeFaulted() {
 			return
 		}
-		now := r.now()
-		if item.Incompatible {
-			continue
-		}
-		if item.ApprovalPending {
-			if !now.Before(item.Deadline) {
-				gate, err := s.getDurableApprovalByRun(ctx, item.RunID)
-				if err == nil {
-					_ = s.expireDurableApproval(ctx, gate)
-				}
-			}
-			continue
-		}
-		if !s.cfg.DurableEnabled || r.cfg.DurableAuthority == nil || r.cfg.DurableHistory == nil || now.Before(item.WakeAt) || (item.State == "claimed" && now.Before(item.LeaseUntil)) {
-			continue
-		}
-		rec, err := s.requireFlow(ctx, item.FlowID)
-		if err != nil || rec.Live == nil || rec.MissionID == "" || rec.MissionID != item.MissionID {
-			continue
-		}
-		select {
-		case r.durableSlots <- struct{}{}:
-		default:
+		if !s.recoverDurableReservationSafely(ctx, item) {
 			return
 		}
-		admitCtx, cancelBase := context.WithCancel(r.baseCtx)
-		stopCaller := context.AfterFunc(ctx, cancelBase)
-		cancel := func() { stopCaller(); cancelBase() }
-		token := r.durableActive.add(item.FlowID, rec.MissionID, ModeLive, cancel, true)
-		release := func() { r.durableActive.remove(token); cancel(); <-r.durableSlots }
-		header, err := s.store.GetRunHeader(admitCtx, item.RunID)
-		if err != nil {
-			release()
-			continue
+	}
+}
+
+func (s *Service) recoverDurableReservationSafely(ctx context.Context, item durableReservation) (continueScan bool) {
+	defer func() {
+		if recover() != nil {
+			s.runner.faultDurableRuntime("scheduler_reservation", item.RunID)
+			continueScan = false
 		}
-		resume := &durableResume{load: func(workerCtx context.Context) (durableCheckpointState, string, int64, error) {
-			if s.now().Before(item.Deadline) {
-				bounded, cancel := context.WithDeadline(workerCtx, item.Deadline)
-				defer cancel()
-				return s.claimDurableForWorker(bounded, item, rec.MissionID)
+	}()
+	return s.recoverDurableReservation(ctx, item)
+}
+
+// recoverDurableReservation transfers its slot and token to pendingRun only
+// after it has entered the runner queue. Every earlier exit, including panic,
+// releases both exactly once.
+func (s *Service) recoverDurableReservation(ctx context.Context, item durableReservation) (continueScan bool) {
+	r := s.runner
+	now := r.now()
+	if item.Incompatible {
+		return true
+	}
+	if item.ApprovalPending {
+		if !now.Before(item.Deadline) && !r.durableRuntimeFaulted() {
+			gate, err := s.getDurableApprovalByRun(ctx, item.RunID)
+			if err == nil {
+				_ = s.expireDurableApproval(ctx, gate)
 			}
-			return s.claimDurableForWorker(workerCtx, item, rec.MissionID)
-		}}
-		p := &pendingRun{rec: *header, counted: true, waited: true, durableCtx: admitCtx, durableCancel: cancel, durableToken: token, durableResume: resume}
-		p.req = StartRequest{Flow: rec.Live, Revision: item.Revision, Mode: ModeLive, TriggerNode: header.TriggerNode, TriggerType: "manual", missionID: rec.MissionID, durable: true}
-		r.startMu.Lock()
-		// Cancellation or deletion may have committed after the first read.
-		var current int
-		err = s.store.db.QueryRowContext(admitCtx, `SELECT 1 FROM flow_runs r JOIN flow_checkpoints c ON c.run_id=r.id WHERE r.id=? AND r.durable=1 AND r.status IN ('queued','running','waiting') AND c.generation=?`, item.RunID, item.Generation).Scan(&current)
-		if err != nil {
-			r.startMu.Unlock()
-			release()
-			continue
 		}
+		return true
+	}
+	if !s.cfg.DurableEnabled || r.cfg.DurableAuthority == nil || r.cfg.DurableHistory == nil || now.Before(item.WakeAt) || (item.State == "claimed" && now.Before(item.LeaseUntil)) {
+		return true
+	}
+	rec, err := s.requireFlow(ctx, item.FlowID)
+	if err != nil || rec.Live == nil || rec.MissionID == "" || rec.MissionID != item.MissionID {
+		return true
+	}
+	if r.durableRuntimeFaulted() || ctx.Err() != nil {
+		return false
+	}
+	select {
+	case r.durableSlots <- struct{}{}:
+	default:
+		return false
+	}
+	var token *blockAdmission
+	var cancel context.CancelFunc
+	transferred := false
+	defer func() {
+		if transferred {
+			return
+		}
+		if token != nil {
+			r.durableActive.remove(token)
+		}
+		if cancel != nil {
+			cancel()
+		}
+		<-r.durableSlots
+	}()
+
+	admitCtx, cancelBase := context.WithCancel(r.durableRuntimeCtx)
+	stopCaller := context.AfterFunc(ctx, cancelBase)
+	cancel = func() { stopCaller(); cancelBase() }
+	token = r.durableActive.add(item.FlowID, rec.MissionID, ModeLive, cancel, true)
+	if r.testAfterDurableSlot != nil {
+		r.testAfterDurableSlot()
+	}
+	if r.durableRuntimeFaulted() || admitCtx.Err() != nil {
+		return false
+	}
+	header, err := s.store.GetRunHeader(admitCtx, item.RunID)
+	if err != nil {
+		return true
+	}
+	resume := &durableResume{load: func(workerCtx context.Context) (durableCheckpointState, string, int64, error) {
+		if s.now().Before(item.Deadline) {
+			bounded, cancel := context.WithDeadline(workerCtx, item.Deadline)
+			defer cancel()
+			return s.claimDurableForWorker(bounded, item, rec.MissionID)
+		}
+		return s.claimDurableForWorker(workerCtx, item, rec.MissionID)
+	}}
+	p := &pendingRun{rec: *header, counted: true, waited: true, durableCtx: admitCtx, durableCancel: cancel, durableToken: token, durableResume: resume}
+	p.req = StartRequest{Flow: rec.Live, Revision: item.Revision, Mode: ModeLive, TriggerNode: header.TriggerNode, TriggerType: "manual", missionID: rec.MissionID, durable: true}
+	r.startMu.Lock()
+	defer r.startMu.Unlock()
+	if r.durableRuntimeFaulted() || admitCtx.Err() != nil {
+		return false
+	}
+	// Cancellation or deletion may have committed after the first read.
+	var current int
+	if err := s.store.db.QueryRowContext(admitCtx, `SELECT 1 FROM flow_runs r JOIN flow_checkpoints c ON c.run_id=r.id WHERE r.id=? AND r.durable=1 AND r.status IN ('queued','running','waiting') AND c.generation=?`, item.RunID, item.Generation).Scan(&current); err != nil {
+		return true
+	}
+	func() {
 		r.mu.Lock()
+		defer r.mu.Unlock()
 		_, active := r.cancels[item.RunID]
 		queued := false
 		for _, pending := range r.waiting {
@@ -126,19 +184,16 @@ func (s *Service) recoverDurableDue(ctx context.Context) {
 				break
 			}
 		}
-		if r.closed || active || queued || admitCtx.Err() != nil {
-			r.mu.Unlock()
-			r.startMu.Unlock()
-			release()
-			continue
+		if r.closed || r.durableFaulted || active || queued || admitCtx.Err() != nil {
+			return
 		}
 		r.nextTicket++
 		p.ticket = r.nextTicket
 		r.waiting = append(r.waiting, p)
+		transferred = true
 		r.dispatchLocked()
-		r.mu.Unlock()
-		r.startMu.Unlock()
-	}
+	}()
+	return !r.durableRuntimeFaulted() && ctx.Err() == nil && admitCtx.Err() == nil
 }
 
 func (r *Runner) forgetDeletedDurableFlow(flowID string) {
@@ -166,6 +221,9 @@ func (r *Runner) forgetDeletedDurableFlow(flowID string) {
 
 func (s *Service) claimDurableForWorker(ctx context.Context, item durableReservation, missionID string) (durableCheckpointState, string, int64, error) {
 	var empty durableCheckpointState
+	if s.runner.durableRuntimeFaulted() || ctx.Err() != nil {
+		return empty, "", 0, ErrDurableUnavailable
+	}
 	authority := s.runner.cfg.DurableAuthority
 	enabled, err := authority.DurableEnabled(ctx)
 	if err != nil || !enabled || authority.DurableAllowed(ctx) != nil {
@@ -183,6 +241,9 @@ func (s *Service) claimDurableForWorker(ctx context.Context, item durableReserva
 	blocked, err := s.checkpointBlocked(ctx, item.RunID, item.Generation, key)
 	clear(key)
 	if err != nil || blocked != "" || ctx.Err() != nil {
+		return empty, "", 0, ErrDurableUnavailable
+	}
+	if s.runner.durableRuntimeFaulted() {
 		return empty, "", 0, ErrDurableUnavailable
 	}
 	version, err := s.store.GetVersion(ctx, item.FlowID, item.Revision)
@@ -208,6 +269,9 @@ func (s *Service) claimDurableForWorker(ctx context.Context, item durableReserva
 		return empty, "", 0, errDurableDeadline
 	}
 	owner := NewRunID()
+	if s.runner.durableRuntimeFaulted() || ctx.Err() != nil {
+		return empty, "", 0, ErrDurableUnavailable
+	}
 	claimed, err := claimDurableCheckpoint(ctx, s.store.db, item.RunID, item.Generation, owner, now, now.Add(durableLease), guard)
 	if err != nil || !claimed {
 		return empty, "", 0, ErrDurableUnavailable

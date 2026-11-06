@@ -8,12 +8,12 @@ import (
 )
 
 var (
-	ErrDurableDisabled           = errors.New("durable processing is disabled")
-	ErrDurableUnavailable        = errors.New("durable processing is unavailable")
-	ErrDurableCapacity           = errors.New("durable processing capacity is exhausted")
-	ErrDurableInvalidGraph       = errors.New("the graph cannot run durably")
-	ErrDurableGenerationConflict = errors.New("the durable generation changed")
-	ErrDurableMissionCancel      = errors.New("durable runs require an individual generation-fenced cancellation")
+	ErrDurableDisabled                = errors.New("durable processing is disabled")
+	ErrDurableUnavailable             = errors.New("durable processing is unavailable")
+	ErrDurableCapacity                = errors.New("durable processing capacity is exhausted")
+	ErrDurableInvalidGraph            = errors.New("the graph cannot run durably")
+	ErrDurableGenerationConflict      = errors.New("the durable generation changed")
+	ErrDurableMissionCancel           = errors.New("durable runs require an individual generation-fenced cancellation")
 	ErrDurableApprovalAuthUnavailable = errors.New("durable approvals require a configured owner login")
 	ErrDurableApprovalConflict        = errors.New("the durable approval changed elsewhere")
 	ErrDurableApprovalNotFound        = errors.New("the durable approval was not found")
@@ -70,15 +70,16 @@ const (
 	DurableApprovalStale     = "stale"
 	DurableApprovalUnknown   = "unknown"
 
-	DurableApprovalBlockAuthUnavailable = "approval_auth_unavailable"
-	DurableApprovalBlockSessionRequired = "session_required"
-	DurableApprovalBlockReadOnly        = "readonly"
-	DurableApprovalBlockDurableDisabled = "durable_disabled"
-	DurableApprovalBlockStale           = "stale"
-	DurableApprovalBlockKeyUnavailable  = "key_unavailable"
-	DurableApprovalBlockCheckpoint      = "checkpoint_unavailable"
-	DurableApprovalBlockDecided         = "decision_complete"
-	DurableApprovalBlockDeadline        = "deadline_elapsed"
+	DurableApprovalBlockAuthUnavailable    = "approval_auth_unavailable"
+	DurableApprovalBlockSessionRequired    = "session_required"
+	DurableApprovalBlockReadOnly           = "readonly"
+	DurableApprovalBlockDurableDisabled    = "durable_disabled"
+	DurableApprovalBlockStale              = "stale"
+	DurableApprovalBlockKeyUnavailable     = "key_unavailable"
+	DurableApprovalBlockCheckpoint         = "checkpoint_unavailable"
+	DurableApprovalBlockDecided            = "decision_complete"
+	DurableApprovalBlockDeadline           = "deadline_elapsed"
+	DurableApprovalBlockRuntimeUnavailable = DurableRuntimeUnavailableCode
 
 	DurableApprovalDecisionApprove = "approve"
 	DurableApprovalDecisionReject  = "reject"
@@ -111,7 +112,7 @@ type DurableApprovalItem struct {
 
 type DurableApprovalPage struct {
 	Items      []DurableApprovalItem `json:"items"`
-	NextCursor string               `json:"next_cursor,omitempty"`
+	NextCursor string                `json:"next_cursor,omitempty"`
 }
 
 type DurableApprovalReview struct {

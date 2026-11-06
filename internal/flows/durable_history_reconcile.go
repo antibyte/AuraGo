@@ -13,7 +13,7 @@ func (s *Service) startDurableHistoryReconcile() {
 		return
 	}
 	r.mu.Lock()
-	if r.closed {
+	if r.closed || r.durableFaulted {
 		r.mu.Unlock()
 		return
 	}
@@ -21,12 +21,17 @@ func (s *Service) startDurableHistoryReconcile() {
 	r.mu.Unlock()
 	go func() {
 		defer r.wg.Done()
+		defer func() {
+			if recover() != nil {
+				r.faultDurableRuntime("history_reconcile")
+			}
+		}()
 		cursor := ""
 		for {
-			if r.baseCtx.Err() != nil {
+			if r.durableRuntimeFaulted() || r.durableRuntimeCtx.Err() != nil {
 				return
 			}
-			portion, cancel := context.WithTimeout(r.baseCtx, 3*time.Second)
+			portion, cancel := context.WithTimeout(r.durableRuntimeCtx, 3*time.Second)
 			previous := cursor
 			page, err := s.ListDurableProjections(portion, cursor, 100)
 			complete := false
@@ -35,7 +40,7 @@ func (s *Service) startDurableHistoryReconcile() {
 					if portion.Err() != nil {
 						break
 					}
-					if err := r.cfg.DurableHistory.ProjectDurableRun(portion, entry.RunID); err != nil && portion.Err() == nil {
+					if err := s.projectDurableHistory(portion, entry.RunID); err != nil && portion.Err() == nil {
 						r.logger.Warn("durable history projection unavailable", "run", entry.RunID)
 					}
 					if portion.Err() != nil {
@@ -56,7 +61,7 @@ func (s *Service) startDurableHistoryReconcile() {
 				wait = 5 * time.Minute
 			}
 			select {
-			case <-r.baseCtx.Done():
+			case <-r.durableRuntimeCtx.Done():
 				return
 			case <-s.services.clock().After(wait):
 			}

@@ -91,8 +91,12 @@ func (s *Service) durableReadiness(ctx context.Context, needsKey bool) (DurableS
 		out.Reason = "disabled"
 	}
 	s.runner.mu.Lock()
-	running, failure := s.runner.durableStarted, s.runner.recoveryErr
+	running, failure, faulted := s.runner.durableStarted, s.runner.recoveryErr, s.runner.durableFaulted
 	s.runner.mu.Unlock()
+	if faulted {
+		out.Reason = DurableRuntimeUnavailableCode
+		return out, nil
+	}
 	out.RecoveryAvailable = out.Effective && running && failure == nil && s.services.CheckpointKeys != nil
 	var key []byte
 	if out.RecoveryAvailable && needsKey {
@@ -240,6 +244,11 @@ func (s *Service) DurableRunStatus(ctx context.Context, runID string) (*DurableR
 		if gateID.Valid {
 			out.ApprovalGateID = gateID.String
 		}
+		if marker == 1 && !RunStatus(runStatus).Terminal() && s.runner.durableRuntimeFaulted() {
+			out.State = "blocked"
+			out.BlockedCode = DurableRuntimeUnavailableCode
+			return out, nil
+		}
 		if gateState.Valid && gateState.String == DurableApprovalPending {
 			out.State = "approval_pending"
 			return out, nil
@@ -278,6 +287,11 @@ func (s *Service) DurableRunStatus(ctx context.Context, runID string) (*DurableR
 	if marker == 0 {
 		out.State = "blocked"
 		out.BlockedCode = "incompatible"
+		return out, nil
+	}
+	if s.runner.durableRuntimeFaulted() {
+		out.State = "blocked"
+		out.BlockedCode = DurableRuntimeUnavailableCode
 		return out, nil
 	}
 	if err := s.acquireDurableDiagnostic(ctx); err != nil {
