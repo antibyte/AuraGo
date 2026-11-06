@@ -14,6 +14,7 @@ import (
 
 	"aurago/internal/desktop"
 	"github.com/go-rod/rod"
+	"github.com/go-rod/rod/lib/input"
 )
 
 // auraDriftFixture serves the real Desktop shell with the in-memory browser
@@ -26,6 +27,17 @@ func auraDriftFixture(t *testing.T) *rod.Page {
 // auraDriftFixtureWithout optionally removes one script from the served
 // module-loader.js to reproduce a stale service-worker cache.
 func auraDriftFixtureWithout(t *testing.T, script string) *rod.Page {
+	t.Helper()
+	return auraDriftFixtureServed(t, script, "")
+}
+
+// auraDriftFixtureFailing answers one URL path with a 404 (a missing GLB).
+func auraDriftFixtureFailing(t *testing.T, path string) *rod.Page {
+	t.Helper()
+	return auraDriftFixtureServed(t, "", path)
+}
+
+func auraDriftFixtureServed(t *testing.T, script, failPath string) *rod.Page {
 	t.Helper()
 	html := regexp.MustCompile(`(?s)<script\b[^>]*>.*?</script>`).ReplaceAllString(readDesktopAssetText(t, "desktop.html"), "")
 	html = regexp.MustCompile(`\{\{[^}]*\}\}`).ReplaceAllString(html, "")
@@ -44,7 +56,11 @@ func auraDriftFixtureWithout(t *testing.T, script string) *rod.Page {
 		kept := make([]string, 0, len(lines))
 		removed := 0
 		for _, line := range lines {
-			if strings.Contains(line, "'/js/desktop/apps/"+script+"'") {
+			needle := "'/js/desktop/apps/" + script + "'"
+			if strings.HasPrefix(script, "/") {
+				needle = "'" + script + "'"
+			}
+			if strings.Contains(line, needle) {
 				removed++
 				continue
 			}
@@ -58,6 +74,9 @@ func auraDriftFixtureWithout(t *testing.T, script string) *rod.Page {
 			w.Header().Set("Content-Type", "text/javascript")
 			fmt.Fprint(w, stale)
 		})
+	}
+	if failPath != "" {
+		mux.HandleFunc(failPath, func(w http.ResponseWriter, r *http.Request) { http.NotFound(w, r) })
 	}
 	mux.HandleFunc("/fixture", func(w http.ResponseWriter, r *http.Request) { fmt.Fprint(w, html) })
 	mux.HandleFunc("/racer-shell.js", func(w http.ResponseWriter, r *http.Request) {
@@ -100,17 +119,148 @@ func auraDriftCloseWindows(page *rod.Page) {
 	page.MustEval(`()=>new Promise(resolve=>setTimeout(resolve,150))`)
 }
 
+// auraDriftStats is the slice of AuraDriftApp.stats() the tests read.
+type auraDriftStats struct {
+	State    string  `json:"state"`
+	Time     float64 `json:"time"`
+	SpeedKmh float64 `json:"speedKmh"`
+	Paused   bool    `json:"paused"`
+	Quality  string  `json:"quality"`
+	Renderer struct {
+		Kind       string `json:"kind"`
+		Calls      int    `json:"calls"`
+		Triangles  int    `json:"triangles"`
+		Geometries int    `json:"geometries"`
+		StandIns   int    `json:"standIns"`
+	} `json:"renderer"`
+	Post struct {
+		Available bool   `json:"available"`
+		Enabled   bool   `json:"enabled"`
+		Degraded  bool   `json:"degraded"`
+		Biome     string `json:"biome"`
+	} `json:"post"`
+}
+
+func auraDriftReadStats(t *testing.T, page *rod.Page) (auraDriftStats, string) {
+	t.Helper()
+	raw := page.MustEval(`()=>JSON.stringify(window.AuraDriftApp.stats()[0]||{})`).Str()
+	var stats auraDriftStats
+	if err := json.Unmarshal([]byte(raw), &stats); err != nil {
+		t.Fatalf("bad stats JSON %q: %v", raw, err)
+	}
+	return stats, raw
+}
+
+// auraDriftWaitState polls until the shell reports the wanted state. The loading
+// step is variable, so no test sleeps a fixed time before the race exists.
+func auraDriftWaitState(t *testing.T, page *rod.Page, want string, limit time.Duration) {
+	t.Helper()
+	deadline := time.Now().Add(limit)
+	last := ""
+	for time.Now().Before(deadline) {
+		last = page.MustEval(`()=>{const s=window.AuraDriftApp.stats()[0];return s?s.state:'none';}`).Str()
+		if last == want {
+			return
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	t.Fatalf("Aura Drift never reached state %q within %s (last %q)", want, limit, last)
+}
+
+// auraDriftSkipCountdown steps the simulation through the start countdown, so
+// slow software GL cannot stretch it (the sim advances one step per fixed tick,
+// not per rendered frame, and rendering is skipped).
+func auraDriftSkipCountdown(t *testing.T, page *rod.Page) {
+	t.Helper()
+	deadline := time.Now().Add(60 * time.Second)
+	for time.Now().Before(deadline) {
+		state := page.MustEval(`()=>{const s=window.AuraDriftApp.stats()[0];return s?s.state:'none';}`).Str()
+		if state == "countdown" {
+			page.MustEval(`()=>AuraDriftApp.debug.fastForward(4,{renderEvery:100000})`)
+			break
+		}
+		if state == "running" {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	auraDriftWaitState(t, page, "running", 10*time.Second)
+}
+
+func auraDriftKeyDown(t *testing.T, page *rod.Page, key input.Key) {
+	t.Helper()
+	if err := page.Keyboard.Press(key); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func auraDriftKeyUp(t *testing.T, page *rod.Page, key input.Key) {
+	t.Helper()
+	if err := page.Keyboard.Release(key); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func auraDriftSleep(page *rod.Page, ms int) {
+	page.MustEval(`ms=>new Promise(resolve=>setTimeout(resolve,ms))`, ms)
+}
+
+func auraDriftHasWebGL(page *rod.Page) bool {
+	return page.MustEval(`()=>!!document.createElement('canvas').getContext('webgl2')`).Bool()
+}
+
+// auraDriftReopen stores the settings, reloads a fresh document and opens the app.
+func auraDriftReopen(page *rod.Page, settings map[string]interface{}, theme string) {
+	base := map[string]interface{}{"quality": "low", "volume": 0, "muted": true, "reducedMotion": false, "weapons": true, "showGhost": false}
+	for k, v := range settings {
+		base[k] = v
+	}
+	page.MustEval(`(cfg)=>{localStorage.setItem('aurago.desktop.aura-drift.v1', JSON.stringify(cfg));}`, base)
+	page.MustReload()
+	page.MustWaitLoad()
+	page.MustEval(`async theme=>{await fixtureReady;if(theme)fixtureTheme(theme);await fixtureOpen('aura-drift');}`, theme)
+}
+
+func auraDriftNoErrors(t *testing.T, page *rod.Page) {
+	t.Helper()
+	if errors := page.MustEval(`()=>JSON.stringify(fixtureErrors)`).Str(); errors != "[]" {
+		t.Fatal(errors)
+	}
+}
+
+// auraDriftSurfaceIssues checks the active canvas and the HUD against the root rect.
+const auraDriftSurfaceJS = `()=>{
+    const root=document.querySelector('.agdrift-root'),issues=[];
+    if(!root)return 'app root missing';
+    const r=root.getBoundingClientRect();
+    const s=window.AuraDriftApp.stats()[0];
+    const three=s.renderer.kind==='three';
+    const canvas=document.querySelector(three?'canvas.agdrift-gl':'canvas.agdrift-world');
+    if(!canvas)return 'no active canvas for '+s.renderer.kind;
+    const dpr=window.devicePixelRatio||1;
+    const tierDpr=three?AuraDriftCore.QUALITY[s.quality].gl.dpr:2;
+    const expected=Math.round(r.width*Math.min(tierDpr,dpr));
+    if(canvas.width!==expected)issues.push('canvas '+canvas.width+' != '+expected);
+    const hud=document.querySelector('.agdrift-hud');
+    if(!hud||hud.width!==Math.round(r.width*Math.min(2,dpr)))issues.push('hud canvas width mismatch');
+    if(document.querySelector('.agdrift-post'))issues.push('old post canvas still present');
+    return issues.join('; ');
+}`
+
 // Opens Aura Drift in the real Desktop shell, starts a race, drives with
 // synthetic key events and verifies that no runtime error escapes.
 func TestDesktopAuraDriftBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	page := auraDriftFixture(t)
-	page.MustEval(`async()=>{await fixtureOpen('aura-drift');}`)
+	auraDriftReopen(page, map[string]interface{}{"quality": "medium"}, "")
 
 	if !page.MustEval(`()=>!!document.querySelector('.agdrift-root .agdrift-menu:not([hidden])')`).Bool() {
 		t.Fatal("Aura Drift menu did not mount in the desktop window")
 	}
-	if !page.MustEval(`()=>{const c=document.querySelector('.agdrift-world');return !!c && c.width>0 && c.height>0;}`).Bool() {
+	if !page.MustEval(`()=>{
+        const c=document.querySelector('canvas.agdrift-gl:not([hidden])')||document.querySelector('canvas.agdrift-world');
+        return !!c && c.width>0 && c.height>0;
+    }`).Bool() {
 		t.Fatal("world canvas was not sized")
 	}
 	if !page.MustEval(`()=>{
@@ -122,7 +272,7 @@ func TestDesktopAuraDriftBrowser(t *testing.T) {
 	}
 
 	page.MustElement(".agdrift-menu .agdrift-primary").MustClick()
-	page.MustEval(`()=>new Promise(resolve=>setTimeout(resolve,3600))`)
+	auraDriftWaitState(t, page, "running", 20*time.Second)
 	if !page.MustEval(`()=>document.querySelector('.agdrift-overlay').hidden`).Bool() {
 		t.Fatal("race did not start: menu overlay is still visible")
 	}
@@ -132,42 +282,24 @@ func TestDesktopAuraDriftBrowser(t *testing.T) {
         window.dispatchEvent(new KeyboardEvent('keydown',{code:'ArrowUp',bubbles:true}));
         window.dispatchEvent(new KeyboardEvent('keydown',{code:'ArrowRight',bubbles:true}));
     }`)
-	page.MustEval(`()=>new Promise(resolve=>setTimeout(resolve,1200))`)
+	auraDriftSleep(page, 1200)
 	page.MustEval(`()=>{
         window.dispatchEvent(new KeyboardEvent('keyup',{code:'ArrowUp',bubbles:true}));
         window.dispatchEvent(new KeyboardEvent('keyup',{code:'ArrowRight',bubbles:true}));
         window.dispatchEvent(new KeyboardEvent('keydown',{code:'Space',bubbles:true}));
         window.dispatchEvent(new KeyboardEvent('keyup',{code:'Space',bubbles:true}));
     }`)
-	page.MustEval(`()=>new Promise(resolve=>setTimeout(resolve,400))`)
+	auraDriftSleep(page, 400)
 
 	if !page.MustEval(`()=>!!window.AuraDriftCore && !!window.AuraDriftApp`).Bool() {
 		t.Fatal("game core or app shell was not registered")
 	}
-	stats := page.MustEval(`()=>JSON.stringify(window.AuraDriftApp.stats()[0]||{})`).Str()
-	t.Logf("aura drift runtime stats: %s", stats)
-	if !strings.Contains(stats, `"state":"running"`) {
-		t.Fatalf("race did not reach the running state: %s", stats)
+	stats, raw := auraDriftReadStats(t, page)
+	t.Logf("aura drift runtime stats: %s", raw)
+	if stats.State != "running" || stats.Time <= 0 || stats.SpeedKmh <= 5 || stats.Paused {
+		t.Fatalf("car did not accelerate during the smoke drive: %s", raw)
 	}
-	if !page.MustEval(`()=>{
-        const s=window.AuraDriftApp.stats()[0];
-        return s && s.time>0 && s.speedKmh>5 && !s.paused;
-    }`).Bool() {
-		t.Fatalf("car did not accelerate during the smoke drive: %s", stats)
-	}
-	if issues := page.MustEval(`()=>{
-        const root=document.querySelector('.agdrift-root'),issues=[];
-        if(!root)return 'app root disappeared';
-        const r=root.getBoundingClientRect();
-        if(r.width<200||r.height<200)issues.push('window too small');
-        const world=document.querySelector('.agdrift-world');
-        const gl=document.querySelector('.agdrift-gl');
-        const hud=document.querySelector('.agdrift-hud');
-        if(!hud||hud.width!==Math.round(r.width*Math.min(2,devicePixelRatio||1)))issues.push('hud canvas width mismatch');
-        if(document.querySelector('.agdrift-post'))issues.push('old post canvas still present');
-        if(gl&&!gl.hidden&&gl.width<=0)issues.push('gl canvas empty');
-        return issues.join('; ');
-    }`).Str(); issues != "" {
+	if issues := page.MustEval(auraDriftSurfaceJS).Str(); issues != "" {
 		t.Fatalf("render surface: %s", issues)
 	}
 	if dir := auraDriftArtifactDir(t, "race"); dir != "" {
@@ -175,9 +307,46 @@ func TestDesktopAuraDriftBrowser(t *testing.T) {
 	}
 
 	auraDriftCloseWindows(page)
-	if errors := page.MustEval(`()=>JSON.stringify(fixtureErrors)`).Str(); errors != "[]" {
-		t.Fatal(errors)
+	auraDriftNoErrors(t, page)
+}
+
+// The keyboard-only journey: focus the start button, press Enter, drive with
+// real key events, then pause with Escape. Window blur must pause as well.
+func TestDesktopAuraDriftKeyboardJourneyBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	page := auraDriftFixture(t)
+	auraDriftReopen(page, map[string]interface{}{"quality": "low"}, "")
+
+	page.MustElement(".agdrift-menu .agdrift-primary").MustFocus()
+	page.Keyboard.MustType(input.Enter)
+	auraDriftWaitState(t, page, "running", 20*time.Second)
+
+	auraDriftKeyDown(t, page, input.ArrowUp)
+	auraDriftSleep(page, 1000)
+	auraDriftKeyUp(t, page, input.ArrowUp)
+	if stats, raw := auraDriftReadStats(t, page); stats.SpeedKmh <= 5 {
+		t.Fatalf("real ArrowUp did not accelerate the car: %s", raw)
 	}
+
+	page.Keyboard.MustType(input.Escape)
+	auraDriftSleep(page, 150)
+	if stats, raw := auraDriftReadStats(t, page); !stats.Paused {
+		t.Fatalf("Escape did not pause: %s", raw)
+	}
+	page.Keyboard.MustType(input.Escape)
+	auraDriftSleep(page, 150)
+	if stats, raw := auraDriftReadStats(t, page); stats.Paused {
+		t.Fatalf("second Escape did not resume: %s", raw)
+	}
+
+	// Focus loss pauses the race.
+	page.MustEval(`()=>window.dispatchEvent(new Event('blur'))`)
+	auraDriftSleep(page, 150)
+	if stats, raw := auraDriftReadStats(t, page); !stats.Paused {
+		t.Fatalf("window blur did not pause the race: %s", raw)
+	}
+	auraDriftCloseWindows(page)
+	auraDriftNoErrors(t, page)
 }
 
 // Cosmetic filters must not mistake the game menu for advertising.
@@ -202,78 +371,69 @@ func TestDesktopAuraDriftContentFiltersBrowser(t *testing.T) {
 		t.Fatal("content filters hid the Aura Drift menu, leaving an empty window")
 	}
 	page.MustElement(".agdrift-menu .agdrift-primary").MustClick()
-	if !page.MustEval(`()=>document.querySelector('.agdrift-overlay').hidden && AuraDriftApp.stats()[0].state==='countdown'`).Bool() {
+	auraDriftWaitState(t, page, "running", 30*time.Second)
+	if !page.MustEval(`()=>document.querySelector('.agdrift-overlay').hidden`).Bool() {
 		t.Fatal("race did not start with cosmetic filters active")
 	}
 	auraDriftCloseWindows(page)
-	if errors := page.MustEval(`()=>JSON.stringify(fixtureErrors)`).Str(); errors != "[]" {
-		t.Fatal(errors)
-	}
+	auraDriftNoErrors(t, page)
 }
 
-// Selects the night harbour and verifies that the WebGL2 wet-reflection pass
-// is active there, with the track's recommended lap count applied.
-func TestDesktopAuraDriftWetReflectionsBrowser(t *testing.T) {
+// Selects the night harbour and verifies the post pass is configured for it,
+// with the track's recommended lap count applied.
+func TestDesktopAuraDriftNightHarbourBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	page := auraDriftFixture(t)
-	page.MustEval(`()=>{
-        localStorage.setItem('aurago.desktop.aura-drift.v1', JSON.stringify({
-            quality:'ultra', volume:0, muted:true, reducedMotion:false,
-            weapons:true, showGhost:false}));
-    }`)
-	page.MustReload()
-	page.MustWaitLoad()
-	page.MustEval(`async()=>{await fixtureReady;await fixtureOpen('aura-drift');}`)
-	page.MustEval(`()=>{
-        const track=document.querySelector('.agdrift-menu select');
-        track.value='neon-hafen';
-        track.dispatchEvent(new Event('change',{bubbles:true}));
-    }`)
-	if !page.MustEval(`()=>document.querySelectorAll('.agdrift-menu select')[1].value==='2'`).Bool() {
+	auraDriftReopen(page, map[string]interface{}{"quality": "ultra"}, "")
+	page.MustElement(`.agdrift-tab[data-tab="track"]`).MustClick()
+	page.MustElement(`.agdrift-track-card[data-track="neon-hafen"]`).MustClick()
+	if !page.MustEval(`()=>document.querySelector('select.agdrift-laps').value==='2'`).Bool() {
 		t.Fatal("selecting a track did not apply its recommended lap count")
 	}
 	page.MustElement(".agdrift-menu .agdrift-primary").MustClick()
-	page.MustEval(`()=>new Promise(resolve=>setTimeout(resolve,1400))`)
-	stats := page.MustEval(`()=>JSON.stringify(window.AuraDriftApp.stats()[0]||{})`).Str()
-	t.Logf("harbour stats: %s", stats)
-	if !strings.Contains(stats, `"biome":"harbour"`) || !strings.Contains(stats, `"enabled":true`) {
-		t.Fatalf("wet-reflection pass not active on the night harbour: %s", stats)
+	auraDriftSkipCountdown(t, page)
+	auraDriftSleep(page, 800)
+	stats, raw := auraDriftReadStats(t, page)
+	t.Logf("harbour stats: %s", raw)
+	if stats.Quality != "ultra" {
+		t.Fatalf("quality = %q, want ultra", stats.Quality)
 	}
-	if !page.MustEval(`()=>{
-        const gl=document.querySelector('.agdrift-gl');
-        return !!gl && !gl.hidden && gl.width>0 && !document.querySelector('.agdrift-post');
-    }`).Bool() {
-		t.Fatal("the WebGL canvas is not presenting a frame")
+	if stats.Renderer.Kind == "three" {
+		if !stats.Post.Enabled || stats.Post.Biome != "harbour" {
+			t.Fatalf("post pass not active on the night harbour: %s", raw)
+		}
+		if !page.MustEval(`()=>{const gl=document.querySelector('canvas.agdrift-gl');return !!gl && !gl.hidden && gl.width>0;}`).Bool() {
+			t.Fatal("the WebGL canvas is not presenting a frame")
+		}
+	} else {
+		t.Logf("renderer fell back to %s; harbour post checks skipped", stats.Renderer.Kind)
 	}
 	if dir := auraDriftArtifactDir(t, "harbour"); dir != "" {
 		page.MustScreenshot(filepath.Join(dir, "aura-drift-harbour.png"))
 	}
 	auraDriftCloseWindows(page)
-	if errors := page.MustEval(`()=>JSON.stringify(fixtureErrors)`).Str(); errors != "[]" {
-		t.Fatal(errors)
-	}
+	auraDriftNoErrors(t, page)
 }
 
 // Exercises all four quality tiers, both themes, two window sizes and reduced
-// motion. Verifies the WebGL2 pass is gated by tier, cache caps hold, keyboard
-// focus works, touch targets meet the product minimum and nothing errors.
+// motion. Either renderer kind is accepted here: the 3D-only checks run only
+// when the page really renders in three.js.
 func TestDesktopAuraDriftQualityMatrixBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	page := auraDriftFixture(t)
 	cases := []struct {
-		quality  string
-		width    int
-		height   int
-		theme    string
-		reduced  bool
-		cacheCap int
-		post     bool
+		quality string
+		width   int
+		height  int
+		theme   string
+		reduced bool
+		post    bool
 	}{
-		{"low", 1280, 800, "standard", false, 24, false},
-		{"medium", 1280, 800, "fruity-light", false, 40, false},
-		{"high", 1280, 800, "standard", true, 64, true},
-		{"ultra", 1440, 900, "fruity-dark", false, 96, true},
-		{"ultra", 900, 600, "standard", false, 96, true},
+		{"low", 1280, 800, "standard", false, false},
+		{"medium", 1280, 800, "fruity-light", false, true},
+		{"high", 1280, 800, "standard", true, true},
+		{"ultra", 1440, 900, "fruity-dark", false, true},
+		{"ultra", 900, 600, "standard", false, true},
 	}
 	dir := auraDriftArtifactDir(t, "matrix")
 	if limit := os.Getenv("AURAGO_AURA_DRIFT_MATRIX_LIMIT"); limit != "" {
@@ -284,33 +444,16 @@ func TestDesktopAuraDriftQualityMatrixBrowser(t *testing.T) {
 	}
 
 	for i, item := range cases {
-		page.MustEval(`(cfg)=>{
-            localStorage.setItem('aurago.desktop.aura-drift.v1', JSON.stringify(cfg));
-        }`, map[string]interface{}{
-			"quality": item.quality, "volume": 0, "muted": true,
-			"reducedMotion": item.reduced, "weapons": true, "showGhost": false,
-		})
 		page.MustSetViewport(item.width, item.height, 1, false)
 		// A fresh document per case avoids reusing a stale window DOM.
-		page.MustReload()
-		page.MustWaitLoad()
-		page.MustEval(`async()=>{await fixtureReady;}`)
-		page.MustEval(`async theme=>{fixtureTheme(theme);await fixtureOpen('aura-drift');}`, item.theme)
+		auraDriftReopen(page, map[string]interface{}{"quality": item.quality, "reducedMotion": item.reduced}, item.theme)
 
-		mounted := page.MustEval(`()=>{
-            const overlay=document.querySelector('.agdrift-overlay');
-            const menu=document.querySelector('.agdrift-menu');
-            const rect=overlay?overlay.getBoundingClientRect():null;
-            return JSON.stringify({overlay:!!overlay,hidden:overlay?overlay.hidden:null,
-                menu:!!menu,menuHidden:menu?menu.hidden:null,height:rect?rect.height:0,
-                windows:aurora.state.windows.size});
-        }`).Str()
 		if !page.MustEval(`()=>{
             const overlay=document.querySelector('.agdrift-overlay');
             const menu=document.querySelector('.agdrift-menu');
             return !!overlay && !overlay.hidden && !!menu && !menu.hidden && overlay.getBoundingClientRect().height>0;
         }`).Bool() {
-			t.Fatalf("case %d (%s): menu did not mount: %s", i, item.quality, mounted)
+			t.Fatalf("case %d (%s): menu did not mount", i, item.quality)
 		}
 		// Keyboard-only journey: every primary control must be focusable.
 		page.MustElement(".agdrift-menu .agdrift-primary").MustFocus()
@@ -319,52 +462,38 @@ func TestDesktopAuraDriftQualityMatrixBrowser(t *testing.T) {
 		}
 		if !page.MustEval(`()=>{
             const buttons=[...document.querySelectorAll('.agdrift-touch-btn')];
-            return buttons.length===6 && buttons.every(b=>parseFloat(getComputedStyle(b).width)>=44);
+            return buttons.length===8 && buttons.every(b=>parseFloat(getComputedStyle(b).width)>=56);
         }`).Bool() {
-			t.Fatalf("case %d: touch targets are below the 44px product minimum", i)
+			t.Fatalf("case %d: touch controls are not eight buttons of at least 56px", i)
 		}
 
 		page.MustElement(".agdrift-menu .agdrift-primary").MustClick()
-		page.MustEval(`()=>new Promise(resolve=>setTimeout(resolve,1400))`)
-		result := page.MustEval(`()=>JSON.stringify(window.AuraDriftApp.stats()[0]||{})`).Str()
-		t.Logf("matrix %d %s %dx%d reduced=%v: %s", i, item.quality, item.width, item.height, item.reduced, result)
+		auraDriftSkipCountdown(t, page)
+		auraDriftSleep(page, 700)
+		state, raw := auraDriftReadStats(t, page)
+		t.Logf("matrix %d %s %dx%d reduced=%v: %s", i, item.quality, item.width, item.height, item.reduced, raw)
 
-		var state struct {
-			Quality  string `json:"quality"`
-			Renderer struct {
-				Chunks int `json:"chunks"`
-			} `json:"renderer"`
-			Post struct {
-				Available bool `json:"available"`
-				Enabled   bool `json:"enabled"`
-			} `json:"post"`
-		}
-		if err := json.Unmarshal([]byte(result), &state); err != nil {
-			t.Fatalf("case %d: bad stats JSON: %v", i, err)
-		}
 		if state.Quality != item.quality {
 			t.Fatalf("case %d: quality=%s, want %s", i, state.Quality, item.quality)
 		}
-		if state.Renderer.Chunks > item.cacheCap+2 {
-			t.Fatalf("case %d: %s chunk cache exceeded cap %d: %d", i, item.quality, item.cacheCap, state.Renderer.Chunks)
-		}
-		if item.post {
-			if state.Post.Available && !state.Post.Enabled {
-				t.Fatalf("case %d: WebGL2 available but post-processing disabled", i)
+		if state.Renderer.Kind == "three" {
+			if state.Post.Enabled != item.post {
+				t.Fatalf("case %d: post enabled=%v, want %v at %s", i, state.Post.Enabled, item.post, item.quality)
 			}
-		} else if state.Post.Enabled {
-			t.Fatalf("case %d: post-processing must stay off below the high tier", i)
+			budget := page.MustEval(`q=>JSON.stringify(AuraDriftCore.QUALITY[q].gl)`, item.quality).Str()
+			var gl struct {
+				Calls     float64 `json:"calls"`
+				Triangles float64 `json:"triangles"`
+			}
+			if err := json.Unmarshal([]byte(budget), &gl); err != nil {
+				t.Fatal(err)
+			}
+			if float64(state.Renderer.Calls) > gl.Calls*1.5 || float64(state.Renderer.Triangles) > gl.Triangles*1.5 {
+				t.Fatalf("case %d: %s over budget (calls %d/%v, triangles %d/%v)", i, item.quality,
+					state.Renderer.Calls, gl.Calls, state.Renderer.Triangles, gl.Triangles)
+			}
 		}
-		if issues := page.MustEval(`()=>{
-            const root=document.querySelector('.agdrift-root'),issues=[];
-            if(!root)return 'app root missing';
-            const r=root.getBoundingClientRect();
-            const world=document.querySelector('.agdrift-world');
-            const expected=Math.round(r.width*Math.min(2,devicePixelRatio||1));
-            if(world.width!==expected)issues.push('canvas '+world.width+' != '+expected);
-            if(document.querySelector('.agdrift-hud').width!==world.width)issues.push('hud mismatch');
-            return issues.join('; ');
-        }`).Str(); issues != "" {
+		if issues := page.MustEval(auraDriftSurfaceJS).Str(); issues != "" {
 			t.Fatalf("case %d render surface: %s", i, issues)
 		}
 		if dir != "" {
@@ -373,48 +502,227 @@ func TestDesktopAuraDriftQualityMatrixBrowser(t *testing.T) {
 	}
 
 	auraDriftCloseWindows(page)
-	if errors := page.MustEval(`()=>JSON.stringify(fixtureErrors)`).Str(); errors != "[]" {
-		t.Fatal(errors)
+	auraDriftNoErrors(t, page)
+}
+
+// auraDriftSteer holds the throttle, then one steer key, through real key events
+// and checks that the car's aim point moves to the matching side of the screen.
+// kind is the renderer the page must be using ("three" or "canvas2d").
+func auraDriftSteer(t *testing.T, page *rod.Page, trackID string, key input.Key, wantRight bool, kind string) {
+	t.Helper()
+	page.MustEval(`async id=>{await AuraDriftApp.debug.start({mode:'time_trial',trackId:id,laps:1});}`, trackID)
+	auraDriftWaitState(t, page, "running", 30*time.Second)
+	if stats, raw := auraDriftReadStats(t, page); stats.Renderer.Kind != kind {
+		t.Fatalf("renderer kind = %q, want %q: %s", stats.Renderer.Kind, kind, raw)
+	}
+	auraDriftKeyDown(t, page, input.ArrowUp)
+	auraDriftSleep(page, 1200)
+	page.MustEval(`()=>{window.__ad0=AuraDriftApp.debug.snapshot();}`)
+	auraDriftKeyDown(t, page, key)
+	auraDriftSleep(page, 500)
+	// While still turning: the real three.js camera must agree with AD.projectToScreen.
+	var live string
+	if kind == "three" {
+		live = page.MustEval(`()=>{
+            const AD=AuraDriftCore,snap=AuraDriftApp.debug.snapshot(),three=AuraDriftApp.debug.three();
+            const proj=AuraDriftApp.stats()[0].renderer.projection;
+            const v=new three.T.Vector3(snap.aim[0],snap.aim[1],snap.aim[2]).project(three.camera);
+            const p=AD.projectToScreen(snap.pose,snap.aim[0],snap.aim[1],snap.aim[2],snap.aspect);
+            return JSON.stringify({noseX:proj.noseX,tailX:proj.tailX,dx:Math.abs(v.x-p.x),dy:Math.abs(v.y-p.y),visible:p.visible});
+        }`).Str()
+	}
+	page.MustEval(`()=>{window.__ad1=AuraDriftApp.debug.snapshot();}`)
+	auraDriftKeyUp(t, page, key)
+	auraDriftKeyUp(t, page, input.ArrowUp)
+
+	xs := page.MustEval(`kind=>{
+        const AD=AuraDriftCore,a=window.__ad0,b=window.__ad1;
+        if(a.body.vx<3)return JSON.stringify({slow:true});
+        const f=kind==='three'
+            ?s=>AD.projectToScreen(a.pose,s.aim[0],s.aim[1],s.aim[2],a.aspect).x
+            :s=>AD.project2D(a.pose,s.aim[0],s.aim[2],800,600)[0]/400-1;
+        return JSON.stringify({x0:f(a),x1:f(b),psi0:a.psi,psi1:b.psi,steer:b.body.steer});
+    }`, kind).Str()
+	var res struct {
+		Slow  bool    `json:"slow"`
+		X0    float64 `json:"x0"`
+		X1    float64 `json:"x1"`
+		Psi0  float64 `json:"psi0"`
+		Psi1  float64 `json:"psi1"`
+		Steer float64 `json:"steer"`
+	}
+	if err := json.Unmarshal([]byte(xs), &res); err != nil {
+		t.Fatal(err)
+	}
+	if res.Slow {
+		t.Fatalf("%s: the car did not accelerate before steering", trackID)
+	}
+	delta := res.X1 - res.X0
+	if wantRight && delta <= 0.005 || !wantRight && delta >= -0.005 {
+		t.Fatalf("%s %s right=%v: projected aim x moved %.4f (%s)", trackID, kind, wantRight, delta, xs)
+	}
+	if kind == "three" {
+		var l struct {
+			NoseX   float64 `json:"noseX"`
+			TailX   float64 `json:"tailX"`
+			DX      float64 `json:"dx"`
+			DY      float64 `json:"dy"`
+			Visible bool    `json:"visible"`
+		}
+		if err := json.Unmarshal([]byte(live), &l); err != nil {
+			t.Fatal(err)
+		}
+		if wantRight && l.NoseX <= l.TailX || !wantRight && l.NoseX >= l.TailX {
+			t.Fatalf("%s: nose/tail on the real camera mirror the steering (right=%v): %s", trackID, wantRight, live)
+		}
+		if l.DX > 0.02 || l.DY > 0.02 {
+			t.Fatalf("%s: AD.projectToScreen differs from the three.js camera: %s", trackID, live)
+		}
 	}
 }
 
+// Holding ArrowRight through real key events moves the car right on screen, in
+// the 3D scene and in the Canvas 2D fallback, on two tracks each (and the mirror).
+func TestDesktopAuraDriftSteeringBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	tracks := []string{"alpenpass", "wuesten-canyon"}
+
+	t.Run("three", func(t *testing.T) {
+		page := auraDriftFixture(t)
+		if !auraDriftHasWebGL(page) {
+			t.Skip("this browser has no WebGL2")
+		}
+		auraDriftReopen(page, map[string]interface{}{"quality": "medium"}, "")
+		for _, track := range tracks {
+			auraDriftSteer(t, page, track, input.ArrowRight, true, "three")
+			auraDriftSteer(t, page, track, input.ArrowLeft, false, "three")
+		}
+		auraDriftCloseWindows(page)
+		auraDriftNoErrors(t, page)
+	})
+
+	t.Run("canvas2d", func(t *testing.T) {
+		page := auraDriftFixtureWithout(t, "aura-drift-render3d.js")
+		page.MustEval(`async()=>{await fixtureOpen('aura-drift');}`)
+		for _, track := range tracks {
+			auraDriftSteer(t, page, track, input.ArrowRight, true, "canvas2d")
+			auraDriftSteer(t, page, track, input.ArrowLeft, false, "canvas2d")
+		}
+		auraDriftCloseWindows(page)
+		auraDriftNoErrors(t, page)
+	})
+}
+
+// A short run of every mode through debug.fastForward: each reaches the results
+// panel without a single page error.
+func TestDesktopAuraDriftModesSmokeBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	page := auraDriftFixture(t)
+	auraDriftReopen(page, map[string]interface{}{"quality": "low"}, "")
+	for _, mode := range []string{"quick", "time_trial", "cup", "daily", "drift_attack", "elimination", "hot_potato"} {
+		mode := mode
+		t.Run(mode, func(t *testing.T) {
+			page.MustEval(`async m=>{
+                await AuraDriftApp.debug.start({mode:m,trackId:'alpenpass',laps:1});
+                AuraDriftApp.debug.autopilot(true,{skill:1,ramps:true});
+            }`, mode)
+			finished := false
+			for i := 0; i < 24 && !finished; i++ {
+				finished = page.MustEval(`()=>{
+                    const r=AuraDriftApp.debug.fastForward(30,{renderEvery:600});
+                    return !!r && (r.state==='finished'||r.results);
+                }`).Bool()
+			}
+			if !finished {
+				t.Fatalf("%s: no result after 720 simulated seconds", mode)
+			}
+			deadline := time.Now().Add(15 * time.Second)
+			for !page.MustEval(`()=>!!AuraDriftApp.debug.view().results`).Bool() {
+				if time.Now().After(deadline) {
+					t.Fatalf("%s: the results panel never appeared", mode)
+				}
+				time.Sleep(100 * time.Millisecond)
+			}
+			page.MustEval(`()=>AuraDriftApp.debug.autopilot(false)`)
+			auraDriftNoErrors(t, page)
+		})
+	}
+	auraDriftCloseWindows(page)
+}
+
+// Reduced motion shortens the finish-to-results delay to well under a second
+// and keeps the camera shake at zero.
+func TestDesktopAuraDriftReducedMotionBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	page := auraDriftFixture(t)
+	auraDriftReopen(page, map[string]interface{}{"quality": "low", "reducedMotion": true}, "")
+	page.MustEval(`async()=>{
+        await AuraDriftApp.debug.start({mode:'quick',trackId:'alpenpass',laps:1,opponents:1});
+        AuraDriftApp.debug.autopilot(true,{skill:1,ramps:false});
+    }`)
+	for i := 0; i < 24; i++ {
+		if page.MustEval(`()=>{const r=AuraDriftApp.debug.fastForward(30,{renderEvery:600});return !!r&&r.state==='finished';}`).Bool() {
+			break
+		}
+	}
+	start := time.Now()
+	for !page.MustEval(`()=>!!AuraDriftApp.debug.view().results`).Bool() {
+		if time.Since(start) > 6*time.Second {
+			t.Fatal("results did not appear under reduced motion")
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	if waited := time.Since(start); waited > 1500*time.Millisecond {
+		t.Fatalf("reduced motion should show results in about 0.4 s, took %s", waited)
+	}
+	auraDriftCloseWindows(page)
+	auraDriftNoErrors(t, page)
+}
+
 // A stale service-worker cache can serve an older module-loader.js. The game
-// must degrade to Canvas 2D when the optional WebGL2 module is missing, and
-// must show a visible, actionable error when a required module is missing.
+// must degrade to Canvas 2D when an optional 3D module is missing, and must
+// show a visible, actionable error when a required module is missing.
 func TestDesktopAuraDriftStaleLoaderBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 
-	t.Run("optional_webgl2_module_missing", func(t *testing.T) {
-		page := auraDriftFixtureWithout(t, "aura-drift-post.js")
+	degraded := func(t *testing.T, page *rod.Page, steering bool) {
+		t.Helper()
 		page.MustEval(`async()=>{await fixtureOpen('aura-drift');}`)
 		if !page.MustEval(`()=>{
             const o=document.querySelector('.agdrift-overlay');
             return !!o && !o.hidden && o.getBoundingClientRect().height>0;
         }`).Bool() {
-			t.Fatal("stale loader without WebGL2 module left an empty window")
+			t.Fatal("stale loader without the 3D module left an empty window")
 		}
 		if page.MustEval(`()=>!!document.querySelector('.agdrift-load-error')`).Bool() {
-			t.Fatal("optional WebGL2 module must not trigger the load-error panel")
+			t.Fatal("an optional 3D module must not trigger the load-error panel")
 		}
 		page.MustElement(".agdrift-menu .agdrift-primary").MustClick()
-		page.MustEval(`()=>new Promise(resolve=>setTimeout(resolve,3600))`)
-		page.MustEval(`()=>window.dispatchEvent(new KeyboardEvent('keydown',{code:'ArrowUp',bubbles:true}))`)
-		page.MustEval(`()=>new Promise(resolve=>setTimeout(resolve,1100))`)
-		stats := page.MustEval(`()=>JSON.stringify(window.AuraDriftApp.stats()[0]||{})`).Str()
-		t.Logf("degraded stats: %s", stats)
-		if !strings.Contains(stats, `"degraded":true`) {
-			t.Fatalf("WebGL2 fallback was not reported: %s", stats)
+		auraDriftWaitState(t, page, "running", 30*time.Second)
+		auraDriftKeyDown(t, page, input.ArrowUp)
+		auraDriftSleep(page, 1100)
+		auraDriftKeyUp(t, page, input.ArrowUp)
+		stats, raw := auraDriftReadStats(t, page)
+		t.Logf("degraded stats: %s", raw)
+		if stats.Renderer.Kind != "canvas2d" || !strings.Contains(raw, `"degraded":true`) {
+			t.Fatalf("the 2D fallback was not reported: %s", raw)
 		}
-		if !page.MustEval(`()=>{
-            const s=window.AuraDriftApp.stats()[0];
-            return s && s.state==='running' && s.speedKmh>5;
-        }`).Bool() {
-			t.Fatalf("game was not playable without the WebGL2 module: %s", stats)
+		if stats.State != "running" || stats.SpeedKmh <= 5 {
+			t.Fatalf("game was not playable without the 3D module: %s", raw)
+		}
+		if steering {
+			auraDriftSteer(t, page, "alpenpass", input.ArrowRight, true, "canvas2d")
 		}
 		auraDriftCloseWindows(page)
-		if errors := page.MustEval(`()=>JSON.stringify(fixtureErrors)`).Str(); errors != "[]" {
-			t.Fatal(errors)
-		}
+		auraDriftNoErrors(t, page)
+	}
+
+	t.Run("optional_webgl2_module_missing", func(t *testing.T) {
+		degraded(t, auraDriftFixtureWithout(t, "aura-drift-render3d.js"), true)
+	})
+
+	t.Run("runtime_missing", func(t *testing.T) {
+		degraded(t, auraDriftFixtureWithout(t, "/js/vendor/aura-drift/three-runtime.js"), false)
 	})
 
 	t.Run("required_module_missing", func(t *testing.T) {
@@ -435,6 +743,53 @@ func TestDesktopAuraDriftStaleLoaderBrowser(t *testing.T) {
 		}
 		auraDriftCloseWindows(page)
 	})
+}
+
+// A GLB that 404s is replaced by a stand-in; the race still runs.
+func TestDesktopAuraDriftGLBFallbackBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	page := auraDriftFixtureFailing(t, "/3d/aura-drift/v1/car-vektor.glb")
+	if !auraDriftHasWebGL(page) {
+		t.Skip("this browser has no WebGL2")
+	}
+	auraDriftReopen(page, map[string]interface{}{"quality": "medium"}, "")
+	page.MustEval(`async()=>{await AuraDriftApp.debug.start({mode:'quick',trackId:'alpenpass',laps:1,carId:'vektor'});}`)
+	auraDriftWaitState(t, page, "running", 30*time.Second)
+	auraDriftSleep(page, 800)
+	stats, raw := auraDriftReadStats(t, page)
+	t.Logf("glb fallback stats: %s", raw)
+	if stats.Renderer.Kind != "three" || stats.Renderer.StandIns < 1 {
+		t.Fatalf("expected a three.js stand-in for the missing car: %s", raw)
+	}
+	auraDriftCloseWindows(page)
+	auraDriftNoErrors(t, page)
+}
+
+// Opening and closing the app twice must not grow the GPU resource count.
+// Either renderer kind passes; geometry counts only mean something in 3D.
+func TestDesktopAuraDriftDisposeBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	page := auraDriftFixture(t)
+	auraDriftReopen(page, map[string]interface{}{"quality": "low"}, "")
+	run := func() auraDriftStats {
+		page.MustEval(`async()=>{await AuraDriftApp.debug.start({mode:'time_trial',trackId:'alpenpass',laps:1});}`)
+		auraDriftWaitState(t, page, "running", 30*time.Second)
+		auraDriftSleep(page, 600)
+		stats, _ := auraDriftReadStats(t, page)
+		auraDriftCloseWindows(page)
+		return stats
+	}
+	first := run()
+	page.MustEval(`async()=>{await fixtureOpen('aura-drift');}`)
+	second := run()
+	t.Logf("geometries: first %d, second %d (%s)", first.Renderer.Geometries, second.Renderer.Geometries, second.Renderer.Kind)
+	if second.Renderer.Geometries > first.Renderer.Geometries+8 {
+		t.Fatalf("geometries grew from %d to %d across a reopen", first.Renderer.Geometries, second.Renderer.Geometries)
+	}
+	if page.MustEval(`()=>window.AuraDriftApp.stats().length`).Int() != 0 {
+		t.Fatal("a closed window left a live Aura Drift instance")
+	}
+	auraDriftNoErrors(t, page)
 }
 
 // Regression for the actual field failure: AdGuard/EasyList hide elements whose
@@ -475,12 +830,10 @@ func TestDesktopAuraDriftAdBlockerBrowser(t *testing.T) {
 		t.Fatal("ad blocker simulation hid the Aura Drift UI or legacy ad- classes remain")
 	}
 	page.MustElement(".agdrift-menu .agdrift-primary").MustClick()
-	page.MustEval(`()=>new Promise(resolve=>setTimeout(resolve,3600))`)
+	auraDriftWaitState(t, page, "running", 30*time.Second)
 	if !page.MustEval(`()=>document.querySelector('.agdrift-overlay').hidden`).Bool() {
 		t.Fatal("race did not start with the ad blocker rule active")
 	}
 	auraDriftCloseWindows(page)
-	if errors := page.MustEval(`()=>JSON.stringify(fixtureErrors)`).Str(); errors != "[]" {
-		t.Fatal(errors)
-	}
+	auraDriftNoErrors(t, page)
 }

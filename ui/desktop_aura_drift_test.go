@@ -92,6 +92,15 @@ func TestAuraDriftAppRegistration(t *testing.T) {
 		}
 	}
 
+	for _, manifest := range []string{
+		filepath.Join("3d", "aura-drift", "v1", "manifest.json"),
+		filepath.Join("3d", "aura-drift", "audio", "manifest.json"),
+	} {
+		if info, err := os.Stat(manifest); err != nil || info.Size() < 20 {
+			t.Fatalf("missing or empty Aura Drift manifest %s: %v", manifest, err)
+		}
+	}
+
 	css := readDesktopAssetText(t, "css/desktop-app-aura-drift.css")
 	if !strings.Contains(css, ":focus-visible") || !strings.Contains(css, ".agdrift-sr-only") {
 		t.Fatal("Aura Drift stylesheet must keep keyboard focus and screen-reader affordances")
@@ -307,6 +316,7 @@ func TestAuraDriftAvoidsAdBlockerClassPrefix(t *testing.T) {
 		"css/desktop-app-aura-drift.css",
 		"js/desktop/apps/aura-drift.js",
 		"js/desktop/apps/aura-drift-ui.js",
+		"js/desktop/apps/aura-drift-ui-cards.js",
 	}
 	for _, path := range paths {
 		content := readDesktopAssetText(t, path)
