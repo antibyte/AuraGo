@@ -716,6 +716,7 @@
                     esc,
                     iconMarkup,
                     fmtBytes,
+                    notify: showDesktopNotification,
                     mediaPreviewURL,
                     mediaDownloadURL,
                     mediaPreviewKind,

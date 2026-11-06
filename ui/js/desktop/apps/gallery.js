@@ -588,7 +588,7 @@
                 items: g.visible,
                 index,
                 context: {
-                    t, esc, iconMarkup, fmtBytes,
+                    t, esc, iconMarkup, fmtBytes, notify,
                     mediaPreviewURL: previewURL,
                     mediaDownloadURL: downloadURL,
                     readonly,

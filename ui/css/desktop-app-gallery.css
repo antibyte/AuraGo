@@ -1262,13 +1262,15 @@
 
 .vd-lightbox-bar,
 .vd-lightbox-strip,
-.vd-lightbox-nav {
+.vd-lightbox-nav,
+.vd-lightbox-dock {
     transition: opacity 220ms var(--ds-motion-ease-standard, ease), transform 220ms var(--ds-motion-ease-standard, ease);
 }
 
 .vd-lightbox.is-idle .vd-lightbox-bar,
 .vd-lightbox.is-idle .vd-lightbox-strip,
-.vd-lightbox.is-idle .vd-lightbox-nav {
+.vd-lightbox.is-idle .vd-lightbox-nav,
+.vd-lightbox.is-idle .vd-lightbox-dock {
     opacity: 0;
     pointer-events: none;
 }
@@ -1377,8 +1379,98 @@
     background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.85);
 }
 
+.vd-lightbox-button-primary {
+    gap: 6px;
+    padding: 0 12px;
+    background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.9);
+    color: #06110d;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.vd-lightbox-button-primary:hover {
+    background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 1);
+}
+
+.vd-lightbox-button-primary .vd-mini-symbol,
+.vd-lightbox-button-primary .vd-mini-icon {
+    color: #06110d;
+    filter: none;
+}
+
+.vd-lightbox-edit-label {
+    font-size: 12px;
+}
+
 .vd-lightbox-button-danger:hover {
     background: rgba(239, 68, 68, 0.8);
+}
+
+/* Floating image-viewer dock */
+
+.vd-lightbox-dock {
+    position: absolute;
+    right: 50%;
+    bottom: 12px;
+    left: auto;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 8px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 999px;
+    background: rgba(10, 14, 22, 0.72);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+    transform: translateX(50%);
+    backdrop-filter: blur(14px) saturate(130%);
+    -webkit-backdrop-filter: blur(14px) saturate(130%);
+}
+
+.vd-lightbox-dock[hidden] {
+    display: none;
+}
+
+.vd-lightbox-dock .vd-lightbox-button {
+    min-width: 34px;
+    height: 34px;
+    background: transparent;
+}
+
+.vd-lightbox-dock .vd-lightbox-button:hover {
+    background: rgba(255, 255, 255, 0.16);
+}
+
+.vd-lightbox-dock .vd-lightbox-button[aria-busy="true"] {
+    opacity: 0.55;
+    pointer-events: none;
+}
+
+.vd-lightbox-dock-sep {
+    width: 1px;
+    height: 20px;
+    margin: 0 4px;
+    background: rgba(255, 255, 255, 0.14);
+}
+
+.vd-lightbox-toast {
+    position: absolute;
+    bottom: 64px;
+    left: 50%;
+    z-index: 4;
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: rgba(10, 14, 22, 0.85);
+    color: #fff;
+    font-size: 12.5px;
+    white-space: nowrap;
+    transform: translateX(-50%);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+.vd-lightbox-toast[hidden] {
+    display: none;
 }
 
 .vd-lightbox-button:focus-visible,
@@ -1795,6 +1887,28 @@
     .vd-lightbox-thumb {
         width: 44px;
         height: 44px;
+    }
+
+    .vd-lightbox-edit-label {
+        display: none;
+    }
+
+    .vd-lightbox-dock {
+        bottom: 70px;
+        max-width: calc(100vw - 20px);
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+
+    .vd-lightbox-dock::-webkit-scrollbar {
+        display: none;
+    }
+
+    .vd-lightbox-toast {
+        bottom: 122px;
+        max-width: calc(100vw - 32px);
+        white-space: normal;
+        text-align: center;
     }
 }
 

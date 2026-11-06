@@ -1,10 +1,11 @@
 /**
- * Virtual Desktop media lightbox.
+ * Virtual Desktop media lightbox (image viewer).
  *
  * Full-window viewer for images, videos and audio with zoom/pan (wheel, pinch,
- * drag, double-click), keyboard and swipe navigation, filmstrip, slideshow,
- * details panel and item actions. Used by the Gallery app and by the shell's
- * generic media preview. Only one lightbox is open at a time.
+ * drag, double-click), rotate/flip/fullscreen image tools, copy-to-clipboard,
+ * keyboard and swipe navigation, filmstrip, slideshow, details panel and item
+ * actions (including Edit in Pixel). Used by the Gallery app and by the
+ * shell's generic media preview. Only one lightbox is open at a time.
  */
 (function () {
     'use strict';
@@ -51,12 +52,12 @@
         const readonly = !!ctx.readonly;
         const animations = ctx.animationsEnabled !== false && !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
-        const lb = {
+        const         lb = {
             items: Array.isArray(opts.items) ? opts.items.slice() : [],
             index: 0,
             infoOpen: false,
             slideshow: false,
-            zoom: { scale: 1, x: 0, y: 0 },
+            zoom: { scale: 1, x: 0, y: 0, rotation: 0, flip: false },
             natural: { width: 0, height: 0 },
             closed: false,
             timers: {},
@@ -92,7 +93,7 @@
                     <button type="button" class="vd-lightbox-button" data-lb-slideshow aria-pressed="false" title="${esc(t('desktop.gallery_slideshow_start'))}" aria-label="${esc(t('desktop.gallery_slideshow_start'))}">${iconMarkup('play', '▶', 'vd-viewer-action-icon', 16)}</button>
                     <button type="button" class="vd-lightbox-button" data-lb-info aria-pressed="false" title="${esc(t('desktop.gallery_info'))}" aria-label="${esc(t('desktop.gallery_info'))}">${iconMarkup('info', 'i', 'vd-viewer-action-icon', 16)}</button>
                     <button type="button" class="vd-lightbox-button" data-lb-download title="${esc(t('desktop.gallery_download'))}" aria-label="${esc(t('desktop.gallery_download'))}">${iconMarkup('gallery-action-download', '↓', 'vd-viewer-action-icon', 16)}</button>
-                    <button type="button" class="vd-lightbox-button" data-lb-edit title="${esc(t('desktop.gallery_edit_pixel'))}" aria-label="${esc(t('desktop.gallery_edit_pixel'))}" hidden>${iconMarkup('gallery-action-edit', '✎', 'vd-viewer-action-icon', 16)}</button>
+                    <button type="button" class="vd-lightbox-button vd-lightbox-button-primary" data-lb-edit title="${esc(t('desktop.gallery_edit_pixel'))}" aria-label="${esc(t('desktop.gallery_edit_pixel'))}" hidden>${iconMarkup('gallery-action-edit', '✎', 'vd-viewer-action-icon', 16)}<span class="vd-lightbox-edit-label">${esc(t('desktop.gallery_edit_pixel'))}</span></button>
                     <button type="button" class="vd-lightbox-button" data-lb-rename title="${esc(t('desktop.gallery_rename'))}" aria-label="${esc(t('desktop.gallery_rename'))}"${readonly || typeof actions.rename !== 'function' ? ' hidden' : ''}>${iconMarkup('edit', '✎', 'vd-viewer-action-icon', 16)}</button>
                     <button type="button" class="vd-lightbox-button vd-lightbox-button-danger" data-lb-delete title="${esc(t('desktop.gallery_delete'))}" aria-label="${esc(t('desktop.gallery_delete'))}"${readonly || typeof actions.remove !== 'function' ? ' hidden' : ''}>${iconMarkup('gallery-action-delete', '🗑', 'vd-viewer-action-icon', 16)}</button>
                     <button type="button" class="vd-lightbox-button vd-lightbox-close" data-lb-close title="${esc(t('desktop.close'))}" aria-label="${esc(t('desktop.close'))}">${iconMarkup('x', '×', 'vd-viewer-action-icon', 16)}</button>
@@ -103,8 +104,22 @@
                 <button type="button" class="vd-lightbox-nav vd-lightbox-prev" data-lb-prev title="${esc(t('desktop.gallery_prev'))}" aria-label="${esc(t('desktop.gallery_prev'))}">${iconMarkup('chevron-left', '‹', 'vd-viewer-action-icon', 26)}</button>
                 <div class="vd-lightbox-canvas" data-lb-canvas></div>
                 <button type="button" class="vd-lightbox-nav vd-lightbox-next" data-lb-next title="${esc(t('desktop.gallery_next'))}" aria-label="${esc(t('desktop.gallery_next'))}">${iconMarkup('chevron-right', '›', 'vd-viewer-action-icon', 26)}</button>
+                <div class="vd-lightbox-dock" data-lb-dock role="toolbar" aria-label="${esc(t('desktop.gallery_viewer_tools'))}">
+                    <button type="button" class="vd-lightbox-button" data-lb-zoom-out title="${esc(t('desktop.gallery_zoom_out'))}" aria-label="${esc(t('desktop.gallery_zoom_out'))}">${iconMarkup('zoom-out', '−', 'vd-viewer-action-icon', 15)}</button>
+                    <button type="button" class="vd-lightbox-button" data-lb-zoom-in title="${esc(t('desktop.gallery_zoom_in'))}" aria-label="${esc(t('desktop.gallery_zoom_in'))}">${iconMarkup('zoom-in', '+', 'vd-viewer-action-icon', 15)}</button>
+                    <button type="button" class="vd-lightbox-button" data-lb-zoom-actual title="${esc(t('desktop.gallery_zoom_actual'))}" aria-label="${esc(t('desktop.gallery_zoom_actual'))}">${iconMarkup('maximize', '1:1', 'vd-viewer-action-icon', 14)}</button>
+                    <span class="vd-lightbox-dock-sep" aria-hidden="true"></span>
+                    <button type="button" class="vd-lightbox-button" data-lb-rotate-left title="${esc(t('desktop.gallery_rotate_left'))}" aria-label="${esc(t('desktop.gallery_rotate_left'))}">${iconMarkup('rotate-ccw', '⟲', 'vd-viewer-action-icon', 15)}</button>
+                    <button type="button" class="vd-lightbox-button" data-lb-rotate-right title="${esc(t('desktop.gallery_rotate_right'))}" aria-label="${esc(t('desktop.gallery_rotate_right'))}">${iconMarkup('rotate-cw', '⟳', 'vd-viewer-action-icon', 15)}</button>
+                    <button type="button" class="vd-lightbox-button" data-lb-flip title="${esc(t('desktop.gallery_flip'))}" aria-label="${esc(t('desktop.gallery_flip'))}">${iconMarkup('flip', '⇋', 'vd-viewer-action-icon', 15)}</button>
+                    <span class="vd-lightbox-dock-sep" aria-hidden="true"></span>
+                    <button type="button" class="vd-lightbox-button" data-lb-fullscreen title="${esc(t('desktop.gallery_fullscreen'))}" aria-label="${esc(t('desktop.gallery_fullscreen'))}">${iconMarkup('maximize-2', '⛶', 'vd-viewer-action-icon', 15)}</button>
+                    <button type="button" class="vd-lightbox-button" data-lb-copy title="${esc(t('desktop.gallery_copy_image'))}" aria-label="${esc(t('desktop.gallery_copy_image'))}">${iconMarkup('copy', '⧉', 'vd-viewer-action-icon', 15)}</button>
+                    <button type="button" class="vd-lightbox-button vd-lightbox-button-primary" data-lb-edit-dock title="${esc(t('desktop.gallery_edit_pixel'))}" aria-label="${esc(t('desktop.gallery_edit_pixel'))}" hidden>${iconMarkup('gallery-action-edit', '✎', 'vd-viewer-action-icon', 15)}<span class="vd-lightbox-edit-label">${esc(t('desktop.gallery_edit_pixel'))}</span></button>
+                </div>
                 <aside class="vd-lightbox-info" data-lb-info-panel aria-label="${esc(t('desktop.gallery_details'))}" hidden></aside>
                 <div class="vd-lightbox-spinner" data-lb-spinner hidden aria-hidden="true"></div>
+                <div class="vd-lightbox-toast" data-lb-toast role="status" hidden></div>
             </div>
             <footer class="vd-lightbox-strip" data-lb-strip role="listbox" aria-label="${esc(t('desktop.gallery_library'))}"></footer>`;
         document.body.appendChild(root);
@@ -123,6 +138,11 @@
             zoomGroup: root.querySelector('[data-lb-zoom-group]'),
             zoomLabel: root.querySelector('[data-lb-zoom-reset]'),
             edit: root.querySelector('[data-lb-edit]'),
+            editDock: root.querySelector('[data-lb-edit-dock]'),
+            dock: root.querySelector('[data-lb-dock]'),
+            fullscreenButton: root.querySelector('[data-lb-fullscreen]'),
+            copyButton: root.querySelector('[data-lb-copy]'),
+            toast: root.querySelector('[data-lb-toast]'),
             prev: root.querySelector('[data-lb-prev]'),
             next: root.querySelector('[data-lb-next]'),
             spinner: root.querySelector('[data-lb-spinner]')
@@ -144,14 +164,16 @@
             const item = current();
             const kind = kindOf(item, ctx);
             root.dataset.kind = kind;
-            lb.zoom = { scale: 1, x: 0, y: 0 };
+            lb.zoom = { scale: 1, x: 0, y: 0, rotation: 0, flip: false };
             lb.natural = { width: item._width || 0, height: item._height || 0 };
             el.name.textContent = item.name || item.path || '';
             el.counter.textContent = lb.items.length > 1 ? t('desktop.gallery_counter', { index: lb.index + 1, total: lb.items.length }) : '';
             el.prev.hidden = lb.items.length < 2;
             el.next.hidden = lb.items.length < 2;
             el.edit.hidden = kind !== 'image' || typeof actions.edit !== 'function';
+            if (el.editDock) el.editDock.hidden = el.edit.hidden;
             el.zoomGroup.hidden = kind !== 'image';
+            if (el.dock) el.dock.hidden = kind !== 'image';
             el.slideshowButton.hidden = lb.items.length < 2;
             el.canvas.classList.remove('is-failed');
             el.spinner.hidden = false;
@@ -278,12 +300,22 @@
             return { width: rect.width / lb.zoom.scale, height: rect.height / lb.zoom.scale };
         }
 
+        function rotationDegrees() {
+            return ((lb.zoom.rotation % 360) + 360) % 360;
+        }
+
+        function isSideways() {
+            const rotation = rotationDegrees();
+            return rotation === 90 || rotation === 270;
+        }
+
         function applyZoom() {
             const node = media();
             if (!node) return;
             if (!(node instanceof HTMLImageElement)) { node.style.transform = ''; return; }
             constrainPan();
-            node.style.transform = `translate(${lb.zoom.x}px, ${lb.zoom.y}px) scale(${lb.zoom.scale})`;
+            const flipX = lb.zoom.flip ? -1 : 1;
+            node.style.transform = `translate(${lb.zoom.x}px, ${lb.zoom.y}px) rotate(${rotationDegrees()}deg) scale(${flipX * lb.zoom.scale}, ${lb.zoom.scale})`;
             el.canvas.classList.toggle('is-zoomed', lb.zoom.scale > 1.001);
         }
 
@@ -291,8 +323,10 @@
             const fitted = fittedSize();
             if (!fitted) return;
             const stage = el.stage.getBoundingClientRect();
-            const maxX = Math.max(0, (fitted.width * lb.zoom.scale - stage.width) / 2);
-            const maxY = Math.max(0, (fitted.height * lb.zoom.scale - stage.height) / 2);
+            const fittedWidth = isSideways() ? fitted.height : fitted.width;
+            const fittedHeight = isSideways() ? fitted.width : fitted.height;
+            const maxX = Math.max(0, (fittedWidth * lb.zoom.scale - stage.width) / 2);
+            const maxY = Math.max(0, (fittedHeight * lb.zoom.scale - stage.height) / 2);
             lb.zoom.x = clamp(lb.zoom.x, -maxX, maxX);
             lb.zoom.y = clamp(lb.zoom.y, -maxY, maxY);
         }
@@ -328,9 +362,80 @@
         }
 
         function resetZoom() {
-            lb.zoom = { scale: 1, x: 0, y: 0 };
+            lb.zoom.scale = 1;
+            lb.zoom.x = 0;
+            lb.zoom.y = 0;
             applyZoom();
             updateZoomLabel();
+        }
+
+        function rotateImage(degrees) {
+            const node = media();
+            if (!node || !(node instanceof HTMLImageElement)) return;
+            lb.zoom.rotation = ((lb.zoom.rotation + degrees) % 360 + 360) % 360;
+            lb.zoom.x = 0;
+            lb.zoom.y = 0;
+            applyZoom();
+        }
+
+        function flipImage() {
+            const node = media();
+            if (!node || !(node instanceof HTMLImageElement)) return;
+            lb.zoom.flip = !lb.zoom.flip;
+            applyZoom();
+        }
+
+        function updateFullscreenButton() {
+            if (!el.fullscreenButton) return;
+            const activeFullscreen = document.fullscreenElement === root;
+            const label = t(activeFullscreen ? 'desktop.gallery_fullscreen_exit' : 'desktop.gallery_fullscreen');
+            el.fullscreenButton.title = label;
+            el.fullscreenButton.setAttribute('aria-label', label);
+            el.fullscreenButton.setAttribute('aria-pressed', String(activeFullscreen));
+        }
+
+        function toggleFullscreen() {
+            if (document.fullscreenElement === root) {
+                document.exitFullscreen().catch(() => { /* ignore */ });
+                return;
+            }
+            if (typeof root.requestFullscreen === 'function') {
+                root.requestFullscreen().catch(() => { showToast(t('desktop.gallery_fullscreen')); });
+                return;
+            }
+            showToast(t('desktop.gallery_fullscreen'));
+        }
+
+        let toastTimer = 0;
+
+        function showToast(message) {
+            if (!el.toast || !message) return;
+            el.toast.textContent = message;
+            el.toast.hidden = false;
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => { el.toast.hidden = true; }, 2200);
+        }
+
+        async function copyImage() {
+            const item = current();
+            if (!item || kindOf(item, ctx) !== 'image') return;
+            const button = el.copyButton;
+            if (button) button.setAttribute('aria-busy', 'true');
+            try {
+                const response = await fetch(previewURL(item), { credentials: 'same-origin' });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const blob = await response.blob();
+                if (!('ClipboardItem' in window) || !navigator.clipboard || typeof navigator.clipboard.write !== 'function') {
+                    throw new Error('clipboard unsupported');
+                }
+                await navigator.clipboard.write([new ClipboardItem({ [blob.type || 'image/png']: blob })]);
+                showToast(t('desktop.gallery_copied'));
+                if (typeof ctx.notify === 'function') ctx.notify({ title: t('desktop.app_gallery'), message: t('desktop.gallery_copied') });
+            } catch (err) {
+                showToast(t('desktop.gallery_copy_failed'));
+            } finally {
+                if (button) button.removeAttribute('aria-busy');
+            }
         }
 
         // ── Slideshow and idle chrome ─────────────────────────────────
@@ -455,8 +560,13 @@
             lb.closed = true;
             clearTimeout(lb.timers.slideshow);
             clearTimeout(lb.timers.idle);
+            clearTimeout(toastTimer);
             document.removeEventListener('keydown', onDocumentKeydown, true);
+            document.removeEventListener('fullscreenchange', onFullscreenChange);
             window.removeEventListener('resize', onResize);
+            if (document.fullscreenElement === root && typeof document.exitFullscreen === 'function') {
+                document.exitFullscreen().catch(() => { /* ignore */ });
+            }
             const node = media();
             if (node && typeof node.pause === 'function') { try { node.pause(); } catch (_) { /* ignore */ } }
             const finish = () => {
@@ -496,6 +606,11 @@
             if (key === 'Delete' && !readonly && typeof actions.remove === 'function') { handled(); runDelete(); return; }
             if (key === 'F2' && !readonly && typeof actions.rename === 'function') { handled(); runRename(); return; }
             if ((key === 'd' || key === 'D') && !mod && typeof actions.download === 'function') { handled(); actions.download(current()); return; }
+            if (key === 'r' && !mod) { handled(); rotateImage(90); return; }
+            if (key === 'R' && !mod) { handled(); rotateImage(-90); return; }
+            if (key === 'f' && !mod) { handled(); flipImage(); return; }
+            if (key === 'F' && !mod) { handled(); toggleFullscreen(); return; }
+            if ((key === 'c' || key === 'C') && !mod) { handled(); copyImage(); return; }
             if (key === 'Tab') trapFocus(event);
             // The viewer is modal: keep desktop shell shortcuts from acting behind it.
             event.stopPropagation();
@@ -521,9 +636,15 @@
             updateZoomLabel();
         }
 
+        function onFullscreenChange() {
+            updateFullscreenButton();
+        }
+
         root.addEventListener('keydown', onKeydown);
         document.addEventListener('keydown', onDocumentKeydown, true);
+        document.addEventListener('fullscreenchange', onFullscreenChange);
         window.addEventListener('resize', onResize);
+        updateFullscreenButton();
 
         root.addEventListener('click', event => {
             const target = event.target;
@@ -534,10 +655,15 @@
             if (target.closest('[data-lb-zoom-out]')) { zoomTo(lb.zoom.scale / 1.25); return; }
             if (target.closest('[data-lb-zoom-reset]')) { resetZoom(); return; }
             if (target.closest('[data-lb-zoom-actual]')) { zoomActual(); return; }
+            if (target.closest('[data-lb-rotate-left]')) { rotateImage(-90); return; }
+            if (target.closest('[data-lb-rotate-right]')) { rotateImage(90); return; }
+            if (target.closest('[data-lb-flip]')) { flipImage(); return; }
+            if (target.closest('[data-lb-fullscreen]')) { toggleFullscreen(); return; }
+            if (target.closest('[data-lb-copy]')) { copyImage(); return; }
             if (target.closest('[data-lb-slideshow]')) { setSlideshow(!lb.slideshow); return; }
             if (target.closest('[data-lb-info]')) { setInfo(!lb.infoOpen); return; }
             if (target.closest('[data-lb-download]')) { if (typeof actions.download === 'function') actions.download(current()); return; }
-            if (target.closest('[data-lb-edit]')) { const item = current(); close(); if (typeof actions.edit === 'function') actions.edit(item); return; }
+            if (target.closest('[data-lb-edit]') || target.closest('[data-lb-edit-dock]')) { const item = current(); close(); if (typeof actions.edit === 'function') actions.edit(item); return; }
             if (target.closest('[data-lb-reveal]')) { const item = current(); close(); if (typeof actions.reveal === 'function') actions.reveal(item); return; }
             if (target.closest('[data-lb-rename]')) { runRename(); return; }
             if (target.closest('[data-lb-delete]')) { runDelete(); return; }

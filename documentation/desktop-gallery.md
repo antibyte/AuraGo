@@ -105,10 +105,13 @@ open images, videos or audio (`openMediaPreview`). It provides:
   position counter (arrow keys, `PageUp`/`PageDown`, `Home`, `End`).
 - Zoom with the mouse wheel, pinch, double-click, `+`/`−`, `0` (fit) and `1`
   (actual size); panning by dragging when zoomed in.
+- Image tools in a floating dock: rotate left/right (`R` / `Shift+R`),
+  flip horizontally (`F`), browser fullscreen (`Shift+F`), copy to clipboard
+  (`C`) and quick zoom controls for small viewports.
 - A slideshow (`Space`) with a progress indicator, native video and audio
   playback, and an info drawer (`I`) with the same metadata as the info panel.
-- Download (`D`), Edit in Pixel, Show in Files, rename (`F2`) and delete
-  (`Delete`) when the Desktop allows them.
+- Download (`D`), a prominent Edit in Pixel action in the header and the dock,
+  Show in Files, rename (`F2`) and delete (`Delete`) when the Desktop allows them.
 - Chrome that hides automatically after a few seconds without pointer
   movement and returns on any interaction. `Escape` or a click on the
   backdrop closes the viewer.

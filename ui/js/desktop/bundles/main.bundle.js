@@ -20677,6 +20677,7 @@ if (appId === 'pixel') {
                     esc,
                     iconMarkup,
                     fmtBytes,
+                    notify: showDesktopNotification,
                     mediaPreviewURL,
                     mediaDownloadURL,
                     mediaPreviewKind,
