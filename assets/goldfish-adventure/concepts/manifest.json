@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-11-06",
+  "generator": "built-in image_gen",
+  "prompts": "../prompts.md",
+  "assets": [
+    {
+      "file": "ship-lounge-v1.png",
+      "width": 1672,
+      "height": 941,
+      "pixelFormat": "Format24bppRgb",
+      "alphaTopLeft": 255,
+      "alphaCenter": 255,
+      "bytes": 3279709,
+      "sha256": "ff4f697cc4ebe7944d189578f5592eed790723ad358b943f6cb9e198d85c06ae",
+      "status": "concept-only"
+    },
+    {
+      "file": "r0st-sprite-v1.png",
+      "width": 1122,
+      "height": 1402,
+      "pixelFormat": "Format32bppArgb",
+      "alphaTopLeft": 0,
+      "alphaCenter": 253,
+      "bytes": 1089170,
+      "sha256": "7143ff6df39d0990ea8dcbdf9bafcd6e963bd0ca6cfcdf04e7ab9e572a6968c3",
+      "status": "concept-only"
+    }
+  ]
+}
