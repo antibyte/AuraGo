@@ -1616,6 +1616,9 @@
             if (appId === 'audio-player' && context && context.path != null) {
                 window.AudioPlayerApp?.open?.(existing.id, context);
             }
+            if (appId === 'viewer' && context && context.path != null) {
+                window.ViewerApp?.open?.(existing.id, context);
+            }
             if (appId === 'files' && context && context.path != null) {
                 if (window.FileManager && typeof window.FileManager.navigateTo === 'function') window.FileManager.navigateTo(existing.id, context.path);
                 else renderFiles(existing.id, context.path);

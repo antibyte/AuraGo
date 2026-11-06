@@ -49,13 +49,15 @@
     white-space: nowrap;
 }
 
-.vd-viewer-pdf-controls {
+.vd-viewer-pdf-controls,
+.vd-viewer-image-controls {
     display: flex;
     align-items: center;
     gap: 4px;
 }
 
-.vd-viewer-sep {
+.vd-viewer-sep,
+.vd-viewer-image-sep {
     width: 1px;
     height: 16px;
     background: var(--vd-mat-divider, var(--vd-theme-border));
@@ -63,6 +65,7 @@
 }
 
 .vd-viewer-zoom-label,
+.vd-viewer-image-zoom,
 .vd-viewer-page-label {
     font-family: var(--vd-mat-mono-font, inherit);
     font-size: 12px;
@@ -128,6 +131,34 @@
 
 .vd-viewer-error {
     color: #f87171;
+}
+
+/* The image stage is a dark viewport: stills sit centered on it, pan/zoom freely. */
+.vd-viewer-image-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100%;
+    padding: 16px;
+    overflow: hidden;
+    background: var(--vd-mat-well, #10141b);
+    box-shadow: var(--vd-mat-well-shadow, none);
+    cursor: grab;
+    touch-action: none;
+}
+
+.vd-viewer-image-wrap:active {
+    cursor: grabbing;
+}
+
+.vd-viewer-image {
+    max-width: 100%;
+    max-height: calc(100vh - 220px);
+    object-fit: contain;
+    border-radius: 6px;
+    box-shadow: var(--vd-mat-pop-shadow, 0 8px 28px rgba(0, 0, 0, 0.45));
+    user-select: none;
+    -webkit-user-drag: none;
 }
 
 .vd-viewer-rendered {

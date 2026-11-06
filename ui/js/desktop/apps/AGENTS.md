@@ -5721,7 +5721,12 @@ registration lives in `internal/desktop/types.go`.
   Missing markdown-it shows `viewer.error` only. Viewer 3D missing
   STLLoader throws and maps `viewer.error`. Missing print-frame
   errors throw `desktop.print_failed`; the print catch still
-  prefixes `viewer.error`. No child DOX file needed.
+  prefixes `viewer.error`. The Viewer window also opens browser-renderable
+  stills (`png`, `jpg`, `jpeg`, `gif`, `webp`, `bmp`, `svg`, `ico`, `avif`)
+  with zoom/rotate/flip/copy/download/print and an Edit in Pixel action; the
+  desktop, Files and media previews route those images to the Viewer window
+  (tiff/tif/ora stay in Pixel, videos stay in the Gallery lightbox).
+  No child DOX file needed.
 - `teevee.js` - IPTV player; `teevee-catalog.js` owns catalog loading,
   stream identities, search and display labels. Catalog HTTP throws the
   sentinel `iptv-org HTTP` without a status. `fetchJSON` must

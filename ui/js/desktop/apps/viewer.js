@@ -31,14 +31,23 @@
             key:currentPath,signal:life.signal,disabled:!currentPath,subject:fileName,formats:[{id:'original',label:fileName}],
             createFiles:(_format,signal)=>window.AuraDesktopEmail.files([{url:archiveEntry?archiveEntryURL():'/api/desktop/download?path='+encodeURIComponent(currentPath),name:fileName}],signal)
         }));
-        const viewerType = viewerTypeForExt(ext);
-        const canEdit = !archiveEntry && ['docx', 'xlsx', 'xlsm', 'csv'].includes(ext);
-        const editApp = ['docx', 'html', 'htm'].includes(ext) ? 'writer' : 'sheets';
+        const rawViewerType = viewerTypeForExt(ext);
+        // Archive members keep the zipper overlay; the window viewer only shows plain-file images.
+        const viewerType = (rawViewerType === 'image' && archiveEntry) ? 'unknown' : rawViewerType;
+        const isImage = viewerType === 'image';
+        const canEdit = !archiveEntry && (['docx', 'xlsx', 'xlsm', 'csv'].includes(ext) || isImage);
+        const editApp = isImage ? 'pixel' : (['docx', 'html', 'htm'].includes(ext) ? 'writer' : 'sheets');
         let activeSheet = 0;
         let workbook = null;
         let pdfDoc = null;
         let pdfPage = 1;
         let pdfScale = 1.0;
+        let imgEl = null;
+        let imgWrap = null;
+        let imgZoomLabel = null;
+        let imgNatW = 0;
+        let imgNatH = 0;
+        const imgView = { scale: 1, x: 0, y: 0, rotation: 0, flip: false };
         const fileIconKey = viewerIconForExt(ext, viewerType);
 
         host.innerHTML = `<div class="vd-viewer" data-viewer="${esc(windowId)}">
@@ -48,7 +57,7 @@
                     <span class="vd-viewer-filename">${esc(fileName)}</span>
                 </div>
                 <div class="vd-viewer-toolbar-right">
-                    ${canEdit ? `<button class="vd-tool-button" type="button" data-action="edit">${viewerIcon('edit', 'E')}<span>${esc(t('viewer.edit'))}</span></button>` : ''}
+                    ${canEdit ? `<button class="vd-tool-button" type="button" data-action="edit" title="${esc(t(isImage ? 'viewer.edit_image' : 'viewer.edit'))}">${viewerIcon('edit', 'E')}<span>${esc(t(isImage ? 'viewer.edit_image' : 'viewer.edit'))}</span></button>` : ''}
                     <button class="vd-tool-button" type="button" data-action="download">${viewerIcon('download', 'D')}<span>${esc(t('viewer.download'))}</span></button>
                     <button class="vd-tool-button" type="button" data-action="print">${viewerIcon('printer', 'P')}<span>${esc(t('viewer.print'))}</span></button>
                     <div class="vd-viewer-pdf-controls" data-pdf-controls style="display:none">
@@ -61,6 +70,19 @@
                         <span class="vd-viewer-page-label" data-page-label>1 / 1</span>
                         <button class="vd-tool-button vd-viewer-icon-button" type="button" data-action="page-next">${viewerGlyph('>')}</button>
                     </div>
+                    <div class="vd-viewer-image-controls" data-image-controls style="display:none">
+                        <button class="vd-tool-button vd-viewer-icon-button" type="button" data-action="img-zoom-out" title="${esc(t('viewer.zoom_out'))}" aria-label="${esc(t('viewer.zoom_out'))}">${viewerGlyph('−')}</button>
+                        <span class="vd-viewer-zoom-label" data-image-zoom-label>100%</span>
+                        <button class="vd-tool-button vd-viewer-icon-button" type="button" data-action="img-zoom-in" title="${esc(t('viewer.zoom_in'))}" aria-label="${esc(t('viewer.zoom_in'))}">${viewerGlyph('+')}</button>
+                        <button class="vd-tool-button vd-viewer-icon-button" type="button" data-action="img-zoom-fit" title="${esc(t('viewer.zoom_fit'))}" aria-label="${esc(t('viewer.zoom_fit'))}">${viewerGlyph('⤢')}</button>
+                        <button class="vd-tool-button vd-viewer-icon-button" type="button" data-action="img-zoom-actual" title="${esc(t('viewer.zoom_actual'))}" aria-label="${esc(t('viewer.zoom_actual'))}">${viewerGlyph('1:1')}</button>
+                        <span class="vd-viewer-sep"></span>
+                        <button class="vd-tool-button vd-viewer-icon-button" type="button" data-action="img-rotate-left" title="${esc(t('viewer.rotate_left'))}" aria-label="${esc(t('viewer.rotate_left'))}">${viewerGlyph('⟲')}</button>
+                        <button class="vd-tool-button vd-viewer-icon-button" type="button" data-action="img-rotate-right" title="${esc(t('viewer.rotate_right'))}" aria-label="${esc(t('viewer.rotate_right'))}">${viewerGlyph('⟳')}</button>
+                        <button class="vd-tool-button vd-viewer-icon-button" type="button" data-action="img-flip" title="${esc(t('viewer.flip'))}" aria-label="${esc(t('viewer.flip'))}">${viewerGlyph('⇋')}</button>
+                        <span class="vd-viewer-sep"></span>
+                        <button class="vd-tool-button vd-viewer-icon-button" type="button" data-action="img-copy" title="${esc(t('viewer.copy_image'))}" aria-label="${esc(t('viewer.copy_image'))}">${viewerGlyph('⧉')}</button>
+                    </div>
                 </div>
             </div>
             <div class="vd-viewer-sheets-bar" data-sheets-bar style="display:none"></div>
@@ -71,6 +93,7 @@
 
         const contentEl = host.querySelector('[data-viewer-content]');
         const pdfControls = host.querySelector('[data-pdf-controls]');
+        const imageControls = host.querySelector('[data-image-controls]');
         const sheetsBar = host.querySelector('[data-sheets-bar]');
         const zoomLabel = host.querySelector('[data-zoom-label]');
         const pageLabel = host.querySelector('[data-page-label]');
@@ -92,8 +115,17 @@
         function handleAction(action) {
             switch (action) {
                 case 'edit':
-                    if (ctx.openApp) ctx.openApp(editApp, { path: currentPath });
+                    if (viewerType === 'image' && ctx.openApp) ctx.openApp(editApp, { path: filePath, forceNew: true });
+                    else if (ctx.openApp) ctx.openApp(editApp, { path: currentPath });
                     break;
+                case 'img-zoom-out': imageZoomBy(-1); break;
+                case 'img-zoom-in': imageZoomBy(1); break;
+                case 'img-zoom-fit': imageFit(); break;
+                case 'img-zoom-actual': imageActual(); break;
+                case 'img-rotate-left': imageRotate(-90); break;
+                case 'img-rotate-right': imageRotate(90); break;
+                case 'img-flip': imageFlip(); break;
+                case 'img-copy': imageCopy(); break;
                 case 'download':
                     downloadFile();
                     break;
@@ -215,11 +247,145 @@
             await job.print();
         }
 
+        function imageFileURL() {
+            return '/api/desktop/download?path=' + encodeURIComponent(filePath) + '&inline=1';
+        }
+
+        function applyImageView() {
+            if (!imgEl || !imgWrap) return;
+            const rotation = ((imgView.rotation % 360) + 360) % 360;
+            const sideways = rotation === 90 || rotation === 270;
+            const wrapRect = imgWrap.getBoundingClientRect();
+            const baseW = (sideways ? imgNatH : imgNatW) || wrapRect.width || 1;
+            const baseH = (sideways ? imgNatW : imgNatH) || wrapRect.height || 1;
+            const maxX = Math.max(0, (baseW * imgView.scale - wrapRect.width) / 2);
+            const maxY = Math.max(0, (baseH * imgView.scale - wrapRect.height) / 2);
+            imgView.x = Math.min(Math.max(imgView.x, -maxX), maxX);
+            imgView.y = Math.min(Math.max(imgView.y, -maxY), maxY);
+            const flipX = imgView.flip ? -1 : 1;
+            imgEl.style.transform = `translate(${imgView.x}px, ${imgView.y}px) rotate(${rotation}deg) scale(${flipX * imgView.scale}, ${imgView.scale})`;
+            if (imgZoomLabel) imgZoomLabel.textContent = Math.round(imgView.scale * 100) + '%';
+        }
+
+        function imageResetView() {
+            imgView.scale = 1;
+            imgView.x = 0;
+            imgView.y = 0;
+            applyImageView();
+        }
+
+        function imageZoomBy(direction) {
+            if (!imgEl) return;
+            imageSetScale(imgView.scale * (direction > 0 ? 1.25 : 0.8));
+        }
+
+        function imageSetScale(scale) {
+            imgView.scale = Math.min(8, Math.max(0.1, scale));
+            imgView.x = 0;
+            imgView.y = 0;
+            applyImageView();
+        }
+
+        function imageFit() {
+            imageResetView();
+        }
+
+        function imageActual() {
+            imageSetScale(1);
+        }
+
+        function imageRotate(degrees) {
+            if (!imgEl) return;
+            imgView.rotation = ((imgView.rotation + degrees) % 360 + 360) % 360;
+            imgView.x = 0;
+            imgView.y = 0;
+            applyImageView();
+        }
+
+        function imageFlip() {
+            if (!imgEl) return;
+            imgView.flip = !imgView.flip;
+            applyImageView();
+        }
+
+        async function imageCopy() {
+            if (!imgEl || !filePath) return;
+            try {
+                const response = await fetch(imageFileURL(), { credentials: 'same-origin' });
+                if (!response.ok) throw new Error('HTTP ' + response.status);
+                const blob = await response.blob();
+                if (!('ClipboardItem' in window) || !navigator.clipboard || typeof navigator.clipboard.write !== 'function') {
+                    throw new Error('clipboard unsupported');
+                }
+                await navigator.clipboard.write([new ClipboardItem({ [blob.type || 'image/png']: blob })]);
+                notify({ title: fileName, message: t('viewer.copied') });
+            } catch (err) {
+                notify({ title: fileName, message: t('viewer.copy_failed') });
+            }
+        }
+
+        function renderImage() {
+            imgView.scale = 1;
+            imgView.x = 0;
+            imgView.y = 0;
+            imgView.rotation = 0;
+            imgView.flip = false;
+            imgNatW = 0;
+            imgNatH = 0;
+            contentEl.innerHTML = `<div class="vd-viewer-image-wrap vd-viewer-rendered" data-image-wrap><img class="vd-viewer-image" data-image alt="" draggable="false"></div>`;
+            imgWrap = contentEl.querySelector('[data-image-wrap]');
+            imgEl = contentEl.querySelector('[data-image]');
+            imgZoomLabel = host.querySelector('[data-image-zoom-label]');
+            if (imgZoomLabel) imgZoomLabel.textContent = '100%';
+            if (!imgWrap || !imgEl) {
+                contentEl.innerHTML = `<div class="vd-viewer-error">${esc(t('viewer.error'))}</div>`;
+                return;
+            }
+            imgEl.addEventListener('load', () => {
+                imgNatW = imgEl.naturalWidth || 0;
+                imgNatH = imgEl.naturalHeight || 0;
+                viewerTitle.textContent = imgNatW && imgNatH ? `${fileName} — ${imgNatW}×${imgNatH}` : fileName;
+                applyImageView();
+            });
+            imgEl.addEventListener('error', () => {
+                contentEl.innerHTML = `<div class="vd-viewer-error">${esc(t('viewer.error'))}: ${esc(fileName)}</div>`;
+            });
+            let panning = null;
+            imgWrap.addEventListener('pointerdown', (event) => {
+                if (event.button !== 0 && event.pointerType === 'mouse') return;
+                panning = { x: event.clientX - imgView.x, y: event.clientY - imgView.y, id: event.pointerId };
+                try { imgWrap.setPointerCapture(event.pointerId); } catch (err) { /* ignore */ }
+            });
+            imgWrap.addEventListener('pointermove', (event) => {
+                if (!panning || event.pointerId !== panning.id) return;
+                imgView.x = event.clientX - panning.x;
+                imgView.y = event.clientY - panning.y;
+                applyImageView();
+            });
+            const endPan = (event) => {
+                if (panning && event.pointerId === panning.id) panning = null;
+            };
+            imgWrap.addEventListener('pointerup', endPan);
+            imgWrap.addEventListener('pointercancel', endPan);
+            imgWrap.addEventListener('wheel', (event) => {
+                event.preventDefault();
+                imageZoomBy(event.deltaY > 0 ? -1 : 1);
+            }, { passive: false });
+            imgWrap.addEventListener('dblclick', () => {
+                if (imgView.scale > 1.001) imageFit();
+                else imageActual();
+            });
+            imgEl.setAttribute('src', imageFileURL());
+        }
+
         async function loadContent() {
             try {
                 if (viewerType === 'pdf') {
                     pdfControls.style.display = 'flex';
                     await loadPdf();
+                } else if (viewerType === 'image') {
+                    imageControls.style.display = 'flex';
+                    renderImage();
                 } else {
                     const resp = await api(viewerContentURL());
                     if (viewerType === 'markdown') renderMarkdown(resp.content);
@@ -376,13 +542,15 @@
         instances.delete(windowId);
     }
 
+    const imageExts = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'ico', 'avif'];
+
     function viewerTypeForExt(ext) {
         switch (ext) {
             case 'md': return 'markdown';
             case 'pdf': return 'pdf';
             case 'docx': return 'document';
             case 'xlsx': case 'xlsm': case 'csv': return 'spreadsheet';
-            default: return 'unknown';
+            default: return imageExts.includes(ext) ? 'image' : 'unknown';
         }
     }
 
@@ -423,4 +591,11 @@
     window.ViewerApp = window.ViewerApp || {};
     window.ViewerApp.render = render;
     window.ViewerApp.dispose = dispose;
+    window.ViewerApp.open = open;
+
+    function open(windowId, context) {
+        const instance = instances.get(windowId);
+        if (!instance || !instance.container || !context) return;
+        render(instance.container, windowId, context);
+    }
 })();

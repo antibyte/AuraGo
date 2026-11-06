@@ -46,6 +46,7 @@ func TestDesktopViewerAppMarkers(t *testing.T) {
 	for _, marker := range []string{
 		"ViewerApp.render",
 		"ViewerApp.dispose",
+		"ViewerApp.open",
 		"dispose(windowId);",
 		"desktop.viewer_pdfjs_unavailable",
 		"pdfLoadingTask",
@@ -54,6 +55,15 @@ func TestDesktopViewerAppMarkers(t *testing.T) {
 		"&entry=",
 		"window.DOMPurify",
 		"DOMPurify.sanitize",
+		"data-image-controls",
+		"img-zoom-in",
+		"img-rotate-left",
+		"img-flip",
+		"img-copy",
+		"viewer.edit_image",
+		"openApp(editApp,",
+		"forceNew: true",
+		"&inline=1",
 	} {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("viewer.js missing marker %q", marker)

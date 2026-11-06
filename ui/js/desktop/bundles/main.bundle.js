@@ -7566,6 +7566,9 @@
             if (appId === 'audio-player' && context && context.path != null) {
                 window.AudioPlayerApp?.open?.(existing.id, context);
             }
+            if (appId === 'viewer' && context && context.path != null) {
+                window.ViewerApp?.open?.(existing.id, context);
+            }
             if (appId === 'files' && context && context.path != null) {
                 if (window.FileManager && typeof window.FileManager.navigateTo === 'function') window.FileManager.navigateTo(existing.id, context.path);
                 else renderFiles(existing.id, context.path);
@@ -19456,9 +19459,10 @@ if (appId === 'pixel') {
                     if (/\.aurasynth$/i.test(entry.name || entry.path)) return openApp('synth-studio', { path: entry.path });
                     if (isWriterFile(entry)) return openApp('writer', { path: entry.path });
                     if (isSheetsFile(entry)) return openApp('sheets', { path: entry.path }); if (is3DFile(entry)) return openApp('viewer-3d', { path: entry.path });
+                    if (isWindowImageFile(entry)) return openApp('viewer', { path: entry.path });
                     if (isPixelImageFile(entry)) return openApp('pixel', { path: entry.path });
                     if (isViewerFile(entry)) return openApp('viewer', { path: entry.path });
-                    if (entry.web_path || entryLooksPlayableMedia(entry)) return openMediaPreview(entry);
+        if (entry.web_path || entryLooksPlayableMedia(entry)) return openMediaPreview(entry);
                     openEditorFile(entry.path);
                 },
                 openMedia: (entry) => openMediaPreview(entry),
@@ -19623,6 +19627,12 @@ if (appId === 'pixel') {
         return ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'ico', 'tiff', 'tif', 'avif', 'ora'].includes(ext);
     }
 
+    function isWindowImageFile(file) {
+        // Browser-renderable stills open in the Viewer window; tiff/tif/ora stay in Pixel.
+        const ext = fileExtension((file && (file.name || file.path)) || '');
+        return ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'ico', 'avif'].includes(ext);
+    }
+
     function entryLooksPlayableMedia(entry) {
         const kind = String((entry && entry.media_kind) || '').toLowerCase();
         const mimeType = String((entry && entry.mime_type) || '').toLowerCase();
@@ -19652,9 +19662,10 @@ if (appId === 'pixel') {
         if (/\.aurasynth$/i.test(entry.name || entry.path)) return openApp('synth-studio', { path: entry.path });
         if (isWriterFile(entry)) return openApp('writer', { path: entry.path });
         if (isSheetsFile(entry)) return openApp('sheets', { path: entry.path });
-        if (is3DFile(entry)) return openApp('viewer-3d', { path: entry.path });
-        if (isPixelImageFile(entry)) return openApp('pixel', { path: entry.path });
-        if (isViewerFile(entry)) return openApp('viewer', { path: entry.path });
+                    if (is3DFile(entry)) return openApp('viewer-3d', { path: entry.path });
+                    if (isWindowImageFile(entry)) return openApp('viewer', { path: entry.path });
+                    if (isPixelImageFile(entry)) return openApp('pixel', { path: entry.path });
+                    if (isViewerFile(entry)) return openApp('viewer', { path: entry.path });
         if (entry.web_path || entryLooksPlayableMedia(entry)) return openMediaPreview(entry);
         openEditorFile(entry.path);
     }
@@ -19790,8 +19801,19 @@ if (appId === 'pixel') {
             openApp('audio-player', { path: file.path });
             return;
         }
-        if (kind === 'image' || kind === 'video') {
-            // Images and videos open in the shared Gallery lightbox (zoom, info, actions).
+        if (kind === 'image') {
+            if (file.path) {
+                // Browser-renderable stills open in the Viewer window, like audio opens
+                // in the Music Player window — not in the fullscreen Gallery lightbox.
+                openApp('viewer', { path: file.path });
+                return;
+            }
+            // Web-only media items without a file path keep the shared Gallery lightbox.
+            openMediaLightbox(file).then(opened => { if (!opened) openLegacyMediaPreview(file, kind, previewURL); }).catch(() => openLegacyMediaPreview(file, kind, previewURL));
+            return;
+        }
+        if (kind === 'video') {
+            // Videos open in the shared Gallery lightbox (zoom, info, actions).
             openMediaLightbox(file).then(opened => { if (!opened) openLegacyMediaPreview(file, kind, previewURL); }).catch(() => openLegacyMediaPreview(file, kind, previewURL));
             return;
         }
