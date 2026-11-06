@@ -57,7 +57,8 @@ def build_canopy(car):
 
 def build_fenders(car):
     for x, flare in ((AXLE, 0.12), (-AXLE, 0.17)):
-        arch = arc_band(R + 0.04, R + flare, 4, 176, TRACK - 0.19, TRACK + 0.08, 8, 0.025)
+        # the band reaches well into the hull (z from 0.34), so the fender top is one piece with the body
+        arch = arc_band(R + 0.04, R + flare, 4, 176, 0.34, TRACK + 0.08, 8, 0.025)
         car.pair("paint", arch, (x, R, 0.0))
 
 
