@@ -235,8 +235,7 @@ so the heading points up the screen (`screenRotation`). Two guards exist:
 - `scripts/test-aura-drift-camera.mjs` runs every track and the daily seed in every camera mode.
   It settles the camera, holds steer right and left, and asserts that the aim point moves right
   and left on screen in 3D and in 2D, and that the nose points up the screen.
-- A browser steering test (`TestDesktopAuraDriftSteeringBrowser`) is specified in section 5.2 of the
-  overhaul plan. It is **not in the tree yet**; until it lands, the Node camera test is the guard.
+- `TestDesktopAuraDriftSteeringBrowser` repeats the check in a real browser, in 3D and in 2D.
 
 ## Physics, tracks and style
 
@@ -392,8 +391,7 @@ What each group checks:
 - **Audio** checks manifest groups against the runtime contract, the engine set, aligned music
   stems, budgets and the decoded peak and loudness targets.
 - **Go tests** check registration, the three-runtime load order, the locale keys in all sixteen
-  languages, the ad-blocker class prefix, no external resources and the browser flows (drive,
-  quality matrix, wet reflections, stale loader, ad blocker, content filters).
+  languages, the ad-blocker class prefix, no external resources and the browser flows X.
 
 ### Visual survey
 
