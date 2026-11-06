@@ -1,7 +1,8 @@
 // Storymaker AI author panel: asks for a topic or a change, starts the agent job, follows it on the project's event stream and shows
 // the outcome. While a job of this project is active the editor is locked (inst.agentLocked). The panel reloads the story when the
 // job reports a new story_etag, at most once per 2 s and once more at the end; edits that were not saved stay as a conflict.
-// Everything from the server reaches the page as text only. Classic script, publishes S.createAgentPanel.
+// It also builds the start card of the project list. Everything from the server reaches the page as text only. Classic script,
+// publishes S.createAgentPanel and S.createAgentStart.
 (function () {
     'use strict';
 
@@ -422,5 +423,68 @@
         };
     }
 
+    // The start card of the project list: a topic becomes a new project with a running agent job. It stays hidden while the agent is
+    // switched off. inst: {t, domId(name), readonly, agentStatus, startAgent(spec)}
+    function createAgentStart(inst) {
+        const { el, icon } = S;
+        const t = inst.t;
+        let busy = false;
+        const fields = createFields(inst, 'agent-new', inst.agentStatus);
+        const topicId = inst.domId('agent-new-topic');
+        const aspectId = inst.domId('agent-new-aspect');
+        const topic = el('textarea', { class: 'stm-textarea stm-agent-start-topic', id: topicId, rows: '2', maxlength: MAX_TEXT, placeholder: t('storymaker.projects.new_title_placeholder'), dataset: { stm: 'agent-new-topic' } });
+        const aspect = el('select', { class: 'stm-select', id: aspectId, dataset: { stm: 'agent-new-aspect' } },
+            el('option', { value: '16:9', text: t('storymaker.aspect_16_9') }),
+            el('option', { value: '9:16', text: t('storymaker.aspect_9_16') }),
+            el('option', { value: '1:1', text: t('storymaker.aspect_1_1') }));
+        const startButton = el('button', { type: 'submit', class: 'stm-btn stm-btn-primary', dataset: { stm: 'agent-new-start' } }, icon('sparkle'), el('span', { text: t('storymaker.agent.start') }));
+        const note = el('p', { class: 'stm-hint stm-agent-start-wide', hidden: true, dataset: { stm: 'agent-new-note' }, text: t('storymaker.agent.unavailable') });
+        const errorLine = el('p', { class: 'stm-form-error', role: 'alert', hidden: true, dataset: { stm: 'agent-new-error' } });
+        const root = el('form', { class: 'stm-new stm-agent-start', hidden: true, onSubmit: event => { event.preventDefault(); submit(); } },
+            el('h3', { class: 'stm-agent-start-wide', text: t('storymaker.agent.new_title') }),
+            el('div', { class: 'stm-field stm-agent-start-wide' }, el('label', { class: 'stm-label', for: topicId, text: t('storymaker.agent.prompt_start') }), topic),
+            fields.lengthField, fields.languageField,
+            el('div', { class: 'stm-field' }, el('label', { class: 'stm-label', for: aspectId, text: t('storymaker.projects.new_format') }), aspect),
+            el('div', { class: 'stm-actions' }, startButton),
+            note, errorLine);
+
+        function setError(text) {
+            errorLine.textContent = text || '';
+            errorLine.hidden = !text;
+        }
+
+        function refresh() {
+            const info = inst.agentStatus || {};
+            const usable = info.enabled === true && info.available !== false;
+            root.hidden = info.enabled !== true;
+            note.hidden = info.enabled !== true || usable;
+            topic.disabled = inst.readonly;
+            aspect.disabled = inst.readonly;
+            fields.setDisabled(inst.readonly);
+            startButton.disabled = inst.readonly || busy || !usable;
+        }
+
+        async function submit() {
+            if (busy || inst.readonly) return;
+            const text = topic.value.trim();
+            if (!text) { setError(t('storymaker.agent.prompt_required')); topic.focus(); return; }
+            busy = true;
+            setError('');
+            refresh();
+            try {
+                await inst.startAgent({ topic: text, length_seconds: fields.seconds(), language: fields.language(), aspect: aspect.value });
+            } catch (err) {
+                if (!(err && err.aborted)) setError(S.errors.describe(t, err));
+            } finally {
+                busy = false;
+                refresh();
+            }
+        }
+
+        refresh();
+        return { el: root, refresh };
+    }
+
     S.createAgentPanel = createAgentPanel;
+    S.createAgentStart = createAgentStart;
 })();

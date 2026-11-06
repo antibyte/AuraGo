@@ -245,6 +245,10 @@ progress.stm-progress::-moz-progress-bar { background: var(--vd-mat-primary, var
 .stm-music-status { display: grid; gap: var(--ds-space-2); margin-top: var(--ds-space-2); }
 .stm-music-status p { margin: 0; }
 .stm-music-bad { color: var(--stm-bad-text); }
+.stm-agent-start { grid-template-columns: repeat(3, minmax(0, 1fr)) auto; }
+.stm-agent-start-wide { grid-column: 1 / -1; }
+.stm-agent-start h3 { margin: 0; color: var(--vd-mat-heading-color, var(--vd-text)); font-size: 14px; }
+.stm-agent-start .stm-agent-start-topic { min-height: 64px; }
 .stm-agent { display: none; padding: 0 var(--ds-space-3) var(--ds-space-3); }
 .stm-app [data-sidetab="agent"] .stm-agent { display: grid; gap: var(--ds-space-3); }
 .stm-app [data-sidetab="agent"] .stm-side > :not(.stm-tabs, .stm-agent) { display: none; }

@@ -801,6 +801,18 @@ func TestStorymakerAppRealServerBrowser(t *testing.T) {
 		t.Errorf("the project folder is still there after the delete: %v", err)
 	}
 
+	// The start card of the project list: a topic creates a project, and the editor opens on the AI author panel with the job running.
+	smappWait(t, page, `()=>{const b=document.querySelector('[data-stm="agent-new-start"]');return !!b&&!b.disabled;}`)
+	page.MustEval(setField, `[data-stm="agent-new-topic"]`, "What is a firewall?")
+	smappClick(t, page, `[data-stm="agent-new-start"]`)
+	smappWait(t, page, `()=>document.querySelector('[data-stm="side-tab"][data-tab="agent"]')?.getAttribute('aria-selected')==='true' && !!document.querySelector('[data-banner="agent_locked"]')`)
+	if left := smappProjectIDs(t, origin); len(left) != 1 {
+		t.Fatalf("projects after the start card = %v, want one new project", left)
+	}
+	smappClick(t, page, `[data-stm="agent-cancel"]`)
+	smappWait(t, page, `()=>!document.querySelector('[data-banner="agent_locked"]') && document.querySelector('[data-stm="agent-state"]')?.dataset.state==='cancelled'`)
+	smappNoErrors(t, page)
+
 	// Closing the window tears the app down without a script error.
 	page.MustEval(`()=>auditTest.closeWindow([...auditTest.state.windows.values()].find(w=>w.appId==='storymaker').id)`)
 	smappWait(t, page, `()=>!document.querySelector('[data-stm="app"]')`)

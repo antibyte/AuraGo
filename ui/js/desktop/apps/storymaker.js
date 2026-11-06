@@ -117,7 +117,9 @@
         const view = S.createProjects({
             t: inst.t, domId: inst.domId, get readonly() { return inst.readonly; },
             get language() { return String(window.SYSTEM_LANG || document.documentElement.lang || 'en'); },
+            get agentStatus() { return inst.status && inst.status.agent ? inst.status.agent : null; },
             createProject: spec => createProject(inst, spec),
+            startAgent: spec => startAgent(inst, spec),
             openProject: id => openProject(inst, id),
             deleteProject: project => deleteProject(inst, project),
             confirm: (title, message) => askConfirm(inst, title, message)
@@ -158,6 +160,14 @@
         const result = await inst.api.createProject(spec);
         if (inst.disposed) return;
         await openProject(inst, result.project.id, result);
+    }
+
+    // A film from a topic: the server creates the project and queues the job, and the editor opens on the panel that follows it.
+    async function startAgent(inst, spec) {
+        const result = await inst.api.agentStart(spec);
+        if (inst.disposed) return;
+        inst.sideTab = 'agent';
+        await openProject(inst, result.project_id);
     }
 
     async function deleteProject(inst, project) {

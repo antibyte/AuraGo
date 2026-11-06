@@ -597,6 +597,7 @@ function open(results) {
     createProject(spec) { calls.push(spec); const next = results.shift(); return next ? Promise.reject(next) : Promise.resolve(); },
     openProject() {}, deleteProject() {}, confirm: async () => false
   };
+  S.createAgentStart = () => ({ el: document.createElement('div'), refresh() {} });
   const view = S.createProjects(inst);
   view.setProjects([]);
   view.el.find('new-title').value = 'Film';

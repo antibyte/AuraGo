@@ -7,7 +7,7 @@
     const S = window.StorymakerParts = window.StorymakerParts || {};
     const ASPECTS = [['16:9', 'storymaker.aspect_16_9'], ['9:16', 'storymaker.aspect_9_16'], ['1:1', 'storymaker.aspect_1_1']];
 
-    // inst: {t, readonly, language, createProject(spec), openProject(id), deleteProject(project), confirm(title, message)}
+    // inst: {t, readonly, language, agentStatus, createProject(spec), startAgent(spec), openProject(id), deleteProject(project), confirm(title, message)}
     function createProjects(inst) {
         const { el, icon } = S;
         const t = inst.t;
@@ -36,11 +36,12 @@
             el('h3', { text: t('storymaker.projects.empty_title') }),
             el('p', { text: t('storymaker.projects.empty_text') }));
         const loading = el('p', { class: 'stm-muted', role: 'status', text: t('storymaker.loading') });
+        const agentStart = S.createAgentStart(inst);
         const root = el('section', { class: 'stm-projects', ariaLabel: t('storymaker.projects.title') },
             el('header', { class: 'stm-projects-head' },
                 el('h2', { text: t('storymaker.projects.title') }),
                 el('p', { class: 'stm-muted', text: t('storymaker.projects.intro') })),
-            form, loading, empty, list);
+            agentStart.el, form, loading, empty, list);
 
         function syncAspect() {
             aspectButtons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.aspect === aspect)));
@@ -134,7 +135,7 @@
             el: root,
             setProjects(next) { projects = Array.isArray(next) ? next : []; paint(); },
             setError(text) { setMessage(text); },
-            refresh() { syncDisabled(); },
+            refresh() { syncDisabled(); agentStart.refresh(); },
             focus() { title.focus(); },
             count: () => (projects ? projects.length : 0)
         };
