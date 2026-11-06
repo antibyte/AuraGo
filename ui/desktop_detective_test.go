@@ -89,11 +89,16 @@ func TestDesktopDetectiveBrowser(t *testing.T) {
 			}
 		case "cases/case_fixture":
 			json.NewEncoder(w).Encode(c)
-		case "cases/case_fixture/events":
+		case "cases/case_fixture/events", "cases/case_fixture/state":
 			events := []detective.Event{{ID: 1, Kind: "plan", Text: "Primärquellen zur Nutzung prüfen", At: time.Now()}}
 			if pendingEvent {
 				pendingEvent = false
 				events = append(events, detective.Event{ID: 2, Kind: "plan", Text: "Lauf angehalten", At: time.Now()})
+			}
+			// The app polls one round trip for status and new events (…/state?after=).
+			if path == "cases/case_fixture/state" {
+				json.NewEncoder(w).Encode(map[string]any{"live": fixtureLive(c), "events": events})
+				return
 			}
 			json.NewEncoder(w).Encode(map[string]any{"events": events})
 		case "cases/case_fixture/live":
@@ -218,8 +223,18 @@ func TestDesktopDetectiveBrowser(t *testing.T) {
 	}
 	c.AutoUpdate.Outcome = "permission_blocked"
 	mu.Unlock()
-	time.Sleep(4 * time.Second)
-	if !page.MustEval(`()=>document.querySelector('[data-do=auto-save]').disabled&&!document.querySelector('[data-do=auto-pause]').disabled&&document.querySelector('.dt-auto-settings').disabled`).Bool() {
+	// The app backs off to a 10 s poll for a finished case, so wait for the poll
+	// instead of guessing a duration.
+	if !page.MustEval(`async () => {
+		for (let i = 0; i < 60; i++) {
+			await new Promise(resolve => setTimeout(resolve, 500));
+			const save = document.querySelector('[data-do=auto-save]');
+			const pause = document.querySelector('[data-do=auto-pause]');
+			const settings = document.querySelector('.dt-auto-settings');
+			if (save && save.disabled && pause && !pause.disabled && settings && settings.disabled) return true;
+		}
+		return false;
+	}`).Bool() {
 		t.Fatal("live permission revocation did not disable settings or kept pause blocked")
 	}
 	mu.Lock()

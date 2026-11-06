@@ -965,6 +965,12 @@ after the built-in installers and before the markup exists. DOM work belongs in 
 - `detective-views.js` precedes `detective.js`; both use the native Desktop theme
   tokens and `desktop-app-detective.css`. Register the built-in `detective` app
   with the existing search icon. All sixteen locales use `desktop.detective_*`.
+- The case view spends two bands above the report and no more: the topic, status,
+  reason and case actions share the header band, the tabs and the export controls
+  share the toolbar band, and the report pane owns the only scroll of the column.
+  Glyphs are decorative (`aria-hidden`) and every control keeps its text label; a
+  live poll rewrites a label span, never the button that carries the glyph. The
+  sidebar lists the cases with a status dot and never grows a second column.
 - `DetectiveApp` owns a per-window instance with cancellable polling. Disposal
   aborts that window's UI controller only; it does not stop the run. Research
   remains owned by the server. While a case is open, one refresh chain reads

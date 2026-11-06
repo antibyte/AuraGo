@@ -90,27 +90,31 @@
             if (pause) pause.disabled = !state.current?.auto_update?.enabled || state.busy || !state.caps?.ready;
         }
         function autoPanel(c, ro) {
-            return `<details class="dt-auto-panel"><summary>${e(tr('auto_title'))}</summary><div class="dt-auto-state" aria-live="polite">${v.autoStatus(c.auto_update, tr, c.run?.usage)}</div>${v.autoSettings(c.auto_update, tr, ro)}<div class="dt-auto-actions"><button data-do="auto-save"${ro ? ' disabled' : ''}>${e(tr('auto_save'))}</button><button data-do="auto-pause"${!c.auto_update?.enabled ? ' disabled' : ''}>${e(tr('auto_pause'))}</button></div></details>`;
+            return `<details class="dt-auto-panel"><summary>${v.icon('refresh')}<span>${e(tr('auto_title'))}</span></summary><div class="dt-auto-state" aria-live="polite">${v.autoStatus(c.auto_update, tr, c.run?.usage)}</div>${v.autoSettings(c.auto_update, tr, ro)}<div class="dt-auto-actions"><button data-do="auto-save"${ro ? ' disabled' : ''}>${v.icon('check')}<span class="dt-btn-label">${e(tr('auto_save'))}</span></button><button data-do="auto-pause"${!c.auto_update?.enabled ? ' disabled' : ''}>${v.icon('stop')}<span class="dt-btn-label">${e(tr('auto_pause'))}</span></button></div></details>`;
         }
         const knownReports = () => v.knownReports(state.current, history, selectedReport);
         function caseTokens(item) {
             const usage = item.run?.usage || {};
             const total = (usage.prompt_tokens || 0) + (usage.completion_tokens || 0);
-            return total ? ` · ${total.toLocaleString()} ${e(tr('tokens'))}` : '';
+            return total ? ` · ${total.toLocaleString()} ${tr('tokens')}` : '';
         }
-        function listHTML() {
+        const TAB_ICON = {report: 'report', sources: 'sources', activity: 'activity', history: 'archive'};
+        function casesHTML() {
             const c = state.current;
-            return state.cases.map(item => `<button class="dt-case ${item.id === c?.id ? 'is-selected' : ''}" data-case="${e(item.id)}" aria-pressed="${item.id === c?.id}"><b>${e(item.request.topic)}</b><small>${e(tr(item.run.status))} · ${e(tr(item.request.effort))}${caseTokens(item)}</small></button>`).join('') || `<p>${e(tr('no_cases'))}</p>`;
+            return state.cases.map(item => `<button class="dt-case ${item.id === c?.id ? 'is-selected' : ''}" data-case="${e(item.id)}" aria-pressed="${item.id === c?.id}"><span class="dt-dot" data-status="${e(item.run?.status || '')}" aria-hidden="true"></span><span class="dt-case-body"><b>${e(item.request.topic)}</b><small>${e(tr(item.run.status))} · ${e(tr(item.request.effort))}${e(caseTokens(item))}</small></span></button>`).join('') || `<p class="dt-none">${e(tr('no_cases'))}</p>`;
         }
+        // Every action button carries a glyph and a label span. The live poll rewrites
+        // the label span only, so a redraw never strips the icon.
+        const actionButton = (do_, glyph, label, disabled) => `<button data-do="${do_}"${disabled ? ' disabled' : ''}>${v.icon(glyph)}<span class="dt-btn-label">${e(label)}</span></button>`;
         function actionsHTML(c, ro) {
             const r = c.run || {};
             const caps = state.caps || {};
             const canStop = v.canStop(caps);
-            if (active(c)) return `<button data-do="finish" ${ro ? 'disabled' : ''}>${e(tr('finish'))}</button><button data-do="stop" ${canStop ? '' : 'disabled'}>${e(tr('stop'))}</button>`;
-            const lead = r.status === 'draft' ? `<button data-do="start" ${ro ? 'disabled' : ''}>${e(tr('start'))}</button>` : r.status !== 'completed' ? `<button data-do="continue" ${ro ? 'disabled' : ''}>${e(tr('continue'))}</button>` : '';
-            const effort = `<select class="dt-effort" aria-label="${e(tr('effort'))}">${['quick', 'normal', 'maximum'].map(x => `<option value="${x}" ${c.request.effort === x ? 'selected' : ''}>${e(tr(x))}</option>`).join('')}</select>`;
-            const deepen = r.status === 'draft' ? '' : `<button data-do="deepen" ${ro ? 'disabled' : ''}>${e(tr('deepen'))}</button>`;
-            return `${lead}${effort}${deepen}<button data-do="delete" ${ro ? 'disabled' : ''}>${e(tr('delete'))}</button>`;
+            if (active(c)) return actionButton('finish', 'check', tr('finish'), ro) + actionButton('stop', 'stop', tr('stop'), !canStop);
+            const lead = r.status === 'draft' ? actionButton('start', 'play', tr('start'), ro) : r.status !== 'completed' ? actionButton('continue', 'play', tr('continue'), ro) : '';
+            const effort = `<select class="dt-effort" aria-label="${e(tr('effort'))}" title="${e(tr('effort'))}">${['quick', 'normal', 'maximum'].map(x => `<option value="${x}" ${c.request.effort === x ? 'selected' : ''}>${e(tr(x))}</option>`).join('')}</select>`;
+            const deepen = r.status === 'draft' ? '' : actionButton('deepen', 'deepen', tr('deepen'), ro);
+            return `${lead}${effort}${deepen}${actionButton('delete', 'trash', tr('delete'), ro)}`;
         }
         function reasonText(reason) {
             if (!reason) return '';
@@ -121,10 +125,11 @@
         function answerFieldHTML() {
             return `<label>${e(tr('answer'))}<textarea class="dt-answer" maxlength="8000"></textarea></label>`;
         }
+        // The case header is the only chrome above the report, so it stays two tight lines: the topic, then status, reason and actions on one shared row.
         function statusInner(c, ro) {
             const r = c.run || {}, usage = r.usage || {}, p = r.profile || {};
             const reason = reasonText(r.reason);
-            return `<h1>${e(c.request.topic)}</h1><div aria-live="polite"><strong>${e(tr(r.status))}</strong><span>${e(tr(r.phase || 'research'))}</span><span>${Math.floor((usage.active_ms || 0) / 60000)} / ${Math.ceil((p.seconds || 0) / 60)} min · ${usage.tools || 0}/${p.tools || 0} ${e(tr('tools'))} · ${usage.pages || 0} ${e(tr('sources'))}${v.tokenText(usage, tr) ? ' ' + v.tokenText(usage, tr) : ''}</span></div>${reason ? `<p>${e(reason)}</p>` : ''}<div class="dt-actions"${blockText() ? ` title="${e(blockText())}"` : ''}>${actionsHTML(c, ro)}</div>${r.status === 'waiting_for_user' ? answerFieldHTML() : ''}`;
+            return `<h1>${e(c.request.topic)}</h1><div aria-live="polite"><span class="dt-chip" data-status="${e(r.status || '')}"><span class="dt-dot" aria-hidden="true"></span><strong>${e(tr(r.status))}</strong></span><span class="dt-phase">${e(tr(r.phase || 'research'))}</span><span class="dt-usage">${Math.floor((usage.active_ms || 0) / 60000)} / ${Math.ceil((p.seconds || 0) / 60)} min · ${usage.tools || 0}/${p.tools || 0} ${e(tr('tools'))} · ${usage.pages || 0} ${e(tr('sources'))}</span>${v.tokenText(usage, tr)}</div>${reason ? `<p>${e(reason)}</p>` : ''}<div class="dt-actions"${blockText() ? ` title="${e(blockText())}"` : ''}>${actionsHTML(c, ro)}</div>${r.status === 'waiting_for_user' ? answerFieldHTML() : ''}`;
         }
         function provisionalNotice() {
             const report = chosenReport();
@@ -156,9 +161,9 @@
             const revisions = knownReports(), chosen = chosenReport() || revisions.at(-1);
             if (!revisions.length || !chosen) return '';
             const formats = v.formats(state.caps), hintID = `dt-pdf-hint-${state.id}`;
-            const links = formats.map(f => `<a class="dt-download" href="${base}/cases/${encodeURIComponent(c.id)}/export?revision=${chosen.revision}&format=${f.id}"${f.hint ? ` aria-describedby="${hintID}"` : ''}>${f.label}</a>`).join('');
+            const links = formats.map(f => `<a class="dt-download" href="${base}/cases/${encodeURIComponent(c.id)}/export?revision=${chosen.revision}&format=${f.id}"${f.hint ? ` aria-describedby="${hintID}"` : ''}>${v.icon('download')}<span>${f.label}</span></a>`).join('');
             const hint = formats.some(f => f.hint) ? `<span class="dt-hint" id="${hintID}">${e(tr('pdf_hint'))}</span>` : '';
-            return `<label>${e(tr('revision'))}<select class="dt-revision">${revisions.map(x => `<option value="${x.revision}" ${x === chosen ? 'selected' : ''}>${x.revision}${x.partial ? ' · ' + e(tr('partial')) : ''}${x.provisional ? ' · ' + e(tr('provisional')) : ''}</option>`).join('')}</select></label>${links}${hint}<button data-do="autor" ${ro ? 'disabled' : ''}>${e(tr('autor'))}</button>`;
+            return `<label class="dt-revision-field">${v.icon('clock')}<span>${e(tr('revision'))}</span><select class="dt-revision">${revisions.map(x => `<option value="${x.revision}" ${x === chosen ? 'selected' : ''}>${x.revision}${x.partial ? ' · ' + e(tr('partial')) : ''}${x.provisional ? ' · ' + e(tr('provisional')) : ''}</option>`).join('')}</select></label>${links}${hint}<button data-do="autor" ${ro ? 'disabled' : ''}>${v.icon('pen')}<span class="dt-btn-label">${e(tr('autor'))}</span></button>`;
         }
         function linkedExportRevision() {
             const link = host.querySelector('.dt-export a.dt-download');
@@ -185,22 +190,22 @@
             if (state.tab === 'sources') {
                 const items = [...new Map([...(state.current.sources || []), ...archiveSources].map(s => [s.id, s])).values()]
                     .map(s => (s.excerpt || !excerpts.has(s.id) ? s : {...s, excerpt: excerpts.get(s.id)}));
-                return v.sources(items, tr) + (!sourcesLoaded || sourceNext ? `<button data-do="sources-more">${e(tr('archive_more'))}</button>` : '');
+                return v.sources(items, tr) + (!sourcesLoaded || sourceNext ? `<button class="dt-more" data-do="sources-more">${e(tr('archive_more'))}</button>` : '');
             }
             if (state.tab === 'activity') return v.activity(state.events, tr);
-            if (state.tab === 'history') return `<div class="dt-history">${history.map(r => `<button data-revision="${r.revision}"><b>${e(tr('revision'))} ${r.revision}</b><span>${e(new Date(r.created_at).toLocaleString())}</span><span>${e(r.title)}</span></button>`).join('')}${!historyLoaded || historyNext ? `<button data-do="history-more">${e(tr('archive_more'))}</button>` : ''}</div>`;
+            if (state.tab === 'history') return `<div class="dt-history">${history.map(r => `<button data-revision="${r.revision}"><b>${e(tr('revision'))} ${r.revision}</b><span>${e(new Date(r.created_at).toLocaleString())}</span><span>${e(r.title)}</span></button>`).join('')}${!historyLoaded || historyNext ? `<button class="dt-more" data-do="history-more">${e(tr('archive_more'))}</button>` : ''}</div>`;
             const parts = reportParts.length ? reportParts : [chosenReport()];
             const baseRevision = parts[0]?.base_revision || 0;
-            return `${provisionalNotice()}${baseRevision ? `<button data-base-revision="${baseRevision}">${e(tr('archive_previous'))}</button>` : ''}${parts.map(r => v.report(r, tr)).join('')}`;
+            return `<div class="dt-doc">${provisionalNotice()}${baseRevision ? `<button class="dt-more" data-base-revision="${baseRevision}">${e(tr('archive_previous'))}</button>` : ''}${parts.map(r => v.report(r, tr)).join('')}</div>`;
         }
         function caseMainHTML(c, ro) {
-            const tabs = ['report', 'sources', 'activity', 'history'].map(tab => `<button data-tab="${tab}" role="tab" id="dt-tab-${state.id}-${tab}" aria-controls="dt-panel-${state.id}" aria-selected="${state.tab === tab}">${e(tr(tab))}${tab === 'sources' ? ` (${c.source_count || (c.sources || []).length})` : ''}</button>`).join('');
+            const tabs = ['report', 'sources', 'activity', 'history'].map(tab => `<button data-tab="${tab}" role="tab" id="dt-tab-${state.id}-${tab}" aria-controls="dt-panel-${state.id}" aria-selected="${state.tab === tab}">${v.icon(TAB_ICON[tab])}<span class="dt-tab-label">${e(tr(tab))}${tab === 'sources' ? ` (${c.source_count || (c.sources || []).length})` : ''}</span></button>`).join('');
             const activity = state.tab === 'activity' ? '' : `<ol class="dt-activity" hidden>${v.activityItems(state.events, tr)}</ol>`;
-            return `<section class="dt-status">${statusInner(c, ro)}</section>${autoPanel(c, ro)}<nav class="dt-tabs" role="tablist" aria-label="${e(tr('views'))}">${tabs}</nav><div class="dt-export">${exportHTML(c, ro)}</div><div class="dt-content" role="tabpanel" id="dt-panel-${state.id}" aria-labelledby="dt-tab-${state.id}-${state.tab}">${contentHTML()}</div>${activity}`;
+            return `<section class="dt-status">${statusInner(c, ro)}${autoPanel(c, ro)}</section><div class="dt-toolbar"><nav class="dt-tabs" role="tablist" aria-label="${e(tr('views'))}">${tabs}</nav><div class="dt-export">${exportHTML(c, ro)}</div></div><div class="dt-content" role="tabpanel" id="dt-panel-${state.id}" aria-labelledby="dt-tab-${state.id}-${state.tab}">${contentHTML()}</div>${activity}`;
         }
         function appHTML(main) {
             const ro = readOnly();
-            return `<div class="dt-app"><header class="dt-header"><div><b>Detective</b><span>${e(tr('subtitle'))}</span></div><button data-do="new" ${ro ? 'disabled' : ''}>+ ${e(tr('new'))}</button></header><div class="dt-error" role="alert"${state.notice ? '' : ' hidden'}>${e(state.notice || '')}</div><div class="dt-layout"><aside aria-label="${e(tr('cases'))}">${listHTML()}</aside><main class="dt-main">${main}</main></div></div>`;
+            return `<div class="dt-app"><header class="dt-header"><div class="dt-brand">${v.icon('mark', 'dt-mark')}<div class="dt-brand-text"><b>Detective</b><span>${e(tr('subtitle'))}</span></div></div><button data-do="new" ${ro ? 'disabled' : ''}>${v.icon('plus')}<span class="dt-btn-label">${e(tr('new'))}</span></button></header><div class="dt-error" role="alert"${state.notice ? '' : ' hidden'}>${e(state.notice || '')}</div><div class="dt-layout"><aside aria-label="${e(tr('cases'))}"><div class="dt-cases-head"><span>${e(tr('cases'))}</span><b>${state.cases.length}</b></div><div class="dt-cases">${casesHTML()}</div></aside><main class="dt-main">${main}</main></div></div>`;
         }
         function draw() {
             if (state.disposed) return;
@@ -220,17 +225,22 @@
         }
         function rewriteList() {
             const aside = host.querySelector('.dt-layout aside');
-            if (!aside) return;
-            const buttons = [...aside.querySelectorAll('.dt-case')];
+            const list = aside && aside.querySelector('.dt-cases');
+            if (!list) return;
+            const count = aside.querySelector('.dt-cases-head b');
+            if (count && count.textContent !== String(state.cases.length)) count.textContent = String(state.cases.length);
+            const buttons = [...list.querySelectorAll('.dt-case')];
             const same = buttons.length === state.cases.length && buttons.every((btn, i) => btn.dataset.case === state.cases[i].id);
-            if (!same) { aside.innerHTML = listHTML(); return; }
+            if (!same) { list.innerHTML = casesHTML(); return; }
             buttons.forEach((btn, i) => {
                 const item = state.cases[i];
                 const shown = item.id === state.current?.id ? state.current : item;
                 const title = btn.querySelector('b');
                 if (title) title.textContent = shown.request?.topic || '';
                 const small = btn.querySelector('small');
-                if (small) small.textContent = `${tr(shown.run?.status)} · ${tr(shown.request?.effort)}`;
+                if (small) small.textContent = `${tr(shown.run?.status)} · ${tr(shown.request?.effort)}${caseTokens(shown)}`;
+                const dot = btn.querySelector('.dt-dot');
+                if (dot && dot.dataset.status !== (shown.run?.status || '')) dot.dataset.status = shown.run?.status || '';
                 const selected = item.id === state.current?.id;
                 btn.classList.toggle('is-selected', selected);
                 btn.setAttribute('aria-pressed', String(selected));
@@ -274,10 +284,10 @@
             }
             if (content) content.scrollTop = scroll;
             syncExport();
-            const sourceBtn = host.querySelector('[data-tab=sources]');
-            if (sourceBtn) {
+            const sourceLabel = host.querySelector('[data-tab=sources] .dt-tab-label');
+            if (sourceLabel) {
                 const label = `${tr('sources')} (${state.current.source_count || (state.current.sources || []).length})`;
-                if (sourceBtn.textContent !== label) sourceBtn.textContent = label;
+                if (sourceLabel.textContent !== label) sourceLabel.textContent = label;
             }
             if (freshEvents && freshEvents.length) {
                 const list = host.querySelector('.dt-activity');
@@ -292,17 +302,36 @@
             const section = host.querySelector('.dt-status');
             if (!section || !state.current) return;
             const c = state.current, r = c.run || {}, usage = r.usage || {}, p = r.profile || {};
-            const title = section.querySelector('h2');
+            const title = section.querySelector('h1');
             if (title && title.textContent !== (c.request?.topic || '')) title.textContent = c.request?.topic || '';
-            const strong = section.querySelector('strong');
             const statusText = tr(r.status);
-            if (strong && strong.textContent !== statusText) strong.textContent = statusText;
-            const row = section.querySelector('div');
-            const spans = row ? [...row.children].filter(node => node.tagName === 'SPAN') : [];
+            const chip = section.querySelector('.dt-chip');
+            if (chip) {
+                if (chip.dataset.status !== (r.status || '')) chip.dataset.status = r.status || '';
+                const strong = chip.querySelector('strong');
+                if (strong && strong.textContent !== statusText) strong.textContent = statusText;
+            }
             const phaseText = tr(r.phase || 'research');
             const usageText = `${Math.floor((usage.active_ms || 0) / 60000)} / ${Math.ceil((p.seconds || 0) / 60)} min · ${usage.tools || 0}/${p.tools || 0} ${tr('tools')} · ${usage.pages || 0} ${tr('sources')}`;
-            if (spans[0] && spans[0].textContent !== phaseText) spans[0].textContent = phaseText;
-            if (spans[1] && spans[1].textContent !== usageText) spans[1].textContent = usageText;
+            const phase = section.querySelector('.dt-phase');
+            if (phase && phase.textContent !== phaseText) phase.textContent = phaseText;
+            const usageNode = section.querySelector('.dt-usage');
+            if (usageNode && usageNode.textContent !== usageText) usageNode.textContent = usageText;
+            // The token line is a separate node so the usage text stays comparable.
+            const row = section.querySelector('div[aria-live]');
+            if (row) {
+                const tokenHTML = v.tokenText(usage, tr);
+                let tokens = row.querySelector('.dt-tokens');
+                if (tokenHTML) {
+                    const holder = document.createElement('div');
+                    holder.innerHTML = tokenHTML;
+                    const next = holder.firstElementChild;
+                    if (!tokens) row.appendChild(next);
+                    else if (tokens.outerHTML !== next.outerHTML) tokens.replaceWith(next);
+                } else if (tokens) {
+                    tokens.remove();
+                }
+            }
             const actions = section.querySelector('.dt-actions');
             if (actions) rewriteActions(actions, c, readOnly());
             syncReason(section, r.reason);
@@ -350,7 +379,10 @@
                 const btn = actions.querySelector(`[data-do="${src.dataset.do}"]`);
                 if (!btn) return;
                 btn.disabled = src.disabled;
-                if (btn.textContent !== src.textContent) btn.textContent = src.textContent;
+                // Only the label span is rewritten: assigning textContent to the button
+                // would drop the glyph the button carries.
+                const label = btn.querySelector('.dt-btn-label');
+                if (label && label.textContent !== src.textContent) label.textContent = src.textContent;
             });
             const sel = actions.querySelector('.dt-effort');
             if (sel && host.ownerDocument.activeElement !== sel && c.request?.effort) sel.value = c.request.effort;
