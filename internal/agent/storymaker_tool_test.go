@@ -26,7 +26,12 @@ func (f *fakeStorymakerFacade) Create(_ context.Context, req storymaker.AgentCre
 }
 
 func (f *fakeStorymakerFacade) Status(context.Context, string) (storymaker.AgentStatus, error) {
-	return storymaker.AgentStatus{State: storymaker.OutcomeReadyUnverified}, nil
+	return storymaker.AgentStatus{
+		State:           storymaker.OutcomeReadyUnverified,
+		ChangedScenes:   []string{"s2"},
+		UnchangedScenes: []string{"s1"},
+		RemovedScenes:   []string{"s3"},
+	}, nil
 }
 
 func (f *fakeStorymakerFacade) Revise(_ context.Context, projectID, _ string) (storymaker.AgentJobRef, error) {
@@ -78,6 +83,11 @@ func TestStorymakerChatToolDispatchesAndOpens(t *testing.T) {
 	}
 	if fake.created.Topic != "Was ist Phishing?" || fake.created.Aspect != "9:16" || fake.created.LengthSeconds != 45 || fake.created.Voice == nil || fake.created.Voice.Provider != "piper" {
 		t.Fatalf("create request = %+v", fake.created)
+	}
+
+	status := storymakerToolCall(t, dc, map[string]interface{}{"operation": "status", "project_id": storymakerToolTestProject})
+	if changed, _ := status["changed_scenes"].([]any); len(changed) != 1 || changed[0] != "s2" {
+		t.Fatalf("status lists = %v", status)
 	}
 
 	opened := storymakerToolCall(t, dc, map[string]interface{}{"operation": "open", "project_id": storymakerToolTestProject})

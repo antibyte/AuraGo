@@ -28,6 +28,9 @@ type AgentStatus struct {
 	ErrorCode, NextAction   string
 	PollAfterSeconds        int
 	OutputPath              string
+	ChangedScenes           []string
+	UnchangedScenes         []string
+	RemovedScenes           []string
 }
 
 // AgentProjectRow is one row of the chat tool's list.

@@ -440,6 +440,9 @@ func (f *storymakerAgentFacade) Status(ctx context.Context, projectID string) (s
 		status.ScenesDone = job.Agent.ScenesDone
 		status.ScenesTotal = job.Agent.ScenesTotal
 		status.OpenChecks = job.Agent.OpenChecks
+		status.ChangedScenes = job.Agent.ChangedScenes
+		status.UnchangedScenes = job.Agent.UnchangedScenes
+		status.RemovedScenes = job.Agent.RemovedScenes
 		if len(status.OpenChecks) > storymakerFacadeMaxChecks {
 			status.OpenChecks = status.OpenChecks[:storymakerFacadeMaxChecks]
 		}

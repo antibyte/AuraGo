@@ -162,6 +162,15 @@ func storymakerToolStatus(ctx context.Context, facade storymaker.AgentFacade, pr
 	if status.OutputPath != "" {
 		fields["output_path"] = status.OutputPath
 	}
+	if len(status.ChangedScenes) > 0 {
+		fields["changed_scenes"] = status.ChangedScenes
+	}
+	if len(status.UnchangedScenes) > 0 {
+		fields["unchanged_scenes"] = status.UnchangedScenes
+	}
+	if len(status.RemovedScenes) > 0 {
+		fields["removed_scenes"] = status.RemovedScenes
+	}
 	return storymakerToolAnswer(fields)
 }
 
