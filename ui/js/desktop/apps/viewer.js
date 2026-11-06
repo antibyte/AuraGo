@@ -54,7 +54,7 @@
             <div class="vd-viewer-toolbar">
                 <div class="vd-viewer-toolbar-left">
                     ${viewerIcon(fileIconKey, 'D', 'vd-viewer-file-icon', 20)}
-                    <span class="vd-viewer-filename">${esc(fileName)}</span>
+                    <span class="vd-viewer-filename" data-viewer-title>${esc(fileName)}</span>
                 </div>
                 <div class="vd-viewer-toolbar-right">
                     ${canEdit ? `<button class="vd-tool-button" type="button" data-action="edit" title="${esc(t(isImage ? 'viewer.edit_image' : 'viewer.edit'))}">${viewerIcon('edit', 'E')}<span>${esc(t(isImage ? 'viewer.edit_image' : 'viewer.edit'))}</span></button>` : ''}
@@ -97,6 +97,7 @@
         const sheetsBar = host.querySelector('[data-sheets-bar]');
         const zoomLabel = host.querySelector('[data-zoom-label]');
         const pageLabel = host.querySelector('[data-page-label]');
+        const viewerTitle = host.querySelector('[data-viewer-title]');
 
         host.querySelectorAll('[data-action]').forEach(btn => {
             btn.addEventListener('click', () => handleAction(btn.dataset.action));
@@ -115,7 +116,7 @@
         function handleAction(action) {
             switch (action) {
                 case 'edit':
-                    if (viewerType === 'image' && ctx.openApp) ctx.openApp(editApp, { path: filePath, forceNew: true });
+                    if (viewerType === 'image' && ctx.openApp) ctx.openApp(editApp, { path: currentPath, forceNew: true });
                     else if (ctx.openApp) ctx.openApp(editApp, { path: currentPath });
                     break;
                 case 'img-zoom-out': imageZoomBy(-1); break;
@@ -248,7 +249,7 @@
         }
 
         function imageFileURL() {
-            return '/api/desktop/download?path=' + encodeURIComponent(filePath) + '&inline=1';
+            return '/api/desktop/download?path=' + encodeURIComponent(currentPath) + '&inline=1';
         }
 
         function applyImageView() {
@@ -309,7 +310,7 @@
         }
 
         async function imageCopy() {
-            if (!imgEl || !filePath) return;
+            if (!imgEl || !currentPath) return;
             try {
                 const response = await fetch(imageFileURL(), { credentials: 'same-origin' });
                 if (!response.ok) throw new Error('HTTP ' + response.status);
