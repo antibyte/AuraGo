@@ -273,6 +273,30 @@ func (p *ProjectStore) touch(ctx context.Context, id string, story []byte) {
 	}
 }
 
+// SetAgentMeta records the agent's length target, audience and template in project.json. These
+// three live in the project record, not in story.json. It retries a write that lost a race.
+func (p *ProjectStore) SetAgentMeta(ctx context.Context, id string, targetSeconds int, audience, template string) error {
+	if targetSeconds < 0 {
+		return fmt.Errorf("%w: the target length must not be negative", ErrInvalidArgument)
+	}
+	for attempt := 0; attempt < 3; attempt++ {
+		pr, etag, err := p.readProject(ctx, id)
+		if err != nil {
+			return err
+		}
+		pr.TargetSeconds, pr.Audience, pr.Template = targetSeconds, audience, template
+		b, err := encodeProject(pr)
+		if err != nil {
+			return err
+		}
+		_, err = p.st.WriteFile(ctx, p.file(id, "project.json"), b, etag)
+		if !errors.Is(err, ErrConflict) {
+			return err
+		}
+	}
+	return ErrConflict
+}
+
 // SaveCodeScene writes the source of a code scene and bundles it. ifMatch follows
 // Store.WriteFile: "" unconditional, MustNotExist for a new scene, or the source etag.
 // On success it writes scenes/<id>.bundle.js and removes scenes/<id>.errors.json. When bundling
