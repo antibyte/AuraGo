@@ -1,0 +1,76 @@
+<!doctype html>
+<!-- Aura Drift dev harness. Never shipped: ui/testdata is outside assets/web-assets.json.
+     Query params: track, car, mode, quality, camera, autostart, seed, w, h. -->
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Aura Drift harness</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+    html, body { margin: 0; height: 100%; background: #05070d; overflow: hidden; }
+    #host { position: absolute; inset: 0; }
+</style>
+</head>
+<body>
+<div id="host"></div>
+<script>
+(function () {
+    'use strict';
+    window.fixtureErrors = [];
+    addEventListener('error', e => window.fixtureErrors.push(String((e.error && e.error.stack) || e.message)));
+    addEventListener('unhandledrejection', e => window.fixtureErrors.push(String(e.reason)));
+    const nativeFetch = window.fetch.bind(window);
+    window.BUILD_VERSION = 'dev';
+    window.SYSTEM_LANG = 'de';
+    const params = new URLSearchParams(location.search);
+    window.AuraDriftHarnessParams = {
+        track: params.get('track') || '',
+        car: params.get('car') || '',
+        mode: params.get('mode') || '',
+        quality: params.get('quality') || '',
+        camera: params.get('camera') || '',
+        autostart: params.get('autostart') === '1',
+        seed: params.get('seed') || ''
+    };
+    // The module loader asks /api/i18n for the aura_drift section; answer from the bundled German file.
+    window.fetch = async (url, options) => {
+        const path = String(url);
+        if (path.startsWith('/api/i18n')) {
+            return new Response(JSON.stringify({ data: window.I18N || {} }), { headers: { 'Content-Type': 'application/json' } });
+        }
+        return nativeFetch(url, options);
+    };
+    window.AuraDriftHarnessReady = (async () => {
+        window.I18N = await (await nativeFetch('/lang/desktop/de.json')).json();
+        const t = key => window.I18N[key] || key;
+        window.t = t;
+        window.i18n = { t, getLanguage: () => 'de' };
+        await new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = '/js/shared/lazy-assets.js';
+            script.onload = resolve;
+            script.onerror = () => reject(new Error('lazy-assets.js failed'));
+            document.head.appendChild(script);
+        });
+        await new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = '/js/desktop/core/module-loader.js';
+            script.onload = resolve;
+            script.onerror = () => reject(new Error('module-loader.js failed'));
+            document.head.appendChild(script);
+        });
+        await window.AuraDesktopModules.loadAppAssets('aura-drift');
+        window.AuraDriftApp.render(document.getElementById('host'), 'dev', { t, isActive: () => true, readonly: false });
+        const debug = window.AuraDriftApp.debug;
+        const p = window.AuraDriftHarnessParams;
+        if (debug && typeof debug.start === 'function' && p.autostart) {
+            const config = { mode: p.mode || 'quick', trackId: p.track || undefined, carId: p.car || undefined };
+            if (p.seed) config.seed = Number(p.seed) >>> 0;
+            await debug.start(config);
+            if (p.camera && typeof debug.setCamera === 'function') debug.setCamera(p.camera);
+        }
+    })().catch(err => { window.fixtureErrors.push(String((err && err.stack) || err)); });
+})();
+</script>
+</body>
+</html>
