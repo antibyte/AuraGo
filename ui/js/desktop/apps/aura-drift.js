@@ -173,11 +173,12 @@
         const governor = AD.createQualityGovernor(settings.quality === 'auto' ? 'high' : settings.quality);
         if (settings.quality !== 'auto') governor.lock(settings.quality);
         const pressed = new Set();
-        let race = null, banter = null, cupIndex = 0, currentConfig = null;
-        let cupScores = [0, 0, 0, 0];
-        let view = 'menu';             /* menu | loading | play */
+        let race = null, banter = null, cupIndex = 0, currentConfig = null, ui = null;
+        let cupScores = [0, 0, 0, 0, 0, 0];
+        let view = 'menu';             /* menu -> loading -> play -> results (the results panel overlays 'play') */
         let paused = false, raf = 0, last = 0, frozen = false, startToken = 0, assetsHeld = false;
         let lastPose = null, aspect = 16 / 9, pausedGlAt = 0;
+        let pendingResults = null, resultsShown = false, appliedQuality = settings.quality;
         let tier = governor.tier;
         let reducedMotion = settings.reducedMotion ||
             (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -192,6 +193,12 @@
             return AD.QUALITY[chosen] || AD.QUALITY.high;
         }
         let quality = applyQuality();
+        /* The garage the menu shows; kept so a renderer swap can restore it. */
+        let showSpec = { carId: settings.car, livery: settings.livery, biomeId: 'alpine' };
+        function showcaseNow(spec) {
+            if (spec) showSpec = Object.assign({}, showSpec, spec);
+            renderer.setShowcase(showSpec);
+        }
 
         function resize() {
             const rect = root.getBoundingClientRect();
@@ -224,6 +231,8 @@
             quality = applyQuality();
             resize();
             if (race) renderer.setTrack(race.track, race);
+            else if (view === 'menu') showcaseNow();
+            if (ui) ui.setFallback(true);
         }
         function restore3D() {
             if (!renderer3d || renderer.kind === 'three') return;
@@ -235,17 +244,23 @@
             quality = applyQuality();
             resize();
             if (race) renderer.setTrack(race.track, race);
+            else if (view === 'menu') showcaseNow();
+            if (ui) ui.setFallback(false);
         }
         if (renderer && renderer.kind === 'three') {
             renderer.onContextLost = () => fallbackTo2D(true);
             renderer.onContextRestored = restore3D;
         }
 
-        const ui = AD.createUI(root, labels, {
+        ui = AD.createUI(root, labels, {
+            readonly: readonly,
             onStart(config) {
                 audio.unlock();
                 cupIndex = 0;
-                cupScores = [0, 0, 0, 0];
+                cupScores = [0, 0, 0, 0, 0, 0];
+                settings.car = config.carId || settings.car;
+                if (config.livery !== undefined) settings.livery = config.livery;
+                AD.saveSettings(settings, readonly);
                 startRace(config, { intro: true });
             },
             onRestart() { startRace(currentConfig || { mode: 'quick', trackId: AD.TRACKS[0].id, laps: 3 }, { intro: true }); },
@@ -256,16 +271,37 @@
                 startRace(currentConfig, { intro: true });
             },
             onUi(kind) { audio.ui(kind); },
+            /* Garage selection: the live 3D showcase follows car, livery and the track's biome. */
+            onShowcase(spec) {
+                settings.car = spec.carId;
+                settings.livery = spec.livery;
+                AD.saveSettings(settings, readonly);
+                showcaseNow(spec);
+            },
+            onCamera() {
+                settings.camera = camera.cycle();
+                AD.saveSettings(settings, readonly);
+            },
+            onResetBests() {
+                for (const key of Object.keys(bests)) delete bests[key];
+                AD.saveBests(bests, readonly);
+                ui.setBests(bests);
+            },
             onSettings(next) {
                 AD.saveSettings(next, readonly);
                 audio.setSettings(next);
                 reducedMotion = next.reducedMotion ||
                     (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
                 timeWarp.reduced = !!reducedMotion;
-                if (next.quality === 'auto') governor.reset(); else governor.lock(next.quality);
-                quality = applyQuality(governor.tier);
+                if (next.camera && next.camera !== camera.mode) camera.setMode(next.camera);
+                if (next.quality !== appliedQuality) {
+                    appliedQuality = next.quality;
+                    if (next.quality === 'auto') governor.reset(); else governor.lock(next.quality);
+                    quality = applyQuality(governor.tier);
+                }
             }
         }, settings, t);
+        ui.setFallback(renderer.kind !== 'three');
 
         function buildTrack(config) {
             if (config.mode === 'daily') return AD.buildTrack(AD.dailyTrack(dailySeed()), dailySeed());
@@ -293,10 +329,12 @@
                 track: track,
                 mode: mode,
                 seed: config.seed,
-                laps: config.laps || track.laps,
+                /* Records are per track, so only quick races may change the lap count. */
+                laps: mode === 'quick' ? (config.laps || track.laps) : track.laps,
                 opponents: fieldSize(mode, config),
                 weapons: settings.weapons && mode !== 'time_trial',
-                ghostTape: mode === 'time_trial' && best ? best.tape : null,
+                /* Only a time-trial run is a replayable ghost: it has no weapons and no rescue. */
+                ghostTape: mode === 'time_trial' && best && best.tape ? best.tape : null,
                 ghostCar: best && best.carId,
                 showGhost: settings.showGhost,
                 readonly: readonly,
@@ -314,6 +352,8 @@
             if (opts.intro && !reducedMotion) camera.script('intro');
             view = 'play';
             paused = false;
+            pendingResults = null;
+            resultsShown = false;
             ui.hide();
             setPaused(false);
             audio.resume();
@@ -341,8 +381,14 @@
             view = 'loading';
             race = null;
             paused = false;
+            pendingResults = null;
+            resultsShown = false;
             if (typeof ui.showLoading === 'function') ui.showLoading(); else ui.hide();
-            renderer.setShowcase({ carId: config.carId || settings.car, livery: settings.livery, biomeId: track.biomeId });
+            showcaseNow({
+                carId: config.carId || settings.car,
+                livery: config.livery !== undefined ? config.livery : settings.livery,
+                biomeId: track.biomeId
+            });
             return Promise.all(preload.map(p => Promise.resolve(p).catch(() => null))).then(() => {
                 if (token === startToken && instances.get(id) === entry) beginRace(track, config, opts);
                 return true;
@@ -354,7 +400,9 @@
             race = null;
             view = 'menu';
             paused = false;
-            renderer.setShowcase({ carId: settings.car, livery: settings.livery, biomeId: 'alpine' });
+            pendingResults = null;
+            resultsShown = false;
+            showcaseNow({ carId: settings.car, livery: settings.livery });
             audio.setBiome('alpine');
             ui.showMenu(bests);
         }
@@ -407,31 +455,46 @@
             if (!race || !race.result || race.result.saved) return;
             const result = race.result;
             result.saved = true;
-            const key = race.track.id;
-            const previous = bests[key];
-            const record = !readonly && result.tapeComplete !== false && (!previous || result.time < previous.time);
-            if (record) {
-                const tape = Array.isArray(result.tape) ? AD.encodeTape(result.tape) : result.tape;
-                bests[key] = { time: result.time, tape: tape, carId: race.cars[0].v.car.id };
-                AD.saveBests(bests, readonly);
-            }
-            /* Cup points accumulate across the cup. */
-            let cupLine = '';
-            if (race.mode === 'cup' && race.standings) {
-                const points = [25, 18, 15, 12];
-                for (let i = 0; i < race.standings.length; i++) {
-                    const slot = race.standings[i].index || 0;
-                    const pts = typeof AD.cupPoints === 'function' ? AD.cupPoints(i + 1) : (points[i] || 12);
-                    cupScores[slot] = (cupScores[slot] || 0) + pts;
+            const track = race.track, carId = race.cars[0].v.car.id;
+            /* Bests: a time-trial lap record (with a complete tape, D5) or a drift-attack score.
+               A quick-race tape is never stored: weapons and rescue would desync the ghost. */
+            let record = false;
+            if (!readonly && race.mode === 'time_trial' && result.tapeComplete === true && !result.dnf) {
+                const previous = bests[track.id];
+                if (!previous || result.time < previous.time) {
+                    const tape = Array.isArray(result.tape) ? AD.encodeTape(result.tape) : result.tape;
+                    bests[track.id] = { time: result.time, tape: tape, carId: carId };
+                    record = true;
                 }
-                cupLine = '  ' + labels.cup + ' ' + (cupScores[0] || 0);
+            } else if (!readonly && race.mode === 'drift_attack' && result.score > 0) {
+                const previous = bests['drift:' + track.id];
+                if (!previous || result.score > previous.score) {
+                    bests['drift:' + track.id] = { score: Math.round(result.score), carId: carId };
+                    record = true;
+                }
             }
-            ui.showResults(result, {
-                field: race.cars.length,
-                track: race.track.name + cupLine,
-                record: record,
-                hasNext: race.mode === 'cup' && cupIndex < AD.TRACKS.length - 1
-            });
+            if (record) AD.saveBests(bests, readonly);
+            if (typeof AD.pickResultTitle === 'function') result.title = AD.pickResultTitle(result, race.cars[0], race);
+            /* Cup points accumulate across the cup (six slots, AD.cupPoints per place). */
+            let cupTotal;
+            if (race.mode === 'cup' && race.standings) {
+                race.standings.forEach((car, place) => {
+                    cupScores[car.index] = (cupScores[car.index] || 0) + AD.cupPoints(place + 1);
+                });
+                cupTotal = cupScores[0];
+            }
+            /* The panel waits a beat so the finish call-out and the orbit camera get their moment. */
+            pendingResults = {
+                wait: reducedMotion ? 0.4 : 1.8,
+                result: result,
+                info: {
+                    field: race.cars.length,
+                    track: AD.trackName(track, t),
+                    record: record,
+                    cupTotal: cupTotal,
+                    hasNext: race.mode === 'cup' && cupIndex < AD.TRACKS.length - 1
+                }
+            };
         }
 
         function clearHud() {
@@ -478,7 +541,15 @@
                 if (paused) pausedGlAt = now;
                 renderer.render(race, lastPose, paused ? 0 : simDt, reducedMotion);
             }
-            if (playing() && !paused) hud.render(race, dt, settings, lastPose);
+            if (pendingResults) {
+                pendingResults.wait -= dt;
+                if (pendingResults.wait <= 0) {
+                    ui.showResults(pendingResults.result, pendingResults.info);
+                    pendingResults = null;
+                    resultsShown = true;
+                }
+            }
+            if (playing() && !paused && !resultsShown) hud.render(race, dt, settings, lastPose);
             else clearHud();
             if (!paused && !frozen) {
                 const next = governor.sample(dt);
@@ -503,7 +574,7 @@
         const debug = {
             start(config) {
                 cupIndex = 0;
-                cupScores = [0, 0, 0, 0];
+                cupScores = [0, 0, 0, 0, 0, 0];
                 const cfg = Object.assign({ mode: 'quick', trackId: AD.TRACKS[0].id }, config || {});
                 return startRace(cfg, { intro: false });
             },
@@ -532,8 +603,28 @@
             showcase(config) {
                 startToken++;
                 race = null; view = 'menu'; paused = false;
-                renderer.setShowcase(Object.assign({ carId: settings.car, livery: settings.livery, biomeId: 'alpine' }, config || {}));
+                pendingResults = null; resultsShown = false;
+                showcaseNow(Object.assign({ carId: settings.car, livery: settings.livery, biomeId: 'alpine' }, config || {}));
                 ui.hide();
+            },
+            /* The results panel over the garage with a demo result; `spec` overrides any field. */
+            results(spec) {
+                startToken++;
+                race = null; view = 'menu'; paused = false;
+                pendingResults = null; resultsShown = false;
+                const track = AD.trackById((spec && spec.trackId) || AD.TRACKS[0].id);
+                const result = Object.assign({
+                    mode: 'quick', time: 94.372, bestLap: 46.118, position: 2, field: 6, carId: settings.car, points: 18,
+                    score: 18450, medal: 'silver', title: 'air_force', eliminatedAt: null, dnf: false, won: false,
+                    style: { banked: 18450, pending: 0, maxMultiplier: 4.5, drifts: 12 },
+                    tricks: { counts: { barrel_roll: 3, flat_spin: 2, cow_vault: 1, drift_pink: 4, slingshot: 2 }, best: 1800 },
+                    tally: { airTime: 23.4, animalHits: 5, smashed: 7 }
+                }, spec || {});
+                showcaseNow({ carId: result.carId, livery: settings.livery, biomeId: track.biome });
+                ui.showResults(result, {
+                    field: result.field, track: AD.trackName(track, t), record: result.mode === 'time_trial',
+                    hasNext: result.mode === 'cup', cupTotal: result.mode === 'cup' ? 61 : undefined
+                });
             }
         };
 
@@ -579,14 +670,16 @@
                 };
             },
             onKeyDown(event) {
-                if (!isActive() || !race || !race.cars[0].isPlayer) return;
-                if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(event.code)) event.preventDefault();
+                if (!isActive() || view !== 'play' || !race || !race.cars[0].isPlayer) return;
+                /* Menus own the keyboard: only the race itself may swallow arrows and Space. */
                 if (event.code === 'KeyP' || event.code === 'Escape') {
                     if (race.state !== 'finished') setPaused(!paused);
                     return;
                 }
-                if (event.code === 'KeyR' && currentConfig) { startRace(currentConfig, { intro: true }); return; }
-                if (paused || event.repeat && (event.code === 'KeyC' || event.code === 'KeyH')) return;
+                if (event.code === 'KeyR' && currentConfig && !event.repeat) { startRace(currentConfig, { intro: true }); return; }
+                if (race.state === 'finished' || paused) return;
+                if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(event.code)) event.preventDefault();
+                if (event.repeat && (event.code === 'KeyC' || event.code === 'KeyH')) return;
                 if (event.code === 'KeyC') {
                     settings.camera = camera.cycle();
                     AD.saveSettings(settings, readonly);
@@ -650,7 +743,8 @@
             fire() { const d = currentDebug(); if (d) d.fire(); },
             launch(vz) { const d = currentDebug(); if (d) d.launch(vz); },
             freeze(value) { const d = currentDebug(); if (d) d.freeze(value); },
-            showcase(config) { const d = currentDebug(); if (d) d.showcase(config); }
+            showcase(config) { const d = currentDebug(); if (d) d.showcase(config); },
+            results(spec) { const d = currentDebug(); if (d) d.results(spec); }
         }
     };
 })();
