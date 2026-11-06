@@ -28,6 +28,8 @@ type retroGamesFixture struct {
 	reject string
 	// disabled answers every request like a switched-off Retro Games (503).
 	disabled bool
+	// failSearch answers search requests with a server error while set.
+	failSearch bool
 	// statusQueries records the raw query of every status request.
 	statusQueries []string
 }
@@ -66,6 +68,12 @@ func (f *retroGamesFixture) setDisabled(on bool) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.disabled = on
+}
+
+func (f *retroGamesFixture) setSearchFailure(on bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.failSearch = on
 }
 
 func (f *retroGamesFixture) statusLog() []string {
@@ -119,6 +127,10 @@ func (f *retroGamesFixture) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case path == "hall-of-fame":
 		write(http.StatusOK, map[string]any{"games": []any{retroGamesFixtureGames["msdos_Prince_of_Persia_1990"], retroGamesFixtureGames["arcade_tron"]}})
 	case path == "search":
+		if f.failSearch {
+			write(http.StatusInternalServerError, map[string]any{"error": "search unavailable", "code": "search_failed"})
+			return
+		}
 		games := []any{}
 		for _, id := range []string{"msdos_Prince_of_Persia_1990", "msdos_Wolfenstein_3D_1992", "arcade_tron"} {
 			g := retroGamesFixtureGames[id]
@@ -568,6 +580,33 @@ func TestDesktopRetroGamesRecoversWhenReenabled(t *testing.T) {
 		log := fixture.statusLog()
 		return len(log) > reenabledAt && log[len(log)-1] == ""
 	})
+}
+
+// TestDesktopRetroGamesListFailureOffersRetry makes the search endpoint fail,
+// checks the inline failure state and that Try again restores the list and focus.
+func TestDesktopRetroGamesListFailureOffersRetry(t *testing.T) {
+	fixture := newRetroGamesFixture()
+	page := desktopAuditBrowserWithAPI(t, map[string]http.Handler{"/api/desktop/retro-games/": fixture})
+	router := page.HijackRequests()
+	router.MustAdd("*archive.org*", func(ctx *rod.Hijack) {
+		ctx.Response.SetHeader("Content-Type", "image/gif")
+		ctx.Response.SetBody("")
+	})
+	go router.Run()
+	defer router.MustStop()
+	german := readMergedLangMap(t, "de")
+
+	page.MustEval(`()=>auditTest.openApp('retro-games')`)
+	page.MustWait(`()=>document.querySelectorAll('.rg-card').length===2`)
+
+	fixture.setSearchFailure(true)
+	page.MustEval(`()=>{const input=document.querySelector('.rg-search');input.value='tron';input.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}))}`)
+	page.MustWait(`(text)=>{const e=document.querySelector('.rg-empty');const retry=document.querySelector('.rg-retry');return !!e&&!e.hidden&&e.textContent===text&&!!retry&&!retry.hidden&&document.querySelectorAll('.rg-card').length===0}`, german["desktop.retro_games_load_failed"])
+
+	fixture.setSearchFailure(false)
+	page.MustEval(`()=>{const b=document.querySelector('.rg-retry');b.focus();b.click()}`)
+	page.MustWait(`()=>{const retry=document.querySelector('.rg-retry');const first=document.querySelector('.rg-card-play');return !!first&&document.querySelectorAll('.rg-card').length===1&&!!retry&&retry.hidden&&document.activeElement===first}`)
+	page.MustEval(`()=>{const bar=document.querySelector('.rg-progressbar');if(!bar||!bar.hidden)throw new Error('progress bar still visible')}`)
 }
 
 // assertRetroGamesPlayerSource checks a frame src: AuraGo's own player route

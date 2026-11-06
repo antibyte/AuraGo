@@ -65,7 +65,8 @@
             searchTimer: 0,
             noticeTimer: 0,
             player: null,
-            current: null
+            current: null,
+            retryPending: false
         };
         instances.set(windowId, st);
         wire(st);
@@ -112,16 +113,28 @@
 
     function showDisabled(st) {
         st.disabled = true;
+        st.retryPending = false;
         clearTimeout(st.pollTimer);
+        clearTimeout(st.noticeTimer);
         stopPlayer(st);
+        st.ui.root.classList.add('is-disabled');
+        st.ui.side.setAttribute('inert', '');
+        st.ui.head.setAttribute('inert', '');
         st.ui.stage.hidden = true;
         st.ui.browse.hidden = false;
         st.ui.grid.textContent = '';
         st.ui.count.textContent = '';
         st.ui.more.hidden = true;
         st.ui.banner.hidden = true;
+        st.ui.notice.hidden = true;
+        st.ui.loading.hidden = true;
+        st.ui.progressbar.hidden = true;
+        st.ui.retry.hidden = true;
+        st.ui.indexUpdate.disabled = true;
+        st.ui.indexUpdate.removeAttribute('aria-busy');
         st.ui.empty.textContent = st.t('desktop.retro_games_disabled');
         st.ui.empty.hidden = false;
+        delete st.ui.empty.dataset.kind;
         setListBusy(st, false);
         pollDisabled(st);
     }
@@ -155,7 +168,11 @@
         st.wasSyncing = false;
         st.statusFailures = 0;
         st.bannerKey = '';
+        st.ui.root.classList.remove('is-disabled');
+        st.ui.side.removeAttribute('inert');
+        st.ui.head.removeAttribute('inert');
         st.ui.empty.hidden = true;
+        st.ui.retry.hidden = true;
         loadLibrary(st).then(() => {
             if (st.disposed || st.disabled) return;
             refreshStatus(st);
@@ -212,6 +229,7 @@
             reloadList(st);
         }, opts);
         ui.more.addEventListener('click', () => loadMore(st), opts);
+        ui.retry.addEventListener('click', () => reloadList(st), opts);
         ui.indexUpdate.addEventListener('click', () => startSync(st), opts);
         ui.banner.addEventListener('click', event => {
             if (event.target.closest('[data-action="retry"]')) startSync(st);
@@ -287,17 +305,37 @@
     function setListBusy(st, busy) {
         st.ui.root.classList.toggle('is-loading', busy);
         st.ui.grid.setAttribute('aria-busy', busy ? 'true' : 'false');
+        st.ui.progressbar.hidden = !busy;
+        if (!busy) st.ui.loading.hidden = true;
+    }
+
+    // The message of an empty All view before the index exists is the index
+    // state, not "no search results".
+    function emptyText(st) {
+        if (st.view === 'all' && !st.query && !st.platform && !st.system && !st.decade
+            && st.status && !st.status.total_games) {
+            return st.t(st.status.syncing ? 'desktop.retro_games_index_updating' : 'desktop.retro_games_index_empty');
+        }
+        return st.t('desktop.retro_games_' + EMPTY_KEYS[st.view]);
     }
 
     function reloadList(st) {
         if (st.disabled) return;
         const seq = ++st.listSeq;
+        const hadItems = st.items.length > 0;
+        st.retryPending = st.ui.retry === document.activeElement;
         st.items = [];
         st.total = 0;
         st.loadingMore = false;
+        st.ui.more.hidden = true;
         st.ui.more.disabled = false;
         st.ui.more.removeAttribute('aria-busy');
+        st.ui.retry.hidden = true;
+        st.ui.empty.hidden = true;
+        st.ui.loading.hidden = hadItems;
+        if (!hadItems) st.ui.grid.textContent = '';
         setListBusy(st, true);
+        if (!hadItems) st.ui.progressbar.hidden = true;
         if (st.view === 'all') {
             fetchSearch(st, seq, 0);
             return;
@@ -305,7 +343,7 @@
         if (st.view === 'hall') {
             const qs = st.platform ? '?platform=' + encodeURIComponent(st.platform) : '';
             request(st, '/hall-of-fame' + qs).then(body => {
-                if (st.disposed || seq !== st.listSeq) return;
+                if (st.disposed || st.disabled || seq !== st.listSeq) return;
                 st.hall = body.games || [];
                 showItems(st, filterLocal(st, st.hall), false);
             }).catch(err => {
@@ -332,6 +370,12 @@
         st.ui.more.hidden = true;
         st.ui.empty.textContent = st.t('desktop.retro_games_load_failed');
         st.ui.empty.hidden = false;
+        st.ui.empty.dataset.kind = 'failed';
+        st.ui.retry.hidden = false;
+        if (st.retryPending) {
+            st.retryPending = false;
+            st.ui.retry.focus();
+        }
     }
 
     function fetchSearch(st, seq, offset) {
@@ -344,7 +388,7 @@
         params.set('offset', String(offset));
         params.set('limit', String(PAGE_SIZE));
         return request(st, '/search?' + params.toString()).then(body => {
-            if (st.disposed || seq !== st.listSeq) return;
+            if (st.disposed || st.disabled || seq !== st.listSeq) return;
             st.total = Number(body.total) || 0;
             showItems(st, body.games || [], offset > 0);
         }).catch(err => {
@@ -368,6 +412,8 @@
 
     function showItems(st, games, append) {
         const { ui, t, v } = st;
+        const restoreRetryFocus = !append && st.retryPending;
+        st.retryPending = false;
         if (!append) {
             ui.grid.textContent = '';
             st.items = [];
@@ -384,11 +430,21 @@
         }
         ui.grid.appendChild(fragment);
         setListBusy(st, false);
+        ui.retry.hidden = true;
         const total = st.view === 'all' ? st.total : st.items.length;
         ui.count.textContent = t('desktop.retro_games_results_count', { count: v.formatNumber(total) });
         ui.more.hidden = !(st.view === 'all' && st.items.length < st.total);
         ui.empty.hidden = st.items.length > 0;
-        if (!st.items.length) ui.empty.textContent = t('desktop.retro_games_' + EMPTY_KEYS[st.view]);
+        if (!st.items.length) {
+            ui.empty.dataset.kind = 'items';
+            ui.empty.textContent = emptyText(st);
+        } else {
+            delete ui.empty.dataset.kind;
+        }
+        if (restoreRetryFocus) {
+            const first = ui.grid.querySelector('.rg-card-play');
+            (first || ui.search).focus();
+        }
     }
 
     function findGame(st, id) {
@@ -471,6 +527,7 @@
         }
         st.statusFailures = 0;
         st.ui.indexUpdate.disabled = false;
+        st.ui.indexUpdate.removeAttribute('aria-busy');
         notice(st, 'desktop.retro_games_load_failed');
     }
 
@@ -494,6 +551,11 @@
             ui.indexText.textContent = status.syncing ? t('desktop.retro_games_index_updating') : t('desktop.retro_games_index_empty');
         }
         ui.indexUpdate.disabled = !!status.syncing;
+        if (status.syncing) ui.indexUpdate.setAttribute('aria-busy', 'true');
+        else ui.indexUpdate.removeAttribute('aria-busy');
+        if (ui.empty.dataset.kind === 'items' && !ui.empty.hidden && !st.items.length) {
+            ui.empty.textContent = emptyText(st);
+        }
         renderFilters(st);
         renderBanner(st, platforms, latest);
     }
@@ -556,8 +618,14 @@
     }
 
     function startSync(st) {
-        if (st.disposed) return;
+        if (st.disposed || st.disabled) return;
+        st.ui.indexUpdate.disabled = true;
+        st.ui.indexUpdate.setAttribute('aria-busy', 'true');
         request(st, '/sync', { method: 'POST' }).then(() => refreshStatus(st)).catch(err => {
+            if (!st.disposed) {
+                st.ui.indexUpdate.disabled = false;
+                st.ui.indexUpdate.removeAttribute('aria-busy');
+            }
             if (errorCode(err) === 'sync_running') {
                 refreshStatus(st);
                 return;

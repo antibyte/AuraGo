@@ -49,6 +49,12 @@
    control below wins over it. */
 .rg-app :where(button, input, select) { font: inherit; color: inherit; }
 .rg-app :focus-visible { outline: 2px solid var(--rg-cyan); outline-offset: 2px; }
+.rg-app ::selection { background: var(--rg-pink); color: #0b0618; }
+
+/* The app is switched off: the whole browser stays visible but every control is
+   inert (the app sets the attribute), so the empty state is the only message. */
+.rg-app.is-disabled .rg-side,
+.rg-app.is-disabled .rg-head { opacity: .45; filter: saturate(.35); }
 
 .rg-browse { display: grid; grid-template-columns: 248px minmax(0, 1fr); height: 100%; min-height: 0; }
 .rg-side {
@@ -64,6 +70,32 @@
     scrollbar-width: thin;
     scrollbar-color: #5b3fa0 transparent;
 }
+/* WebKit ignores the two standard properties above; the thumb stays inside a
+   padded track so the neon edge does not touch the panel border. */
+.rg-side::-webkit-scrollbar,
+.rg-scroll::-webkit-scrollbar,
+.rg-nav::-webkit-scrollbar,
+.rg-chips::-webkit-scrollbar { width: 10px; height: 10px; }
+.rg-side::-webkit-scrollbar-track,
+.rg-scroll::-webkit-scrollbar-track,
+.rg-nav::-webkit-scrollbar-track,
+.rg-chips::-webkit-scrollbar-track,
+.rg-side::-webkit-scrollbar-corner,
+.rg-scroll::-webkit-scrollbar-corner,
+.rg-nav::-webkit-scrollbar-corner,
+.rg-chips::-webkit-scrollbar-corner { background: transparent; }
+.rg-side::-webkit-scrollbar-thumb,
+.rg-scroll::-webkit-scrollbar-thumb,
+.rg-nav::-webkit-scrollbar-thumb,
+.rg-chips::-webkit-scrollbar-thumb { border: 2px solid transparent; border-radius: 8px; background: #3b2470; background-clip: padding-box; }
+.rg-side::-webkit-scrollbar-thumb:hover,
+.rg-scroll::-webkit-scrollbar-thumb:hover,
+.rg-nav::-webkit-scrollbar-thumb:hover,
+.rg-chips::-webkit-scrollbar-thumb:hover { background: #5b3fa0; background-clip: padding-box; }
+.rg-side::-webkit-scrollbar-button,
+.rg-scroll::-webkit-scrollbar-button,
+.rg-nav::-webkit-scrollbar-button,
+.rg-chips::-webkit-scrollbar-button { display: none; }
 .rg-logo { display: flex; flex-direction: column; gap: 4px; font: 14px/1.45 var(--rg-pixel); letter-spacing: 0.04em; color: #fff; text-shadow: 0 0 10px rgba(255, 43, 214, .7); }
 .rg-logo span:last-child { color: var(--rg-cyan); text-shadow: 0 0 10px rgba(0, 240, 255, .55); }
 .rg-nav { display: flex; flex-direction: column; gap: 2px; }
@@ -130,7 +162,29 @@
 /* A column instead of grid rows: the hidden banner drops out without shifting
    the scroll area into an auto-sized row. */
 .rg-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; padding: 14px 16px 8px; gap: 10px; }
-.rg-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.rg-head { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+/* Sits in the gap under the head without taking a row of its own. */
+.rg-progressbar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -6px;
+    height: 2px;
+    overflow: hidden;
+    border-radius: 2px;
+    background: rgba(0, 240, 255, .14);
+    pointer-events: none;
+}
+.rg-progressbar::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -45%;
+    width: 45%;
+    background: linear-gradient(90deg, transparent, var(--rg-cyan) 40%, var(--rg-pink) 65%, transparent);
+    animation: rg-sweep 1.15s ease-in-out infinite;
+}
 .rg-prompt { color: var(--rg-cyan); font-size: 22px; text-shadow: 0 0 8px rgba(0, 240, 255, .45); }
 .rg-search {
     flex: 1 1 220px;
@@ -145,6 +199,19 @@
     box-shadow: inset 0 0 0 1px rgba(0, 240, 255, .18);
 }
 .rg-search::placeholder { color: #8eb8c0; }
+.rg-search::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 13px;
+    height: 13px;
+    margin: 0 2px 0 6px;
+    background: var(--rg-cyan);
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 2l8 8M10 2l-8 8' stroke='black' stroke-width='2' stroke-linecap='square'/%3E%3C/svg%3E") center / contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 2l8 8M10 2l-8 8' stroke='black' stroke-width='2' stroke-linecap='square'/%3E%3C/svg%3E") center / contain no-repeat;
+    cursor: pointer;
+    opacity: .7;
+}
+.rg-search::-webkit-search-cancel-button:hover { opacity: 1; }
 .rg-search:focus-visible { box-shadow: 0 0 0 1px rgba(0, 240, 255, .35), inset 0 0 12px rgba(0, 240, 255, .12); }
 .rg-app.is-loading .rg-search { animation: rg-load 1s steps(2, end) infinite; }
 .rg-count { color: var(--rg-pink); font-size: 17px; white-space: nowrap; }
@@ -194,7 +261,8 @@
 .rg-card { position: relative; display: flex; flex-direction: column; min-width: 0; border: 2px solid var(--rg-line); border-radius: 6px; background: var(--rg-bg-2); scroll-margin: 8px; transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease; }
 .rg-card:hover, .rg-card:focus-within { border-color: var(--rg-pink); box-shadow: 0 10px 18px rgba(0, 0, 0, .35), 0 0 0 1px rgba(255, 43, 214, .35); transform: translateY(-2px); }
 .rg-card:has(.rg-card-play:active) { transform: translateY(0) scale(0.985); }
-.rg-card.is-broken .rg-thumb { filter: grayscale(.55); opacity: .7; }
+.rg-card.is-broken .rg-thumb img { filter: grayscale(.55); opacity: .7; }
+.rg-card.is-broken .rg-thumb.is-missing::before { opacity: .7; }
 .rg-card.is-broken .rg-card-title { color: var(--rg-muted); }
 .rg-card.is-unavailable { border-style: dashed; }
 .rg-card-play { display: flex; flex-direction: column; width: 100%; min-width: 0; padding: 0 0 8px; border: 0; border-radius: 4px; background: transparent; text-align: left; cursor: pointer; }
@@ -217,7 +285,37 @@
     color: var(--rg-cyan);
     text-shadow: 0 0 10px var(--rg-cyan);
 }
+.rg-thumb-platform {
+    position: absolute;
+    left: 6px;
+    bottom: 6px;
+    z-index: 2;
+    padding: 2px 5px;
+    border: 1px solid rgba(0, 240, 255, .42);
+    background: rgba(11, 6, 24, .82);
+    color: var(--rg-cyan);
+    font: 8px/1.5 var(--rg-pixel);
+    letter-spacing: 0.02em;
+    text-shadow: 0 0 6px rgba(0, 240, 255, .5);
+}
+.rg-thumb.is-missing .rg-thumb-platform { display: none; }
+.rg-thumb-broken {
+    position: absolute;
+    right: 6px;
+    bottom: 6px;
+    z-index: 2;
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border: 1px solid rgba(255, 43, 214, .6);
+    border-radius: 50%;
+    background: rgba(11, 6, 24, .86);
+    color: var(--rg-pink);
+    font-size: 14px;
+}
 .rg-card-title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; min-height: 2.4em; padding: 6px 8px 0; overflow: hidden; color: #fff; font-size: 18px; line-height: 1.2; white-space: normal; }
+.rg-card-maker { padding: 2px 8px 0; overflow: hidden; color: #cdbff2; font-size: 14px; white-space: nowrap; text-overflow: ellipsis; }
 .rg-card-meta { padding: 1px 8px 0; color: var(--rg-muted); font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rg-card-cta { position: absolute; top: 8px; left: 8px; z-index: 1; padding: 3px 6px; background: rgba(11, 6, 24, .88); color: var(--rg-yellow); font: 9px/1.6 var(--rg-pixel); opacity: 0; transition: opacity .12s ease; }
 .rg-card:hover .rg-card-cta, .rg-card:focus-within .rg-card-cta { opacity: 1; }
@@ -225,8 +323,32 @@
 .rg-card-fav:hover { background: rgba(11, 6, 24, .95); }
 .rg-card-fav:active { transform: scale(0.94); }
 .rg-card-fav[aria-pressed="true"] { background: rgba(255, 230, 0, .16); text-shadow: 0 0 6px var(--rg-yellow); }
-.rg-card-note { padding: 2px 8px 0; color: var(--rg-pink); font-size: 15px; }
+.rg-card-note { align-self: flex-start; margin: 4px 8px 8px; padding: 1px 6px; border: 1px solid rgba(255, 43, 214, .5); border-radius: 2px; color: #ff9ee8; font-size: 13px; }
 .rg-empty { max-width: 36rem; margin: 32px auto; padding: 20px 18px; border: 1px dashed var(--rg-line); border-radius: 4px; color: var(--rg-text); text-align: center; text-wrap: pretty; }
+.rg-skeleton-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 12px; }
+.rg-skeleton { overflow: hidden; border: 2px solid var(--rg-line); border-radius: 6px; background: var(--rg-bg-2); }
+.rg-skeleton-thumb {
+    display: block;
+    aspect-ratio: 4 / 3;
+    background: linear-gradient(105deg, #1a0d30 28%, #2c1554 46%, #1a0d30 64%) 0 0 / 260% 100%;
+    animation: rg-shimmer 1.5s ease-in-out infinite;
+}
+.rg-skeleton-line { display: block; height: 9px; margin: 10px 8px 0; border-radius: 1px; background: #2a1450; }
+.rg-skeleton-line.is-short { width: 55%; margin-bottom: 12px; }
+.rg-retry {
+    display: block;
+    min-height: 34px;
+    margin: 14px auto 4px;
+    padding: 6px 18px;
+    border: 2px solid var(--rg-cyan);
+    border-radius: 2px;
+    background: transparent;
+    color: var(--rg-cyan);
+    cursor: pointer;
+}
+.rg-retry:hover { background: rgba(0, 240, 255, .12); }
+.rg-retry:active { transform: translateY(1px); }
+.rg-more[aria-busy="true"], .rg-index-update[aria-busy="true"] { animation: rg-load 1.2s ease-in-out infinite; }
 .rg-more { display: block; min-height: 34px; margin: 16px auto 4px; padding: 6px 18px; border: 2px solid var(--rg-pink); border-radius: 2px; background: transparent; color: var(--rg-pink); cursor: pointer; }
 .rg-more:hover:not(:disabled) { background: rgba(255, 43, 214, .12); }
 .rg-more:active:not(:disabled) { transform: translateY(1px); }
@@ -234,7 +356,18 @@
 .rg-coin { align-self: flex-end; padding-bottom: 2px; font: 10px/1.6 var(--rg-pixel); letter-spacing: 0.04em; color: var(--rg-yellow); animation: rg-blink 1.6s steps(1) infinite; }
 @keyframes rg-blink { 50% { opacity: 0; } }
 @keyframes rg-load { 50% { border-color: var(--rg-yellow); } }
-@keyframes rg-bar { 50% { opacity: .35; } }
+@keyframes rg-bar {
+    from { background-position: -100% 0, 0 0; }
+    to { background-position: 200% 0, 0 0; }
+}
+@keyframes rg-sweep {
+    from { transform: translateX(0); }
+    to { transform: translateX(322%); }
+}
+@keyframes rg-shimmer {
+    from { background-position: 118% 0; }
+    to { background-position: -118% 0; }
+}
 .rg-notice {
     position: absolute;
     left: 50%;
@@ -307,12 +440,15 @@
     width: min(220px, 70%);
     height: 3px;
     margin: 0 auto 8px;
-    background: linear-gradient(90deg, transparent, var(--rg-green), transparent);
-    animation: rg-bar 1.1s ease-in-out infinite;
+    background: linear-gradient(90deg, transparent, var(--rg-green), transparent) 0 0 / 45% 100% no-repeat, rgba(57, 255, 136, .16);
+    animation: rg-bar 1.1s linear infinite;
 }
 /* The slow-load hint stays the bottom strip: it never takes pointer events (the game
    underneath must stay clickable); only its buttons do. */
 .rg-overlay.is-stalled { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px 14px; padding: 6px 12px; color: var(--rg-yellow); }
+/* A failed start is final and reads as a problem, a stall as a slow load. */
+.rg-overlay.is-stalled[data-state="failed"] { background: linear-gradient(0deg, rgba(48, 0, 26, .94), rgba(0, 0, 0, .82)); color: #ff9ecb; }
+.rg-overlay.is-stalled[data-state="failed"] .rg-overlay-text { color: #ffc2dd; }
 .rg-overlay-text { margin: 0; text-wrap: pretty; }
 .rg-overlay-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
 .rg-overlay-actions .rg-btn { height: auto; padding: 3px 8px; font-size: 15px; pointer-events: auto; }
@@ -340,7 +476,8 @@
     .rg-side { gap: 6px; overflow: hidden; padding: 6px 10px 8px; border-right: 0; border-bottom: 2px solid var(--rg-pink); box-shadow: 0 4px 18px -6px var(--rg-pink); }
     .rg-logo, .rg-index { display: none; }
     .rg-platforms, .rg-systems { flex-direction: row; margin-top: 0; padding-top: 0; border-top: 0; }
-    .rg-nav, .rg-chips { flex-direction: row; flex-wrap: nowrap; flex-shrink: 0; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; scrollbar-color: #5b3fa0 transparent; }
+    .rg-nav, .rg-chips { flex-direction: row; flex-wrap: nowrap; flex-shrink: 0; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+    .rg-nav::-webkit-scrollbar, .rg-chips::-webkit-scrollbar { display: none; }
     .rg-nav-item { flex: 0 0 auto; grid-template-columns: auto auto; min-height: 32px; padding: 4px 8px; font-size: 17px; white-space: nowrap; }
     .rg-nav-label { overflow: visible; text-overflow: clip; }
     .rg-nav-count { display: none; }
@@ -349,8 +486,9 @@
     .rg-main { padding: 10px; }
     /* The search keeps the first row to itself; count and filters wrap below. */
     .rg-search { flex-basis: calc(100% - 40px); font-size: 18px; }
-    .rg-grid { grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 10px; }
+    .rg-grid, .rg-skeleton-grid { grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 10px; }
     .rg-card-title { font-size: 16px; }
+    .rg-card-maker { font-size: 13px; }
     .rg-coin { display: none; }
     /* Title on its own row, Back and the cabinet buttons share the second one. */
     .rg-marquee { flex-wrap: wrap; gap: 6px 8px; padding: 8px 10px; }
@@ -363,24 +501,36 @@
 }
 
 @media (pointer: coarse) {
-    .rg-nav-item, .rg-chip, .rg-btn, .rg-more, .rg-index-update, .rg-banner-action { min-height: 44px; }
+    .rg-nav-item, .rg-chip, .rg-btn, .rg-more, .rg-retry, .rg-index-update, .rg-banner-action { min-height: 44px; }
     .rg-card-fav { width: 40px; height: 40px; }
+    /* There is no hover on touch: the play affordance stays visible. */
+    .rg-card-cta { opacity: 1; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .rg-coin, .rg-app.is-loading .rg-search, .rg-overlay:not(.is-stalled)::before { animation: none; }
+    .rg-coin, .rg-app.is-loading .rg-search, .rg-overlay:not(.is-stalled)::before, .rg-progressbar::after, .rg-skeleton-thumb, .rg-more[aria-busy="true"], .rg-index-update[aria-busy="true"] { animation: none; }
     .rg-app.is-loading .rg-search { border-color: var(--rg-yellow); }
-    .rg-card, .rg-card-cta, .rg-btn, .rg-card-fav, .rg-app .rg-head .rg-sort, .rg-app .rg-head .rg-decade { transition: none; }
-    .rg-card:hover, .rg-card:focus-within, .rg-card:has(.rg-card-play:active), .rg-btn:active, .rg-card-fav:active, .rg-chip:active { transform: none; }
+    .rg-progressbar::after { left: 0; width: 100%; opacity: .4; transform: none; }
+    .rg-skeleton-thumb { background: #1d0f34; }
+    .rg-card, .rg-card-cta, .rg-btn, .rg-card-fav, .rg-retry, .rg-app .rg-head .rg-sort, .rg-app .rg-head .rg-decade { transition: none; }
+    .rg-card:hover, .rg-card:focus-within, .rg-card:has(.rg-card-play:active), .rg-btn:active, .rg-card-fav:active, .rg-chip:active, .rg-retry:active { transform: none; }
 }
 .desktop-body[data-animations="false"] .rg-coin,
 .desktop-body[data-animations="false"] .rg-app.is-loading .rg-search,
-.desktop-body[data-animations="false"] .rg-overlay:not(.is-stalled)::before { animation: none; }
+.desktop-body[data-animations="false"] .rg-overlay:not(.is-stalled)::before,
+.desktop-body[data-animations="false"] .rg-progressbar::after,
+.desktop-body[data-animations="false"] .rg-skeleton-thumb,
+.desktop-body[data-animations="false"] .rg-more[aria-busy="true"],
+.desktop-body[data-animations="false"] .rg-index-update[aria-busy="true"] { animation: none; }
 .desktop-body[data-animations="false"] .rg-app.is-loading .rg-search { border-color: var(--rg-yellow); }
+.desktop-body[data-animations="false"] .rg-progressbar::after { left: 0; width: 100%; opacity: .4; transform: none; }
+.desktop-body[data-animations="false"] .rg-skeleton-thumb { background: #1d0f34; }
 .desktop-body[data-animations="false"] .rg-card,
 .desktop-body[data-animations="false"] .rg-card-cta,
 .desktop-body[data-animations="false"] .rg-btn,
-.desktop-body[data-animations="false"] .rg-card-fav { transition: none; }
+.desktop-body[data-animations="false"] .rg-card-fav,
+.desktop-body[data-animations="false"] .rg-retry { transition: none; }
 .desktop-body[data-animations="false"] .rg-card:hover,
 .desktop-body[data-animations="false"] .rg-card:focus-within,
 .desktop-body[data-animations="false"] .rg-card:has(.rg-card-play:active) { transform: none; }
+.desktop-body[data-animations="false"] .rg-retry:active { transform: none; }

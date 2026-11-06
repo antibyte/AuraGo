@@ -81,6 +81,7 @@
         const mute = button('rg-mute', '', '', returnFocus(() => toggleMute()));
         const restart = button('rg-restart', t('desktop.retro_games_restart'), '⟲', returnFocus(() => restartGame()));
         const full = button('rg-full', t('desktop.retro_games_fullscreen'), '⛶', returnFocus(() => toggleFullscreen()));
+        full.setAttribute('aria-pressed', 'false');
         const external = button('rg-external', t('desktop.retro_games_open_archive'), '↗', call('onExternal'));
         const marquee = el('header', { className: 'rg-marquee' }, [
             back,
@@ -178,6 +179,8 @@
             const hadFocus = overlay.contains(document.activeElement);
             overlay.hidden = true;
             overlay.classList.remove('is-stalled');
+            overlay.removeAttribute('data-state');
+            overlay.setAttribute('aria-busy', 'false');
             hintActions.hidden = true;
             // A focused hint button disappears with the strip; keep the keyboard in the game.
             if (hadFocus) focusFrame();
@@ -188,6 +191,8 @@
             clearTimeout(stallTimer);
             overlay.hidden = false;
             overlay.classList.add('is-stalled');
+            overlay.dataset.state = key === 'desktop.retro_games_player_failed' ? 'failed' : 'stalled';
+            overlay.setAttribute('aria-busy', 'false');
             overlayText.textContent = t(key);
             hintActions.hidden = false;
         }
@@ -196,6 +201,8 @@
             clearTimeout(stallTimer);
             overlay.hidden = false;
             overlay.classList.remove('is-stalled');
+            overlay.removeAttribute('data-state');
+            overlay.setAttribute('aria-busy', 'true');
             overlayText.textContent = t('desktop.retro_games_player_loading');
             hintActions.hidden = true;
             stallTimer = setTimeout(() => {
@@ -231,6 +238,10 @@
             if (typeof bezel.requestFullscreen === 'function') bezel.requestFullscreen().catch(() => {});
         }
 
+        function syncFullscreen() {
+            if (!disposed) full.setAttribute('aria-pressed', document.fullscreenElement === bezel ? 'true' : 'false');
+        }
+
         function setFavorite(on) {
             v.setFavoriteButton(t, fav, !!on);
         }
@@ -263,6 +274,7 @@
         setBroken(opts.broken);
         renderMute();
         window.addEventListener('message', onMessage);
+        document.addEventListener('fullscreenchange', syncFullscreen);
         start();
         stage.appendChild(el('div', { className: 'rg-cabinet' }, [marquee, bezel, panel]));
         // The game gets the keyboard from the start (Space/Enter must not hit Back).
@@ -276,6 +288,7 @@
                 disposed = true;
                 clearTimeout(stallTimer);
                 window.removeEventListener('message', onMessage);
+                document.removeEventListener('fullscreenchange', syncFullscreen);
                 if (document.fullscreenElement === bezel && document.exitFullscreen) document.exitFullscreen().catch(() => {});
                 frame.setAttribute('src', 'about:blank');
                 frame.remove();

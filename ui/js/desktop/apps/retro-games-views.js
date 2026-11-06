@@ -94,6 +94,18 @@
         markPressed(container, 'system', active);
     }
 
+    function skeletonCards(count) {
+        const cards = [];
+        for (let i = 0; i < count; i += 1) {
+            cards.push(el('div', { className: 'rg-skeleton' }, [
+                el('span', { className: 'rg-skeleton-thumb' }),
+                el('span', { className: 'rg-skeleton-line' }),
+                el('span', { className: 'rg-skeleton-line is-short' })
+            ]));
+        }
+        return cards;
+    }
+
     function shell(t) {
         const nav = el('nav', { className: 'rg-nav', 'aria-label': t('desktop.retro_games_nav_label') });
         for (const [view, icon, key] of VIEWS) {
@@ -118,25 +130,28 @@
             systems,
             el('div', { className: 'rg-index' }, [indexText, indexUpdate])
         ]);
-        const search = el('input', { type: 'search', className: 'rg-search', placeholder: t('desktop.retro_games_search_placeholder'), 'aria-label': t('desktop.retro_games_search_label'), maxlength: '200', autocomplete: 'off', spellcheck: 'false' });
+        const search = el('input', { type: 'search', className: 'rg-search', placeholder: t('desktop.retro_games_search_placeholder'), 'aria-label': t('desktop.retro_games_search_label'), maxlength: '200', autocomplete: 'off', autocapitalize: 'off', spellcheck: 'false', enterkeyhint: 'search' });
         const sort = el('select', { className: 'rg-sort', 'aria-label': t('desktop.retro_games_sort_label') },
             SORTS.map(value => el('option', { value, text: t('desktop.retro_games_sort_' + value) })));
         const decade = el('select', { className: 'rg-decade', 'aria-label': t('desktop.retro_games_decade_label') },
             [el('option', { value: '', text: t('desktop.retro_games_decade_any') })].concat(DECADES.map(value => el('option', { value: String(value), text: t('desktop.retro_games_decade_value', { decade: value }) }))));
         const count = el('span', { className: 'rg-count', 'aria-live': 'polite' });
-        const head = el('header', { className: 'rg-head' }, [el('span', { className: 'rg-prompt', 'aria-hidden': 'true', text: '>' }), search, count, sort, decade]);
+        const progressbar = el('div', { className: 'rg-progressbar', 'aria-hidden': 'true', hidden: true });
+        const head = el('header', { className: 'rg-head' }, [el('span', { className: 'rg-prompt', 'aria-hidden': 'true', text: '>' }), search, count, sort, decade, progressbar]);
         const banner = el('div', { className: 'rg-banner', role: 'status', hidden: true });
         const title = el('h2', { className: 'rg-section-title' });
         const grid = el('div', { className: 'rg-grid', role: 'list' });
+        const loading = el('div', { className: 'rg-skeleton-grid', 'aria-hidden': 'true', hidden: true }, skeletonCards(8));
         const empty = el('p', { className: 'rg-empty', hidden: true });
+        const retry = el('button', { type: 'button', className: 'rg-retry', hidden: true, text: t('desktop.retro_games_retry') });
         const more = el('button', { type: 'button', className: 'rg-more', hidden: true, text: t('desktop.retro_games_load_more') });
         const coin = el('div', { className: 'rg-coin', 'aria-hidden': 'true', text: t('desktop.retro_games_insert_coin') });
-        const main = el('section', { className: 'rg-main' }, [head, banner, title, el('div', { className: 'rg-scroll' }, [grid, empty, more]), coin]);
+        const main = el('section', { className: 'rg-main' }, [head, banner, title, el('div', { className: 'rg-scroll' }, [loading, grid, empty, retry, more]), coin]);
         const browse = el('div', { className: 'rg-browse' }, [side, main]);
         const stage = el('div', { className: 'rg-stage', hidden: true });
         const notice = el('p', { className: 'rg-notice', role: 'alert', hidden: true });
-        const root = el('div', { className: 'rg-app', 'aria-label': t('desktop.app_retro_games') }, [browse, stage, notice]);
-        return { root, browse, stage, notice, nav, platforms, systems, indexText, indexUpdate, search, sort, decade, count, banner, title, grid, empty, more };
+        const root = el('div', { className: 'rg-app', role: 'region', 'aria-label': t('desktop.app_retro_games') }, [browse, stage, notice]);
+        return { root, browse, stage, notice, side, head, nav, platforms, systems, indexText, indexUpdate, search, sort, decade, count, banner, progressbar, title, grid, loading, empty, retry, more };
     }
 
     function thumbnail(game) {
@@ -149,6 +164,7 @@
         }, { once: true });
         img.src = THUMB_BASE + encodeURIComponent(game.identifier);
         wrap.appendChild(img);
+        wrap.appendChild(el('span', { className: 'rg-thumb-platform', text: wrap.dataset.glyph }));
         return wrap;
     }
 
@@ -162,9 +178,18 @@
 
     function card(t, game, options) {
         const opts = options || {};
+        const thumb = thumbnail(game);
+        if (opts.broken) {
+            thumb.appendChild(el('span', {
+                className: 'rg-thumb-broken',
+                title: t('desktop.retro_games_nav_broken'),
+                text: '⚠'
+            }));
+        }
         const play = el('button', { type: 'button', className: 'rg-card-play', 'aria-label': t('desktop.retro_games_play_title', { title: game.title }) }, [
-            thumbnail(game),
-            el('span', { className: 'rg-card-title', text: game.title }),
+            thumb,
+            el('span', { className: 'rg-card-title', title: game.title, text: game.title }),
+            game.creator ? el('span', { className: 'rg-card-maker', title: game.creator, text: game.creator }) : null,
             el('span', { className: 'rg-card-meta', text: metaLine(t, game) }),
             el('span', { className: 'rg-card-cta', 'aria-hidden': 'true', text: '▶ ' + t('desktop.retro_games_play') })
         ]);
