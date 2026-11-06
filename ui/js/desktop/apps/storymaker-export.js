@@ -140,6 +140,43 @@
                     el('button', { type: 'button', class: 'stm-btn', dataset: { stm: 'export-cancel' }, disabled: cancelling || null, onClick: () => cancel() }, icon('stop'), el('span', { text: cancelling ? t('storymaker.export.cancelling') : t('storymaker.export.cancel') }))));
         }
 
+        // The extra files of a finished job, each with its own way to Files: stems and subtitles sit in the folder next to the
+        // MP4, the library copy in Videos. A job without extras has no list.
+        function extrasView(output) {
+            const stems = output.stems || {};
+            const rows = [
+                ['narration', t('storymaker.export.label_narration'), stems.narration],
+                ['music', t('storymaker.export.label_music'), stems.music],
+                ['sfx', t('storymaker.export.label_sfx'), stems.sfx],
+                ['srt', t('storymaker.export.label_srt'), output.srt],
+                ['vtt', t('storymaker.export.label_vtt'), output.vtt],
+                ['library', t('storymaker.export.label_library'), output.library]
+            ].filter(row => row[2]);
+            if (!rows.length) return null;
+            const list = el('ul', { class: 'stm-caps', dataset: { stm: 'export-extras' } });
+            rows.forEach(([name, label, path]) => {
+                const folder = dirOf(path);
+                list.appendChild(el('li', { class: 'stm-cap', dataset: { extra: name } },
+                    el('div', { class: 'stm-cap-text' },
+                        el('strong', { text: label }),
+                        el('code', { class: 'stm-path', dataset: { stm: 'export-extra-path' }, text: String(path) })),
+                    el('button', { type: 'button', class: 'stm-btn stm-btn-quiet stm-btn-icon', ariaLabel: t('storymaker.export.show_in_files'), title: t('storymaker.export.show_in_files'), dataset: { stm: 'export-extra-show' }, disabled: !folder || typeof inst.ctx.openApp !== 'function' || null, onClick: () => { if (folder) inst.ctx.openApp('files', { path: folder }); } }, icon('folder'))));
+            });
+            return list;
+        }
+
+        // Server texts are shown as text only.
+        function warningsView(finishedJob) {
+            const warnings = Array.isArray(finishedJob.warnings) ? finishedJob.warnings : [];
+            if (!warnings.length) return null;
+            const list = el('ul', { class: 'stm-blockers', dataset: { stm: 'export-warnings' } });
+            warnings.forEach(warning => {
+                const item = warning || {};
+                list.appendChild(el('li', { dataset: { code: String(item.code || '') }, text: String(item.message || item.code || '').slice(0, 600) }));
+            });
+            return [el('p', { class: 'stm-hint', text: t('storymaker.export.warnings') }), list];
+        }
+
         function resultView() {
             const output = job.output || {};
             const dir = dirOf(output.path);
@@ -148,6 +185,8 @@
                 el('p', { class: 'stm-muted', text: t('storymaker.export.output') }),
                 el('code', { class: 'stm-path', dataset: { stm: 'export-path' }, text: String(output.path || '') }),
                 output.size ? el('p', { class: 'stm-hint', text: S.format.bytes(output.size) }) : null,
+                extrasView(output),
+                warningsView(job),
                 el('div', { class: 'stm-actions' },
                     el('button', { type: 'button', class: 'stm-btn stm-btn-primary', dataset: { stm: 'export-show' }, disabled: !dir || typeof inst.ctx.openApp !== 'function' || null, onClick: () => { if (dir) inst.ctx.openApp('files', { path: dir }); } }, icon('folder'), el('span', { text: t('storymaker.export.show_in_files') })),
                     el('button', { type: 'button', class: 'stm-btn', dataset: { stm: 'export-copy' }, onClick: () => copyPath(output.path) }, icon('copy'), el('span', { text: copied && Date.now() - copied < 2500 ? t('storymaker.export.copied') : t('storymaker.export.copy_path') })),

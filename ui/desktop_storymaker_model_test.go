@@ -901,3 +901,68 @@ const says = (key, what) => { if (!one(root, 'export-blockers').textContent.incl
   console.log('storymaker export start ok');
 })().catch(fail);
 `
+
+// A finished job lists what it wrote: stems, subtitles and the library copy show when present, each warning shows as text, and a
+// job without extras shows only the MP4.
+func TestStorymakerExportFinishedJobInNode(t *testing.T) {
+	t.Parallel()
+	out := runStorymakerExportScript(t, "storymaker-export-finished.js", storymakerExportFinishedScript)
+	if !strings.Contains(out, "storymaker export finished ok") {
+		t.Fatalf("unexpected output:\n%s", out)
+	}
+}
+
+const storymakerExportFinishedScript = `
+load(['storymaker-core.js', 'storymaker-model.js', 'storymaker-dialog.js', 'storymaker-export.js']);
+const S = context.StorymakerParts;
+// The handoff module joins the app after this task. Here no job offers it.
+S.handoff = { canOffer: () => false, run: () => Promise.resolve({ projectId: '' }) };
+function finished(output, warnings) {
+  const opened = [];
+  const inst = {
+    t: key => key, domId: name => 'test-' + name, bus: S.createBus(), parts: {}, readonly: false, projectId: 'p1', etag: '"e1"', issues: [], handoffWish: new Set(),
+    ctx: { openApp(app, target) { opened.push([app, target.path]); } },
+    status: { ffmpeg: { ready: true }, browser: { ready: true, source: 'system' }, limits: {} },
+    story: { format: { aspect: '16:9' }, style: { captions: true }, music: null },
+    report: { frame_count: 90, fps: 30, duration_ms: 3000, issues: [], audio_events: [] },
+    audioInfo: { narration: {}, missing: [], chars: { total: 0, missing: 0 }, music: null },
+    flushEdits: () => Promise.resolve(true), showIssues() {}, notify() {}, api: {}
+  };
+  const exporter = S.createExport(inst);
+  const job = { id: 'job-1', project_id: 'p1', kind: 'render', status: 'succeeded', progress: 1, output };
+  if (warnings) job.warnings = warnings;
+  exporter.apply(job, true);
+  exporter.open();
+  return { root: exporter.el, opened };
+}
+const mp4 = 'Documents/Storymaker/p1/exports/film-12345678.mp4';
+const folder = 'Documents/Storymaker/p1/exports/film-12345678';
+
+// Stems, SRT, VTT and library show when present. The silent music stem is absent, so it has no row.
+const full = finished({
+  path: mp4, size: 10,
+  stems: { narration: folder + '/narration.wav', sfx: folder + '/sfx.wav' },
+  srt: folder + '/captions.srt', vtt: folder + '/captions.vtt', library: 'Videos/Storymaker/film.mp4'
+}, [{ code: 'stem_failed', message: 'music.wav could not be written' }, { code: 'library_failed', message: 'Videos is read-only' }]);
+const rows = one(full.root, 'export-extras').children;
+eq(rows.map(row => row.dataset.extra), ['narration', 'sfx', 'srt', 'vtt', 'library'], 'each extra that exists');
+eq(rows.map(row => one(row, 'export-extra-path').textContent), [folder + '/narration.wav', folder + '/sfx.wav', folder + '/captions.srt', folder + '/captions.vtt', 'Videos/Storymaker/film.mp4'], 'the paths');
+eq(one(full.root, 'export-path').textContent, mp4, 'the MP4 stays');
+
+// Each row opens the folder of its own file.
+one(rows[4], 'export-extra-show').click();
+one(rows[0], 'export-extra-show').click();
+eq(full.opened, [['files', 'Videos/Storymaker'], ['files', folder]], 'Files opens the folder of the file');
+
+// Each warning shows as text.
+eq(one(full.root, 'export-warnings').children.map(item => [item.dataset.code, item.textContent]), [['stem_failed', 'music.wav could not be written'], ['library_failed', 'Videos is read-only']], 'warnings');
+
+// A job without extras shows only the MP4. Empty stems mean every stem was silent.
+for (const plain of [{ path: mp4, size: 10 }, { path: mp4, size: 10, stems: {} }]) {
+  const bare = finished(plain);
+  eq(byStm(bare.root, 'export-extras').length, 0, 'no extras list');
+  eq(byStm(bare.root, 'export-warnings').length, 0, 'no warnings list');
+  eq(one(bare.root, 'export-path').textContent, mp4, 'only the MP4');
+}
+console.log('storymaker export finished ok');
+`
