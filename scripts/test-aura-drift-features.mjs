@@ -262,7 +262,7 @@ function step(race, actor, fs, seconds) {
     const av = fsv.animals[0];
     flyer.v.x = av.x; flyer.v.y = av.y; flyer.v.z = 3; flyer.v.airborne = true;
     AD.updateActorFeatures(rv, flyer, fsv, AD.STEP);
-    check('flying over an animal does not hit it and flags the cow vault', av.state !== 'flying' && flyer.cowVault && flyer.cowVault.feature === av.id);
+    check('flying over an animal does not hit it (the cow vault is awarded by tricks)', av.state !== 'flying' && flyer.cowVault === undefined);
 
     /* ghost: same logic, no scoring, no events */
     const ghost = fakeActor(track, 0, 0, 0, 'vektor', -1);

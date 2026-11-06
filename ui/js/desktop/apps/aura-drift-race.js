@@ -138,7 +138,9 @@
         }
         /* Rain and snow take the grip away in the same way for every driver. */
         if (race.conditions) grip *= race.conditions.state.grip;
-        const env = { grip: grip, roll: roll, sample: sample, slipstream: 0 };
+        const env = { grip: grip, roll: roll, sample: sample, slipstream: 0, driveK: 1 };
+        /* Hot potato: the bomb holder runs hot (rules.driveK). */
+        if (v.hasBomb && race.rules && race.rules.driveK) env.driveK = race.rules.driveK;
         if (!actor.ghost) AD.applyHazardEnv(race, actor, env);
 
         /* Slipstream: tucked directly behind a rival at speed. Deterministic and

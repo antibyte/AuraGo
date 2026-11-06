@@ -337,7 +337,7 @@
         const field = race.cars.length;
         const rank = Math.max(1, race.standings.indexOf(actor) + 1);
         const fraction = field > 1 ? (rank - 1) / (field - 1) : 0;
-        const pool = Array.isArray(race.rules && race.rules.weapons) ? race.rules.weapons : AD.LEGACY_WEAPON_POOL;
+        const pool = Array.isArray(race.rules && race.rules.weapons) ? race.rules.weapons : null;
         const id = AD.rollWeapon(race.rng, fraction, pool);
         AD.giveWeapon(race, actor, id);
         AD.emit(race, 'pickup', { x: crate.x, y: crate.y, car: actor.index, id: id, lock: actor.weaponLock });
@@ -368,12 +368,8 @@
         const dx = a.x - v.x, dy = a.y - v.y;
         const dist = Math.hypot(dx, dy);
         if (v.z >= ANIMAL_HIT_Z) {
-            /* Sailing over the herd earns the cow vault. */
-            if (!actor.ghost && dist < 3.4 && race.time - (actor.vaultAt === undefined ? -99 : actor.vaultAt) > 3) {
-                actor.vaultAt = race.time;
-                actor.cowVault = { feature: a.id, t: race.time };
-                if (typeof AD.awardTrick === 'function') AD.awardTrick(race, actor, 'cow_vault', a.x, a.y);
-            }
+            /* Sailing over the herd is not a hit. The cow_vault trick is awarded by
+               detectTricks in aura-drift-tricks.js (one path, reading fs.animals). */
             return;
         }
         if (dist >= v.car.radius * 0.6 + 1.1) return;

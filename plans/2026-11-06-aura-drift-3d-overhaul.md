@@ -695,7 +695,7 @@ Extra fields:
 | `time_trial` | 0 | off | no | yes | no | config | Player finishes | Time, ghost saved |
 | `cup` | 5 | setting | yes | yes | yes | track | As quick, across `AD.TRACKS`; points 25, 18, 15, 12, 10, 8 | Points |
 | `daily` | 5 | setting | yes | yes | yes | 3 | As quick | Finish order |
-| `drift_attack` | 0 | off | no | yes (no destructible penalty) | no | 99 | `race.clock` 90 s reaches 0 | `style.banked + pending`; medals bronze 12000, silver 28000, gold 50000 |
+| `drift_attack` | 0 | off | no | yes (no destructible penalty) | no | 99 | `race.clock` 90 s reaches 0 | `style.banked + pending`; medals bronze 10000, silver 22000, gold 40000 (retuned in T1.6 from the scripted drifter, see the balance script header) |
 | `elimination` | 5 | setting | yes | yes | yes | 99 | First out at 45 s, then every 30 s; last in standings out (`elimination_warn` 5 s before); ends when one remains or the player is out | Reverse order out |
 | `hot_potato` | 5 | pool `air_horn, shield, overdrive` | yes | yes | no | 99 | Bomb after 5 s to a `race.rng` pick. Fuse `max(10,16-round)`. Passes on contact (dist < sum of radii + 0.4) with giver immune 1.5 s. Holder drive x1.12. Blast: holder out, shock `r=16`. 3 s until the next bomb to the car nearest the blast. Ends when one remains or the player is out. | Reverse order out |
 

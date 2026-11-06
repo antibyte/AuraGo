@@ -432,11 +432,24 @@
     };
     const INSTANT = { shield: 0.12, cloak: 0.12, air_horn: 0.1, glove: 0.08, overdrive: 0.2, mg: 0.05, flamethrower: 0 };
 
+    /* A weapon that never finds its situation would block every later crate
+       (a spread-out field on a long track). After STALE seconds any rival in
+       reach is reason enough, after DUMP seconds the pickup is simply used. */
+    const STALE = 12, DUMP = 26;
+    function staleFire(race, car) {
+        const held = car.ai.holdTime;
+        if (held < STALE) return false;
+        if (held >= DUMP) return true;
+        return any(race, car, r => r.dist <= 130);
+    }
+
     AD.aiWantsFire = function (race, car) {
         if (car.ghost || car.index < 0 || !race.weapons || !car.weapon) return false;
         if (car.weaponLock > 0 || car.v.cloak > 0 || car.v.out) return false;
+        if (car.ai.holdId !== car.weapon) { car.ai.holdId = car.weapon; car.ai.holdTime = 0; }
+        car.ai.holdTime += AD.STEP;
         const test = PRED[car.weapon];
-        const want = !!test && test(race, car);
+        const want = (!!test && test(race, car)) || staleFire(race, car);
         if (!want) { car.ai.fireHold = 0; return false; }
         if (car.weapon === 'flamethrower' && car.fuel > 0) return true;
         /* Reaction time grows with the driver's lack of skill; defensive pickups react fast. */
@@ -444,6 +457,7 @@
         car.ai.fireHold = (car.ai.fireHold || 0) + AD.STEP;
         if (car.ai.fireHold < need) return false;
         car.ai.fireHold = 0;
+        car.ai.holdTime = 0;
         return true;
     };
 })();

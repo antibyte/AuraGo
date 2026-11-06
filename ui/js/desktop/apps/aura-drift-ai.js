@@ -3,6 +3,9 @@
     'use strict';
     const AD = window.AuraDriftCore;
     const clamp = AD.clamp;
+    /* The handbrake starts a slide but is released once the car is sideways
+       beyond this slip ratio (vy/speed), so a slide never turns into a spin. */
+    const HB_SLIP = 0.16;
 
     /* Marshal: puts a pinned or wrecked car back on the racing line. */
     AD.respawnCar = function (race, car) {
@@ -68,8 +71,12 @@
         car.ai.catchup = catchup > 1.001;
         car.ai.catchupFactor = catchup;
 
-        const cornerLimit = 18 + 62 * car.ai.aggression * (car.ai.skill || 1) /
-            Math.max(0.35, 1 + curvature * 14 + Math.abs(sample.offset) / 40);
+        /* Drivers know their car: tyre grip and steering bite set how hard it
+           can be thrown at a corner (square root: speed grows with sqrt(mu)). */
+        const cd = v.car;
+        const handling = Math.sqrt(Math.pow(clamp(cd.grip, 0.6, 1.4), 0.7) * Math.pow(clamp(cd.steerK, 0.6, 1.4), 0.3));
+        const cornerLimit = (18 + 62 * car.ai.aggression * (car.ai.skill || 1) /
+            Math.max(0.35, 1 + curvature * 14 + Math.abs(sample.offset) / 40)) * handling;
         const target = clamp(cornerLimit * gripFactor * corridorFactor * catchup, 10, 74);
         input.throttle = speed < target ? 1 : 0;
         input.brake = speed > target + 5 ? clamp((speed - target) / 14, 0, 1) : 0;
@@ -77,7 +84,7 @@
            slide, which reads on screen and feeds the style score. It is only
            safe where there is grip left - on mud or ice it would be a
            wall-scraping convoy. */
-        input.handbrake = (curvature > 0.22 && speed > 24 && surface.grip > 0.6) ? 1 : 0;
+        input.handbrake = (curvature > 0.22 && speed > 24 && surface.grip > 0.6 && Math.abs(v.vy) < speed * HB_SLIP) ? 1 : 0;
         /* Same nitro resource as the player: burn it on clean straights only. */
         input.boost = (v.nitro > 0.55 && curvature < 0.02 && speed > 46) ? 1 : 0;
         input.fire = 0;

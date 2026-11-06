@@ -134,6 +134,23 @@ check('rules: hot potato pool and drift attack toggles',
     check('after the immunity the bomb can move again', race.bomb.holder === holder.index);
 }
 
+/* Hot potato: the holder drives x1.12 (rules.driveK, passed to stepVehicle through env). */
+{
+    function accelerate(holds) {
+        const race = make('hot_potato', { opponents: 0 });
+        runCountdown(race);
+        race.bomb.delay = 99;                      /* no automatic bomb during the check */
+        const v = race.cars[0].v;
+        v.vx = 0; v.vy = 0; v.hasBomb = holds;
+        race.playerInput.throttle = 1;
+        for (let i = 0; i < 60; i++) AD.stepRace(race, DT);
+        return v.vx;
+    }
+    const plain = accelerate(false), holder = accelerate(true);
+    check('hot potato holder accelerates harder (driveK 1.12)', holder > plain * 1.05 && holder < plain * 1.2,
+        holder.toFixed(2) + ' vs ' + plain.toFixed(2));
+}
+
 /* Drift attack: 90 s, no opponents, ends at the clock. */
 {
     const race = make('drift_attack');
@@ -153,8 +170,8 @@ check('rules: hot potato pool and drift attack toggles',
     const res = race.result;
     const st = AD.styleSummary(race.cars[0]);
     check('drift attack score is banked plus pending', res && res.score === st.banked + st.pending);
-    const medal = res.score >= 50000 ? 'gold' : res.score >= 28000 ? 'silver' : res.score >= 12000 ? 'bronze' : null;
-    check('drift attack medal follows 12000/28000/50000', res.medal === medal, res.score + ' ' + res.medal);
+    const medal = res.score >= 40000 ? 'gold' : res.score >= 22000 ? 'silver' : res.score >= 10000 ? 'bronze' : null;
+    check('drift attack medal follows 10000/22000/40000', res.medal === medal, res.score + ' ' + res.medal);
     check('drift attack: last ten seconds emit the clock', events(race, 'clock').map(e => e.seconds).join(',') === '10,9,8,7,6,5,4,3,2,1',
         events(race, 'clock').map(e => e.seconds).join(','));
     console.log('  info drift attack scripted score: ' + res.score);

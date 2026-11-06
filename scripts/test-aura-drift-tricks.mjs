@@ -135,6 +135,32 @@ function landWith(roll, extra) {
     check('sideways landing is a crash', AD.landingQuality({ roll: 0, pitch: 0, psi: 2.6, wx: 30, wy: 0 }) === 'crash');
 }
 
+/* Cow vault: one path (tricks.js reads race.features.animals), once per animal and flight */
+{
+    const race = newRace({ mode: 'quick' });
+    const p = race.cars[0], v = p.v;
+    const animals = race.features.animals;
+    check('the race exposes fs.animals with id, x, y and state', animals.length > 0 &&
+        animals.every(a => typeof a.id === 'number' && isFinite(a.x) && isFinite(a.y) && typeof a.state === 'string'));
+    const target = animals[0];
+    for (const a of animals) if (a !== target) { a.state = 'flying'; a.z = 50; a.vz = 0; a.x = 1e6; a.y = 1e6; }
+    v.vx = 20;
+    AD.launch(race, p, 6, 'ramp');
+    v.wx = 0; v.wy = 0; v.z = 3; v.vz = 0;
+    v.x = target.x; v.y = target.y;
+    race.playerInput = none();
+    let n = 0, hitInFlight = false;
+    while (v.airborne && n++ < 400) {
+        AD.stepRace(race, AD.STEP);
+        if (v.airborne && v.z >= 2.3 && (target.state === 'flying' || p.tally.animalHits > 0)) hitInFlight = true;
+    }
+    const vaults = events(race, 'trick').filter(e => e.id === 'cow_vault');
+    check('flying over an animal awards cow_vault exactly once', vaults.length === 1 && p.tricks.counts.cow_vault === 1 &&
+        vaults[0].points === 600, JSON.stringify(vaults) + ' ' + JSON.stringify(p.tricks.counts));
+    check('the animal is not hit while the car is above 2.2 m', !hitInFlight);
+    check('cow_vault is banked on landing', events(race, 'landing').length === 1 && events(race, 'landing')[0].points > 0 && p.style.banked > 0);
+}
+
 /* Drift turbo levels */
 function driftRun(seconds, car) {
     const race = newRace(car ? { playerCar: car } : {});

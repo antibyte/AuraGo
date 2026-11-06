@@ -65,7 +65,7 @@
             v.z, v.vz, v.roll, v.pitch, v.burst];
     };
 
-    /* env: { grip, roll, disabled, boostBonus }. Pure: no randomness, no clock. */
+    /* env: { grip, roll, disabled, slipstream, driveK }. Pure: no randomness, no clock. */
     AD.stepVehicle = function (v, input, dt, env) {
         const grip = clamp((env && env.grip) || 1, 0.12, 1.3);
         const roll = (env && env.roll !== undefined) ? env.roll : 0.016;
@@ -110,7 +110,9 @@
         if (!disabled && brake > 0.05 && throttle <= 0 && (speed < 1.4 || v.brakeHold > 0.45)) v.brakeHold += dt;
         else v.brakeHold = 0;
         const reversing = v.brakeHold > 0.45;
-        let drive = throttle * 9500 * power * (1 - 0.55 * clamp(v.vx / 75, 0, 1));
+        /* env.driveK: mode rules, e.g. the hot potato holder (x1.12). */
+        const driveK = (env && env.driveK) || 1;
+        let drive = throttle * 9500 * power * driveK * (1 - 0.55 * clamp(v.vx / 75, 0, 1));
         if (reversing) {
             drive = -2600 * brake * clamp(1 + v.vx / 6.5, 0, 1) * power;
         } else if (overdrive) {

@@ -21,7 +21,7 @@
         mode('cup', 5, 'setting', true, true, true, true, true, 'track', Object.assign({ ranking: 'points' }, SWEEPER)),
         mode('daily', 5, 'setting', true, true, true, true, true, 3, Object.assign({ ranking: 'finish' }, SWEEPER)),
         mode('drift_attack', 0, false, false, true, true, true, false, 99, {
-            clock: 90, noSmashPenalty: true, ranking: 'score', medals: { bronze: 12000, silver: 28000, gold: 50000 }
+            clock: 90, noSmashPenalty: true, ranking: 'score', medals: { bronze: 10000, silver: 22000, gold: 40000 }
         }),
         mode('elimination', 5, 'setting', true, true, true, true, true, 99, {
             ranking: 'survival', firstOut: 45, interval: 30, warn: 5
