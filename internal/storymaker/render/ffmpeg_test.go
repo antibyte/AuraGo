@@ -198,6 +198,66 @@ func TestFFmpegWriteFailsWithAMessageWhenTheProcessDies(t *testing.T) {
 	}
 }
 
+// TestFFmpegSwatchAndGate is the colour round-trip of spec line 836: a known colour goes in as a PNG (image2pipe) and as raw
+// RGBA (rawvideo), and the decoded file holds its BT.709 limited-range value within 2 levels. The frame gate runs on the same
+// file. Run it on 8.1.1 and in one debian:12 container, which has 5.1.9.
+func TestFFmpegSwatchAndGate(t *testing.T) {
+	ffmpeg, ffprobe := testBinary(t, "ffmpeg"), testBinary(t, "ffprobe")
+	const w, h, fps, n = 320, 180, 30, 30
+	// The limited-range values from the matrix definition, with R, G and B in 0..1:
+	//   luma = kr*R + (1-kr-kb)*G + kb*B
+	//   Y = 16 + 219*luma, U = 128 + 224*(B-luma)/(2*(1-kb)), V = 128 + 224*(R-luma)/(2*(1-kr))
+	// BT.709 has kr 0.2126 and kb 0.0722. BT.601 has kr 0.299 and kb 0.114.
+	levels := func(kr, kb float64, c color.NRGBA) [3]float64 {
+		r, g, b := float64(c.R)/255, float64(c.G)/255, float64(c.B)/255
+		luma := kr*r + (1-kr-kb)*g + kb*b
+		return [3]float64{16 + 219*luma, 128 + 224*(b-luma)/(2*(1-kb)), 128 + 224*(r-luma)/(2*(1-kr))}
+	}
+	// By the rules above: red is Y 62.6, U 102.3, V 240.0 in BT.709 and Y 81.5 in BT.601. The second swatch is Y 117.0, U 96.0,
+	// V 173.9 in BT.709 and Y 122.7 in BT.601.
+	for _, c := range []color.NRGBA{{R: 255, A: 255}, {R: 200, G: 100, B: 50, A: 255}} {
+		want := levels(0.2126, 0.0722, c)
+		// A swatch that cannot tell the matrices apart would let a BT.601 file pass.
+		if bt601 := levels(0.299, 0.114, c); math.Abs(want[0]-bt601[0]) <= 2 {
+			t.Fatalf("swatch %v has BT.709 Y %.1f and BT.601 Y %.1f, closer than the tolerance", c, want[0], bt601[0])
+		}
+		for _, transport := range []string{TransportPNG, TransportRaw} {
+			frame := solidPNG(t, w, h, c)
+			if transport == TransportRaw {
+				frame = bytes.Repeat([]byte{c.R, c.G, c.B, c.A}, w*h)
+			}
+			frames := make([][]byte, n)
+			for i := range frames {
+				frames[i] = frame
+			}
+			out := filepath.Join(t.TempDir(), "swatch.mp4")
+			ff, err := encodeFrames(t, FFmpegConfig{Path: ffmpeg, Transport: transport, Width: w, Height: h, FPS: fps, Frames: n, Output: out}, frames)
+			if err != nil {
+				t.Fatalf("%s: encode: %v (%s)", transport, err, ff.Message())
+			}
+			probe, err := ProbeOutput(context.Background(), ffprobe, out, postEncodeMinLimit)
+			if err != nil {
+				t.Fatalf("%s: frame gate probe: %v", transport, err)
+			}
+			if err := CheckOutput(probe, n); err != nil {
+				t.Fatalf("%s: frame gate: %v (%+v)", transport, err, probe)
+			}
+			raw, err := exec.Command(ffmpeg, "-v", "error", "-i", out, "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "yuv420p", "-").Output()
+			if err != nil || len(raw) != w*h*3/2 {
+				t.Fatalf("%s: decode: %v, %d bytes", transport, err, len(raw))
+			}
+			// yuv420p is a w*h luma plane, then two (w/2)*(h/2) chroma planes. Each index is the middle of its plane.
+			mid := (w/2)*(h/2)/2 + w/4
+			got := [3]byte{raw[w*h/2+w/2], raw[w*h+mid], raw[w*h*5/4+mid]}
+			for i, name := range []string{"Y", "U", "V"} {
+				if math.Abs(float64(got[i])-want[i]) > 2 {
+					t.Errorf("%s swatch %v: %s = %d, want %.1f within 2 levels", transport, c, name, got[i], want[i])
+				}
+			}
+		}
+	}
+}
+
 func TestBuildFFmpegArgsAudioInputs(t *testing.T) {
 	base := FFmpegConfig{Path: "ffmpeg", Transport: TransportPNG, Width: 1920, Height: 1080, FPS: 30, Frames: 90, Output: "out.mp4"}
 	silent, err := BuildFFmpegArgs(base)
