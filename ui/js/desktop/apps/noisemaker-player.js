@@ -524,7 +524,7 @@
             const w = canvas.width;
             const h = canvas.height;
             ctx2d.clearRect(0, 0, w, h);
-            ctx2d.fillStyle = getComputedStyle(canvas).color || '#8b5cf6';
+            ctx2d.fillStyle = getComputedStyle(canvas).color || 'CanvasText';
             const gap = Math.max(1, Math.round((w / bars) * 0.3));
             const bw = (w - gap * (bars - 1)) / bars;
             const bins = freqData ? freqData.length : 128;

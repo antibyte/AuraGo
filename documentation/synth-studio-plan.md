@@ -21,6 +21,12 @@ Decisions taken while implementing: four insert slots per track, a real format v
 instead of widening v2, the sound designer stays deferred, and the showcase keeps
 the "Neon Sketch" identity.
 
+Later additions (2026-11-06): the rack grows to 15 inserts with tape, auto pan and
+ring mod; the Performance workbench adds the Groove lab, chord-progression and
+bassline generators, reverse-clip, the arpeggiator latch, chord/strum arp modes
+and the momentary Live FX (filter drop, stutter); stem export packages per-track
+WAVs as a ZIP. The behavioural contract remains `documentation/synth-studio.md`.
+
 ## Goal and scope
 
 Synth Studio already ships as a complete browser-rendered instrument: 80 factory
@@ -178,12 +184,19 @@ every preset so the library can be filtered by character, not just name:
 Tags use a fixed vocabulary (`acid`, `warm`, `dark`, `bright`, `pluck`,
 `sustained`, `airy`, `noisy`, `percussive`, `retro`, `modern`) so the filter chips
 stay bounded.
+### A7. User sound design (delivered)
 
-### A7. Deferred: user sound design
-A preset editor over the operator model, saving browser-local user patches, is
-the highest-value long-term sound feature. It is deferred because it needs the
-patch schema from A1–A5 to be stable first, and because it requires a new
-persistence surface that must not collide with the project draft rules.
+A preset editor over the operator model, saving browser-local user patches, was the
+highest-value long-term sound feature. It shipped after the A1–A5 patch schema
+stabilized: `synth-studio-designer.js` exposes the patch model as a programmable
+synthesizer, stores up to twenty-four user synths per browser in
+`aurago:synth-studio:patches:1`, registers them into the preset catalog as the
+`user` category and previews drafts through a runtime-only catalog entry. The
+project format only stores the `user-*` instrument id; projects validate missing
+user synths by id and fall back to a plain wave, so no project-schema change and no
+new persistence surface collides with the project draft rules. The original
+deferral reasons — the patch schema from A1–A5 being stable first, and the
+persistence surface needing its own rules — were both resolved by that design.
 
 ## Track B — Better demo
 

@@ -140,12 +140,33 @@
   const gm = (gmData?.programs || []).map((program, index) => ({ id: `gm-${index}`, name: program.name, category: "gm", program: index }));
   const byId = new Map([...presets, ...gm, { id: "drums-kit", name: "Synth Studio Kit", category: "drums" }, { id: "gm-drums", name: "GM Drums", category: "gm" }].map(item => [item.id, item]));
 
+  // Programmable synths designed in the app. `user` holds the persisted list
+  // (entries appear in `presets` so the library, the instrument select and the
+  // project validation all see them); `setRuntime` swaps byId-only entries
+  // that preview a draft without ever listing it.
+  const user = [];
+  function setUser(list) {
+    user.length = 0;
+    for (let i = presets.length - 1; i >= 0; i--) if (presets[i].synthUser) presets.splice(i, 1);
+    for (const item of byId.values()) if (item && item.synthUser) byId.delete(item.id);
+    for (const entry of list) {
+      const preset = { id: entry.id, name: entry.name, category: "user", tags: [], synthUser: true, patch: entry.patch };
+      user.push(preset);
+      presets.push(preset);
+      byId.set(preset.id, preset);
+    }
+  }
+  function setRuntime(id, preset) { if (preset) byId.set(id, preset); else byId.delete(id); }
+
   root.SynthStudioPresets = {
     categories,
     presets,
     gm,
+    user,
     tags: ["acid", "warm", "dark", "bright", "pluck", "retro", "modern", "air"],
     drums: presets.filter(item => item.category === "drums"),
+    setUser,
+    setRuntime,
     get(id) { return byId.get(id); }
   };
 })(typeof window !== "undefined" ? window : globalThis);

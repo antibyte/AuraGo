@@ -289,7 +289,7 @@
             '<div class="vd-chess-board" data-chess-board></div>' +
             '<div class="vd-chess-board-3d" data-chess-board-3d hidden></div></div></div>' +
             '<div class="vd-chess-ribbon">' +
-            '<div class="vd-chess-status" data-status>' + esc(t('desktop.chess_loading')) + '</div>' +
+            '<div class="vd-chess-status" data-status role="status" aria-live="polite">' + esc(t('desktop.chess_loading')) + '</div>' +
             '<div class="vd-chess-comment" data-comment></div></div></section>' +
             '<aside class="vd-chess-side">' +
             '<div class="vd-chess-clocks" data-clocks hidden>' +
@@ -333,28 +333,92 @@
             '<button type="button" data-flip>' + icon('refresh', 'F') + '<span>' + esc(t('desktop.chess_flip')) + '</span></button>' +
             '<button type="button" data-hint>' + icon('help', 'H') + '<span>' + esc(t('desktop.chess_hint')) + '</span></button>' +
             '<button type="button" data-resign>' + icon('stop', 'R') + '<span>' + esc(t('desktop.chess_resign')) + '</span></button>' +
-            '<button type="button" data-draw>' + icon('check-square', 'D') + '<span>' + esc(t('desktop.chess_offer_draw')) + '</span></button></div>' +
+            '<button type="button" data-draw>' + icon('check-square', 'D') + '<span>' + esc(t('desktop.chess_draw')) + '</span></button></div>' +
             '<div class="vd-chess-replay" data-replay hidden>' +
-            '<button type="button" data-review-first title="' + esc(t('desktop.chess_first')) + '">' + icon('chevron-left', '|<', 'vd-chess-replay-icon') + '</button>' +
-            '<button type="button" data-review-prev title="' + esc(t('desktop.chess_prev')) + '">' + icon('chevron-left', '<', 'vd-chess-replay-icon') + '</button>' +
+            '<button type="button" data-review-first title="' + esc(t('desktop.chess_first')) + '" aria-label="' + esc(t('desktop.chess_first')) + '">' + icon('chevron-left', '|<', 'vd-chess-replay-icon') + '</button>' +
+            '<button type="button" data-review-prev title="' + esc(t('desktop.chess_prev')) + '" aria-label="' + esc(t('desktop.chess_prev')) + '">' + icon('chevron-left', '<', 'vd-chess-replay-icon') + '</button>' +
             '<span class="vd-chess-review-label" data-review-label>' + esc(t('desktop.chess_live')) + '</span>' +
-            '<button type="button" data-review-next title="' + esc(t('desktop.chess_next')) + '">' + icon('chevron-right', '>', 'vd-chess-replay-icon') + '</button>' +
-            '<button type="button" data-review-last title="' + esc(t('desktop.chess_last')) + '">' + icon('chevron-right', '>|', 'vd-chess-replay-icon') + '</button></div></div>' +
-            '<div class="vd-chess-tabs" data-tabs>' +
-            '<button type="button" class="active" data-tab="moves">' + esc(t('desktop.chess_tab_moves')) + '</button>' +
-            '<button type="button" data-tab="captured">' + esc(t('desktop.chess_tab_captured')) + '</button>' +
-            '<button type="button" data-tab="info">' + esc(t('desktop.chess_tab_info')) + '</button></div>' +
-            '<div class="vd-chess-moves" data-panel="moves"><ol data-moves></ol></div>' +
-            '<div class="vd-chess-captured-panel" data-panel="captured" hidden>' +
+            '<button type="button" data-review-next title="' + esc(t('desktop.chess_next')) + '" aria-label="' + esc(t('desktop.chess_next')) + '">' + icon('chevron-right', '>', 'vd-chess-replay-icon') + '</button>' +
+            '<button type="button" data-review-last title="' + esc(t('desktop.chess_last')) + '" aria-label="' + esc(t('desktop.chess_last')) + '">' + icon('chevron-right', '>|', 'vd-chess-replay-icon') + '</button></div></div>' +
+            '<div class="vd-chess-tabs" data-tabs role="tablist" aria-label="' + esc(t('desktop.chess_title')) + '">' +
+            '<button type="button" role="tab" id="chess-tab-moves" aria-controls="chess-panel-moves" aria-selected="true" class="active" data-tab="moves">' + esc(t('desktop.chess_tab_moves')) + '<span class="vd-chess-tab-badge" data-moves-count>0</span></button>' +
+            '<button type="button" role="tab" id="chess-tab-captured" aria-controls="chess-panel-captured" aria-selected="false" tabindex="-1" data-tab="captured">' + esc(t('desktop.chess_tab_captured')) + '</button>' +
+            '<button type="button" role="tab" id="chess-tab-info" aria-controls="chess-panel-info" aria-selected="false" tabindex="-1" data-tab="info">' + esc(t('desktop.chess_tab_info')) + '</button></div>' +
+            '<div class="vd-chess-moves" data-panel="moves" role="tabpanel" id="chess-panel-moves" aria-labelledby="chess-tab-moves"><ol data-moves></ol></div>' +
+            '<div class="vd-chess-captured-panel" data-panel="captured" role="tabpanel" id="chess-panel-captured" aria-labelledby="chess-tab-captured" hidden>' +
             '<div class="vd-chess-captured-row"><span class="vd-chess-captured-label">' + esc(t('desktop.chess_color_white')) + '</span>' +
             '<div class="vd-chess-captured-pieces" data-captured-white></div></div>' +
             '<div class="vd-chess-captured-row"><span class="vd-chess-captured-label">' + esc(t('desktop.chess_color_black')) + '</span>' +
             '<div class="vd-chess-captured-pieces" data-captured-black></div></div></div>' +
-            '<div class="vd-chess-info-panel" data-panel="info" hidden>' +
+            '<div class="vd-chess-info-panel" data-panel="info" role="tabpanel" id="chess-panel-info" aria-labelledby="chess-tab-info" hidden>' +
             '<div class="vd-chess-info-row"><span>' + esc(t('desktop.chess_material')) + '</span><span data-material>0</span></div>' +
             '<div class="vd-chess-info-row"><span>' + esc(t('desktop.chess_eval')) + '</span><span data-eval>' + esc(t('desktop.chess_even')) + '</span></div>' +
             '<div class="vd-chess-info-row"><span>' + esc(t('desktop.chess_hint')) + '</span><span data-hint-text>' + esc(t('desktop.chess_no_moves')) + '</span></div>' +
             '</div></aside></div>';
+    }
+
+    /* The move list is a UI widget: it renders the notation of the game and
+       reports the move the player picked. */
+    function renderMoveList(state, onJump) {
+        const refs = state.refs;
+        if (!refs || !refs.moves) return;
+        const moves = state.game ? state.game.history({ verbose: true }) : [];
+        const focusedMove = refs.moves.contains(document.activeElement) ? document.activeElement.dataset.jump : null;
+        const currentMove = state.reviewActive ? state.reviewIndex : moves.length - 1;
+        if (refs.movesCount) refs.movesCount.textContent = String(moves.length);
+        if (!moves.length) {
+            refs.moves.innerHTML = `<li class="vd-chess-empty">${state.ctx.esc(state.ctx.t('desktop.chess_no_moves'))}</li>`;
+            return;
+        }
+        /* A move is a real button: it works with the keyboard and it tells the
+           screen reader which move the board shows. */
+        const cell = (idx, move) => move ? `<button type="button" class="vd-chess-move-cell" data-jump="${idx}"${currentMove === idx ? ' aria-current="true"' : ''}>${state.ctx.esc(move.san)}</button>` : '<span class="vd-chess-move-cell is-empty"></span>';
+        const rows = [];
+        for (let i = 0; i < moves.length; i += 2) {
+            const white = moves[i];
+            const black = moves[i + 1];
+            const moveNo = Math.floor(i / 2) + 1;
+            const cls = (state.reviewActive && (state.reviewIndex === i || state.reviewIndex === i + 1)) ? ' is-review' : '';
+            rows.push(`<li class="vd-chess-move-row${cls}" data-move-idx="${i}"><span class="vd-chess-move-no">${moveNo}.</span>${cell(i, white)}${cell(i + 1, black)}</li>`);
+        }
+        refs.moves.innerHTML = rows.join('');
+        /* The list follows the game, but not while a player walks back. */
+        if (!state.reviewActive) refs.moves.scrollTop = refs.moves.scrollHeight;
+        refs.moves.querySelectorAll('[data-jump]').forEach(button => {
+            button.addEventListener('click', () => {
+                const idx = Number(button.dataset.jump);
+                if (moves[idx] && typeof onJump === 'function') onJump(idx);
+            });
+        });
+        if (focusedMove !== null) {
+            const button = refs.moves.querySelector(`[data-jump="${focusedMove}"]`);
+            if (button) button.focus();
+        }
+    }
+
+    /* The tab strip behaves like a tab list: the arrow keys walk through the
+       tabs, the roving tabindex keeps one stop in the tab row. */
+    function bindChessTabs(tabs, onSelect) {
+        if (!tabs) return;
+        const buttons = Array.prototype.slice.call(tabs.querySelectorAll('[data-tab]'));
+        tabs.addEventListener('click', event => {
+            const button = event.target.closest('[data-tab]');
+            if (!button) return;
+            onSelect(button.dataset.tab);
+        });
+        tabs.addEventListener('keydown', event => {
+            const index = buttons.indexOf(event.target.closest('[data-tab]'));
+            if (index < 0) return;
+            let next = index;
+            if (event.key === 'ArrowRight') next = (index + 1) % buttons.length;
+            else if (event.key === 'ArrowLeft') next = (index - 1 + buttons.length) % buttons.length;
+            else if (event.key === 'Home') next = 0;
+            else if (event.key === 'End') next = buttons.length - 1;
+            else return;
+            event.preventDefault();
+            onSelect(buttons[next].dataset.tab);
+            buttons[next].focus();
+        });
     }
 
     function showChessModal(root, message, buttons, escFn) {
@@ -416,4 +480,6 @@
     window.showChessModal = showChessModal;
     window.ChessBoardSkin = { normalize: normalizeBoardSkin, load: loadBoardSkin, save: saveBoardSkin, apply: applyBoardSkin };
     window.ChessMaterialBar = { update: updateMaterialBar };
+    window.ChessMoveList = { render: renderMoveList };
+    window.ChessTabs = { bind: bindChessTabs };
 })();

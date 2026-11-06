@@ -58,14 +58,20 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    width: 100%;
-    max-width: var(--chess-column);
+    /* The head follows the board width, so the switch and the material meter
+       stay in the same optical column as the board and the status ribbon. */
+    width: var(--chess-frame-size, min(100%, var(--chess-column), 100cqh));
+    max-width: 100%;
     margin-inline: auto;
+    box-sizing: border-box;
 }
 
 .vd-chess-pane-head .vd-chess-material-bar {
-    flex: 1 1 auto;
+    /* A balance meter, not a full-width bar: it keeps its own size and sits
+       at the far end of the head row. */
+    flex: 0 1 380px;
     min-width: 0;
+    margin-left: auto;
 }
 
 .vd-chess-material-bar {
@@ -218,6 +224,13 @@
     aspect-ratio: auto;
 }
 
+/* In 3D the scene fills the whole board area, so the head and the ribbon
+   follow that area again instead of the square board width. */
+.vd-chess.is-3d .vd-chess-pane-head,
+.vd-chess.is-3d .vd-chess-ribbon {
+    width: 100%;
+}
+
 .vd-chess-board {
     position: relative;
     z-index: 1;
@@ -351,9 +364,11 @@
 }
 
 .vd-chess-ribbon {
-    width: 100%;
-    max-width: var(--chess-column);
+    width: var(--chess-frame-size, min(100%, var(--chess-column), 100cqh));
+    max-width: 100%;
     margin-inline: auto;
+    /* The ribbon has the width of the board, padding included. */
+    box-sizing: border-box;
     min-height: 46px;
     display: grid;
     grid-template-columns: minmax(0, 1fr);
@@ -800,6 +815,19 @@
     display: none;
 }
 
+/* An action that does not apply right now reads as resting, not as broken. */
+.vd-chess-actions button:disabled {
+    opacity: 0.42;
+    cursor: not-allowed;
+    filter: none;
+    transform: none;
+}
+
+.vd-chess-actions button:disabled:hover {
+    filter: none;
+    transform: none;
+}
+
 .vd-chess-action-icon,
 .vd-chess-replay-icon {
     flex: 0 0 auto;
@@ -887,6 +915,26 @@
     color: var(--chess-ink);
 }
 
+/* The move count rides on the tab label, so the panel keeps its own space. */
+.vd-chess-tab-badge {
+    display: inline-block;
+    min-width: 18px;
+    margin-left: 6px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--chess-accent) 16%, transparent);
+    color: var(--chess-muted);
+    font-size: 11px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    vertical-align: 1px;
+}
+
+.vd-chess-tabs button.active .vd-chess-tab-badge {
+    background: color-mix(in srgb, var(--chess-ink) 14%, transparent);
+    color: inherit;
+}
+
 .vd-chess-moves {
     min-height: 0;
     display: flex;
@@ -907,12 +955,16 @@
     padding: 0 10px 12px;
     list-style: none;
     overflow: auto;
+    /* A column, so the empty state can sit in the middle of the panel. */
+    display: flex;
+    flex-direction: column;
     /* The move list is a recessed well under the panel title. */
     background: var(--vd-mat-well, transparent);
     box-shadow: var(--vd-mat-well-shadow, none);
 }
 
 .vd-chess-moves li {
+    flex: 0 0 auto;
     display: grid;
     grid-template-columns: 38px minmax(0, 1fr) minmax(0, 1fr);
     gap: 8px;
@@ -934,6 +986,9 @@
     box-shadow: var(--vd-mat-selected-edge, inset 0 0 0 1px color-mix(in srgb, var(--chess-warn) 40%, transparent));
 }
 
+/* A move cell is a real button now, so it works with the keyboard and with
+   the screen reader. The native button chrome is reset, the cell keeps the
+   look of a list entry. */
 .vd-chess-move-cell {
     min-width: 0;
     overflow: hidden;
@@ -943,6 +998,13 @@
     border-radius: 4px;
     padding: 2px 4px;
     transition: background 0.12s, color 0.12s;
+    appearance: none;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    width: 100%;
 }
 
 .vd-chess-move-cell:hover {
@@ -950,14 +1012,48 @@
     color: var(--chess-ink);
 }
 
+.vd-chess-move-cell:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--chess-accent) 70%, transparent);
+    outline-offset: 1px;
+}
+
+/* The empty half of a move row is a placeholder, not a target. */
+.vd-chess-move-cell.is-empty {
+    cursor: default;
+    background: none;
+}
+
+/* The move the board currently shows. */
+.vd-chess-move-cell[aria-current="true"] {
+    background: color-mix(in srgb, var(--chess-warn) 24%, transparent);
+    font-weight: 700;
+}
+
 .vd-chess-move-no {
     color: var(--chess-warn);
     font-weight: 700;
 }
 
+/* The empty move list: a quiet placeholder instead of a bare word in a
+   large empty card. */
 .vd-chess-empty {
     grid-template-columns: 1fr !important;
+    display: grid;
+    justify-items: center;
+    gap: 10px;
+    /* The empty state sits in the middle of the panel. */
+    margin: auto;
+    padding: 34px 12px;
     color: var(--chess-muted);
+    font-size: 13px;
+    text-align: center;
+}
+
+.vd-chess-empty::before {
+    content: "♞";
+    font-size: 30px;
+    line-height: 1;
+    opacity: 0.5;
 }
 
 .vd-chess-captured-panel {
@@ -1264,7 +1360,10 @@
     .vd-chess-moves,
     .vd-chess-captured-panel,
     .vd-chess-info-panel {
+        /* The stacked sidebar scrolls, so the panels keep a usable height
+           instead of being squeezed into a strip. */
         flex: 0 1 220px;
+        min-height: 150px;
     }
 }
 

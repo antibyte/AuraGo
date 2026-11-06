@@ -95,6 +95,9 @@ await synth.unlock();
 assert.equal(contexts[0].nodes[0].gain.value, 1, 'the app volume multiplier starts at unity');
 assert.equal(contexts[0].nodes[1].gain.value, 0.78, 'the master strip keeps its default level');
 assert.ok(Array.isArray(synth.spectrum(32)) && synth.spectrum(32).length === 32, 'the master analyser reports a spectrum');
+assert.equal(synth.performance('stutter'), true, 'the live stutter effect is available');
+assert.equal(synth.performance('filter'), true, 'the live filter drop is available');
+assert.equal(synth.performance('no-such-effect'), false, 'unknown performance effects are ignored');
 synth.dispose();
 const mutedSynth = audioSandbox.SynthStudioAudio.create();
 assert.equal(mutedSynth.setVolume(0), 0);
@@ -112,7 +115,8 @@ mutedSynth.dispose();
 // silences the whole insert in a real browser.
 const FX=audioSandbox.SynthStudioFX;
 const insertTypes=FX.types();
-assert.ok(insertTypes.length>=12,'the effect rack offers at least twelve insert types');
+assert.ok(insertTypes.length>=15,'the effect rack offers at least fifteen insert types');
+for(const type of ['tape','autopan','ringmod'])assert.ok(insertTypes.includes(type),'the effect rack offers '+type);
 for (const type of insertTypes) {
   const ctx=new RecordingAudioContext();
   const processor=FX.createInsert(ctx,{type,mix:.5});
@@ -126,6 +130,12 @@ assert.ok(reachable(strip.input,strip.output),'the master strip routes the mix t
 const sends=FX.createSends(stripContext,undefined,.5);
 assert.ok(reachable(sends.reverbIn,sends.plateGain),'the plate send reaches the master bus');
 assert.ok(reachable(sends.delayIn,sends.echoGain),'the echo send reaches the master bus');
+assert.equal(strip.perform('stutter',.5),true,'the master strip schedules a stutter gate');
+assert.ok(strip.perfGate.gain.events.length>=17,'the stutter gate schedules every step and its release');
+assert.equal(strip.perform('filter',.5),true,'the master strip schedules a filter drop');
+assert.ok(strip.perfFilter.frequency.events.some(event=>event[0]==='exp'),'the filter sweep uses exponential ramps');
+strip.resetPerformance();
+assert.equal(strip.perfGate.gain.value,1,'resetting performance effects opens the gate');
 
 const stopped=[],detune=new FakeParam(),voice={sources:[{stop:at=>stopped.push(at),detune}],envelopes:[],releaseSeconds:.3,startTime:0,endTime:Infinity};
 audioSandbox.SynthStudioVoices.releaseVoice(voice,4);

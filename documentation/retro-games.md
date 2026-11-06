@@ -29,8 +29,10 @@ Fame of 46 classics is the start page.
   screen) undoes the mark.
 - **Lists:** Recently played shows your last 50 games; Favorites and "Doesn't start" hold up to 500 games
   each (a full list answers "This list is full (500 games). Remove some first."). A favorite that archive.org no longer lists stays in your
-  list and is labeled "No longer on archive.org". While the Virtual Desktop is read-only, favorites, marks and
-  "Update index" are refused (the app says that the desktop is read-only) and starts are not recorded.
+  list and is labeled "No longer on archive.org". While a list loads, the app shows placeholders or a thin
+  progress line; a failed list offers "Try again". While the Virtual Desktop is read-only, favorites, marks and
+  "Update index" are refused (the app says that the desktop is read-only) and starts are not recorded. With
+  Retro Games switched off, the browser controls are inactive.
 - **Agent:** with "Let the agent search and start games" on, the agent's `retro_games` tool searches the
   index. It opens a game in the app only when the Virtual Desktop also allows agent control; otherwise it
   names the game and you start it yourself.

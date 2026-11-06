@@ -99,6 +99,24 @@
             { key: 'size', min: 0, max: 1, step: 0.01, def: 0.5 },
             { key: 'decay', min: 0, max: 1, step: 0.01, def: 0.6 },
             { key: 'tone', min: 0, max: 1, step: 0.01, def: 0.5 }
+        ] },
+        { id: 'tape', params: [
+            { key: 'mix', min: 0, max: 1, step: 0.01, def: 0.35 },
+            { key: 'rate', min: 0.1, max: 8, step: 0.01, def: 0.6 },
+            { key: 'depth', min: 0, max: 1, step: 0.01, def: 0.4 },
+            { key: 'drive', min: 0, max: 1, step: 0.01, def: 0.25 },
+            { key: 'tone', min: 0, max: 1, step: 0.01, def: 0.4 }
+        ] },
+        { id: 'autopan', params: [
+            { key: 'mix', min: 0, max: 1, step: 0.01, def: 0.5 },
+            { key: 'rate', min: 0.05, max: 12, step: 0.01, def: 0.8 },
+            { key: 'depth', min: 0, max: 1, step: 0.01, def: 0.7 }
+        ] },
+        { id: 'ringmod', params: [
+            { key: 'mix', min: 0, max: 1, step: 0.01, def: 0.35 },
+            { key: 'freq', min: 20, max: 4000, step: 1, def: 440 },
+            { key: 'depth', min: 0, max: 1, step: 0.01, def: 0.6 },
+            { key: 'tone', min: 0, max: 1, step: 0.01, def: 0.5 }
         ] }
     ];
     const FX_BY_ID = new Map(FX_TYPES.map(type => [type.id, type]));
@@ -216,8 +234,16 @@
         return known;
     }
 
+    // Programmable synths are browser-local, so a project saved in one browser
+    // may reference a patch another browser does not hold. The id itself is
+    // the validated contract: any well-formed `user-*` id is accepted, the
+    // voice engine falls back to a plain wave for a missing patch, and the
+    // sound panel offers to design it again.
+    const USER_INSTRUMENT = /^user-[A-Za-z0-9_-]{1,95}$/;
+
     function assertInstrument(value) {
-        if (typeof value !== 'string' || !ID_PATTERN.test(value) || !instrumentIds().has(value)) {
+        if (typeof value !== 'string' || !ID_PATTERN.test(value)
+            || !(USER_INSTRUMENT.test(value) || instrumentIds().has(value))) {
             throw error('E_PROJECT_INSTRUMENT', `Unknown Synth Studio instrument: ${String(value)}.`);
         }
         return value;

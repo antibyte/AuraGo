@@ -93,6 +93,10 @@ func TestAudioPlayerAssets(t *testing.T) {
 		"window.AuraDesktopMediaSession",
 		"/api/desktop/files?",
 		"desktop.audio_player_queue_count",
+		`data-shuffle aria-label="${esc(t('desktop.audio_player_shuffle'))}"`,
+		`data-prev aria-label="${esc(t('desktop.audio_player_previous'))}"`,
+		`data-play aria-label="${esc(t('desktop.audio_player_play'))}"`,
+		`data-next aria-label="${esc(t('desktop.audio_player_next'))}"`,
 	} {
 		if !strings.Contains(player, want) {
 			t.Fatalf("audio player implementation missing marker %q", want)

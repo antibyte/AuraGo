@@ -87,29 +87,23 @@
             });
     }
 
+    /* A teardown step must never break the rest of the teardown. */
+    const quiet = step => { try { step(); } catch (e) {} };
+
     function dispose(windowId) {
         const state = instances.get(windowId);
         if (!state) return;
         state.disposed = true;
         state.searchToken++;
         state.hintToken++;
-        stopClock(state); state.audio?.dispose();
-        try {
-            if (state.fx) state.fx.dispose();
-        } catch (e) {}
-        try {
-            if (window.ChessView3D) window.ChessView3D.dispose(state);
-        } catch (e) {}
-        try {
-            if (state.board) state.board.destroy();
-        } catch (e) {}
-        try {
-            if (state.resizeObserver) state.resizeObserver.disconnect();
-        } catch (e) {}
+        stopClock(state);
+        state.audio?.dispose();
+        quiet(() => state.fx?.dispose());
+        quiet(() => window.ChessView3D?.dispose(state));
+        quiet(() => state.board?.destroy());
+        quiet(() => state.resizeObserver?.disconnect());
         if (state.resizeHandler) window.removeEventListener('resize', state.resizeHandler);
-        try {
-            if (state.engine) state.engine.dispose();
-        } catch (e) {}
+        quiet(() => state.engine?.dispose());
         if (state.ctx && typeof state.ctx.clearWindowMenus === 'function') state.ctx.clearWindowMenus(windowId);
         instances.delete(windowId);
     }
@@ -155,6 +149,7 @@
             whiteTime: root.querySelector('[data-white-time]'),
             blackTime: root.querySelector('[data-black-time]'),
             moves: root.querySelector('[data-moves]'),
+            movesCount: root.querySelector('[data-moves-count]'),
             tabs: root.querySelector('[data-tabs]'),
             panels: {
                 moves: root.querySelector('[data-panel="moves"]'),
@@ -238,11 +233,7 @@
         refs.reviewPrev.addEventListener('click', () => reviewStep(state, -1));
         refs.reviewNext.addEventListener('click', () => reviewStep(state, 1));
         refs.reviewLast.addEventListener('click', () => reviewJump(state, -1));
-        refs.tabs.addEventListener('click', event => {
-            const button = event.target.closest('[data-tab]');
-            if (!button) return;
-            selectTab(state, button.dataset.tab);
-        });
+        window.ChessTabs.bind(refs.tabs, tab => selectTab(state, tab));
     }
 
     function createBoard(state) {
@@ -294,7 +285,9 @@
         /* leave a few px so the wood rim/shadow is never clipped by the shell */
         const size = Math.floor(Math.min(width, height, 900) - 8);
         if (!Number.isFinite(size) || size < 180) return;
-        frame.style.setProperty('--chess-frame-size', size + 'px');
+        /* The head and the status ribbon follow the board width, so the whole
+           column stays optically aligned at every window size. */
+        state.refs.root.style.setProperty('--chess-frame-size', size + 'px');
         frame.classList.add('is-sized');
         // Inner board fills the frame content box; never put padding on the
         // cm-chessboard context (library sizes SVG to context.clientWidth).
@@ -640,7 +633,7 @@
     function confirmDraw(state) {
         if (!state.game || state.gameOver) return;
         showModal(state, state.ctx.t('desktop.chess_confirm_draw'), [
-            { label: state.ctx.t('desktop.chess_offer_draw'), primary: true, action: () => { endGame(state, 'draw', null); } },
+            { label: state.ctx.t('desktop.chess_draw'), primary: true, action: () => { endGame(state, 'draw', null); } },
             { label: state.ctx.t('desktop.cancel'), action: null }
         ]);
     }
@@ -794,10 +787,20 @@
 
     function updateInput(state) {
         if (!state.board || !state.vendor) return;
-        if (state.busy || state.gameOver || state.reviewActive || !canPlayerMove(state)) {
+        const idle = !state.busy && !state.gameOver && !state.reviewActive;
+        /* An action that does not apply right now rests instead of doing
+           nothing when it is pressed. */
+        state.refs.undo.disabled = !idle || !state.game || !state.game.history().length;
+        state.refs.hint.disabled = !idle || !canPlayerMove(state);
+        state.refs.resign.disabled = !idle || !state.game;
+        state.refs.draw.disabled = !idle || !state.game;
+        if (!idle || !canPlayerMove(state)) {
             state.board.disableMoveInput();
             return;
         }
+        /* The board refuses a second enable, so the input is reset first. In
+           the local mode the player keeps the input after every move. */
+        state.board.disableMoveInput();
         const color = playerSide(state) === 'b' ? state.vendor.COLOR.black : state.vendor.COLOR.white;
         state.board.enableMoveInput(event => boardInputHandler(state, event), state.mode === 'local' ? null : color);
     }
@@ -837,31 +840,15 @@
         }
         setStatus(state, message);
         if (state.fx) state.fx.setStatusTone(tone);
-        state.refs.comment.textContent = state.agentComment || (state.game.turn() === 'w' ? state.ctx.t('desktop.chess_white_to_move') : state.ctx.t('desktop.chess_black_to_move'));
+        const side = state.game.turn() === 'w' ? state.ctx.t('desktop.chess_white_to_move') : state.ctx.t('desktop.chess_black_to_move');
+        /* The status line already names the turn, so the second line only adds
+           the side that moves when the status does not say it. */
+        state.refs.comment.textContent = state.agentComment || (state.mode !== 'local' && state.game.turn() !== playerSide(state) ? side : '');
     }
 
+    /* The move list is a widget of the UI module. */
     function renderMoves(state) {
-        const moves = state.game ? state.game.history({ verbose: true }) : [];
-        if (!moves.length) {
-            state.refs.moves.innerHTML = `<li class="vd-chess-empty">${state.ctx.esc(state.ctx.t('desktop.chess_no_moves'))}</li>`;
-            return;
-        }
-        const rows = [];
-        for (let i = 0; i < moves.length; i += 2) {
-            const white = moves[i];
-            const black = moves[i + 1];
-            const moveNo = Math.floor(i / 2) + 1;
-            const cls = (state.reviewActive && (state.reviewIndex === i || state.reviewIndex === i + 1)) ? ' is-review' : '';
-            rows.push(`<li class="vd-chess-move-row${cls}" data-move-idx="${i}"><span class="vd-chess-move-no">${moveNo}.</span><span class="vd-chess-move-cell" data-jump="${i}">${state.ctx.esc(white ? white.san : '')}</span><span class="vd-chess-move-cell" data-jump="${i + 1}">${state.ctx.esc(black ? black.san : '')}</span></li>`);
-        }
-        state.refs.moves.innerHTML = rows.join('');
-        state.refs.moves.scrollTop = state.refs.moves.scrollHeight;
-        state.refs.moves.querySelectorAll('[data-jump]').forEach(cell => {
-            cell.addEventListener('click', () => {
-                const idx = Number(cell.dataset.jump);
-                if (moves[idx]) reviewJump(state, idx);
-            });
-        });
+        window.ChessMoveList.render(state, idx => reviewJump(state, idx));
     }
 
     function updateStrengthState(state) {
@@ -908,7 +895,13 @@
 
     function selectTab(state, tab) {
         state.activeTab = tab;
-        state.refs.tabs.querySelectorAll('[data-tab]').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
+        state.refs.tabs.querySelectorAll('[data-tab]').forEach(btn => {
+            const active = btn.dataset.tab === tab;
+            btn.classList.toggle('active', active);
+            btn.setAttribute('aria-selected', active ? 'true' : 'false');
+            /* The roving tabindex keeps one stop in the tab row. */
+            btn.tabIndex = active ? 0 : -1;
+        });
         Object.keys(state.refs.panels).forEach(key => {
             state.refs.panels[key].hidden = key !== tab;
         });
@@ -932,6 +925,9 @@
         for (let i = 0; i <= idx; i++) tempGame.move(history[i]);
         state.board.setPosition(tempGame.fen(), true).catch(() => {});
         updateAll(state);
+        /* The move list follows the replay, so the shown move stays visible. */
+        const cell = state.refs.moves.querySelector('[data-jump="' + idx + '"]');
+        if (cell && cell.scrollIntoView) cell.scrollIntoView({ block: 'nearest' });
     }
 
     function clearReview(state) {
@@ -1022,9 +1018,7 @@
         return false;
     }
 
-    function setStatus(state, message) {
-        if (state.refs.status) state.refs.status.textContent = message;
-    }
+    function setStatus(state, message) { if (state.refs.status) state.refs.status.textContent = message; }
 
     function notify(state, message) {
         if (typeof state.ctx.notify === 'function') {

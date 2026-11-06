@@ -140,19 +140,24 @@
 <div class="vd-player-shell">
 <div class="vd-player">
   <section class="vd-player-stage">
+    <div class="vd-player-glow" aria-hidden="true"></div>
     <canvas class="vd-player-canvas" data-canvas aria-hidden="true"></canvas>
-    <div class="vd-player-cover" data-cover hidden>
-      <img alt="" data-cover-img>
-    </div>
-    <div class="vd-player-badge" data-badge>${icon('music', 'vd-player-icon vd-player-icon--badge')}</div>
     <div class="vd-player-now">
-      <div class="vd-player-title" data-title>${esc(t('desktop.audio_player_no_track'))}</div>
-      <div class="vd-player-sub">
-        <span data-artist></span>
-        <span class="vd-player-sep" data-sep hidden>·</span>
-        <span data-album></span>
+      <div class="vd-player-art">
+        <div class="vd-player-cover" data-cover hidden>
+          <img alt="" data-cover-img>
+        </div>
+        <div class="vd-player-badge" data-badge>${icon('music', 'vd-player-icon vd-player-icon--badge')}</div>
       </div>
-      <div class="vd-player-folder" data-folder></div>
+      <div class="vd-player-now-copy">
+        <div class="vd-player-title" data-title>${esc(t('desktop.audio_player_no_track'))}</div>
+        <div class="vd-player-sub">
+          <span data-artist></span>
+          <span class="vd-player-sep" data-sep hidden>·</span>
+          <span data-album></span>
+        </div>
+        <div class="vd-player-folder" data-folder></div>
+      </div>
     </div>
   </section>
   <section class="vd-player-bar">
@@ -164,18 +169,19 @@
           <div class="vd-player-seek-fill" data-fill></div>
         </div>
         <div class="vd-player-seek-knob" data-knob></div>
+        <div class="vd-player-seek-tip" data-seek-tip hidden>0:00</div>
       </div>
       <span class="vd-player-time" data-duration>0:00</span>
     </div>
     <div class="vd-player-controls">
       <div class="vd-player-group">
-        <button type="button" class="vd-player-btn" data-shuffle aria-pressed="false">${icon('shuffle')}</button>
+        <button type="button" class="vd-player-btn" data-shuffle aria-label="${esc(t('desktop.audio_player_shuffle'))}" aria-pressed="false">${icon('shuffle')}</button>
         <button type="button" class="vd-player-btn" data-repeat>${icon('repeat')}</button>
       </div>
       <div class="vd-player-group vd-player-group--main">
-        <button type="button" class="vd-player-btn" data-prev>${icon('prev')}</button>
-        <button type="button" class="vd-player-btn vd-player-btn--play" data-play>${icon('play')}</button>
-        <button type="button" class="vd-player-btn" data-next>${icon('next')}</button>
+        <button type="button" class="vd-player-btn" data-prev aria-label="${esc(t('desktop.audio_player_previous'))}">${icon('prev')}</button>
+        <button type="button" class="vd-player-btn vd-player-btn--play" data-play aria-label="${esc(t('desktop.audio_player_play'))}">${icon('play')}</button>
+        <button type="button" class="vd-player-btn" data-next aria-label="${esc(t('desktop.audio_player_next'))}">${icon('next')}</button>
       </div>
       <div class="vd-player-group">
         <div class="vd-player-volume">
@@ -217,6 +223,7 @@
             fill: host.querySelector('[data-fill]'),
             buffer: host.querySelector('[data-buffer]'),
             knob: host.querySelector('[data-knob]'),
+            tip: host.querySelector('[data-seek-tip]'),
             play: host.querySelector('[data-play]'),
             prev: host.querySelector('[data-prev]'),
             next: host.querySelector('[data-next]'),
@@ -270,7 +277,7 @@
                 const source = audioContext.createMediaElementSource(audio);
                 const analyser = audioContext.createAnalyser();
                 analyser.fftSize = 2048;
-                analyser.smoothingTimeConstant = 0.76;
+                analyser.smoothingTimeConstant = 0.58;
                 const gain = audioContext.createGain();
                 source.connect(analyser);
                 analyser.connect(gain);
@@ -428,6 +435,88 @@
             return Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
         }
 
+        function clearCoverTint() {
+            state.coverTint = false;
+            state.coverToken = null;
+            if (els.coverImg) {
+                els.coverImg.onload = null;
+                els.coverImg.onerror = null;
+                els.coverImg.removeAttribute('src');
+            }
+            root.style.removeProperty('--pl-cover');
+            if (state.visualizer && state.visualizer.clearCoverColor) state.visualizer.clearCoverColor();
+        }
+
+        // The sleeve colour tints the glow, the transport and the spectrum.
+        // Near-grey covers keep the theme accent.
+        function paintCoverTint(img, token) {
+            if (state.disposed || state.coverToken !== token) return;
+            try {
+                const sample = document.createElement('canvas');
+                sample.width = 16;
+                sample.height = 16;
+                const ctx = sample.getContext('2d', { willReadFrequently: true });
+                if (!ctx) return;
+                ctx.drawImage(img, 0, 0, 16, 16);
+                const data = ctx.getImageData(0, 0, 16, 16).data;
+                let best = 0;
+                let red = 0;
+                let green = 0;
+                let blue = 0;
+                let averageR = 0;
+                let averageG = 0;
+                let averageB = 0;
+                let count = 0;
+                for (let i = 0; i < data.length; i += 4) {
+                    if (data[i + 3] < 40) continue;
+                    const pr = data[i];
+                    const pg = data[i + 1];
+                    const pb = data[i + 2];
+                    const max = Math.max(pr, pg, pb);
+                    const sat = max - Math.min(pr, pg, pb);
+                    if (max < 28) continue;
+                    averageR += pr;
+                    averageG += pg;
+                    averageB += pb;
+                    count += 1;
+                    if (sat > best && max < 250) {
+                        best = sat;
+                        red = pr;
+                        green = pg;
+                        blue = pb;
+                    }
+                }
+                if (!count) return;
+                if (best < 18) {
+                    red = averageR / count;
+                    green = averageG / count;
+                    blue = averageB / count;
+                }
+                const tint = `rgb(${Math.round(red)}, ${Math.round(green)}, ${Math.round(blue)})`;
+                state.coverTint = true;
+                root.style.setProperty('--pl-cover', tint);
+                if (state.visualizer && state.visualizer.setCoverColor) {
+                    state.visualizer.setCoverColor(red, green, blue);
+                }
+            } catch (_) { /* an unreadable cover keeps the theme accent */ }
+        }
+
+        function showCover(picture) {
+            const token = {};
+            state.coverToken = token;
+            els.coverImg.onload = () => paintCoverTint(els.coverImg, token);
+            els.coverImg.onerror = () => {
+                if (state.coverToken !== token) return;
+                els.cover.hidden = true;
+                els.badge.hidden = false;
+                clearCoverTint();
+            };
+            if (els.coverImg.getAttribute('src') !== picture) els.coverImg.src = picture;
+            else if (els.coverImg.complete) paintCoverTint(els.coverImg, token);
+            els.cover.hidden = false;
+            els.badge.hidden = true;
+        }
+
         function renderMeta() {
             const track = currentTrack();
             if (!track) {
@@ -438,6 +527,7 @@
                 els.folder.textContent = state.folder || '';
                 els.cover.hidden = true;
                 els.badge.hidden = false;
+                clearCoverTint();
                 return;
             }
             els.title.textContent = track.title || stripExtension(track.name);
@@ -445,14 +535,11 @@
             els.album.textContent = track.album || '';
             els.sep.hidden = !(track.artist && track.album);
             els.folder.textContent = state.folder || '';
-            if (track.picture) {
-                els.coverImg.src = track.picture;
-                els.cover.hidden = false;
-                els.badge.hidden = true;
-            } else {
-                els.cover.removeAttribute('src');
+            if (track.picture) showCover(track.picture);
+            else {
                 els.cover.hidden = true;
                 els.badge.hidden = false;
+                clearCoverTint();
             }
         }
 
@@ -466,9 +553,12 @@
                 const title = track.title || stripExtension(track.name);
                 const meta = [track.artist, track.album].filter(Boolean).join(' · ');
                 item.innerHTML = `<button type="button" class="vd-player-queue-btn" data-select="${index}">
-          <span class="vd-player-queue-index">${index + 1}</span>
+          <span class="vd-player-queue-mark">
+            <span class="vd-player-queue-index">${index + 1}</span>
+            <span class="vd-player-eq" aria-hidden="true"><span></span><span></span><span></span></span>
+          </span>
           <span class="vd-player-queue-text">
-            <span class="vd-player-queue-title">${esc(title)}</span>
+            <span class="vd-player-track-name">${esc(title)}</span>
             ${meta ? `<span class="vd-player-queue-meta">${esc(meta)}</span>` : ''}
           </span>
           <span class="vd-player-queue-duration">${track.duration ? esc(formatTime(track.duration)) : ''}</span>
@@ -642,20 +732,39 @@
             });
 
             let dragging = false;
+            const placeTip = event => {
+                if (!els.tip) return;
+                const duration = audio.duration;
+                if (!isFinite(duration) || duration <= 0) {
+                    els.tip.hidden = true;
+                    return;
+                }
+                const ratio = ratioFromEvent(event);
+                els.tip.hidden = false;
+                els.tip.textContent = formatTime(ratio * duration);
+                els.tip.style.left = (ratio * 100).toFixed(2) + '%';
+            };
+            const hideTip = () => { if (els.tip && !dragging) els.tip.hidden = true; };
             els.seek.addEventListener('pointerdown', event => {
                 if (!isFinite(audio.duration)) return;
                 dragging = true;
                 state.scrubbing = true;
+                root.classList.add('is-scrubbing');
                 els.seek.setPointerCapture && els.seek.setPointerCapture(event.pointerId);
                 seekToRatio(ratioFromEvent(event));
+                placeTip(event);
             });
             els.seek.addEventListener('pointermove', event => {
+                placeTip(event);
                 if (!dragging) return;
                 seekToRatio(ratioFromEvent(event));
             });
+            els.seek.addEventListener('pointerleave', hideTip);
             const endDrag = () => {
                 dragging = false;
                 state.scrubbing = false;
+                root.classList.remove('is-scrubbing');
+                if (els.tip) els.tip.hidden = true;
             };
             els.seek.addEventListener('pointerup', endDrag);
             els.seek.addEventListener('pointercancel', endDrag);
@@ -748,6 +857,7 @@
             audio.removeAttribute('src');
             try { audio.load(); } catch (_) { /* ignore */ }
             if (state.tagAbort) state.tagAbort.abort();
+            if (state.themeObserver) state.themeObserver.disconnect();
             if (state.visualizer) state.visualizer.destroy();
             if (state.graph) {
                 try { state.graph.context.close(); } catch (_) { /* ignore */ }
@@ -775,7 +885,21 @@
             state.visualizer = window.AudioPlayerVisualizer.create(canvas, {
                 mode: state.mode,
                 root,
-                getAnalyser: () => (state.graph ? state.graph.analyser : null)
+                getAnalyser: () => (state.graph ? state.graph.analyser : null),
+                onEnergy: bass => {
+                    root.style.setProperty('--pl-pulse', (Number(bass) || 0).toFixed(3));
+                }
+            });
+        }
+
+        if (typeof MutationObserver === 'function' && document.body) {
+            state.themeObserver = new MutationObserver(() => {
+                if (state.disposed || state.coverTint || !state.visualizer) return;
+                state.visualizer.refreshPalette();
+            });
+            state.themeObserver.observe(document.body, {
+                attributes: true,
+                attributeFilter: ['data-accent', 'data-theme', 'data-scheme']
             });
         }
 

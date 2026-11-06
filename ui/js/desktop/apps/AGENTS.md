@@ -601,24 +601,53 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   (`module-loader.js`, `menus-and-routing.js`, `desktop-foundation.js`, `window-shell-runtime.js`) run `npm run build:ui` and
   `npm run check:ui`. API contract: `internal/server` (`/api/docker-manager`), host registry: `internal/dockerhost`.
 
+## Music player
+
+- `audio-player` is the native window for audio files. It is not the WebAmp launcher (`music-player`) and it never opens the gallery lightbox. Style: `css/desktop-app-audio-player.css`, prefix `vd-player`. Scripts, in order: `audio-player-tags.js`, `audio-player-visualizer.js`, `audio-player.js`.
+- The visualizer keeps the three modes `bars`, `radial` and `wave`. It only paints its canvas. Loudness reaches the shell as `onEnergy(bass, energy)` and becomes `--pl-pulse`. A readable cover swatch sets `--pl-cover` and `setCoverColor`; grey or missing art keeps the theme accent. Theme attribute changes refresh that accent only while no cover tint is active.
+- Playback, the folder queue, shuffle, repeat, speed and media-session handlers stay in `audio-player.js`. Visible copy stays on the existing `desktop.audio_player_*` keys. Verify `go test ./ui -run 'TestAudioPlayer|TestDesktopAudioPlayerWindowBrowser'`.
+
 ## Synth Studio
 
 - `synth-studio` is a native Creative app with the `synthStudio.*` locale prefix.
-  Keep its eighty presets (five groups of sixteen), 128 synthesized GM programs and
-  percussion bank local. See `documentation/synth-studio.md` for supported music
-  formats, controls and resource limits.
+  Keep its 120 factory presets (five banks of twenty-four), 128 synthesized GM
+  programs and percussion bank local. See `documentation/synth-studio.md` for
+  supported music formats, controls and resource limits.
+- `synth-studio-designer.js` owns the programmable synthesizer: it normalizes
+  drafts against the voice-engine bounds, keeps the browser-local user patch
+  bank (max twenty-four, `aurago:synth-studio:patches:1`), registers the stored
+  synths into `synth-studio-presets.js` (category `user` plus a runtime-only
+  preview entry that never lists) and renders the parameter editor inside the
+  sound panel. Projects only reference the `user-*` instrument id; validation
+  accepts well-formed user ids even when the patch is missing in that browser
+  (plain-wave fallback, "Missing synth" option), and saving/assigning a synth to
+  its track stays one undoable mutation. Keep `scripts/test-synth-studio-designer.mjs`
+  green.
 - `synth-studio-workspace.js` owns workbench tabs, resizing, templates and local
   view preferences. Parameter gestures update existing audio buses and commit one
   undo step; cancellation restores the initial value. Structural edits wait for
   the next bar without restarting transport; cancel obsolete reserved voices even
   inside look-ahead. Stop/deadline takes priority over queued changes. Verify scheduler tests
   and responsive browser flows when changing these contracts.
-- `synth-studio-music.js` owns deterministic scale/chord/arp/variation/rhythm
-  transforms; `synth-studio-compose.js` owns preview/apply and held live inputs.
-  Preview/cancel never changes the project; Apply commits ordinary notes once.
+- `synth-studio-music.js` owns deterministic scale/chord/arp/variation/rhythm,
+  groove, transpose, reverse, chord-progression and bassline transforms;
+  `synth-studio-compose.js` owns preview/apply, held live inputs and the arp
+  latch. Preview/cancel never changes the project; Apply commits ordinary notes
+  once. Groove humanisation is seeded and repeatable; progression and bassline
+  follow the selected harmony rather than fixed pitches. The arpeggiator's chord
+  and strum orders schedule every chord voice per step; live and printed output
+  share `arpPitches`/`arpeggio`.
   Format v2 stores harmony, bar-range scenes and track automation; all automation
   counts toward the event/byte limits. v1 validation preserves v1. Upgrade in
   memory and require a create-only v2 copy before enabling autosave.
+- `synth-studio-fx.js` and the `FX_TYPES` table in `synth-studio-model.js` share
+  one 15-insert rack, including tape, auto pan and ring mod. Every builder routes
+  its wet path and works identically in live playback and offline WAV rendering.
+  The master strip also owns the momentary Live FX nodes (filter drop, stutter);
+  they are performance-only and must stay out of project data and offline renders.
+- `synth-studio-export.js` owns stem isolation, CRC-32 and the store-only ZIP
+  writer. Stems solo one track, mute the rest, neutralize the master strip and
+  reuse `SynthStudioAudio.renderWav`; tracks without notes are skipped.
 - `synth-studio-performance.js` owns pure scene expansion, sustain-to-duration
   conversion, automation reduction and take limits. `synth-studio-stage.js` owns
   scene pads, XY/manual override, point editing and temporary take recovery.
@@ -3450,9 +3479,11 @@ buttons and menu popovers remain excluded from those gestures.
 - Network Cameras live tiles and detail video stay dark viewports (`#05080d` /
   `#030509`); toolbar, cards, and modal chrome use `--nc-*` aliases mapped to
   `--vd-theme-*`. Online/offline and danger badges stay semantic.
-- Noisemaker keeps the brand pink/purple gradient (`--nm-accent-2`) on create
-  and play controls; chrome, library cards, and the player bar use `--nm-*`
-  aliases mapped to `--vd-theme-*`. Cover play overlays may stay dark.
+- Noisemaker primary actions (create, play, brand mark) use the theme
+  material primary (`--vd-mat-primary` with its text, border and shadow).
+  Genre stripes and the favorite mark use theme semantic colours and
+  `--vd-mat-accent-2`. Chrome, library cards and the player bar use `--nm-*`
+  aliases mapped to `--vd-theme-*` and `--vd-mat-*`. Cover play overlays may stay dark.
 - Live Speech canvas FX stay decorative; the lab panel and realtime surface
   use `--vd-theme-panel-bg`.
 - Homepage Studio preview letterbox (`.vd-hp-preview-zone`) and the website
@@ -3645,10 +3676,10 @@ buttons and menu popovers remain excluded from those gestures.
   game-over result overlay with win confetti, CSS move/capture/check/thinking
   effects (`prefers-reduced-motion` aware), and Web Audio synthesized
   move/capture/check/castle/promote/game-over sounds. Split across `chess.js`
-  (core game loop), `chess-fx.js` (template, effects, audio, skin helpers and
-  the promotion dialog), `chess-engine.js` (Stockfish worker bridge),
-  `chess-agent.js` (AuraGo agent move API client) and `chess-3d.js` (the
-  optional 3D board).
+  (core game loop), `chess-fx.js` (template, effects, audio, skin helpers, the
+  promotion dialog, the move list and the tab strip), `chess-engine.js`
+  (Stockfish worker bridge), `chess-agent.js` (AuraGo agent move API client)
+  and `chess-3d.js` (the optional 3D board).
 - `chess-3d.js` owns the optional 3D board mode of the Chess app. It renders
   the live position with the original AuraGo piece kit from `/3d/chess/v1/`
   through the vendored global Three.js, GLTFLoader and OrbitControls, and
@@ -3668,18 +3699,35 @@ buttons and menu popovers remain excluded from those gestures.
   `go test ./ui/ -run TestDesktopChess` and `node scripts/test-chess-assets.mjs`.
 - Chess layout is one centered board column: the view switch and material score
   share the pane head row, the board sits in a single square box, and the status
-  ribbon closes the column below it. The head and the ribbon are capped by
-  `--chess-column`. The board box fits the pane height (`container-type: size` on
-  the shell plus `100cqh` in the frame width), so a tall window gets a bigger
-  board and a short one never clips it. The 2D board is that square box; the 3D
-  board is a perspective scene and takes the whole board area
-  (`.vd-chess.is-3d`), so a wide pane lets it spread into the free width. The
-  right sidebar widens with the window (`clamp(340px, 22vw, 420px)`), folds its
-  settings away into a disclosure, pairs the open fields in two columns and
-  scrolls instead of clipping when the window gets short. The panels carry their
-  own display rule, so the tab switch needs the explicit `[hidden]` reset.
-  Never let a compact row stretch across the full pane and never size the board
-  from the browser viewport (`vh`).
+  ribbon closes the column below it. The head and the ribbon follow the
+  measured board width (`--chess-frame-size`, written by `chess.js` on the app
+  root) and fall back to `--chess-column`, so head, board and ribbon share one
+  optical column at every window size; the ribbon uses `border-box`, so its
+  padding never widens it. The board box fits the pane height (`container-type:
+  size` on the shell plus `100cqh` in the frame width), so a tall window gets a
+  bigger board and a short one never clips it. The 2D board is that square box;
+  the 3D board is a perspective scene and takes the whole board area
+  (`.vd-chess.is-3d`), so a wide pane lets it spread into the free width and
+  head and ribbon follow the full width there. The right sidebar widens with the
+  window (`clamp(340px, 22vw, 420px)`), folds its settings away into a
+  disclosure, pairs the open fields in two columns and scrolls instead of
+  clipping when the window gets short. The panels carry their own display rule,
+  so the tab switch needs the explicit `[hidden]` reset. Never let a compact row
+  stretch across the full pane and never size the board from the browser
+  viewport (`vh`).
+- Chess keeps the board input in one state: `chess.js` disables the move input
+  before it enables it again, because `cm-chessboard` refuses a second enable
+  and the local 2P mode keeps the input after every move. The move list is a
+  widget of `chess-fx.js` (`window.ChessMoveList`), the tab strip a second one
+  (`window.ChessTabs`): a move is a real button and carries `aria-current` for
+  the move the board shows, the tabs form a tablist with a roving tabindex and
+  arrow-key navigation, and the status line is a polite live region. Actions
+  that do not apply rest instead of doing nothing: undo, hint, resign and draw
+  are disabled while the opponent thinks or the game is over. The draw action
+  ends the game, so it carries `desktop.chess_draw` and is confirmed with
+  `desktop.chess_confirm_draw`; the offer wording stays unused. Verify with
+  `go test ./ui/ -run TestDesktopChess`, `node scripts/test-chess-assets.mjs`
+  and `node scripts/test-chess-browser.mjs`.
 - `writer.js` owns Autor's native DOCX document, menus and lifecycle;
   `writer-session.js` owns revision-bound autosave and IndexedDB recovery;
   `writer-panels.js` owns formatting, search, review, AI and snapshot printing.
@@ -5370,7 +5418,10 @@ registration lives in `internal/desktop/types.go`.
   into `createChessFx`. Opponent-move errors use
   `desktop.chess_*` codes via `formatOpponentError`. Vendor-load
   status and the missing-template fallback use
-  `desktop.chess_load_failed`. Exposes
+  `desktop.chess_load_failed`. The draw action ends the game and uses
+  `desktop.chess_draw` with `desktop.chess_confirm_draw`. The move list
+  (`window.ChessMoveList`) and the tab strip (`window.ChessTabs`) live in
+  `chess-fx.js`. Exposes
   `window.ChessApp` and `window.createChessFx`. No child DOX file
   needed.
 - `calendar.js` / `calendar-views.js` / `calendar-editor.js` - Calendar
@@ -5425,6 +5476,20 @@ registration lives in `internal/desktop/types.go`.
   The programmer section starts hidden; mode tabs must fit the content width.
   Verify all three modes in the default and narrow windows with
   `TestDesktopCalculatorLayoutBrowser`.
+- The calculator display is live: the result previews the expression while it is
+  typed, an unfinished expression keeps the last result dimmed instead of showing
+  an error, and only `=` reports the translated invalid-expression text
+  (`desktop.calc_invalid_expression`). `CE` clears the entry that is being typed
+  (the trailing number, otherwise the trailing operator), `C` clears everything,
+  and the sign toggle negates the number that is being typed instead of
+  wrapping the expression. Switching the mode or the number base carries the
+  current value over instead of dropping it; in the programmer mode the digits
+  the current base cannot hold are disabled. A finished calculation lands in the
+  history, a history entry restores its result, and the display has a copy button
+  that always reports its outcome, even when a clipboard write never settles.
+  Every new string is a `desktop.calc_*` key in all sixteen locales.
+  Verify `TestDesktopCalculatorUXBrowser` (`AURAGO_RUN_BROWSER_SMOKE=1`) and
+  `TestDesktopCalculatorUXKeysAreTranslated`.
 - Settings icon themes include Tela, Candy, Fluent and Buuf; Tela/Fluent each persist their own folder color. The picker reads generated manifest palettes, with backend parity enforced by `TestDesktopAdditionalIconAssets`. Serialize settings saves so fast selections keep their order; failed saves restore the previous state. Theme/color/scheme changes update open decorative icons without replacing controls or focus.
 - `settings.js` implements the Settings app, a virtual desktop configuration
   panel with sidebar navigation, global search, hamburger menu on mobile,

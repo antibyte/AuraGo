@@ -149,7 +149,7 @@
 .ss-inspector>input {width:100%;margin-bottom:14px}
 .ss-inspector>label {display:flex;flex-direction:column;gap:6px;color:var(--ss-muted);font-size:10px;margin-bottom:14px}
 .ss-param-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 8px;margin-bottom:14px}
-.ss-parameter {display:flex;flex-direction:column;gap:4px;color:var(--ss-muted);font-size:10px;min-width:0}
+.ss-parameter,.ss-designer-field {display:flex;flex-direction:column;gap:4px;color:var(--ss-muted);font-size:10px;min-width:0}
 .ss-parameter>span {white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ss-inspector select {width:100%;color:var(--ss-text)}
 .ss-mini-keys {display:flex;margin:16px 0 14px;border:1px solid var(--ss-line);border-radius:4px;overflow:hidden}
@@ -203,6 +203,7 @@
 .ss-sound-workbench .ss-parameter {border-top:2px solid color-mix(in srgb,var(--ss-accent) 45%,transparent)}
 .ss-inspector h3::before,.ss-inspector h4::before {content:'';display:inline-block;width:6px;height:6px;border-radius:2px;margin-right:6px;background:var(--ss-accent);vertical-align:middle}
 .ss-parameter {padding:10px;background:var(--ss-card);border:1px solid var(--ss-card-border);border-radius:var(--ss-card-radius)}
+.ss-inspector .ss-designer-field {padding:10px;background:var(--ss-card);border:1px solid var(--ss-card-border);border-radius:var(--ss-card-radius)}
 .ss-parameter output {font:13px ui-monospace,monospace;font-family:var(--vd-mat-mono-font,ui-monospace,monospace);color:var(--ss-text)}
 .ss-parameter button {font-size:11px;padding:2px;min-height:23px}
 .ss-welcome {display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:14px;background:var(--ss-card);border-bottom:1px solid var(--ss-line)}
@@ -263,8 +264,10 @@
 .ss-app .ss-editor-header button{font-size:13px}
 @container (max-width:540px){.ss-app .ss-chord-pads{grid-template-columns:repeat(4,minmax(0,1fr))}.ss-app .ss-generator-controls{gap:10px}.ss-app .ss-compose label{max-width:100%}}
 .ss-app .ss-stage{border-bottom:1px solid var(--ss-line);padding-bottom:16px;margin-bottom:16px}
-.ss-app .ss-stage-heading,.ss-app .ss-take-controls{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.ss-app .ss-stage-heading,.ss-app .ss-take-controls,.ss-app .ss-performance-fx{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
 .ss-app .ss-stage-heading strong{margin-right:auto;font-size:14px;font-weight:var(--vd-mat-heading-weight,700);font-family:var(--vd-mat-heading-font,inherit);color:var(--vd-mat-heading-color,inherit);letter-spacing:var(--vd-mat-heading-tracking,normal);text-transform:var(--vd-mat-heading-transform,none)}
+.ss-app .ss-performance-fx{margin-top:8px}
+.ss-app .ss-performance-fx strong{margin-right:auto;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--ss-muted)}
 .ss-app .ss-stage button{min-height:36px;font-size:13px}
 .ss-app .ss-scene-pads{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:8px;margin:12px 0}
 .ss-app .ss-scene-pads button{min-height:64px;min-width:44px;display:flex;flex-direction:column;justify-content:center;gap:5px;overflow:hidden;box-shadow:inset 0 -3px 0 color-mix(in srgb,var(--ss-scene-color,var(--ss-muted)) 45%,transparent);background:linear-gradient(180deg,color-mix(in srgb,var(--ss-scene-color,var(--ss-muted)) 15%,transparent),transparent)}
@@ -381,4 +384,31 @@
 @container (max-width:1000px){.ss-master-panel{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @container (max-width:620px){.ss-master-panel{grid-template-columns:minmax(0,1fr)}}
 @container (max-width:1000px){.ss-analyser {width:110px;height:26px}.ss-tour {bottom:60px}}
-@container (max-width:760px){.ss-analyser {display:none}.ss-fx-params {grid-template-columns:repeat(2,minmax(0,1fr))}}
+@container (max-width:760px){.ss-analyser {display:none}.ss-fx-params {grid-template-columns:repeat(2,minmax(0,1fr))}.ss-designer-actions {flex-wrap:wrap}}
+/* Programmable synth designer: while it is open, the sound panel becomes a
+   full instrument editor. The groups reuse the effect rack card look and the
+   parameter grid, and group headings take the section colour spectrum. */
+.ss-design-open {width:100%;margin:0 0 12px;border:1px dashed var(--ss-border)!important;font-size:11px!important;color:var(--ss-muted)}
+.ss-design-open:hover {color:var(--ss-accent);border-color:var(--ss-accent)!important}
+.ss-edit {color:var(--ss-muted);font-size:13px;line-height:1;padding:4px 5px!important;width:auto!important}
+.ss-edit:hover {color:var(--ss-accent)}
+.ss-designer {display:flex;flex-direction:column;gap:10px;min-width:0}
+.ss-designer-head {display:flex;align-items:center;gap:8px}
+.ss-designer-head h3 {margin:0;flex:none}
+.ss-designer-head input {flex:1;min-width:0}
+.ss-designer-source {color:var(--ss-muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ss-designer-group {border:1px solid var(--ss-card-border);border-radius:var(--ss-card-radius);background:var(--ss-card);padding:8px 10px 10px}
+.ss-designer-group h4 {margin:0 0 8px;font-size:10px;letter-spacing:var(--vd-mat-label-tracking,1px);text-transform:var(--vd-mat-label-transform,uppercase);font-family:var(--vd-mat-label-font,inherit);color:var(--vd-mat-label-color,var(--ss-muted))}
+.ss-designer .ss-designer-group:nth-child(1) h4::before {content:'';display:inline-block;width:6px;height:6px;border-radius:2px;margin-right:6px;background:var(--ss-color-0);vertical-align:middle}
+.ss-designer .ss-designer-group:nth-child(2) h4::before {content:'';display:inline-block;width:6px;height:6px;border-radius:2px;margin-right:6px;background:var(--ss-color-1);vertical-align:middle}
+.ss-designer .ss-designer-group:nth-child(3) h4::before {content:'';display:inline-block;width:6px;height:6px;border-radius:2px;margin-right:6px;background:var(--ss-color-2);vertical-align:middle}
+.ss-designer .ss-designer-group:nth-child(4) h4::before {content:'';display:inline-block;width:6px;height:6px;border-radius:2px;margin-right:6px;background:var(--ss-color-3);vertical-align:middle}
+.ss-designer .ss-designer-group:nth-child(5) h4::before {content:'';display:inline-block;width:6px;height:6px;border-radius:2px;margin-right:6px;background:var(--ss-color-4);vertical-align:middle}
+.ss-designer .ss-designer-group:nth-child(6) h4::before {content:'';display:inline-block;width:6px;height:6px;border-radius:2px;margin-right:6px;background:var(--ss-color-5);vertical-align:middle}
+.ss-designer .ss-designer-group:nth-child(7) h4::before {content:'';display:inline-block;width:6px;height:6px;border-radius:2px;margin-right:6px;background:var(--ss-color-6);vertical-align:middle}
+.ss-designer .ss-param-grid {grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:10px 8px;margin-bottom:0}
+.ss-designer-field select {color:var(--ss-text)}
+.ss-designer-actions {display:flex;flex-wrap:wrap;gap:8px;margin-top:2px}
+.ss-designer-actions button {font-size:11px;min-height:30px;padding:4px 12px;flex:1 1 auto}
+.ss-designer-actions button[data-designer-action=close] {margin-left:auto;border:1px solid var(--ss-border);color:var(--ss-muted)}
+.ss-designer .ss-mini-keys {margin:2px 0}

@@ -188,10 +188,59 @@
         return err && err.message ? err.message : String(err || '');
     }
 
+    const CALCULATOR_KEY_LABELS = {
+        C: 'desktop.calc_key_clear',
+        CE: 'desktop.calc_key_clear_entry',
+        negate: 'desktop.calc_key_negate',
+        square: 'desktop.calc_key_square',
+        power: 'desktop.calc_key_power',
+        'n!': 'desktop.calc_key_factorial'
+    };
+
+    function calculatorKeyLabel(def) {
+        const key = CALCULATOR_KEY_LABELS[def.key];
+        return key ? t(key) : '';
+    }
+
     function calcButton(def) {
         const label = def.label || def.key;
         const classes = [def.kind || '', def.className || ''].filter(Boolean).join(' ');
-        return `<button type="button" class="${esc(classes)}" data-key="${esc(def.key)}">${esc(label)}</button>`;
+        const aria = calculatorKeyLabel(def);
+        const ariaAttr = aria ? ` aria-label="${esc(aria)}" title="${esc(aria)}"` : '';
+        return `<button type="button" class="${esc(classes)}" data-key="${esc(def.key)}"${ariaAttr}>${esc(label)}</button>`;
+    }
+
+    // CE clears the entry that is being typed: the trailing number, or the trailing
+    // operator when no number follows it. C clears the whole expression.
+    function clearCalculatorEntry(expression, mode, base) {
+        const text = String(expression || '');
+        const logicalOperatorMatch = text.match(/(?:^|\s)(?:AND|OR|XOR|SHL|SHR|MOD|NOT)\s*$/i);
+        if (logicalOperatorMatch) return text.slice(0, text.length - logicalOperatorMatch[0].length).replace(/\s+$/, '');
+        let numberMatch;
+        if (mode === 'programmer') {
+            const digits = base === 16 ? '0-9A-Fa-f' : base === 8 ? '0-7' : base === 2 ? '01' : '0-9';
+            numberMatch = text.match(new RegExp(`[${digits}]+$`));
+        } else {
+            numberMatch = text.match(/[0-9]*\.?[0-9]*$/);
+            if (numberMatch && !numberMatch[0]) numberMatch = null;
+        }
+        if (numberMatch && numberMatch[0]) return text.slice(0, text.length - numberMatch[0].length);
+        const operatorMatch = text.match(/[+\-*/^%()]\s*$/);
+        if (operatorMatch) return text.slice(0, text.length - operatorMatch[0].length).replace(/\s+$/, '');
+        return text;
+    }
+
+    // The sign toggle negates the number that is being typed instead of wrapping the
+    // whole expression, so the visible expression stays readable.
+    function negateCalculatorExpression(expression) {
+        const text = String(expression || '');
+        if (!text) return '-';
+        const numberMatch = text.match(/(-?)([0-9]*\.?[0-9]+)$/);
+        if (numberMatch && numberMatch[2]) {
+            const head = text.slice(0, text.length - numberMatch[0].length);
+            return numberMatch[1] ? head + numberMatch[2] : `${head}-${numberMatch[2]}`;
+        }
+        return `(-${text})`;
     }
 
     function render(hostEl, windowId, renderCtx) {
@@ -311,35 +360,38 @@
             ]
         };
         host.innerHTML = `<div class="vd-calc" tabindex="0">
-            <div class="vd-calc-tabs">
-                <button type="button" class="active" data-mode="standard">${esc(t('desktop.calc_standard'))}</button>
-                <button type="button" data-mode="scientific">${esc(t('desktop.calc_scientific'))}</button>
-                <button type="button" data-mode="programmer">${esc(t('desktop.calc_programmer'))}</button>
+            <div class="vd-calc-tabs" role="tablist" aria-label="${esc(t('desktop.calc_mode_label'))}">
+                <button type="button" role="tab" class="active" data-mode="standard" aria-selected="true">${esc(t('desktop.calc_standard'))}</button>
+                <button type="button" role="tab" data-mode="scientific" aria-selected="false">${esc(t('desktop.calc_scientific'))}</button>
+                <button type="button" role="tab" data-mode="programmer" aria-selected="false">${esc(t('desktop.calc_programmer'))}</button>
             </div>
             <div class="vd-calc-prog-section" data-prog-section hidden>
-                <div class="vd-calc-base" data-base-selector>
-                    <button type="button" class="active" data-base="10">${esc(t('desktop.calc_dec'))}</button>
-                    <button type="button" data-base="16">${esc(t('desktop.calc_hex'))}</button>
-                    <button type="button" data-base="2">${esc(t('desktop.calc_bin'))}</button>
-                    <button type="button" data-base="8">${esc(t('desktop.calc_oct'))}</button>
+                <div class="vd-calc-base" data-base-selector role="group" aria-label="${esc(t('desktop.calc_base_label'))}">
+                    <button type="button" class="active" data-base="10" aria-pressed="true">${esc(t('desktop.calc_dec'))}</button>
+                    <button type="button" data-base="16" aria-pressed="false">${esc(t('desktop.calc_hex'))}</button>
+                    <button type="button" data-base="2" aria-pressed="false">${esc(t('desktop.calc_bin'))}</button>
+                    <button type="button" data-base="8" aria-pressed="false">${esc(t('desktop.calc_oct'))}</button>
                 </div>
                 <div class="vd-calc-prog-display" data-prog-display>
-                    <div><span>HEX</span><span data-hex>0</span></div>
-                    <div><span>DEC</span><span data-dec>0</span></div>
-                    <div><span>OCT</span><span data-oct>0</span></div>
-                    <div><span>BIN</span><span data-bin>0</span></div>
+                    <div class="vd-calc-prog-cell"><span class="vd-calc-prog-label">HEX</span><span class="vd-calc-prog-value" data-hex>0</span></div>
+                    <div class="vd-calc-prog-cell"><span class="vd-calc-prog-label">DEC</span><span class="vd-calc-prog-value" data-dec>0</span></div>
+                    <div class="vd-calc-prog-cell"><span class="vd-calc-prog-label">OCT</span><span class="vd-calc-prog-value" data-oct>0</span></div>
+                    <div class="vd-calc-prog-cell"><span class="vd-calc-prog-label">BIN</span><span class="vd-calc-prog-value" data-bin>0</span></div>
                 </div>
             </div>
-            <div class="vd-calc-display"><div data-expression>0</div><strong data-result>0</strong></div>
-            <div class="vd-calc-keys">
+            <div class="vd-calc-display" aria-label="${esc(t('desktop.calc_display_label'))}"><button type="button" class="vd-calc-copy" data-copy aria-label="${esc(t('desktop.calc_copy'))}" title="${esc(t('desktop.calc_copy'))}"></button><div class="vd-calc-expression" data-expression>0</div><strong class="vd-calc-result" data-result aria-live="polite" aria-atomic="true">0</strong></div>
+            <div class="vd-calc-keys" role="group" aria-label="${esc(t('desktop.calc_keys_label'))}">
                 ${keySets.standard.map(calcButton).join('')}
             </div>
-            <aside class="vd-calc-history"><div>${esc(t('desktop.calc_history'))}</div><ol></ol></aside>
+            <aside class="vd-calc-history"><div class="vd-calc-history-head"><span class="vd-calc-history-title">${esc(t('desktop.calc_history'))}</span><button type="button" class="vd-calc-history-clear" data-clear-history aria-label="${esc(t('desktop.calc_clear_history'))}" title="${esc(t('desktop.calc_clear_history'))}" hidden>&#215;</button></div><ol class="vd-calc-history-list" data-history-list></ol><p class="vd-calc-history-empty" data-history-empty>${esc(t('desktop.calc_history_empty'))}</p></aside>
         </div>`;
         const root = host.querySelector('.vd-calc');
         const expressionEl = host.querySelector('[data-expression]');
         const resultEl = host.querySelector('[data-result]');
-        const historyEl = host.querySelector('.vd-calc-history ol');
+        const historyEl = host.querySelector('[data-history-list]');
+        const historyEmptyEl = host.querySelector('[data-history-empty]');
+        const historyClearEl = host.querySelector('[data-clear-history]');
+        const copyEl = host.querySelector('[data-copy]');
         const keysEl = host.querySelector('.vd-calc-keys');
         const baseSelector = host.querySelector('[data-base-selector]');
         const progDisplay = host.querySelector('[data-prog-display]');
@@ -347,6 +399,8 @@
         let expression = '';
         let mode = 'standard';
         let progBase = 10;
+        let lastResult = 0;
+        let copyTimer = null;
         const history = [];
         const showCalculatorContextMenu = event => {
             if (!event.target.closest('.vd-calc-display')) return false;
@@ -362,18 +416,60 @@
             return true;
         };
         wireContextMenuBoundary(root, { onContextMenu: showCalculatorContextMenu });
-        const update = (result) => {
+        const formatCalculatorValue = value => {
+            if (value === 0 || value === -0) return '0';
+            return String(value);
+        };
+        const setResultState = (text, state) => {
+            resultEl.textContent = text;
+            resultEl.classList.toggle('error', state === 'error');
+            resultEl.classList.toggle('pending', state === 'pending');
+            const length = String(text || '').length;
+            const scale = length > 18 ? 0.5 : length > 14 ? 0.62 : length > 11 ? 0.75 : length > 8 ? 0.88 : 1;
+            resultEl.style.setProperty('--calc-result-scale', String(scale));
+            updateProgrammerDisplay();
+        };
+        const updateProgrammerDisplay = () => {
+            if (mode !== 'programmer' || !progDisplay) return;
+            const num = parseInt(resultEl.textContent || '0', 10);
+            const safeNum = Number.isFinite(num) ? num : 0;
+            progDisplay.querySelector('[data-hex]').textContent = safeNum.toString(16).toUpperCase();
+            progDisplay.querySelector('[data-dec]').textContent = String(safeNum);
+            progDisplay.querySelector('[data-oct]').textContent = safeNum.toString(8);
+            progDisplay.querySelector('[data-bin]').textContent = safeNum.toString(2);
+        };
+        const refresh = () => {
             expressionEl.textContent = expression || '0';
-            const displayResult = result == null ? '0' : String(result);
-            resultEl.textContent = displayResult;
-            if (mode === 'programmer' && progDisplay) {
-                const num = parseInt(displayResult, 10);
-                const safeNum = Number.isFinite(num) ? num : 0;
-                progDisplay.querySelector('[data-hex]').textContent = safeNum.toString(16).toUpperCase();
-                progDisplay.querySelector('[data-dec]').textContent = String(safeNum);
-                progDisplay.querySelector('[data-oct]').textContent = safeNum.toString(8);
-                progDisplay.querySelector('[data-bin]').textContent = safeNum.toString(2);
+            if (expressionEl.scrollWidth > expressionEl.clientWidth) expressionEl.scrollLeft = expressionEl.scrollWidth;
+        };
+        const previewExpression = () => {
+            if (!expression) {
+                setResultState('0', '');
+                return;
             }
+            try {
+                const value = mode === 'programmer'
+                    ? evaluateProgrammerExpression(expression, progBase)
+                    : evaluateCalculatorExpression(expression);
+                const result = mode === 'programmer' ? value : Number(value.toFixed(10));
+                lastResult = result;
+                setResultState(formatCalculatorValue(result), '');
+            } catch (err) {
+                setResultState(formatCalculatorValue(lastResult), 'pending');
+            }
+        };
+        const renderHistory = () => {
+            if (historyEl) {
+                historyEl.innerHTML = history.map((item, index) => {
+                    const separator = item.lastIndexOf(' = ');
+                    const expr = separator >= 0 ? item.slice(0, separator) : item;
+                    const value = separator >= 0 ? item.slice(separator + 3) : '';
+                    const restore = `${esc(t('desktop.calc_history_restore'))}: ${esc(value)}`;
+                    return `<li><button type="button" class="vd-calc-history-entry" data-history-index="${index}" aria-label="${restore}" title="${esc(expr)} = ${esc(value)}"><span class="vd-calc-history-expr">${esc(expr)}</span><span class="vd-calc-history-value">${esc(value)}</span></button></li>`;
+                }).join('');
+            }
+            if (historyEmptyEl) historyEmptyEl.hidden = history.length > 0;
+            if (historyClearEl) historyClearEl.hidden = history.length === 0;
         };
         const evaluate = () => {
             if (!expression) return;
@@ -391,9 +487,11 @@
             }
             history.unshift(`${expression} = ${result}`);
             history.splice(8);
-            historyEl.innerHTML = history.map(item => `<li>${esc(item)}</li>`).join('');
+            renderHistory();
             expression = String(result);
-            update(result);
+            lastResult = result;
+            setResultState(formatCalculatorValue(result), '');
+            refresh();
         };
         const animateButton = key => {
             const btn = host.querySelector(`[data-key="${esc(key)}"]`);
@@ -416,7 +514,7 @@
         const press = key => {
             try {
                 if (key === 'C') expression = '';
-                else if (key === 'CE') expression = '';
+                else if (key === 'CE') expression = clearCalculatorEntry(expression, mode, progBase);
                 else if (key === 'backspace') expression = expression.slice(0, -1);
                 else if (key === '=') {
                     evaluate();
@@ -434,15 +532,17 @@
                     }
                     else if (['+','-','*','/','(',')'].includes(key)) expression += key;
                 }
-                else if (key === 'negate') expression = expression ? `(-1*(${expression}))` : '-';
+                else if (key === 'negate') expression = negateCalculatorExpression(expression);
                 else if (key === 'square') expression += '^2';
                 else if (key === 'power') expression += '^';
                 else if (key === 'n!') expression += '!';
                 else if (['sin', 'cos', 'tan', 'log', 'ln', 'sqrt'].includes(key)) expression += `${key}(`;
                 else expression += key;
-                update();
+                refresh();
+                previewExpression();
                 flashDisplay();
             } catch (err) {
+                resultEl.classList.add('error');
                 resultEl.textContent = calculatorErrorMessage(err);
             }
         };
@@ -453,33 +553,141 @@
                 press(btn.dataset.key);
             }));
         };
+        const syncProgrammerKeyStates = () => {
+            if (!keysEl) return;
+            keysEl.querySelectorAll('[data-key]').forEach(btn => {
+                const key = btn.dataset.key;
+                let disabled = false;
+                if (mode === 'programmer') {
+                    if (key === 'HEX_C') disabled = progBase !== 16;
+                    else if (key === 'A' || key === 'B' || key === 'D' || key === 'E' || key === 'F') disabled = !validDigitForBase(key);
+                    else if (/^[0-9]$/.test(key)) disabled = !validDigitForBase(key);
+                }
+                btn.disabled = disabled;
+                btn.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+            });
+        };
         const renderCalculatorKeys = () => {
             if (!keysEl) return;
             keysEl.innerHTML = (keySets[mode] || keySets.standard).map(calcButton).join('');
             bindKeyButtons();
+            syncProgrammerKeyStates();
         };
         renderCalculatorKeys();
+        renderHistory();
+        const carryCalculatorValue = (text, fromMode, toMode, base) => {
+            if (!text) return '';
+            let value;
+            try {
+                value = fromMode === 'programmer'
+                    ? evaluateProgrammerExpression(text, progBase)
+                    : evaluateCalculatorExpression(text);
+            } catch (err) {
+                return '';
+            }
+            if (!Number.isFinite(value)) return '';
+            const result = fromMode === 'programmer' ? value : Number(value.toFixed(10));
+            if (toMode !== 'programmer') return String(result);
+            const integer = Math.trunc(result);
+            return integer.toString(base).toUpperCase();
+        };
         host.querySelectorAll('[data-mode]').forEach(btn => btn.addEventListener('click', () => {
-            host.querySelectorAll('[data-mode]').forEach(item => item.classList.toggle('active', item === btn));
-            mode = btn.dataset.mode;
+            const nextMode = btn.dataset.mode;
+            if (!nextMode || nextMode === mode) return;
+            const carried = carryCalculatorValue(expression, mode, nextMode, progBase);
+            host.querySelectorAll('[data-mode]').forEach(item => {
+                const active = item === btn;
+                item.classList.toggle('active', active);
+                item.setAttribute('aria-selected', active ? 'true' : 'false');
+            });
+            mode = nextMode;
             root.classList.toggle('scientific-on', mode === 'scientific');
             root.classList.toggle('programmer-on', mode === 'programmer');
             if (progSection) progSection.hidden = mode !== 'programmer';
             renderCalculatorKeys();
-            expression = '';
-            update();
+            expression = carried;
+            refresh();
+            previewExpression();
         }));
         host.querySelectorAll('[data-base]').forEach(btn => btn.addEventListener('click', () => {
-            host.querySelectorAll('[data-base]').forEach(item => item.classList.toggle('active', item === btn));
-            progBase = parseInt(btn.dataset.base, 10);
-            expression = '';
-            update();
+            const nextBase = parseInt(btn.dataset.base, 10);
+            if (!Number.isFinite(nextBase) || nextBase === progBase) return;
+            const carried = carryCalculatorValue(expression, mode, 'programmer', nextBase);
+            host.querySelectorAll('[data-base]').forEach(item => {
+                const active = item === btn;
+                item.classList.toggle('active', active);
+                item.setAttribute('aria-pressed', active ? 'true' : 'false');
+            });
+            progBase = nextBase;
+            expression = carried;
+            refresh();
+            previewExpression();
+            syncProgrammerKeyStates();
         }));
+        if (historyEl) historyEl.addEventListener('click', event => {
+            const btn = event.target.closest('[data-history-index]');
+            if (!btn) return;
+            const item = history[Number(btn.dataset.historyIndex)];
+            if (!item) return;
+            const separator = item.lastIndexOf(' = ');
+            expression = separator >= 0 ? item.slice(separator + 3) : item;
+            refresh();
+            previewExpression();
+            flashDisplay();
+        });
+        if (historyClearEl) historyClearEl.addEventListener('click', () => {
+            history.splice(0, history.length);
+            renderHistory();
+        });
+        const setCopyFeedback = state => {
+            if (!copyEl) return;
+            copyEl.classList.toggle('copied', state === 'copied');
+            copyEl.classList.toggle('failed', state === 'failed');
+            const label = state === 'copied' ? t('desktop.calc_copied') : state === 'failed' ? t('desktop.calc_copy_failed') : t('desktop.calc_copy');
+            copyEl.setAttribute('aria-label', label);
+            copyEl.setAttribute('title', label);
+            if (copyTimer) clearTimeout(copyTimer);
+            copyTimer = setTimeout(() => {
+                copyEl.classList.remove('copied', 'failed');
+                copyEl.setAttribute('aria-label', t('desktop.calc_copy'));
+                copyEl.setAttribute('title', t('desktop.calc_copy'));
+            }, 1400);
+        };
+        const copyResult = async () => {
+            const text = resultEl.textContent || '0';
+            try {
+                if (!navigator.clipboard || !navigator.clipboard.writeText) throw new Error('clipboard unavailable');
+                // A clipboard write that never settles must not leave the button without feedback.
+                await Promise.race([
+                    navigator.clipboard.writeText(text),
+                    new Promise((resolve, reject) => setTimeout(() => reject(new Error('clipboard timeout')), 1500))
+                ]);
+                setCopyFeedback('copied');
+            } catch (err) {
+                setCopyFeedback('failed');
+                if (typeof showDesktopNotification === 'function') {
+                    showDesktopNotification({ title: t('desktop.notification'), message: t('desktop.calc_copy_failed') });
+                }
+            }
+        };
+        if (copyEl) copyEl.addEventListener('click', copyResult);
         root.addEventListener('keydown', event => {
+            if (event.target !== root && (event.key === 'Enter' || event.key === ' ')) return;
+            if ((event.ctrlKey || event.metaKey) && (event.key === 'c' || event.key === 'C')) {
+                event.preventDefault();
+                copyResult();
+                return;
+            }
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                animateButton('C');
+                press('C');
+                return;
+            }
             const map = { Enter: '=', Backspace: 'backspace', Escape: 'C', '*': '*', '/': '/' };
             const key = map[event.key] || event.key;
             if (mode === 'programmer') {
-                const programmerKey = key === 'backspace' ? 'backspace' : (key === 'c' || key === 'C' ? 'HEX_C' : key.toUpperCase());
+                const programmerKey = key === 'backspace' ? 'backspace' : (key === 'c' ? 'HEX_C' : key.toUpperCase());
                 if (/^[0-9A-Fa-f]$/.test(key) || ['+','-','*','/','(',')','=','backspace'].includes(key)) {
                     event.preventDefault();
                     animateButton(programmerKey);
@@ -487,7 +695,7 @@
                     return;
                 }
             }
-            if (/^[0-9.+\-()%*/]$/.test(key) || ['=', 'backspace', 'C'].includes(key)) {
+            if (/^[0-9.+\-()%*/^!]$/.test(key) || ['=', 'backspace', 'C'].includes(key)) {
                 event.preventDefault();
                 animateButton(key);
                 press(key);
@@ -495,6 +703,7 @@
         });
         root.focus();
         registerWindowCleanup(id, () => {
+            if (copyTimer) clearTimeout(copyTimer);
             host.innerHTML = '';
         });
     }

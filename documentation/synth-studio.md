@@ -16,6 +16,9 @@ implemented. That plan remains the record of the intended scope.
   Keys/Plucks — 120 factory sounds in total. The additional General MIDI bank contains
   128 synthesized sounds and a percussion kit. These are compact synthesized
   approximations, not a sampled acoustic orchestra.
+- Program your own instrument with the built-in synthesizer (see
+  "The programmable synthesizer"). Saved synths form the bank "My synths", appear in
+  the instrument lists like a factory bank and stay in this browser.
 - Every factory sound carries character tags. The library filters by tag and keeps
   favourites and a recent list in the browser. The "Synth Studio Kit" covers the
   47 percussion notes from 35 to 81 with one coherent voice. The separate
@@ -72,6 +75,40 @@ selection, copy/paste, per-selected-note velocity and draggable bar-loop handles
 Keyboard arrows move loop handles by one bar. Control values are displayed and can
 be reset. Dragging a sound or volume control previews it immediately and commits
 one undo step; Escape or pointer cancellation restores the previous sound.
+
+## The programmable synthesizer
+
+The sound panel of a melodic track offers "Design sound". It turns the panel
+into a full synthesizer over the patch model of the voice engine: oscillators
+(waveform, level, unison, detune, a second oscillator, pulse width), sub
+oscillator and noise, three FM modulators with ratio, depth and decay, the
+filter (type, cutoff, resonance, envelope, decay), the amplitude envelope,
+the pitch sweep and an LFO with target, waveform, rate, depth and start delay.
+Every change immediately re-registers a runtime preview instrument, so the
+audition keys always play the current draft. Track parameters (tone, resonance,
+drive, attack, release, sends) and the effect chain keep shaping the sound on
+top of the patch, exactly as with a factory preset.
+
+A design started from a track saves as a new synth and assigns it to that
+track as one undoable project step; starting from a GM program or a factory
+preset uses its patch as the starting draft, and a design opened from the
+"edit" pencil on a "My synths" entry edits that synth without touching any
+track. Updating a stored synth that a track already plays lets that track
+hear the draft on its next notes without saving. The reset action restores
+the pristine starting draft; save, save-as, delete and rename go through the
+regular Desktop dialogs and notice system, and stay disabled in read-only
+mode.
+
+Saved synths are browser-local patches — at most twenty-four, each clamped to
+the engine's parameter vocabulary before it reaches audio or storage —
+registered into the preset catalog on every app start. Projects only store
+the `user-*` instrument id, so the project format is unchanged, and a
+project from another browser opens anyway: a missing synth validates by its
+id, keeps its track, plays a plain fallback wave and stays selectable in the
+instrument list as "Missing synth" until it is designed again there. MIDI
+export approximates user synths with a General MIDI program, WAV export
+renders their actual sound, and the drum kits (one patch per note) are
+deliberately not editable through this surface.
 
 ## Colour and visual identity
 
@@ -131,11 +168,22 @@ notice explains that sound automation remains in WAV.
 The Performance workbench provides eight diatonic chord pads, major/natural-minor
 scale assistance, a live/printable arpeggiator, seeded melodic/rhythmic variations
 and a Euclidean drum generator. Hold pads or use the screen/typing/MIDI keyboard
-for live arpeggios. Choose a clip, prepare a preview, compare Original/Variation
-in a loop, then Apply or Cancel. Apply writes ordinary notes as one undo step.
-The visible seed, input notes and controls determine repeatable results. Scale
-constraints affect new notes only; fitting existing notes requires an explicit
-generator preview and Apply. New projects default to C major with constraints off.
+for live arpeggios; the latch switch keeps the last chord running after release
+and starts a new one on the next key. The arpeggiator order also offers chord
+stabs and strummed chords, with the same note output printed or played live.
+Choose a clip, prepare a preview, compare
+Original/Variation in a loop, then Apply or Cancel. Apply writes ordinary notes
+as one undo step. The visible seed, input notes and controls determine repeatable
+results. Scale constraints affect new notes only; fitting existing notes requires
+an explicit generator preview and Apply. New projects default to C major with
+constraints off.
+
+The Groove lab quantizes, swings, humanizes and transposes an existing clip with
+one deterministic, seeded pass. The chord-progression generator writes a whole
+diatonic progression (pop, ballad, jazz, minor, epic or canon) into the clip, and
+the bassline generator follows the same progression with root, octave, walking or
+driving-eighth patterns. Reverse clip mirrors the selected clip in time. All four
+use the same preview, comparison and one-step Apply flow as the other tools.
 
 ## Scenes, automation and performance takes
 
@@ -187,15 +235,29 @@ a new filename in the regular picker.
 Autosave stays suspended until that copy succeeds, protecting the original file.
 Draft recovery and conditional writes continue to apply.
 
+The export menu offers WAV, MIDI and stems. Stems render one post-fader,
+pre-master WAV per track with notes, then package them as a store-only ZIP with
+UTF-8 names. Tracks without notes are skipped; the master level, EQ, compression,
+limiting and width are neutralized while the project's plate/echo character and
+post-fader sends are preserved, so the stems can be mixed elsewhere.
+
 ## Effect chain and master strip
 
 Every track carries an ordered chain of up to four effect inserts plus two sends.
 The available inserts are chorus, phaser, tremolo, flanger, rotary, bitcrush,
-soft clip, three-band EQ, stereo width, cabinet, delay and reverb. Each insert
+soft clip, three-band EQ, stereo width, cabinet, delay, reverb, tape, auto pan
+and ring mod. Tape adds wow/flutter and soft saturation, auto pan moves the
+signal across the stereo field, and ring mod blends in a carrier-modulated
+metallic layer. Each insert
 exposes its own character parameters — mix, rate, depth, feedback, tone and
 type-specific values — instead of a single fixed sound. The chain runs after the
 track pan, so stereo effects work on a real stereo signal, and the reverb and
 delay sends leave the fader, so the track volume also controls its own tails.
+
+The Performance workbench also carries two momentary Live FX after the master
+strip: Filter drop sweeps the master low-pass down and back over 1.5 beats, and
+Stutter gates the mix sixteen times over one bar. They follow the current tempo,
+are performance-only, and never enter the project, WAV mixdown or stem export.
 
 The Master button in the transport opens the master strip: output level, the
 compressor with threshold, ratio, knee, attack and release, a three-band EQ, a
@@ -236,15 +298,23 @@ version's scope.
 ## Maintenance and validation
 
 The lazily loaded `synth-studio-*` modules separate the validated project/MIDI
-format, the effect rack, native Web Audio renderer, Desktop persistence and
-editor. The effect rack lives in `synth-studio-fx.js` and owns the insert
-processors, the master strip and the send buses; the schema that validates an
-insert lives in `synth-studio-model.js`. Factory sound
+format, the effect rack, native Web Audio renderer, stem packaging, Desktop
+persistence and editor. The effect rack lives in `synth-studio-fx.js` and owns
+the insert processors, the master strip, the Live FX nodes and the send buses;
+the schema that validates an insert lives in `synth-studio-model.js`. Stem
+isolation, CRC-32 and the store-only ZIP writer live in
+`synth-studio-export.js`. The programmable synthesizer lives in
+`synth-studio-designer.js`: it normalizes drafts against the voice-engine
+bounds, stores the browser-local user patch bank, registers it into
+`synth-studio-presets.js` (visible instruments plus a runtime-only preview
+entry) and owns the editor surface. Factory sound
 data and the MIDI parser are vendored with licenses under
 `ui/js/vendor/synth-studio/`; no runtime CDN is used.
 
 Run `node scripts/test-synth-studio-model.js`,
 `node scripts/test-synth-studio-audio.mjs`,
+`node scripts/test-synth-studio-export.mjs`,
+`node scripts/test-synth-studio-designer.mjs`,
 `node scripts/test-synth-studio-recording.mjs`,
 `node scripts/test-synth-studio-storage.mjs`,
 `node scripts/test-synth-studio-registration.mjs`, UI bundle

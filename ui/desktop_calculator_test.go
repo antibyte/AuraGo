@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"encoding/json"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -93,7 +95,8 @@ func TestDesktopCalculatorUsesReadableKeysAndOrderedLayouts(t *testing.T) {
 	for _, marker := range []string{
 		"{ key: 'backspace', label: t('desktop.calc_back') }",
 		"else if (key === 'backspace') expression = expression.slice(0, -1);",
-		"else if (key === 'negate') expression = expression ? `(-1*(${expression}))` : '-';",
+		"else if (key === 'CE') expression = clearCalculatorEntry(expression, mode, progBase);",
+		"else if (key === 'negate') expression = negateCalculatorExpression(expression);",
 		"else if (key === 'square') expression += '^2';",
 		"else if (key === 'power') expression += '^';",
 		"else if (['sin', 'cos', 'tan', 'log', 'ln', 'sqrt'].includes(key)) expression += `${key}(`;",
@@ -207,6 +210,70 @@ func TestDesktopCalculatorGridKeepsEqualsButtonInRow(t *testing.T) {
 	}
 }
 
+func TestDesktopCalculatorUXPolishMarkers(t *testing.T) {
+	t.Parallel()
+
+	script := readDesktopCalculatorScript(t)
+	for _, marker := range []string{
+		"function clearCalculatorEntry(expression, mode, base)",
+		"function negateCalculatorExpression(expression)",
+		"const previewExpression = () => {",
+		"const renderHistory = () => {",
+		"const carryCalculatorValue = (text, fromMode, toMode, base) => {",
+		"const syncProgrammerKeyStates = () => {",
+		"const copyResult = async () => {",
+		"const setCopyFeedback = state => {",
+		"data-history-index",
+		"data-clear-history",
+		"data-copy",
+		"class=\"vd-calc-copy\"",
+		"aria-live=\"polite\"",
+		"role=\"tablist\"",
+		"desktop.calc_history_restore",
+		"desktop.calc_copied",
+		"desktop.calc_copy_failed",
+		"desktop.calc_history_empty",
+		"desktop.calc_clear_history",
+	} {
+		if !strings.Contains(script, marker) {
+			t.Fatalf("desktop calculator script missing UX marker %q", marker)
+		}
+	}
+}
+
+func TestDesktopCalculatorUXKeysAreTranslated(t *testing.T) {
+	t.Parallel()
+
+	for _, lang := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
+		path := filepath.ToSlash(filepath.Join("lang", "desktop", lang+".json"))
+		var values map[string]string
+		if err := json.Unmarshal([]byte(rawDesktopAssetText(t, path)), &values); err != nil {
+			t.Fatalf("parse %s: %v", path, err)
+		}
+		for _, key := range []string{
+			"desktop.calc_base_label",
+			"desktop.calc_clear_history",
+			"desktop.calc_copied",
+			"desktop.calc_copy",
+			"desktop.calc_copy_failed",
+			"desktop.calc_display_label",
+			"desktop.calc_history_empty",
+			"desktop.calc_history_restore",
+			"desktop.calc_key_clear",
+			"desktop.calc_key_clear_entry",
+			"desktop.calc_key_factorial",
+			"desktop.calc_key_negate",
+			"desktop.calc_key_power",
+			"desktop.calc_key_square",
+			"desktop.calc_keys_label",
+			"desktop.calc_mode_label",
+		} {
+			if strings.TrimSpace(values[key]) == "" {
+				t.Fatalf("%s missing non-empty %s", path, key)
+			}
+		}
+	}
+}
 func readDesktopCalculatorScript(t *testing.T) string {
 	t.Helper()
 	return readDesktopAssetText(t, "js/desktop/apps/calculator.js")

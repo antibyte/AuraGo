@@ -83,6 +83,46 @@ try {
         assert.equal(await page.locator('.vd-chess-replay').evaluate(node => getComputedStyle(node).display), 'none', 'the replay bar must stay hidden until a game is reviewed');
         assert.equal(await page.locator('.vd-chess-settings').evaluate(node => node.open), false, 'the game settings start folded away');
 
+        await page.locator('[data-settings]').evaluate(node => { node.open = true; });
+        await page.locator('[data-mode]').selectOption('local');
+        const move = async (from, to) => {
+            await page.locator(`.vd-chess-board [data-square="${from}"]`).first().click();
+            await page.locator(`.vd-chess-board [data-square="${to}"]`).first().click();
+            await page.waitForTimeout(350); // cm-chessboard animates position changes for 300 ms.
+        };
+        await move('e2', 'e4');
+        await page.waitForFunction(() => document.querySelector('[data-moves-count]').textContent === '1');
+        assert.equal(await page.locator('[data-undo]').isDisabled(), false, 'undo must enable after a move');
+        await page.locator('[data-undo]').click();
+        await page.waitForFunction(() => document.querySelector('[data-moves-count]').textContent === '0');
+        await page.waitForTimeout(350);
+        assert.equal(await page.locator('[data-undo]').isDisabled(), true, 'undo must disable after returning to the initial position');
+
+        await move('e2', 'e4');
+        await move('e7', 'e5');
+        await page.waitForFunction(() => document.querySelector('[data-moves-count]').textContent === '2');
+        assert.equal(await page.locator('[data-jump][aria-current="true"]').getAttribute('data-jump'), '1', 'the live board must mark its latest move');
+        const firstMove = page.locator('[data-jump="0"]');
+        await firstMove.focus();
+        await page.keyboard.press('Enter');
+        assert.equal(await page.locator('[data-jump="0"]').getAttribute('aria-current'), 'true', 'reviewing a move must mark it current');
+        assert.equal(await page.evaluate(() => document.activeElement.dataset.jump), '0', 'reviewing must preserve keyboard focus in the move list');
+        await page.keyboard.press('Tab');
+        assert.equal(await page.evaluate(() => document.activeElement.dataset.jump), '1', 'Tab must advance to the next move button');
+        await page.keyboard.press('Enter');
+        assert.equal(await page.locator('[data-jump="1"]').getAttribute('aria-current'), 'true', 'the next move button must select its move');
+
+        const moveTab = page.locator('[data-tab="moves"]');
+        await moveTab.focus();
+        await page.keyboard.press('ArrowRight');
+        assert.equal(await page.locator('[data-tab="captured"]').getAttribute('aria-selected'), 'true', 'ArrowRight must select the next chess tab');
+        assert.equal(await page.locator('[data-panel="captured"]').isVisible(), true, 'the selected chess tab must reveal its panel');
+        await page.keyboard.press('ArrowRight');
+        await page.keyboard.press('ArrowRight');
+        assert.equal(await page.locator('[data-tab="moves"]').getAttribute('aria-selected'), 'true', 'the chess tabs must wrap at the end');
+        await page.locator('[data-review-last]').click();
+        assert.equal(await page.locator('[data-review-label]').textContent(), words['desktop.chess_live'], 'the last replay control must restore the live position');
+
         const square = await page.locator('.vd-chess-board-frame').evaluate(node => { const rect = node.getBoundingClientRect(); return [rect.width, rect.height]; });
         assert(Math.abs(square[0] - square[1]) < 2, `the 2D board must stay square, got ${square.join('x')}`);
         assert(square[0] > 180, `the 2D board must keep a usable size, got ${square[0]}`);

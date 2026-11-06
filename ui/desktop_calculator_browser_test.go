@@ -74,6 +74,8 @@ func TestDesktopCalculatorLayoutBrowser(t *testing.T) {
                 }`).Str(); issues != "" {
 					t.Fatalf("%s %s at %dx%d: %s", theme, mode, viewport[0], viewport[1], issues)
 				}
+				// Switching the mode keeps the current value, so the run starts from a clean slate.
+				click(`[data-key="C"]`)
 				for _, key := range []string{"7", "+", "8", "="} {
 					click(`[data-key="` + key + `"]`)
 				}
