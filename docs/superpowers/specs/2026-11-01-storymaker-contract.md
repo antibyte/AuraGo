@@ -728,7 +728,7 @@ The app reads `limits.max_narration_chars` for the narration length limit, `issu
 
 Source: `ui/js/storymaker/`. Classic scripts, each in its own IIFE, shared through `StorymakerCore` (the pure modules) and `StorymakerHost` (the document realm). Parts are listed in `scripts/storymaker-bundle-parts.js`, which the bundle build and the Node tests both read.
 
-- `ui/js/storymaker/host.bundle.js` (5 parts) runs in the document realm: the page, the host and the render driver.
+- `ui/js/storymaker/host.bundle.js` (6 parts, as listed in `scripts/storymaker-bundle-parts.js`: `schedule`, `host-core`, `host-app`, `host-pool`, `host-render`, `host`) runs in the document realm: the page, the host, the render driver and the parallel scheduler.
 - `ui/js/storymaker/player.bundle.js` (30 parts, in the order of `scripts/storymaker-bundle-parts.js`; phase 2 added `seed`, `ranges`, `motion`, `lint`, `glyphs`, `cuemap`, `captions`, `lipsync`, `bubble`) runs in workers (one blob per worker, prelude `self.__SM_ROLE__ = "player" | "scene"; importScripts(<base>/js/storymaker/player.bundle.js);`, plus the scene bundle text for a scene worker).
 - `.gitattributes` keeps both bundles LF (`ui/js/storymaker/*.bundle.js text eol=lf`).
 - `package.json` scripts: `test:storymaker` (`node scripts/test-storymaker-player.mjs`), `build:storymaker-catalog`, `check:storymaker-catalog` (with `--check`). `node scripts/build-storymaker-ranges.mjs` generates `ui/js/storymaker/ranges.js` and `internal/storymaker/ranges_gen.go`; with `--check` it fails on a stale output. Node runs the tests with a vm-based runner.
@@ -848,7 +848,7 @@ An error thrown by the API names the fix in its message. A thrown error carries 
 
 Host and workers exchange `{type, req, ...}` messages. Replies are `{type:'reply', req, ok:true, ...}` or `{type:'reply', req, ok:false, error:{code, message, line?, column?}}`. Each worker posts `{type:'hello', role}` once it runs.
 
-- Player worker: `plan`, `compile`, `assets`, `render {n, width?, codeFrames, codeErrors}`, `dispose`.
+- Player worker: `plan`, `compile`, `assets`, `render {n, width?, codeFrames, codeErrors, png?}` (returns `{bitmap}` or `{blob}`), `dispose`.
 - Scene worker: `build {opts}` (returns `duration`, `needs`, `issues`), `assets`, `frame {t, width?}`, `dispose`.
 
 ---
@@ -902,12 +902,14 @@ It has no `style-src`. The render page markup:
  "fonts":[{"name":"default","family":"Geist","weight":400,"url":"<base>/fonts/Geist-Regular.woff2"},
           {"name":"sm-cjk","family":"SMCJK","weight":400,"url":"<base>/fonts/qr/NotoSansCJKsc.otf","fallback":true,"weight_range":"400","max_bytes":17825792},
           {"name":"sm-greek","family":"SMGreek","weight":400,"url":"<base>/fonts/UcC73...woff2","fallback":true,"weight_range":"300 700","unicode_range":"U+0370-03FF"}],
- "audio_info":{"narration":{}}}
+ "audio_info":{"narration":{}},
+ "workers":4,"chunk":8,"pre_roll":0}
 ```
 
 - `fps` is the story's fps. `width` and `height` are the canvas of the aspect (1920×1080, 1080×1920 or 1080×1080). The page takes `fps`, `width` and `height` from boot.json, not from the story.
 - `frame_limit` is the number of frames Go accepts, computed by Go.
 - `frame_deadline_ms` is 5000: the per-frame deadline of render mode. The page uses it instead of 250 ms.
+- `workers`, `chunk` and `pre_roll` are left out when they have no effect. Absent means 1, no chunking, 0. Go computes them; see "Workers" below.
 - `story_url` is `<base>/story.json`; `catalog_url` is `<base>/catalog/catalog.json`; `assets_base` is `<base>/catalog/`.
 - `code_bundles` maps each code scene id to `<base>/scenes/<id>.js`.
 - `fonts` lists the faces of the story's font and every fallback face (`fallback`, `unicode_range`, `weight_range`, `max_bytes`). The page fetches a face only when compile needs it, and takes font URLs only from this list.
@@ -1016,6 +1018,23 @@ After FFmpeg ends and before anything is published, `finish` probes the output w
 
 A failure is `render_failed`, and nothing is published. The order in `finish` is `ff.Wait`, stat, size, `ProbeOutput` and `CheckOutput`, phase writing, MP4, `publishExtras`, record. An empty `FFprobePath` fails the job with `ffmpeg_unavailable`.
 
+### Workers
+
+Go chooses the worker count and the page runs it. `workers` 1 or no `workers` keeps the serial path.
+
+- `ChooseWorkers(transport, logicalCPUs, freeMB, width, height, chunk, cjk, codeScenes)` lives in `internal/storymaker/render/workers.go`. A transport other than `png` gets 1, because worker encoding exists only for PNG. Otherwise `clamp(floor((cpus-2)/3), 1, 6)`, further bounded by `floor((freeMB - codeMB) / (60 + 2*chunk*frameMB + (cjk?120:0)))` when `freeMB > 0`, with `frameMB = 0.6*width*height/(1920*1080)` and `codeMB = codeScenes*(cjk?120:0)`, and at least 1.
+- `cjk` is true when any drawn text in the story resolves to face `sm-cjk`, or any code scene has the language base `zh` or `ja`.
+- `chunk` is 8. `pre_roll` is 0 by default and 2 when on.
+- Before the report the page creates `workers-1` helper engines with `shared_code_scenes` and no bundles. Each loads and prepares. A different `frame_count` or schedule is `render_failed`. This happens before the report, so it cannot trip the 10 s frame watchdog.
+- `H.runPool({engines, limit, chunk, preRoll, post, status}) -> outcome` lives in `ui/js/storymaker/host-pool.js`:
+  - chunk j goes to worker `j % N`, and a chunk with code-scene frames goes to worker 0
+  - a worker waits while its chunk starts `>= N*C*2` frames past the next frame to post
+  - one in-order poster, one POST in flight
+  - PNG encoded in the worker
+  - on `restart`, stop the poster, abandon the generation, clear the buffer, re-run the same engines from frame 0
+  - a crash or deadline rejects, and the page posts `/error`
+- `TestParallelParityBrowser` pins identical RGBA for N workers against 1 on `firewall.json` and `speech.json`, with pre-roll on and off. `TestParallelEncoderFailureBrowser` forces one encoder failure, and the job restarts from frame 0.
+
 ---
 
 ## 8. App and player iframe protocol
@@ -1098,7 +1117,7 @@ Name: Storymaker. Global name `StorymakerApp`.
 
 - Manifest in `internal/desktop/types.go`: entry `builtin://storymaker`, category `creative`, `Requires: ["storymaker"]`, icon `storymaker`, metadata `logo_path` `/img/desktop-icons/storymaker.svg` and `open_maximized` `true`. Permissions: `files:read`, `files:write`, `notifications`. The manifest test is `internal/desktop/storymaker_app_test.go`.
 - Capability `storymaker` in `internal/server/bluetooth_live.go` (`storymakerAvailable`).
-- Module loader (`ui/js/desktop/core/module-loader.js`): the style `desktop-app-storymaker.css` and fourteen scripts in order: `storymaker-core.js`, `storymaker-model.js`, `storymaker-api.js`, `storymaker-assets.js`, `storymaker-player.js`, `storymaker-projects.js`, `storymaker-strip.js`, `storymaker-inspector.js`, `storymaker-code.js`, `storymaker-export.js`, `storymaker-audio.js`, `storymaker-voice.js`, `storymaker-music.js`, `storymaker.js`. Each file is under 1100 lines.
+- Module loader (`ui/js/desktop/core/module-loader.js`): the style `desktop-app-storymaker.css` and sixteen scripts in order: `storymaker-core.js`, `storymaker-model.js`, `storymaker-api.js`, `storymaker-assets.js`, `storymaker-player.js`, `storymaker-projects.js`, `storymaker-strip.js`, `storymaker-inspector.js`, `storymaker-code.js`, `storymaker-export.js`, `storymaker-audio.js`, `storymaker-voice.js`, `storymaker-music.js`, `storymaker-dialog.js`, `storymaker-handoff.js`, `storymaker.js`. Each file is under 1100 lines.
 - Window size: default 1320×840; minimum 640×480 (`window-shell-runtime.js`).
 - Dispatch: `ui/js/desktop/core/menus-and-routing.js` loads the scripts and renders through `window.StorymakerApp.render(...)`.
 - Icon: `ui/img/desktop-icons/storymaker.svg`.
@@ -1123,7 +1142,16 @@ Name: Storymaker. Global name `StorymakerApp`.
 - Code tab: `story.json` and every code scene in CodeMirror (the vendored bundle; a text area stays when it cannot load), with a problems list and gutter marks.
 - Export: a panel with FFmpeg and browser state, the blockers, progress (phase, percent, frames), cancel, and the result path with "Show in Files".
 
-Not in phase 1: project rename, scene duplicate, undo and redo, drag and drop, the catalog tabs Text, Transitions, Stickers and Mine, beat editing, the agent panel, export options (quality, captions, stems), and the Video Studio handoff.
+Not in phase 1: project rename, scene duplicate, undo and redo, drag and drop, the catalog tabs Text, Transitions, Stickers and Mine, beat editing, and the agent panel.
+
+### Phase 2 screens
+
+- Voice panel: provider select, voice select or free-text field, language select, audition of the first stored piece (it never synthesises), the `not tested` mark, the facts of `note`, one action that writes the voice into the story, the captions toggle.
+- Narration status: `chars`, `missing`, progress from `pieces_*`, the Generate button, the Stop button `data-stm="narration-cancel"`, and the panel's own text for `interrupted` and `cancelled`. Stop shows only while the narration job is queued or running, is hidden when read-only, and calls `inst.api.cancelJob(job.id)`.
+- Music panel: mode, mood, prompt, file picker, Noisemaker track, volume, and the Stop button `data-stm="music-cancel"`. Generated mode shows only with `status.music_configured` and runs only from an explicit button click. Stop shows only while the music job is queued or running, is hidden when read-only, and calls `inst.api.cancelJob(job.id)`.
+- Scrubber waveform: a `.stm-scrub-wave` canvas inside `.stm-scrub`, painted from `S.audioModel.waveform`, `pointer-events:none`.
+- Export dialog: a native `<dialog>` in `storymaker-dialog.js` with quality, burn-in captions (preset from `style.captions`), SRT, VTT, stems and Open in Video Studio. Blockers gain `narration` and `music`.
+- Finished-job handoff: `storymaker-export.js` shows stems, SRT, VTT and library paths when present and each warning as text. `storymaker-handoff.js` offers the handoff on any finished job with stems (`S.handoff.canOffer`). The export panel reads the project's job list once when the editor opens and follows the `job` events, and its start view offers the newest finished render behind `data-stm="export-last"`, so a render that ended while no window tracked it keeps its result and its handoff. It never replaces the start view by itself.
 
 ### Tests
 
