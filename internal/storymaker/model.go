@@ -68,6 +68,7 @@ const (
 	CodeOverTarget    = "over_target"
 	CodeOverBudget    = "over_budget"
 	CodeCompileFailed = "compile_failed"
+	CodeOverLimit     = "over_export_limit"
 )
 
 // Issue is one validation finding. Path is a JSON Pointer (RFC 6901) from the story root.
