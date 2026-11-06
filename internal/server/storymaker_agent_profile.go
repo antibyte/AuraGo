@@ -39,12 +39,15 @@ const storymakerHouseStyle = `## House style
 const storymakerOutlineWorkflow = `## Outline
 1. Choose one template: product_explainer, how_to, concept_explainer, dialogue_story, data_story or onboarding.
 2. Build the arc hook, problem, solution, how, benefit, close, using suggested_scenes from the context. The dialogue_story template uses one scene per speaker turn.
+- Write the narration of the last scene first, so that the first scenes set up the ending.
+- Narration adds what the picture cannot show. It never describes what is on screen.
+- Read it once more and cut every word the film does not need.
 3. Call storymaker_story with operation outline once: data has template, target_seconds and scenes, each with a short id such as s1 and its narration.
 4. If the answer says the text is too long, shorten it and call outline again. An accepted outline ends this phase: stop.`
 
 const storymakerCastWorkflow = `## Cast
 1. Search characters and only the environments you need with storymaker_catalog. The context lists what exists.
-2. Call storymaker_story with operation set_meta once: data has title and cast. Each cast member has a short id, a name and an exact character id. Two people are enough for most films; a narrator needs no cast member.
+2. Call storymaker_story with operation set_meta once: data has title and cast. Each cast member has a short id, a name and an exact character id. Two people are enough for most films; a narrator needs no cast member. Choose people who clearly differ from each other in build or hair, not only in colour.
 3. The voice is already chosen. Change it only if the request asks for it.
 An accepted set_meta ends this phase: stop.`
 
@@ -68,8 +71,8 @@ The context has the instruction, the story summary and any unfilled scenes.
 1. Read only the scenes you need (get with scene_id).
 2. Make the smallest change that satisfies the instruction, one scene per call. Fill any scene listed in unfilled.
 3. Run storymaker_check once, fix what it lists.
-4. Answer with one short sentence for the user about what changed, in the user's language, and stop.
-If the instruction asks for something these tools cannot do, say so in that sentence.`
+4. Answer with one short line for each thing the instruction asks, in the user's language: done, done differently because of a reason, or open because of a reason. Then stop.
+If the instruction asks for something these tools cannot do, mark that line as open.`
 
 // storymakerNoVoiceNote goes with the fill context only when voice_available is false. A profile has
 // no voice state, so the runner sends this text with the scene's user message.

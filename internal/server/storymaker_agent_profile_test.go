@@ -92,6 +92,21 @@ func TestStorymakerProfilesNamesToolsAndTextGuide(t *testing.T) {
 			}
 		}
 	}
+	for _, rule := range []struct{ phase, text string }{
+		{storymaker.PhaseOutline, "- Write the narration of the last scene first, so that the first scenes set up the ending."},
+		{storymaker.PhaseCast, "Choose people who clearly differ from each other in build or hair, not only in colour."},
+		{storymaker.PhaseRevise, "4. Answer with one short line for each thing the instruction asks"},
+	} {
+		for _, compact := range []bool{false, true} {
+			profile, err := storymakerAgentProfile(rule.phase, compact, false, names)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(profile.SystemPrompt(), rule.text) {
+				t.Fatalf("%s compact=%v lacks %q", rule.phase, compact, rule.text)
+			}
+		}
+	}
 	if _, err := storymakerAgentProfile("unknown", false, false, names); err == nil {
 		t.Fatal("an unknown phase must be refused")
 	}
