@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -161,25 +162,53 @@ func handleStorymaker(s *Server) http.HandlerFunc {
 	}
 }
 
-// mapStorymakerError answers a project store error.
-func mapStorymakerError(w http.ResponseWriter, err error, notFoundCode string) {
+// storymakerRefusal is a refused request without a ResponseWriter, so the routes, the agent job and
+// the chat tool share one refusal order. Extra fields go next to the fixed three. ETag is the current
+// version after a stale If-Match.
+type storymakerRefusal struct {
+	Status  int
+	Code    string
+	Message string
+	Issues  []storymaker.Issue
+	Extra   map[string]any
+	ETag    string
+}
+
+// writeStorymakerRefusal answers a refusal in the flat error document of the desktop APIs.
+func writeStorymakerRefusal(w http.ResponseWriter, refusal *storymakerRefusal) {
+	if refusal.ETag != "" {
+		w.Header().Set("ETag", refusal.ETag)
+	}
+	if refusal.Extra != nil {
+		writeStorymakerErrorWith(w, refusal.Status, refusal.Code, refusal.Message, refusal.Extra)
+		return
+	}
+	writeStorymakerError(w, refusal.Status, refusal.Code, refusal.Message, refusal.Issues)
+}
+
+// storymakerStoreRefusal maps a project store error to its refusal.
+func storymakerStoreRefusal(err error, notFoundCode string) *storymakerRefusal {
 	var decode *storymaker.DecodeError
 	switch {
 	case errors.Is(err, storymaker.ErrInvalidID):
-		writeStorymakerError(w, http.StatusBadRequest, "invalid_id", err.Error(), nil)
+		return &storymakerRefusal{Status: http.StatusBadRequest, Code: "invalid_id", Message: err.Error()}
 	case errors.Is(err, storymaker.ErrInvalidArgument):
-		writeStorymakerError(w, http.StatusBadRequest, "invalid_argument", err.Error(), nil)
+		return &storymakerRefusal{Status: http.StatusBadRequest, Code: "invalid_argument", Message: err.Error()}
 	case errors.Is(err, storymaker.ErrTooLarge):
-		writeStorymakerError(w, http.StatusRequestEntityTooLarge, "too_large", err.Error(), nil)
+		return &storymakerRefusal{Status: http.StatusRequestEntityTooLarge, Code: "too_large", Message: err.Error()}
 	case errors.Is(err, storymaker.ErrConflict):
-		writeStorymakerError(w, http.StatusPreconditionFailed, "precondition_failed", "The document changed since it was loaded.", nil)
+		return &storymakerRefusal{Status: http.StatusPreconditionFailed, Code: "precondition_failed", Message: "The document changed since it was loaded."}
 	case errors.Is(err, fs.ErrNotExist):
-		writeStorymakerError(w, http.StatusNotFound, notFoundCode, "Not found.", nil)
+		return &storymakerRefusal{Status: http.StatusNotFound, Code: notFoundCode, Message: "Not found."}
 	case errors.As(err, &decode):
-		writeStorymakerError(w, http.StatusUnprocessableEntity, "invalid_story", decode.Message, decode.Issues)
-	default:
-		writeStorymakerError(w, http.StatusInternalServerError, "storage_failed", "The project storage failed.", nil)
+		return &storymakerRefusal{Status: http.StatusUnprocessableEntity, Code: "invalid_story", Message: decode.Message, Issues: decode.Issues}
 	}
+	return &storymakerRefusal{Status: http.StatusInternalServerError, Code: "storage_failed", Message: "The project storage failed."}
+}
+
+// mapStorymakerError answers a project store error.
+func mapStorymakerError(w http.ResponseWriter, err error, notFoundCode string) {
+	writeStorymakerRefusal(w, storymakerStoreRefusal(err, notFoundCode))
 }
 
 // storymakerETagPattern is the strong etag form: a quoted SHA-256.
@@ -606,65 +635,71 @@ func handleStorymakerRender(s *Server, w http.ResponseWriter, r *http.Request, i
 		writeStorymakerError(w, http.StatusBadRequest, "invalid_request", "The export options are invalid: "+err.Error(), nil)
 		return
 	}
-	ctx := r.Context()
-	if _, err := acc.rt.projects.Get(ctx, id); err != nil {
-		mapStorymakerError(w, err, "project_not_found")
-		return
-	}
-	settings, err := s.storymakerSettings(ctx)
-	if err != nil {
-		writeStorymakerError(w, http.StatusConflict, render.CodeFFmpegUnavailable, err.Error(), nil)
-		return
-	}
-	if ff := videostudio.CheckRuntime(ctx, acc.cfg.VideoStudio.FFmpegPath); !ff.Ready {
-		writeStorymakerError(w, http.StatusConflict, render.CodeFFmpegUnavailable, "FFmpeg is not ready: "+ff.Error, nil)
-		return
-	}
-	if b := acc.rt.browsers.Status(ctx, settings.BrowserPath); !b.Ready && !b.CanDownload {
-		writeStorymakerError(w, http.StatusConflict, render.CodeBrowserUnavailable, b.Issue, nil)
-		return
-	}
-	plan, err := acc.rt.runner.Prepare(ctx, id, match, settings, opts)
-	if err != nil {
-		var pe *render.PrepareError
-		if errors.As(err, &pe) {
-			switch {
-			case pe.Stale:
-				if _, current, readErr := acc.rt.projects.LoadStory(ctx, id); readErr == nil {
-					w.Header().Set("ETag", current)
-				}
-				writeStorymakerError(w, http.StatusPreconditionFailed, "precondition_failed", pe.Message, nil)
-			case pe.Code == render.CodeNarrationIncomplete:
-				writeStorymakerErrorWith(w, http.StatusConflict, render.CodeNarrationIncomplete, pe.Message, map[string]any{"missing": pe.Missing, "chars": pe.Chars})
-			case pe.Code == render.CodeMusicIncomplete:
-				extra := map[string]any{"key": pe.MusicKey}
-				if pe.MusicIssue != "" {
-					extra["music_issue"] = pe.MusicIssue
-				}
-				writeStorymakerErrorWith(w, http.StatusConflict, render.CodeMusicIncomplete, pe.Message, extra)
-			case pe.Code == render.CodeCodeError:
-				writeStorymakerError(w, http.StatusUnprocessableEntity, render.CodeCodeError, pe.Message, pe.Issues)
-			default:
-				writeStorymakerError(w, http.StatusUnprocessableEntity, "invalid_story", pe.Message, pe.Issues)
-			}
-			return
-		}
-		mapStorymakerError(w, err, "project_not_found")
-		return
-	}
-	job, _, err := acc.rt.jobs.Enqueue(render.EnqueueRequest{ProjectID: id, Key: key, Fingerprint: id + "\x00" + match + "\x00" + opts.Fingerprint(), Payload: plan})
-	switch {
-	case errors.Is(err, render.ErrBusy):
-		writeStorymakerError(w, http.StatusTooManyRequests, render.CodeBusy, "Sixteen exports are already waiting. Try again when one has finished.", nil)
-		return
-	case errors.Is(err, render.ErrIdempotencyConflict):
-		writeStorymakerError(w, http.StatusConflict, "idempotency_conflict", "This Idempotency-Key was used for a different request.", nil)
-		return
-	case err != nil:
-		writeStorymakerError(w, http.StatusInternalServerError, "job_failed", "The export could not be queued.", nil)
+	job, _, refusal := s.storymakerEnqueueRender(r.Context(), acc, id, match, key, opts)
+	if refusal != nil {
+		writeStorymakerRefusal(w, refusal)
 		return
 	}
 	writeStorymakerJSON(w, http.StatusAccepted, map[string]any{"job": job})
+}
+
+// storymakerEnqueueRender runs the render gates in their fixed order and queues the export. ifMatch
+// is the story etag, or "" to skip that check. The bool says the key replayed an earlier job.
+func (s *Server) storymakerEnqueueRender(ctx context.Context, acc *storymakerAccess, id, ifMatch, key string, opts render.RenderOptions) (render.Job, bool, *storymakerRefusal) {
+	if _, err := acc.rt.projects.Get(ctx, id); err != nil {
+		return render.Job{}, false, storymakerStoreRefusal(err, "project_not_found")
+	}
+	settings, err := s.storymakerSettings(ctx)
+	if err != nil {
+		return render.Job{}, false, &storymakerRefusal{Status: http.StatusConflict, Code: render.CodeFFmpegUnavailable, Message: err.Error()}
+	}
+	if ff := videostudio.CheckRuntime(ctx, acc.cfg.VideoStudio.FFmpegPath); !ff.Ready {
+		return render.Job{}, false, &storymakerRefusal{Status: http.StatusConflict, Code: render.CodeFFmpegUnavailable, Message: "FFmpeg is not ready: " + ff.Error}
+	}
+	if b := acc.rt.browsers.Status(ctx, settings.BrowserPath); !b.Ready && !b.CanDownload {
+		return render.Job{}, false, &storymakerRefusal{Status: http.StatusConflict, Code: render.CodeBrowserUnavailable, Message: b.Issue}
+	}
+	plan, err := acc.rt.runner.Prepare(ctx, id, ifMatch, settings, opts)
+	if err != nil {
+		var pe *render.PrepareError
+		if errors.As(err, &pe) {
+			return render.Job{}, false, storymakerPrepareRefusal(ctx, acc, id, pe)
+		}
+		return render.Job{}, false, storymakerStoreRefusal(err, "project_not_found")
+	}
+	job, replayed, err := acc.rt.jobs.Enqueue(render.EnqueueRequest{ProjectID: id, Key: key, Fingerprint: id + "\x00" + ifMatch + "\x00" + opts.Fingerprint(), Payload: plan})
+	switch {
+	case errors.Is(err, render.ErrBusy):
+		return render.Job{}, false, &storymakerRefusal{Status: http.StatusTooManyRequests, Code: render.CodeBusy, Message: "Sixteen exports are already waiting. Try again when one has finished."}
+	case errors.Is(err, render.ErrIdempotencyConflict):
+		return render.Job{}, false, &storymakerRefusal{Status: http.StatusConflict, Code: "idempotency_conflict", Message: "This Idempotency-Key was used for a different request."}
+	case err != nil:
+		return render.Job{}, false, &storymakerRefusal{Status: http.StatusInternalServerError, Code: "job_failed", Message: "The export could not be queued."}
+	}
+	return job, replayed, nil
+}
+
+// storymakerPrepareRefusal maps a refused Prepare to its refusal.
+func storymakerPrepareRefusal(ctx context.Context, acc *storymakerAccess, id string, pe *render.PrepareError) *storymakerRefusal {
+	switch {
+	case pe.Stale:
+		refusal := &storymakerRefusal{Status: http.StatusPreconditionFailed, Code: "precondition_failed", Message: pe.Message}
+		if _, current, readErr := acc.rt.projects.LoadStory(ctx, id); readErr == nil {
+			refusal.ETag = current
+		}
+		return refusal
+	case pe.Code == render.CodeNarrationIncomplete:
+		return &storymakerRefusal{Status: http.StatusConflict, Code: render.CodeNarrationIncomplete, Message: pe.Message, Extra: map[string]any{"missing": pe.Missing, "chars": pe.Chars}}
+	case pe.Code == render.CodeMusicIncomplete:
+		extra := map[string]any{"key": pe.MusicKey}
+		if pe.MusicIssue != "" {
+			extra["music_issue"] = pe.MusicIssue
+		}
+		return &storymakerRefusal{Status: http.StatusConflict, Code: render.CodeMusicIncomplete, Message: pe.Message, Extra: extra}
+	case pe.Code == render.CodeCodeError:
+		return &storymakerRefusal{Status: http.StatusUnprocessableEntity, Code: render.CodeCodeError, Message: pe.Message, Issues: pe.Issues}
+	}
+	return &storymakerRefusal{Status: http.StatusUnprocessableEntity, Code: "invalid_story", Message: pe.Message, Issues: pe.Issues}
 }
 
 func handleStorymakerJob(s *Server, w http.ResponseWriter, r *http.Request, jobID string) {

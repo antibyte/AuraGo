@@ -123,7 +123,8 @@ func handleStorymakerNarrate(s *Server, w http.ResponseWriter, r *http.Request, 
 		writeStorymakerJSON(w, http.StatusOK, map[string]any{"job": nil})
 		return
 	}
-	if storymakerNarrateRefused(r.Context(), w, s, acc, storymakerBlocksToSynthesize(story, answer), answer) {
+	if refusal := storymakerNarrateRefusal(r.Context(), s, acc, storymakerBlocksToSynthesize(story, answer), answer); refusal != nil {
+		writeStorymakerRefusal(w, refusal)
 		return
 	}
 	job, replayed, err := acc.rt.narrate.Enqueue(render.EnqueueRequest{
@@ -183,13 +184,12 @@ func storymakerBlocksToSynthesize(story *storymaker.Story, answer storymaker.Aud
 	return out
 }
 
-// storymakerNarrateRefused answers the first refusal in the order voice_required,
-// narration_unavailable, voice_unknown, budget_exceeded, and reports whether it answered.
-func storymakerNarrateRefused(ctx context.Context, w http.ResponseWriter, s *Server, acc *storymakerAccess, blocks []storymaker.NarrationBlock, answer storymaker.AudioAnswer) bool {
+// storymakerNarrateRefusal returns the first refusal in the order voice_required,
+// narration_unavailable, voice_unknown, budget_exceeded, or nil when the narration may start.
+func storymakerNarrateRefusal(ctx context.Context, s *Server, acc *storymakerAccess, blocks []storymaker.NarrationBlock, answer storymaker.AudioAnswer) *storymakerRefusal {
 	for _, b := range blocks {
 		if b.Voice.Provider == "" {
-			writeStorymakerError(w, http.StatusConflict, render.CodeVoiceRequired, fmt.Sprintf("Block %s has no voice. Choose a voice for the story first.", b.ID), nil)
-			return true
+			return &storymakerRefusal{Status: http.StatusConflict, Code: render.CodeVoiceRequired, Message: fmt.Sprintf("Block %s has no voice. Choose a voice for the story first.", b.ID)}
 		}
 	}
 	rows := make(map[string]storymaker.VoiceProvider)
@@ -199,21 +199,21 @@ func storymakerNarrateRefused(ctx context.Context, w http.ResponseWriter, s *Ser
 	for _, b := range blocks {
 		row, offered := rows[b.Voice.Provider]
 		if !offered {
-			writeStorymakerError(w, http.StatusConflict, render.CodeNarrationUnavailable, fmt.Sprintf("The voice provider %s is not offered here. Block %s needs it.", b.Voice.Provider, b.ID), nil)
-			return true
+			return &storymakerRefusal{Status: http.StatusConflict, Code: render.CodeNarrationUnavailable, Message: fmt.Sprintf("The voice provider %s is not offered here. Block %s needs it.", b.Voice.Provider, b.ID)}
 		}
 		if !row.Ready {
-			writeStorymakerError(w, http.StatusConflict, render.CodeNarrationUnavailable, fmt.Sprintf("The voice provider %s is not ready. Block %s needs it.", b.Voice.Provider, b.ID), nil)
-			return true
+			return &storymakerRefusal{Status: http.StatusConflict, Code: render.CodeNarrationUnavailable, Message: fmt.Sprintf("The voice provider %s is not ready. Block %s needs it.", b.Voice.Provider, b.ID)}
 		}
 	}
 	for _, b := range blocks {
 		row := rows[b.Voice.Provider]
 		if !storymakerVoiceOnList(row, b.Voice.Voice) {
-			writeStorymakerErrorWith(w, http.StatusConflict, storymakerCodeVoiceUnknown,
-				fmt.Sprintf("The voice %s of %s is not available here. Block %s uses it.", b.Voice.Voice, b.Voice.Provider, b.ID),
-				map[string]any{"alternatives": storymakerVoiceAlternatives(row, b.Voice.Language)})
-			return true
+			return &storymakerRefusal{
+				Status:  http.StatusConflict,
+				Code:    storymakerCodeVoiceUnknown,
+				Message: fmt.Sprintf("The voice %s of %s is not available here. Block %s uses it.", b.Voice.Voice, b.Voice.Provider, b.ID),
+				Extra:   map[string]any{"alternatives": storymakerVoiceAlternatives(row, b.Voice.Language)},
+			}
 		}
 	}
 	cloud := make(map[string]bool, len(blocks))
@@ -227,7 +227,7 @@ func storymakerNarrateRefused(ctx context.Context, w http.ResponseWriter, s *Ser
 		}
 	}
 	if chars == 0 {
-		return false
+		return nil
 	}
 	caps := acc.cfg.Storymaker.Narration
 	// today turns a damaged file into a full count, so the route refuses as the job would. A read
@@ -243,12 +243,14 @@ func storymakerNarrateRefused(ctx context.Context, w http.ResponseWriter, s *Ser
 	case used+chars > caps.MaxDailyChars:
 		limit = caps.MaxDailyChars
 	default:
-		return false
+		return nil
 	}
-	writeStorymakerErrorWith(w, http.StatusConflict, render.CodeBudgetExceeded,
-		fmt.Sprintf("This narration needs %d characters from a paid provider and the limit is %d.", chars, limit),
-		map[string]any{"limit": limit, "missing": chars})
-	return true
+	return &storymakerRefusal{
+		Status:  http.StatusConflict,
+		Code:    render.CodeBudgetExceeded,
+		Message: fmt.Sprintf("This narration needs %d characters from a paid provider and the limit is %d.", chars, limit),
+		Extra:   map[string]any{"limit": limit, "missing": chars},
+	}
 }
 
 // storymakerVoiceOnList is the list check of POST /narrate. An empty id means the provider's
