@@ -59,6 +59,10 @@ The updater owns transaction manifests; this package verifies them before collec
   verifies the signed manifest's asset checksum and sets executable permissions
   before atomic replacement. Failure or interruption preserves the installed
   script; never download directly over it. Verify `TestUpdaterSelfRefresh*`.
+- The systemd stop command has a 75-second client deadline, leaving a reporting
+  margin above the service's 60-second stop deadline. Preserve foreground sudo
+  authentication and distinguish command failures from timeouts. A forced stop
+  still aborts before file changes and restores the unchanged installation.
 - `repair-update.sh` migrates blocked old script copies under the existing update
   lock. Verify the manifest and updater before atomic replacement; preserve config,
   master keys, binaries and running services. Save the old script privately. An

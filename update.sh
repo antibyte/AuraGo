@@ -2805,27 +2805,36 @@ UPDATE_RECOVERY=armed
 SYSTEMD_STOP_FORCED=false
 if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet aurago 2>/dev/null; then
     info "Stopping aurago systemd service..."
+    _systemd_stop_rc=0
     if command -v timeout >/dev/null 2>&1; then
+        # Allow systemd to report completion after its own 60-second stop deadline.
         # GNU timeout normally places the command in a separate process
         # group.  sudo then receives SIGTTIN while reading its password from
         # the controlling terminal and appears to hang.  --foreground keeps
         # the command in the terminal's foreground process group.
         if timeout --help 2>&1 | grep -q -- '--foreground'; then
-            if ! timeout --foreground 60s $SUDO systemctl stop aurago; then
-                abort_before_file_changes "systemd did not stop AuraGo cleanly within 60 seconds."
-            fi
+            timeout --foreground 75s $SUDO systemctl stop aurago || _systemd_stop_rc=$?
         elif has_interactive_tty && [ "$SUDO" = "sudo" ]; then
             # BusyBox timeout has no --foreground.  Authenticate before
             # entering its process group, then run the timed command without
             # another terminal read.
-            if ! $SUDO -v || ! timeout 60s sudo -n systemctl stop aurago; then
-                abort_before_file_changes "systemd did not stop AuraGo cleanly within 60 seconds."
+            if $SUDO -v; then
+                timeout 75s sudo -n systemctl stop aurago || _systemd_stop_rc=$?
+            else
+                _systemd_stop_rc=$?
             fi
-        elif ! timeout 60s $SUDO systemctl stop aurago; then
-            abort_before_file_changes "systemd did not stop AuraGo cleanly within 60 seconds."
+        else
+            timeout 75s $SUDO systemctl stop aurago || _systemd_stop_rc=$?
         fi
-    elif ! $SUDO systemctl stop aurago; then
-        abort_before_file_changes "systemd could not stop AuraGo."
+    else
+        $SUDO systemctl stop aurago || _systemd_stop_rc=$?
+    fi
+    if [ "$_systemd_stop_rc" -ne 0 ]; then
+        systemctl show aurago.service -p ActiveState -p SubState -p Result -p TimeoutStopUSec >&2 || true
+        if [ "$_systemd_stop_rc" -eq 124 ]; then
+            abort_before_file_changes "systemd stop did not complete within 75 seconds. See 'sudo journalctl -u aurago.service -n 80 --no-pager' for shutdown details."
+        fi
+        abort_before_file_changes "systemd could not stop AuraGo (exit code ${_systemd_stop_rc}). See 'sudo journalctl -u aurago.service -n 80 --no-pager' for details."
     fi
     if systemctl is-active --quiet aurago 2>/dev/null; then
         abort_before_file_changes "AuraGo is still active after systemd stop."

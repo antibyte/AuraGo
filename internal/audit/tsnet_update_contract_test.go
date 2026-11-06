@@ -85,7 +85,7 @@ func TestUpdaterSudoStrategyUsesControllingTTY(t *testing.T) {
 		": </dev/tty",
 		"if has_interactive_tty; then",
 		`SUDO="sudo -n"`,
-		"timeout --foreground 60s $SUDO systemctl stop aurago",
+		"timeout --foreground 75s $SUDO systemctl stop aurago",
 		"timeout --help 2>&1 | grep -q -- '--foreground'",
 	} {
 		if !strings.Contains(update, required) {

@@ -19,6 +19,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -1031,8 +1032,8 @@ func main() {
 		appLog.Error("Failed to load crontab", "error", err)
 	}
 
-	// Graceful shutdown: kill all background processes on SIGINT/SIGTERM
-	shutdownCh := setupGracefulShutdown(appLog, registry, llmClient, cronManager, backgroundTaskManager)
+	shutdownCh, requestShutdown := setupGracefulShutdown(appLog)
+	defer requestShutdown()
 
 	// History Manager for persistent conversational memory array
 	historyManager := memory.NewHistoryManager(filepath.Join(cfg.Directories.DataDir, "chat_history.json"))
@@ -1232,7 +1233,7 @@ func main() {
 		}
 		eggClient.OnStop = func() {
 			appLog.Warn("Stop command from master -- initiating shutdown")
-			close(shutdownCh)
+			requestShutdown()
 		}
 		go func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -1383,6 +1384,9 @@ func main() {
 	if err := agent.ShutdownSideEffects(30 * time.Second); err != nil {
 		appLog.Warn("Agent side effects did not drain before shutdown", "error", err)
 	}
+	registry.KillAll()
+	llmClient.Stop()
+	_ = tools.CloseSiteMonitorDB()
 }
 
 func waitForInternalAPIReady(ctx context.Context, cfg *config.Config, token string, client *http.Client) error {
@@ -1415,35 +1419,23 @@ func waitForInternalAPIReady(ctx context.Context, cfg *config.Config, token stri
 	}
 }
 
-func setupGracefulShutdown(log *slog.Logger, registry *tools.ProcessRegistry, llmClient llm.ChatClient, cronManager *tools.CronManager, backgroundTaskManager *tools.BackgroundTaskManager) chan struct{} {
+func setupGracefulShutdown(log *slog.Logger) (chan struct{}, func()) {
 	done := make(chan struct{})
+	requestShutdown := sync.OnceFunc(func() { close(done) })
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
-		sig := <-sigChan
-		log.Warn("Received shutdown signal, cleaning up...", "signal", sig)
-		registry.KillAll()
-		// Stop the LLM failover probe goroutine cleanly
-		if fm, ok := llmClient.(*llm.FailoverManager); ok {
-			fm.Stop()
+		defer signal.Stop(sigChan)
+		select {
+		case sig := <-sigChan:
+			// Cancellation must reach the server before waiting for workers or stores.
+			requestShutdown()
+			log.Warn("Received shutdown signal, draining server...", "signal", sig)
+		case <-done:
 		}
-
-		// Close site monitor DB if initialized
-		_ = tools.CloseSiteMonitorDB()
-
-		// Close cron and background task managers so their SQLite handles are
-		// released before the process exits.
-		if cronManager != nil {
-			_ = cronManager.Close()
-		}
-		if backgroundTaskManager != nil {
-			_ = backgroundTaskManager.Close()
-		}
-
-		close(done)
 	}()
-	return done
+	return done, requestShutdown
 }
 
 func loadDotEnv(path string, log *slog.Logger) {
