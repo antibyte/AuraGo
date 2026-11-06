@@ -191,6 +191,7 @@ func (s *Studio) runCheck(ctx context.Context) (CheckReport, string, error) {
 	found = append(found, LintForJob(&story)...)
 	summary, state, environment := s.compileForCheck(ctx, etag)
 	found = append(found, checkCompileIssues(summary.Issues)...)
+	found = append(found, LintWords(&story, s.job.Language)...)
 	scenes, total := checkTiming(&story, summary)
 	if over := s.checkOverTarget(total); over != nil && !slices.ContainsFunc(found, func(is Issue) bool { return is.Code == over.Code }) {
 		found = append(found, *over)

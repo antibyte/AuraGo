@@ -70,7 +70,7 @@ func IssueModelFixable(i Issue) bool {
 // outcome and are not listed as open checks.
 func IssueAdvisory(code string) bool {
 	switch code {
-	case CodeFirstFrameEmpty, CodeDeadStretch, CodeFadeBetweenWorlds, CodeCueLate:
+	case CodeFirstFrameEmpty, CodeDeadStretch, CodeFadeBetweenWorlds, CodeCueLate, CodeWordsTell:
 		return true
 	}
 	return false
