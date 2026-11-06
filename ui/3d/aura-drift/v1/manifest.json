@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "blender": "5.2.2",
+  "generator": "assets/aura-drift/generate.py",
+  "totalBytes": 373696,
+  "files": [
+    {
+      "name": "car-vektor.glb",
+      "bytes": 373696,
+      "sha256": "5434938cb9a3809fff9c4f5ed7be4a567087d8385af6b9f75c73dbfd9015d47e",
+      "triangles": 8080,
+      "kind": "car"
+    }
+  ],
+  "cars": {
+    "vektor": {
+      "file": "car-vektor.glb",
+      "length": 4.605,
+      "width": 1.908,
+      "height": 1.149,
+      "wheelRadius": 0.385,
+      "wheelbase": 2.7
+    }
+  },
+  "items": {},
+  "track": {},
+  "animals": {},
+  "props": {}
+}
