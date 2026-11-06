@@ -301,6 +301,7 @@ func canonicalizeHomepageAliasCall(tc ToolCall, dc *DispatchContext) ToolCall {
 // canonicalizeLeafCall runs before Guardian, role, scope, learning and action
 // policy checks. It only rewrites known routes and never performs an action.
 func canonicalizeLeafCall(tc ToolCall, dc *DispatchContext) ToolCall {
+	tc = canonicalizeStorymakerOperationCall(tc, dc)
 	tc = canonicalizeGameMakerOperationCall(tc, dc)
 	tc = canonicalizeDiscoverOperationCall(tc, dc)
 	tc = canonicalizeHomepageAliasCall(tc, dc)
