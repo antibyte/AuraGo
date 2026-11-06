@@ -393,5 +393,9 @@
   "storymaker.error.model_too_small": "設定されたモデルはAI作家には小さすぎます。設定でより大きなモデルを選んでください。",
   "storymaker.error.llm_unavailable": "現在使えるAIモデルはありません。",
   "storymaker.error.daily_limit_reached": "AI作家の1日の上限に達しました。明日もう一度お試しください。",
-  "storymaker.job_error.model_error": "AIモデルから使える回答が得られませんでした。"
+  "storymaker.job_error.model_error": "AIモデルから使える回答が得られませんでした。",
+  "storymaker.agent.changed_scenes": "変更: {scenes}",
+  "storymaker.agent.unchanged_scenes": "変更なし: {scenes}",
+  "storymaker.agent.removed_scenes": "削除: {scenes}",
+  "storymaker.agent.restore_confirm": "音声を元に戻しますか？ 無音にしてからの物語の変更は失われます。"
 }

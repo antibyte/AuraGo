@@ -393,5 +393,9 @@
   "storymaker.error.model_too_small": "Il modello configurato è troppo piccolo per l'autore IA. Scegline uno più grande nella configurazione.",
   "storymaker.error.llm_unavailable": "Al momento nessun modello IA è disponibile.",
   "storymaker.error.daily_limit_reached": "Il limite giornaliero dell'autore IA è stato raggiunto. Riprova domani.",
-  "storymaker.job_error.model_error": "Il modello IA non ha dato una risposta utilizzabile."
+  "storymaker.job_error.model_error": "Il modello IA non ha dato una risposta utilizzabile.",
+  "storymaker.agent.changed_scenes": "Modificate: {scenes}",
+  "storymaker.agent.unchanged_scenes": "Invariate: {scenes}",
+  "storymaker.agent.removed_scenes": "Rimosse: {scenes}",
+  "storymaker.agent.restore_confirm": "Ripristinare il parlato? Le modifiche alla storia fatte da quando è stata resa muta andranno perse."
 }

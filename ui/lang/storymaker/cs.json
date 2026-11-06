@@ -393,5 +393,9 @@
   "storymaker.error.model_too_small": "Nastavený model je pro AI autora příliš malý. V konfiguraci zvolte větší.",
   "storymaker.error.llm_unavailable": "Teď není k dispozici žádný model AI.",
   "storymaker.error.daily_limit_reached": "Denní limit AI autora je vyčerpán. Zkuste to zítra.",
-  "storymaker.job_error.model_error": "Model AI nedal použitelnou odpověď."
+  "storymaker.job_error.model_error": "Model AI nedal použitelnou odpověď.",
+  "storymaker.agent.changed_scenes": "Změněno: {scenes}",
+  "storymaker.agent.unchanged_scenes": "Beze změny: {scenes}",
+  "storymaker.agent.removed_scenes": "Odebráno: {scenes}",
+  "storymaker.agent.restore_confirm": "Obnovit řeč? Změny příběhu od chvíle, kdy se řeč odebrala, se ztratí."
 }

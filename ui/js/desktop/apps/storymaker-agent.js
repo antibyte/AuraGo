@@ -354,6 +354,15 @@
             return open ? t(OUTCOME_KEYS.incomplete.text, { n: open }) : t('storymaker.agent.outcome_incomplete_some');
         }
 
+        // The scenes of one outcome list: the position and the id where the story still has the scene, else the id alone.
+        function sceneLabels(ids) {
+            const scenes = S.model.scenesOf(inst.story);
+            return ids.map(id => {
+                const index = scenes.findIndex(scene => scene && scene.id === id);
+                return index >= 0 ? (index + 1) + ' (' + id + ')' : String(id);
+            }).join(', ');
+        }
+
         function paintOutcome() {
             const finished = !!job && (job.status === 'succeeded' || job.status === 'failed');
             const outcome = !finished ? '' : (job.agent && job.agent.outcome) || (job.status === 'failed' ? 'failed' : '');
@@ -366,6 +375,10 @@
             outcomeCard.appendChild(el('h3', { text: t(keys.title) }));
             outcomeCard.appendChild(el('p', { text: outcomeText(outcome, checks) }));
             if (job.agent && job.agent.summary) outcomeCard.appendChild(el('p', { dataset: { stm: 'agent-summary' }, text: String(job.agent.summary) }));
+            [['changed_scenes', 'storymaker.agent.changed_scenes'], ['unchanged_scenes', 'storymaker.agent.unchanged_scenes'], ['removed_scenes', 'storymaker.agent.removed_scenes']].forEach(([field, key]) => {
+                const ids = job.agent && Array.isArray(job.agent[field]) ? job.agent[field] : [];
+                if (ids.length) outcomeCard.appendChild(el('p', { dataset: { stm: 'agent-scenes-list', list: field }, text: t(key, { scenes: sceneLabels(ids) }) }));
+            });
             if (checks.length) outcomeCard.appendChild(el('ul', { class: 'stm-agent-checks' }, checks.map(checkLine)));
         }
 

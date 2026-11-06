@@ -393,5 +393,9 @@
   "storymaker.error.model_too_small": "Das eingestellte Modell ist für den KI-Autor zu klein. Wähle in der Konfiguration ein größeres.",
   "storymaker.error.llm_unavailable": "Gerade ist kein KI-Modell verfügbar.",
   "storymaker.error.daily_limit_reached": "Das Tageslimit für den KI-Autor ist erreicht. Versuche es morgen noch einmal.",
-  "storymaker.job_error.model_error": "Das KI-Modell hat keine brauchbare Antwort gegeben."
+  "storymaker.job_error.model_error": "Das KI-Modell hat keine brauchbare Antwort gegeben.",
+  "storymaker.agent.changed_scenes": "Geändert: {scenes}",
+  "storymaker.agent.unchanged_scenes": "Unverändert: {scenes}",
+  "storymaker.agent.removed_scenes": "Entfernt: {scenes}",
+  "storymaker.agent.restore_confirm": "Sprache wiederherstellen? Änderungen an der Geschichte seit dem Stummschalten gehen verloren."
 }

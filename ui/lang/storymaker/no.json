@@ -393,5 +393,9 @@
   "storymaker.error.model_too_small": "Den valgte modellen er for liten for KI-forfatteren. Velg en større i konfigurasjonen.",
   "storymaker.error.llm_unavailable": "Ingen KI-modell er tilgjengelig akkurat nå.",
   "storymaker.error.daily_limit_reached": "Den daglige grensen for KI-forfatteren er nådd. Prøv igjen i morgen.",
-  "storymaker.job_error.model_error": "KI-modellen ga ikke et brukbart svar."
+  "storymaker.job_error.model_error": "KI-modellen ga ikke et brukbart svar.",
+  "storymaker.agent.changed_scenes": "Endret: {scenes}",
+  "storymaker.agent.unchanged_scenes": "Uendret: {scenes}",
+  "storymaker.agent.removed_scenes": "Fjernet: {scenes}",
+  "storymaker.agent.restore_confirm": "Gjenopprette tale? Endringer i historien siden talen ble fjernet, går tapt."
 }

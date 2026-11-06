@@ -393,5 +393,9 @@
   "storymaker.error.model_too_small": "配置的模型对 AI 作者来说太小。请在配置中选择更大的模型。",
   "storymaker.error.llm_unavailable": "目前没有可用的 AI 模型。",
   "storymaker.error.daily_limit_reached": "AI 作者已达到每日上限。请明天重试。",
-  "storymaker.job_error.model_error": "AI 模型没有给出可用的回答。"
+  "storymaker.job_error.model_error": "AI 模型没有给出可用的回答。",
+  "storymaker.agent.changed_scenes": "已修改：{scenes}",
+  "storymaker.agent.unchanged_scenes": "未修改：{scenes}",
+  "storymaker.agent.removed_scenes": "已删除：{scenes}",
+  "storymaker.agent.restore_confirm": "恢复语音？自静音以来对故事所做的更改将会丢失。"
 }

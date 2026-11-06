@@ -393,5 +393,9 @@
   "storymaker.error.model_too_small": "Ustawiony model jest za mały dla autora AI. Wybierz większy w konfiguracji.",
   "storymaker.error.llm_unavailable": "Teraz nie jest dostępny żaden model AI.",
   "storymaker.error.daily_limit_reached": "Osiągnięto dzienny limit autora AI. Spróbuj jutro.",
-  "storymaker.job_error.model_error": "Model AI nie dał użytecznej odpowiedzi."
+  "storymaker.job_error.model_error": "Model AI nie dał użytecznej odpowiedzi.",
+  "storymaker.agent.changed_scenes": "Zmienione: {scenes}",
+  "storymaker.agent.unchanged_scenes": "Bez zmian: {scenes}",
+  "storymaker.agent.removed_scenes": "Usunięte: {scenes}",
+  "storymaker.agent.restore_confirm": "Przywrócić mowę? Zmiany w historii wprowadzone od wyciszenia zostaną utracone."
 }

@@ -393,5 +393,9 @@
   "storymaker.error.model_too_small": "Den inställda modellen är för liten för AI-författaren. Välj en större i konfigurationen.",
   "storymaker.error.llm_unavailable": "Ingen AI-modell är tillgänglig just nu.",
   "storymaker.error.daily_limit_reached": "Den dagliga gränsen för AI-författaren är nådd. Försök igen i morgon.",
-  "storymaker.job_error.model_error": "AI-modellen gav inget användbart svar."
+  "storymaker.job_error.model_error": "AI-modellen gav inget användbart svar.",
+  "storymaker.agent.changed_scenes": "Ändrade: {scenes}",
+  "storymaker.agent.unchanged_scenes": "Oförändrade: {scenes}",
+  "storymaker.agent.removed_scenes": "Borttagna: {scenes}",
+  "storymaker.agent.restore_confirm": "Återställ tal? Ändringar i berättelsen sedan den gjordes tyst går förlorade."
 }

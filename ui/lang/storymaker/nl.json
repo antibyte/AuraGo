@@ -393,5 +393,9 @@
   "storymaker.error.model_too_small": "Het ingestelde model is te klein voor de AI-auteur. Kies een groter model in de configuratie.",
   "storymaker.error.llm_unavailable": "Er is nu geen AI-model beschikbaar.",
   "storymaker.error.daily_limit_reached": "De daglimiet van de AI-auteur is bereikt. Probeer het morgen opnieuw.",
-  "storymaker.job_error.model_error": "Het AI-model gaf geen bruikbaar antwoord."
+  "storymaker.job_error.model_error": "Het AI-model gaf geen bruikbaar antwoord.",
+  "storymaker.agent.changed_scenes": "Gewijzigd: {scenes}",
+  "storymaker.agent.unchanged_scenes": "Ongewijzigd: {scenes}",
+  "storymaker.agent.removed_scenes": "Verwijderd: {scenes}",
+  "storymaker.agent.restore_confirm": "Spraak herstellen? Wijzigingen in het verhaal sinds het stil is gemaakt, gaan verloren."
 }

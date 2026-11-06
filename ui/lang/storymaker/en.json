@@ -393,5 +393,9 @@
   "storymaker.error.model_too_small": "The configured model is too small for the AI author. Choose a larger one in the configuration.",
   "storymaker.error.llm_unavailable": "No AI model is available right now.",
   "storymaker.error.daily_limit_reached": "The daily limit for the AI author is reached. Try again tomorrow.",
-  "storymaker.job_error.model_error": "The AI model did not give a usable answer."
+  "storymaker.job_error.model_error": "The AI model did not give a usable answer.",
+  "storymaker.agent.changed_scenes": "Changed: {scenes}",
+  "storymaker.agent.unchanged_scenes": "Unchanged: {scenes}",
+  "storymaker.agent.removed_scenes": "Removed: {scenes}",
+  "storymaker.agent.restore_confirm": "Restore the speech? Changes made to the story since it was made silent are lost."
 }

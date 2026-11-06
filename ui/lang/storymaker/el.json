@@ -393,5 +393,9 @@
   "storymaker.error.model_too_small": "Το ρυθμισμένο μοντέλο είναι πολύ μικρό για τον συγγραφέα AI. Επιλέξτε μεγαλύτερο στις ρυθμίσεις.",
   "storymaker.error.llm_unavailable": "Δεν υπάρχει διαθέσιμο μοντέλο AI αυτή τη στιγμή.",
   "storymaker.error.daily_limit_reached": "Το ημερήσιο όριο του συγγραφέα AI εξαντλήθηκε. Δοκιμάστε αύριο.",
-  "storymaker.job_error.model_error": "Το μοντέλο AI δεν έδωσε χρήσιμη απάντηση."
+  "storymaker.job_error.model_error": "Το μοντέλο AI δεν έδωσε χρήσιμη απάντηση.",
+  "storymaker.agent.changed_scenes": "Τροποποιήθηκαν: {scenes}",
+  "storymaker.agent.unchanged_scenes": "Δεν άλλαξαν: {scenes}",
+  "storymaker.agent.removed_scenes": "Αφαιρέθηκαν: {scenes}",
+  "storymaker.agent.restore_confirm": "Επαναφορά της ομιλίας; Οι αλλαγές στην ιστορία από τότε που αφαιρέθηκε η ομιλία θα χαθούν."
 }

@@ -393,5 +393,9 @@
   "storymaker.error.model_too_small": "चुना गया मॉडल एआई लेखक के लिए बहुत छोटा है। कॉन्फ़िगरेशन में बड़ा मॉडल चुनें।",
   "storymaker.error.llm_unavailable": "अभी कोई एआई मॉडल उपलब्ध नहीं है।",
   "storymaker.error.daily_limit_reached": "एआई लेखक की दैनिक सीमा पूरी हो गई। कल फिर कोशिश करें।",
-  "storymaker.job_error.model_error": "एआई मॉडल ने उपयोगी उत्तर नहीं दिया।"
+  "storymaker.job_error.model_error": "एआई मॉडल ने उपयोगी उत्तर नहीं दिया।",
+  "storymaker.agent.changed_scenes": "बदली गईं: {scenes}",
+  "storymaker.agent.unchanged_scenes": "बिना बदलाव: {scenes}",
+  "storymaker.agent.removed_scenes": "हटाई गईं: {scenes}",
+  "storymaker.agent.restore_confirm": "भाषण वापस लाएँ? भाषण हटाए जाने के बाद कहानी में किए गए बदलाव खो जाएँगे।"
 }
