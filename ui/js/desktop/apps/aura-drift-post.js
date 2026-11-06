@@ -1,318 +1,296 @@
-/* Aura Drift - optional WebGL2 post-processing over the Canvas 2D world. */
+/* Aura Drift - post processing for the three.js renderer (section 4, T4.2).
+ *
+ * Pipeline (tier gl.post): RenderPass into a HalfFloat target (MSAA from gl.msaa) -> GTAO (ultra)
+ * -> bloom -> final grade pass -> OutputPass (tone mapping + sRGB) -> SMAA or FXAA.
+ * The grade pass does biome colour grading, vignette, nitro radial blur, impact aberration,
+ * black hole lens warps and low health desaturation, all in linear HDR space with texture lookups
+ * only (no hash noise). Low tier reports available:true, enabled:false and renders directly.
+ * ShaderPass clones its uniforms, so every write goes to pass.uniforms. */
 (function () {
     'use strict';
     const AD = window.AuraDriftCore;
     const clamp = AD.clamp;
 
-    const VERTEX = `#version 300 es
-in vec2 aPos;
-out vec2 vUv;
-void main() {
-    vUv = aPos * 0.5 + 0.5;
-    gl_Position = vec4(aPos, 0.0, 1.0);
-}`;
+    const FINAL_VERT = 'varying vec2 vUv;\nvoid main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
+    const FINAL_FRAG = [
+        'uniform sampler2D tDiffuse;',
+        'uniform float uAspect; uniform float uVig; uniform float uBlur; uniform vec2 uBlurC; uniform float uAb;',
+        'uniform float uSat; uniform float uCon; uniform vec3 uLift; uniform vec3 uGain; uniform vec3 uShadow; uniform vec3 uHigh;',
+        'uniform float uSplit; uniform float uPink; uniform float uDesat; uniform float uWob; uniform float uTime;',
+        'uniform vec4 uH0; uniform vec4 uH1;',
+        'varying vec2 vUv;',
+        'const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);',
+        'vec3 grab(vec2 p) {',
+        '  if (uAb > 0.0005) {',
+        '    vec2 r = (p - 0.5) * uAb;',
+        '    return vec3(texture2D(tDiffuse, p + r).r, texture2D(tDiffuse, p).g, texture2D(tDiffuse, p - r).b);',
+        '  }',
+        '  return texture2D(tDiffuse, p).rgb;',
+        '}',
+        /* h = (x, y, radius, strength); radius is in aspect corrected units of screen height. */
+        'vec2 lens(vec2 p, vec4 h, inout float core, inout float ring) {',
+        '  if (h.w <= 0.0) return p;',
+        '  vec2 d = p - h.xy; d.x *= uAspect;',
+        '  float t = length(d) / h.z;',
+        '  if (t >= 1.0) return p;',
+        '  float k = h.w * (1.0 - t) * (1.0 - t);',
+        '  float a = k * (1.15 + uWob * sin(t * 9.0 - uTime * 5.0));',
+        '  float cs = cos(a), sn = sin(a);',
+        '  d = vec2(cs * d.x - sn * d.y, sn * d.x + cs * d.y) * (1.0 + k * 1.0);',
+        '  core = max(core, h.w * smoothstep(0.3, 0.1, t));',
+        '  ring = max(ring, h.w * exp(-pow((t - 0.34) / 0.08, 2.0)));',
+        '  d.x /= uAspect;',
+        '  return h.xy + d;',
+        '}',
+        'void main() {',
+        '  vec2 uv = vUv;',
+        '  float core = 0.0; float ring = 0.0;',
+        '  uv = lens(uv, uH0, core, ring);',
+        '  uv = lens(uv, uH1, core, ring);',
+        '  vec3 c;',
+        '  if (uBlur > 0.002) {',
+        '    vec2 dir = (uv - uBlurC) * uBlur;',
+        '    c = grab(uv) * 0.22;',
+        '    c += grab(uv - dir * 0.2) * 0.2; c += grab(uv - dir * 0.4) * 0.17; c += grab(uv - dir * 0.6) * 0.15;',
+        '    c += grab(uv - dir * 0.8) * 0.14; c += grab(uv - dir) * 0.12;',
+        '  } else { c = grab(uv); }',
+        '  c = min(max(c, vec3(0.0)), vec3(64.0));',
+        /* Grade: contrast around mid grey, lift in the shadows, gain, split toning, vibrance. */
+        '  float l = dot(c, LUMA);',
+        '  c = 0.18 * pow(max(c, vec3(0.0001)) / 0.18, vec3(uCon));',
+        '  c = c * uGain + uLift * (1.0 - clamp(l * 3.0, 0.0, 1.0));',
+        '  float lt = l / (1.0 + l);',
+        '  float sw = 1.0 - smoothstep(0.1, 0.5, lt);',
+        '  float hw = smoothstep(0.3, 0.75, lt);',
+        '  c *= mix(vec3(1.0), uShadow, sw * uSplit) * mix(vec3(1.0), uHigh, hw * uSplit);',
+        /* Mid and dark pink in the lower screen (a horizon reflected by the road) is pulled toward teal; neon and sky are kept. */
+        '  float pm = smoothstep(0.0, 0.3, (c.r - c.g) / (l + 0.05)) * (1.0 - hw) * (1.0 - smoothstep(0.5, 0.62, vUv.y));',
+        '  c.r *= 1.0 - uPink * pm * 0.55; c.g *= 1.0 + uPink * pm * 0.1; c.b *= 1.0 - uPink * pm * 0.08;',
+        '  float l2 = dot(c, LUMA);',
+        '  float sat = uSat + (1.0 - clamp(length(c - l2) / (l2 + 0.1), 0.0, 1.0)) * (uSat - 1.0) * 0.6;',
+        '  c = mix(vec3(l2), c, sat);',
+        '  c = mix(c, vec3(dot(c, LUMA)), uDesat);',
+        '  vec2 q = (vUv - 0.5) * vec2(uAspect, 1.0) * 0.9;',
+        '  c *= 1.0 - uVig * smoothstep(0.25, 1.0, dot(q, q) * 1.6);',
+        '  c = c * (1.0 - core) + vec3(0.62, 0.33, 1.0) * ring * 0.22;',
+        '  gl_FragColor = vec4(c, 1.0);',
+        '}'
+    ].join('\n');
 
-    const FRAGMENT = `#version 300 es
-precision highp float;
-in vec2 vUv;
-out vec4 outColor;
-uniform sampler2D uScene;
-uniform vec2 uTexel;
-uniform vec3 uGrade;
-uniform float uTime;
-uniform float uBloom;
-uniform float uWet;
-uniform float uHeat;
-uniform float uRain;
-                uniform float uImpact;
-                uniform float uBoost;
-                uniform float uDamage;
-                uniform float uReduced;
-                uniform float uSpeed;
-
-vec3 sane(vec3 c) {
-    if (!(c.r == c.r)) c.r = 0.0;
-    if (!(c.g == c.g)) c.g = 0.0;
-    if (!(c.b == c.b)) c.b = 0.0;
-    return min(max(c, vec3(0.0)), vec3(4.0));
-}
-
-float saneF(float v) {
-    if (!(v == v)) v = 0.0;
-    return clamp(v, 0.0, 4.0);
-}
-
-float luma(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
-
-float grain(vec2 p) {
-    return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453) - 0.5;
-}
-
-void main() {
-    vec2 uv = vUv;
-    vec2 radial = uv - 0.5;
-    float shift = (uImpact * 0.004 + uBoost * 0.0015) * (1.0 - uReduced);
-    vec3 base;
-    base.r = texture(uScene, uv + radial * shift).r;
-    base.g = texture(uScene, uv).g;
-    base.b = texture(uScene, uv - radial * shift).b;
-    base = sane(base);
-
-    /* Speed streaks: a short radial blur away from the centre, only while
-       really moving, so the racing line stays readable. */
-    if (uSpeed > 0.25 && uReduced < 0.5) {
-        vec3 smear = vec3(0.0);
-        float wsum = 0.0;
-        for (int i = 1; i <= 3; i++) {
-            float d = float(i) * 0.004 * uSpeed;
-            float w = 1.0 / float(i);
-            smear += sane(texture(uScene, uv - radial * d).rgb) * w;
-            wsum += w;
-        }
-        base = mix(base, smear / wsum, clamp(uSpeed * 0.35, 0.0, 0.4));
-    }
-
-    /* Bright-pass bloom: twelve taps on two rings, clamped so a bad frame
-       cannot blow out. */
-    vec3 bloom = vec3(0.0);
-    if (uBloom > 0.0) {
-        for (int i = 0; i < 12; i++) {
-            float ang = float(i) * 0.5236;
-            float rad = (i < 6) ? 2.0 : 5.0;
-            vec2 off = vec2(cos(ang), sin(ang)) * uTexel * rad;
-            vec3 s = sane(texture(uScene, uv + off).rgb);
-            bloom += max(s - vec3(0.62), vec3(0.0));
-        }
-        bloom /= 12.0;
-    }
-
-    /* Wet asphalt: stretch bright highlights vertically into short reflections. */
-    vec3 wet = vec3(0.0);
-    if (uWet > 0.0) {
-        float wobble = sin(uv.y * 220.0 + uTime * 2.2) * 0.35 * (1.0 - uReduced);
-        for (int i = 1; i <= 5; i++) {
-            float d = float(i);
-            vec2 off = vec2(wobble * uTexel.x * d, uTexel.y * d * 7.0);
-            vec3 s = sane(texture(uScene, uv + off).rgb);
-            wet += max(s - vec3(0.55), vec3(0.0)) * (1.0 / (d * d));
-        }
-        wet *= vec3(0.72, 0.86, 1.0);
-    }
-
-    vec3 color = base + bloom * uBloom + wet * uWet * 0.55;
-
-    /* Heat shimmer: the air itself moves over a hot surface. */
-    if (uHeat > 0.001) {
-        float wob = sin(uv.y * 88.0 + uTime * 3.1) * 0.0018 * uHeat;
-        color.r = saneF(texture(uScene, uv + vec2(wob, 0.0)).r);
-        color.g = saneF(texture(uScene, uv + vec2(wob * 0.6, 0.0)).g);
-        color.b = saneF(texture(uScene, uv + vec2(wob * 1.3, 0.0)).b);
-        color = sane(color);
-    }
-
-    /* Rain on the lens: a sparse grid of drops that bend the scene. */
-    if (uRain > 0.001) {
-        vec2 grid = vec2(15.0, 10.0);
-        vec2 cell = floor(uv * grid);
-        float h = fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453);
-        if (h > 1.0 - uRain * 0.18) {
-            vec2 local = fract(uv * grid) - 0.5;
-            float d = length(local);
-            vec2 off = local * d * 0.07;
-            vec3 through = sane(texture(uScene, uv - off).rgb);
-            color = mix(color, through, clamp(1.0 - d * 1.6, 0.0, 1.0));
-            color += vec3(0.04, 0.06, 0.08) * clamp(1.0 - d * 2.2, 0.0, 1.0);
-        }
-    }
-
-    color *= uGrade;
-    float vignette = 1.0 - 0.22 * smoothstep(0.35, 0.78, length(radial));
-    color *= vignette;
-    float wound = uDamage * (0.5 + 0.5 * sin(uTime * 5.2));
-    float rim = smoothstep(0.42, 0.78, length(radial));
-    color = mix(color, vec3(0.55, 0.05, 0.04), rim * wound * 0.35);
-    if (uReduced < 0.5) {
-        color += grain(uv * 720.0 + fract(uTime) * 41.0) * 0.012;
-    }
-    outColor = vec4(sane(min(color, vec3(1.0))), 1.0);
-}`;
-
+    /* Per biome grade. shadow/high tint the dark and bright halves, gain is the white balance,
+       thresh the bloom threshold (day biomes sit higher so snow and sand do not wash out), bloom a
+       strength factor on LOOK.bloom, pink pulls dark pink reflections toward teal. */
+    const NEUTRAL = { sat: 1.1, con: 1.06, gain: [1, 1, 1], lift: [0, 0, 0], shadow: [1, 1, 1], high: [1, 1, 1], split: 0, pink: 0, thresh: 1.2, bloom: 0.8, vig: 0.25 };
+    function grade(o) { return Object.assign({}, NEUTRAL, o); }
     const GRADES = {
-        alpine: [0.96, 1.00, 0.98],
-        desert: [1.06, 0.99, 0.90],
-        harbour: [0.88, 0.96, 1.12],
-        salt: [1.04, 1.04, 1.00],
-        forest: [0.94, 1.02, 0.94],
-        industry: [1.05, 0.98, 0.92],
-        glacier: [0.86, 0.95, 1.16],
-        metro: [1.02, 0.95, 1.10]
+        alpine: grade({ sat: 1.22, con: 1.1, gain: [1.04, 1.0, 0.93], shadow: [0.93, 0.98, 1.08], high: [1.08, 1.0, 0.86], split: 0.5, thresh: 1.3, bloom: 0.7 }),
+        desert: grade({ sat: 1.2, con: 1.1, gain: [1.06, 0.99, 0.88], shadow: [1.0, 0.9, 1.08], high: [1.1, 1.0, 0.8], split: 0.55, thresh: 1.35, bloom: 0.7 }),
+        harbour: grade({ sat: 1.2, con: 1.18, gain: [0.97, 1.02, 1.04], lift: [0, 0.006, 0.01], shadow: [0.68, 1.04, 1.1], high: [1.14, 0.92, 1.06], split: 0.9, pink: 0.85, thresh: 1.15, bloom: 0.55 }),
+        salt: grade({ sat: 1.12, con: 1.05, gain: [1.0, 1.0, 1.02], shadow: [0.95, 0.98, 1.1], high: [1.04, 0.99, 0.94], split: 0.45, thresh: 1.5, bloom: 0.6 }),
+        forest: grade({ sat: 1.24, con: 1.1, gain: [1.0, 1.04, 0.9], shadow: [0.86, 1.05, 1.0], high: [1.08, 1.02, 0.8], split: 0.65, thresh: 1.3, bloom: 0.7 }),
+        industry: grade({ sat: 1.18, con: 1.14, gain: [1.06, 0.98, 0.86], shadow: [0.88, 0.95, 1.14], high: [1.14, 0.98, 0.76], split: 0.7, thresh: 1.15, bloom: 0.6 }),
+        glacier: grade({ sat: 1.2, con: 1.12, gain: [0.94, 1.0, 1.1], shadow: [0.8, 0.98, 1.22], high: [0.92, 1.04, 1.14], split: 0.75, thresh: 1.15, bloom: 0.55 }),
+        metro: grade({ sat: 1.26, con: 1.18, gain: [1.0, 0.96, 1.06], lift: [0.002, 0, 0.012], shadow: [0.78, 0.92, 1.24], high: [1.14, 0.9, 1.1], split: 0.85, pink: 0.35, thresh: 1.4, bloom: 0.36 })
     };
 
-    function compile(gl, type, source) {
-        const shader = gl.createShader(type);
-        gl.shaderSource(shader, source);
-        gl.compileShader(shader);
-        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-            const info = gl.getShaderInfoLog(shader);
-            gl.deleteShader(shader);
-            throw new Error(info || 'shader compile failed');
-        }
-        return shader;
+    function tierName(gl) {
+        for (const k in AD.QUALITY) if (AD.QUALITY[k] && AD.QUALITY[k].gl === gl) return k;
+        return 'custom';
     }
 
-    AD.createPostProcessor = function (sourceCanvas, outputCanvas) {
-        let gl = null, program = null, texture = null, buffer = null;
-        let available = false, lost = false, quality = 'high', biome = 'alpine';
-        let uniforms = {}, time = 0;
-        let textureWidth = 0, textureHeight = 0;
+    AD.createPost = function (T, renderer, scene, camera, glInitial) {
+        let q = glInitial || AD.QUALITY.high.gl;
+        let biome = 'none', g = NEUTRAL, bloomBase = 0.4;
+        let view = { w: 960, h: 540, dpr: 1 };
+        let composer = null, passes = null, failed = false, disposed = false;
+        let ab = 0, kick = 0, blur = 0, time = 0;
+        let manual = null;
+        const holes = [new T.Vector4(), new T.Vector4()];
+        const tmp = new T.Vector3(), tmp2 = new T.Vector3(), right = new T.Vector3();
+        const hasPipeline = !!(T.EffectComposer && T.RenderPass && T.ShaderPass && T.OutputPass && T.UnrealBloomPass);
 
-        function hide() {
-            outputCanvas.style.opacity = '0';
-            outputCanvas.style.pointerEvents = 'none';
-        }
-        function show() {
-            outputCanvas.style.opacity = '1';
-        }
+        function bloomStrength() { return bloomBase * g.bloom * (q.bloom === 'half' ? 1.25 : 1); }
 
-        function init() {
+        function dropComposer() {
+            if (!composer) return;
             try {
-                gl = outputCanvas.getContext('webgl2', {
-                    alpha: false, antialias: false, depth: false,
-                    stencil: false, preserveDrawingBuffer: false,
-                    powerPreference: 'low-power'
-                });
-            } catch (_) { gl = null; }
-            if (!gl) { available = false; hide(); return; }
-
-            let vertex, fragment;
-            try {
-                vertex = compile(gl, gl.VERTEX_SHADER, VERTEX);
-                fragment = compile(gl, gl.FRAGMENT_SHADER, FRAGMENT);
-                program = gl.createProgram();
-                gl.attachShader(program, vertex);
-                gl.attachShader(program, fragment);
-                gl.linkProgram(program);
-                if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-                    throw new Error(gl.getProgramInfoLog(program) || 'link failed');
-                }
-            } catch (err) {
-                if (vertex) gl.deleteShader(vertex);
-                if (fragment) gl.deleteShader(fragment);
-                if (program) gl.deleteProgram(program);
-                program = null; available = false; hide();
-                return;
-            }
-            gl.deleteShader(vertex);
-            gl.deleteShader(fragment);
-
-            buffer = gl.createBuffer();
-            gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
-            const location = gl.getAttribLocation(program, 'aPos');
-            gl.enableVertexAttribArray(location);
-            gl.vertexAttribPointer(location, 2, gl.FLOAT, false, 0, 0);
-
-            texture = gl.createTexture();
-            gl.bindTexture(gl.TEXTURE_2D, texture);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-
-            for (const name of ['uScene', 'uTexel', 'uGrade', 'uTime', 'uBloom', 'uWet', 'uHeat', 'uRain',
-                'uImpact', 'uBoost', 'uDamage', 'uReduced', 'uSpeed']) {
-                uniforms[name] = gl.getUniformLocation(program, name);
-            }
-            gl.useProgram(program);
-            gl.uniform1i(uniforms.uScene, 0);
-            available = true;
-            lost = false;
-            textureWidth = 0; textureHeight = 0;
+                for (const p of composer.passes) if (p.dispose) p.dispose();
+                composer.dispose();
+            } catch (_) { /* partially built */ }
+            composer = null; passes = null;
         }
 
-        function onLost(event) {
-            event.preventDefault();
-            lost = true; available = false; hide();
-        }
-        function onRestored() {
-            if (!lost) return;
-            init();
-        }
-        outputCanvas.addEventListener('webglcontextlost', onLost);
-        outputCanvas.addEventListener('webglcontextrestored', onRestored);
-        hide();
-        init();
-
-        return {
-            get available() { return available; },
-            get enabled() { return available && (quality === 'high' || quality === 'ultra'); },
-            resize(width, height, ratio) {
-                const dpr = clamp(ratio || 1, 1, 2);
-                outputCanvas.width = Math.max(1, Math.round(width * dpr));
-                outputCanvas.height = Math.max(1, Math.round(height * dpr));
-                outputCanvas.style.width = width + 'px';
-                outputCanvas.style.height = height + 'px';
-                if (gl) gl.viewport(0, 0, outputCanvas.width, outputCanvas.height);
-                textureWidth = 0; textureHeight = 0;
-            },
-            setQuality(name) { quality = AD.QUALITY[name] ? name : 'high'; },
-            setBiome(id) { biome = GRADES[id] ? id : 'alpine'; },
-            render(race, dt, reducedMotion) {
-                if (!this.enabled) { hide(); return false; }
-                if (!gl || gl.isContextLost()) { available = false; hide(); return false; }
-                const sw = sourceCanvas.width, sh = sourceCanvas.height;
-                if (sw < 1 || sh < 1) return false;
-                time += dt;
-                gl.useProgram(program);
-                gl.activeTexture(gl.TEXTURE0);
-                gl.bindTexture(gl.TEXTURE_2D, texture);
-                if (sw !== textureWidth || sh !== textureHeight) {
-                    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, sw, sh, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-                    textureWidth = sw; textureHeight = sh;
-                }
-                gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, sourceCanvas);
-                gl.uniform2f(uniforms.uTexel, 1 / sw, 1 / sh);
-                const grade = GRADES[biome] || GRADES.alpine;
-                gl.uniform3f(uniforms.uGrade, grade[0], grade[1], grade[2]);
-                gl.uniform1f(uniforms.uTime, time);
-                gl.uniform1f(uniforms.uBloom, quality === 'ultra' ? 0.95 : 0.55);
-                /* Live weather drives the wet pass: rain darkens the asphalt
-                   and puts water on the lens, heat makes the air move. */
-                const conditions = race && race.conditions ? race.conditions.state : null;
-                const kind = conditions ? conditions.kind : '';
-                const intensity = conditions ? conditions.intensity : 0;
-                const wetBase = biome === 'harbour' ? 0.75 : (biome === 'industry' ? 0.35 :
-                    (biome === 'metro' ? 0.3 : 0.0));
-                const wetNow = kind === 'rain' ? wetBase + intensity * 0.5 : wetBase;
-                gl.uniform1f(uniforms.uWet, clamp(wetNow, 0, 1.4));
-                gl.uniform1f(uniforms.uHeat, kind === 'heat' ? intensity : 0);
-                gl.uniform1f(uniforms.uRain, kind === 'rain' ? intensity : 0);
-                const v = race && race.cars[0] ? race.cars[0].v : null;
-                gl.uniform1f(uniforms.uImpact, v ? clamp(v.impact, 0, 1) : 0);
-                gl.uniform1f(uniforms.uBoost, v ? v.boost : 0);
-                gl.uniform1f(uniforms.uDamage, v ? clamp(v.damage / 100, 0, 1) : 0);
-                gl.uniform1f(uniforms.uReduced, reducedMotion ? 1 : 0);
-                gl.uniform1f(uniforms.uSpeed, v ? clamp(Math.max(0, v.vx) / 80, 0, 1) : 0);
-                gl.drawArrays(gl.TRIANGLES, 0, 3);
-                show();
-                return true;
-            },
-            stats() {
-                return { available: available, enabled: this.enabled, biome: biome, quality: quality, lost: lost };
-            },
-            dispose() {
-                outputCanvas.removeEventListener('webglcontextlost', onLost);
-                outputCanvas.removeEventListener('webglcontextrestored', onRestored);
-                if (gl) {
-                    if (texture) gl.deleteTexture(texture);
-                    if (buffer) gl.deleteBuffer(buffer);
-                    if (program) gl.deleteProgram(program);
-                    const ext = gl.getExtension('WEBGL_lose_context');
-                    if (ext) ext.loseContext();
-                }
-                gl = null; program = null; texture = null; buffer = null;
-                available = false; hide();
+        function build() {
+            dropComposer();
+            const rt = new T.WebGLRenderTarget(4, 4, { type: T.HalfFloatType, samples: q.msaa | 0 });
+            const cp = new T.EffectComposer(renderer, rt);
+            cp.setPixelRatio(view.dpr);
+            cp.setSize(view.w, view.h);
+            const render = new T.RenderPass(scene, camera);
+            cp.addPass(render);
+            let gtao = null;
+            if (q.gtao && T.GTAOPass) {
+                try {
+                    gtao = new T.GTAOPass(scene, camera, view.w, view.h);
+                    gtao.output = T.GTAOPass.OUTPUT.Default;
+                    if (gtao.updateGtaoMaterial) gtao.updateGtaoMaterial({ radius: 9, distanceExponent: 1.5, thickness: 1, scale: 0.8, samples: 16, distanceFallOff: 1, screenSpaceRadius: true });
+                    gtao.blendIntensity = 0.3;
+                    /* The normal pass uses an override material that ignores transparency and depthWrite, so
+                       sky domes, blob shadows and fx quads would count as occluders. Hide them for that pass. */
+                    const baseRender = gtao.render.bind(gtao);
+                    gtao.render = (r, wb, rb, dt, mask) => {
+                        const hidden = [];
+                        scene.traverse(o => {
+                            if (!o.visible || !(o.isMesh || o.isPoints || o.isLine || o.isSprite)) return;
+                            const m = Array.isArray(o.material) ? o.material[0] : o.material;
+                            if (m && (m.transparent || m.depthWrite === false)) { o.visible = false; hidden.push(o); }
+                        });
+                        try { baseRender(r, wb, rb, dt, mask); } finally { for (const o of hidden) o.visible = true; }
+                    };
+                    cp.addPass(gtao);
+                } catch (_) { gtao = null; }
             }
+            let bloom = null;
+            if (q.bloom !== 'off') {
+                bloom = new T.UnrealBloomPass(new T.Vector2(view.w, view.h), bloomStrength(), 0.55, g.thresh);
+                if (q.bloom === 'half') {
+                    const base = bloom.setSize.bind(bloom);
+                    bloom.setSize = (w, h) => base(Math.max(2, w >> 1), Math.max(2, h >> 1));
+                }
+                cp.addPass(bloom);
+            }
+            const fin = new T.ShaderPass({
+                uniforms: {
+                    tDiffuse: { value: null }, uAspect: { value: 1.7 }, uVig: { value: 0.25 }, uBlur: { value: 0 }, uBlurC: { value: new T.Vector2(0.5, 0.5) },
+                    uAb: { value: 0 }, uSat: { value: 1 }, uCon: { value: 1 }, uLift: { value: new T.Vector3() }, uGain: { value: new T.Vector3(1, 1, 1) },
+                    uShadow: { value: new T.Vector3(1, 1, 1) }, uHigh: { value: new T.Vector3(1, 1, 1) }, uSplit: { value: 0 }, uPink: { value: 0 },
+                    uDesat: { value: 0 }, uWob: { value: 0 }, uTime: { value: 0 }, uH0: { value: new T.Vector4() }, uH1: { value: new T.Vector4() }
+                },
+                vertexShader: FINAL_VERT, fragmentShader: FINAL_FRAG
+            });
+            cp.addPass(fin);
+            cp.addPass(new T.OutputPass());
+            let aa = null;
+            if (q.aa === 'smaa' && T.SMAAPass) aa = new T.SMAAPass();
+            else if (q.aa !== 'none' && T.FXAAPass) aa = new T.FXAAPass();
+            if (aa) cp.addPass(aa);
+            composer = cp;
+            passes = { bloom: bloom, fin: fin, gtao: gtao };
+            cp.setSize(view.w, view.h);
+            applyGrade();
+        }
+
+        function applyGrade() {
+            if (!passes) return;
+            const u = passes.fin.uniforms;
+            u.uSat.value = g.sat; u.uCon.value = g.con; u.uSplit.value = g.split; u.uPink.value = g.pink; u.uVig.value = g.vig;
+            u.uGain.value.set(g.gain[0], g.gain[1], g.gain[2]);
+            u.uLift.value.set(g.lift[0], g.lift[1], g.lift[2]);
+            u.uShadow.value.set(g.shadow[0], g.shadow[1], g.shadow[2]);
+            u.uHigh.value.set(g.high[0], g.high[1], g.high[2]);
+            if (passes.bloom) { passes.bloom.strength = bloomStrength(); passes.bloom.threshold = g.thresh; }
+        }
+
+        /* Projects a black hole to screen: uv centre, radius in aspect corrected screen heights. */
+        function holeTo(out, h, aspect) {
+            tmp.set(h.x, 1.2, h.y);
+            tmp2.copy(tmp).applyMatrix4(camera.matrixWorldInverse);
+            if (tmp2.z > -0.5) return false;
+            const dist = -tmp2.z;
+            tmp.project(camera);
+            if (Math.abs(tmp.x) > 1.8 || Math.abs(tmp.y) > 1.8) return false;
+            right.setFromMatrixColumn(camera.matrixWorld, 0);
+            tmp2.set(h.x, 1.2, h.y).addScaledVector(right, h.r * 0.45).project(camera);
+            const R = Math.hypot((tmp2.x - tmp.x) * 0.5 * aspect, (tmp2.y - tmp.y) * 0.5);
+            const age = h.age || 0, ttl = h.ttl === undefined ? 9 : h.ttl;
+            const s = clamp(age / 0.35, 0, 1) * clamp(ttl / 0.5, 0, 1);
+            if (s <= 0.01 || R < 0.01) return false;
+            out.set(tmp.x * 0.5 + 0.5, tmp.y * 0.5 + 0.5, Math.min(R, 1.2), s);
+            return dist > 0;
+        }
+
+        function updateUniforms(dt, race, reduced) {
+            const u = passes.fin.uniforms;
+            const aspect = view.w / Math.max(1, view.h);
+            time += dt;
+            const car = race && race.cars && race.cars[0] ? race.cars[0].v : null;
+            ab = ab > 0.01 ? ab * Math.exp(-4 * dt) : 0;
+            kick = kick > 0.01 ? kick * Math.exp(-3 * dt) : 0;
+            const nitro = car && (car.boost > 0 || car.burst > 0) ? 1 : 0;
+            blur += (nitro - blur) * (1 - Math.exp(-(nitro ? 7 : 3.5) * dt));
+            const calm = reduced ? 0 : 1;
+            u.uAspect.value = aspect;
+            u.uAb.value = ab * 0.05 * calm;
+            u.uBlur.value = clamp(blur * 0.1 + kick * 0.05, 0, 0.14) * calm;
+            u.uWob.value = 0.5 * calm;
+            u.uTime.value = time % 100;
+            u.uDesat.value = car ? clamp((car.damage - 55) / 45, 0, 1) * 0.35 : 0;
+            let n = 0;
+            if (manual) {
+                for (const h of manual) if (n < 2) holes[n++].set(h.x, h.y, h.r, h.s === undefined ? 1 : h.s);
+            } else if (race && race.hazards) {
+                let best = null;
+                for (const h of race.hazards) {
+                    if (h.type !== 'black_hole') continue;
+                    (best || (best = [])).push(h);
+                }
+                if (best) {
+                    best.sort((a, b) => Math.hypot(a.x - camera.position.x, a.y - camera.position.z) - Math.hypot(b.x - camera.position.x, b.y - camera.position.z));
+                    for (const h of best) if (n < 2 && holeTo(holes[n], h, aspect)) n++;
+                }
+            }
+            for (let i = n; i < 2; i++) holes[i].set(0, 0, 1, 0);
+            u.uH0.value.copy(holes[0]);
+            u.uH1.value.copy(holes[1]);
+        }
+
+        const api = {
+            available: hasPipeline,
+            get enabled() { return hasPipeline && !!q.post && !failed && !disposed; },
+            render(dt, race, pose, reduced) {
+                if (!api.enabled) return false;
+                try {
+                    if (!composer) build();
+                    updateUniforms(dt, race, !!reduced);
+                    composer.render(dt);
+                    return true;
+                } catch (_) {
+                    failed = true;
+                    dropComposer();
+                    return false;
+                }
+            },
+            setQuality(next) {
+                if (!next) return;
+                const old = q;
+                q = next;
+                if (!q.post) { dropComposer(); return; }
+                if (composer && (old.msaa !== q.msaa || old.aa !== q.aa || old.gtao !== q.gtao || old.bloom !== q.bloom)) dropComposer();
+                else if (composer) { composer.setPixelRatio(view.dpr); composer.setSize(view.w, view.h); applyGrade(); }
+            },
+            setBiome(id) {
+                biome = id || 'none';
+                const look = AD.LOOK && AD.LOOK[biome];
+                g = GRADES[biome] || NEUTRAL;
+                bloomBase = look && typeof look.bloom === 'number' ? look.bloom : 0.4;
+                applyGrade();
+            },
+            resize(w, h, dpr) {
+                view = { w: Math.max(2, Math.round(w)), h: Math.max(2, Math.round(h)), dpr: dpr || 1 };
+                if (composer) { composer.setPixelRatio(view.dpr); composer.setSize(view.w, view.h); }
+            },
+            /* kind: 'impact' (alias 'hit') drives the aberration, 'boost' a short blur kick. */
+            impulse(kind, amount) {
+                const a = clamp(amount === undefined ? 1 : amount, 0, 1);
+                if (kind === 'impact' || kind === 'hit') ab = Math.max(ab, a);
+                else if (kind === 'boost') kick = Math.max(kick, a);
+            },
+            /* Manual lens override: [{x, y (uv), r (screen heights), s}] or null to follow race.hazards. */
+            setHoles(list) { manual = list && list.length ? list : null; },
+            restore() { dropComposer(); failed = false; },
+            stats() { return { available: hasPipeline, enabled: api.enabled, degraded: false, quality: tierName(q), biome: biome }; },
+            dispose() { disposed = true; dropComposer(); }
         };
+        return api;
     };
 })();

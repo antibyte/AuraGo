@@ -161,11 +161,11 @@ func TestDesktopAuraDriftBrowser(t *testing.T) {
         const r=root.getBoundingClientRect();
         if(r.width<200||r.height<200)issues.push('window too small');
         const world=document.querySelector('.agdrift-world');
-        const post=document.querySelector('.agdrift-post');
+        const gl=document.querySelector('.agdrift-gl');
         const hud=document.querySelector('.agdrift-hud');
-        if(world.width!==Math.round(r.width*Math.min(2,devicePixelRatio||1)))issues.push('world canvas width mismatch');
-        if(!post||post.width!==world.width)issues.push('post canvas width mismatch');
-        if(!hud||hud.width!==world.width)issues.push('hud canvas width mismatch');
+        if(!hud||hud.width!==Math.round(r.width*Math.min(2,devicePixelRatio||1)))issues.push('hud canvas width mismatch');
+        if(document.querySelector('.agdrift-post'))issues.push('old post canvas still present');
+        if(gl&&!gl.hidden&&gl.width<=0)issues.push('gl canvas empty');
         return issues.join('; ');
     }`).Str(); issues != "" {
 		t.Fatalf("render surface: %s", issues)
@@ -240,11 +240,10 @@ func TestDesktopAuraDriftWetReflectionsBrowser(t *testing.T) {
 		t.Fatalf("wet-reflection pass not active on the night harbour: %s", stats)
 	}
 	if !page.MustEval(`()=>{
-        const post=document.querySelector('.agdrift-post');
-        const canvas=post.getContext('webgl2');
-        return !!canvas && post.style.opacity==='1' && post.width>0;
+        const gl=document.querySelector('.agdrift-gl');
+        return !!gl && !gl.hidden && gl.width>0 && !document.querySelector('.agdrift-post');
     }`).Bool() {
-		t.Fatal("post-processing canvas is not presenting a WebGL2 frame")
+		t.Fatal("the WebGL canvas is not presenting a frame")
 	}
 	if dir := auraDriftArtifactDir(t, "harbour"); dir != "" {
 		page.MustScreenshot(filepath.Join(dir, "aura-drift-harbour.png"))

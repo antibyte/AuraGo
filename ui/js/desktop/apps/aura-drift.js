@@ -64,7 +64,7 @@
         return {
             available: false,
             enabled: false,
-            setQuality() {}, setBiome() {}, resize() {},
+            setQuality() {}, setBiome() {}, resize() {}, impulse() {}, setHoles() {},
             render() { return false; },
             stats() { return { available: false, enabled: false, degraded: true, quality: 'none', biome: 'none' }; },
             dispose() {}
@@ -126,17 +126,14 @@
         const readonly = !!context.readonly;
         const labels = labelsFor(t);
 
-        /* DOM order: gl, world (2D fallback), old post, hud, then touch and overlay from the UI. */
+        /* DOM order: gl, world (2D fallback), hud, then touch and overlay from the UI. */
         const root = document.createElement('div');
         root.className = 'agdrift-root';
         const world = document.createElement('canvas');
         world.className = 'agdrift-world';
-        const postCanvas = document.createElement('canvas');
-        postCanvas.className = 'agdrift-post';
         const hudCanvas = document.createElement('canvas');
         hudCanvas.className = 'agdrift-hud';
         root.appendChild(world);
-        root.appendChild(postCanvas);
         root.appendChild(hudCanvas);
         host.replaceChildren(root);
 
@@ -162,10 +159,8 @@
         function attachSurfaces() {
             const three = !!renderer && renderer.kind === 'three';
             world.hidden = three;
-            postCanvas.hidden = three;
             if (glCanvas) glCanvas.hidden = !three;
-            post = three ? renderer.post : (typeof AD.createPostProcessor === 'function'
-                ? AD.createPostProcessor(world, postCanvas) : createNoopPost());
+            post = three && renderer.post ? renderer.post : createNoopPost();
         }
         if (!renderer) renderer = AD.createRenderer(world, settings);
         attachSurfaces();
@@ -396,27 +391,10 @@
             input.boost = (key('KeyE') || key('ControlLeft') || key('ControlRight') || touch.boost) ? 1 : 0;
         }
 
-        /* HUD events for the previous HUD module, which has no event() of its own. */
-        function legacyHud(evt) {
-            if (evt.type === 'pickup' && evt.car === 0 && AD.WEAPONS[evt.id]) {
-                hud.showMessage(AD.WEAPONS[evt.id].name, 1.1);
-            } else if (evt.type === 'lap' && !reducedMotion) {
-                hud.showMessage(labels.lap + ' ' + evt.lap + ' · ' + AD.formatTime(evt.time), 1.8);
-            } else if (evt.type === 'go') {
-                hud.showMessage(labels.ready, 0.9);
-            } else if (evt.type === 'style_bank' && evt.car === 0) {
-                hud.popup('+' + Math.round(evt.points), evt.multiplier > 2 ? '#ffd166' : '#7dd3fc');
-            } else if (evt.type === 'near_miss' && evt.car === 0) {
-                hud.popup(labels.combo + '!', '#ff9d4a');
-            } else if (evt.type === 'sector') {
-                hud.showMessage(labels.sector + ' ' + (evt.index + 1) + ' · ' + AD.formatTime(evt.time), 1.4);
-            }
-        }
-
         function drainEvents() {
             for (const evt of race.events) {
                 renderer.event(evt, race);
-                if (typeof hud.event === 'function') hud.event(evt, race); else legacyHud(evt);
+                hud.event(evt, race);
                 audio.event(evt, race);
                 if (banter) banter.onEvent(evt, race);
                 camera.onEvent(evt);
@@ -499,7 +477,6 @@
             if (!(paused && renderer.kind === 'three' && now - pausedGlAt < 100)) {
                 if (paused) pausedGlAt = now;
                 renderer.render(race, lastPose, paused ? 0 : simDt, reducedMotion);
-                if (renderer.kind !== 'three') post.render(race, dt, reducedMotion);
             }
             if (playing() && !paused) hud.render(race, dt, settings, lastPose);
             else clearHud();

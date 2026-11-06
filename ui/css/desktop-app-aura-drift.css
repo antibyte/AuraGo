@@ -12,15 +12,10 @@
 }
 .agdrift-root [hidden] { display: none !important; }
 
-.agdrift-gl, .agdrift-world, .agdrift-post, .agdrift-hud {
+.agdrift-gl, .agdrift-world, .agdrift-hud {
     position: absolute;
     inset: 0;
     display: block;
-}
-.agdrift-post {
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 180ms ease;
 }
 .agdrift-hud { pointer-events: none; }
 
@@ -233,6 +228,6 @@
     .agdrift-touch { display: flex; }
 }
 @media (prefers-reduced-motion: reduce) {
-    .agdrift-mode, .agdrift-primary, .agdrift-secondary, .agdrift-post { transition: none; }
+    .agdrift-mode, .agdrift-primary, .agdrift-secondary { transition: none; }
     .agdrift-overlay { backdrop-filter: none; }
 }

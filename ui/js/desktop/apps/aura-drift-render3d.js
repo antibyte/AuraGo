@@ -523,7 +523,8 @@
                 if (fx && fx.event) fx.event(evt, race);
                 if (realPost && evt.type && realPost.impulse && evt.car === 0) {
                     if (evt.type === 'boost_pad' || evt.type === 'turbo_burst') realPost.impulse('boost', 1);
-                    else if (evt.type === 'landing' && evt.quality === 'crash') realPost.impulse('hit', 1);
+                    else if (evt.type === 'landing' && evt.quality === 'crash') realPost.impulse('impact', 1);
+                    else if (evt.type === 'hit') realPost.impulse('impact', evt.heavy ? 1 : 0.5);
                 }
             },
             emit(r, dt) { if (fx && fx.emit) fx.emit(r, dt); },
