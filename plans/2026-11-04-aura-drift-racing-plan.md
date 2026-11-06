@@ -7,6 +7,8 @@ acceptance matrix. Remaining phase-3/4
 items are listed below. Baseline: working tree inspected on 2026-11-04; reconfirm affected
 sources before further work.
 
+> **Superseded (2026-11-06):** this top-down plan is replaced by `plans/2026-11-06-aura-drift-3d-overhaul.md`; the game is now a 3D view with a Canvas 2D fallback. Kept as history.
+
 ## Look-and-feel overhaul (2026-11-06)
 
 The user asked for a prettier, more exciting and more varied game with much better graphics

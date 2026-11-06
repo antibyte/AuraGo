@@ -73,7 +73,7 @@ Full maps with parts and one-liners: [Deutsche Übersicht](de/README.md) · [Eng
 | 30 · RuView | [RuView](de/30-ruview.md) | [RuView](en/30-ruview.md) | Experimental Wi-Fi sensing |
 | 31 · Pixel | [Pixel](de/31-pixel.md) | [Pixel](en/31-pixel.md) | Layered image editor, filters, generators, AI background removal |
 | 32 · ECalc | [ECalc](de/32-ecalc.md) | [ECalc](en/32-ecalc.md) | Electronics formula collection: calculators, live results, E series |
-| 33 · Aura Drift | [Aura Drift](de/33-aura-drift.md) | [Aura Drift](en/33-aura-drift.md) | Offline top-down racer: deterministic tyre physics, eight tracks, live weather, style scoring, weapons |
+| 33 · Aura Drift | [Aura Drift](de/33-aura-drift.md) | [Aura Drift](en/33-aura-drift.md) | Offline 3D racer with a 2D fallback: deterministic tyre physics, eight tracks and cars, seven modes, live weather, style scoring, weapons |
 | FAQ | [FAQ](de/faq.md) | [FAQ](en/faq.md) | Quick answers |
 
 ## What this book is

@@ -131,7 +131,7 @@ Your data stays with the installation. **Hosted models still see their request i
 30. [RuView](30-ruview.md) — Experimental Wi-Fi sensing with ESP32 boards (extends chapter 8)
 31. [Pixel](31-pixel.md) — Layered image editor with masks, 80 filters, 43 generators, AI background removal and OpenRaster projects
 32. [ECalc](32-ecalc.md) — Electronics formula collection: calculators with schematics, live results and E-series values for resistors
-33. [Aura Drift](33-aura-drift.md) — Offline top-down racer with deterministic tyre physics, eight tracks, live weather, style scoring and weapons
+33. [Aura Drift](33-aura-drift.md) — Offline 3D racer with a 2D fallback: deterministic tyre physics, eight tracks and cars, seven modes, live weather, style scoring and weapons
 
 [FAQ](faq.md) · [Handbook hub](../README.md) · [Release notes: audit remediation](../../release-notes-2026-10-audit-remediation.md)
 

@@ -3492,68 +3492,74 @@ buttons and menu popovers remain excluded from those gestures.
   inactive and restarts at most one loop on visibility/focus return. Gallery
   errors use translated messages; Detective renders invalid URLs as text.
 
-- `aura-drift-*.js` implements Aura Drift, a first-party offline top-down racer.
-  Load order is defined under the `aura-drift` entry: core, physics, track, style,
-  conditions, race, cars, scenery, render, post, hud, audio, music, ui, then
-  `aura-drift.js` (which exposes
-  `window.AuraDriftApp = { render, dispose, stats }`). Shared state lives on
-  `window.AuraDriftCore`. The simulation runs at a fixed 120 Hz via
-  `AD.createScheduler` with a five-substep clamp; `AD.stepRace` uses only the
-  seeded PRNG, so input tapes replay bit-identically at 30/60/144 render FPS.
-  Road markings (curbs, dashed centre line, worn racing-line bands, checkered
-  start/finish) are world-anchored: dash patterns scale with the camera zoom
-  (about 1 px = 0.14-0.19 m) and never animate with frame time, and skid decals
-  paint over the road surface. Braking fades out at standstill instead of
-  chattering the slip-angle sign (the old sign-gated brake force made steering
-  feel randomly inverted at crawl speed); holding the brake engages a bounded
-  reverse after a short beat and the player's steering input flips while rolling
-  backwards, so the keys always rotate the car nose as printed. Nitro is a
-  deterministic vehicle resource: drifting refills it, boost spends it, and the
-  AI only spends it on clean straights. Tracks are closed Catmull-Rom splines
-  with a 64 m spatial grid and 320 m procedurally generated chunk canvases
-  capped per quality tier. Car art lives in `aura-drift-cars.js` (pre-rendered
-  silhouettes per class, steered wheels, lights, damage) and trackside dressing in
-  `aura-drift-scenery.js` (grandstands, hoardings, tyre walls, marshal posts,
-  braking boards, biome set pieces); the renderer only composes them. The world is
-  Canvas 2D; `aura-drift-post.js` adds a
-  WebGL2 High/Ultra fullscreen pass (bloom, speed streaks, wet reflections,
-  heat shimmer, lens rain, grade, impact aberration, grain) with NaN-guarded shader math, context-loss
-  handling, disposal and a Canvas 2D fallback. Web Audio is synthesized with
-  separate music/SFX/engine buses into a master compressor; engine stack, gear
-  shifts, backfires, turbo, blow-off, tyre slip squeal, per-surface layers and wind react to
-  vehicle state, rival engines are spatialised with distance gain, low-pass and Doppler
-  shift, everything feeds a generated venue reverb, and each biome drives its own scale, tempo,
-  drum pattern and ambience bed for the adaptive
-  kick/bass/arp/pad scheduler.
-  AI uses grip/corridor-aware corner speeds, a bounded disclosed 6% catch-up,
-  an overtaking line around a rival ahead, handbrake slides where grip allows,
-  reverse recovery and a deterministic marshal respawn. `aura-drift-style.js` scores
-  drift chains (linked inside a short window, multiplied up to x8, banked on a clean
-  exit), near misses and drift zones; `aura-drift-conditions.js` runs the seeded
-  weather schedule that changes grip for every driver and drives both the look and the
-  ambience. One RAF per window,
-  `isActive` gating, focus-loss pause with released input, reduced motion,
-  read-only Desktop (no settings/best writes), keyboard focus and screen-reader
-  affordances, and full disposal of listeners, RAF, AudioContext, WebGL
-  resources, caches and observers. Visible strings use `aura_drift.*` plus
-  `desktop.app_aura_drift` in all sixteen `ui/lang/desktop/*.json` files.
-  All DOM classes use the `agdrift-` prefix: the original `ad-` prefix was hidden
-  by AdGuard/EasyList `[class^="ad-"]` rules, leaving a running but invisible app
-  with no console error. Never reintroduce a prefix containing `ad`; verify
-  `TestAuraDriftAvoidsAdBlockerClassPrefix` and
-  `TestDesktopAuraDriftAdBlockerBrowser` (which injects a real blocker rule).
-  A partially loaded module set is also handled: the shell checks required
-  factories before boot, shows a translated `aura_drift.load_error_hint` panel
-  with missing file names when one is absent, and degrades the optional WebGL2
-  post pass to a no-op so Canvas 2D stays playable (`post.degraded` in stats).
-  `TestDesktopAuraDriftStaleLoaderBrowser` covers both cases by serving a loader
-  with one script removed. `window.AuraDriftApp.stats()` is a read-only
-  per-window diagnostic used by the `TestDesktopAuraDrift*Browser` checks
-  (drive/dispose, five-case quality matrix, night-harbour wet pass, stale loader,
-  ad blocker; `AURAGO_RUN_BROWSER_SMOKE=1`).
-  Verify
-  `TestAuraDrift*`, `node scripts/test-aura-drift-{physics,tracks,balance}.mjs`;
-  see `documentation/aura-drift.md`.
+- `aura-drift-*.js` implements Aura Drift, a first-party offline Virtual Desktop racer:
+  a three.js 3D view (default) with a Canvas 2D fallback. The `aura-drift` entry in
+  `js/desktop/core/module-loader.js` loads `vendor/aura-drift/three-runtime.js` (three.js
+  0.186.1 IIFE) first, then 37 app modules: core, physics, track, style, conditions, tricks,
+  features, weapons, projectiles, modes, ai, race, banter, camera, look, assets, cars, scenery,
+  render, terrain, road, sky, props, actors, carlight, fx, post, render3d, hud, hud-fx,
+  audio-bank, engine, audio, music, ui, ui-cards, and last `aura-drift.js`, which exposes
+  `window.AuraDriftApp = { render, dispose, stats }`. Shared state lives on
+  `window.AuraDriftCore` (`CARS` 8, `DRIVERS` 8, `WEAPONS` 18, `TRICKS` 16, `MODES` 7,
+  `QUALITY` tiers, `CAMERA_MODES` chase, high, drone, bumper, `CAR_VIEW` body heights).
+- Simulation: fixed 120 Hz via `AD.createScheduler` with a five-substep clamp. Only the seeded
+  PRNG (`race.rng`, features rng) drives `AD.stepRace`, so input tapes replay identically at
+  30, 60 and 144 render FPS. Presentation never writes simulation state; the ghost runs with
+  `race.muteEvents` so it makes no sound or events. Physics, tricks and style never read the
+  clock or `Math.random`.
+- Steering contract: the chase camera rotates with the car heading, so holding right moves the
+  car right on screen in every mode. The 2D fallback rotates the world (`AD.screenRotation`).
+  The earlier fault was a fixed north-up camera, not the physics. Guard:
+  `scripts/test-aura-drift-camera.mjs`. The browser steering test in plan section 5.2 is not
+  written yet.
+- 3D: `aura-drift-render3d.js` owns the renderer and requires WebGL2. On `auto`, a software GL
+  renderer (SwiftShader, llvmpipe, software) returns to the 2D view; an explicit tier still
+  accepts it. `webglcontextlost` switches the window to 2D. Models are the 20 GLBs in
+  `ui/3d/aura-drift/v1` (generated by `assets/aura-drift`, manifest-pinned); no textures,
+  no external URL. Tall cars raise the chase camera from `AD.CAR_VIEW` heights.
+- Audio: `aura-drift-audio-bank.js` plays the Ogg pack under `ui/3d/aura-drift/audio`
+  (priority loading, sfx variants, four-layer engines per car, three-stem biome music) and
+  falls back to the live Web Audio synthesis in `aura-drift-engine.js` and `aura-drift-music.js` when a
+  sample is missing or fails. Every file is own synthesis; `assets/aura-drift/audio/sources.json`
+  is an empty CC0 override hook (no downloads).
+- Road markings (curbs, dashed centre line, worn racing-line bands, checkered start/finish)
+  are world-anchored: dash patterns scale with the camera zoom and never animate with frame
+  time. Braking fades out at standstill; a held brake engages a bounded reverse, and steering
+  is the same forward and in reverse. Nitro is deterministic: drifting refills it, boost
+  spends it, and the AI only spends it on clean straights.
+- Tracks are closed Catmull-Rom splines with a 64 m spatial grid and 320 m chunk canvases
+  (2D) or chunk geometry (3D) capped per quality tier.
+- AI uses grip- and corridor-aware corner speeds, a bounded and disclosed 6% catch-up, an
+  overtaking line, handbrake slides where grip allows, reverse recovery and a deterministic
+  marshal respawn. `aura-drift-style.js` scores drift chains (multiplied up to x8, banked on
+  exit), near misses and drift zones; `aura-drift-conditions.js` runs the seeded weather
+  schedule, which changes grip for every driver equally.
+- Modes live in `aura-drift-modes.js`: quick, cup and daily run a 45 s sweeper after the first
+  finisher; elimination removes the last place at 45 s, then every 30 s; hot potato passes a
+  bomb by contact (5 s start, 3 s gap, fuse 15 s shrinking to 10 s, 16 m blast). Drift Attack
+  medals are 10 000, 22 000 and 40 000.
+- Weapons and tricks are simulation state, with timers and counters only. Time trial refuses
+  rescue (`T`) and weapons.
+- One RAF per window, `isActive` gating, focus-loss pause with released input, reduced motion,
+  read-only Desktop (no settings/best writes), keyboard focus and screen-reader affordances, and
+  full disposal of listeners, RAF, AudioContext, WebGL resources, caches and observers. Visible
+  strings use `aura_drift.*` plus `desktop.app_aura_drift` in all sixteen `ui/lang/desktop/*.json`
+  files; English is the reference, and every value needs a non-empty translation with no U+FFFD.
+- All DOM classes use the `agdrift-` prefix: the original `ad-` prefix was hidden by
+  AdGuard/EasyList `[class^="ad-"]` rules, leaving a running but invisible app with no console
+  error. Never reintroduce a prefix containing `ad`; verify
+  `TestAuraDriftAvoidsAdBlockerClassPrefix` (covers every `aura-drift-*.js`, including
+  `aura-drift-ui-cards.js`) and `TestDesktopAuraDriftAdBlockerBrowser` (which injects a real
+  blocker rule).
+- A partially loaded module set is handled: the shell checks required factories before boot,
+  shows a translated `aura_drift.load_error_hint` panel with the missing file names, and degrades
+  the optional WebGL2 post pass to a no-op (`post.degraded` in stats). `TestDesktopAuraDriftStaleLoaderBrowser`
+  covers both cases. `window.AuraDriftApp.stats()` is a read-only per-window diagnostic.
+- Verify `TestAuraDrift*` and the browser checks `TestDesktopAuraDrift*Browser`
+  (`AURAGO_RUN_BROWSER_SMOKE=1`), plus the Node checks listed in `documentation/aura-drift.md`
+  (physics, tracks, balance, tricks, features, weapons, modes, camera, world, props, banter,
+  assets, audio). The survey `TestAuraDriftSurveyBrowser` is opt-in (`AURAGO_AURA_DRIFT_SURVEY=1`).
+  The technical guide is `documentation/aura-drift.md`.
 - `galaxa-*.js` implements Galaxa Deluxe, a modular Canvas 2D arcade shooter
   with procedural audio, biomed progression, parry/super combat, and persistent
   meta-progression.

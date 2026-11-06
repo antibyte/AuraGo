@@ -27,17 +27,20 @@ New app-scoped prefixes must contain no `ad` substring; verify
 
 ## Ownership
 
-- Aura Drift (`aura-drift`, category `games`) is a first-party offline top-down racer.
-  Its fifteen lazy-loaded modules (including the WebGL2 post pass), stylesheet, icon and
+- Aura Drift (`aura-drift`, category `games`) is a first-party offline Virtual Desktop racer
+  with a three.js 3D view (default) and a Canvas 2D fallback. Its three.js runtime
+  (`js/vendor/aura-drift/`, three.js 0.186.1), 37 lazy-loaded app modules, stylesheet, icon and
   `aura_drift.*` keys in all sixteen `lang/desktop/*.json` bundles are owned by
-  `js/desktop/apps/AGENTS.md`; the catalog entry belongs to
-  `../internal/desktop/AGENTS.md`; the technical guide is
-  `../documentation/aura-drift.md` and the roadmap
-  `../plans/2026-11-04-aura-drift-racing-plan.md`.
+  `js/desktop/apps/AGENTS.md`. The 3D models and sound pack are owned by
+  `../ui/3d/aura-drift/` (payload) and `../assets/aura-drift/` (model kit and audio sources).
+  The catalog entry belongs to `../internal/desktop/AGENTS.md`; the technical guide is
+  `../documentation/aura-drift.md`; the superseded top-down plan is
+  `../plans/2026-11-04-aura-drift-racing-plan.md`, and the 3D overhaul is
+  `../plans/2026-11-06-aura-drift-3d-overhaul.md`.
   It ships no external resources, no backend and no config switch. Keep
-  `TestAuraDrift*`, `TestDesktopAuraDrift*Browser` and
-  `node scripts/test-aura-drift-{physics,tracks,balance}.mjs` green; regenerate
-  `js/desktop/bundles/main.bundle.js` whenever the shell registration changes.
+  `TestAuraDrift*`, `TestDesktopAuraDrift*Browser` and the `node scripts/test-aura-drift-*.mjs`
+  checks green; regenerate `js/desktop/bundles/main.bundle.js` whenever the shell registration
+  changes.
 
 - AgentMail exposes default-off `allow_delete` separately from readonly. Connection
   tests render only translated fixed error codes, with all sixteen email/AgentMail

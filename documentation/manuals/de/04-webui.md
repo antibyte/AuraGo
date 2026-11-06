@@ -264,7 +264,7 @@ Der Virtual Desktop öffnet Workspace-basierte Apps direkt im AuraGo-Browser-Des
 | **Cheater** | Cheat-Sheet-Verwaltung mit Markdown und Anhängen |
 | **Calculator / Settings / System Info / Log Viewer** | Rechner, Desktop-Einstellungen, Systemdiagnose und Live-Logtail |
 | **ECalc** | Elektronik-Formelsammlung: interaktive Rechner mit Schaltplänen, gesetzten Formeln und Live-Ergebnissen, dazu E-Reihen-Werte für Widerstände. Läuft im Browser und braucht keine Einrichtung ([Kapitel 32](32-ecalc.md)) |
-| **Aura Drift** | Offline-Top-Down-Rennen mit deterministischer Reifenphysik, sechs großen Strecken, synthetisiertem Sound und optionalen Waffen ([Kapitel 33](33-aura-drift.md)) |
+| **Aura Drift** | Offline-3D-Rennspiel mit 2D-Ersatzansicht: deterministische Reifenphysik, acht Strecken und Autos, sieben Modi, synthetisierter Sound und optionale Waffen ([Kapitel 33](33-aura-drift.md)) |
 | **Storymaker** | Erklärvideos: Szenen mit Comicfiguren, Requisiten und Umgebungen inszenieren, den Sprechtext schreiben, die Vorschau ansehen und ein stummes MP4 exportieren (der Export braucht FFmpeg und einen Browser), siehe [Storymaker](../../storymaker.md) |
 | **Galaxa Deluxe / Chess / NASSCAD / Systemwelt** | Arcade-Spiel, Schach (mit Agent-Gegner), Docking-Spiel und begehbare 3D-Systemstadt mit Robotern, Telemetrie und Turm-Stimme |
 | **Newspaper** | Persönliche Tageszeitung: serverseitige Recherche mit geprüften Quellen, Ressorts, Archiv aller Ausgaben und optionaler E-Mail-/Telegram-Zustellung |

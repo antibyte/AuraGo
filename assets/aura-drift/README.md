@@ -137,3 +137,13 @@ and 370 KB (bytes follow the *unique* triangles, roughly 50 bytes each, so reuse
 `render_previews` lives in `kit/export.py`: EEVEE, gradient golden-hour world (reflections give the paint its
 gloss), a warm key sun, cool fill, rim, a cream ground with soft shadows, livery tint. Add views with
 `(name, azimuth, elevation, fill)`; azimuth 0 is in front of the nose, 90 the right side, 180 behind.
+
+## Pack and status
+
+- `ui/3d/aura-drift/v1/` holds 20 GLBs (eight cars, `items`, `track`, `animals`, `shared`, eight
+  biome scenery kits): 6 938 976 bytes (6.6 MiB) in total. `manifest.json` records each file's size,
+  hash and car measurements, and `LICENSE.txt` the licence.
+- The sound pack is generated from `scripts/build-aura-drift-audio.mjs` into `ui/3d/aura-drift/audio/`;
+  see [`audio/README.md`](audio/README.md). Every file is own synthesis; nothing is downloaded.
+- Visual acceptance on a real screen is still pending. Use the survey and the dev harness
+  (`node scripts/aura-drift-dev-server.mjs`, then `/harness`) described in `documentation/aura-drift.md`.

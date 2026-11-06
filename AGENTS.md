@@ -188,6 +188,7 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 | Game Maker presentation | `assets/game-maker-presentation/AGENTS.md` | Effects/audio sources, licensing, builds, runtime limits. |
 | Game Maker worlds | `assets/game-maker-worlds/AGENTS.md` | Maritime/isometric Blender sources, catalog counts, exports, runtime limits. |
 | AuraGolf | `assets/minigolf/kit/AGENTS.md` | Procedural Blender tracks/courses/props, exports, collisions. |
+| Aura Drift assets | `assets/aura-drift/AGENTS.md` | Deterministic Blender model kit (20 GLBs in `ui/3d/aura-drift/v1`), own-synthesis audio generator and CC0 override hook. |
 | Tiefsee screensaver | `assets/screensaver-abyss/AGENTS.md` | Creature generator, deterministic exports, asset checks. |
 | System World assets | `assets/system-world/AGENTS.md` | Blender city authoring/original sources/reproducible compact exports. |
 | Memory repair CLI | `cmd/memory-repair/AGENTS.md` | Offline analysis duplicate merging, previews/evidence/backups, resumable reference/vector cleanup. |
@@ -218,7 +219,7 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 | EasyDrag | `internal/flows/AGENTS.md`, `internal/server/AGENTS.md`, `ui/AGENTS.md`, `ui/js/desktop/apps/AGENTS.md` | Flow authoring, execution, approval/session authority, Desktop UI and Decisions media authorization. |
 | Fritz!Box | `internal/fritzbox/AGENTS.md` | TR-064 integration/Desktop widget. |
 | Game Maker | `internal/gamemaker/AGENTS.md` | Studio/planning/runtime feedback/progression/lifecycle/tool validation/sprite library/exports; owns asset-pack child index. |
-| Aura Drift | `ui/js/desktop/apps/AGENTS.md`, `ui/AGENTS.md`, `internal/desktop/AGENTS.md`, `documentation/aura-drift.md`, `plans/2026-11-04-aura-drift-racing-plan.md` | Offline top-down Virtual Desktop racer: deterministic 120 Hz bicycle physics, eight spline tracks with chunk streaming, Canvas 2D world plus WebGL2 High/Ultra post-processing, procedural Web Audio with spatialised rivals and per-biome score, six counterable weapons, drift-chain style scoring, seeded weather, bounded disclosed AI catch-up, sixteen locales; verify `TestAuraDrift*`, `TestDesktopAuraDrift*Browser` and the three `scripts/test-aura-drift-*.mjs` checks. |
+| Aura Drift | `ui/js/desktop/apps/AGENTS.md`, `ui/AGENTS.md`, `internal/desktop/AGENTS.md`, `assets/aura-drift/AGENTS.md`, `documentation/aura-drift.md`, `plans/2026-11-06-aura-drift-3d-overhaul.md` | Offline Virtual Desktop racer: three.js 3D view (default, WebGL2 required, Canvas 2D fallback) with Blender models, deterministic 120 Hz bicycle physics, eight spline tracks, seven modes, eight cars, 18 weapons, 16 tricks, own-synthesis Ogg sound pack with live fallbacks, drift-chain style scoring, seeded weather, sixteen locales; verify `TestAuraDrift*`, `TestDesktopAuraDrift*Browser` and the `scripts/test-aura-drift-*.mjs` checks. |
 | HTTP streams | `internal/httpstream/AGENTS.md` | Finite write budgets/HTTP writer compatibility. |
 | Infra | `internal/infra/AGENTS.md` | Homelab atlas/source identity/layout/durable action outcomes. |
 | FindIt | `internal/findit/AGENTS.md`, `assets/findit/AGENTS.md` | Physical inventory, typed templates, stock/project reservations, CSV, photos, QR labels, read-only agent access and Desktop integration. |
