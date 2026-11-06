@@ -378,6 +378,7 @@ func buildToolFlagsFromConfig(cfg *config.Config) ToolFeatureFlags {
 		LayerlingEnabled:           cfg.VirtualDesktop.Enabled && cfg.VirtualDesktop.Layerling.Enabled && cfg.VirtualDesktop.AllowAgentControl && cfg.Tools.VirtualDesktop.Enabled && (cfg.VirtualDesktop.Layerling.AgentAccess == "read" || cfg.VirtualDesktop.Layerling.AgentAccess == "write"),
 		LocalWikipediaEnabled:      cfg.LocalWikipedia.Enabled && cfg.LocalWikipedia.AgentAccess,
 		RetroGamesEnabled:          cfg.RetroGames.Enabled && cfg.RetroGames.AgentAccess,
+		StorymakerEnabled:          cfg.Storymaker.Enabled && cfg.Storymaker.Agent.Enabled && cfg.VirtualDesktop.Enabled,
 		FindItEnabled:              cfg.FindIt.Enabled && cfg.FindIt.AgentAccess && cfg.VirtualDesktop.Enabled,
 		ThreeDPrinterEnabled:       cfg.ThreeDPrinters.Enabled,
 		OllamaEnabled:              cfg.Ollama.Enabled,
@@ -521,6 +522,8 @@ func resolveToolFeatureState(runCfg RunConfig, policy ToolingPolicy) resolvedToo
 	toolFlags.LocalWikipediaEnabled = toolFlags.LocalWikipediaEnabled && tools.LocalWikipediaAvailable()
 	// The tool exists only while the server publishes an enabled service.
 	toolFlags.RetroGamesEnabled = toolFlags.RetroGamesEnabled && tools.RetroGamesAvailable()
+	// The tool exists only while the server publishes an available facade.
+	toolFlags.StorymakerEnabled = toolFlags.StorymakerEnabled && storymakerChatToolAvailable()
 	toolFlags.FindItEnabled = toolFlags.FindItEnabled && tools.FindItAvailable()
 	// The tool exists only while a linked device runs and the owner can be reached; it is also
 	// a notification channel, so a WhatsApp-only setup still offers send_notification.
@@ -585,6 +588,7 @@ func buildPromptContextFlags(runCfg RunConfig, policy ToolingPolicy, opts prompt
 		LayerlingEnabled:         flags.LayerlingEnabled,
 		LocalWikipediaEnabled:    flags.LocalWikipediaEnabled,
 		RetroGamesEnabled:        flags.RetroGamesEnabled,
+		StorymakerEnabled:        flags.StorymakerEnabled,
 		ThreeDPrinterEnabled:     flags.ThreeDPrinterEnabled,
 		OllamaEnabled:            flags.OllamaEnabled,
 		TailscaleEnabled:         flags.TailscaleEnabled,

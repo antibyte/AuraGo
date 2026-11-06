@@ -193,6 +193,10 @@ func a2aDesktopWrite(tc ToolCall) bool {
 		// search, describe, calculate, table, pinout, decode and encode are pure computation on the embedded catalog; open
 		// puts a window on the owner's desktop. An empty or unknown operation fails closed like the desktop tools.
 		return !oneOf(tc.Operation, "search", "describe", "calculate", "table", "pinout", "decode", "encode")
+	case "storymaker":
+		// status and list only read. create, revise, render and open change the owner's desktop or start
+		// paid jobs. An empty or unknown operation fails closed like the desktop tools.
+		return !oneOf(tc.Operation, "status", "list")
 	case "virtual_desktop_app_install":
 		return true // The dispatcher forces the operation to install_app.
 	case "virtual_desktop", "virtual_desktop_files", "virtual_desktop_apps", "virtual_desktop_widgets":

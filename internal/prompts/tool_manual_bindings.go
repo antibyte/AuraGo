@@ -11,7 +11,7 @@ import (
 // manuals before cutting to k while the manual cannot be used (the tool is
 // disabled or its guide is skipped), so the results are exactly those of an
 // index without these manuals.
-var NonDisplacingTools = []string{"local_wikipedia", "retro_games"}
+var NonDisplacingTools = []string{"local_wikipedia", "retro_games", "storymaker"}
 
 // IsNonDisplacingManual reports whether a manual ID (as ToolManualID returns
 // it, or a manual file name without ".md") belongs to a NonDisplacingTools tool.
@@ -31,6 +31,8 @@ func nonDisplacingToolEnabled(manual string, flags *ContextFlags) bool {
 		return flags.LocalWikipediaEnabled
 	case ToolManualID("retro_games"):
 		return flags.RetroGamesEnabled
+	case ToolManualID("storymaker"):
+		return flags.StorymakerEnabled
 	}
 	return true
 }

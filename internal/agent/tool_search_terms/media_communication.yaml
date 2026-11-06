@@ -110,6 +110,9 @@ send_whatsapp:
 send_youtube_video:
   en: ["send YouTube video", "play YouTube in chat", "YouTube link", "embed YouTube", "share YouTube video", "YouTube player", "show YouTube Short", "YouTube start at timestamp"]
   de: ["YouTube Video senden", "YouTube im Chat abspielen", "YouTube Link teilen", "YouTube einbetten", "YouTube Short zeigen", "YouTube ab Minute", "Video von YouTube zeigen"]
+storymaker:
+  en: ["explainer video", "make an explainer video", "animated explainer film", "Storymaker project", "export explainer video", "revise explainer video"]
+  de: ["Erklärvideo", "Erklärvideo erstellen", "Erklärfilm", "Storymaker Projekt", "Erklärvideo exportieren", "Erklärvideo überarbeiten"]
 telnyx_call:
   en: ["phone call", "make a call", "Telnyx call", "call a number", "voice call with TTS", "hang up call", "transfer call", "record phone call"]
   de: ["anrufen", "Telefonanruf", "Telnyx Anruf", "Nummer anrufen", "Anruf mit Sprachausgabe", "Anruf weiterleiten", "Anruf aufzeichnen", "auflegen"]

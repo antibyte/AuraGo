@@ -142,6 +142,7 @@ type ToolFeatureFlags struct {
 	LayerlingEnabled        bool
 	LocalWikipediaEnabled   bool
 	RetroGamesEnabled       bool
+	StorymakerEnabled       bool
 	FindItEnabled           bool
 	ThreeDPrinterEnabled    bool
 	OllamaEnabled           bool

@@ -712,6 +712,9 @@ func adaptiveAdditiveToolsForQuery(userQuery string) []string {
 	if isRetroGamesIntent(normalized) {
 		out = append(out, "retro_games")
 	}
+	if isStorymakerIntent(normalized) {
+		out = append(out, "storymaker")
+	}
 	return out
 }
 
@@ -727,6 +730,24 @@ func isRetroGamesIntent(normalizedQuery string) bool {
 		"retro spiel", "retrospiel", "retro game", "retrogame", "arcade", "spielhalle",
 		"old game", "classic game", "alte spiele", "altes spiel", "spieleklassiker", "klassiker spiel",
 		"dos game", "dos spiel", "c64", "commodore", "amiga", "atari", "zx spectrum", "mega drive", "megadrive",
+	} {
+		if strings.Contains(padded, " "+term) {
+			return true
+		}
+	}
+	return false
+}
+
+// isStorymakerIntent offers the storymaker tool when the user asks for an
+// explainer video. normalizeAdaptiveIntentText turns an umlaut into a space, so
+// "Erklärvideo" arrives as "erkl rvideo" and the ASCII "Erklarvideo" as "erklarvideo". A term matches only at the start of a
+// word. A bare "video" is not a term: other tools generate and download videos.
+func isStorymakerIntent(normalizedQuery string) bool {
+	padded := " " + normalizedQuery
+	for _, term := range []string{
+		"erkl rvideo", "erklaervideo", "erklarvideo", "erkl rfilm", "erklaerfilm", "erklarfilm",
+		"explainer video", "explainer film", "explainer clip", "explainer movie",
+		"storymaker", "story maker",
 	} {
 		if strings.Contains(padded, " "+term) {
 			return true

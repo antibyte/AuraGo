@@ -228,6 +228,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"media_registry", "Manage and search local media files"},
 		{"jellyfin", "Control Jellyfin media server (libraries, playback, users)"},
 		{"retro_games", "Search archive.org retro games and open one in the Retro Games desktop app"},
+		{"storymaker", "Create explainer videos from a topic in the Storymaker desktop app, check the job, revise the story, export an MP4 or open the project"},
 	},
 	"smart_home": {
 		{"home_assistant", "Control Home Assistant devices (lights, switches, sensors, etc.)"},
