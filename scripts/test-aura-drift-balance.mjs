@@ -4,25 +4,9 @@
  * finishable, lap times are plausible, wall contact stays bounded and weapons
  * actually enter play. No browser, clock or randomness outside the seeded PRNG.
  */
-import { readFileSync } from 'node:fs';
-import vm from 'node:vm';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { loadSim } from './aura-drift-sim-loader.mjs';
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const sandbox = { window: {}, console };
-vm.createContext(sandbox);
-for (const file of [
-    'ui/js/desktop/apps/aura-drift-core.js',
-    'ui/js/desktop/apps/aura-drift-physics.js',
-    'ui/js/desktop/apps/aura-drift-style.js',
-    'ui/js/desktop/apps/aura-drift-conditions.js',
-    'ui/js/desktop/apps/aura-drift-track.js',
-    'ui/js/desktop/apps/aura-drift-race.js'
-]) {
-    vm.runInContext(readFileSync(path.join(root, file), 'utf8'), sandbox, { filename: file });
-}
-const AD = sandbox.window.AuraDriftCore;
+const AD = loadSim();
 const failures = [];
 function check(name, condition, detail) {
     if (condition) console.log('  ok  ' + name);

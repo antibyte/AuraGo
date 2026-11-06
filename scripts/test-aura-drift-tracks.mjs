@@ -1,22 +1,9 @@
 /* Aura Drift - track layout, validation, streaming data and surface checks.
  * Run: node scripts/test-aura-drift-tracks.mjs
  */
-import { readFileSync } from 'node:fs';
-import vm from 'node:vm';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { loadSim } from './aura-drift-sim-loader.mjs';
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const sandbox = { window: {}, console };
-vm.createContext(sandbox);
-for (const file of [
-    'ui/js/desktop/apps/aura-drift-core.js',
-    'ui/js/desktop/apps/aura-drift-style.js',
-    'ui/js/desktop/apps/aura-drift-track.js'
-]) {
-    vm.runInContext(readFileSync(path.join(root, file), 'utf8'), sandbox, { filename: file });
-}
-const AD = sandbox.window.AuraDriftCore;
+const AD = loadSim();
 const failures = [];
 function check(name, condition, detail) {
     if (condition) console.log('  ok  ' + name);
@@ -81,6 +68,28 @@ for (let seed = 1; seed <= 20; seed++) {
     if (!result.ok) { dailyOk = false; dailyReasons.push(seed + ': ' + result.reasons.join('; ')); }
 }
 check('twenty generated daily routes are drivable', dailyOk, dailyReasons.slice(0, 3).join(' | '));
+
+let dailyWindows = [];
+for (let seed = 1; seed <= 20; seed++) {
+    const manifest = AD.dailyTrack(seed * 7919);
+    const track = AD.buildTrack(manifest, manifest.seed);
+    if (!AD.straightWindows(track, 330).length) dailyWindows.push(seed);
+}
+check('twenty generated daily routes have a straight window', dailyWindows.length === 0, dailyWindows.join(','));
+
+/* Crates sit in six rows of three, and every layout has straights long
+   enough for ramps and pads (T1.3 places them on these windows). */
+let crateOk = true, windowReasons = [];
+for (const track of built) {
+    const rows = new Set(track.pads.map(p => p.row));
+    if (track.pads.length !== 18 || rows.size !== 6) crateOk = false;
+}
+check('every layout has 18 crates in 6 rows', crateOk);
+for (const track of built) {
+    if (!AD.straightWindows(track, 330).length) windowReasons.push(track.id);
+}
+check('every authored track has a straight window of 330 m', windowReasons.length === 0, windowReasons.join(','));
+check('curvature is stored per sample', built.every(t => Object.prototype.toString.call(t.curvature) === '[object Float32Array]' && t.curvature.length === t.samples.length));
 
 const wet = AD.surfaceAt(built[2], 0, 0, { halfWidth: 10 });
 check('harbour uses a low-grip wet surface', wet.grip < 0.8, 'grip=' + wet.grip);

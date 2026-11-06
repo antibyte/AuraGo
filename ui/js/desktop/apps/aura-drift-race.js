@@ -1,8 +1,10 @@
-/* Aura Drift - race state machine, opponents, weapons and deterministic replay. */
+/* Aura Drift - race state machine, grid, progress and deterministic replay (section 2.1). */
 (function () {
     'use strict';
     const AD = window.AuraDriftCore;
     const clamp = AD.clamp;
+    const TAPE_CAP = 72000;      /* 10 minutes of fixed steps */
+    const LOOSE = { gravel: true, sand: true, mud: true, snow: true };
 
     function startGrid(track, count) {
         const grid = [];
@@ -18,193 +20,134 @@
         return grid;
     }
 
+    function newTally() {
+        return {
+            wallHits: 0, brakeSeconds: 0, airTime: 0, drifts: 0, driftSeconds: 0, reverseSeconds: 0,
+            tricks: 0, crashLandings: 0, perfectLandings: 0, animalHits: 0, smashed: 0, weaponsFired: 0,
+            hitsDealt: 0, hitsTaken: 0, sausageHits: 0, discoFired: 0, carHits: 0, respawns: 0
+        };
+    }
+
+    function makeCar(index, g, carId, driver, livery, rng, track, isPlayer) {
+        return {
+            v: AD.createVehicle(g.x, g.y, g.psi, AD.carIndex(carId)),
+            isPlayer: isPlayer, index: index,
+            input: AD.createInput(),
+            driver: driver, livery: livery,
+            lap: 0, gate: 0, started: false, lastS: g.s, progress: g.s,
+            lapStart: 0, bestLap: Infinity, lastLap: 0,
+            sector: 0, sectorStart: 0, bestSectors: [Infinity, Infinity, Infinity],
+            finished: false, finishTime: 0, eliminatedAt: null,
+            weapon: null, ammo: 0, cooldown: 0, weaponLock: 0, fuel: 0, holdFire: false, fireLatch: false,
+            style: typeof AD.createStyleState === 'function' ? AD.createStyleState() : null,
+            tricks: AD.createTrickState(), tally: newTally(),
+            /* Opponent tuning comes from the driver, the lane from the race rng. */
+            ai: {
+                aggression: driver ? driver.aggression : 1,
+                skill: driver ? driver.skill : 1,
+                drift: driver ? driver.drift : 0.5,
+                lane: (rng() - 0.5) * track.width * 0.3,
+                fireTimer: 3 + rng() * 5,
+                stuckTime: 0, recover: 0, respawns: 0, catchup: false
+            },
+            tape: [], ghost: null
+        };
+    }
+
+    /* options: { track, mode, seed, laps, opponents, weapons, ghostTape, ghostCar,
+                  showGhost, readonly, playerCar, livery } */
     AD.createRace = function (options) {
         const track = options.track;
         const seed = (options.seed === undefined ? track.seed : options.seed) >>> 0;
         const rng = AD.rng(seed);
-        const count = 1 + clamp(options.opponents === undefined ? 3 : options.opponents, 0, 3);
+        const modeId = options.mode || 'quick';
+        const rules = AD.modeRules(modeId);
+        const opponents = clamp(Math.floor(options.opponents === undefined ? rules.opponents : options.opponents), 0, 5);
+        const weaponsOn = options.weapons !== false && rules.weapons !== false;
+        const playerCar = AD.carById(options.playerCar || 'vektor').id;
+        const drivers = AD.driverField(playerCar, opponents, rng);
+        const count = opponents + 1;
         const grid = startGrid(track, count);
-        const cars = [];
-        for (let i = 0; i < count; i++) {
-            const g = grid[i];
-            cars.push({
-                v: AD.createVehicle(g.x, g.y, g.psi, i),
-                isPlayer: i === 0, index: i,
-                input: AD.createInput(),
-                lap: 0, gate: 0, started: false, lastS: g.s, progress: g.s,
-                lapStart: 0, bestLap: Infinity, lastLap: 0,
-                sector: 0, sectorStart: 0, bestSectors: [Infinity, Infinity, Infinity],
-                finished: false, finishTime: 0,
-                weapon: null, ammo: 0, cooldown: 0,
-                style: typeof AD.createStyleState === 'function' ? AD.createStyleState() : null,
-                ai: {
-                    aggression: 0.82 + rng() * 0.3,
-                    skill: 0.88 + rng() * 0.12,
-                    lane: (rng() - 0.5) * track.width * 0.3,
-                    fireTimer: 3 + rng() * 5,
-                    stuckTime: 0, recover: 0, respawns: 0, catchup: false
-                },
-                tape: [], ghost: null
-            });
+
+        /* The player starts from the back of the first rows, so most races open with overtakes. */
+        const playerSlot = Math.min(4, opponents);
+        const others = [];
+        for (let i = 0; i < count; i++) if (i !== playerSlot) others.push(i);
+        const cars = [makeCar(0, grid[playerSlot], playerCar, null, options.livery | 0, rng, track, true)];
+        for (let i = 0; i < opponents; i++) {
+            cars.push(makeCar(i + 1, grid[others[i]], drivers[i].carId, drivers[i], Math.floor(rng() * 4), rng, track, false));
         }
-        const pickups = track.pads.map((pad, i) => {
-            const p = AD.pointAt(track, pad.s);
-            return {
-                x: p.x + p.nx * pad.offset, y: p.y + p.ny * pad.offset,
-                s: pad.s, taken: -99, index: i
-            };
-        });
+
+        const laps = typeof rules.laps === 'number' ? rules.laps : (options.laps || track.laps);
+        const featureRules = Object.assign({}, rules, { crates: rules.crates && weaponsOn });
+        const features = AD.createFeatures(track, seed, featureRules);
 
         const race = {
-            track: track, mode: options.mode || 'quick', seed: seed, rng: rng,
-            weapons: options.weapons !== false,
-            laps: options.laps || track.laps,
-            cars: cars, pickups: pickups,
-            hazards: [], projectiles: [], events: [],
+            track: track, mode: modeId, seed: seed, rng: rng, rules: rules,
+            weapons: weaponsOn,
+            laps: laps, totalLaps: laps,
+            cars: cars, drivers: drivers,
+            features: features,
+            pickups: features.crates,          /* compatibility alias for the 2D renderer */
+            hazards: [], projectiles: [], beams: [], events: [],
             time: 0, state: 'countdown', countdown: 3.2,
             playerInput: AD.createInput(),
-            ghostTape: options.ghostTape || null,
-            ghost: null, ghostStep: 0,
-            bestLap: Infinity, totalLaps: options.laps || track.laps,
-            standings: [], result: null, readonly: !!options.readonly,
-            conditions: typeof AD.createConditions === 'function'
-                ? AD.createConditions(track, seed)
-                : null
+            ghostTape: null, ghost: null,
+            bestLap: Infinity, standings: [], result: null, readonly: !!options.readonly,
+            clock: null, elimination: { next: null, count: 0 },
+            bomb: { holder: -1, fuse: 0, round: 0, delay: 0, immune: -1, immuneFor: 0 },
+            nextOut: -1, muteEvents: false, tapeOverflow: false,
+            lastPosition: 0, lastWeather: 'clear',
+            conditions: typeof AD.createConditions === 'function' ? AD.createConditions(track, seed) : null
         };
 
-        if (race.ghostTape && race.ghostTape.length && options.showGhost !== false) {
-            const g = grid[0];
-            race.ghost = { v: AD.createVehicle(g.x, g.y, g.psi, 0), step: 0, active: true };
+        const tape = AD.decodeTape(options.ghostTape);
+        if (tape.length && options.showGhost !== false) {
+            const g = grid[playerSlot];
+            race.ghostTape = tape;
+            race.ghost = {
+                v: AD.createVehicle(g.x, g.y, g.psi, AD.carIndex(options.ghostCar || playerCar)),
+                step: 0, active: true, index: -1, ghost: true, isPlayer: false,
+                style: null, tricks: AD.createTrickState(), tally: null,
+                fs: AD.createFeatures(track, seed, Object.assign({}, featureRules, { crates: false }))
+            };
         }
+        AD.initMode(race);
         return race;
     };
 
-    function emit(race, type, data) {
-        race.events.push(Object.assign({ type: type, t: race.time }, data || {}));
+    /* The player's input is what the tape stores: quantised to the tape format, so a
+       ghost replaying the tape is bit-identical to the run that recorded it. */
+    function recordInput(race, car, input) {
+        const packed = AD.packInput(input);
+        if (car.tape.length < TAPE_CAP) car.tape.push(packed);
+        else race.tapeOverflow = true;
+        return AD.unpackInput(packed);
     }
 
-    function respawnCar(race, car) {
-        const v = car.v;
-        const current = AD.sampleTrack(race.track, v.x, v.y);
-        const point = AD.pointAt(race.track, current.s + 10);
-        v.x = point.x; v.y = point.y;
-        v.psi = Math.atan2(point.ty, point.tx);
-        v.vx = 10; v.vy = 0; v.r = 0;
-        v.disabled = 0; v.impact = 0.4;
-        car.lastS = current.s;
-        car.ai.stuckTime = 0;
-        car.ai.recover = 0;
-        car.ai.respawns++;
-        emit(race, 'respawn', { x: v.x, y: v.y, car: car.index });
-    }
-
-    function aiInput(race, car) {
-        const v = car.v, track = race.track;
-        const sample = AD.sampleTrack(track, v.x, v.y);
-        const speed = Math.max(0, v.vx);
-        const ahead = AD.pointAt(track, sample.s + 26 + speed * 0.85);
-        const curvature = Math.abs(ahead.tx * sample.ty - ahead.ty * sample.tx);
-        let lane = car.ai.lane * (1 - clamp(curvature * 4, 0, 0.8));
-        /* Overtaking line: a rival just ahead is worth moving around, but
-           only if there is room on one side of the corridor. */
-        for (const other of race.cars) {
-            if (other === car) continue;
-            const dx = other.v.x - v.x, dy = other.v.y - v.y;
-            const dist = Math.hypot(dx, dy);
-            if (dist > 16 || dist < 3) continue;
-            const aheadDot = (dx * Math.cos(v.psi) + dy * Math.sin(v.psi)) / Math.max(0.001, dist);
-            if (aheadDot < 0.7) continue;
-            const side = Math.sign(-dx * Math.sin(v.psi) + dy * Math.cos(v.psi)) || 1;
-            lane += side * track.width * 0.26 * (1 - dist / 16);
-        }
-        lane = clamp(lane, -track.width * 0.38, track.width * 0.38);
-        const tx = ahead.x + ahead.nx * lane, ty = ahead.y + ahead.ny * lane;
-        const wanted = Math.atan2(ty - v.y, tx - v.x);
-        const error = AD.wrapAngle(wanted - v.psi);
-        const input = car.input;
-        input.steer = clamp(error * 2.4 - v.r * 0.22, -1, 1);
-
-        /* Surface grip and corridor position cap the achievable corner speed.
-           Without this the narrow, muddy rally stage becomes a wall-scraping
-           convoy instead of a race. */
-        const surface = AD.surfaceAt(track, sample.s, sample.offset, sample);
-        const gripFactor = 0.58 + 0.42 * clamp(surface.grip, 0.2, 1.2);
-        const corridor = Math.abs(sample.offset) / Math.max(1, sample.halfWidth);
-        const corridorFactor = 1 - 0.4 * clamp((corridor - 0.55) / 0.45, 0, 1);
-        let leader = car.progress;
-        for (const other of race.cars) leader = Math.max(leader, other.progress);
-        const gap = Math.max(0, leader - car.progress);
-        /* Bounded, disclosed catch-up: at most +6% target speed, never extra grip. */
-        const catchup = 1 + clamp((gap - 150) / 900, 0, 1) * 0.06;
-        car.ai.catchup = catchup > 1.001;
-        car.ai.catchupFactor = catchup;
-
-        const cornerLimit = 18 + 62 * car.ai.aggression * (car.ai.skill || 1) /
-            Math.max(0.35, 1 + curvature * 14 + Math.abs(sample.offset) / 40);
-        const target = clamp(cornerLimit * gripFactor * corridorFactor * catchup, 10, 74);
-        input.throttle = speed < target ? 1 : 0;
-        input.brake = speed > target + 5 ? clamp((speed - target) / 14, 0, 1) : 0;
-        /* Rivals throw the car into the corner: the handbrake makes them
-           slide, which reads on screen and feeds the style score. It is only
-           safe where there is grip left - on mud or ice it would be a
-           wall-scraping convoy. */
-        input.handbrake = (curvature > 0.22 && speed > 24 && surface.grip > 0.6) ? 1 : 0;
-        /* Same nitro resource as the player: burn it on clean straights only. */
-        input.boost = (v.nitro > 0.55 && curvature < 0.02 && speed > 46) ? 1 : 0;
-        input.fire = 0;
-
-        if (corridor > 0.5) {
-            input.steer = clamp(input.steer - Math.sign(sample.offset) * clamp((corridor - 0.5) * 1.6, 0, 0.85), -1, 1);
-        }
-        /* Two-stage recovery: hold the brake so the new reverse gear backs the
-           car out straight, then let a marshal put it back on the racing line
-           if it stays pinned. This keeps weapon spins from parking an opponent
-           against a wall forever. */
-        car.ai.recover = Math.max(0, car.ai.recover - AD.STEP);
-        const pinned = speed < 4 && corridor > 0.65;
-        car.ai.stuckTime = pinned ? car.ai.stuckTime + AD.STEP : 0;
-        if (car.ai.stuckTime > 4) respawnCar(race, car);
-        else if (car.ai.stuckTime > 0.5 && car.ai.recover <= 0) {
-            car.ai.recover = 1.1;
-            car.ai.stuckTime = 0;
-        }
-        if (car.ai.recover > 0) {
-            input.throttle = 0;
-            input.brake = 1;
-            input.handbrake = 0;
-            input.fire = 0;
-            input.boost = 0;
-            input.steer = 0;
-            return input;
-        }
-        if (race.weapons && car.weapon && car.cooldown <= 0) {
-            car.ai.fireTimer -= AD.STEP;
-            if (car.ai.fireTimer <= 0) {
-                input.fire = 1;
-                car.ai.fireTimer = 4 + race.rng() * 6;
-            }
-        }
-        return input;
-    }
-
-    function environmentAt(race, v) {
+    function environmentAt(race, actor) {
+        const v = actor.v, car = v.car;
         const sample = AD.sampleTrack(race.track, v.x, v.y);
         const surface = AD.surfaceAt(race.track, sample.s, sample.offset, sample);
         let grip = surface.grip, roll = surface.roll;
+        /* Car quirks that act on the surface. */
+        if (car.quirk === 'wet_grip' && surface.type === 'wet') grip *= car.quirkK;
+        if (LOOSE[surface.type]) {
+            if (car.quirk === 'loose_grip') grip *= car.quirkK;
+            roll *= car.looseRoll;
+        }
         /* Rain and snow take the grip away in the same way for every driver. */
         if (race.conditions) grip *= race.conditions.state.grip;
-        for (const h of race.hazards) {
-            if (h.type === 'oil' && h.ttl > 0 && AD.distance(v.x, v.y, h.x, h.y) < h.r) {
-                grip = Math.min(grip, AD.SURFACES.oil.grip);
-            }
-        }
-        /* Slipstream: tucked directly behind a rival at speed. Deterministic,
-           symmetric for player and AI, no randomness. */
+        const env = { grip: grip, roll: roll, sample: sample, slipstream: 0 };
+        if (!actor.ghost) AD.applyHazardEnv(race, actor, env);
+
+        /* Slipstream: tucked directly behind a rival at speed. Deterministic and
+           symmetric for player and AI. The ghost never gets one (D4). */
         let draft = 0;
-        if (Math.max(0, v.vx) > 18) {
+        if (!actor.ghost && Math.max(0, v.vx) > 18) {
             const cos = Math.cos(v.psi), sin = Math.sin(v.psi);
             for (const other of race.cars) {
-                if (other.v === v) continue;
+                if (other.v === v || other.v.out) continue;
                 const dx = other.v.x - v.x, dy = other.v.y - v.y;
                 const dist = Math.hypot(dx, dy);
                 if (dist < 4 || dist > 20) continue;
@@ -215,134 +158,11 @@
                     draft = Math.max(draft, (1 - dist / 20) * ahead * aligned);
                 }
             }
+            if (car.quirk === 'slipstream') draft *= car.quirkK;
         }
+        env.slipstream = clamp(draft, 0, 1);
         v.surface = surface.type;
-        return { grip: grip, roll: roll, sample: sample, slipstream: clamp(draft, 0, 1) };
-    }
-
-    function fireWeapon(race, car) {
-        if (!race.weapons || !car.weapon || car.cooldown > 0 || car.ammo <= 0) return;
-        const def = AD.WEAPONS[car.weapon];
-        const v = car.v;
-        const cos = Math.cos(v.psi), sin = Math.sin(v.psi);
-        const bx = v.x - cos * 3.2, by = v.y - sin * 3.2;
-        car.cooldown = def.cooldown;
-        car.ammo--;
-        emit(race, 'weapon', { id: def.id, x: v.x, y: v.y, car: car.index });
-
-        switch (def.id) {
-            case 'oil':
-                race.hazards.push({ type: 'oil', x: bx, y: by, r: 7, ttl: 6, owner: car.index });
-                break;
-            case 'mine':
-                race.hazards.push({ type: 'mine', x: bx, y: by, r: 3.4, ttl: 9, arm: 0.45, owner: car.index });
-                break;
-            case 'emp':
-                for (const other of race.cars) {
-                    if (other === car) continue;
-                    if (AD.distance(v.x, v.y, other.v.x, other.v.y) < 30) {
-                        if (other.v.shield > 0) continue;
-                        other.v.disabled = 1.5;
-                        emit(race, 'emp_hit', { x: other.v.x, y: other.v.y });
-                    }
-                }
-                emit(race, 'emp_pulse', { x: v.x, y: v.y });
-                break;
-            case 'rocket': {
-                let target = null, best = Infinity;
-                for (const other of race.cars) {
-                    if (other === car) continue;
-                    const d = AD.distance(v.x, v.y, other.v.x, other.v.y);
-                    if (d < best) { best = d; target = other.index; }
-                }
-                race.projectiles.push({ type: 'rocket', x: v.x + cos * 3, y: v.y + sin * 3, psi: v.psi, speed: 62, ttl: 6, target: target, owner: car.index });
-                break;
-            }
-            case 'mg':
-                for (let i = -2; i <= 2; i++) {
-                    const spread = i * 0.055;
-                    race.projectiles.push({ type: 'bullet', x: v.x + cos * 3, y: v.y + sin * 3, psi: v.psi + spread, speed: 105, ttl: 0.65, owner: car.index });
-                }
-                break;
-            case 'shield':
-                v.shield = 4;
-                v.damage = Math.max(0, v.damage - 22);
-                emit(race, 'shield', { x: v.x, y: v.y });
-                break;
-        }
-        if (car.ammo <= 0) car.weapon = null;
-    }
-
-    function updateProjectiles(race, dt) {
-        for (let i = race.projectiles.length - 1; i >= 0; i--) {
-            const p = race.projectiles[i];
-            p.ttl -= dt;
-            if (p.ttl <= 0) { race.projectiles.splice(i, 1); continue; }
-            if (p.type === 'rocket' && p.target !== null) {
-                const target = race.cars[p.target];
-                if (target) {
-                    const wanted = Math.atan2(target.v.y - p.y, target.v.x - p.x);
-                    p.psi += clamp(AD.wrapAngle(wanted - p.psi), -2.4 * dt, 2.4 * dt);
-                }
-            }
-            p.x += Math.cos(p.psi) * p.speed * dt;
-            p.y += Math.sin(p.psi) * p.speed * dt;
-            let hit = false;
-            for (const car of race.cars) {
-                if (car.index === p.owner) continue;
-                if (AD.distance(p.x, p.y, car.v.x, car.v.y) < 2.6) {
-                    if (car.v.shield <= 0) {
-                        car.v.damage = clamp(car.v.damage + (p.type === 'rocket' ? 26 : 7), 0, 100);
-                        car.v.vx *= p.type === 'rocket' ? 0.72 : 0.94;
-                        emit(race, 'hit', { x: p.x, y: p.y, heavy: p.type === 'rocket' });
-                    }
-                    hit = true;
-                    break;
-                }
-            }
-            if (hit) race.projectiles.splice(i, 1);
-        }
-    }
-
-    function updateHazards(race, dt) {
-        for (let i = race.hazards.length - 1; i >= 0; i--) {
-            const h = race.hazards[i];
-            h.ttl -= dt;
-            if (h.arm > 0) h.arm -= dt;
-            if (h.ttl <= 0) { race.hazards.splice(i, 1); continue; }
-            if (h.type !== 'mine' || h.arm > 0) continue;
-            for (const car of race.cars) {
-                if (car.index === h.owner) continue;
-                if (AD.distance(h.x, h.y, car.v.x, car.v.y) < h.r + 1.4) {
-                    if (car.v.shield <= 0) {
-                        car.v.damage = clamp(car.v.damage + 16, 0, 100);
-                        car.v.vx *= 0.68;
-                        car.v.r += (race.rng() - 0.5) * 0.7;
-                        emit(race, 'hit', { x: h.x, y: h.y, heavy: true });
-                    }
-                    race.hazards.splice(i, 1);
-                    break;
-                }
-            }
-        }
-    }
-
-    function updatePickups(race) {
-        for (const pad of race.pickups) {
-            if (race.time - pad.taken < 8) continue;
-            for (const car of race.cars) {
-                if (AD.distance(pad.x, pad.y, car.v.x, car.v.y) < 4.2) {
-                    pad.taken = race.time;
-                    if (!car.weapon) {
-                        car.weapon = AD.WEAPON_IDS[Math.floor(race.rng() * AD.WEAPON_IDS.length)];
-                        car.ammo = AD.WEAPONS[car.weapon].ammo;
-                        car.cooldown = 0;
-                        emit(race, 'pickup', { x: pad.x, y: pad.y, car: car.index, id: car.weapon });
-                    }
-                    break;
-                }
-            }
-        }
+        return env;
     }
 
     function updateProgress(race, car) {
@@ -359,11 +179,14 @@
                 car.lapStart = race.time;
                 car.lastLap = lapTime;
                 if (lapTime < car.bestLap) car.bestLap = lapTime;
-                if (car.isPlayer) emit(race, 'lap', { lap: car.lap, time: lapTime });
+                if (car.isPlayer) {
+                    AD.emit(race, 'lap', { car: car.index, lap: car.lap, time: lapTime });
+                    if (car.lap === race.laps - 1 && race.laps > 1 && race.laps < 99) AD.emit(race, 'final_lap', { car: car.index });
+                }
                 if (car.lap >= race.laps && !car.finished) {
                     car.finished = true;
                     car.finishTime = race.time;
-                    emit(race, 'finish', { car: car.index, time: race.time });
+                    AD.emit(race, 'finish', { car: car.index, time: race.time });
                 }
             }
             car.started = true;
@@ -384,7 +207,7 @@
                 car.sector++;
                 if (car.isPlayer) {
                     if (split < car.bestSectors[index]) car.bestSectors[index] = split;
-                    emit(race, 'sector', { index: index, time: split, best: car.bestSectors[index] });
+                    AD.emit(race, 'sector', { index: index, time: split, best: car.bestSectors[index] });
                 }
             }
         }
@@ -392,79 +215,139 @@
         car.progress = car.lap * length + s;
     }
 
+    /* One fixed step of one actor (a car or the ghost stub). */
+    function stepActor(race, actor, input, dt, fs) {
+        const v = actor.v;
+        if (actor.isPlayer && !actor.ghost) input = recordInput(race, actor, input);
+        if (!actor.ghost) AD.updateWeaponInput(race, actor, input, dt);
+        const env = environmentAt(race, actor);
+
+        const effective = AD.copyInput(input);
+        if (v.disabled > 0) { effective.throttle = 0; effective.boost = 0; }
+        if (v.frozen > 0) { effective.throttle = 0; effective.steer *= 0.2; }
+        if (v.steerWobble > 0) {
+            v.wobblePhase += dt * 11;
+            effective.steer = clamp(effective.steer + 0.45 * Math.sin(v.wobblePhase), -1, 1);
+        }
+        if (v.airborne) AD.stepAir(actor, effective, dt, race);
+        else AD.stepVehicle(v, effective, dt, env);
+
+        const contacts = v.wallContacts;
+        AD.resolveWall(v, env.sample, dt);
+        if (v.wallContacts > contacts) {
+            if (actor.tally) actor.tally.wallHits += v.wallContacts - contacts;
+            if (v.impact > 0.12 && race.time - (actor.wallEventAt || -1) > 0.2) {
+                actor.wallEventAt = race.time;
+                AD.emit(race, 'wall_hit', { car: actor.index, x: v.x, y: v.y, speed: Math.abs(v.vx), heavy: v.impact > 0.5 });
+            }
+        }
+        AD.updateVehicleTricks(race, actor, input, dt);
+        AD.updateActorFeatures(race, actor, fs, dt);
+        if (actor.ghost) return;
+        updateProgress(race, actor);
+        AD.updateCarEffects(race, actor, dt);
+    }
+
     function updateGhost(race, dt) {
-        if (!race.ghost || !race.ghost.active) return;
-        const tape = race.ghostTape;
-        if (race.ghost.step >= tape.length) { race.ghost.active = false; return; }
-        const input = AD.unpackInput(tape[race.ghost.step]);
-        race.ghost.step++;
-        const env = environmentAt(race, race.ghost.v);
-        AD.stepVehicle(race.ghost.v, input, dt, env);
-        AD.resolveWall(race.ghost.v, env.sample, dt);
+        const g = race.ghost;
+        if (!g || !g.active) return;
+        if (g.step >= race.ghostTape.length) { g.active = false; return; }
+        const input = AD.unpackInput(race.ghostTape[g.step]);
+        g.step++;
+        const was = race.muteEvents;
+        race.muteEvents = true;
+        stepActor(race, g, input, dt, g.fs);
+        race.muteEvents = was;
+    }
+
+    function countdownStep(race, dt) {
+        for (const car of race.cars) {
+            if (car.v.out) continue;
+            let input = car.isPlayer ? race.playerInput : AD.aiInput(race, car);
+            if (car.isPlayer) input = recordInput(race, car, input);
+            AD.updateStart(car, input, dt);
+        }
+        const g = race.ghost;
+        if (g && g.active) {
+            if (g.step >= race.ghostTape.length) g.active = false;
+            else AD.updateStart(g, AD.unpackInput(race.ghostTape[g.step++]), dt);
+        }
+        const before = Math.ceil(race.countdown);
+        race.countdown -= dt;
+        const after = Math.ceil(race.countdown);
+        if (after !== before && after >= 0) AD.emit(race, 'count', { value: after });
+        if (race.countdown <= 0) {
+            race.state = 'running';
+            for (const car of race.cars) AD.applyStart(race, car);
+            if (g) AD.applyStart(race, g);
+            AD.emit(race, 'go', {});
+        }
     }
 
     AD.stepRace = function (race, dt) {
-        if (race.state === 'countdown') {
-            const before = Math.ceil(race.countdown);
-            race.countdown -= dt;
-            const after = Math.ceil(race.countdown);
-            if (after !== before && after >= 0) emit(race, 'count', { value: after });
-            if (race.countdown <= 0) {
-                race.state = 'running';
-                emit(race, 'go', {});
-            }
-            return;
-        }
+        if (race.state === 'countdown') { countdownStep(race, dt); return; }
         if (race.state === 'finished') return;
         race.time += dt;
 
         for (const car of race.cars) {
-            const input = car.isPlayer ? race.playerInput : aiInput(race, car);
-            if (car.isPlayer) {
-                car.tape.push(AD.packInput(input));
-                if (car.tape.length > 36000) car.tape.shift();
-            }
-            if (car.cooldown > 0) car.cooldown = Math.max(0, car.cooldown - dt);
-            if (input.fire && !car.fireLatch) fireWeapon(race, car);
-            car.fireLatch = !!input.fire;
-
-            const env = environmentAt(race, car.v);
-            const envInput = AD.copyInput(input);
-            if (car.v.disabled > 0) { envInput.throttle = 0; envInput.boost = 0; }
-            AD.stepVehicle(car.v, envInput, dt, env);
-            AD.resolveWall(car.v, env.sample, dt);
-            updateProgress(race, car);
+            if (car.v.out) continue;
+            const input = car.isPlayer ? race.playerInput : AD.aiInput(race, car);
+            stepActor(race, car, input, dt, race.features);
         }
 
         for (let i = 0; i < race.cars.length; i++) {
+            const a = race.cars[i];
+            if (a.v.out || a.v.cloak > 0) continue;
             for (let j = i + 1; j < race.cars.length; j++) {
-                AD.resolveCarPair(race.cars[i].v, race.cars[j].v, 2.05);
+                const b = race.cars[j];
+                if (b.v.out || b.v.cloak > 0 || Math.abs(a.v.z - b.v.z) > 1.6) continue;
+                const closing = AD.resolveCarPair(a.v, b.v, (a.v.car.radius + b.v.car.radius) / 2);
+                if (closing > 2) {
+                    if (a.tally) a.tally.carHits++;
+                    if (b.tally) b.tally.carHits++;
+                    AD.emit(race, 'car_hit', {
+                        a: a.index, b: b.index, x: (a.v.x + b.v.x) / 2, y: (a.v.y + b.v.y) / 2,
+                        impulse: closing, heavy: closing > 9
+                    });
+                }
             }
         }
 
-        updateProjectiles(race, dt);
-        updateHazards(race, dt);
-        updatePickups(race);
+        AD.updateProjectiles(race, dt);
+        AD.updateHazards(race, dt);
+        AD.updateFeatures(race, race.features, dt);
         updateGhost(race, dt);
-        if (race.conditions) race.conditions.update(dt);
+        if (race.conditions) {
+            const state = race.conditions.update(dt);
+            if (state.kind !== race.lastWeather) {
+                race.lastWeather = state.kind;
+                AD.emit(race, 'weather', { kind: state.kind, intensity: state.targetIntensity });
+            }
+        }
         if (typeof AD.updateStyle === 'function') AD.updateStyle(race, dt);
 
+        /* Out cars rank last, the one that went out latest first. */
         race.standings = race.cars.slice().sort((a, b) => {
+            if (a.v.out !== b.v.out) return a.v.out ? 1 : -1;
+            if (a.v.out) return (b.eliminatedAt || 0) - (a.eliminatedAt || 0);
             if (a.finished !== b.finished) return a.finished ? -1 : 1;
             if (a.finished && b.finished) return a.finishTime - b.finishTime;
             return b.progress - a.progress;
         });
         const player = race.cars[0];
         if (player.bestLap < race.bestLap) race.bestLap = player.bestLap;
-        if (player.finished && player.isPlayer && race.state === 'running') {
+        if (player.isPlayer) {
+            const position = race.standings.indexOf(player) + 1;
+            if (race.lastPosition && position !== race.lastPosition) {
+                AD.emit(race, 'position', { car: 0, from: race.lastPosition, to: position });
+            }
+            race.lastPosition = position;
+        }
+
+        AD.updateMode(race, dt);
+        if (AD.modeFinished(race) && player.isPlayer && race.state === 'running') {
             race.state = 'finished';
-            race.result = {
-                time: player.finishTime, bestLap: player.bestLap,
-                position: race.standings.indexOf(player) + 1,
-                tape: player.tape.slice(),
-                style: typeof AD.styleSummary === 'function' ? AD.styleSummary(player) : null,
-                sectors: player.bestSectors.slice()
-            };
+            race.result = AD.buildResult(race);
         }
     };
 

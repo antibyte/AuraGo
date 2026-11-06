@@ -83,9 +83,11 @@
             profile: profile
         };
 
-        function applyTarget() {
-            state.kind = state.target;
-            state.targetIntensity = state.intensity;
+        /* D1: the scheduled intensity is the blend target. Overwriting it with
+           the current intensity pinned weather at zero for the whole race. */
+        function applyTarget(next) {
+            state.kind = next.kind;
+            state.targetIntensity = next.intensity;
         }
 
         return {
@@ -96,8 +98,7 @@
                 while (state.index < schedule.length && state.time >= schedule[state.index].at) {
                     const next = schedule[state.index++];
                     state.target = next.kind;
-                    state.targetIntensity = next.intensity;
-                    applyTarget();
+                    applyTarget(next);
                 }
                 /* Blend the intensity so weather arrives instead of snapping. */
                 const wanted = state.targetIntensity;

@@ -144,16 +144,35 @@
 
         const gates = [];
         for (let i = 0; i < 12; i++) gates.push(length * i / 12);
+        /* Six crate rows of three across the corridor, one weapon each. */
         const pads = [];
-        for (let i = 0; i < 20; i++) {
-            const s = length * (i + 0.5) / 20;
-            pads.push({ s: s, offset: ((i % 3) - 1) * manifest.width * 0.24, taken: 0 });
+        for (let row = 0; row < 6; row++) {
+            const s = length * (row + 0.5) / 6;
+            for (let lane = -1; lane <= 1; lane++) {
+                pads.push({ s: s, offset: lane * manifest.width * 0.24, row: row });
+            }
+        }
+
+        /* Curvature in rad/m per sample (a 100 m radius reads 0.01). A short
+           moving average removes the spline's sample-to-sample jitter. */
+        const raw = new Float32Array(samples.length);
+        for (let i = 0; i < samples.length; i++) {
+            const a = samples[(i - 1 + samples.length) % samples.length];
+            const b = samples[(i + 1) % samples.length];
+            const gap = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+            raw[i] = Math.abs(a.tx * b.ty - a.ty * b.tx) / gap;
+        }
+        const curvature = new Float32Array(samples.length);
+        for (let i = 0; i < samples.length; i++) {
+            let sum = 0;
+            for (let k = -4; k <= 4; k++) sum += raw[(i + k + samples.length) % samples.length];
+            curvature[i] = sum / 9;
         }
 
         return {
             id: manifest.id, name: manifest.name, manifest: manifest,
             seed: trackSeed, samples: samples, grid: grid, length: length,
-            gates: gates, pads: pads, width: manifest.width,
+            gates: gates, pads: pads, width: manifest.width, curvature: curvature,
             biome: BIOMES[manifest.biome] || BIOMES.alpine,
             biomeId: manifest.biome, zones: manifest.zones || [],
             laps: manifest.laps, points: points,
@@ -234,7 +253,35 @@
         }
         if (sample && Math.abs(offset) > sample.halfWidth) type = track.biome.runoff;
         const surface = AD.SURFACES[type] || AD.SURFACES.asphalt;
-        return { grip: surface.grip, roll: surface.roll, type: type, label: surface.label };
+        return { grip: surface.grip, roll: surface.roll, type: type };
+    };
+
+    /* Runs of the lap where the road is nearly straight (curvature < 0.01),
+       at least minLength metres long, as [{from, to}] in arc length. Runs do
+       not wrap across the start/finish seam. */
+    AD.straightWindows = function (track, minLength) {
+        const out = [];
+        const samples = track.samples, curvature = track.curvature;
+        let from = -1;
+        for (let i = 0; i <= samples.length; i++) {
+            const straight = i < samples.length && curvature[i] < 0.01;
+            if (straight && from < 0) from = i;
+            if (!straight && from >= 0) {
+                const a = samples[from].s;
+                const b = samples[i - 1].s;
+                if (b - a >= minLength) out.push({ from: a, to: b });
+                from = -1;
+            }
+        }
+        return out;
+    };
+
+    /* Daily routes carry a generated name; the shell shows a locale key instead. */
+    AD.trackName = function (track, t) {
+        if (track && typeof track.id === 'string' && track.id.indexOf('daily-') === 0 && typeof t === 'function') {
+            return t('aura_drift.daily_route');
+        }
+        return track ? track.name : '';
     };
 
     AD.chunkKey = (cx, cy) => cx + ',' + cy;

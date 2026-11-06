@@ -76,6 +76,17 @@
         return 1;
     }
 
+    /* Pays style points straight into the bank (tricks, landings, stunts).
+       useMultiplier scales them by the current drift multiplier. */
+    AD.addStylePoints = function (car, points, useMultiplier) {
+        const st = car && car.style;
+        if (!st || !(points > 0)) return 0;
+        const total = points * (useMultiplier ? st.multiplier : 1);
+        st.banked += total;
+        if (total > st.best) st.best = total;
+        return total;
+    };
+
     AD.updateStyle = function (race, dt) {
         const S = AD.STYLE;
         const cars = race.cars;
@@ -83,20 +94,20 @@
             const st = car.style;
             if (!st) continue;
             const v = car.v;
+            if (v.out) continue;
             const speed = Math.max(0, v.vx);
             const driftAngle = Math.abs(Math.atan2(v.vy, Math.max(1, Math.abs(v.vx))));
-            const drifting = driftAngle > S.driftAngleMin && speed > S.driftSpeedMin && v.slip > 1.1;
+            const drifting = !v.airborne && driftAngle > S.driftAngleMin && speed > S.driftSpeedMin && v.slip > 1.1;
 
             if (drifting) {
                 if (!st.drifting) {
                     st.drifts++;
+                    if (car.tally) car.tally.drifts++;
                     /* The chain continues across a slide that ends inside the
                        link window; only a banked chain resets the counter. */
-                    race.events.push({
-                        type: 'drift_start', t: race.time, car: car.index,
-                        multiplier: st.multiplier
-                    });
+                    AD.emit(race, 'drift_start', { car: car.index, multiplier: st.multiplier });
                 }
+                if (car.tally) car.tally.driftSeconds += dt;
                 st.drifting = true;
                 st.combo += dt;
                 st.timer = S.comboWindow;
@@ -115,10 +126,7 @@
                     const total = st.raw * st.multiplier;
                     st.banked += total;
                     if (total > st.best) st.best = total;
-                    race.events.push({
-                        type: 'style_bank', t: race.time, car: car.index,
-                        points: total, multiplier: st.multiplier
-                    });
+                    AD.emit(race, 'style_bank', { car: car.index, points: total, multiplier: st.multiplier });
                     st.raw = 0;
                     st.multiplier = 1;
                     st.combo = 0;
@@ -131,7 +139,8 @@
         for (let i = 0; i < cars.length; i++) {
             for (let j = i + 1; j < cars.length; j++) {
                 const a = cars[i], b = cars[j];
-                if (!a.style || !b.style) continue;
+                if (!a.style || !b.style || a.v.out || b.v.out) continue;
+                if (Math.abs((a.v.z || 0) - (b.v.z || 0)) > 1.6) continue;
                 const dx = b.v.x - a.v.x, dy = b.v.y - a.v.y;
                 const dist = Math.hypot(dx, dy);
                 if (dist > S.nearMissDistance) { a.style.missLatch = 0; b.style.missLatch = 0; continue; }
@@ -150,12 +159,14 @@
                     a.style.multiplier = Math.min(AD.STYLE.multiplierMax, a.style.multiplier + 0.5);
                     b.style.multiplier = Math.min(AD.STYLE.multiplierMax, b.style.multiplier + 0.5);
                 }
-                /* Only the player's near misses are announced; a pack of AI
+                /* Only a player's near misses are announced (one event per
+                   participating player, naming the other car); a pack of AI
                    cars trading paint would be noise. */
-                if (a.index === 0 || b.index === 0) {
-                    race.events.push({
-                        type: 'near_miss', t: race.time, x: (a.v.x + b.v.x) / 2,
-                        y: (a.v.y + b.v.y) / 2, car: 0, bonus: bonus
+                for (const [me, other] of [[a, b], [b, a]]) {
+                    if (!me.isPlayer) continue;
+                    AD.emit(race, 'near_miss', {
+                        x: (a.v.x + b.v.x) / 2, y: (a.v.y + b.v.y) / 2,
+                        car: me.index, bonus: bonus, other: other.index
                     });
                 }
             }
