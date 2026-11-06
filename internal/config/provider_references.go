@@ -72,6 +72,7 @@ func (c *Config) ProviderReferences() []ProviderReference {
 	add("mission_preparation.provider", "mission_preparation", c.MissionPreparation.Provider)
 	add("flows.ai_provider", "flows", strings.TrimSpace(c.Flows.AIProvider))
 	add("cyd_creator.model", "cyd_creator", c.CYDCreator.Model)
+	add("storymaker.agent.provider", "storymaker_agent", c.Storymaker.Agent.Provider)
 	add("image_generation.provider", "image_generation", c.ImageGeneration.Provider)
 	add("music_generation.provider", "music_generation", c.MusicGeneration.Provider)
 	add("video_generation.provider", "video_generation", c.VideoGeneration.Provider)

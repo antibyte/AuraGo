@@ -2374,6 +2374,13 @@ video_studio:
 # them with FFmpeg (video_studio.ffmpeg_path, or PATH). The editor and preview work without both.
 storymaker:
     enabled: true
+    agent:
+        enabled: true               # agent that writes a story from a topic, from the app or the chat tool
+        provider: ""                # provider id for agent jobs; empty = main route
+        model: ""                   # model override for agent jobs; empty = the provider's model
+        job_timeout_seconds: 1800   # limit of one agent job (120-7200)
+        max_length_seconds: 180     # longest film the agent writes (15-3600)
+        max_daily_jobs: 10          # agent starts per local day (1-1000)
     render:
         timeout_seconds: 3600       # minimum render timeout (60-14400); long videos raise it
         max_duration_seconds: 900   # longest video a render accepts (10-3600)

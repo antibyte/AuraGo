@@ -567,6 +567,7 @@ func Load(path string) (*Config, error) {
 	// Storymaker is on by default: the app is visible and its export shows capability states
 	// (FFmpeg, browser) instead of hiding the editor.
 	cfg.Storymaker.Enabled = true
+	cfg.Storymaker.Agent.Enabled = true
 
 	// Space Agent defaults: disabled by default, managed Docker sidecar when enabled.
 	cfg.SpaceAgent.AutoStart = true

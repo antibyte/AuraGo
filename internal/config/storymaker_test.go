@@ -21,6 +21,7 @@ func loadStorymakerYAML(t *testing.T, content string) (*Config, error) {
 func TestStorymakerDefaultsOn(t *testing.T) {
 	want := StorymakerConfig{
 		Enabled:   true,
+		Agent:     StorymakerAgentConfig{Enabled: true, JobTimeoutSeconds: 1800, MaxLengthSeconds: 180, MaxDailyJobs: 10},
 		Render:    StorymakerRenderConfig{TimeoutSeconds: 3600, MaxDurationSeconds: 900},
 		Narration: StorymakerNarrationConfig{MaxDailyChars: 100000, MaxJobChars: 20000},
 	}
