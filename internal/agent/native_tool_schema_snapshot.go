@@ -2,6 +2,7 @@ package agent
 
 import (
 	"log/slog"
+	"strings"
 	"sync"
 
 	openai "github.com/sashabaranov/go-openai"
@@ -186,6 +187,11 @@ func strictSchemasForActiveTools(snapshot *nativeToolSchemaSnapshot, active []op
 	out := make([]openai.Tool, 0, len(active))
 	for _, schema := range active {
 		if schema.Function == nil {
+			out = append(out, schema)
+			continue
+		}
+		// patch_scene reads null as "remove this field"; required-and-nullable would delete fields.
+		if strings.HasPrefix(schema.Function.Name, "storymaker_") {
 			out = append(out, schema)
 			continue
 		}

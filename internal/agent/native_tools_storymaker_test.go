@@ -196,3 +196,48 @@ func TestStorymakerToolsStayOutOfTheNormalCatalog(t *testing.T) {
 		}
 	}
 }
+
+func TestStorymakerToolsStayOutOfTheStrictProjection(t *testing.T) {
+	names := storymakerCatalogNames(t)
+	schemas := StorymakerPhaseToolSchemas(storymaker.PhaseRevise, false, names)
+	ordinary := tool("ordinary_probe", "probe", schema(map[string]interface{}{"q": prop("string", "query")}))
+	schemas = append(slices.Clone(schemas), ordinary)
+	snapshot := newNativeToolSchemaSnapshot(schemas)
+	projected := strictSchemasForActiveTools(snapshot, schemas)
+	found := false
+	for _, definition := range projected {
+		switch {
+		case definition.Function.Name == storymaker.ToolStory:
+			found = true
+			if definition.Function.Strict {
+				t.Errorf("%s was projected strict", storymaker.ToolStory)
+			}
+			params, _ := definition.Function.Parameters.(map[string]interface{})
+			data := storymakerSchemaAt(params, "data")
+			if data == nil {
+				t.Fatalf("%s has no data schema", storymaker.ToolStory)
+			}
+			var required []string
+			switch list := data["required"].(type) {
+			case []string:
+				required = list
+			case []interface{}:
+				for _, item := range list {
+					if name, ok := item.(string); ok {
+						required = append(required, name)
+					}
+				}
+			}
+			if slices.Contains(required, "transition") {
+				t.Errorf("data.required lists transition: %v", required)
+			}
+		case definition.Function.Name == "ordinary_probe":
+			if !definition.Function.Strict {
+				t.Errorf("the ordinary tool lost its strict projection")
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("%s missing from the revise schemas", storymaker.ToolStory)
+	}
+}
