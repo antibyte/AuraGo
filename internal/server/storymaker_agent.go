@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"strings"
 	"sync"
@@ -740,16 +741,197 @@ func (j *storymakerAgentJob) publishOutcome(ctx context.Context, in storymaker.O
 	return render.Output{}, nil
 }
 
-// finish drops the drafts, reads the last report and publishes the outcome.
-func (j *storymakerAgentJob) finish(runCtx, jobCtx context.Context) (render.Output, error) {
-	timedOut := jobCtx.Err() != nil
-	j.studio.DropDrafts()
-	report, err := j.check(runCtx)
+// runRevise is the revise order: the revise loop, then the same steps as create from the check on.
+func (j *storymakerAgentJob) runRevise(ctx context.Context) {
+	answer, _ := j.runPhase(ctx, storymakerAgentLoop{phase: storymaker.PhaseRevise})
+	j.keepAnswer(answer)
+	if ctx.Err() != nil {
+		return
+	}
+	j.refreshProgress(ctx)
+	j.runCheckRound(ctx)
+}
+
+// storymakerAgentNarrateWait bounds the wait for the narrate job (decision 20).
+const storymakerAgentNarrateWait = 300 * time.Second
+
+// Open checks of the narration that are not job error codes.
+const (
+	storymakerCheckNarrationBudget  = "narration_budget"
+	storymakerCheckNarrationPending = "narration_pending"
+)
+
+// storymakerAgentRefusalCheck maps a refused narration to its open check.
+func storymakerAgentRefusalCheck(code string) string {
+	if code == render.CodeBudgetExceeded {
+		return storymakerCheckNarrationBudget
+	}
+	return render.CodeNarrationUnavailable
+}
+
+// storymakerAgentNarrateJobCheck maps a finished narrate job to its open check, "" when it succeeded.
+func storymakerAgentNarrateJobCheck(job render.Job) string {
+	if job.Status == render.StatusSucceeded {
+		return ""
+	}
+	if job.Error != nil {
+		switch job.Error.Code {
+		case render.CodeBudgetExceeded:
+			return storymakerCheckNarrationBudget
+		case render.CodeVoiceRequired, render.CodeNarrationUnavailable:
+			return render.CodeNarrationUnavailable
+		}
+	}
+	return render.CodeNarrationFailed
+}
+
+// waitNarration waits for the narrate job within the bound. A cancelled agent job takes its narrate
+// job along, so nothing is billed after a cancel. A job that outlasts the bound keeps running and
+// reads as pending.
+func (j *storymakerAgentJob) waitNarration(ctx context.Context, jobID string, wait time.Duration) string {
+	events, unsubscribe := j.rt.narrate.Subscribe(j.job.ProjectID)
+	defer unsubscribe()
+	timer := time.NewTimer(wait)
+	defer timer.Stop()
+	for {
+		current, found := j.rt.narrate.Get(jobID)
+		if !found {
+			return render.CodeNarrationFailed
+		}
+		if current.Terminal() {
+			return storymakerAgentNarrateJobCheck(current)
+		}
+		select {
+		case <-ctx.Done():
+			j.rt.narrate.Cancel(jobID)
+			return storymakerCheckNarrationPending
+		case <-timer.C:
+			return storymakerCheckNarrationPending
+		case <-events:
+		}
+	}
+}
+
+// narrate runs the narration once the story is settled, through the same refusal order as the route.
+// The result never blocks the outcome: it returns an open check, or "". The audio cache key contains
+// the text, so a second run bills changed scenes only.
+func (j *storymakerAgentJob) narrate(runCtx, jobCtx context.Context) string {
+	// A job past its deadline narrates nothing: a timed-out story is never sent to a paid voice.
+	if jobCtx.Err() != nil {
+		return storymakerCheckNarrationPending
+	}
+	j.h.SetPhase("narrating")
+	j.update(func(info *storymaker.AgentJobInfo) { info.Phase, info.SceneID = "narrating", "" })
+	j.emit(agentEventPhase, map[string]any{"phase": "narrating", "attempt": 1})
+	id := j.job.ProjectID
+	cfg := j.route.cfg
+	// The reads of the final state keep working after a timeout. Only the wait below stops on a cancel.
+	read := context.WithoutCancel(runCtx)
+	data, _, err := j.rt.projects.LoadStory(read, id)
 	if err != nil {
-		j.logger.Warn("[Storymaker] The agent check failed", "job_id", j.job.ID, "error", err)
+		j.logger.Warn("[Storymaker] The agent could not read the story for narration", "job_id", j.job.ID, "error", err)
+		return render.CodeNarrationFailed
+	}
+	story, _, err := storymaker.DecodeStory(data, storymakerLimits(cfg))
+	if err != nil {
+		j.logger.Warn("[Storymaker] The agent could not decode the story for narration", "job_id", j.job.ID, "error", err)
+		return render.CodeNarrationFailed
+	}
+	storymaker.ApplyDefaults(&story)
+	answer, err := j.rt.projects.AudioAnswer(read, id, &story, nil)
+	if err != nil {
+		j.logger.Warn("[Storymaker] The agent could not read the narration state", "job_id", j.job.ID, "error", err)
+		return render.CodeNarrationFailed
+	}
+	if len(answer.Missing) == 0 {
+		return ""
+	}
+	acc := &storymakerAccess{cfg: cfg, rt: j.rt}
+	if refusal := storymakerNarrateRefusal(read, j.s, acc, storymakerBlocksToSynthesize(&story, answer), answer); refusal != nil {
+		return storymakerAgentRefusalCheck(refusal.Code)
+	}
+	queued, _, err := j.rt.narrate.Enqueue(render.EnqueueRequest{ProjectID: id, Kind: render.KindNarrate, Coalesce: true, Payload: storymakerNarratePayload{ProjectID: id}})
+	switch {
+	case errors.Is(err, render.ErrBusy):
+		return storymakerCheckNarrationPending
+	case err != nil:
+		j.logger.Warn("[Storymaker] The agent could not queue the narration", "job_id", j.job.ID, "error", err)
+		return render.CodeNarrationFailed
+	}
+	wait := storymakerAgentNarrateWait
+	if deadline, ok := jobCtx.Deadline(); ok {
+		if left := time.Until(deadline); left < wait {
+			wait = left
+		}
+	}
+	return j.waitNarration(runCtx, queued.ID, wait)
+}
+
+// finalCheck reads the report after narration with a second Studio. The compile cache of the job's
+// Studio is keyed by the story etag, and narration changes the audio, not the story.
+func (j *storymakerAgentJob) finalCheck(ctx context.Context) (storymaker.CheckReport, error) {
+	fresh, err := storymaker.NewStudio(j.deps, j.studioJob)
+	if err != nil {
+		return storymaker.CheckReport{}, err
+	}
+	report, err := fresh.Check(ctx)
+	if err != nil {
+		return storymaker.CheckReport{}, err
+	}
+	report.RoundsLeft = j.roundsLeft
+	j.emitCheck(report)
+	return report, nil
+}
+
+// readStory reads the saved story. It returns nil when the story cannot be read or decoded.
+func (j *storymakerAgentJob) readStory(ctx context.Context) *storymaker.Story {
+	data, _, err := j.rt.projects.LoadStory(ctx, j.job.ProjectID)
+	if err != nil {
+		return nil
+	}
+	story, _, err := storymaker.DecodeStory(data, storymakerLimits(j.route.cfg))
+	if err != nil {
+		return nil
+	}
+	return &story
+}
+
+// finish narrates, runs the final compile and publishes the outcome. Real audio lengths can produce a
+// model-fixable issue after the last fix round, so that case gets one more check loop and narrates again.
+// A story that still has no outline ends here as failed. The final state is read through a detached
+// context, so an outcome is still reached after a timeout.
+func (j *storymakerAgentJob) finish(runCtx, jobCtx context.Context) (render.Output, error) {
+	final := context.WithoutCancel(runCtx)
+	// The drafts are read before they are dropped, so a draft that was never saved stays an open check.
+	open, _ := j.studio.Progress(final)
+	j.studio.DropDrafts()
+	if story := j.readStory(final); story != nil && storymaker.StoryIsBlank(story) {
+		return j.publishOutcome(final, storymaker.OutcomeInput{Progress: open, TimedOut: jobCtx.Err() == context.DeadlineExceeded, ModelError: j.modelError})
+	}
+	narration := j.narrate(runCtx, jobCtx)
+	report, err := j.finalCheck(final)
+	if err == nil && jobCtx.Err() == nil && len(report.Issues) > 0 && report.RoundsLeft > 0 {
+		answer, _ := j.runPhase(jobCtx, storymakerAgentLoop{phase: storymaker.PhaseCheck})
+		j.keepAnswer(answer)
+		open, _ = j.studio.Progress(final)
+		j.studio.DropDrafts()
+		narration = j.narrate(runCtx, jobCtx)
+		report, err = j.finalCheck(final)
+	}
+	if runCtx.Err() == context.Canceled {
+		return render.Output{}, storymakerAgentStopped()
+	}
+	if err != nil {
+		j.logger.Warn("[Storymaker] The final agent check failed", "job_id", j.job.ID, "error", err)
 		j.noteModelError(err)
 	}
-	return j.publishOutcome(runCtx, storymaker.OutcomeInput{Check: report, TimedOut: timedOut, ModelError: j.modelError})
+	return j.publishOutcome(final, storymaker.OutcomeInput{
+		Progress:   open,
+		Check:      report,
+		TimedOut:   jobCtx.Err() == context.DeadlineExceeded,
+		ModelError: j.modelError,
+		Narration:  narration,
+	})
 }
 
 // storymakerAgentRun runs one job of the agent queue. It gets rt directly, because
@@ -779,8 +961,12 @@ func (s *Server) storymakerAgentRun(ctx context.Context, rt *storymakerRuntime, 
 	defer j.mem.Close()
 	jobCtx, cancel := context.WithTimeout(runCtx, time.Duration(j.route.cfg.Storymaker.Agent.JobTimeoutSeconds)*time.Second)
 	defer cancel()
-	j.runCreate(jobCtx)
-	if runCtx.Err() != nil {
+	if j.payload.Kind == storymaker.AgentKindRevise {
+		j.runRevise(jobCtx)
+	} else {
+		j.runCreate(jobCtx)
+	}
+	if runCtx.Err() == context.Canceled {
 		j.studio.DropDrafts()
 		return render.Output{}, storymakerAgentStopped()
 	}
