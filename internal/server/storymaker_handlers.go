@@ -727,7 +727,7 @@ func handleStorymakerJobCancel(s *Server, w http.ResponseWriter, r *http.Request
 }
 
 // handleStorymakerEvents streams job changes of a project as server-sent events: an event "job"
-// with {"job": ...} for every state or progress change, from both queues. On connect it sends every
+// with {"job": ...} for every state or progress change, from all queues. On connect it sends every
 // unfinished job plus the merged latest five, so a reloaded app finds a running export.
 func handleStorymakerEvents(s *Server, w http.ResponseWriter, r *http.Request, id string) {
 	if r.Method != http.MethodGet {
@@ -752,12 +752,14 @@ func handleStorymakerEvents(s *Server, w http.ResponseWriter, r *http.Request, i
 	h.Set("Cache-Control", "no-cache, no-store")
 	h.Set("Connection", "keep-alive")
 	h.Set("X-Accel-Buffering", "no")
-	renderJobs, audioJobs := acc.rt.jobs, acc.rt.narrate
+	renderJobs, audioJobs, agentJobs := acc.rt.jobs, acc.rt.narrate, acc.rt.agent
 	renderEvents, unsubscribeRender := renderJobs.Subscribe(id)
 	defer unsubscribeRender()
 	audioEvents, unsubscribeAudio := audioJobs.Subscribe(id)
 	defer unsubscribeAudio()
-	revRender, revAudio := renderJobs.Revision(), audioJobs.Revision()
+	agentEvents, unsubscribeAgent := agentJobs.Subscribe(id)
+	defer unsubscribeAgent()
+	revRender, revAudio, revAgent := renderJobs.Revision(), audioJobs.Revision(), agentJobs.Revision()
 	send := func(job render.Job) bool {
 		data, err := json.Marshal(map[string]any{"job": job})
 		if err != nil {
@@ -796,6 +798,15 @@ func handleStorymakerEvents(s *Server, w http.ResponseWriter, r *http.Request, i
 		case <-audioEvents:
 			var changed []render.Job
 			changed, revAudio = audioJobs.ChangedSince(id, revAudio)
+			for _, job := range changed {
+				if !send(job) {
+					return
+				}
+			}
+			flusher.Flush()
+		case <-agentEvents:
+			var changed []render.Job
+			changed, revAgent = agentJobs.ChangedSince(id, revAgent)
 			for _, job := range changed {
 				if !send(job) {
 					return

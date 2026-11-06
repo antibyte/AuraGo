@@ -372,10 +372,11 @@ type Server struct {
 	storymaker       *storymakerRuntime
 	storymakerClosed bool
 	storymakerUI     fs.FS
-	// Test seams: a ready-made browser resolver and replacements for the render and the audio job function.
+	// Test seams: a ready-made browser resolver and replacements for the render, the audio and the agent job function.
 	storymakerBrowsers         *render.Browsers
 	storymakerRunOverride      render.RunFunc
 	storymakerAudioRunOverride render.RunFunc
+	storymakerAgentRunOverride render.RunFunc
 	// storymakerSynthOverride replaces the provider call of a narrate job, and
 	// storymakerFreeDiskOverride its free-space probe.
 	storymakerSynthOverride    func(ctx context.Context, cfg tools.TTSConfig, text string) ([]byte, string, error)

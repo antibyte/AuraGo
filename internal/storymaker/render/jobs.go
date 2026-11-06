@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"aurago/internal/fileutil"
+	"aurago/internal/storymaker"
 	"github.com/google/uuid"
 )
 
@@ -27,6 +28,7 @@ const (
 	KindRender  = "render"
 	KindNarrate = "narrate"
 	KindMusic   = "music"
+	KindAgent   = "agent"
 
 	StatusQueued      = "queued"
 	StatusRunning     = "running"
@@ -60,6 +62,7 @@ const (
 	CodeNarrationUnavailable = "narration_unavailable"
 	CodeVoiceRequired        = "voice_required"
 	CodeBudgetExceeded       = "budget_exceeded"
+	CodeModelError           = "model_error"
 )
 
 const (
@@ -156,6 +159,9 @@ type Job struct {
 	UpdatedAt   time.Time    `json:"updated_at"`
 	StartedAt   *time.Time   `json:"started_at,omitempty"`
 	FinishedAt  *time.Time   `json:"finished_at,omitempty"`
+
+	// Agent is the state of an agent job. A queued job has none until its run reports it.
+	Agent *storymaker.AgentJobInfo `json:"agent,omitempty"`
 }
 
 // Terminal reports whether the job has ended.
@@ -867,6 +873,13 @@ func (h *Handle) SetPieces(done, total int) {
 // SetPrefixHash stores the hash of the render prefix of this job's listener.
 func (h *Handle) SetPrefixHash(hash string) {
 	h.update(func(r *record) { r.PrefixHash = hash }, true)
+}
+
+// SetAgent records the agent state of a job (a state change: it is persisted and announced at once).
+// A reader may hold the old pointer, so each call stores its own copy and never changes an old one.
+func (h *Handle) SetAgent(info storymaker.AgentJobInfo) {
+	info.OpenChecks = slices.Clone(info.OpenChecks)
+	h.update(func(r *record) { r.Agent = &info }, true)
 }
 
 // SetProgress sets the progress directly (0..1).
