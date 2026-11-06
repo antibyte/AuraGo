@@ -382,6 +382,10 @@ func handleStorymakerAgentRevise(s *Server, w http.ResponseWriter, r *http.Reque
 // etag, the story and the number of scenes changed. Nothing is written when no scene has speech, so an older backup
 // stays. The make-silent route and chat render with silent both call it.
 func storymakerMakeSilent(ctx context.Context, acc *storymakerAccess, projectID, ifMatch string) (string, storymaker.Story, int, error) {
+	// Read, backup and save are one step: a second request with the same etag must fail the etag
+	// check before it touches the backup the first one depends on.
+	acc.rt.gate.Lock()
+	defer acc.rt.gate.Unlock()
 	data, etag, err := acc.rt.projects.LoadStory(ctx, projectID)
 	if err != nil {
 		return "", storymaker.Story{}, 0, err
