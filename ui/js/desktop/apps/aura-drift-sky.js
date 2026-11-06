@@ -84,7 +84,7 @@
     /* ---- GLSL ----------------------------------------------------------------- */
     const COMMON = [
         'uniform sampler2D uNoise;',
-        'uniform float uTime, uCover, uNight, uAurora, uHaze, uSunBoost, uSunSize, uFogMix;',
+        'uniform float uTime, uCover, uNight, uAurora, uHaze, uSunBoost, uSunSize, uFogMix, uFlash;',
         'uniform vec3 uTop, uMid, uHorizon, uFog, uGround, uSun, uSunDir, uCloudLit, uCloudDark, uNeonA, uNeonB, uNeonC;',
         'vec3 skyGradient(vec3 d) {',
         '  float h = d.y; float up = clamp(h, 0.0, 1.0);',
@@ -159,6 +159,7 @@
         '  col = mix(col, cl.rgb, cl.a * (uAurora > 0.0 ? 0.55 : 1.0));',
         '  col += sunLight(d) * (1.0 - cl.a * 0.55);',
         '  col = mix(col, uFog, exp(-abs(d.y) * 15.0) * uFogMix);',
+        '  col += vec3(0.62, 0.75, 1.0) * uFlash * (0.3 + 0.7 * clamp(1.0 - abs(d.y) * 2.0, 0.0, 1.0));',
         '  return col;',
         '}'
     ].join('\n');
@@ -406,6 +407,7 @@
         const U = {
             uNoise: { value: noiseTex }, uTime: { value: 0 }, uCover: { value: cfg.cover }, uNight: { value: night ? 1 : 0 },
             uAurora: { value: cfg.aurora ? 1 : 0 }, uHaze: { value: cfg.haze }, uSunBoost: { value: 1 }, uSunSize: { value: cfg.sun }, uFogMix: { value: 0.55 },
+            uFlash: { value: 0 },
             uTop: { value: top }, uMid: { value: top.clone().lerp(horizon, 0.28) }, uHorizon: { value: horizon }, uFog: { value: col(look.fog) },
             uGround: { value: col(look.ground).multiplyScalar(0.7) }, uSun: { value: col(look.sun) },
             uSunDir: { value: new T.Vector3(sd[0], sd[1], sd[2]) },
@@ -492,7 +494,7 @@
             root.add(disco.group);
         }
         const hemi = scene.children.find(o => o.isHemisphereLight) || null;
-        const hemiBase = hemi ? hemi.color.clone() : null, auroraTint = col('#46e8a0');
+        const hemiBase = hemi ? hemi.color.clone() : null, hemiIntensity0 = hemi ? hemi.intensity : 0, auroraTint = col('#46e8a0');
 
         /* Weather streaks. */
         const wx = {};
@@ -518,7 +520,7 @@
             const mesh = new T.Mesh(geo, mat);
             mesh.frustumCulled = false; mesh.renderOrder = 30; mesh.visible = false;
             root.add(mesh);
-            wx[kind] = { mesh: mesh, geo: geo, level: 0 };
+            wx[kind] = { mesh: mesh, geo: geo, level: 0, fall: w.fall };
         };
         const kindsHere = ['rain', 'snow'];
         if (biomeId === 'desert') kindsHere.push('sand');
@@ -579,8 +581,21 @@
             }
             prevEye = [eye[0], eye[1], eye[2]];
             const kind = cond ? cond.kind : 'clear', inten = cond ? clamp(cond.intensity, 0, 1) : 0;
-            const want = { rain: kind === 'rain' ? inten : 0, snow: kind === 'snow' ? inten : 0, sand: kind === 'heat' ? inten : 0, sparks: kind === 'haze' ? inten * 0.6 : 0, motes: kind === 'glare' ? inten * 0.6 : 0 };
-            let fogWant = (kind === 'fog' || kind === 'mist' || kind === 'haze') ? inten : (kind === 'heat' ? inten * 0.25 : 0);
+            /* Conditions crossfade between the outgoing and incoming kind. */
+            const prev = cond ? cond.prevKind : null, fade = cond && cond.blend !== undefined ? clamp(cond.blend, 0, 1) : 1;
+            const gust = cond ? clamp(cond.gust, 0, 1) : 0.5;
+            const flash = cond ? clamp(cond.flash || 0, 0, 1.1) : 0;
+            const of = (k) => ({
+                rain: k === 'rain' ? inten : 0, snow: k === 'snow' ? inten : 0, sand: k === 'heat' ? inten : 0,
+                sparks: k === 'haze' ? inten * 0.6 : 0, motes: k === 'glare' ? inten * 0.6 : 0,
+                fogWant: (k === 'fog' || k === 'mist' || k === 'haze') ? inten : (k === 'heat' ? inten * 0.25 : 0),
+                bad: (k === 'rain' || k === 'snow' || k === 'fog') ? inten : 0,
+                glare: k === 'glare' ? 1 + inten * 0.8 : 1, rainDim: k === 'rain' ? inten : 0
+            });
+            const a = of(kind), b = prev && fade < 1 ? of(prev) : a;
+            const lerpWx = (key) => a[key] * fade + b[key] * (1 - fade);
+            const want = { rain: lerpWx('rain'), snow: lerpWx('snow'), sand: lerpWx('sand'), sparks: lerpWx('sparks'), motes: lerpWx('motes') };
+            let fogWant = lerpWx('fogWant');
             const rate = Math.min(1, dt * 0.9);
             let veil = 0;
             for (const k of Object.keys(wx)) {
@@ -590,6 +605,9 @@
                 w.geo.instanceCount = Math.min(n, WEATHER[k].max);
                 w.mesh.visible = n > 4;
                 if (k === 'rain' || k === 'snow') veil = Math.max(veil, w.level * (reduced ? 0.4 : 0.15));
+                /* Gusts lean the falling particles without touching simulation state. */
+                const lean = 1 + (gust - 0.5) * 1.6;
+                w.mesh.material.uniforms.uFall.value.set(w.fall[0] * lean, w.fall[1], w.fall[2] * lean);
                 w.mesh.material.uniforms.uCamVel.value.copy(camVel);
             }
             fogWant = clamp(fogWant + veil, 0, 1);
@@ -599,11 +617,11 @@
                 fog.color.copy(baseFog).lerp(U.uHorizon.value, fogLevel * 0.25);
                 U.uFog.value.copy(fog.color);
             }
-            const bad = kind === 'rain' || kind === 'snow' || kind === 'fog' ? Math.max(inten, 0) : 0;
-            const cover = clamp(baseCover - 0.2 * bad, 0.2, 0.9);
-            U.uCover.value = cover;
-            const glare = kind === 'glare' ? 1 + inten * 0.8 : 1;
-            U.uSunBoost.value = glare * (1 - 0.7 * (kind === 'rain' ? inten : 0));
+            U.uCover.value = clamp(baseCover - 0.2 * lerpWx('bad'), 0.2, 0.9);
+            U.uSunBoost.value = lerpWx('glare') * (1 - 0.7 * lerpWx('rainDim'));
+            /* A strike lights the dome, the water and the whole diorama for a few frames. */
+            U.uFlash.value = reduced ? flash * 0.35 : flash;
+            if (hemi) hemi.intensity = hemiIntensity0 * (1 + (reduced ? flash * 0.35 : flash) * 1.4);
         }
 
         const api = {
@@ -651,6 +669,7 @@
                 if (scene.userData.agdriftSky === api) delete scene.userData.agdriftSky;
                 if (fog) { fog.far = fogFar0; fog.near = fogNear0; fog.color.copy(baseFog); }
                 if (hemi && hemiBase) hemi.color.copy(hemiBase);
+                if (hemi) hemi.intensity = hemiIntensity0;
                 for (const o of disposables) if (o && o.dispose) o.dispose();
                 disposables.length = 0;
             }

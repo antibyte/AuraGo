@@ -715,6 +715,9 @@
                 case 'cloak_on': ringBb(ex, 1.2, ey, 5, 0.8, 0.4, PURPLE, 0.7); sparkle(ex, ey, ELEC, 12); break;
                 case 'cloak_off': sparkle(ex, ey, PURPLE, 8); break;
                 case 'bomb_tick': if (v) ring(v.x, 0.4, v.y, 0.4, 3.2, 0.28, GOLD, 0.5); break;
+                case 'lightning': { const p = race.cars[0].v; sparkle(p.x, p.y, WHITE, 16); ringBb(p.x, 6, p.y, 2, 26, 0.45, ELEC, 0.45); break; }
+                case 'gust': { const p = race.cars[0].v; sparkle(p.x, p.y, ICE1, 6); break; }
+                case 'weather': { const p = race.cars[0].v; sparkle(p.x, p.y, ICE0, 10); break; }
                 default: break;
             }
         }
@@ -748,15 +751,28 @@
         function ambientEmit(race, dt) {
             if (reduced || !eyeSet || dt <= 0) return;
             const m = MOTES[race.track.biomeId] || MOTES.alpine;
-            moteAcc += m[3] * dens * dt;
+            const cond = race.conditions ? race.conditions.state : null;
+            const gust = cond ? (cond.gust - 0.5) * 2 : 0, wet = cond ? cond.wetness : 0;
+            moteAcc += m[3] * dens * dt * (1 + gust * 0.25);
             let n = Math.floor(moteAcc);
             moteAcc -= n;
             if (rnd() < moteAcc) { n++; moteAcc = 0; }
             for (; n > 0; n--) {
                 const a = rnd() * TAU, d = 12 + Math.sqrt(rnd()) * 62, c0 = col(m[1], m[8] ? 1.5 : 1), c1 = col(m[2], m[8] ? 0.8 : 1);
                 spawn(m[0], m[8], eyeX + Math.cos(a) * d, rr(0.3, 7), eyeZ + Math.sin(a) * d,
-                    rr(-m[5], m[5]), m[4] + rr(-0.25, 0.25), rr(-m[5], m[5]), m[7] * rr(0.8, 1.2),
+                    rr(-m[5], m[5]) + gust * 5, m[4] + rr(-0.25, 0.25), rr(-m[5], m[5]) + gust * 2, m[7] * rr(0.8, 1.2),
                     m[6], m[6] * 1.7, c0, c1, m[8] ? 0.55 : 0.35, 0.14, 0, 0, 0, rr(-1, 1), 0);
+            }
+            /* Headlamp-catching spray on a wet road; it fades as the surface dries. */
+            const pv = race.cars && race.cars[0] ? race.cars[0].v : null;
+            if (wet > 0.3 && pv && !pv.airborne && Math.abs(pv.vx) > 16 && rnd() < wet * dens * dt * 22) {
+                const cp = Math.cos(pv.psi), sp = Math.sin(pv.psi);
+                for (let k = 0; k < 2; k++) {
+                    const side = k ? 1 : -1;
+                    spawn(F.DROP, 1, pv.x - cp * 1.6 - sp * side, 0.25, pv.y - sp * 1.6 + cp * side,
+                        -cp * 5 + rr(-2, 2), rr(1, 3), -sp * 5 + rr(-2, 2), 0.5, 0.3, 0.9,
+                        col('#bfe6ff', 1.2), col('#6fa8d8', 0.8), 0.5, 1.2, -3, 0, 0, 0, 0);
+                }
             }
         }
 

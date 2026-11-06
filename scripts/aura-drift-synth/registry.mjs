@@ -3,12 +3,13 @@ import { WORLD_RECIPES } from './sfx-world.mjs';
 import { WEAPON_RECIPES } from './sfx-weapons.mjs';
 import { COMIC_RECIPES } from './sfx-comic.mjs';
 import { POLISH_RECIPES } from './sfx-polish.mjs';
+import { WEATHER_RECIPES } from './sfx-weather.mjs';
 import { ENGINE_LAYERS, CAR_IDS, renderEngineLayer } from './engines.mjs';
 import { BIOMES, renderBiome, renderMenu, renderResults } from './music.mjs';
 
 export { ENGINE_LAYERS, CAR_IDS, BIOMES };
 export const MUSIC_LAYERS = ['bed', 'drive', 'peak'];
-export const SFX_RECIPES = [...WORLD_RECIPES, ...WEAPON_RECIPES, ...COMIC_RECIPES, ...POLISH_RECIPES];
+export const SFX_RECIPES = [...WORLD_RECIPES, ...WEAPON_RECIPES, ...COMIC_RECIPES, ...POLISH_RECIPES, ...WEATHER_RECIPES];
 
 const slug = text => text.replace(/[._]/g, '-');
 

@@ -7,12 +7,16 @@ Own the Blender 5.2 generator of the Aura Drift model pack and its pure-Python k
 ## Ownership
 - Authoring: this directory. `kit/polish_props.py` owns the six extra trackside props (shared
   balloon bunch and camera tower; alpine waymark, desert parasol, harbour signal mast, metro holo
-  arrow); the shared builders return `toy.Parts`, the scenery builders fill a `Piece`.
+  arrow); `kit/weather_props.py` owns the six weather props (shared wind sock and rain shelter;
+  alpine snow gauge, desert anemometer, harbour storm lantern, glacier drift fence). The shared
+  builders return `toy.Parts`, the scenery builders fill a `Piece`.
   `runtime-entry.mjs` belongs to the three.js vendor bundle, not to the kit.
-- Runtime payload: `ui/3d/aura-drift/v1/` (20 GLBs, 9 041 340 bytes, `manifest.json`, `LICENSE.txt`).
-  Written only by `generate.py`, the manifest only by `--only manifest`. Adding a prop means adding
+- Runtime payload: `ui/3d/aura-drift/v1/` (20 GLBs, 9 179 600 bytes, `manifest.json`, `LICENSE.txt`).
+  Written only by `generate.py`, the manifest only by `--only manifest` (a partial `--only` run
+  emits a partial manifest, so regenerate the whole pack before shipping). Adding a prop means adding
   its node to `scripts/test-aura-drift-assets.mjs`, its tags to `kit/meta_*.py`, and its placement
-  to `AD.SCATTER` or `AD.furnitureProps` so it is actually visible.
+  to `AD.SCATTER` or `AD.furnitureProps` so it is actually visible. A prop in `shared.glb` can only
+  be reached through `AD.furnitureProps`: `AD.scatterProps` places into the biome's own kit.
 - Audio inputs: `audio/sources.json` (13 hash-pinned CC0 sources, 17 sfx group overrides)
   and `audio/README.md`. The sound pack itself is `ui/3d/aura-drift/audio/` and is written only by
   `scripts/build-aura-drift-audio.mjs --write --sources D:\tmp\agdrift-cc0` (downloads in one folder per source id,

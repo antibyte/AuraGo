@@ -151,7 +151,8 @@
     const FURN_META = {
         grandstand: { r: 13.4, h: 8.9 }, fan_camp: { r: 3.5, h: 4.3 }, hoarding: { r: 4.9, h: 5.5 }, marshal_post: { r: 1.6, h: 5.1 }, gnome_statue: { r: 1.5, h: 5.4 },
         hotdog_stand: { r: 1.9, h: 5 }, camper_van: { r: 2.9, h: 3.6 }, inflatable_arch: { r: 7.7, h: 10.9 }, road_sign: { r: 1, h: 3.9 },
-        balloon_bunch: { r: 1.1, h: 5.6 }, photo_tower: { r: 1.4, h: 6.9 }
+        balloon_bunch: { r: 1.1, h: 5.6 }, photo_tower: { r: 1.4, h: 6.9 },
+        windsock: { r: 1.2, h: 6.5 }, rain_shelter: { r: 2.7, h: 3.3 }
     };
     AD.BRAND_COUNT = 8;
     AD.SIGN_COUNT = 16;
@@ -209,6 +210,9 @@
         [0.18, 0.62].forEach((f, i) => add('hotdog_stand', length * f, (i ? 1 : -1) * (hw(length * f) + 7), { angle: 0.3 }));
         [0.09, 0.33, 0.57, 0.8].forEach((f, i) => add('camper_van', length * f, (i % 2 ? 1 : -1) * (hw(length * f) + 16 + (i % 3) * 4), { jitter: 0.4 * (i - 1.5) }));
         [0.24, 0.48, 0.74].forEach((f, i) => add('fan_camp', length * f, (i % 2 ? -1 : 1) * (hw(length * f) + 8.5), { angle: 0.2 }));
+        /* Weather furniture: a wind sock at each sector's braking zone, shelters where marshals stand. */
+        track.sectors.forEach((s, i) => { const ws = s - 70; add('windsock', ((ws % length) + length) % length, (i % 2 ? -1 : 1) * (hw(s) + 6.4), { angle: 0.35 }); });
+        [0.15, 0.42, 0.68, 0.91].forEach((f, i) => add('rain_shelter', length * f, (i % 2 ? 1 : -1) * (hw(length * f) + 5.2), { angle: 0.25 }));
         /* Silly signs 120 m before every crossing and every ramp. */
         const signSpots = [];
         if (fs) { for (const c of fs.crossings) signSpots.push(c.signS !== undefined ? c.signS : c.s - 120); for (const r of fs.ramps) signSpots.push(r.s - 120); }

@@ -28,7 +28,8 @@ export const AUDIO_GROUPS = [
     'sting.perfect', 'sting.pancake', 'sting.strike', 'sting.slingshot', 'sting.moo', 'sting.trick', 'turbo.1', 'turbo.2', 'turbo.3', 'turbo.tick', 'pad.boost', 'ramp.launch',
     'land.soft', 'land.hard', 'roulette.tick', 'roulette.done', 'bomb.tick', 'bomb.blast', 'jingle.softeis', ...CARS.map(id => `horn.${id}`), 'ufo.beam',
     'ui.count', 'ui.go', 'ui.lap', 'ui.bank', 'whoosh', 'stinger.final_lap', 'stinger.disco', 'fanfare.win', 'fanfare.podium', 'fanfare.lose',
-    'sting.near_miss', 'sting.style_bank', 'sting.drift_link', 'sting.cloak', 'sting.sector'
+    'sting.near_miss', 'sting.style_bank', 'sting.drift_link', 'sting.cloak', 'sting.sector',
+    'weather.thunder', 'weather.gust', 'weather.splash', 'weather.shift'
 ];
 const LIMITS = { sfx: 4 * 1024 * 1024, engine: 1.5 * 1024 * 1024, music: 10 * 1024 * 1024, manifest: 128 * 1024 };
 const PATH_RE = /^(sfx|engine|music)\/[a-z0-9-]+\.ogg$/;

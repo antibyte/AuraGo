@@ -13,7 +13,8 @@ weapons, stingers, horns, UI). The originals are not committed; a group is repla
 - Build and verification: `scripts/build-aura-drift-audio.mjs`
 - Synthesis code: `scripts/aura-drift-synth/*.mjs` (`dsp.mjs` toolkit, `kit.mjs` shared sound parts,
   `engines.mjs`, `sfx-world.mjs`, `sfx-weapons.mjs`, `sfx-comic.mjs`, `sfx-polish.mjs` (five
-  feedback stinger groups, 12 variants), `music*.mjs`, `registry.mjs`)
+  feedback stinger groups, 12 variants), `sfx-weather.mjs` (four weather groups, 11 variants),
+  `music*.mjs`, `registry.mjs`)
 - Data input: `assets/aura-drift/audio/sources.json` (`sources`: 13 hash-pinned CC0 downloads, `overrides`: 17 sfx groups)
 - Contract test: `scripts/test-aura-drift-audio.mjs`
 

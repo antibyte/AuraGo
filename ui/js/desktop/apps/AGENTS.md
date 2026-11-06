@@ -1093,12 +1093,21 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   identical under Standard and Fruity; fonts are the bundled Press Start 2P and
   Px437 IBM VGA ("Retro Games VGA"). Scanlines sit behind the chrome and on
   thumbnails. A list request sets `is-loading` on `.rg-app` until that response
-  paints. Escape in the search clears a query. Arrow, Home and End movement in
+  paints: with no results yet it shows `aria-hidden` skeleton cards
+  (`.rg-skeleton-grid`), while keeping old results it shows the thin `.rg-progressbar`
+  under the head; a stale Load more is hidden. An empty All view before the index
+  exists uses the index-updating/-empty message, not "no results". A failed list
+  shows its message plus `Try again` (`.rg-retry`), restoring focus to the first
+  card. Escape in the search clears a query. Arrow, Home and End movement in
   the grid scrolls the next card into view. The back label shrinks before the
   cabinet marquee overflows.
 - No `innerHTML` in the three files: archive.org titles and makers reach the DOM
   only via `textContent`/attributes. Thumbnails load from
   `https://archive.org/services/img/<id>` with `referrerpolicy="no-referrer"`.
+  Cards show the platform glyph on the thumbnail, the archive.org creator when
+  present and a warning badge for games marked as not starting (the platform
+  badge is hidden while the missing-thumbnail glyph is shown). Coarse pointers
+  see the play affordance without hover.
 - The emulator frame is AuraGo's own player page, never archive.org's `/embed/` page (that one starts
   every emulator muted, is cut off in a small frame and fires `load` long before the emulator runs). Its
   URL is `PLAYER_BASE + encodeURIComponent(id)` plus `&muted=0|1&sound=<label>` (`playerURL(id, muted,
@@ -1134,9 +1143,12 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   in, so the game stays clickable): the loading bar (`desktop.retro_games_player_loading`) from mount
   until `running`; `failed` or no `running` within `STALL_MS` = 60 s show the hint with restart, open on
   archive.org and mark as not starting plus `desktop.retro_games_player_failed` or
-  `desktop.retro_games_player_stalled` (a late `running` retires the stall hint). The frame's `load` event
-  and window focus/blur say nothing about the emulator and are not used. `mount(..., { stallMs })` shortens
-  the delay for tests only; they wrap `RetroGamesPlayer.mount`.
+  `desktop.retro_games_player_stalled` (a late `running` retires the stall hint). The strip is
+  `aria-busy` while loading and carries `data-state="failed"|"stalled"` for its colour. The frame's
+  `load` event and window focus/blur say nothing about the emulator and are not used.
+  `mount(..., { stallMs })` shortens the delay for tests only; they wrap `RetroGamesPlayer.mount`.
+- The fullscreen button reflects the active fullscreen state through `aria-pressed` (updated on
+  `fullscreenchange` and removed with the mount), not a mute-style persistent class.
 - Sound: the mute button (🔊/🔇) sits in the marquee actions. Its label (`aria-label` and `title`) names
   what a click does: `desktop.retro_games_sound_off` while sound plays, `desktop.retro_games_sound_on`
   while muted. It has NO `aria-pressed` (a pressed button labelled "Sound on" reads as the opposite); the
@@ -1157,10 +1169,11 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   toggle reverts, shows the notice and reloads the library and the current list. Recording a
   play never shows `desktop_readonly` (the game still runs).
 - `showDisabled` keeps one slow passive poll (`status?passive=1`, every 30 s, on the shared
-  `st.pollTimer`, so there is only ever one timer and `dispose` clears it). When the status
-  answers enabled again, `reenable` clears the disabled state and runs the first-open path
-  (library, status, current view). Never start a sync from that poll, and never touch
-  `st.pollTimer` from `refreshStatus` while `st.disabled`.
+  `st.pollTimer`, so there is only ever one timer and `dispose` clears it). It also makes the
+  browse side/head inert, disables the update button and dims both; `reenable` removes the
+  inert/disabled state and runs the first-open path (library, status, current view). Never
+  start a sync from that poll, and never touch `st.pollTimer` from `refreshStatus` while
+  `st.disabled`.
 - The config page's "Check index" uses `status?passive=1` too: a plain status request starts
   the first index download.
 - Verify `TestDesktopRetroGamesTranslations`, `TestDesktopRetroGamesRegistration`,
@@ -1171,6 +1184,7 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   `TestDesktopRetroGamesStalledHintNeverCoversTheFrame` and, with `AURAGO_RUN_BROWSER_SMOKE=1`,
   `TestDesktopRetroGamesBrowser`, `TestDesktopRetroGamesPlayerBrowser`,
   `TestDesktopRetroGamesPlayerBrowserFailure`, `TestDesktopRetroGamesPlayerBrowserHostileMessages`,
+  `TestDesktopRetroGamesListFailureOffersRetry`,
   `TestDesktopRetroGamesPlayerBrowserRestartIgnoresTheOldPage` (holds the player route and makes zero-delay
   timers microtasks, so the old-document race is certain instead of lucky) and
   `TestDesktopRetroGamesBrowserStalledHint`. They drive the real shell (`desktopAuditBrowserWith`) with the
@@ -3542,14 +3556,26 @@ buttons and menu popovers remain excluded from those gestures.
   hash-pinned CC0 recordings declared in `assets/aura-drift/audio/sources.json` and credited in
   the pack's `LICENSE.txt`. Adding a group means adding a seeded recipe under
   `scripts/aura-drift-synth/`, rebuilding the pack with `build-aura-drift-audio.mjs --write`,
-  and extending `AD.AUDIO_GROUPS`, `CORE_GROUPS`, `AD.GROUP_GAIN_DB`, `AD.SYNTH_FALLBACK` and the
-  event switch together.
+  and extending `AD.AUDIO_GROUPS`, `CORE_GROUPS`, `AD.GROUP_GAIN_DB`, `AD.SYNTH_FALLBACK`,
+  `AD.SYNTH_LOOPS`, the event switch and the group list in `scripts/test-aura-drift-audio.mjs`
+  together.
+- Conditions: `aura-drift-conditions.js` turns the seeded weather schedule into a live state
+  (`blend` crossfade, `gust`, `wetness`, `visibility`, `grip`) and queues `events` (`lightning`,
+  `gust`) that `aura-drift-race.js` re-emits for the presentation. Every value is closed-form in
+  simulation time, so nothing reads the clock or the render rate; the contract is
+  `scripts/test-aura-drift-weather.mjs`. Wetness keeps its grip penalty after the sky clears
+  on purpose (wet roads linger), and grip never exceeds the dry base.
 - Polish: `aura-drift-fx.js` owns a quiet camera-relative biome mote layer (one `MOTES` profile
   per biome, scaled by the particle tier, disabled by `fx.setReducedMotion` from `render3d.js`)
-  and one-shot feedback for near misses, style banks, sectors, cloak changes and bomb ticks.
+  and one-shot feedback for near misses, style banks, sectors, cloak changes, bomb ticks and the
+  weather events (a strike adds a ground ring, a gust a few motes, a shift a puff). The mote and
+  rain layers lean with `conditions.state.gust`, wet roads throw headlamp-lit spray, and
+  `aura-drift-sky.js` crossfades its GLSL weather, leans precipitation, whitens the dome with the
+  `uFlash` uniform and lifts the hemisphere light on a strike.
   `AD.SCATTER` (`aura-drift-look.js`) and `AD.furnitureProps` (`aura-drift-props.js`) place the
-  six `kit/polish_props.py` models; every new prop needs a manifest node, a validator entry and
-  a placement rule, otherwise it is only dead weight in the GLB.
+  twelve polish and weather props; every new prop needs a manifest node, a validator entry and
+  a placement rule, otherwise it is only dead weight in the GLB. `AD.scatterProps` can only
+  reach the biome's own kit, so a prop in `shared.glb` must be placed as furniture.
 - Road markings (curbs, dashed centre line, worn racing-line bands, checkered start/finish)
   are world-anchored: dash patterns scale with the camera zoom and never animate with frame
   time. Braking fades out at standstill; a held brake engages a bounded reverse, and steering

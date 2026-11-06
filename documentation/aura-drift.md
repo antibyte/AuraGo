@@ -196,14 +196,18 @@ weather motion are removed by reduced motion.
 
 - Runtime: `ui/js/vendor/aura-drift/three-runtime.js`, a three.js **0.186.1 (r186)** IIFE bundle
   (908 369 bytes, manifest and licence beside it in `ui/js/vendor/aura-drift/`).
-- Models: 20 GLB files, 9 041 340 bytes (8.62 MiB) in total, under `ui/3d/aura-drift/v1`: eight cars, `items`,
+- Models: 20 GLB files, 9 179 600 bytes (8.75 MiB) in total, under `ui/3d/aura-drift/v1`: eight cars, `items`,
   `track`, `animals`, `shared` props and eight biome scenery kits. `manifest.json` records
   per-file size, hash and car measurements; `LICENSE.txt` lists the licence. The models are made
   by `assets/aura-drift/generate.py` (Blender 5.2, deterministic output) and are untextured:
   chunky low-poly toy shapes, glossy paint through vertex colours and materials. The polish round
   added six props from `assets/aura-drift/kit/polish_props.py`: a balloon bunch and a camera tower
   beside the stands on every track, plus an alpine waymark, a desert parasol, a harbour signal
-  mast and a metro holo arrow in their biomes.
+  mast and a metro holo arrow in their biomes. The weather round added six more from
+  `kit/weather_props.py`: a wind sock at every sector and a covered rain shelter on every track,
+  plus an alpine snow gauge, a desert anemometer, a harbour storm lantern and a glacier drift
+  fence in their biomes. All twelve new props are placed through `AD.SCATTER` bands or
+  `AD.furnitureProps`, so they are visible rather than merely exported.
 - Look: golden-hour diorama lighting, hemisphere and sun, a sky shader with the biome palette,
   shadow maps by tier, weather (rain, snow, fog, haze) drawn in the sky, terrain and props,
   instanced car lamps, reverse lights, softeis roof beacon, road underglow pools, exhaust
@@ -211,7 +215,11 @@ weather motion are removed by reduced motion.
   biome its own air (pollen, sand, sea spray, fireflies, embers, ice crystals, neon bokeh);
   it is scaled by the quality tier and switched off by reduced motion. Near misses, style banks,
   sector splits, cloak changes, bomb ticks and high-speed driving also have their own particle
-  feedback.
+  feedback. The weather round ties the effects to the conditions state: the sky shader crossfades
+  between the two scheduled kinds, leans its precipitation with the gust, whitens the dome on a
+  strike and briefly lifts the hemisphere light; the mote layer and the rain in the Canvas 2D view
+  lean the same way, wet roads throw headlamp-lit spray and splash sounds, and a strike adds a
+  full-screen flash plus a ground ring.
 - The 3D view needs WebGL2. Without it the game falls back to the Canvas 2D view.
 - On `auto`, a software GL renderer (the renderer string matches SwiftShader, llvmpipe or
   software) is rejected and the 2D view is used. An explicit graphics tier still accepts it.
@@ -265,7 +273,14 @@ so the heading points up the screen (`screenRotation`). Two guards exist:
   Each layout has three timing sectors and drift zones at its sharpest corners.
 - **Weather:** every race runs a seeded schedule (rain, snow, fog, mist, haze, glare, heat).
   It is part of the deterministic simulation, changes grip for every driver equally, and drives
-  the score's ambience.
+  the score's ambience. `aura-drift-conditions.js` turns the schedule into a closed-form state:
+  a crossfade between the two adjacent segments (`blend`), a per-biome storm bias, gust waves from
+  three seeded phases, a `wetness` value that rises quickly in rain and dries out slowly, a
+  `visibility` distance and scheduled lightning strikes inside rain and snow. Wind leans the
+  precipitation, wet roads keep their grip penalty after the sky clears, gusts add a small
+  wind-dependent grip term, and strikes reach the presentation as `lightning` and `gust` events.
+  All of it is a pure function of simulation time, so replays stay bit-identical; the contract is
+  pinned by `scripts/test-aura-drift-weather.mjs` (121 checks).
 - **Style scoring:** sliding above 9 m/s and 10 degrees of slip starts a drift chain. Chains
   link inside a 1.5 s window, grow a multiplier up to ×8 and bank only when they end. Loose
   surfaces and drift zones pay more; near misses (a rival inside 2.7 m at closing speed) pay a
@@ -284,13 +299,15 @@ own synthesis, 17 sound groups from approved CC0 recordings (credited in
 `ui/3d/aura-drift/audio/LICENSE.txt`). Every file is Ogg Vorbis under `ui/3d/aura-drift/audio/`,
 described by its `manifest.json`, which marks each file `own-synthesis` or with its CC0 source id.
 
-- **Sound effects (about 2.0 MB):** weapons, impacts, scrapes, tyre squeals, explosions, crate
+- **Sound effects (about 2.1 MB):** weapons, impacts, scrapes, tyre squeals, explosions, crate
   and prop breaks, crowd and animal calls, biome ambience beds and comic stingers and fanfares.
   Groups with several members are variants; one is picked at random. The polish round added five
   own-synthesis stinger groups (12 variants) from `scripts/aura-drift-synth/sfx-polish.mjs`:
   `sting.near_miss`, `sting.style_bank`, `sting.drift_link`, `sting.cloak` and `sting.sector`,
   so near misses, drift-chain links, banked style, cloak changes and sector splits now have
-  their own audible feedback.
+  their own audible feedback. The weather round added four more groups (11 variants) in
+  `sfx-weather.mjs`: `weather.thunder` (3, delayed by the strike distance), `weather.gust` (3),
+  `weather.splash` (3, wet-road spray at speed) and `weather.shift` (2, the sky changing).
 - **Engines (about 0.66 MB):** eight cars times four layers (idle, low, mid, high), two seconds,
   mono and seamless. The player's engine crossfades the four layers by rpm with equal power;
   each rival plays the mid layer of its own car, spatialised.
@@ -379,6 +396,7 @@ node scripts/test-aura-drift-modes.mjs
 node scripts/test-aura-drift-camera.mjs
 node scripts/test-aura-drift-world.mjs
 node scripts/test-aura-drift-props.mjs
+node scripts/test-aura-drift-weather.mjs
 node scripts/test-aura-drift-banter.mjs
 node scripts/test-aura-drift-assets.mjs
 node scripts/test-aura-drift-audio.mjs
@@ -403,6 +421,10 @@ What each group checks:
 - **Tricks, features, weapons, modes, world, props and banter** check the rule tables, the
   animal and crossing logic, weapon roulette and firing, mode rules (medals, sweeper, elimination,
   hot potato), world generation, prop placement and the banter lines.
+- **Weather** checks the conditions contract: strikes only inside rain and snow, a per-biome storm
+  bias, identical replays for one seed and different ones for another, grip never above the dry
+  base, wetness that lingers after the sky clears, observed crossfades, and gust cues far enough
+  apart that they do not stack.
 - **Camera** runs every track, the daily seed and every camera mode, holds steer left and right,
   and checks the aim point on screen in 3D and in 2D (`screenRotation(pi/2)` maps car-left to
   smaller screen x).

@@ -21,7 +21,8 @@
         'sting.perfect', 'sting.pancake', 'sting.strike', 'sting.slingshot', 'sting.moo', 'sting.trick', 'turbo.1', 'turbo.2', 'turbo.3', 'turbo.tick', 'pad.boost', 'ramp.launch',
         'land.soft', 'land.hard', 'roulette.tick', 'roulette.done', 'bomb.tick', 'bomb.blast', 'jingle.softeis', 'horn.<carId>', 'ufo.beam',
         'ui.count', 'ui.go', 'ui.lap', 'ui.bank', 'whoosh', 'stinger.final_lap', 'stinger.disco', 'fanfare.win', 'fanfare.podium', 'fanfare.lose',
-        'sting.near_miss', 'sting.style_bank', 'sting.drift_link', 'sting.cloak', 'sting.sector'
+        'sting.near_miss', 'sting.style_bank', 'sting.drift_link', 'sting.cloak', 'sting.sector',
+        'weather.thunder', 'weather.gust', 'weather.splash', 'weather.shift'
     ];
 
     /* Groups that make the first race sound right; fetched right after the engine of the chosen car. */
@@ -29,7 +30,8 @@
         'ui.count', 'ui.go', 'ui.lap', 'ui.bank', 'impact.light', 'impact.heavy', 'impact.metal', 'explosion.small', 'explosion.big', 'crate.break',
         'turbo.1', 'turbo.2', 'turbo.3', 'turbo.tick', 'pad.boost', 'ramp.launch', 'land.soft', 'land.hard', 'whoosh', 'tyre.squeal', 'scrape.metal',
         'sting.perfect', 'sting.trick', 'sting.slingshot', 'prop.hay', 'prop.cone', 'prop.barrel', 'prop.tyres',
-        'sting.near_miss', 'sting.style_bank', 'sting.drift_link', 'sting.cloak', 'sting.sector'
+        'sting.near_miss', 'sting.style_bank', 'sting.drift_link', 'sting.cloak', 'sting.sector',
+        'weather.thunder', 'weather.gust', 'weather.splash', 'weather.shift'
     ];
     const BIOME_AMBIENCE = {
         alpine: 'amb.wind', desert: 'amb.desert', harbour: 'amb.sea', salt: 'amb.desert', forest: 'amb.forest', industry: 'amb.machinery', glacier: 'amb.snow', metro: 'amb.city'
@@ -64,7 +66,7 @@
         let noise = null;
         let volume = settings.volume, muted = settings.muted;
         let running = false, carId = null, biomeId = null, view = 'race';
-        let lastTick = 0, heading = 0, myX = 0, myY = 0, lastHornAt = -9, lastKerbAt = -9, lastPassAt = -9;
+        let lastTick = 0, heading = 0, myX = 0, myY = 0, lastHornAt = -9, lastKerbAt = -9, lastPassAt = -9, lastSprayAt = -9;
         let rollGain = null, windGain = null, surfaceGain = null, surfaceFilter = null, sprayGain = null, sprayFilter = null;
         let liveNodes = [];
         let voiceSpeaking = false;       /* a driver is speaking and the race steps back */
@@ -255,6 +257,10 @@
             const me = mine(evt);
             const sp = evt.x !== undefined ? spatial(evt.x, evt.y) : (me ? CENTER : null);
             switch (evt.type) {
+                case 'weather': P('weather.shift', CENTER, { gain: 0.55, rate: evt.kind === 'clear' ? 0.9 : 1.08, vary: 0 }); break;
+                case 'gust': P('weather.gust', CENTER, { gain: 0.4 + (evt.strength || 0.5) * 0.3 }); break;
+                /* Thunder arrives after the flash, by the strike's seeded delay. */
+                case 'lightning': P('weather.thunder', CENTER, { gain: 0.5 + (evt.strength || 0.5) * 0.45, delay: clamp(evt.thunder || 0.5, 0, 1.5), vary: 0 }); break;
                 case 'count': P('ui.count', CENTER, { rate: evt.value > 0 ? 1 : 1.5, vary: 0 }); break;
                 case 'go': P('ui.go', CENTER, { vary: 0 }); P('crowd.cheer', CENTER, { gain: 0.7, delay: 0.1 }); break;
                 case 'perfect_start': if (evt.car === 0) P('sting.perfect', CENTER); break;
@@ -543,6 +549,11 @@
                 };
                 music.update(tick, clamp(speed / 70, 0, 1), conditions, flags);
                 if (conditions && conditions.ambience) music.setAmbience(conditions.ambience);
+                /* Puddles keep hissing as long as the road is wet, not just while it rains. */
+                if (conditions && conditions.wetness > 0.35 && speed > 18 && active && now - lastSprayAt > 0.45) {
+                    lastSprayAt = now;
+                    P('weather.splash', CENTER, { gain: clamp(conditions.wetness * 0.35, 0.1, 0.4) });
+                }
             },
             event,
             stats() {

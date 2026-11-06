@@ -33,7 +33,8 @@
         'horn.vektor': -8, 'horn.kobalt': -10, 'horn.lumen': -9.5, 'horn.tundra': -10.5, 'horn.softeis': -3, 'horn.maehkoenig': -5, 'horn.couch': -10, 'horn.bertha': -8.5,
         'ufo.beam': -11.5, 'ui.count': -11, 'ui.go': -5.5, 'ui.lap': -6.5, 'ui.bank': -6.5, 'whoosh': -9,
         'stinger.final_lap': -3, 'stinger.disco': 0.5, 'fanfare.win': -4, 'fanfare.podium': -3.5, 'fanfare.lose': -7,
-        'sting.near_miss': -7.5, 'sting.style_bank': -7, 'sting.drift_link': -9, 'sting.cloak': -8, 'sting.sector': -7.5
+        'sting.near_miss': -7.5, 'sting.style_bank': -7, 'sting.drift_link': -9, 'sting.cloak': -8, 'sting.sector': -7.5,
+        'weather.thunder': -6.5, 'weather.gust': -11, 'weather.splash': -9.5, 'weather.shift': -8.5
     };
 
     /* Live recipes. 't' = tone(freq, dur, type, level, sweep, delay); 'n' = noise(level, dur, freq, filter, delay, q). */
@@ -118,7 +119,11 @@
         'sting.style_bank': run([784, 988, 1175, 1568], 0.07),
         'sting.drift_link': [T(640, 0.12, 'triangle', 0.08, 220), N(0.05, 0.05, 2400)],
         'sting.cloak': [N(0.08, 0.6, 2200, 'bandpass', 0, 0.8), T(520, 0.5, 'sine', 0.06, 700)],
-        'sting.sector': run([659, 988], 0.1)
+        'sting.sector': run([659, 988], 0.1),
+        'weather.thunder': [N(0.35, 1.6, 180, 'lowpass'), T(58, 1.4, 'sine', 0.2, 26), N(0.12, 0.25, 1400, 'highpass')],
+        'weather.gust': [N(0.14, 1.1, 700, 'bandpass', 0, 0.7), T(180, 0.9, 'sine', 0.05, 320)],
+        'weather.splash': [N(0.18, 0.28, 2600, 'highpass'), T(220, 0.12, 'sine', 0.08, 90)],
+        'weather.shift': [N(0.1, 0.5, 1200), T(392, 0.4, 'triangle', 0.07, 660)]
     };
     for (const id of ['vektor', 'kobalt', 'lumen', 'tundra', 'softeis', 'maehkoenig', 'couch', 'bertha']) AD.SYNTH_FALLBACK['horn.' + id] = HORN;
 
