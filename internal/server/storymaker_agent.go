@@ -12,6 +12,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
+	"aurago/internal/security"
 	"aurago/internal/storymaker"
 	"aurago/internal/storymaker/render"
 	"aurago/internal/tools"
@@ -382,4 +383,406 @@ func storymakerAgentUserMessage(phase string, voiceAvailable bool, data []byte) 
 		text += "\n" + storymakerNoVoiceNote
 	}
 	return text + "\n\nJob context (data):\n<external_data>\n" + string(data) + "\n</external_data>"
+}
+
+// storymakerAgentAttempts bounds one loop: it is restarted at most once, after a model error or an empty end.
+const storymakerAgentAttempts = 2
+
+// storymakerAgentStopped is the error of a run that lost its context. The manager turns a requested
+// cancel or a shutdown into its own end state, whatever this returns.
+func storymakerAgentStopped() *render.JobError {
+	return render.Fail(render.CodeCancelled, "The desktop became read-only or its configuration changed, so the agent stopped.")
+}
+
+// storymakerAgentTargetSeconds clamps rather than refuses, so a chat call does not fail (decision 13).
+func storymakerAgentTargetSeconds(cfg *config.Config, requested, saved int) int {
+	target := requested
+	if target <= 0 {
+		target = saved
+	}
+	if target <= 0 {
+		target = 60
+	}
+	upper := min(cfg.Storymaker.Agent.MaxLengthSeconds, cfg.Storymaker.Render.MaxDurationSeconds)
+	lower := min(15, upper)
+	return min(max(target, lower), upper)
+}
+
+func storymakerAgentRequestClip(text string) string {
+	runes := []rune(security.Scrub(strings.TrimSpace(text)))
+	if len(runes) > 200 {
+		return string(runes[:200])
+	}
+	return string(runes)
+}
+
+func storymakerAgentSummary(text string) string {
+	runes := []rune(security.Scrub(strings.TrimSpace(text)))
+	if len(runes) > 2000 {
+		return string(runes[:2000])
+	}
+	return string(runes)
+}
+
+func storymakerAgentSameVoice(a, b *storymaker.Voice) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return *a == *b
+}
+
+func storymakerAgentVoiceReady(providers []storymaker.VoiceProvider, voice *storymaker.Voice) bool {
+	if voice == nil {
+		return false
+	}
+	id := storymaker.NormalizeProvider(voice.Provider)
+	for _, row := range providers {
+		if row.ID == id {
+			return row.Ready
+		}
+	}
+	return false
+}
+
+// storymakerAgentCompile runs the compile check with settings of its own: storymakerSettings fails
+// without FFmpeg, and a compile check needs no FFmpeg.
+func (s *Server) storymakerAgentCompile(rt *storymakerRuntime, cfg *config.Config) func(context.Context, string) (storymaker.CompileSummary, error) {
+	settings := render.Settings{
+		TimeoutSeconds:     cfg.Storymaker.Render.TimeoutSeconds,
+		MaxDurationSeconds: cfg.Storymaker.Render.MaxDurationSeconds,
+		BrowserPath:        cfg.Storymaker.Render.BrowserPath,
+		Transport:          cfg.Storymaker.Render.Transport,
+		Limits:             storymakerLimits(cfg),
+	}
+	return func(ctx context.Context, projectID string) (storymaker.CompileSummary, error) {
+		return rt.runner.CompileCheck(ctx, projectID, settings)
+	}
+}
+
+// prepareVoice is the first job step (decision 11). It writes story.voice and returns the language
+// of the job and whether a ready voice speaks it. No voice is not a failure: the story keeps voice null.
+func (j *storymakerAgentJob) prepareVoice(ctx context.Context) (string, bool, error) {
+	cfg := j.route.cfg
+	data, etag, err := j.rt.projects.LoadStory(ctx, j.job.ProjectID)
+	if err != nil {
+		return "", false, err
+	}
+	story, _, err := storymaker.DecodeStory(data, storymakerLimits(cfg))
+	if err != nil {
+		return "", false, err
+	}
+	revise := j.payload.Kind == storymaker.AgentKindRevise
+	language := strings.TrimSpace(j.payload.Language)
+	if language == "" && revise && story.Voice != nil {
+		language = story.Voice.Language
+	}
+	if language == "" {
+		language = strings.TrimSpace(cfg.Server.UILanguage)
+	}
+	if language == "" {
+		language = "en"
+	}
+	providers := j.s.storymakerVoiceProviders(ctx)
+	voice := story.Voice
+	switch {
+	case j.payload.Voice != nil:
+		chosen := *j.payload.Voice
+		if chosen.Language == "" {
+			chosen.Language = language
+		}
+		voice = &chosen
+	case voice == nil || (!revise && storymaker.LanguageBase(voice.Language) != storymaker.LanguageBase(language)):
+		voice = nil
+		if resolved, _, err := storymaker.ResolveProjectVoice(providers, language, storymakerDefaultVoiceFor(cfg, providers)); err == nil {
+			voice = &resolved
+		}
+	}
+	if !storymakerAgentSameVoice(story.Voice, voice) {
+		story.Voice = voice
+		storymaker.ApplyDefaults(&story)
+		out, err := storymaker.CanonicalJSON(story)
+		if err != nil {
+			return "", false, err
+		}
+		if _, err := j.rt.projects.SaveStory(ctx, j.job.ProjectID, out, etag); err != nil {
+			return "", false, err
+		}
+	}
+	return language, storymakerAgentVoiceReady(providers, voice), nil
+}
+
+// newStorymakerAgentJob resolves the route and the voice and opens the session. Every error is a
+// *render.JobError. The agent switch gates new jobs at the routes, not here.
+func (s *Server) newStorymakerAgentJob(ctx context.Context, rt *storymakerRuntime, job render.Job, p storymakerAgentPayload, h *render.Handle) (*storymakerAgentJob, error) {
+	route, err := s.storymakerAgentResolveRoute(p.Provider, p.Model)
+	if err != nil {
+		return nil, err
+	}
+	cfg := route.cfg
+	if !cfg.Storymaker.Enabled || !cfg.VirtualDesktop.Enabled {
+		return nil, render.Fail(render.CodeDisabled, "Storymaker was switched off before this agent job started.")
+	}
+	if p.Kind == "" {
+		p.Kind = storymaker.AgentKindCreate
+	}
+	logger := s.storymakerMusicLogger()
+	project, err := rt.projects.Get(ctx, job.ProjectID)
+	if err != nil {
+		logger.Warn("[Storymaker] The agent job could not read its project", "job_id", job.ID, "error", err)
+		return nil, render.Fail(render.CodeModelError, "The project of this agent job could not be read.")
+	}
+	mem, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		logger.Warn("[Storymaker] The agent session could not be opened", "job_id", job.ID, "error", err)
+		return nil, render.Fail(render.CodeModelError, "The agent session could not be opened.")
+	}
+	j := &storymakerAgentJob{s: s, rt: rt, job: job, payload: p, h: h, route: route, names: storymakerAgentNames(rt.catalog), mem: mem, logger: logger}
+	language, available, err := j.prepareVoice(ctx)
+	if err != nil {
+		mem.Close()
+		logger.Warn("[Storymaker] The agent job could not prepare the voice", "job_id", job.ID, "error", err)
+		return nil, render.Fail(render.CodeModelError, "The story of this agent job could not be read.")
+	}
+	j.voiceAvailable = available
+	j.deps = storymaker.StudioDeps{
+		Projects:           rt.projects,
+		Catalog:            rt.catalog,
+		Limits:             storymakerLimits(cfg),
+		Voices:             s.storymakerVoiceProviders,
+		Compile:            s.storymakerAgentCompile(rt, cfg),
+		MaxDurationSeconds: cfg.Storymaker.Render.MaxDurationSeconds,
+		ReadOnly: func() bool {
+			latest := s.ConfigSnapshot()
+			return latest == nil || latest.VirtualDesktop.ReadOnly
+		},
+	}
+	target := storymakerAgentTargetSeconds(cfg, p.LengthSeconds, project.TargetSeconds)
+	j.studioJob = storymaker.StudioJob{
+		JobID: job.ID, ProjectID: job.ProjectID, Kind: p.Kind,
+		Language: language, Audience: firstNonEmpty(p.Audience, project.Audience),
+		TargetSeconds: target, VoiceAvailable: available,
+	}
+	j.studio, err = storymaker.NewStudio(j.deps, j.studioJob)
+	if err != nil {
+		mem.Close()
+		logger.Warn("[Storymaker] The agent Studio could not be opened", "job_id", job.ID, "error", err)
+		return nil, render.Fail(render.CodeModelError, "The agent session could not be prepared.")
+	}
+	j.update(func(info *storymaker.AgentJobInfo) {
+		info.Kind = p.Kind
+		info.Provider, info.Model = cfg.LLM.Provider, cfg.LLM.Model
+		info.Compact, info.TextMode = route.compact, route.text
+		info.TargetSeconds = target
+		info.Request = storymakerAgentRequestClip(firstNonEmpty(p.Topic, p.Instruction))
+	})
+	return j, nil
+}
+
+// noteModelError keeps a generic text for the job. The raw error stays in the server log, because
+// provider errors can carry URLs and response bodies.
+func (j *storymakerAgentJob) noteModelError(err error) {
+	j.modelError = true
+	j.failure = cydCreatorAgentFailureText(err)
+}
+
+// enterPhase binds the Studio to the phase and shows the phase on the job.
+func (j *storymakerAgentJob) enterPhase(phase, sceneID string) {
+	j.studio.SetPhase(phase, sceneID)
+	j.h.SetPhase(phase)
+	j.update(func(info *storymaker.AgentJobInfo) { info.Phase, info.SceneID = phase, sceneID })
+}
+
+// loopEnded says whether a loop that returned without an error reached the end of its phase.
+func (j *storymakerAgentJob) loopEnded(loop storymakerAgentLoop, answer string) bool {
+	if storymakerAgentNeedsToolCall(loop.phase) {
+		return j.studio.PhaseDone()
+	}
+	return answer != "" || j.studio.PhaseDone()
+}
+
+// runPhase runs one loop with at most one restart and reports whether the phase reached its end. A
+// failed loop does not fail the job: what was saved stays (decision 15). An advice round never
+// counts as a model error, because advice never blocks the outcome.
+func (j *storymakerAgentJob) runPhase(ctx context.Context, loop storymakerAgentLoop) (string, bool) {
+	j.enterPhase(loop.phase, loop.sceneID)
+	for attempt := 1; attempt <= storymakerAgentAttempts; attempt++ {
+		fields := map[string]any{"phase": loop.phase, "attempt": attempt}
+		if loop.sceneID != "" {
+			fields["scene_id"] = loop.sceneID
+		}
+		j.emit(agentEventPhase, fields)
+		answer, err := j.runLoop(ctx, loop)
+		if ctx.Err() != nil {
+			return "", false
+		}
+		if err == nil && j.loopEnded(loop, answer) {
+			return answer, true
+		}
+		if err != nil {
+			j.logger.Warn("[Storymaker] An agent loop failed", "job_id", j.job.ID, "phase", loop.phase, "attempt", attempt, "error", err)
+			if attempt == storymakerAgentAttempts && !loop.advice {
+				j.noteModelError(err)
+			}
+		}
+	}
+	return "", false
+}
+
+// check reads the report of this moment and publishes its counts.
+func (j *storymakerAgentJob) check(ctx context.Context) (storymaker.CheckReport, error) {
+	report, err := j.studio.Check(ctx)
+	if err != nil {
+		return storymaker.CheckReport{}, err
+	}
+	j.roundsLeft = report.RoundsLeft
+	j.emitCheck(report)
+	return report, nil
+}
+
+func (j *storymakerAgentJob) emitCheck(report storymaker.CheckReport) {
+	j.emit(agentEventCheck, map[string]any{"issues": len(report.Issues), "advice": len(report.Advice), "rounds_left": report.RoundsLeft, "compile": report.Compile})
+}
+
+// keepAnswer remembers the last text reply. It is released only with the outcome ready_unverified.
+func (j *storymakerAgentJob) keepAnswer(answer string) {
+	if answer != "" {
+		j.summary = answer
+	}
+}
+
+// runCheckRound is the check step: one model loop, only if the report asks for one. Advice gets one chance per job.
+func (j *storymakerAgentJob) runCheckRound(ctx context.Context) {
+	if ctx.Err() != nil {
+		return
+	}
+	report, err := j.check(ctx)
+	if err != nil {
+		j.logger.Warn("[Storymaker] The agent check failed", "job_id", j.job.ID, "error", err)
+		j.noteModelError(err)
+		return
+	}
+	switch {
+	case report.RoundsLeft <= 0:
+	case len(report.Issues) > 0:
+		answer, _ := j.runPhase(ctx, storymakerAgentLoop{phase: storymaker.PhaseCheck})
+		j.keepAnswer(answer)
+	case len(report.Advice) > 0 && !j.adviceDone:
+		j.adviceDone = true
+		answer, _ := j.runPhase(ctx, storymakerAgentLoop{phase: storymaker.PhaseCheck, advice: true})
+		j.keepAnswer(answer)
+	}
+	if ctx.Err() == nil {
+		j.refreshProgress(ctx)
+	}
+}
+
+// runCreate is the create order: outline, cast, one loop per scene, then the check step.
+func (j *storymakerAgentJob) runCreate(ctx context.Context) {
+	if _, done := j.runPhase(ctx, storymakerAgentLoop{phase: storymaker.PhaseOutline}); !done {
+		return
+	}
+	j.refreshProgress(ctx)
+	if ctx.Err() != nil {
+		return
+	}
+	if _, done := j.runPhase(ctx, storymakerAgentLoop{phase: storymaker.PhaseCast}); !done {
+		return
+	}
+	if ctx.Err() != nil {
+		return
+	}
+	progress, err := j.studio.Progress(ctx)
+	if err != nil {
+		j.logger.Warn("[Storymaker] The agent progress could not be read", "job_id", j.job.ID, "error", err)
+		j.noteModelError(err)
+		return
+	}
+	for _, sceneID := range progress.Unfilled {
+		if ctx.Err() != nil {
+			return
+		}
+		j.runPhase(ctx, storymakerAgentLoop{phase: storymaker.PhaseFill, sceneID: sceneID})
+		j.refreshProgress(ctx)
+	}
+	j.runCheckRound(ctx)
+}
+
+// publishOutcome decides the outcome and writes it to the job. A story that never got an outline
+// has nothing valid to keep, and only that ends the job as failed.
+func (j *storymakerAgentJob) publishOutcome(ctx context.Context, in storymaker.OutcomeInput) (render.Output, error) {
+	progress, err := j.studio.Progress(ctx)
+	if err != nil {
+		j.logger.Warn("[Storymaker] The agent progress could not be read", "job_id", j.job.ID, "error", err)
+		j.noteModelError(err)
+		in.ModelError = true
+	}
+	// The drafts come from the caller, which reads them before it drops them.
+	progress.Drafts = in.Progress.Drafts
+	in.Progress = progress
+	outcome, checks := storymaker.DecideOutcome(in)
+	j.emit(agentEventOutcome, map[string]any{"outcome": outcome})
+	j.update(func(info *storymaker.AgentJobInfo) {
+		info.Outcome, info.OpenChecks = outcome, checks
+		info.Phase, info.SceneID = "", ""
+		info.ScenesTotal, info.ScenesDone, info.StoryETag = progress.ScenesTotal, progress.ScenesDone, progress.ETag
+		info.DurationSeconds = in.Check.TotalSeconds
+		if outcome == storymaker.OutcomeReadyUnverified {
+			info.Summary = storymakerAgentSummary(j.summary)
+		}
+	})
+	if outcome == storymaker.OutcomeFailed {
+		text := j.failure
+		if text == "" {
+			text = "The agent could not write an outline for this story."
+		}
+		return render.Output{}, render.Fail(render.CodeModelError, "%s", text)
+	}
+	return render.Output{}, nil
+}
+
+// finish drops the drafts, reads the last report and publishes the outcome.
+func (j *storymakerAgentJob) finish(runCtx, jobCtx context.Context) (render.Output, error) {
+	timedOut := jobCtx.Err() != nil
+	j.studio.DropDrafts()
+	report, err := j.check(runCtx)
+	if err != nil {
+		j.logger.Warn("[Storymaker] The agent check failed", "job_id", j.job.ID, "error", err)
+		j.noteModelError(err)
+	}
+	return j.publishOutcome(runCtx, storymaker.OutcomeInput{Check: report, TimedOut: timedOut, ModelError: j.modelError})
+}
+
+// storymakerAgentRun runs one job of the agent queue. It gets rt directly, because
+// s.storymakerRuntime() holds storymakerMu while a replaced runtime waits for its running job. The
+// desktop run makes a config change that sets read-only cancel the loops already in flight.
+func (s *Server) storymakerAgentRun(ctx context.Context, rt *storymakerRuntime, job render.Job, payload any, h *render.Handle) (render.Output, error) {
+	p, ok := payload.(storymakerAgentPayload)
+	if !ok {
+		return render.Output{}, render.Fail(render.CodeModelError, "This agent job has no request.")
+	}
+	runCtx, release, err := s.beginDesktopRun(ctx)
+	if err != nil {
+		return render.Output{}, storymakerAgentStopped()
+	}
+	defer release()
+	// The desktop service can be replaced while a job waits. Requests refresh the store the same way.
+	if svc, _, err := s.getDesktopService(runCtx); err == nil {
+		rt.store.use(svc)
+	}
+	j, err := s.newStorymakerAgentJob(runCtx, rt, job, p, h)
+	if err != nil {
+		if runCtx.Err() == context.Canceled {
+			return render.Output{}, storymakerAgentStopped()
+		}
+		return render.Output{}, err
+	}
+	defer j.mem.Close()
+	jobCtx, cancel := context.WithTimeout(runCtx, time.Duration(j.route.cfg.Storymaker.Agent.JobTimeoutSeconds)*time.Second)
+	defer cancel()
+	j.runCreate(jobCtx)
+	if runCtx.Err() != nil {
+		j.studio.DropDrafts()
+		return render.Output{}, storymakerAgentStopped()
+	}
+	return j.finish(runCtx, jobCtx)
 }
