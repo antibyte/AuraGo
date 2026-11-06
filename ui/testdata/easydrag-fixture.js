@@ -148,13 +148,14 @@
     //   publishPartial  a publish answers 200 {partial: true, code: publishPartial, …}
     //   resyncAfter     a run stream sends "resync" after this many live events (once), as the bus
     //                   does when it drops a slow client
+    //   malformedSnapshotOnce / malformedSSEAfter inject one invalid frame for reconnect tests
     //   failType        steps of this node type fail, and their run with them
     //   failPreview     the publish preview answers 500 FLOW_INTERNAL
     //   failLists       answers {status, code, error} the next GET /api/desktop/flows lists get, in order
     //   delay           milliseconds each step of a run takes
     const state = {
         flows: new Map(), runs: new Map(), scenarios: new Map(), saves: [], exports: [], requests: [], testData: {}, secrets: ['wetter_api'], secretWrites: [], streams: [], decisionResult: null,
-        delay: 140, disabled: false, failSaves: [], failLists: [], publishPartial: '', resyncAfter: 0, failType: '', failPreview: false,
+        delay: 140, disabled: false, failSaves: [], failLists: [], publishPartial: '', resyncAfter: 0, malformedSnapshotOnce: false, malformedSSEAfter: 0, malformedSSESent: false, failType: '', failPreview: false,
         options: { ha_entities: { options: [{ value: 'light.kueche', label: 'Küche' }, { value: 'light.flur', label: 'Flur' }], truncated: true } }
     };
 
@@ -454,8 +455,11 @@
             if (this.unsubscribe) { this.unsubscribe(); this.unsubscribe = null; }
         }
         dispatch(type, data, id) {
+            this.dispatchRaw(type, JSON.stringify(data), id);
+        }
+        dispatchRaw(type, data, id) {
             if (this.closed) return;
-            const event = { type, data: JSON.stringify(data), lastEventId: id ? String(id) : '' };
+            const event = { type, data, lastEventId: id ? String(id) : '' };
             (this.listeners[type] || []).slice().forEach(fn => fn(event));
         }
         fail() {
@@ -477,13 +481,21 @@
             let finished = false;
             let live = 0;
             const send = ev => {
+                if (this.closed) return;
                 last = Math.max(last, ev.seq);
                 if (ev.type === 'run_finished') finished = true;
-                this.dispatch('event', ev, ev.seq);
+                if (!state.malformedSSESent && state.malformedSSEAfter > 0 && ev.seq > state.malformedSSEAfter) {
+                    state.malformedSSESent = true;
+                    this.dispatchRaw('event', '{', ev.seq);
+                } else this.dispatch('event', ev, ev.seq);
             };
             // snapshot first (the stored RunDetail, without an id), then the backlog after the start point.
-            this.dispatch('snapshot', { run: clone(rec.run), steps: clone(rec.steps) });
-            rec.events.filter(ev => ev.seq > after).forEach(send);
+            if (state.malformedSnapshotOnce) {
+                state.malformedSnapshotOnce = false;
+                this.dispatchRaw('snapshot', '{');
+                if (this.closed) return;
+            } else this.dispatch('snapshot', { run: clone(rec.run), steps: clone(rec.steps) });
+            for (const ev of rec.events.filter(ev => ev.seq > after)) { send(ev); if (this.closed) return; }
             if (rec.done) { this.dispatch('end', {}); this.close(); return; }
             const listener = ev => {
                 if (this.closed) return;

@@ -218,37 +218,7 @@
             source = es;
             // Every message shows the stream works: the next failure waits RETRY_MS again.
             const alive = () => { retryDelay = RETRY_MS; failures = 0; };
-            es.addEventListener('snapshot', (event) => {
-                if (disposed || source !== es) return;
-                alive();
-                const detail = JSON.parse(event.data);
-                if (!streamed(runId)) return;
-                snapshot(detail, ed.run, false);
-                if (durable(ed.run) && !isFinal(ed.run.status) && !Object.hasOwn(detail, 'durable_status')) refreshDurableShown();
-            });
-            es.addEventListener('event', (event) => {
-                if (disposed || source !== es) return;
-                alive();
-                const ev = JSON.parse(event.data);
-                if (!streamed(runId)) return;
-                lastSeq = Math.max(lastSeq, ev.seq || 0);
-                applyEvent(ev);
-            });
-            // resync: the server dropped this stream (a slow client), but the run goes on. A new
-            // stream continues at once after the last event; a finished run answers it with "end".
-            es.addEventListener('resync', (event) => {
-                if (disposed || source !== es) return;
-                alive();
-                es.close();
-                if (source === es) source = null;
-                if (!streamed(runId)) return;
-                let after = NaN;
-                try { after = Number(JSON.parse(event.data).after); } catch (err) { /* keep lastSeq */ }
-                if (Number.isFinite(after)) lastSeq = Math.max(lastSeq, after);
-                reconnect(runId);
-            });
-            es.addEventListener('end', () => { if (disposed || source !== es) return; alive(); es.close(); source = null; finish(runId); });
-            es.onerror = () => {
+            const failed = () => {
                 if (disposed || source !== es) return;
                 es.close();
                 source = null;
@@ -259,6 +229,45 @@
                 if (failures >= MAX_FAILURES) { failures = 0; probe(runId); return; }
                 reconnectLater(runId);
             };
+            es.addEventListener('snapshot', (event) => {
+                if (disposed || source !== es) return;
+                try {
+                    const detail = JSON.parse(event.data);
+                    if (!streamed(runId)) return;
+                    if (!snapshot(detail, ed.run, false)) throw new Error('invalid flow run snapshot');
+                    alive();
+                    if (durable(ed.run) && !isFinal(ed.run.status) && !Object.hasOwn(detail, 'durable_status')) refreshDurableShown();
+                } catch (err) { failed(); }
+            });
+            es.addEventListener('event', (event) => {
+                if (disposed || source !== es) return;
+                try {
+                    const ev = JSON.parse(event.data);
+                    if (!streamed(runId)) return;
+                    if (!ev || typeof ev !== 'object' || !Number.isSafeInteger(ev.seq) || ev.seq < 1 || typeof ev.type !== 'string') throw new Error('invalid flow run event');
+                    applyEvent(ev);
+                    lastSeq = Math.max(lastSeq, ev.seq);
+                    alive();
+                } catch (err) { failed(); }
+            });
+            // resync: the server dropped this stream (a slow client), but the run goes on. A new
+            // stream continues at once after the last event; a finished run answers it with "end".
+            es.addEventListener('resync', (event) => {
+                if (disposed || source !== es) return;
+                let payload;
+                try {
+                    payload = JSON.parse(event.data);
+                    if (!payload || !Number.isSafeInteger(payload.after) || payload.after < 0) throw new Error('invalid flow resync event');
+                } catch (err) { failed(); return; }
+                alive();
+                es.close();
+                if (source === es) source = null;
+                if (!streamed(runId)) return;
+                lastSeq = Math.max(lastSeq, payload.after);
+                reconnect(runId);
+            });
+            es.addEventListener('end', () => { if (disposed || source !== es) return; alive(); es.close(); source = null; finish(runId); });
+            es.onerror = failed;
         }
 
         function reconnectLater(runId) {

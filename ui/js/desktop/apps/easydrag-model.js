@@ -681,7 +681,7 @@
 
         function setLabel(id, label) {
             if (!node(id)) return;
-            change('label', rec => { rec.node(id).label = String(label).slice(0, 80); }, { coalesce: 'label:' + id });
+            change('label', rec => { rec.node(id).label = Array.from(String(label)).slice(0, 80).join(''); }, { coalesce: 'label:' + id });
         }
 
         function renameParams(n, renames) {
@@ -799,7 +799,7 @@
                 const clean = {
                     ref, key: typeof n.key === 'string' ? n.key : '', type: n.type,
                     type_version: Number.isInteger(n.type_version) && n.type_version > 0 ? n.type_version : 1,
-                    label: typeof n.label === 'string' && n.label ? n.label.slice(0, 80) : (info(n.type).label || n.type),
+                    label: typeof n.label === 'string' && n.label ? Array.from(n.label).slice(0, 80).join('') : (info(n.type).label || n.type),
                     position: { x: finite(pos.x), y: finite(pos.y) },
                     params: isPlainObject(n.params) ? clone(n.params) : {},
                     settings: isPlainObject(n.settings) ? clone(n.settings) : {}

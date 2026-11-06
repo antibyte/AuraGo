@@ -29,10 +29,10 @@
         return item;
     }
 
-    function seed() {
+    function seed(runtimeUnavailable) {
         const flowID = edFixture.seededID;
         const run1 = waitingRun(flowID), run2 = waitingRun(flowID), run3 = waitingRun(flowID);
-        const first = addGate('gate_aaaaaaaa', run1, 'a', '', 'Freigabe 1: <script>window.pwned=true</script>');
+        const first = addGate('gate_aaaaaaaa', run1, 'a', runtimeUnavailable ? 'runtime_unavailable' : '', 'Freigabe 1: <script>window.pwned=true</script>');
         const second = addGate('gate_bbbbbbbb', run2, 'b', 'session_required', 'Freigabe 2: Sitzung erforderlich');
         const third = addGate('gate_cccccccc', run3, 'c', '', 'Freigabe 3: Direkte Bestätigung');
         return { gate1: first.gate_id, run1, gate2: second.gate_id, run2, gate3: third.gate_id, run3 };

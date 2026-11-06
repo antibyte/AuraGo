@@ -106,6 +106,10 @@ New app-scoped prefixes must contain no `ad` substring; verify
   from UI actions. Verify Config flows cases in `scripts/test-ui-regressions.mjs`,
   `node scripts/test-easydrag-approvals.mjs`, the single combined approval browser journey and
   all16 Config/flows, EasyDrag and Desktop locale values.
+- EasyDrag node labels are capped at 80 Unicode code points in edits and imports; the editor input
+  allows 160 UTF-16 units so surrogate-pair characters can use the full limit. Durable and approval
+  `runtime_unavailable` reasons explain that AuraGo must restart before saved work or decisions can
+  continue. Keep both messages translated in all sixteen EasyDrag locales.
 - Action-policy settings mount inside the Danger Zone's `.cfg-section` and use
   the Config topic heading/body, native checkbox switch and standard controls.
   The additional policy defaults off in Config, the loader and installation

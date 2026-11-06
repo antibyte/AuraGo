@@ -3,7 +3,7 @@
     'use strict';
     const ED = window.EasyDrag = window.EasyDrag || {};
     const TYPE = 'logic.durable_wait';
-    const REASONS = new Set(['disabled', 'authority', 'key_unavailable', 'checkpoint_unreadable', 'storage_unavailable', 'incompatible', 'service_unavailable']);
+    const REASONS = new Set(['disabled', 'authority', 'key_unavailable', 'checkpoint_unreadable', 'storage_unavailable', 'incompatible', 'service_unavailable', 'runtime_unavailable']);
     const ACTIVE_STATES = new Set(['waiting', 'running', 'blocked', 'approval_pending']);
     const TERMINAL_STATES = new Set(['success', 'error', 'cancelled']);
     const GATE_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;

@@ -48,9 +48,10 @@ var flowsCollectionRoutes = map[string]bool{"secrets": true, "runs": true, "node
 // characters); anything else is FLOW_NOT_FOUND before the store is asked.
 var flowIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
 
-// flowRouteSegments is the number of path segments after the flow id that each
-// /api/desktop/flows/{id}/… route takes ("" is the flow itself). Any other path is
-// FLOW_NOT_FOUND (404); a new route adds its entry here.
+// flowRouteSegments lists the fixed-shape path segment counts after the flow id
+// ("" is the flow itself). flowRoute also accepts scenarios with one or two trailing
+// segments and versions/{revision}/note with three; other paths are FLOW_NOT_FOUND (404).
+// Add fixed-shape routes here and keep the inline exceptions in flowRoute in sync.
 var flowRouteSegments = map[string]int{"": 0, "publish-preview": 1, "publish": 1, "enabled": 1, "export": 1,
 	"pack": 1, "versions": 1, "library": 1, "test": 1, "simulate": 1, "ai-proposal": 1, "repair-mission": 1, "run": 1, "runs": 1, "test-data": 2, "extract": 2}
 
@@ -375,8 +376,15 @@ func flowsLogFlowID(r *http.Request) string {
 // body is read rather than ContentLength trusted, which is -1 for a chunked request.
 func flowsDecode(w http.ResponseWriter, r *http.Request, dst any, limit int64, optional bool) bool {
 	r.Body = http.MaxBytesReader(w, r.Body, limit)
-	err := json.NewDecoder(r.Body).Decode(dst)
-	if err == nil || optional && errors.Is(err, io.EOF) {
+	decoder := json.NewDecoder(r.Body)
+	err := decoder.Decode(dst)
+	if err == nil {
+		var trailing any
+		err = decoder.Decode(&trailing)
+		if errors.Is(err, io.EOF) {
+			return true
+		}
+	} else if optional && errors.Is(err, io.EOF) {
 		return true
 	}
 	var tooLarge *http.MaxBytesError

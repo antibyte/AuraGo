@@ -5,7 +5,7 @@
     const state = { requests: [], phases: new Map(), sequence: new Map(), conflictNext: false, capability: { configured: false, effective: false, recovery_available: false, reason: 'disabled', waiting_count: 0, claimed_count: 0, blocked_count: 0 } };
     const response = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
     edFixture.registerNode({ type: 'logic.durable_wait', type_version: 1, label: 'Fortsetzbare Wartezeit', description: 'Gespeicherte Wartezeit für einen rein lokalen Flow.', icon: 'clock', category: 'logic', inputs: ['in'], outputs: ['out'], params: [{ name: 'seconds', kind: 'number', required: true, min: 1, max: 86400 }], output_fields: [{ name: 'waited_seconds', type: 'number', primary: true }], availability: { state: 'needs_setup', code: 'FLOW_DURABLE_DISABLED', config_section: 'flows' } });
-    function seed(name, legacy, withoutRun) {
+    function seed(name, legacy, withoutRun, blockedCode) {
         const id = edFixture.addEmptyDraft(name), entry = edFixture.flow(id), doc = entry.rec.draft;
         doc.nodes = [
             { id: 'n_aaaaaaaa', key: 'start', type: 'trigger.manual', type_version: 1, params: {}, settings: {}, position: { x: 0, y: 0 } },
@@ -17,7 +17,7 @@
         const runId = edFixture.addWaitingRun(id), record = edFixture.state.runs.get(runId);
         record.run.durable = !legacy; record.run.status = legacy ? 'error' : 'waiting'; record.run.trigger_type = 'manual';
         record.steps = [{ node_id: 'n_aaaaaaaa', node_key: 'start', status: 'success', output: { data: { sample: true } }, started_at: record.run.started_at }, { node_id: 'n_bbbbbbbb', node_key: 'wait', status: 'waiting', started_at: record.run.started_at }];
-        state.phases.set(runId, { run_id: runId, state: 'blocked', blocked_code: legacy ? 'incompatible' : 'disabled', generation: 2, cancel_available: true, wake_at: new Date(Date.now() + 60000).toISOString(), deadline: new Date(Date.now() + 600000).toISOString() });
+        state.phases.set(runId, { run_id: runId, state: 'blocked', blocked_code: blockedCode || (legacy ? 'incompatible' : 'disabled'), generation: 2, cancel_available: true, wake_at: new Date(Date.now() + 60000).toISOString(), deadline: new Date(Date.now() + 600000).toISOString() });
         state.sequence.set(runId, 2);
         state.capability.blocked_count++;
         return { flow_id: id, run_id: runId };

@@ -264,6 +264,74 @@ func TestC17OversizedBodiesAre413(t *testing.T) {
 	}
 }
 
+func TestFlowsDecodeStrictSingleValue(t *testing.T) {
+	cases := []struct {
+		name     string
+		body     string
+		limit    int64
+		optional bool
+		wantOK   bool
+		status   int
+	}{
+		{name: "trailing whitespace", body: "{\"name\":\"ok\"} \r\n", limit: 64, wantOK: true},
+		{name: "second value", body: `{"name":"ok"} {}`, limit: 64, status: http.StatusBadRequest},
+		{name: "trailing garbage", body: `{"name":"ok"} garbage`, limit: 64, status: http.StatusBadRequest},
+		{name: "oversized tail", body: `{"name":"ok"}` + strings.Repeat(" ", 32), limit: 24, status: http.StatusRequestEntityTooLarge},
+		{name: "optional empty", body: " \t\n", limit: 64, optional: true, wantOK: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(tc.body))
+			var dst map[string]any
+			ok := flowsDecode(w, r, &dst, tc.limit, tc.optional)
+			if ok != tc.wantOK || !ok && w.Code != tc.status {
+				t.Fatalf("flowsDecode = %v, status %d, body %s", ok, w.Code, w.Body.String())
+			}
+			if !ok {
+				wantCode := "FLOW_BAD_REQUEST"
+				if tc.status == http.StatusRequestEntityTooLarge {
+					wantCode = "FLOW_TOO_LARGE"
+				}
+				if got := flowsBody(t, w)["code"]; got != wantCode {
+					t.Fatalf("error code = %v, want %s", got, wantCode)
+				}
+			}
+		})
+	}
+}
+
+func TestFlowsDecodeRejectsTrailingValuesBeforeCreate(t *testing.T) {
+	s, token := newFlowsTestServer(t)
+	before, err := s.Flows.ListFlows(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	cases := []struct {
+		name, body string
+		status     int
+	}{
+		{name: "second value", body: `{"name":"must not be created"} {}`, status: http.StatusBadRequest},
+		{name: "garbage", body: `{"name":"must not be created"} trailing`, status: http.StatusBadRequest},
+		{name: "oversized tail", body: `{"name":"must not be created"}` + strings.Repeat(" ", int(flowsDocBodyLimit)), status: http.StatusRequestEntityTooLarge},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			w := flowsCall(t, s, http.MethodPost, "/api/desktop/flows", token, tc.body)
+			if w.Code != tc.status {
+				t.Fatalf("create status = %d, want %d: %s", w.Code, tc.status, w.Body.String())
+			}
+		})
+	}
+	after, err := s.Flows.ListFlows(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(after) != len(before) {
+		t.Fatalf("malformed bodies created a flow: before %d, after %d", len(before), len(after))
+	}
+}
+
 func TestC17PartialPublishIsReportedAndHeals(t *testing.T) {
 	s, token := newFlowsTestServer(t)
 	logs := c17CaptureLogs(s)

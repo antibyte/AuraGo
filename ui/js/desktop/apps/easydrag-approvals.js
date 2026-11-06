@@ -4,7 +4,7 @@
 
     const ED = window.EasyDrag = window.EasyDrag || {};
     const STATES = new Set(['pending', 'approved', 'rejected', 'expired', 'cancelled', 'stale', 'unknown']);
-    const REASONS = new Set(['approval_auth_unavailable', 'session_required', 'readonly', 'durable_disabled', 'stale', 'key_unavailable', 'checkpoint_unavailable', 'decision_complete', 'deadline_elapsed']);
+    const REASONS = new Set(['approval_auth_unavailable', 'session_required', 'readonly', 'durable_disabled', 'stale', 'key_unavailable', 'checkpoint_unavailable', 'decision_complete', 'deadline_elapsed', 'runtime_unavailable']);
     const RUN_STATES = new Set(['pending', 'queued', 'running', 'waiting', 'success', 'error', 'cancelled']);
     const ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
     const GATE_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;

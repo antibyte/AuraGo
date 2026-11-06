@@ -608,6 +608,17 @@ func TestC18TestDataIsBoundedAndScrubbed(t *testing.T) {
 			t.Fatalf("sample answer = %d %s", w.Code, w.Body.String())
 		}
 	}
+	// A scrubbed nested value is incomplete input and must not replace the last good sample.
+	marked := flowsCall(t, s, http.MethodPut, path, token, `{"data":{"nested":[{"value":"[redacted]"}]}}`)
+	if body := flowsBody(t, marked); marked.Code != http.StatusBadRequest || body["code"] != "FLOW_TEST_DATA_REDACTED" {
+		t.Fatalf("redacted sample = %d %s", marked.Code, marked.Body.String())
+	}
+	afterReject := flowsCall(t, s, http.MethodGet, path, token, "")
+	afterData, _ := flowsBody(t, afterReject)["data"].(map[string]any)
+	if afterReject.Code != http.StatusOK || afterData["n"] != float64(3) ||
+		!strings.Contains(fmt.Sprint(afterData["token"]), security.RedactedText("")) {
+		t.Fatalf("sample after redaction rejection = %d %s", afterReject.Code, afterReject.Body.String())
+	}
 	// Only the answers are scrubbed; the stored sample keeps what the user entered.
 	if stored, err := s.Flows.TriggerSampleData(context.Background(), rec.ID, "n_aaaaaaaa"); err != nil || stored["token"] != secret {
 		t.Fatalf("stored sample = %+v %v", stored, err)

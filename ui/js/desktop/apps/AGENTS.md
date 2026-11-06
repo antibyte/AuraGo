@@ -12,6 +12,17 @@
 - `TestKaggleNotebookDraftRacesBrowser` controls save acknowledgements and output timing. `AURAGO_KAGGLE_AUDIT_URL_FILE` on the main browser test exposes its local fixture for a bounded manual review; write `<file>.stop` to close it. The fixture uses no Kaggle account.
 - Jobs expose manual slot release only for `unknown` receipts when `status.can_resolve_unknown` is true. Require an unchecked confirmation that the administrator verified inactivity on Kaggle; explain that release stops no remote work and proves no outcome. Preserve dialog input on failure and prevent duplicate submissions. Remote cancel buttons require credentials/network; local cancellation and administrative cleanup remain possible with Kaggle disabled/read-only. Verify `TestKaggleJobControlsBrowser` in both themes.
 
+## EasyDrag editor and run stream
+
+- Node labels are limited to 80 Unicode code points by the shared model for edits and imported
+  fragments. The detail input's HTML `maxlength` is 160 UTF-16 units to allow astral characters
+  without weakening the model limit.
+- Parse and apply run snapshots/events before resetting stream backoff or advancing `lastSeq`.
+  Malformed snapshot, event or resync frames follow the normal close, reconnect and read-only
+  probe path. Reconnect from the last applied event and never replay a run POST.
+- Durable and approval reason allowlists include `runtime_unavailable`; both render translated
+  restart guidance from `ui/lang/easydrag/` in all sixteen locales.
+
 ## FindIt
 
 - Arrow/Enter/Space item navigation belongs only to the active list/grid. Ignore already-handled events, dialogs, editable elements and unrelated controls; never move background focus while a dialog is open. Verify `TestDesktopFindItBrowser`.
