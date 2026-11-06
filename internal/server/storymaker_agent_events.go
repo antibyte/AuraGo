@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"aurago/internal/agent"
 	"aurago/internal/fileutil"
 	"aurago/internal/storymaker/render"
 
@@ -254,6 +255,73 @@ func (l *agentEventLog) subscribe(projectID string) (<-chan struct{}, func()) {
 		l.mu.Unlock()
 	}
 }
+
+// storymakerProgressEvery is how often the same model status may be repeated.
+const storymakerProgressEvery = 10 * time.Second
+
+// storymakerBroker withholds the model's prose. Deltas, reasoning, tool messages and JSON events are
+// dropped. Only a closed model status and token counts reach the event log. The summary of a job comes
+// from the final response of the loop, not from the broker.
+type storymakerBroker struct {
+	log       *agentEventLog
+	projectID string
+	jobID     string
+
+	mu         sync.Mutex
+	progress   string
+	progressAt time.Time
+}
+
+var _ agent.FeedbackBroker = (*storymakerBroker)(nil)
+
+func newStorymakerBroker(log *agentEventLog, projectID, jobID string) *storymakerBroker {
+	return &storymakerBroker{log: log, projectID: projectID, jobID: jobID}
+}
+
+// Send keeps the model status and drops every other event.
+func (b *storymakerBroker) Send(event, message string) {
+	if event == "model_progress" {
+		b.sendProgress(message)
+	}
+}
+
+func (b *storymakerBroker) sendProgress(status string) {
+	switch status {
+	case "waiting", "receiving", "retrying", "recovering":
+	default:
+		return
+	}
+	b.mu.Lock()
+	if b.progress == status && time.Since(b.progressAt) < storymakerProgressEvery {
+		b.mu.Unlock()
+		return
+	}
+	b.progress, b.progressAt = status, time.Now()
+	b.mu.Unlock()
+	b.log.emit(b.projectID, b.jobID, agentEventModel, map[string]any{"status": status})
+}
+
+// SendJSON is a no-op: a JSON event can carry tool output.
+func (b *storymakerBroker) SendJSON(string) {}
+
+// SendLLMStreamDelta discards the delta.
+func (b *storymakerBroker) SendLLMStreamDelta(string, string, string, int, string) {}
+
+// SendLLMStreamDone has nothing to report.
+func (b *storymakerBroker) SendLLMStreamDone(string) {}
+
+// SendTokenUpdate stores the token counts of the current call.
+func (b *storymakerBroker) SendTokenUpdate(prompt, completion, total, _, _ int, estimated, _ bool, _ string) {
+	b.log.emit(b.projectID, b.jobID, agentEventUsage, map[string]any{
+		"prompt_tokens":     boundedGameMakerTokenMetric(prompt),
+		"completion_tokens": boundedGameMakerTokenMetric(completion),
+		"total_tokens":      boundedGameMakerTokenMetric(total),
+		"estimated":         estimated,
+	})
+}
+
+// SendThinkingBlock discards the reasoning.
+func (b *storymakerBroker) SendThinkingBlock(string, string, string) {}
 
 // agentStreamJob is the job whose events a stream shows: the unfinished agent job of the project, or
 // else its latest one. The queue coalesces per project, so at most one job is unfinished.
