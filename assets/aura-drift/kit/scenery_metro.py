@@ -10,6 +10,7 @@ import math
 
 from . import scenery_b_common as c
 from .core import Model
+from .polish_props import holo_arrow
 from .scenery_metro_b import arcade_kiosk, metro_entrance
 from .shapes import box, cylinder, cylinder_x, cylinder_z, ellipsoid, revolve, revolve_x, sphere, strut, xf
 
@@ -301,6 +302,7 @@ def build():
         ("taxi", taxi()),
         ("metro_entrance", metro_entrance()),
         ("arcade_kiosk", arcade_kiosk()),
+        ("holo_arrow", holo_arrow(c.Piece("holo_arrow"))),
     ):
         piece.bake(ao_height=3.0 if name.startswith("skyscraper") else 2.2, strength=0.3)
         model.mesh("prop-" + name, piece.items())

@@ -122,6 +122,7 @@
         st.ui.banner.hidden = true;
         st.ui.empty.textContent = st.t('desktop.retro_games_disabled');
         st.ui.empty.hidden = false;
+        setListBusy(st, false);
         pollDisabled(st);
     }
 
@@ -189,6 +190,14 @@
             st.searchTimer = setTimeout(() => applySearch(st), SEARCH_DELAY_MS);
         }, opts);
         ui.search.addEventListener('keydown', event => {
+            if (event.key === 'Escape') {
+                if (!ui.search.value) return;
+                event.preventDefault();
+                ui.search.value = '';
+                clearTimeout(st.searchTimer);
+                applySearch(st);
+                return;
+            }
             if (event.key !== 'Enter') return;
             event.preventDefault();
             clearTimeout(st.searchTimer);
@@ -275,12 +284,20 @@
             && (!decade || (game.year >= decade && game.year <= decade + 9)));
     }
 
+    function setListBusy(st, busy) {
+        st.ui.root.classList.toggle('is-loading', busy);
+        st.ui.grid.setAttribute('aria-busy', busy ? 'true' : 'false');
+    }
+
     function reloadList(st) {
         if (st.disabled) return;
         const seq = ++st.listSeq;
         st.items = [];
         st.total = 0;
         st.loadingMore = false;
+        st.ui.more.disabled = false;
+        st.ui.more.removeAttribute('aria-busy');
+        setListBusy(st, true);
         if (st.view === 'all') {
             fetchSearch(st, seq, 0);
             return;
@@ -306,6 +323,7 @@
             return;
         }
         notice(st, 'desktop.retro_games_load_failed');
+        setListBusy(st, false);
         if (append) return;
         st.items = [];
         st.total = 0;
@@ -338,8 +356,13 @@
         if (st.disposed || st.loadingMore || st.view !== 'all' || st.items.length >= st.total) return;
         const seq = st.listSeq;
         st.loadingMore = true;
+        st.ui.more.disabled = true;
+        st.ui.more.setAttribute('aria-busy', 'true');
         fetchSearch(st, seq, st.items.length).finally(() => {
-            if (seq === st.listSeq) st.loadingMore = false;
+            if (st.disposed || seq !== st.listSeq) return;
+            st.loadingMore = false;
+            st.ui.more.disabled = false;
+            st.ui.more.removeAttribute('aria-busy');
         });
     }
 
@@ -360,6 +383,7 @@
             }));
         }
         ui.grid.appendChild(fragment);
+        setListBusy(st, false);
         const total = st.view === 'all' ? st.total : st.items.length;
         ui.count.textContent = t('desktop.retro_games_results_count', { count: v.formatNumber(total) });
         ui.more.hidden = !(st.view === 'all' && st.items.length < st.total);
@@ -704,12 +728,19 @@
             if (game) toggleFavorite(st, game);
             return;
         }
-        const columns = Math.max(1, getComputedStyle(st.ui.grid).gridTemplateColumns.split(' ').filter(Boolean).length);
-        const delta = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: columns, ArrowUp: -columns }[event.key];
-        if (!delta) return;
+        let next = null;
+        if (event.key === 'Home') next = buttons[0];
+        else if (event.key === 'End') next = buttons[buttons.length - 1];
+        else {
+            const columns = Math.max(1, getComputedStyle(st.ui.grid).gridTemplateColumns.split(' ').filter(Boolean).length);
+            const delta = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: columns, ArrowUp: -columns }[event.key];
+            if (!delta) return;
+            next = buttons[Math.min(buttons.length - 1, Math.max(0, index + delta))];
+        }
+        if (!next || next === document.activeElement) return;
         event.preventDefault();
-        const next = buttons[Math.min(buttons.length - 1, Math.max(0, index + delta))];
-        if (next) next.focus();
+        next.focus();
+        next.closest('.rg-card').scrollIntoView({ block: 'nearest', inline: 'nearest' });
     }
 
     function onGridContextMenu(st, event) {

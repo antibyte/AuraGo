@@ -323,7 +323,10 @@ async function write(sourcesDir) {
         const manifest = buildManifest(plan, measured, hash);
         for (const folder of ['sfx', 'engine', 'music']) {
             await fs.mkdir(path.join(outDir, folder), { recursive: true });
-            for (const name of await fs.readdir(path.join(outDir, folder))) if (name.endsWith('.ogg')) await fs.rm(path.join(outDir, folder, name));
+            /* Overwrite in place: copyFile below replaces every listed file. Only remove .ogg files
+               that a removed recipe left behind, so a rebuild never mass-deletes the shipped pack. */
+            const keep = new Set(manifest.files.filter(item => item.path.startsWith(folder + '/')).map(item => item.path.slice(folder.length + 1)));
+            for (const name of await fs.readdir(path.join(outDir, folder))) if (name.endsWith('.ogg') && !keep.has(name)) await fs.rm(path.join(outDir, folder, name));
         }
         for (const file of manifest.files) await fs.copyFile(path.join(staged, file.path), path.join(outDir, file.path));
         await fs.writeFile(path.join(outDir, 'manifest.json'), manifestText(manifest));

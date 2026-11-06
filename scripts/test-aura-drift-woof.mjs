@@ -316,4 +316,111 @@ await check('an off voice touches neither the network nor a worker', async () =>
     voice.dispose();
 });
 
+/* The mix of a spoken line: the model speaks quietly, so a line has to be lifted
+ * to a level that carries over the race, and the race steps back while it is
+ * spoken. The sandbox records what the audio graph is told to do. */
+function mixSandbox() {
+    const gains = [], sources = [];
+    const param = (v = 0) => ({
+        value: v, last: undefined,
+        setValueAtTime() { return this; },
+        linearRampToValueAtTime() { return this; },
+        exponentialRampToValueAtTime() { return this; },
+        setTargetAtTime(x) { this.last = x; return this; },
+        cancelScheduledValues() { return this; }
+    });
+    class FakeNode {
+        constructor() {
+            for (const k of ['gain', 'frequency', 'detune', 'Q', 'pan', 'playbackRate', 'threshold', 'knee', 'ratio', 'attack', 'release', 'delayTime']) this[k] = param(k === 'playbackRate' ? 1 : 0);
+            this.type = 'x';
+        }
+        connect(n) { return n; }
+        disconnect() {}
+        start() { this.started = true; }
+        stop() { const f = this.onended; this.onended = null; if (f) queueMicrotask(f); }
+    }
+    const sandbox = { console, setTimeout, clearTimeout, queueMicrotask, Math, Date, JSON, Float32Array, Promise };
+    sandbox.window = sandbox;
+    sandbox.AudioContext = class {
+        constructor() { this.currentTime = 0; this.sampleRate = 48000; this.state = 'running'; this.destination = new FakeNode(); }
+        resume() { return Promise.resolve(); }
+        suspend() { return Promise.resolve(); }
+        close() { this.state = 'closed'; return Promise.resolve(); }
+        createBuffer(ch, len, sr) { const data = new Float32Array(len); return { numberOfChannels: ch, length: len, sampleRate: sr, duration: len / sr, getChannelData: () => data }; }
+        decodeAudioData(bytes, ok) { const b = this.createBuffer(1, 480, 48000); if (ok) ok(b); return Promise.resolve(b); }
+        createBufferSource() { const n = new FakeNode(); sources.push(n); return n; }
+        createOscillator() { return new FakeNode(); }
+        createGain() { const n = new FakeNode(); gains.push(n); return n; }
+        createBiquadFilter() { return new FakeNode(); }
+        createDynamicsCompressor() { return new FakeNode(); }
+        createConvolver() { return new FakeNode(); }
+        createStereoPanner() { return new FakeNode(); }
+        createDelay() { return new FakeNode(); }
+        createWaveShaper() { return new FakeNode(); }
+        createAnalyser() { return new FakeNode(); }
+    };
+    vm.createContext(sandbox);
+    for (const file of ['aura-drift-core.js', 'aura-drift-audio.js']) {
+        vm.runInContext(read('ui/js/desktop/apps/' + file), sandbox, { filename: file });
+    }
+    return { sandbox, gains, sources };
+}
+
+/* A line like the model produces it: quiet on average, with high peaks. */
+function modelLine(samples = 96000) {
+    const line = new Float32Array(samples);
+    for (let i = 0; i < samples; i++) line[i] = 0.363 * ((i % 1000) < 30 ? 1 : 0.03) * Math.sin(i * 0.07);
+    return line;
+}
+function levelOf(samples) {
+    let sum = 0, peak = 0;
+    for (let i = 0; i < samples.length; i++) {
+        sum += samples[i] * samples[i];
+        const a = samples[i] < 0 ? -samples[i] : samples[i];
+        if (a > peak) peak = a;
+    }
+    return { rms: Math.sqrt(sum / samples.length), peak: peak };
+}
+
+await check('a spoken line is loud enough and the race steps back', async () => {
+    const { sandbox, gains, sources } = mixSandbox();
+    const audio = sandbox.window.AuraDriftCore.createAudio({ volume: 1, muted: false });
+    assert.equal(audio.unlock(), true);
+    audio.setView('race');
+    /* The engine, the score and the ambience are the three buses with a level. */
+    const buses = [];
+    gains.forEach((g, i) => { if (g.gain.last === 1 || g.gain.last === 0.32 || g.gain.last === 0.8) buses.push(i); });
+    assert.equal(buses.length, 3, 'engine, score and ambience have a level');
+    const before = buses.map(i => gains[i].gain.last);
+
+    const line = modelLine();
+    const quiet = levelOf(line);
+    assert.ok(quiet.rms < 0.06, `the model speaks quietly: ${quiet.rms}`);
+
+    const duration = audio.voice(line, 24000);
+    assert.equal(duration, 4, 'the line is four seconds long');
+    const written = sources[sources.length - 1].buffer.getChannelData(0);
+    const loud = levelOf(written);
+    assert.ok(loud.rms > quiet.rms * 2, `the line is lifted: ${quiet.rms} -> ${loud.rms}`);
+    assert.ok(loud.peak <= 0.96, `the peaks stay under the ceiling: ${loud.peak}`);
+
+    /* While the line is spoken the race steps back: the engine the most, the
+     * score a little less, the ambience the least. */
+    const during = buses.map(i => gains[i].gain.last);
+    const DUCK = { 1: 0.18, 0.8: 0.4, 0.32: 0.25 };
+    for (let i = 0; i < buses.length; i++) {
+        const want = before[i] * DUCK[before[i]];
+        assert.ok(Math.abs(during[i] - want) < 1e-6, `bus ${i}: ${before[i]} -> ${during[i]}, want ${want}`);
+    }
+
+    /* When the line ends the race comes back. */
+    sources[sources.length - 1].stop();
+    await new Promise(resolve => setImmediate(resolve));
+    const after = buses.map(i => gains[i].gain.last);
+    for (let i = 0; i < buses.length; i++) {
+        assert.ok(Math.abs(after[i] - before[i]) < 1e-6, `bus ${i} is back: ${after[i]}`);
+    }
+    audio.dispose();
+});
+
 console.log(`\n${passed} checks passed`);

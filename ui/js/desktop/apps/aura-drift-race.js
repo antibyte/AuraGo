@@ -369,8 +369,11 @@
             const state = race.conditions.update(dt);
             if (state.kind !== race.lastWeather) {
                 race.lastWeather = state.kind;
-                AD.emit(race, 'weather', { kind: state.kind, intensity: state.targetIntensity });
+                AD.emit(race, 'weather', { kind: state.kind, intensity: state.targetIntensity, gust: state.gust });
             }
+            /* Lightning and gust peaks live in the deterministic conditions state;
+               presentation sees them through the ordinary event bus. */
+            for (const wx of state.events) AD.emit(race, wx.type, wx);
         }
         if (typeof AD.updateStyle === 'function') AD.updateStyle(race, dt);
 

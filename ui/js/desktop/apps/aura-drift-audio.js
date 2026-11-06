@@ -20,14 +20,18 @@
         'weapon.hole_loop', 'weapon.disco_on', 'weapon.glove', 'weapon.harpoon_fire', 'weapon.harpoon_clank', 'weapon.cow_launch', 'weapon.cow_land', 'weapon.cloak_on', 'weapon.overdrive_on',
         'sting.perfect', 'sting.pancake', 'sting.strike', 'sting.slingshot', 'sting.moo', 'sting.trick', 'turbo.1', 'turbo.2', 'turbo.3', 'turbo.tick', 'pad.boost', 'ramp.launch',
         'land.soft', 'land.hard', 'roulette.tick', 'roulette.done', 'bomb.tick', 'bomb.blast', 'jingle.softeis', 'horn.<carId>', 'ufo.beam',
-        'ui.count', 'ui.go', 'ui.lap', 'ui.bank', 'whoosh', 'stinger.final_lap', 'stinger.disco', 'fanfare.win', 'fanfare.podium', 'fanfare.lose'
+        'ui.count', 'ui.go', 'ui.lap', 'ui.bank', 'whoosh', 'stinger.final_lap', 'stinger.disco', 'fanfare.win', 'fanfare.podium', 'fanfare.lose',
+        'sting.near_miss', 'sting.style_bank', 'sting.drift_link', 'sting.cloak', 'sting.sector',
+        'weather.thunder', 'weather.gust', 'weather.splash', 'weather.shift'
     ];
 
     /* Groups that make the first race sound right; fetched right after the engine of the chosen car. */
     const CORE_GROUPS = [
         'ui.count', 'ui.go', 'ui.lap', 'ui.bank', 'impact.light', 'impact.heavy', 'impact.metal', 'explosion.small', 'explosion.big', 'crate.break',
         'turbo.1', 'turbo.2', 'turbo.3', 'turbo.tick', 'pad.boost', 'ramp.launch', 'land.soft', 'land.hard', 'whoosh', 'tyre.squeal', 'scrape.metal',
-        'sting.perfect', 'sting.trick', 'sting.slingshot', 'prop.hay', 'prop.cone', 'prop.barrel', 'prop.tyres'
+        'sting.perfect', 'sting.trick', 'sting.slingshot', 'prop.hay', 'prop.cone', 'prop.barrel', 'prop.tyres',
+        'sting.near_miss', 'sting.style_bank', 'sting.drift_link', 'sting.cloak', 'sting.sector',
+        'weather.thunder', 'weather.gust', 'weather.splash', 'weather.shift'
     ];
     const BIOME_AMBIENCE = {
         alpine: 'amb.wind', desert: 'amb.desert', harbour: 'amb.sea', salt: 'amb.desert', forest: 'amb.forest', industry: 'amb.machinery', glacier: 'amb.snow', metro: 'amb.city'
@@ -43,6 +47,16 @@
     /* Engine bus level per view: silent in the garage, a low bed under the results, full in a race. */
     const ENGINE_BED = { menu: 0, results: 0.3, race: 1 };
     const MASTER_TRIM = 1.0;            /* volume 1 = full scale into the glue compressor and the -3 dB limiter */
+    const MUSIC_LEVEL = 0.32;           /* the score under the race */
+    const AMBIENCE_LEVEL = 0.8;         /* the world around the track */
+    /* The voice commentary is a dialogue bus of its own: it goes straight to the
+     * limiter and skips the glue compressor, because that compressor has a makeup
+     * gain which would lift a quiet line and squash a loud one again. So a line is
+     * measured here and mixed to a fixed speech level. While a driver speaks, the
+     * race steps back under the voice. */
+    const VOICE_RMS = 0.12;             /* the level a spoken line is mixed to */
+    const VOICE_PEAK = 0.95;            /* the ceiling of a line; the limiter takes the rest */
+    const VOICE_DUCK = { engine: 0.18, music: 0.25, ambience: 0.4 };
 
     AD.createAudio = function (settings) {
         const Ctor = window.AudioContext || window.webkitAudioContext;
@@ -52,9 +66,11 @@
         let noise = null;
         let volume = settings.volume, muted = settings.muted;
         let running = false, carId = null, biomeId = null, view = 'race';
-        let lastTick = 0, heading = 0, myX = 0, myY = 0, lastHornAt = -9, lastKerbAt = -9, lastPassAt = -9;
+        let lastTick = 0, heading = 0, myX = 0, myY = 0, lastHornAt = -9, lastKerbAt = -9, lastPassAt = -9, lastSprayAt = -9;
         let rollGain = null, windGain = null, surfaceGain = null, surfaceFilter = null, sprayGain = null, sprayFilter = null;
         let liveNodes = [];
+        let voiceSpeaking = false;       /* a driver is speaking and the race steps back */
+        let voicesPlaying = 0;
         const loops = { squeal: null, scrape: null };
         const worldLoops = new Map();
         const lastPlayed = new Map();
@@ -94,11 +110,13 @@
             master.connect(comp).connect(limiter).connect(ctx.destination);
             engineBus = ctx.createGain(); engineBus.gain.value = ENGINE_BED[view] === undefined ? 1 : ENGINE_BED[view]; engineBus.connect(master);
             sfxBus = ctx.createGain(); sfxBus.gain.value = 1; sfxBus.connect(master);
-            ambBus = ctx.createGain(); ambBus.gain.value = 0.8; ambBus.connect(master);
-            musicBus = ctx.createGain(); musicBus.gain.value = 0.32; musicBus.connect(master);
+            ambBus = ctx.createGain(); ambBus.gain.value = AMBIENCE_LEVEL; ambBus.connect(master);
+            musicBus = ctx.createGain(); musicBus.gain.value = MUSIC_LEVEL; musicBus.connect(master);
             /* The voice commentary has its own bus: it speaks over the race and must
-             * not push the limiter into clipping. */
-            voiceBus = ctx.createGain(); voiceBus.gain.value = 0.9; voiceBus.connect(master);
+             * not push the limiter into clipping. It goes straight to the limiter
+             * and skips the glue compressor, so a line keeps the level it was mixed
+             * to. The bus carries the volume of the player. */
+            voiceBus = ctx.createGain(); voiceBus.gain.value = muted ? 0 : volume * MASTER_TRIM; voiceBus.connect(limiter);
             reverb = ctx.createConvolver();
             reverb.buffer = makeImpulse(1.9, 2.6);
             reverbSend = ctx.createGain(); reverbSend.gain.value = 0;
@@ -145,6 +163,36 @@
             music.setBiome(id);
             if (reverbSend && ctx) reverbSend.gain.setTargetAtTime(REVERB[id] !== undefined ? REVERB[id] : 0.15, ctx.currentTime, 0.4);
             if (bank && BIOME_AMBIENCE[id]) bank.load([BIOME_AMBIENCE[id]], 3);
+        }
+
+        /* The level of a line: measured, not guessed. The model output is quiet,
+         * so a line is lifted to a fixed speech level; the peak stays under the
+         * ceiling and the limiter behind the bus takes what is left. */
+        function voiceGain(samples) {
+            let sum = 0, peak = 0;
+            for (let i = 0; i < samples.length; i++) {
+                const v = samples[i];
+                sum += v * v;
+                const a = v < 0 ? -v : v;
+                if (a > peak) peak = a;
+            }
+            const rms = Math.sqrt(sum / samples.length);
+            if (!isFinite(rms) || rms < 0.001 || peak < 0.001) return 1;   /* silence stays silence */
+            const gain = Math.min(VOICE_RMS / rms, VOICE_PEAK / peak);
+            if (gain > 6) return 6;            /* a whisper is lifted, not amplified into noise */
+            if (gain < 0.5) return 0.5;
+            return gain;
+        }
+
+        /* While a driver speaks the race steps back: the engine, the score and the
+         * ambience go down, the voice is the only thing on top. */
+        function applyVoiceMix(tc) {
+            if (!ctx) return;
+            const now = ctx.currentTime;
+            const bed = ENGINE_BED[view] === undefined ? 1 : ENGINE_BED[view];
+            if (engineBus) engineBus.gain.setTargetAtTime(bed * (voiceSpeaking ? VOICE_DUCK.engine : 1), now, tc);
+            if (musicBus) musicBus.gain.setTargetAtTime(MUSIC_LEVEL * (voiceSpeaking ? VOICE_DUCK.music : 1), now, tc);
+            if (ambBus) ambBus.gain.setTargetAtTime(AMBIENCE_LEVEL * (voiceSpeaking ? VOICE_DUCK.ambience : 1), now, tc);
         }
 
         /* ---- spatial placement ---- */
@@ -209,6 +257,10 @@
             const me = mine(evt);
             const sp = evt.x !== undefined ? spatial(evt.x, evt.y) : (me ? CENTER : null);
             switch (evt.type) {
+                case 'weather': P('weather.shift', CENTER, { gain: 0.55, rate: evt.kind === 'clear' ? 0.9 : 1.08, vary: 0 }); break;
+                case 'gust': P('weather.gust', CENTER, { gain: 0.4 + (evt.strength || 0.5) * 0.3 }); break;
+                /* Thunder arrives after the flash, by the strike's seeded delay. */
+                case 'lightning': P('weather.thunder', CENTER, { gain: 0.5 + (evt.strength || 0.5) * 0.45, delay: clamp(evt.thunder || 0.5, 0, 1.5), vary: 0 }); break;
                 case 'count': P('ui.count', CENTER, { rate: evt.value > 0 ? 1 : 1.5, vary: 0 }); break;
                 case 'go': P('ui.go', CENTER, { vary: 0 }); P('crowd.cheer', CENTER, { gain: 0.7, delay: 0.1 }); break;
                 case 'perfect_start': if (evt.car === 0) P('sting.perfect', CENTER); break;
@@ -227,10 +279,12 @@
                     if (evt.heavy) P('impact.metal', sp, { gain: 0.5 * k, delay: 0.02 });
                     break;
                 }
+                case 'drift_start': if (evt.car === 0 && fresh('drift_link', 0.18)) P('sting.drift_link', CENTER, { gain: 0.7 }); break;
                 case 'drift_level': if (evt.car === 0) P('turbo.tick', CENTER, { rate: 1 + (evt.level || 1) * 0.1, vary: 0 }); break;
                 case 'turbo_burst': P('turbo.' + clamp(Math.round(evt.level || 1), 1, 3), evt.car === 0 ? CENTER : sp); break;
-                case 'style_bank': if (evt.car === 0) P('ui.bank', CENTER, { rate: 1 + Math.min(8, evt.multiplier || 1) * 0.03, vary: 0 }); break;
-                case 'near_miss': if (evt.car === 0 || evt.other === 0) { if (fresh('near', 0.15)) P('whoosh', sp || CENTER, { gain: 0.9 }); } break;
+                case 'style_bank': if (evt.car === 0) { P('ui.bank', CENTER, { rate: 1 + Math.min(8, evt.multiplier || 1) * 0.03, vary: 0 }); P('sting.style_bank', CENTER, { rate: 1 + Math.min(8, evt.multiplier || 1) * 0.02, gain: 0.7, delay: 0.04 }); } break;
+                case 'near_miss': if (evt.car === 0 || evt.other === 0) { if (fresh('near', 0.15)) { P('whoosh', sp || CENTER, { gain: 0.9 }); P('sting.near_miss', sp || CENTER, { gain: 0.8, delay: 0.02 }); } } break;
+                case 'sector': if (evt.car === 0) P('sting.sector', CENTER, { gain: 0.7 }); break;
                 case 'slingshot': if (evt.car === 0) P('sting.slingshot', CENTER); break;
                 case 'takeoff': P('ramp.launch', evt.car === 0 ? CENTER : sp); break;
                 case 'trick': if (evt.car === 0) P('sting.trick', CENTER, { rate: 1 + Math.min(5, evt.chain || 0) * 0.05 }); break;
@@ -294,7 +348,8 @@
                 case 'cow_land': P('weapon.cow_land', sp); if (sp && sp.gain > 0.3) duck(6, 0.4); break;
                 case 'duck_launch': if (fresh('weapon.duck_launch' + evt.car, 0.12)) P('weapon.duck_launch', sp || CENTER); for (let i = 0; i < Math.min(3, evt.count || 3); i++) P('weapon.duck_quack', sp || CENTER, { delay: 0.15 + i * 0.13, rate: 0.9 + i * 0.1, gain: 0.7 }); break;
                 case 'duck_hit': P('weapon.duck_quack', sp); break;
-                case 'cloak_on': P('weapon.cloak_on', sp || CENTER); break;
+                case 'cloak_on': P('weapon.cloak_on', sp || CENTER); P('sting.cloak', sp || CENTER, { gain: 0.75 }); break;
+                case 'cloak_off': if (evt.car === 0) P('sting.cloak', CENTER, { rate: 0.85, gain: 0.5 }); break;
                 case 'overdrive_on': P('weapon.overdrive_on', sp || CENTER); break;
                 case 'eliminated':
                     P('explosion.big', sp || CENTER);
@@ -426,6 +481,8 @@
             setSettings(next) {
                 volume = clamp(next.volume, 0, 1); muted = !!next.muted;
                 if (master && ctx) master.gain.setTargetAtTime(muted ? 0 : volume * MASTER_TRIM, ctx.currentTime, 0.03);
+                /* The voice bus carries the volume of the player too. */
+                if (voiceBus && ctx) voiceBus.gain.setTargetAtTime(muted ? 0 : volume * MASTER_TRIM, ctx.currentTime, 0.03);
             },
             setBiome(id) {
                 biomeId = id;
@@ -441,7 +498,7 @@
             setView(next) {
                 view = next === 'menu' || next === 'results' ? next : 'race';
                 if (ctx && music) music.setView(view);
-                if (ctx && engineBus) engineBus.gain.setTargetAtTime(ENGINE_BED[view], ctx.currentTime, 0.25);
+                applyVoiceMix(0.25);
             },
             stopWorld,
             worldLoopCount() { return worldLoops.size; },
@@ -452,12 +509,23 @@
                 if (!ctx || !voiceBus || !samples || !samples.length) return 0;
                 const buffer = ctx.createBuffer(1, samples.length, rate || 24000);
                 const target = buffer.getChannelData(0);
-                for (let i = 0; i < samples.length; i++) target[i] = samples[i];
+                /* The model speaks quietly: the line is lifted to a fixed speech level,
+                 * so one driver is as loud as the next. */
+                const gain = voiceGain(samples);
+                const count = Math.min(samples.length, target.length);
+                for (let i = 0; i < count; i++) target[i] = samples[i] * gain;
                 const src = ctx.createBufferSource();
                 src.buffer = buffer;
                 src.connect(voiceBus);
                 src.start();
                 liveNodes.push(src);
+                /* The race steps back while the line is spoken and comes back after. */
+                voicesPlaying++;
+                if (voicesPlaying === 1) { voiceSpeaking = true; applyVoiceMix(0.08); }
+                src.onended = () => {
+                    voicesPlaying = Math.max(0, voicesPlaying - 1);
+                    if (voicesPlaying === 0) { voiceSpeaking = false; applyVoiceMix(0.3); }
+                };
                 return buffer.duration;
             },
             update(race, active, pose) {
@@ -481,6 +549,11 @@
                 };
                 music.update(tick, clamp(speed / 70, 0, 1), conditions, flags);
                 if (conditions && conditions.ambience) music.setAmbience(conditions.ambience);
+                /* Puddles keep hissing as long as the road is wet, not just while it rains. */
+                if (conditions && conditions.wetness > 0.35 && speed > 18 && active && now - lastSprayAt > 0.45) {
+                    lastSprayAt = now;
+                    P('weather.splash', CENTER, { gain: clamp(conditions.wetness * 0.35, 0.1, 0.4) });
+                }
             },
             event,
             stats() {
@@ -501,6 +574,7 @@
                 if (ctx) { try { ctx.close(); } catch (_) { /* already closed */ } }
                 ctx = null; master = null; comp = null; limiter = null; reverb = null; reverbSend = null;
                 bank = null; engine = null; music = null; voiceBus = null;
+                voiceSpeaking = false; voicesPlaying = 0;
                 loops.squeal = null; loops.scrape = null;
             }
         };

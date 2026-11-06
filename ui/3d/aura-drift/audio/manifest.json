@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "synth": "85611f95f66e8d79e341260400b5a42cfd85bbb3c4d05480389ccce2f6901947",
+  "synth": "4dccb605dd1b3dcf6775b919d4081ce7476d0a5c680e283678a110db8798a133",
   "sfx": {
     "impact.light": [
       "sfx/impact-light-1.ogg",
@@ -307,6 +307,47 @@
     ],
     "fanfare.lose": [
       "sfx/fanfare-lose-1.ogg"
+    ],
+    "sting.near_miss": [
+      "sfx/sting-near-miss-1.ogg",
+      "sfx/sting-near-miss-2.ogg",
+      "sfx/sting-near-miss-3.ogg"
+    ],
+    "sting.style_bank": [
+      "sfx/sting-style-bank-1.ogg",
+      "sfx/sting-style-bank-2.ogg"
+    ],
+    "sting.drift_link": [
+      "sfx/sting-drift-link-1.ogg",
+      "sfx/sting-drift-link-2.ogg",
+      "sfx/sting-drift-link-3.ogg"
+    ],
+    "sting.cloak": [
+      "sfx/sting-cloak-1.ogg",
+      "sfx/sting-cloak-2.ogg"
+    ],
+    "sting.sector": [
+      "sfx/sting-sector-1.ogg",
+      "sfx/sting-sector-2.ogg"
+    ],
+    "weather.thunder": [
+      "sfx/weather-thunder-1.ogg",
+      "sfx/weather-thunder-2.ogg",
+      "sfx/weather-thunder-3.ogg"
+    ],
+    "weather.gust": [
+      "sfx/weather-gust-1.ogg",
+      "sfx/weather-gust-2.ogg",
+      "sfx/weather-gust-3.ogg"
+    ],
+    "weather.splash": [
+      "sfx/weather-splash-1.ogg",
+      "sfx/weather-splash-2.ogg",
+      "sfx/weather-splash-3.ogg"
+    ],
+    "weather.shift": [
+      "sfx/weather-shift-1.ogg",
+      "sfx/weather-shift-2.ogg"
     ]
   },
   "engine": {
@@ -877,6 +918,29 @@
     {"path":"sfx/fanfare-win-1.ogg","bytes":80012,"sha256":"c9befa2ece48bcf5b0b83c8006ab0123f9de2af1ec9a3c337a378730b2b6812e","seconds":5,"channels":2,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
     {"path":"sfx/fanfare-podium-1.ogg","bytes":54577,"sha256":"e6c12b2dedad2c663da0525c0eab2885fcf3601399aebd62d44ff7ff71b86e6c","seconds":3.9,"channels":2,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
     {"path":"sfx/fanfare-lose-1.ogg","bytes":73430,"sha256":"4fab96ef00647afc8676235d9ec9cc8fc306a4c68f0cf85a9d51b372ec155097","seconds":5.1,"channels":2,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
+    {"path":"sfx/sting-near-miss-1.ogg","bytes":7344,"sha256":"66d5bcc79b1d5fa9d5ccc30a59d7bfe2c71c01e0c29be1ebcafe20e86c72c434","seconds":0.54,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
+    {"path":"sfx/sting-near-miss-2.ogg","bytes":7890,"sha256":"472e27d19232d52139418b320720f2c20873da494b852f4979b7e2216f8cce8e","seconds":0.61,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
+    {"path":"sfx/sting-near-miss-3.ogg","bytes":8714,"sha256":"588482723c948be49926d1dab115d244432d29daf5ad29d41bde93f4b5f6cf60","seconds":0.68,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
+    {"path":"sfx/sting-style-bank-1.ogg","bytes":12133,"sha256":"cd413d721c6ec13c976d85c5e9f646be600466859e077e8349cfc720252e28b8","seconds":0.9,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
+    {"path":"sfx/sting-style-bank-2.ogg","bytes":12511,"sha256":"e361b6588d17026ef5738ba820a525752d5ed1a7f7d182d8d824cf006113615a","seconds":0.9,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
+    {"path":"sfx/sting-drift-link-1.ogg","bytes":4449,"sha256":"572aba57bd7585e9cf83a35567fa2a14a447a2dd9e787cfa6c3bba4e18c6ea1c","seconds":0.3,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
+    {"path":"sfx/sting-drift-link-2.ogg","bytes":4471,"sha256":"6916f46530f1303cd6e411df655eff7f005a6a9e425cb8f59adde496ac6ca5d1","seconds":0.3,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
+    {"path":"sfx/sting-drift-link-3.ogg","bytes":4427,"sha256":"403d3f67fe6597c0c627a0d505c05ef12bc0a534998e88acde47206b0b5cfdad","seconds":0.3,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
+    {"path":"sfx/sting-cloak-1.ogg","bytes":13352,"sha256":"78a89e3174fea71de52c35755978e1ce9be53832cd7be2ef51c0850b37ce8bbf","seconds":1.05,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
+    {"path":"sfx/sting-cloak-2.ogg","bytes":13407,"sha256":"72d5aca428d1e283b5a7912653531b8785b20ebf29e28829c9ab3dd6653a6a5f","seconds":1.05,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
+    {"path":"sfx/sting-sector-1.ogg","bytes":7622,"sha256":"e7ae3b0b7f1e4d682c57677b7461365a11087b77b059e650712882895499f101","seconds":0.72,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
+    {"path":"sfx/sting-sector-2.ogg","bytes":7581,"sha256":"cfec8a05e96ed304c8832e2d8e240504778c95ff082b33eba52f32f709e6fb9f","seconds":0.72,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
+    {"path":"sfx/weather-thunder-1.ogg","bytes":29325,"sha256":"4872c261fe9813133c051658b74c9ea9952252b7ac8b167e46994065ccd17be9","seconds":3,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
+    {"path":"sfx/weather-thunder-2.ogg","bytes":32710,"sha256":"dfddab8b9cbba289352e5e49f865986aa7d455db35c4aeb867c4c1326f34f556","seconds":3.4,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
+    {"path":"sfx/weather-thunder-3.ogg","bytes":36382,"sha256":"94a4aa3bdd8b07f29f772a6f121764fddf0459ad25de765803d29c4ca8aa763c","seconds":3.8,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
+    {"path":"sfx/weather-gust-1.ogg","bytes":17450,"sha256":"8312996bdcf287dbaed19ada29efb886ed8b07455be1f4094e6a3598c2dbd926","seconds":1.65,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
+    {"path":"sfx/weather-gust-2.ogg","bytes":20804,"sha256":"b09b76c68a741816858809a146e166cb7780c701cb09300190b0b8a0cee70dc1","seconds":2,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
+    {"path":"sfx/weather-gust-3.ogg","bytes":24021,"sha256":"0d570ad1f1221ba9274ff3c5a97b2f45e45b0a2597ea6f5c12996883181ec7d0","seconds":2.35,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
+    {"path":"sfx/weather-splash-1.ogg","bytes":8935,"sha256":"d357ec0813e91cda03f77e9fd2ed8e77e9693fb021486ca33b01279b90959e85","seconds":0.55,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
+    {"path":"sfx/weather-splash-2.ogg","bytes":9067,"sha256":"e8200ee435ebb7d192a7291cd66e970515dabfc898dd366aa9b0783392f10597","seconds":0.55,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
+    {"path":"sfx/weather-splash-3.ogg","bytes":8954,"sha256":"35cc571da21ff559e1b429dd98ed53ae58fbf58bf8aa05be89201388b12d4e81","seconds":0.55,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
+    {"path":"sfx/weather-shift-1.ogg","bytes":11875,"sha256":"396e1d207e2e2627dcfb3199ebfa1fd765330530b1151678966b17bef16bd5b8","seconds":0.9,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
+    {"path":"sfx/weather-shift-2.ogg","bytes":11608,"sha256":"173bccf7596ae4ef73eae566f7526b83675adfe130f1f5d87dabc60d828e4cc5","seconds":0.9,"channels":1,"loop":false,"origin":"own-synthesis","license":"own-synthesis"},
     {"path":"engine/vektor-idle.ogg","bytes":20084,"sha256":"7e3ab7f8a35d63fecd3146dc675409bcf563a63dce78cf4bd4c85cbdc3e5c94e","seconds":2,"channels":1,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
     {"path":"engine/vektor-low.ogg","bytes":19223,"sha256":"b9f85121b6280483bbe0fdff3e86690e9a1a42a182881e4b34e741e21324c31a","seconds":2,"channels":1,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
     {"path":"engine/vektor-mid.ogg","bytes":18959,"sha256":"d0bcc6a52904a6279e8e174edb8eb50123ad0d8907bd2d2afa18429962cac657","seconds":2,"channels":1,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
@@ -909,31 +973,31 @@
     {"path":"engine/bertha-low.ogg","bytes":20510,"sha256":"a7143dc93e5b6245e08feadb9b7f73c08bfdd56ec4b3655c11ce61ce386a6e30","seconds":2,"channels":1,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
     {"path":"engine/bertha-mid.ogg","bytes":18800,"sha256":"eee112fa7e6d84288e7cee274bb4f3174238274d449f718fe324baa8ca4f3fae","seconds":2,"channels":1,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
     {"path":"engine/bertha-high.ogg","bytes":18860,"sha256":"04d1f50263deaf11e09b1f699dc738f88b6eced2f76587a7c27f3ab1750c82b7","seconds":2,"channels":1,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"music/alpine-bed.ogg","bytes":344397,"sha256":"0e3302cb282d5f997f1aba2aa64e7734ffe3ede7c2f62581fe416c6ea8a4a566","seconds":38.4,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"music/alpine-drive.ogg","bytes":311928,"sha256":"fee5bdaefa7978a79efed1e2181351a750393eb903004952e7340f39f97d2b27","seconds":38.4,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"music/alpine-peak.ogg","bytes":354270,"sha256":"d7f0d70c0e9ec1d126c8318aa3b25d45f05a5b9158f11bba96cad0c12dff728a","seconds":38.4,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
+    {"path":"music/alpine-bed.ogg","bytes":344396,"sha256":"f7344551c130767cdec88eae0a41c8ead79deabcc43a1d841d168b79e8b19426","seconds":38.4,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
+    {"path":"music/alpine-drive.ogg","bytes":311928,"sha256":"35bad1aada62e47498d6168e0b5719a26dfc620f012ef7678752aaa7381b307b","seconds":38.4,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
+    {"path":"music/alpine-peak.ogg","bytes":354269,"sha256":"a9265e9eea8c3ef2b463345bb4045aa2c7c1d7eae2a18290e1bc43df22ed8041","seconds":38.4,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
     {"path":"music/desert-bed.ogg","bytes":286792,"sha256":"e70a990abc1490f49ec9a02fc9c7fe256bce5d7d15d423e7320fe266d0dfa8de","seconds":32.542381,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
     {"path":"music/desert-drive.ogg","bytes":297804,"sha256":"edfff25532c992d0d991c12f1c0791389f498a6ef0faeb2bb69855d55a1db217","seconds":32.542381,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
     {"path":"music/desert-peak.ogg","bytes":318009,"sha256":"6e05872ff18bfb7cbc79da13218ed3277b7e7bd05608683d1df9e730c6a0d278","seconds":32.542381,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"music/harbour-bed.ogg","bytes":373841,"sha256":"8ae176aab7a5a4f7b8728bc4b041d9aa611d62f6adb794a13cfce9c7d5df9219","seconds":41.739138,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
+    {"path":"music/harbour-bed.ogg","bytes":373839,"sha256":"4de4ece3eb5e9d2e711de4e341561493379157ffdf03758aa6924d71218eceb1","seconds":41.739138,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
     {"path":"music/harbour-drive.ogg","bytes":356457,"sha256":"0087fe46007077873279ab1eef17fa0ae37e2519d882267c8d671a19d20504fb","seconds":41.739138,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"music/harbour-peak.ogg","bytes":373662,"sha256":"2cd5f38c7b986476ba86204fb4183f064cf2c74dcb6e3419ed478e4161031055","seconds":41.739138,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
+    {"path":"music/harbour-peak.ogg","bytes":373665,"sha256":"5980124d937e0d1d140cec8669e0cac5856bbb7de49db3a3ce581c1979c1bbca","seconds":41.739138,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
     {"path":"music/salt-bed.ogg","bytes":354098,"sha256":"235c1a66903d985eac9228da476951bcb8c27a82eb0acc423d3646ecca165f9e","seconds":36.226417,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
     {"path":"music/salt-drive.ogg","bytes":344924,"sha256":"9749a4f2edd95ac58a47f134754c15fa12693859686977b6e0b6c79eabdf0d39","seconds":36.226417,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"music/salt-peak.ogg","bytes":369410,"sha256":"cde0414e3923ae27d73a71a9e796bb446269384bdf3dd25997c6dd6e9aef4aba","seconds":36.226417,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
+    {"path":"music/salt-peak.ogg","bytes":369410,"sha256":"ef329b632d6aa8d219cc2463f184f84cf1f2fa4cf5377fe02085a0fedc870ca8","seconds":36.226417,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
     {"path":"music/forest-bed.ogg","bytes":335881,"sha256":"1811d82225fa8ad01206fcf40ec225af884fd07e2beb046c391ad63032039360","seconds":40,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
     {"path":"music/forest-drive.ogg","bytes":297317,"sha256":"a7a897886b04aa51a9dcd7a400932d2c00a5cda3663617acb44b34aec18a5bb5","seconds":40,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
     {"path":"music/forest-peak.ogg","bytes":347995,"sha256":"7a00793f74de25a38d75a2ff93a2a2255ce28192fac51d2142b7f70b1d772fc8","seconds":40,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
     {"path":"music/industry-bed.ogg","bytes":255263,"sha256":"2a53aa115a748a8acc6fc3e8ab22b866ef95662c97447fa15f00007450ae3c30","seconds":30,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
     {"path":"music/industry-drive.ogg","bytes":279307,"sha256":"00c684cd54b34fbfd06fa98ee69d44f711e1f893c2f206ab13047d4794368a50","seconds":30,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
     {"path":"music/industry-peak.ogg","bytes":278024,"sha256":"fe69c80e1f97d82b83c0bb703416d63c1550424a54b71891be49ce1f23dd1762","seconds":30,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"music/glacier-bed.ogg","bytes":473081,"sha256":"9554ce4ea7259bd9e78530d044eb0a7dce6e54c1ea82898fbe541023e6c2e5f2","seconds":45.714286,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"music/glacier-drive.ogg","bytes":308896,"sha256":"30e75263741b5494834d7757ded4d0eedeb4381f042c28edba710a1a9e6c6a2b","seconds":45.714286,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"music/glacier-peak.ogg","bytes":506071,"sha256":"87b2fcf900f56c3eec89efb3400252ece7eabeeb69dfb40f9140d9af192b8af2","seconds":45.714286,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"music/metro-bed.ogg","bytes":278638,"sha256":"ae15daa09420b248b206b37b29ba2d530827ac105b20a621c858d6c029553ad0","seconds":31.47542,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
+    {"path":"music/glacier-bed.ogg","bytes":473080,"sha256":"e8e528b8790e8776a1f89abf110af57186255c2c24b40bf9ec655f5480b037db","seconds":45.714286,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
+    {"path":"music/glacier-drive.ogg","bytes":308897,"sha256":"2cfa15dfb2e11f7e75595483ee96525da39353af219d38558b16c5902bf4bffa","seconds":45.714286,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
+    {"path":"music/glacier-peak.ogg","bytes":506070,"sha256":"d890fcc55dc431c2d46387365d55b7d74a30e2c72e35e1101e43e6ea8467d293","seconds":45.714286,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
+    {"path":"music/metro-bed.ogg","bytes":278641,"sha256":"12bc4e5b00f1c38d820e9ac14e9cf032992c8e1ca0a3fddbc590f85896850cab","seconds":31.47542,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
     {"path":"music/metro-drive.ogg","bytes":298662,"sha256":"840e36d20ccf3e621c2ac894f062106552f475757b07e4181c6ec344bb9e87a9","seconds":31.47542,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
     {"path":"music/metro-peak.ogg","bytes":295255,"sha256":"ca32f82a3ae09f906acda4195b0ce34a3c96f1069e56ea3e0cbb309f38360ea9","seconds":31.47542,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"music/menu.ogg","bytes":171977,"sha256":"2e7661174bdf2be54da9afbfce613c5da885acfa6afd5c4e6ad81062b0b1aac3","seconds":18.461542,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
+    {"path":"music/menu.ogg","bytes":171976,"sha256":"e74366a65f0d762346f96815d5f6e0985e521eb3d5f21bddbdccf3e9b25acf79","seconds":18.461542,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
     {"path":"music/results.ogg","bytes":203394,"sha256":"72a962c133b59aa6c001d1e364786f4e649ac4cb6d32ad2d3712a0c3f029401f","seconds":21.333333,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"}
   ]
 }

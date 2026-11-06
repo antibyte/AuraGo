@@ -8,6 +8,8 @@ import math
 
 from . import scenery_a_common as c
 from .core import Model
+from .polish_props import trail_marker
+from .weather_props import snow_gauge
 from .shapes import box, cylinder, cylinder_z, extrude_z, revolve, sphere, strut, xf
 
 SNOW = "#f2f7ff"
@@ -215,7 +217,8 @@ def hay_barn():
 def build():
     c.ensure_materials()
     model = Model("scenery-alpine")
-    for name, piece in (("pine_a", pine_a()), ("pine_b", pine_b()), ("rock_a", rock_a()), ("rock_b", rock_b()), ("chalet", chalet()), ("cablecar_pylon", cablecar_pylon()), ("flower_meadow", flower_meadow()), ("hay_barn", hay_barn())):
+    for name, piece in (("pine_a", pine_a()), ("pine_b", pine_b()), ("rock_a", rock_a()), ("rock_b", rock_b()), ("chalet", chalet()), ("cablecar_pylon", cablecar_pylon()), ("flower_meadow", flower_meadow()), ("hay_barn", hay_barn()), ("trail_marker", trail_marker(c.Piece("trail_marker"))),
+         ("snow_gauge", snow_gauge(c.Piece("snow_gauge")))):
         piece.bake()
         model.mesh("prop-" + name, piece.items())
     return model

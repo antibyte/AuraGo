@@ -2,7 +2,7 @@
   "version": 1,
   "blender": "5.2.2",
   "generator": "assets/aura-drift/generate.py",
-  "totalBytes": 8868048,
+  "totalBytes": 9179600,
   "files": [
     {
       "name": "animals.glb",
@@ -76,16 +76,16 @@
     },
     {
       "name": "scenery-alpine.glb",
-      "bytes": 311248,
-      "sha256": "c356098cc9c1307a502516da993d2ebdfc2bfafa6905af1ab0c09372cd9e931f",
-      "triangles": 4214,
+      "bytes": 336768,
+      "sha256": "74b063aac2f2513fbd70a30ee5f8dc580d65d3a725c2aac8f6eadd542d209f6b",
+      "triangles": 4566,
       "kind": "scenery"
     },
     {
       "name": "scenery-desert.glb",
-      "bytes": 361140,
-      "sha256": "0fb0b83028a48aa128f4355122a5ebf8b4806a9035f98d00cf6519fb3375e3d4",
-      "triangles": 4868,
+      "bytes": 405460,
+      "sha256": "c446dfb37e74c0b341cca3c9fa39469e26217889938ef435916defe482c2b2e8",
+      "triangles": 5446,
       "kind": "scenery"
     },
     {
@@ -97,16 +97,16 @@
     },
     {
       "name": "scenery-glacier.glb",
-      "bytes": 278236,
-      "sha256": "531c25c9c216d79ee4b3072951d6b9709be947a46f6eeb41013b67ac8d823acf",
-      "triangles": 3740,
+      "bytes": 298968,
+      "sha256": "04f710d26e1d99320c0ee7ae444f71512b859d2e0082ab44972d1f55492dacd0",
+      "triangles": 4016,
       "kind": "scenery"
     },
     {
       "name": "scenery-harbour.glb",
-      "bytes": 578308,
-      "sha256": "3d7a1cde833affe32b7544a011c3e05ab9f968047448ff7b277da8d89fc0ec3d",
-      "triangles": 8036,
+      "bytes": 633316,
+      "sha256": "823b641d6501d12535357ea2328c60c5ae3ce3065881af3f43125a5c4c717bfd",
+      "triangles": 8770,
       "kind": "scenery"
     },
     {
@@ -118,9 +118,9 @@
     },
     {
       "name": "scenery-metro.glb",
-      "bytes": 511888,
-      "sha256": "f1a5a5a3651f26d676248cad3f6c927a10aaa07e25b4162041775dd506ada653",
-      "triangles": 6896,
+      "bytes": 525352,
+      "sha256": "6a7f1e366930a0caf88a59bc677ff59186873736cc0d6478715ab5322d0fbac6",
+      "triangles": 7036,
       "kind": "scenery"
     },
     {
@@ -132,9 +132,9 @@
     },
     {
       "name": "shared.glb",
-      "bytes": 1498580,
-      "sha256": "2015cbea01290cf95986832c0729012025f4121b7ea668b29dd7dce85a41f77f",
-      "triangles": 22250,
+      "bytes": 1651088,
+      "sha256": "3908281c198c9a0819fffa8bd2681836c1c61148e2adbb6280ee3f852317a4ab",
+      "triangles": 25076,
       "kind": "shared"
     },
     {
@@ -472,9 +472,39 @@
           "scatter"
         ],
         "triangles": 196
+      },
+      "snow_gauge": {
+        "file": "scenery-alpine.glb",
+        "node": "prop-snow_gauge",
+        "radius": 0.48,
+        "height": 3.73,
+        "tags": [
+          "scatter"
+        ],
+        "triangles": 196
+      },
+      "trail_marker": {
+        "file": "scenery-alpine.glb",
+        "node": "prop-trail_marker",
+        "radius": 0.515,
+        "height": 2.74,
+        "tags": [
+          "scatter"
+        ],
+        "triangles": 156
       }
     },
     "desert": {
+      "anemometer": {
+        "file": "scenery-desert.glb",
+        "node": "prop-anemometer",
+        "radius": 1.173,
+        "height": 4.52,
+        "tags": [
+          "tall"
+        ],
+        "triangles": 314
+      },
       "cactus_a": {
         "file": "scenery-desert.glb",
         "node": "prop-cactus_a",
@@ -529,6 +559,14 @@
           "far"
         ],
         "triangles": 564
+      },
+      "sunshade": {
+        "file": "scenery-desert.glb",
+        "node": "prop-sunshade",
+        "radius": 1.85,
+        "height": 3.74,
+        "tags": [],
+        "triangles": 264
       },
       "water_tower": {
         "file": "scenery-desert.glb",
@@ -680,6 +718,14 @@
         ],
         "triangles": 564
       },
+      "snow_fence": {
+        "file": "scenery-glacier.glb",
+        "node": "prop-snow_fence",
+        "radius": 2.65,
+        "height": 2.2,
+        "tags": [],
+        "triangles": 276
+      },
       "snow_pine": {
         "file": "scenery-glacier.glb",
         "node": "prop-snow_pine",
@@ -756,6 +802,26 @@
           "tall"
         ],
         "triangles": 1200
+      },
+      "signal_mast": {
+        "file": "scenery-harbour.glb",
+        "node": "prop-signal_mast",
+        "radius": 0.82,
+        "height": 6.92,
+        "tags": [
+          "tall"
+        ],
+        "triangles": 474
+      },
+      "storm_lantern": {
+        "file": "scenery-harbour.glb",
+        "node": "prop-storm_lantern",
+        "radius": 0.75,
+        "height": 4.46,
+        "tags": [
+          "tall"
+        ],
+        "triangles": 260
       },
       "tugboat": {
         "file": "scenery-harbour.glb",
@@ -870,6 +936,16 @@
         "height": 4.95,
         "tags": [],
         "triangles": 1006
+      },
+      "holo_arrow": {
+        "file": "scenery-metro.glb",
+        "node": "prop-holo_arrow",
+        "radius": 1.226,
+        "height": 4.44,
+        "tags": [
+          "scatter"
+        ],
+        "triangles": 140
       },
       "metro_entrance": {
         "file": "scenery-metro.glb",
@@ -994,6 +1070,17 @@
       }
     },
     "shared": {
+      "balloon_bunch": {
+        "file": "shared.glb",
+        "node": "prop-balloon_bunch",
+        "radius": 0.938,
+        "height": 6.12,
+        "tags": [
+          "hero",
+          "tall"
+        ],
+        "triangles": 1346
+      },
       "camper_van": {
         "file": "shared.glb",
         "node": "prop-camper_van",
@@ -1075,6 +1162,27 @@
         "tags": [],
         "triangles": 648
       },
+      "photo_tower": {
+        "file": "shared.glb",
+        "node": "prop-photo_tower",
+        "radius": 1.185,
+        "height": 6.47,
+        "tags": [
+          "hero",
+          "tall"
+        ],
+        "triangles": 488
+      },
+      "rain_shelter": {
+        "file": "shared.glb",
+        "node": "prop-rain_shelter",
+        "radius": 2.63,
+        "height": 3.19,
+        "tags": [
+          "hero"
+        ],
+        "triangles": 524
+      },
       "road_sign": {
         "file": "shared.glb",
         "node": "prop-road_sign",
@@ -1084,6 +1192,16 @@
           "scatter"
         ],
         "triangles": 110
+      },
+      "windsock": {
+        "file": "shared.glb",
+        "node": "prop-windsock",
+        "radius": 2.042,
+        "height": 6.62,
+        "tags": [
+          "tall"
+        ],
+        "triangles": 468
       }
     }
   }

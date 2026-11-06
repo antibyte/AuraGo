@@ -8,6 +8,8 @@ import math
 
 from . import scenery_a_common as c
 from .core import Model
+from .polish_props import sunshade
+from .weather_props import anemometer
 from .shapes import box, cylinder, cylinder_x, ellipsoid, revolve, sphere, strut, xf
 
 
@@ -191,7 +193,8 @@ def palm_oasis():
 def build():
     c.ensure_materials()
     model = Model("scenery-desert")
-    for name, piece in (("cactus_a", cactus_a()), ("cactus_b", cactus_b()), ("mesa_rock", mesa_rock()), ("water_tower", water_tower()), ("rock_arch", rock_arch()), ("palm_oasis", palm_oasis())):
+    for name, piece in (("cactus_a", cactus_a()), ("cactus_b", cactus_b()), ("mesa_rock", mesa_rock()), ("water_tower", water_tower()), ("rock_arch", rock_arch()), ("palm_oasis", palm_oasis()), ("sunshade", sunshade(c.Piece("sunshade"))),
+         ("anemometer", anemometer(c.Piece("anemometer")))):
         piece.bake()
         model.mesh("prop-" + name, piece.items())
     root = model.mesh("prop-windmill_pump", windmill_pump().bake().items())

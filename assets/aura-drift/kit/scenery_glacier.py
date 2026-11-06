@@ -10,6 +10,7 @@ import math
 from . import scenery_b_common as c
 from .core import Model
 from .shapes import arc_band, box, cylinder, cylinder_x, cylinder_z, ellipsoid, extrude_z, revolve, revolve_x, sphere, strut, torus, xf
+from .weather_props import snow_fence
 
 SNOW = "#f2f7ff"
 SNOW_SHADE = "#c9d8f0"
@@ -254,7 +255,7 @@ def snow_cat():
 def build():
     c.ensure_materials()
     model = Model("scenery-glacier")
-    for name, piece in (("ice_block", ice_block()), ("ice_arch", ice_arch()), ("snow_pine", snow_pine()), ("igloo", igloo()), ("research_station", station()), ("ice_spire", ice_spire()), ("snow_cat", snow_cat())):
+    for name, piece in (("ice_block", ice_block()), ("ice_arch", ice_arch()), ("snow_pine", snow_pine()), ("igloo", igloo()), ("research_station", station()), ("ice_spire", ice_spire()), ("snow_cat", snow_cat()), ("snow_fence", snow_fence(c.Piece("snow_fence")))):
         piece.bake()
         model.mesh("prop-" + name, piece.items())
     return model

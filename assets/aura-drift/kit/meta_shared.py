@@ -13,4 +13,8 @@ PROPS = {
     "camper_van": {"tags": ["hero"]},
     "inflatable_arch": {"tags": ["tall"]},
     "road_sign": {"tags": ["scatter"]},
+    "balloon_bunch": {"tags": ["hero", "tall"]},
+    "photo_tower": {"tags": ["hero", "tall"]},
+    "windsock": {"tags": ["tall"]},
+    "rain_shelter": {"tags": ["hero"]},
 }

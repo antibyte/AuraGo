@@ -483,13 +483,23 @@
             const conditions = race.conditions ? race.conditions.state : null;
             const weather = conditions ? conditions.kind : biome.weather;
             const intensity = conditions ? conditions.intensity : 0.65;
-            if (!weather || reducedMotion || quality.weather <= 0) return;
+            if (reducedMotion) return;
+            /* The same deterministic strike lights the 2D view, on every quality tier. */
+            const flash = conditions ? clamp(conditions.flash || 0, 0, 1.1) : 0;
+            if (flash > 0) {
+                c.save();
+                c.fillStyle = '#dceaff';
+                c.globalAlpha = clamp(flash * 0.26, 0, 0.3);
+                c.fillRect(0, 0, width, height);
+                c.restore();
+            }
+            if (!weather || quality.weather <= 0) return;
             const amount = Math.floor(quality.weather * intensity *
                 (weather === 'rain' || weather === 'snow' ? 90 : 45));
             c.save();
             if (weather === 'rain') {
                 /* Streaks lean with camera motion so the rain feels alive. */
-                const drift = clamp(-camVX * 0.06, -6, 6);
+                const drift = clamp(-camVX * 0.06 + (conditions ? (conditions.gust - 0.5) * 10 : 0), -9, 9);
                 c.strokeStyle = 'rgba(170,205,240,0.32)';
                 c.lineWidth = 1;
                 for (let i = 0; i < amount; i++) {
@@ -994,7 +1004,7 @@
                 return {
                     kind: 'canvas2d', calls: 0, triangles: 0, geometries: 0, textures: 0,
                     particles: particles.length, props: furniture.length, standIns: 0,
-                    wetness: cond && cond.kind === 'rain' ? cond.intensity : 0,
+                    wetness: cond ? cond.wetness : 0,
                     chunks: chunks.size, decals: decals.length, projection: null
                 };
             }

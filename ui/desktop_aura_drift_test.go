@@ -361,3 +361,13 @@ func TestAuraDriftAvoidsAdBlockerClassPrefix(t *testing.T) {
 		}
 	}
 }
+
+// Only hud-fx.js declares TAU; the speedometer glow arc once used a bare TAU and
+// threw ReferenceError as soon as boost or slipstream was active during a race.
+func TestAuraDriftHUDUsesKitTAU(t *testing.T) {
+	t.Parallel()
+	hud := readDesktopAssetText(t, "js/desktop/apps/aura-drift-hud.js")
+	if loc := regexp.MustCompile(`(^|[^.\w])TAU([^\w]|$)`).FindStringIndex(hud); loc != nil {
+		t.Fatalf("aura-drift-hud.js uses a bare TAU (%q); use kit.TAU", hud[loc[0]:loc[1]])
+	}
+}

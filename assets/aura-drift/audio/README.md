@@ -12,7 +12,9 @@ weapons, stingers, horns, UI). The originals are not committed; a group is repla
 
 - Build and verification: `scripts/build-aura-drift-audio.mjs`
 - Synthesis code: `scripts/aura-drift-synth/*.mjs` (`dsp.mjs` toolkit, `kit.mjs` shared sound parts,
-  `engines.mjs`, `sfx-world.mjs`, `sfx-weapons.mjs`, `sfx-comic.mjs`, `music*.mjs`, `registry.mjs`)
+  `engines.mjs`, `sfx-world.mjs`, `sfx-weapons.mjs`, `sfx-comic.mjs`, `sfx-polish.mjs` (five
+  feedback stinger groups, 12 variants), `sfx-weather.mjs` (four weather groups, 11 variants),
+  `music*.mjs`, `registry.mjs`)
 - Data input: `assets/aura-drift/audio/sources.json` (`sources`: 13 hash-pinned CC0 downloads, `overrides`: 17 sfx groups)
 - Contract test: `scripts/test-aura-drift-audio.mjs`
 
@@ -25,6 +27,10 @@ weapons, stingers, horns, UI). The originals are not committed; a group is repla
 | `node scripts/build-aura-drift-audio.mjs --preview DIR [--only REGEX]` | Writes normalised float WAVs for listening or analysis, nothing in the repo changes. Job ids look like `sfx:weapon.horn_blast:0`, `engine:vektor:mid`, `music:alpine`. |
 | `node scripts/build-aura-drift-audio.mjs --list` | Prints every job id. |
 | `node scripts/test-aura-drift-audio.mjs [--fast]` | Manifest groups against the runtime contract, engine set, aligned music stems, budgets, decoded peak and loudness checks. |
+
+`--write` overwrites the committed `.ogg` files in place and removes only files that no recipe
+produces any more. A rebuild therefore never mass-deletes the shipped pack, and a failed run
+cannot leave it half empty.
 
 ## Pack layout
 

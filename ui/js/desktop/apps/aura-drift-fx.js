@@ -223,6 +223,18 @@
             ice: { c0: col('#e8f6ff'), c1: col('#bfe0f5'), s0: 1.2, s1: 3.8, life: 1.3, a: 0.5, rate: 50, up: 0.9, sp: 1.8, powder: true }
         };
         const SKID = { asphalt: [0.012, 0.012, 0.015, 0.55], salt: [0.35, 0.35, 0.33, 0.3], oil: [0.01, 0.01, 0.012, 0.5], wet: [0.015, 0.015, 0.02, 0.25], sand: [0.32, 0.22, 0.11, 0.35], gravel: [0.2, 0.17, 0.13, 0.4], snow: [0.38, 0.45, 0.58, 0.45], mud: [0.05, 0.035, 0.02, 0.55], ice: [0.5, 0.65, 0.8, 0.22] };
+        /* Ambient biome motes: [sprite, colour, fade colour, rate/s, rise, drift, size, life, additive].
+           Quiet, camera-relative dressing: fireflies in the forest, sand in the desert, neon bokeh in the city. */
+        const MOTES = {
+            alpine: [F.DOT, '#ffe9a8', '#fff6dc', 7, 0.5, 1.4, 0.16, 3.2, 1],
+            desert: [F.DOT, '#e8b878', '#f7dcaa', 9, 0.15, 3.2, 0.13, 2.6, 0],
+            harbour: [F.GLOW, '#8ce9ff', '#ff8fd0', 6, 0.7, 1.0, 0.3, 2.2, 1],
+            salt: [F.DOT, '#ffffff', '#dfeaf5', 8, 0.35, 1.1, 0.12, 3.0, 1],
+            forest: [F.GLOW, '#d6ff7a', '#ffe27a', 8, 0.6, 0.8, 0.22, 3.4, 1],
+            industry: [F.DOT, '#ff9a3c', '#ffd27a', 7, 1.6, 0.7, 0.1, 2.0, 1],
+            glacier: [F.STAR, '#e8f6ff', '#a8d4ff', 9, -0.45, 1.6, 0.15, 4.0, 1],
+            metro: [F.GLOW, '#ff6fd0', '#5ff4ff', 7, 0.25, 0.9, 0.34, 2.8, 1]
+        };
 
         /* ---- particle store ---------------------------------------------- */
         let S = null, pools = null, dens = 1;
@@ -418,6 +430,7 @@
 
         /* ---- state -------------------------------------------------------------- */
         let lastRace = null, time = 0, eyeX = 0, eyeZ = 0, eyeSet = false, night = false;
+        let reduced = false, moteAcc = 0;
         const cst = [], timers = [], ufos = [];
         const carState = i => cst[i] || (cst[i] = { wl: { has: false }, wr: { has: false }, gear: 1, thr: 0 });
         function use(race) {
@@ -614,6 +627,7 @@
             if (!race || !S) return;
             use(race);
             const v = evt.car !== undefined ? carOf(race, evt.car) : null;
+            const ex = evt.x !== undefined ? evt.x : (v ? v.x : 0), ey = evt.y !== undefined ? evt.y : (v ? v.y : 0);
             switch (evt.type) {
                 case 'perfect_start': if (v) { turboBurst(v, 1, 1.4); smokeBurst(v, 18); } break;
                 case 'wheelspin': if (v && near(v.x, v.y, 220)) smokeBurst(v, evt.car === 0 ? 16 : 7); break;
@@ -688,6 +702,22 @@
                     ringBb(evt.x, 1.5, evt.y, 0.8, 5, 0.3, GOLD, 0.8);
                     break;
                 case 'bomb_blast': explode(evt.x, evt.y, 0.8, clamp((evt.r || 8) / 6, 1, 2.2)); break;
+                case 'near_miss': if (v) windStreaks(v, 9); sparkle(ex, ey, WHITE, 6); break;
+                case 'style_bank': {
+                    for (let k = cnt(clamp((evt.multiplier || 1) * 4, 6, 34)); k > 0; k--) {
+                        const an = rnd() * TAU, sp = rr(2, 9);
+                        bit(F.STAR, ex, rr(0.5, 2.2), ey, Math.cos(an) * sp, rr(3, 9), Math.sin(an) * sp, rr(0.6, 1.2), rr(0.35, 0.7), GOLD, PARTY[k % PARTY.length], 7, K_FLUTTER, 0.8, 1);
+                    }
+                    ringBb(ex, 1.2, ey, 0.8, 5, 0.35, GOLD, 0.6);
+                    break;
+                }
+                case 'sector': ring(ex, 0, ey, 0.5, 5, 0.45, TEAL, 0.6); sparkle(ex, ey, TEAL, 10); break;
+                case 'cloak_on': ringBb(ex, 1.2, ey, 5, 0.8, 0.4, PURPLE, 0.7); sparkle(ex, ey, ELEC, 12); break;
+                case 'cloak_off': sparkle(ex, ey, PURPLE, 8); break;
+                case 'bomb_tick': if (v) ring(v.x, 0.4, v.y, 0.4, 3.2, 0.28, GOLD, 0.5); break;
+                case 'lightning': { const p = race.cars[0].v; sparkle(p.x, p.y, WHITE, 16); ringBb(p.x, 6, p.y, 2, 26, 0.45, ELEC, 0.45); break; }
+                case 'gust': { const p = race.cars[0].v; sparkle(p.x, p.y, ICE1, 6); break; }
+                case 'weather': { const p = race.cars[0].v; sparkle(p.x, p.y, ICE0, 10); break; }
                 default: break;
             }
         }
@@ -715,6 +745,35 @@
         }
         function embers(v, n) {
             for (let k = cnt(n); k > 0; k--) glow(v.x + rr(-1, 1), v.z + rr(0.3, 1.2), v.y + rr(-1, 1), rr(-2, 2), rr(1, 4), rr(-2, 2), rr(0.6, 1.2), 0.22, 0.05, FIRE, EMBER, 0.95, 0.4, F.DOT);
+        }
+
+        /* Camera-relative biome motes: one quiet layer of life in the air, never simulation state. */
+        function ambientEmit(race, dt) {
+            if (reduced || !eyeSet || dt <= 0) return;
+            const m = MOTES[race.track.biomeId] || MOTES.alpine;
+            const cond = race.conditions ? race.conditions.state : null;
+            const gust = cond ? (cond.gust - 0.5) * 2 : 0, wet = cond ? cond.wetness : 0;
+            moteAcc += m[3] * dens * dt * (1 + gust * 0.25);
+            let n = Math.floor(moteAcc);
+            moteAcc -= n;
+            if (rnd() < moteAcc) { n++; moteAcc = 0; }
+            for (; n > 0; n--) {
+                const a = rnd() * TAU, d = 12 + Math.sqrt(rnd()) * 62, c0 = col(m[1], m[8] ? 1.5 : 1), c1 = col(m[2], m[8] ? 0.8 : 1);
+                spawn(m[0], m[8], eyeX + Math.cos(a) * d, rr(0.3, 7), eyeZ + Math.sin(a) * d,
+                    rr(-m[5], m[5]) + gust * 5, m[4] + rr(-0.25, 0.25), rr(-m[5], m[5]) + gust * 2, m[7] * rr(0.8, 1.2),
+                    m[6], m[6] * 1.7, c0, c1, m[8] ? 0.55 : 0.35, 0.14, 0, 0, 0, rr(-1, 1), 0);
+            }
+            /* Headlamp-catching spray on a wet road; it fades as the surface dries. */
+            const pv = race.cars && race.cars[0] ? race.cars[0].v : null;
+            if (wet > 0.3 && pv && !pv.airborne && Math.abs(pv.vx) > 16 && rnd() < wet * dens * dt * 22) {
+                const cp = Math.cos(pv.psi), sp = Math.sin(pv.psi);
+                for (let k = 0; k < 2; k++) {
+                    const side = k ? 1 : -1;
+                    spawn(F.DROP, 1, pv.x - cp * 1.6 - sp * side, 0.25, pv.y - sp * 1.6 + cp * side,
+                        -cp * 5 + rr(-2, 2), rr(1, 3), -sp * 5 + rr(-2, 2), 0.5, 0.3, 0.9,
+                        col('#bfe6ff', 1.2), col('#6fa8d8', 0.8), 0.5, 1.2, -3, 0, 0, 0, 0);
+                }
+            }
         }
 
         /* ---- continuous emission ------------------------------------------------------ */
@@ -812,6 +871,7 @@
                 if (i === 0 || near(v.x, v.y, 80)) addLight(nx + cp * 5, v.z + 1, nz + sp * 5, FIRE, 40 + rnd() * 15, 1, 16, true);
             }
             if (i === 0 && v.slipstream > 0.3 && speed > 38) windStreaks(v, N(20 * dt));
+            else if (i === 0 && gnd && speed > 52 && rnd() < 12 * dens * dt) windStreaks(v, 1);
         }
         function projectileEmit(race, dt) {
             for (const p of race.projectiles) {
@@ -969,6 +1029,7 @@
                     for (let i = 0; i < race.cars.length; i++) carEmit(race, race.cars[i], i, dt);
                     projectileEmit(race, dt);
                     hazardEmit(race, dt);
+                    ambientEmit(race, dt);
                 }
                 beamsEmit(race);
                 flushSkid();
@@ -985,6 +1046,7 @@
                 applyLights(dt);
                 flushSkid();
             },
+            setReducedMotion(flag) { reduced = !!flag; if (reduced) moteAcc = 0; },
             setQuality(next) {
                 const grew = next.particles !== gl.particles, skidChanged = next.skid !== gl.skid;
                 gl = next;

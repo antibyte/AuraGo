@@ -512,6 +512,7 @@
                 if (fallback) { fallback.dome.position.copy(camera.position); }
                 if (sky && sky.update) sky.update(dt, pose, r.conditions ? r.conditions.state : null);
                 if (props && props.update) props.update(pose, r);
+                if (fx && fx.setReducedMotion) fx.setReducedMotion(reduced);
                 if (fx && fx.update) fx.update(dt, pose);
                 const cond = r.conditions && r.conditions.state;
                 const wetTarget = clamp(look.wet * 0.5 + (cond && cond.kind === 'rain' ? cond.intensity : 0), 0, 1);
