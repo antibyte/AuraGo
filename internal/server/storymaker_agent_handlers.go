@@ -195,6 +195,7 @@ func (s *Server) storymakerStartAgentJob(ctx context.Context, acc *storymakerAcc
 	case replayed:
 		return render.Job{}, storymakerAgentBusy(job.ID)
 	}
+	go s.storymakerAgentNotifyWhenDone(acc.rt.agent, job)
 	return job, nil
 }
 
