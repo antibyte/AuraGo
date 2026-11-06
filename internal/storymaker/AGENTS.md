@@ -90,6 +90,12 @@ JavaScript (`ui/js/storymaker/`); Go never recomputes the timeline.
 - Faces stay out of `catalog.fonts`, so `style.font` cannot name them. A face file that joins `glyphs.json` needs a licence text and a row in `licences/THIRD_PARTY_LIBRARIES.md` that names the file. `TestStorymakerGlyphFaceNotices` in `ui/storymaker_catalog_test.go` enforces this.
 - `glyphs.go` reads the file through `LoadCatalog`. Go has no WOFF2 code.
 
+## Phase 2 close
+
+- Phase 2 (sound and export) landed in batches 2A to 2D. The contract is the reference, and the design spec section "Changes from the phase 2 plan" records every change to the original text.
+- `testdata/stories/speech.json` (CJK, RTL, Greek, Hindi, bubbles) is shared with the player tests and the render smoke tests, so an edit there reaches both.
+- Still open for the user's ears or hands: voice notes and rhythm factors, sentence pause and trim margins, the taste of the SFX set, prosody with per-sentence synthesis, and the aurago-test acceptance. Agent voice discovery (`storymaker_catalog kind=voice`) is phase 3.
+
 ## Child DOX Index
 
 - `render/AGENTS.md`: the render pipeline contract (job manager, listener, ingest, browser, egress guard, FFmpeg).

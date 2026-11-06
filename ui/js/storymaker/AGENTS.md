@@ -42,6 +42,14 @@ catalog index are `../../../internal/storymaker/AGENTS.md`, the generated catalo
 - Fonts are needed per character, so a Latin story fetches no CJK face. Compile and the wrap use the generated `ranges.js`, never `Intl.Segmenter`, Unicode property escapes or `normalize`, so an ICU version cannot change a layout.
 - The render page keeps the boot token in a closure and adds it to `/report`, `/frame` and `/error` itself. Failure texts name only the route, so neither token nor prefix reaches `__smStatus`, the `/error` body or the job record. Font fetches are lazy through `boot.fonts`.
 
+## Parallel render
+
+- `host-pool.js` sits in `host.bundle.js` between `host-app.js` and `host-render.js`. `H.runPool({engines, limit, chunk, preRoll, post, status}) -> outcome` sends chunk j to worker `j % N` and a chunk with code-scene frames to worker 0. A worker waits while its chunk starts `>= N*C*2` frames past the next frame to post. One in-order poster keeps one POST in flight, so Go's ingest is unchanged.
+- On `restart` the poster stops, the generation is abandoned, the buffer is cleared and the same engines re-run from frame 0. A crash or deadline rejects and the page posts `/error`.
+- `Engine.load` accepts `shared_code_scenes` and then builds no scene workers. `Engine.render(n, {png:true})` returns a Blob. `worker-player.js` `render` with `msg.png` returns `{blob}` from `main.canvas.convertToBlob({type:'image/png'})`.
+- The page creates `workers-1` helper engines before the report, so they cannot trip the 10 s frame watchdog. A different `frame_count` or schedule is `render_failed`. `workers` 1 or absent keeps the serial path.
+- Verify `node scripts/storymaker-tests/22-host-pool.mjs` through `npm run test:storymaker`, and `AURAGO_RUN_BROWSER_SMOKE=1 go test ./internal/storymaker/render -run '^TestParallelParityBrowser$' -count=1 -timeout 20m`.
+
 ## Verify
 
 - `npm run test:storymaker` (Node, vm based, about 8 s), `npm run build:ui`, `npm run check:ui`, `node scripts/build-storymaker-ranges.mjs --check`.

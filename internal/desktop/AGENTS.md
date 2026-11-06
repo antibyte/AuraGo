@@ -26,6 +26,8 @@ The Service owns authorization, read-only state, mutation locks and cache invali
 
 - `WriteStorymakerVideo` is the only desktop write into the read-only `Videos` mount. It takes a slug (`^[A-Za-z0-9-]{1,80}$`) and builds the path itself, `Videos/Storymaker/<slug>.mp4` with `-2`, `-3` on collision. It refuses read-only, checks read-only again under the lock, and needs free space of size plus 64 MiB. It creates `Storymaker` on the first copy and skips `RegisterMedia`. Verify `go test ./internal/desktop -run WriteStorymakerVideo`.
 
+- The Storymaker handoff adds no Service method. Video Studio's `source_path` import opens files below `Documents/Storymaker/<id>/exports/` through `OpenPreviewFile` and copies them into its project. The library copy (`WriteStorymakerVideo`) exists for discoverability only: camera import accepts top-level `Videos/<file>` only, so the handoff never reads `Videos/Storymaker/`. Verify `go test ./internal/desktop -run WriteStorymakerVideo -count=1`.
+
 - Desktop cloud transfers use `StatStoragePath` for fresh rooted metadata,
   `CreateStorageDirectory` for exclusive directory creation,
   `WriteFileStreamConditional` for bounded publication, and

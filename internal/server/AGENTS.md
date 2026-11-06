@@ -243,6 +243,12 @@ Server-owned HTTP and cross-component integration contracts.
   remain empty. Routing never receives attachments, handoff transcripts or radio
   metadata, while the ordinary chat request retains its authorized context.
 
+### Storymaker export and handoff
+
+- Parallel render: `storymakerSettings` passes `LogicalCPUs` (`runtime.NumCPU()`) and `FreeMemoryMB` (gopsutil `mem.VirtualMemory().Available >> 20`, capped by `render.BoundMemoryToCgroup` over `/sys/fs/cgroup`, 0 when unknown) to the render runner. `render.ChooseWorkers` decides the worker count; the handlers do not.
+- The Video Studio handoff adds no Storymaker route. The app calls the existing `/api/desktop/video-studio` routes, so their scopes, read-only checks and `max_asset_size_mb` hold. `source_path` passes `OpenPreviewFile` before anything is copied into the Video Studio project.
+- Verify `go test ./internal/server -run Storymaker -count=1 -timeout 20m` and `AURAGO_RUN_BROWSER_SMOKE=1 go test ./internal/server -run '^TestStorymakerAppRealServerBrowser$' -count=1 -timeout 15m`.
+
 ### Retro-Net Terminal
 
 - `GET /api/desktop/retronet/directory`, `POST /api/desktop/retronet/status`

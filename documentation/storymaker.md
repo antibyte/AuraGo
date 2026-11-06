@@ -1,9 +1,9 @@
 # Storymaker
 
 Storymaker is the Virtual Desktop app for short explainer videos. You stage scenes with cartoon people, props and
-environments from a built-in catalog, write the narration text, watch a live preview and export an MP4. This page describes
-the current version: the editor, the preview, voices and narration, captions, music, sound effects and an export with sound. The
-agent comes in a later version.
+environments from a built-in catalog, write the narration, pick a voice and music, watch a live preview and export an MP4 with
+sound, captions, subtitle files and separate audio tracks. A finished export can continue in Video Studio. This page describes
+phases 1 and 2. The agent panel, the chat tool and the asset generator come in later phases.
 
 ## Switch it on
 
@@ -105,23 +105,71 @@ The issues list also shows motion hints. A hint never blocks an export.
 | `entry_monotony` | Three or more show beats, all with the same entry. |
 | `transition_variety` | More than five transition kinds in one film. |
 
-## Not yet
-
-The agent panel and chat tool, the asset generator, charts and
-diagrams, most transitions (cut, fade, slide-left and wipe exist) and drag and drop staging. The story format already accepts
-the fields of later phases; the editor shows them as "not supported yet" and the player ignores them.
-
 ## Sound
 
 The export mixes narration, music and sound effects in AuraGo itself and writes AAC 192k, about -16 LUFS at -1 dBTP at most. The music ducks under speech. An `sfx` beat plays a sound from the catalog (`sfx.whoosh`, `sfx.pop`, `sfx.click`, `sfx.ding`, `sfx.success`, `sfx.error`, `sfx.typing`) on its landing, and `style.auto_sfx` adds a pop to each show with entry `pop`.
 
 An export is refused while narration audio or the music file is missing. The export panel says what is missing and opens the panel that fixes it. A scene marked as silent on the Scene tab exports without its narration and keeps the text, while a `say` with its own text still needs audio. A film without narration, music and sound effects exports with a silent track, and the panel says so before you start.
 
-`POST /api/desktop/storymaker/projects/{id}/render` takes an optional body `{burn_in_captions, srt, vtt, stems, quality}`. Stems and subtitles land in `exports/<title>-<job>/`, and a copy of the MP4 lands in `Videos/Storymaker/`. A failed extra leaves the MP4 and adds a warning to the job. The dialog for these options comes with the next update.
+`POST /api/desktop/storymaker/projects/{id}/render` takes an optional body `{burn_in_captions, srt, vtt, stems, quality}`. Stems and subtitles land in `exports/<title>-<job>/`, and a copy of the MP4 lands in `Videos/Storymaker/`. A failed extra leaves the MP4 and adds a warning to the job. The export dialog below sets these options.
+
+## Export options and extras
+
+Starting an export opens a dialog with these choices:
+
+| Choice | Meaning |
+| --- | --- |
+| Quality | `standard`, or `high` for a better picture and a larger file. |
+| Burned-in captions | Draws the captions into the picture. The preset follows the captions switch of the story. |
+| SRT, VTT | Writes subtitle files next to the video. |
+| Stems | Writes one WAV per audio layer: narration, music, sound effects. A silent layer is left out. |
+| Open in Video Studio | Turns stems on, so the finished export can continue in Video Studio. |
+
+An export does not start while narration or music is missing. The panel says what is missing and leads to the voice or the
+music panel.
+
+The files of one export:
+
+    Documents/Storymaker/<project id>/exports/
+      <slug>-<job8>.mp4
+      <slug>-<job8>/narration.wav  music.wav  sfx.wav  captions.srt  captions.vtt
+      <job id>.json
+    Videos/Storymaker/<slug>.mp4, <slug>-2.mp4, ...
+
+The copy in `Videos/Storymaker/` makes the film easy to find. A failed extra leaves the MP4 in place and shows a warning on the
+finished export. The stems add up to the mix exactly before encoding. The AAC track in the MP4 differs slightly, about 23 dB below
+the mix.
+
+## Continue in Video Studio
+
+A finished export with stems offers **Open in Video Studio** when Video Studio is on, FFmpeg is ready and the desktop is
+writable. The action creates a Video Studio project, copies the MP4 and each stem into it, and opens it. The film sits on a video
+track with its own sound detached, and each stem gets its own audio track. This also works after you left the project or closed the
+Storymaker window: open the project again and choose **Show the last export** in the export panel, which offers the newest finished
+export. Unsaved work in an open Video Studio project is saved first.
+
+## Export speed
+
+With the `png` transport the export draws frames in several workers: `(CPUs - 2) / 3`, rounded down, between 1 and 6, and fewer
+when free memory is short. A machine with 8 logical CPUs uses 2 workers. The frames are identical to a serial export.
+
+## Not yet in Storymaker
+
+The agent panel and chat tool, the asset generator, charts and diagrams, most other transitions (cut, fade, slide-left and wipe
+exist) and drag and drop staging. The story format already accepts the fields of later phases; the editor shows them as "not
+supported yet" and the player ignores them. Nobody has listened to the voices yet, so every provider and language shows a
+`not tested` mark.
 
 ## For developers
 
-`ui/js/desktop/apps/AGENTS.md` (Storymaker), `internal/storymaker/AGENTS.md` and `ui/js/storymaker/AGENTS.md` hold the
-contracts. The app tour against a stand-in server is `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run TestStorymakerApp -count=1`; the same
-app against the real handlers, ending in a rendered MP4, is `AURAGO_RUN_BROWSER_SMOKE=1 go test ./internal/server -run
-'TestStorymakerAppRealServer|TestStorymakerExportEndToEnd' -count=1 -timeout 15m` (FFmpeg and Chrome must be installed).
+`ui/js/desktop/apps/AGENTS.md` (Storymaker), `internal/storymaker/AGENTS.md`, `internal/storymaker/render/AGENTS.md` and
+`ui/js/storymaker/AGENTS.md` hold the contracts. `docs/superpowers/specs/2026-11-01-storymaker-contract.md` is the reference.
+
+- Player, in Node: `npm run test:storymaker`.
+- The app tour against a stand-in server: `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run TestStorymakerApp -count=1`.
+- The same app against the real handlers, ending in a rendered MP4 with sound and the Video Studio handoff:
+  `AURAGO_RUN_BROWSER_SMOKE=1 go test ./internal/server -run '^TestStorymakerAppRealServerBrowser$' -count=1 -timeout 15m`.
+- App player against render page: `AURAGO_RUN_BROWSER_SMOKE=1 go test ./internal/server -run '^TestStorymakerParityAppPlayerAndRenderPage$' -count=1 -timeout 15m`.
+- Parallel workers: `AURAGO_RUN_BROWSER_SMOKE=1 go test ./internal/storymaker/render -run '^TestParallelParityBrowser$' -count=1 -timeout 20m`.
+
+FFmpeg and Chrome must be installed for the browser lines.

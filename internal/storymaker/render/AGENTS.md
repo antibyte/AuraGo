@@ -58,6 +58,7 @@ frame ingest, browser provisioning, the egress guard and the FFmpeg frame-input 
 - **Timeouts**: the browser setup of a first export (the Chromium download) runs under `render.timeout_seconds` before the render clock starts
   (`OpenPage` keeps the job context: the browser lives as long as it). Report within 3 minutes of the navigation, no frame within 10 s after FFmpeg started (after the mix, not when the report is accepted) kills the job as `code_error` (the timer is held while Go itself works on a delivered frame: FFmpeg write, hardware settle, software restart), overall
   `max(render.timeout_seconds, 3 x frames / measuredFPS[transport])`. Any `POST /error` from the page is fatal.
+- **Workers** (`workers.go`): `ChooseWorkers(transport, logicalCPUs, freeMB, width, height, chunk, cjk, codeScenes)` sets `PageParams.Workers`. Chunk is 8, pre-roll 0 by default and 2 when on. All three go into `boot.json` with `omitempty`. `Settings.LogicalCPUs` and `Settings.FreeMemoryMB` come from the server, and `FreeMemoryMB` 0 means no memory bound. Only `png` runs parallel, because worker encoding exists only for PNG. Ingest is unchanged: one in-order poster, one POST in flight, and the restart stays an answer to `/frame`. `TestParallelParityBrowser` pins identical RGBA for N workers against 1 on `firewall.json` and `speech.json`, pre-roll on and off. `TestParallelEncoderFailureBrowser` forces one encoder failure.
 - **Tests**: everything but `browser_smoke_test.go`, `egress_smoke_test.go` and the parity test in `internal/server` runs without a browser (a
   fake page plays the render page against the real listener). The browser tests need `AURAGO_RUN_BROWSER_SMOKE=1`; the transport spike also
   needs `AURAGO_STORYMAKER_SPIKE=1`. On the Windows development box run them through `go test` with `GOTMPDIR=D:\tmp\go-build` (a repo-built
@@ -74,4 +75,4 @@ frame ingest, browser provisioning, the egress guard and the FFmpeg frame-input 
   only named `~/.cache/rod/browser/chromium-*/chrome`, not the data folder the pinned download goes to. `install.sh`/`update.sh` and the
   guide now also name `<install dir>/data/storymaker/chromium-*/chrome`; the rerun of this step on aurago-test without
   `AURAGO_TEST_NO_SANDBOX=1` (after `./update.sh` there) is still open. FFmpeg 8.0.1 there passes the frame-input tests (the 5.1.9 floor is
-  still unmeasured).
+  measured since phase 2: swatch and frame gate in `ffmpeg_test.go`, one `debian:12 --rm` container).
