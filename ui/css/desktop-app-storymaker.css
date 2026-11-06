@@ -246,6 +246,14 @@ progress.stm-progress::-moz-progress-bar { background: var(--vd-mat-primary, var
 .stm-music-status p { margin: 0; }
 .stm-music-bad { color: var(--stm-bad-text); }
 
+/* Export dialog */
+.stm-export-dialog { width: min(440px, calc(100vw - 32px)); max-height: min(80vh, 640px); padding: var(--ds-space-4); overflow: auto; border: 1px solid var(--vd-mat-card-border, var(--vd-theme-border)); border-radius: var(--vd-mat-card-radius, var(--ds-radius-md)); background: var(--vd-mat-card, var(--vd-theme-panel-bg)); box-shadow: var(--vd-mat-card-shadow, 0 12px 32px color-mix(in srgb, var(--vd-text) 22%, transparent)); color: var(--vd-text); }
+.stm-export-dialog::backdrop { background: color-mix(in srgb, var(--vd-text) 28%, transparent); }
+.stm-export-dialog h3 { margin: 0 0 var(--ds-space-3); font-size: 15px; }
+.stm-export-dialog .stm-actions { justify-content: flex-end; margin-top: var(--ds-space-3); }
+.stm-export-check { display: flex; align-items: center; gap: var(--ds-space-2); margin: 0 0 var(--ds-space-2); cursor: pointer; }
+.stm-export-check input { flex: 0 0 auto; margin: 0; }
+
 /* The code tab has the whole body: the strip and the inspector belong to the storyboard */
 .stm-editor-app[data-tab="code"] .stm-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
 .stm-editor-app[data-tab="code"] :is(.stm-strip, .stm-side) { display: none; }

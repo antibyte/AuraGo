@@ -618,3 +618,144 @@ function open(results) {
   console.log('storymaker new project ok');
 })().catch(err => { console.error(err.stack || err); process.exit(1); });
 `
+
+// runStorymakerExportScript runs a Node script on top of storymakerExportFakeDOM and returns its output.
+func runStorymakerExportScript(t *testing.T, name, script string) string {
+	t.Helper()
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("node not available")
+	}
+	file := filepath.Join(t.TempDir(), name)
+	if err := os.WriteFile(file, []byte(storymakerExportFakeDOM+script), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	dir, _ := filepath.Abs(filepath.Join("js", "desktop", "apps"))
+	out, err := exec.Command(node, file, dir).CombinedOutput()
+	if err != nil {
+		t.Fatalf("node check failed: %v\n%s", err, out)
+	}
+	return string(out)
+}
+
+// storymakerExportFakeDOM starts every Node script that drives the export modules. It holds just enough DOM for S.el, the modules
+// and the checks. Timers are stubs, so a tracked job never polls. The modules come from the folder in argv[2].
+const storymakerExportFakeDOM = `
+'use strict';
+const fs = require('fs');
+const vm = require('vm');
+const path = require('path');
+const dir = process.argv[2];
+const walk = (node, test, out) => { if (test(node)) out.push(node); node.children.forEach(child => walk(child, test, out)); return out; };
+class FakeNode {
+  constructor(tag) {
+    this.tagName = String(tag).toUpperCase();
+    this.children = []; this.parentNode = null; this.attrs = {}; this.dataset = {}; this.listeners = {};
+    this.className = ''; this.ownText = ''; this.hidden = false; this.disabled = false; this.checked = false; this.value = ''; this.open = false;
+    this.style = { setProperty() {} };
+  }
+  setAttribute(name, value) {
+    this.attrs[name] = String(value);
+    if (name === 'hidden' || name === 'disabled' || name === 'checked') this[name] = true;
+    if (name === 'value') this.value = String(value);
+  }
+  addEventListener(type, fn) { (this.listeners[type] = this.listeners[type] || []).push(fn); }
+  removeEventListener(type, fn) { this.listeners[type] = (this.listeners[type] || []).filter(other => other !== fn); }
+  fire(type, event) { (this.listeners[type] || []).forEach(fn => fn(Object.assign({ target: this }, event || {}))); }
+  click() { this.fire('click'); }
+  appendChild(child) { child.parentNode = this; this.children.push(child); return child; }
+  removeChild(child) { this.children.splice(this.children.indexOf(child), 1); child.parentNode = null; return child; }
+  remove() { if (this.parentNode) this.parentNode.removeChild(this); }
+  get firstChild() { return this.children[0] || null; }
+  contains(other) { return walk(this, node => node === other, []).length > 0; }
+  get textContent() { return this.ownText + this.children.map(child => child.textContent).join(''); }
+  set textContent(text) { this.children = []; this.ownText = String(text); }
+  querySelector(selector) {
+    const named = /data-stm="([^"]+)"/.exec(String(selector));
+    return walk(this, node => node.tagName === 'BUTTON' && !node.disabled && (!named || node.dataset.stm === named[1]), [])[0] || null;
+  }
+  focus() { documentFake.activeElement = this; }
+  showModal() { this.open = true; }
+  close() { this.open = false; }
+}
+const documentFake = new FakeNode('#document');
+documentFake.documentElement = { lang: 'en' };
+documentFake.createElement = tag => new FakeNode(tag);
+documentFake.createElementNS = (ns, tag) => new FakeNode(tag);
+documentFake.createTextNode = text => { const node = new FakeNode('#text'); node.ownText = String(text); return node; };
+const context = { console, document: documentFake, setTimeout: () => 0, clearTimeout: () => {} };
+context.globalThis = context; context.window = context;
+vm.createContext(context);
+const load = names => names.forEach(name => vm.runInContext(fs.readFileSync(path.join(dir, name), 'utf8'), context, { filename: name }));
+const eq = (a, b, what) => { const x = JSON.stringify(a), y = JSON.stringify(b); if (x !== y) throw new Error(what + ': got ' + x + ', want ' + y); };
+const byStm = (root, name) => walk(root, node => node.dataset.stm === name, []);
+const one = (root, name) => { const list = byStm(root, name); if (list.length !== 1) throw new Error(name + ': found ' + list.length + ' nodes'); return list[0]; };
+const settle = () => new Promise(resolve => setImmediate(resolve));
+const fail = err => { console.error(err && err.stack || err); process.exit(1); };
+`
+
+// The export dialog: burn-in starts from style.captions, and Open in Video Studio forces the stems and remembers the new job.
+func TestStorymakerExportDialogInNode(t *testing.T) {
+	t.Parallel()
+	out := runStorymakerExportScript(t, "storymaker-export-dialog.js", storymakerExportDialogScript)
+	if !strings.Contains(out, "storymaker export dialog ok") {
+		t.Fatalf("unexpected output:\n%s", out)
+	}
+}
+
+const storymakerExportDialogScript = `
+load(['storymaker-core.js', 'storymaker-dialog.js']);
+const S = context.StorymakerParts;
+function makeInst(captions, job) {
+  const inst = {
+    t: key => key, domId: name => 'test-' + name, handoffWish: new Set(), sent: [],
+    story: { style: { palette: 'p', font: 'f', captions } },
+    startExport(options) { inst.sent.push(options); return Promise.resolve(job); }
+  };
+  return inst;
+}
+(async () => {
+  // Burn-in starts from style.captions, and a start sends what the form shows.
+  for (const captions of [true, false]) {
+    const inst = makeInst(captions, { id: 'job-1' });
+    const dialog = S.createExportDialog(inst);
+    dialog.open();
+    eq(dialog.el.open, true, 'open uses showModal');
+    eq(one(dialog.el, 'export-opt-burn').checked, captions, 'burn-in preset');
+    one(dialog.el, 'export-confirm').click();
+    await settle();
+    eq(dialog.el.open, false, 'a start closes the dialog');
+    eq(inst.sent, [{ burn_in_captions: captions, srt: false, vtt: false, stems: false, quality: 'standard' }], 'options');
+    eq(inst.handoffWish.size, 0, 'no wish without Open in Video Studio');
+  }
+
+  // Open in Video Studio forces the stems while it is on, and the wish holds the new job.
+  const inst = makeInst(true, { id: 'job-7' });
+  const dialog = S.createExportDialog(inst);
+  dialog.open();
+  const handoff = one(dialog.el, 'export-opt-handoff');
+  const stems = one(dialog.el, 'export-opt-stems');
+  const note = one(dialog.el, 'export-stems-forced');
+  handoff.checked = true; handoff.fire('change');
+  eq([stems.checked, stems.disabled, note.hidden], [true, true, false], 'stems forced on');
+  handoff.checked = false; handoff.fire('change');
+  eq([stems.checked, stems.disabled, note.hidden], [false, false, true], 'stems released');
+  handoff.checked = true; handoff.fire('change');
+  one(dialog.el, 'export-confirm').click();
+  await settle();
+  eq(inst.sent[0].stems, true, 'the body asks for stems');
+  eq(Array.from(inst.handoffWish), ['job-7'], 'the wish holds the job id');
+
+  // A start that did not happen leaves no wish.
+  const refused = makeInst(true, undefined);
+  const refusedDialog = S.createExportDialog(refused);
+  refusedDialog.open();
+  const refusedHandoff = one(refusedDialog.el, 'export-opt-handoff');
+  refusedHandoff.checked = true; refusedHandoff.fire('change');
+  one(refusedDialog.el, 'export-confirm').click();
+  await settle();
+  eq(refused.handoffWish.size, 0, 'no job, no wish');
+
+  console.log('storymaker export dialog ok');
+})().catch(fail);
+`
