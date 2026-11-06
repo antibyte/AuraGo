@@ -183,6 +183,7 @@
 .vd-player-bar {
     grid-column: 1;
     grid-row: 2;
+    container-type: inline-size;
     padding: 8px 20px 16px;
     background: var(--vd-mat-bar, var(--pl-panel));
     border-top: 1px solid var(--pl-border);

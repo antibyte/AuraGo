@@ -77,6 +77,9 @@ func TestDesktopAudioPlayerWindowBrowser(t *testing.T) {
 			for(const sel of ['[data-play]','[data-next]','[data-prev]','[data-seek]','[data-volume]','[data-visualizer-mode]','[data-shuffle]','[data-repeat]']){
 				if(!document.querySelector('.vd-player '+sel))issues.push('control missing: '+sel);
 			}
+			const volume=document.querySelector('.vd-player [data-volume]')?.getBoundingClientRect();
+			const speed=document.querySelector('.vd-player [data-speed]')?.getBoundingClientRect();
+			if(volume&&speed&&volume.left<speed.right&&volume.right>speed.left&&volume.top<speed.bottom&&volume.bottom>speed.top)issues.push('volume slider overlaps playback speed control');
 			const root=player.getBoundingClientRect();
 			if(root.width<200||root.height<200)issues.push('player is too small: '+root.width+'x'+root.height);
 			return issues.join('\n');
