@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -17,6 +19,8 @@ import (
 	"aurago/internal/storymaker"
 	"aurago/internal/storymaker/render"
 	"aurago/internal/videostudio"
+
+	"github.com/shirou/gopsutil/v4/mem"
 )
 
 const storymakerCatalogPath = "img/storymaker/catalog.json"
@@ -294,6 +298,8 @@ func (s *Server) storymakerSettings(ctx context.Context) (render.Settings, error
 		Encoder:            enc.Encoder,
 		EncoderName:        enc.Name,
 		Limits:             storymakerLimits(cfg),
+		LogicalCPUs:        runtime.NumCPU(),
+		FreeMemoryMB:       storymakerFreeMemoryMB(),
 	}, nil
 }
 
@@ -304,6 +310,16 @@ func (s *Server) storymakerWorkspaceFree() (int64, error) {
 		return 0, errors.New("configuration unavailable")
 	}
 	return fileutil.FreeDiskBytes(cfg.VirtualDesktop.WorkspaceDir)
+}
+
+// storymakerFreeMemoryMB is the available memory in MiB, bounded by the cgroup limit of a container. 0
+// means unknown, and ChooseWorkers then sets no memory bound.
+func storymakerFreeMemoryMB() int64 {
+	var hostMB int64
+	if vm, err := mem.VirtualMemory(); err == nil && vm != nil {
+		hostMB = int64(vm.Available >> 20)
+	}
+	return render.BoundMemoryToCgroup(hostMB, os.DirFS("/sys/fs/cgroup"))
 }
 
 // storymakerAvailable is the capability behind Requires: ["storymaker"]: the feature flag and an

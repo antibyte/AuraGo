@@ -65,6 +65,9 @@ type PageParams struct {
 	FPS           int
 	Transport     string
 	FrameLimit    int
+	// Workers, Chunk and PreRoll drive the parallel path of the page. Zero values stay out of boot.json,
+	// and the page then renders serially.
+	Workers, Chunk, PreRoll int
 	// FrameDeadlineMS is the per-frame render deadline the page may use; a render is not real time,
 	// so it is far above the 250 ms of the app preview. A page that does not know the field keeps its
 	// own deadline.
@@ -367,6 +370,9 @@ type bootDoc struct {
 	Fonts           []bootFont        `json:"fonts"`
 	AudioInfo       json.RawMessage   `json:"audio_info"`
 	Token           string            `json:"token,omitempty"`
+	Workers         int               `json:"workers,omitempty"`
+	Chunk           int               `json:"chunk,omitempty"`
+	PreRoll         int               `json:"pre_roll,omitempty"`
 }
 
 func (l *Listener) boot(w http.ResponseWriter, r *http.Request) {
@@ -384,6 +390,7 @@ func (l *Listener) boot(w http.ResponseWriter, r *http.Request) {
 		FrameLimit: l.params.FrameLimit, FrameDeadlineMS: l.params.FrameDeadlineMS, StoryURL: base + "/story.json", CatalogURL: base + "/catalog/catalog.json",
 		AssetsBase: base + "/catalog/", CodeBundles: map[string]string{}, Fonts: []bootFont{}, AudioInfo: audioInfo,
 	}
+	doc.Workers, doc.Chunk, doc.PreRoll = l.params.Workers, l.params.Chunk, l.params.PreRoll
 	ids := make([]string, 0, len(l.snap.CodeBundles))
 	for id := range l.snap.CodeBundles {
 		ids = append(ids, id)

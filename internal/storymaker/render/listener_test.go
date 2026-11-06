@@ -411,6 +411,47 @@ func TestStartListenerRefusesAShortToken(t *testing.T) {
 	_ = l.Close()
 }
 
+func TestBootCarriesWorkerFieldsOnlyWhenSet(t *testing.T) {
+	client := &http.Client{Timeout: 5 * time.Second, Transport: &http.Transport{DisableKeepAlives: true}}
+	read := func(params PageParams) map[string]any {
+		t.Helper()
+		prefix, err := NewPrefix()
+		if err != nil {
+			t.Fatal(err)
+		}
+		token, err := NewPrefix() // 32 hex characters, the size StartListener asks of a token
+		if err != nil {
+			t.Fatal(err)
+		}
+		params.Width, params.Height, params.FPS, params.Transport, params.FrameLimit, params.Token = 1920, 1080, 30, TransportPNG, 27000, token
+		l, err := StartListener(prefix, &Snapshot{}, params, Hooks{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer l.Close()
+		res, err := client.Get(l.Base() + "/boot.json")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+		var doc map[string]any
+		if err := json.NewDecoder(res.Body).Decode(&doc); err != nil {
+			t.Fatal(err)
+		}
+		return doc
+	}
+	absent := read(PageParams{})
+	for _, key := range []string{"workers", "chunk", "pre_roll"} {
+		if _, ok := absent[key]; ok {
+			t.Errorf("boot.%s is present without a value: %v", key, absent[key])
+		}
+	}
+	set := read(PageParams{Workers: 4, Chunk: 8, PreRoll: 2})
+	if set["workers"] != float64(4) || set["chunk"] != float64(8) || set["pre_roll"] != float64(2) {
+		t.Errorf("boot = %v", set)
+	}
+}
+
 func TestStartListenerRejectsWeakPrefixes(t *testing.T) {
 	for _, prefix := range []string{"", "short", strings.Repeat("a/", 20), strings.Repeat("a", 31)} {
 		if l, err := StartListener(prefix, &Snapshot{}, PageParams{Token: testRenderToken}, Hooks{}); err == nil {

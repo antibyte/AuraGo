@@ -72,6 +72,8 @@ type Settings struct {
 	Encoder            videostudio.Encoder
 	EncoderName        string
 	Limits             storymaker.Limits
+	LogicalCPUs        int   // runtime.NumCPU() in production
+	FreeMemoryMB       int64 // available memory in MiB; 0 means unknown, no memory bound
 }
 
 // Deps are the services a render needs.
@@ -465,8 +467,10 @@ func (run *renderRun) execute(ctx context.Context) (Output, error) {
 	}
 	run.prefix, run.token = prefix, token
 	h.SetPrefixHash(HashPrefix(prefix))
+	workers := ChooseWorkers(run.transport, run.st.LogicalCPUs, run.st.FreeMemoryMB, run.width, run.height, parallelChunk,
+		storyUsesCJK(&run.plan.Story, r.deps.Catalog.Glyphs()), codeSceneCount(&run.plan.Story))
 	run.ingest = NewIngest(IngestConfig{Width: run.width, Height: run.height, Transport: run.transport, FrameLimit: run.frameLimit})
-	listener, err := StartListener(prefix, snap, PageParams{Width: run.width, Height: run.height, FPS: run.fps, Transport: run.transport, FrameLimit: run.frameLimit, FrameDeadlineMS: frameDeadlineMS, Token: token, AudioInfo: run.plan.AudioJSON},
+	listener, err := StartListener(prefix, snap, PageParams{Width: run.width, Height: run.height, FPS: run.fps, Transport: run.transport, FrameLimit: run.frameLimit, FrameDeadlineMS: frameDeadlineMS, Workers: workers, Chunk: parallelChunk, PreRoll: renderPreRoll, Token: token, AudioInfo: run.plan.AudioJSON},
 		Hooks{Report: run.onReport, Frame: run.onFrame, Error: run.onPageError, Start: run.onStart})
 	if err != nil {
 		return Output{}, Fail(CodeRenderFailed, "%v", err)
