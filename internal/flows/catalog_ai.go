@@ -24,7 +24,7 @@ const (
 	maxAIFieldNameLen = 40
 	// maxAIFieldDescRunes caps the description of one field, which goes to the model.
 	maxAIFieldDescRunes = 500
-	// maxAIPromptBytes caps the resolved prompt plus instructions. A template can
+	// maxAIPromptBytes caps the final prompt, instructions and JSON schema on every call. A template can
 	// assemble up to 8 MiB; that would be sent to a paid model and fail there anyway.
 	maxAIPromptBytes = 256 << 10
 	// maxAIModelBytes caps the model name chosen by a parameter.
@@ -351,6 +351,17 @@ func executeAIStep(ctx context.Context, in ExecInput) (ExecResult, error) {
 func aiCall(ctx context.Context, llm LLMStepper, req LLMRequest) (LLMResponse, error) {
 	if err := ctx.Err(); err != nil {
 		return LLMResponse{}, invokeError(err)
+	}
+	size := len(req.Prompt) + len(req.System)
+	if req.JSONSchema != nil {
+		schema, err := json.Marshal(req.JSONSchema)
+		if err != nil {
+			return LLMResponse{}, NewNodeError("FLOW_PARAM_INVALID", "the AI output schema is not valid JSON")
+		}
+		size += len(schema)
+	}
+	if size > maxAIPromptBytes {
+		return LLMResponse{}, NewNodeError("FLOW_PARAM_INVALID", "the AI request content is %d bytes; the limit is %d", size, maxAIPromptBytes)
 	}
 	resp, err := llm.Step(ctx, req)
 	if err != nil {

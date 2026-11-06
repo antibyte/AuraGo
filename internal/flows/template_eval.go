@@ -223,11 +223,11 @@ func echoKey(k string) string {
 // TemplateRef is one expression found in node parameters. Param is a display
 // path such as "rows[0].left": every key in it is cut like an error echo (40
 // runes plus an ellipsis), so a huge key cannot bloat the path of each of its
-// refs. TopParam therefore returns the full parameter name only for names of 40
-// runes or fewer, which covers every real one.
+// refs. RootParam preserves the original top-level key for classification.
 type TemplateRef struct {
-	Param string
-	Expr  *Expr
+	Param     string
+	RootParam string
+	Expr      *Expr
 }
 
 // TemplateProblem is a parameter whose template does not parse, a container
@@ -284,8 +284,8 @@ func CollectTemplateRefs(params map[string]any) ([]TemplateRef, []TemplateProble
 		total++
 		return true
 	}
-	var walk func(path string, v any, depth int)
-	walk = func(path string, v any, depth int) {
+	var walk func(root, path string, v any, depth int)
+	walk = func(root, path string, v any, depth int) {
 		if stopped {
 			return
 		}
@@ -305,7 +305,7 @@ func CollectTemplateRefs(params map[string]any) ([]TemplateRef, []TemplateProble
 				if !reserve(path) {
 					return
 				}
-				refs = append(refs, TemplateRef{Param: path, Expr: e})
+				refs = append(refs, TemplateRef{Param: path, RootParam: root, Expr: e})
 			}
 		case map[string]any:
 			if depth > maxParamDepth {
@@ -315,7 +315,7 @@ func CollectTemplateRefs(params map[string]any) ([]TemplateRef, []TemplateProble
 				return
 			}
 			for _, k := range sortedKeys(x) {
-				walk(path+"."+truncateForError(k), x[k], depth+1)
+				walk(root, path+"."+truncateForError(k), x[k], depth+1)
 				if stopped {
 					return
 				}
@@ -328,7 +328,7 @@ func CollectTemplateRefs(params map[string]any) ([]TemplateRef, []TemplateProble
 				return
 			}
 			for i, item := range x {
-				walk(path+"["+strconv.Itoa(i)+"]", item, depth+1)
+				walk(root, path+"["+strconv.Itoa(i)+"]", item, depth+1)
 				if stopped {
 					return
 				}
@@ -336,7 +336,7 @@ func CollectTemplateRefs(params map[string]any) ([]TemplateRef, []TemplateProble
 		}
 	}
 	for _, k := range sortedKeys(params) {
-		walk(truncateForError(k), params[k], 2)
+		walk(k, truncateForError(k), params[k], 2)
 		if stopped {
 			break
 		}

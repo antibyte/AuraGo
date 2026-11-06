@@ -68,7 +68,7 @@ func TestBlockCallSimulationAndPinnedRun(t *testing.T) {
 	if !found {
 		t.Fatalf("call result not found: %+v", sim.Steps)
 	}
-	if _, err := s.Simulate(ctx, parent.ID, SimulationRequest{Fixtures: map[string]SimulationFixture{call: {Output: map[string]any{}}}}); !errors.Is(err, ErrInvalidSimulationFixture) {
+	if _, err := s.Simulate(ctx, parent.ID, SimulationRequest{BaseRevision: parent.DraftRevision, Fixtures: map[string]SimulationFixture{call: {Output: map[string]any{}}}}); !errors.Is(err, ErrInvalidSimulationFixture) {
 		t.Fatalf("call fixture: %v", err)
 	}
 	start, err := s.StartTestRun(ctx, parent.ID, TestRunRequest{BaseRevision: parent.DraftRevision})
@@ -396,7 +396,7 @@ func TestBlockOwnerCorruptionFailsBeforeConsumption(t *testing.T) {
 			}
 			spy := &fakeTools{}
 			s.services.Tools = spy
-			if _, err := s.Simulate(ctx, parent.ID, SimulationRequest{}); !errors.Is(err, ErrBlockUnavailable) {
+			if _, err := s.Simulate(ctx, parent.ID, SimulationRequest{BaseRevision: parent.DraftRevision}); !errors.Is(err, ErrBlockUnavailable) {
 				t.Fatalf("simulation accepted corrupt owner: %v", err)
 			}
 			if _, _, err := s.Publish(ctx, parent.ID, parent.DraftRevision); !errors.Is(err, ErrBlockUnavailable) {

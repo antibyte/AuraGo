@@ -68,6 +68,29 @@ func TestFlowsV2MigrationBacksUpExistingData(t *testing.T) {
 	}
 }
 
+func TestFlowsV2MigrationCASUsesExactVersionMarker(t *testing.T) {
+	for _, marker := range []string{"1", " 01 "} {
+		t.Run(marker, func(t *testing.T) {
+			path := v1MigrationFixture(t, false)
+			db, err := sql.Open("sqlite", path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer db.Close()
+			if _, err := db.Exec(`UPDATE flows_meta SET value=? WHERE key='schema_version'`, marker); err != nil {
+				t.Fatal(err)
+			}
+			if err := migrateFlowsV2(db); err != nil {
+				t.Fatalf("migration rejected accepted marker %q: %v", marker, err)
+			}
+			var got string
+			if err := db.QueryRow(`SELECT value FROM flows_meta WHERE key='schema_version'`).Scan(&got); err != nil || got != "2" {
+				t.Fatalf("schema marker = %q, %v", got, err)
+			}
+		})
+	}
+}
+
 func TestFlowsV2MigrationFailureKeepsV1AndBackup(t *testing.T) {
 	path := v1MigrationFixture(t, true)
 	if s, err := OpenStore(path, discardLogger()); err == nil {

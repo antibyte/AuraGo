@@ -424,6 +424,9 @@ func (s *Service) SaveTriggerSample(ctx context.Context, flowID, nodeID string, 
 
 // saveTriggerSample is SaveTriggerSample for a node known to be a trigger of the draft.
 func (s *Service) saveTriggerSample(ctx context.Context, flowID, nodeID string, data map[string]any) error {
+	if err := rejectRedactedTestData(data); err != nil {
+		return err
+	}
 	encoded, err := marshalMap(data) // the encoding PutTestData stores
 	if err != nil {
 		return fmt.Errorf("the test data cannot be stored as JSON: %w", err)

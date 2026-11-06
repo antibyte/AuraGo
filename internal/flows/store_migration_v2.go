@@ -20,26 +20,31 @@ const flowScenarioSchema = `CREATE TABLE flow_test_scenarios (
 )`
 
 func flowSchemaVersion(db *sql.DB) (int, error) {
+	version, _, err := flowSchemaVersionAndMarker(db)
+	return version, err
+}
+
+func flowSchemaVersionAndMarker(db *sql.DB) (int, string, error) {
 	var exists int
 	if err := db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='flows_meta'`).Scan(&exists); err != nil {
-		return 0, err
+		return 0, "", err
 	}
 	if exists == 0 {
-		return 1, nil
+		return 1, "", nil
 	}
 	var raw string
 	err := db.QueryRow(`SELECT value FROM flows_meta WHERE key='schema_version'`).Scan(&raw)
 	if errors.Is(err, sql.ErrNoRows) {
-		return 1, nil
+		return 1, "", nil
 	}
 	if err != nil {
-		return 0, err
+		return 0, "", err
 	}
 	version, err := strconv.Atoi(strings.TrimSpace(raw))
 	if err != nil || version < 1 {
-		return 0, fmt.Errorf("invalid flows database schema version")
+		return 0, "", fmt.Errorf("invalid flows database schema version")
 	}
-	return version, nil
+	return version, raw, nil
 }
 
 // backupFlowsBeforeV2 preserves a verified, unique SQLite snapshot before any
@@ -131,7 +136,7 @@ func invalidBackupIntegrity(result string) error {
 }
 
 func migrateFlowsV2(db *sql.DB) error {
-	version, err := flowSchemaVersion(db)
+	version, marker, err := flowSchemaVersionAndMarker(db)
 	if err != nil {
 		return fmt.Errorf("read flows schema: %w", err)
 	}
@@ -148,7 +153,7 @@ func migrateFlowsV2(db *sql.DB) error {
 			return fmt.Errorf("migrate flows schema: %w", err)
 		}
 	}
-	result, err := tx.Exec(`UPDATE flows_meta SET value='2' WHERE key='schema_version'`)
+	result, err := tx.Exec(`UPDATE flows_meta SET value='2' WHERE key='schema_version' AND value=?`, marker)
 	if err != nil {
 		return fmt.Errorf("record flows schema: %w", err)
 	}

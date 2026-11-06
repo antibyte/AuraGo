@@ -428,7 +428,7 @@ func extractionProposalFor(doc *Flow, req ExtractionRequest, ids ExtractionIDs, 
 			}
 			found := false
 			for _, spec := range def.Params {
-				if spec.Name != TopParam(ref.Param) {
+				if spec.Name != ref.RootParam {
 					continue
 				}
 				found = true

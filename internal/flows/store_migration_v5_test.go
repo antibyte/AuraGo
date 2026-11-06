@@ -138,6 +138,21 @@ func TestFlowsV5MigrationPreservesWALAndRestorableBackup(t *testing.T) {
 	if err := backup.Close(); err != nil {
 		t.Fatal(err)
 	}
+	// A chained v4-to-current upgrade keeps the entry snapshot and the pre-v8 snapshot only.
+	allBackups, err := filepath.Glob(filepath.Join(filepath.Dir(path), ".flows-v*-backup-*", "flows.db"))
+	if err != nil || len(allBackups) != 2 {
+		t.Fatalf("chained migration backups = %v, %v", allBackups, err)
+	}
+	preV8, err := filepath.Glob(filepath.Join(filepath.Dir(path), ".flows-v7-backup-*", "flows.db"))
+	if err != nil || len(preV8) != 1 {
+		t.Fatalf("pre-v8 backup = %v, %v", preV8, err)
+	}
+	preV8DB, err := sql.Open("sqlite", preV8[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer preV8DB.Close()
+	assertData(preV8DB, "7")
 	reopened, err := OpenStore(path, discardLogger())
 	if err != nil {
 		t.Fatal(err)

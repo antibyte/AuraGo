@@ -7,7 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"aurago/internal/security"
 )
@@ -31,6 +33,25 @@ func localPackPlainFlow(t *testing.T, s *Service) *FlowRecord {
 	}
 	return rec
 }
+
+type localPackPanicClock struct {
+	mu       sync.Mutex
+	calls    int
+	panicAt  int
+	panicVal any
+}
+
+func (c *localPackPanicClock) Now() time.Time {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.calls++
+	if c.calls == c.panicAt {
+		panic(c.panicVal)
+	}
+	return time.Date(2026, 10, 3, 7, 0, 0, 0, time.UTC)
+}
+
+func (*localPackPanicClock) After(d time.Duration) <-chan time.Time { return time.After(d) }
 
 func localPackDBCounts(t *testing.T, db *sql.DB) [5]int {
 	t.Helper()
@@ -636,6 +657,83 @@ func TestLocalPackFailureAndLostReplyReconcile(t *testing.T) {
 			t.Fatal("uncertain import was enabled")
 		}
 	})
+
+	t.Run("panic after committed import", func(t *testing.T) {
+		ctx := context.Background()
+		s, bridge := newServiceFixture(t, nil)
+		source := localPackPlainFlow(t, s)
+		pack, err := s.ExportLocalPack(ctx, source.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		preview, err := s.PreviewLocalPack(ctx, pack)
+		if err != nil {
+			t.Fatal(err)
+		}
+		missionsBefore := localPackMissionCount(bridge)
+		panicValue := errors.New("post-commit panic")
+		s.store.afterLocalPackCommit = func() { panic(panicValue) }
+		defer func() { s.store.afterLocalPackCommit = nil }()
+		func() {
+			defer func() {
+				if got := recover(); got != panicValue {
+					t.Fatalf("panic = %v, want original %v", got, panicValue)
+				}
+			}()
+			_, _ = s.ImportLocalPack(ctx, LocalPackImportRequest{Pack: pack, Proposal: preview.Proposal})
+		}()
+		if got := localPackMissionCount(bridge); got != missionsBefore+1 {
+			t.Fatalf("post-commit panic did not retain exactly one mission owner: before=%d after=%d", missionsBefore, got)
+		}
+		confirmed, err := s.ReconcileLocalPack(ctx, LocalPackReconcileRequest{Proposal: preview.Proposal})
+		if err != nil || confirmed.Status != "applied_state_confirmed" || confirmed.Flow == nil {
+			t.Fatalf("read-only reconciliation failed to confirm committed import: %+v %v", confirmed, err)
+		}
+		if confirmed.Flow.ID != preview.Proposal.ParentID || confirmed.Flow.MissionID == source.MissionID {
+			t.Fatalf("reconciliation returned the wrong imported owner: %+v", confirmed.Flow)
+		}
+		if bridge.FlowMissionState(confirmed.Flow.MissionID, confirmed.Flow.ID) != MissionStateDisabled {
+			t.Fatal("post-commit panic deleted or enabled the exact imported mission owner")
+		}
+	})
+}
+
+func TestLocalPackPrecommitPanicCleansExactMissionAndRepanics(t *testing.T) {
+	ctx := context.Background()
+	s, bridge := newServiceFixture(t, nil)
+	source := localPackPlainFlow(t, s)
+	pack, err := s.ExportLocalPack(ctx, source.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	preview, err := s.PreviewLocalPack(ctx, pack)
+	if err != nil {
+		t.Fatal(err)
+	}
+	countsBefore := localPackDBCounts(t, s.store.db)
+	panicValue := errors.New("precommit panic")
+	s.services.Clock = &localPackPanicClock{panicAt: 2, panicVal: panicValue}
+	func() {
+		defer func() {
+			if got := recover(); got != panicValue {
+				t.Fatalf("panic = %v, want original %v", got, panicValue)
+			}
+		}()
+		_, _ = s.ImportLocalPack(ctx, LocalPackImportRequest{Pack: pack, Proposal: preview.Proposal})
+	}()
+	if got := localPackDBCounts(t, s.store.db); got != countsBefore {
+		t.Fatalf("panic left partial pack records: before=%v after=%v", countsBefore, got)
+	}
+	bridge.mu.Lock()
+	defer bridge.mu.Unlock()
+	if bridge.missions[source.MissionID] == nil {
+		t.Fatal("panic cleanup deleted the existing mission")
+	}
+	for _, mission := range bridge.missions {
+		if mission.flowID == preview.Proposal.ParentID {
+			t.Fatal("panic cleanup retained the created mission")
+		}
+	}
 }
 
 func TestLocalPackReconcileReturnsUnknownAfterLaterEdit(t *testing.T) {

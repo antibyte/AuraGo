@@ -13,11 +13,12 @@ import (
 
 // independentParams lists every parameter flagged OutputIndependent: it reaches only
 // the node's effect and never the node's output. Adding to this list needs a look at
-// Execute, which is what TestOutputIndependentParamsAreNotInTheOutput automates.
+// Execute or the durable coordinator, checked by the output and approval-review tests.
 // Generic tool nodes (tool.*) never set the flag, so none is listed.
 var independentParams = []string{
 	"doc.pdf_create.content", "doc.pdf_create.title",
 	"file.write.content",
+	"logic.durable_approval.review_data", "logic.durable_approval.summary",
 	"mqtt.publish.payload",
 	"notify.discord.message",
 	"notify.email.body", "notify.email.subject",
@@ -92,6 +93,10 @@ func TestOutputIndependentParamsAreNotInTheOutput(t *testing.T) {
 	for _, name := range independentParams {
 		i := strings.LastIndex(name, ".")
 		typ, param := name[:i], name[i+1:]
+		if typ == durableApprovalType {
+			// Approval executes in the coordinator, covered by TestOutputIndependentApprovalReview.
+			continue
+		}
 		params := map[string]any{}
 		for k, v := range bases[typ] {
 			params[k] = v

@@ -148,3 +148,50 @@ func TestServiceMissionEnabledChangedAndNextTimer(t *testing.T) {
 		t.Fatalf("unknown missions are ignored: %v", err)
 	}
 }
+
+func TestReconcileTimerDisableRequiresMissionSnapshot(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		explicit  bool
+		wantTimer bool
+	}{
+		{name: "ambiguous false during reconciliation", wantTimer: true},
+		{name: "explicit disable notification", explicit: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			clock := newFakeClock(time.Date(2026, 10, 3, 7, 0, 0, 0, time.UTC))
+			s, bridge := newServiceFixture(t, clock)
+			ctx := context.Background()
+			doc, _, _, _ := scheduleFlow("Reconcile timers")
+			rec, err := s.CreateFlow(ctx, CreateRequest{Import: doc})
+			if err != nil {
+				t.Fatal(err)
+			}
+			rev, _, err := s.SaveDraft(ctx, rec.ID, doc, rec.DraftRevision)
+			if err != nil {
+				t.Fatal(err)
+			}
+			pub, _, err := s.Publish(ctx, rec.ID, rev)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := s.SetEnabled(ctx, pub.ID, true); err != nil {
+				t.Fatal(err)
+			}
+			if err := bridge.SetFlowMissionEnabled(pub.MissionID, pub.ID, false); err != nil {
+				t.Fatal(err)
+			}
+			if tc.explicit {
+				err = s.MissionEnabledChanged(ctx, pub.MissionID)
+			} else {
+				err = s.ReconcileMissions(ctx)
+			}
+			if err != nil {
+				t.Fatalf("disable handling: %v", err)
+			}
+			if _, ok := s.NextTimer(ctx, pub.MissionID); ok != tc.wantTimer {
+				t.Fatalf("timer present = %v, want %v", ok, tc.wantTimer)
+			}
+		})
+	}
+}

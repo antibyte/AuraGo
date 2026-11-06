@@ -340,6 +340,7 @@ func (s *Service) SaveScenario(ctx context.Context, flowID string, baseDraftRevi
 		return Scenario{}, ErrScenarioInvalid
 	}
 	encoded, err := json.Marshal(scenario)
+	defer clear(encoded)
 	if err != nil || len(encoded) > maxScenarioBytes {
 		return Scenario{}, ErrTestDataTooLarge
 	}

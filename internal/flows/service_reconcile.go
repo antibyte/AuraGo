@@ -225,8 +225,9 @@ func (s *Service) reconcileBindings(rec *FlowRecord, recon MissionReconciler, ta
 // enabled switch and the live revision. It writes only when they disagree: the timers of
 // a disabled flow are cleared, and an enabled flow is armed again (armTimers) when its
 // stored timers are stale (staleTimers). Otherwise the stored fire times stay as they
-// are, so an occurrence that is due now is never dropped. The caller holds the flow's
-// lock.
+// are, so an occurrence that is due now is never dropped. A false read without a
+// MissionReconciler snapshot is ambiguous and cannot clear existing timers. The caller
+// holds the flow's lock.
 func (s *Service) reconcileTimers(ctx context.Context, rec *FlowRecord, tally *reconcileTally) {
 	enabled := s.bridge.FlowMissionEnabled(rec.MissionID)
 	stored, err := s.store.flowTimerSlots(ctx, rec.ID)
@@ -237,6 +238,11 @@ func (s *Service) reconcileTimers(ctx context.Context, rec *FlowRecord, tally *r
 	}
 	switch {
 	case !enabled && len(stored) > 0:
+		if _, ok := s.bridge.(MissionReconciler); !ok {
+			tally.problems++
+			s.logger.Warn("Mission Control did not provide a trustworthy mission snapshot; timers were left as they are", "flow", rec.ID)
+			return
+		}
 		if err := s.timers.Replace(ctx, rec.ID, nil); err != nil {
 			tally.problems++
 			s.logger.Warn("the timers of a disabled flow could not be cleared", "flow", rec.ID, "error", err)

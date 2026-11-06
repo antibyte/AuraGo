@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -338,7 +339,7 @@ func TestC16OpenStoreRefusesANewerSchema(t *testing.T) {
 	}
 	defer raw.Close()
 	if _, err := raw.Exec(`CREATE TABLE flows_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
-		INSERT INTO flows_meta (key, value) VALUES ('schema_version', '8')`); err != nil {
+		INSERT INTO flows_meta (key, value) VALUES ('schema_version', '1')`); err != nil {
 		t.Fatal(err)
 	}
 	setVersion := func(v string) {
@@ -347,8 +348,10 @@ func TestC16OpenStoreRefusesANewerSchema(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	current := strconv.Itoa(storeSchemaVersion)
+	newer := strconv.Itoa(storeSchemaVersion + 1)
 	for version, want := range map[string]string{
-		"8":    "flows database schema 8 is newer than this AuraGo supports (7)",
+		newer:  "flows database schema " + newer + " is newer than this AuraGo supports (" + current + ")",
 		"zwei": "is not a number",
 	} {
 		setVersion(version)
@@ -368,23 +371,37 @@ func TestC16OpenStoreRefusesANewerSchema(t *testing.T) {
 			t.Fatalf("schema %q: stored version %q (%v)", version, stored, err)
 		}
 	}
-	// The supported version and a database without the row open and migrate.
+	// An old version migrates, and the resulting current schema reopens unchanged.
 	setVersion("1")
 	s, err := OpenStore(path, discardLogger())
 	if err != nil {
 		t.Fatalf("OpenStore at schema 1: %v", err)
 	}
 	_ = s.Close()
-	if _, err := raw.Exec(`DROP TABLE flow_child_traces; ALTER TABLE flow_runs DROP COLUMN child_history_state; ALTER TABLE flow_runs DROP COLUMN child_history_bytes; ALTER TABLE flow_runs DROP COLUMN child_history_metadata; ALTER TABLE flow_runs DROP COLUMN durable_mission_id; ALTER TABLE flow_runs DROP COLUMN durable; DROP TABLE flow_version_notes; DROP TABLE flow_library_metadata; DROP TABLE flow_library_folders; DROP TABLE flow_block_run_pins; DROP TABLE flow_block_version_pins; DROP TABLE flow_checkpoints; DROP TABLE flow_test_scenarios; DELETE FROM flows_meta`); err != nil {
+	s, err = OpenStore(path, discardLogger())
+	if err != nil {
+		t.Fatalf("OpenStore at current schema: %v", err)
+	}
+	_ = s.Close()
+
+	// Missing metadata is a separate old database, not a partially dismantled current one.
+	missingPath := filepath.Join(t.TempDir(), "flows.db")
+	missing, err := sql.Open("sqlite", missingPath)
+	if err != nil {
 		t.Fatal(err)
 	}
-	s, err = OpenStore(path, discardLogger())
+	if _, err := missing.Exec(`CREATE TABLE flows_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`); err != nil {
+		_ = missing.Close()
+		t.Fatal(err)
+	}
+	_ = missing.Close()
+	s, err = OpenStore(missingPath, discardLogger())
 	if err != nil {
 		t.Fatalf("OpenStore without a version row: %v", err)
 	}
 	defer s.Close()
 	var stored string
-	if err := s.db.QueryRow(`SELECT value FROM flows_meta WHERE key = 'schema_version'`).Scan(&stored); err != nil || stored != "7" {
+	if err := s.db.QueryRow(`SELECT value FROM flows_meta WHERE key = 'schema_version'`).Scan(&stored); err != nil || stored != current {
 		t.Fatalf("version row after migration = %q (%v)", stored, err)
 	}
 }

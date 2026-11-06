@@ -331,7 +331,11 @@ func (d *NodeDef) OutputPorts(n *Node) []string {
 
 // DefaultPort returns the first non-error output port or "".
 func (d *NodeDef) DefaultPort(n *Node) string {
-	for _, p := range d.OutputPorts(n) {
+	var ports []string
+	if catchPanic(func() { ports = d.OutputPorts(n) }) != nil {
+		return ""
+	}
+	for _, p := range ports {
 		if p != PortError {
 			return p
 		}

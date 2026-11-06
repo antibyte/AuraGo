@@ -88,7 +88,7 @@ func (s *Service) Simulate(ctx context.Context, id string, req SimulationRequest
 	if err != nil {
 		return nil, err
 	}
-	if req.BaseRevision > 0 && req.BaseRevision != rec.DraftRevision {
+	if req.BaseRevision <= 0 || req.BaseRevision != rec.DraftRevision {
 		return nil, ErrRevisionConflict
 	}
 	for _, node := range rec.Draft.Nodes {

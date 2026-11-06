@@ -789,15 +789,54 @@ func (s *Service) ImportLocalPack(ctx context.Context, req LocalPackImportReques
 	if err != nil {
 		return LocalPackImportResult{}, err
 	}
+	var tx *sql.Tx
+	commitAttempted := false
+	safeWarn := func(message string, args ...any) {
+		defer func() { _ = recover() }()
+		s.logger.Warn(message, args...)
+	}
+	defer func() {
+		original := recover()
+		if original == nil {
+			return
+		}
+		rolledBack := tx == nil
+		if tx != nil {
+			rolledBack = func() (confirmed bool) {
+				defer func() {
+					if recover() != nil {
+						safeWarn("a panicked local flow-pack transaction could not be rolled back", "flow", mapped.parent.ID)
+					}
+				}()
+				if err := tx.Rollback(); err != nil && !errors.Is(err, sql.ErrTxDone) {
+					safeWarn("a panicked local flow-pack transaction could not be rolled back", "flow", mapped.parent.ID)
+					return false
+				}
+				return true
+			}()
+		}
+		if !commitAttempted && rolledBack {
+			func() {
+				defer func() {
+					if recover() != nil {
+						safeWarn("a created local flow-pack mission could not be cleaned up after a panic", "flow", mapped.parent.ID, "mission_id", missionID)
+					}
+				}()
+				if err := cleaner.DeleteCreatedFlowMission(missionID, mapped.parent.ID); err != nil {
+					safeWarn("a created local flow-pack mission could not be cleaned up after a panic", "flow", mapped.parent.ID, "mission_id", missionID)
+				}
+			}()
+		}
+		panic(original)
+	}()
 	cleanup := func(cause error) error {
 		cleanupErr := cleaner.DeleteCreatedFlowMission(missionID, mapped.parent.ID)
 		return errors.Join(cause, cleanupErr)
 	}
-	tx, err := s.store.db.BeginTx(ctx, nil)
+	tx, err = s.store.db.BeginTx(ctx, nil)
 	if err != nil {
 		return LocalPackImportResult{}, cleanup(err)
 	}
-	defer func() { _ = tx.Rollback() }()
 	committed := false
 	rollbackAndCleanup := func(cause error) error {
 		if committed {
@@ -840,6 +879,7 @@ func (s *Service) ImportLocalPack(ctx context.Context, req LocalPackImportReques
 	if _, err := prepareBlockPlanTx(ctx, tx, mapped.parent, s.services); err != nil {
 		return LocalPackImportResult{}, rollbackAndCleanup(ErrLocalPackInvalid)
 	}
+	commitAttempted = true
 	if err := tx.Commit(); err != nil {
 		confirmed, reconcileErr := s.reconcileLocalPack(ctx, req.Proposal)
 		if reconcileErr == nil && confirmed.Status == "applied_state_confirmed" {

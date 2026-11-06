@@ -88,6 +88,13 @@ func TestNodeDefPorts(t *testing.T) {
 	}
 }
 
+func TestNodeDefDefaultPortRecoversOutputsPanic(t *testing.T) {
+	def := &NodeDef{Type: "panic", OutputsFunc: func(*Node) []string { panic("broken outputs") }}
+	if got := def.DefaultPort(&Node{}); got != "" {
+		t.Fatalf("default port after OutputsFunc panic = %q, want empty", got)
+	}
+}
+
 func TestOutputPortsDoesNotWriteIntoSharedSlices(t *testing.T) {
 	shared := make([]string, 1, 4)
 	shared[0] = "case_1"

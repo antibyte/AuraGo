@@ -365,7 +365,8 @@ func lintUntrusted(f *Flow, reg *Registry) ([]Issue, untrustedRoots) {
 		var ancestors map[string]bool
 		for _, ref := range refs {
 			root := ref.Expr.Root
-			param := TopParam(ref.Param)
+			param := ref.RootParam
+			displayParam := truncateForError(param)
 			untrusted := (root == "trigger" && triggerUntrusted) || tainted[root]
 			if !untrusted && secretTargets[param] {
 				// The walk reaches a node that does not run before this one (a parallel branch, a
@@ -393,7 +394,7 @@ func lintUntrusted(f *Flow, reg *Registry) ([]Issue, untrustedRoots) {
 				warned[param] = true
 				if secretTargets[param] {
 					issues = append(issues, Issue{
-						Code: IssueUntrustedSecretTarget, Severity: SeverityError, NodeID: n.ID, Param: param,
+						Code: IssueUntrustedSecretTarget, Severity: SeverityError, NodeID: n.ID, Param: displayParam,
 						Message: fmt.Sprintf("unchecked data from %s decides where the secret of %s is sent through %s; use a fixed address",
 							truncateForError(root), nodeKey, echoKey(param)),
 					})
@@ -407,7 +408,7 @@ func lintUntrusted(f *Flow, reg *Registry) ([]Issue, untrustedRoots) {
 					}
 					if origin.reads(root) {
 						issues = append(issues, Issue{
-							Code: IssueUntrustedURLTarget, Severity: SeverityError, NodeID: n.ID, Param: param,
+							Code: IssueUntrustedURLTarget, Severity: SeverityError, NodeID: n.ID, Param: displayParam,
 							Message: fmt.Sprintf("unchecked data from %s can change the scheme or host of %s.%s; write a fixed https://host/ before the data",
 								truncateForError(root), nodeKey, echoKey(param)),
 						})
@@ -415,7 +416,7 @@ func lintUntrusted(f *Flow, reg *Registry) ([]Issue, untrustedRoots) {
 					}
 				}
 				issues = append(issues, Issue{
-					Code: IssueUntrustedData, Severity: SeverityWarning, NodeID: n.ID, Param: param,
+					Code: IssueUntrustedData, Severity: SeverityWarning, NodeID: n.ID, Param: displayParam,
 					Message: fmt.Sprintf("unchecked data from %s flows into %s.%s", truncateForError(root), nodeKey, echoKey(param)),
 				})
 			}

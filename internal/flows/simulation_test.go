@@ -35,18 +35,18 @@ func TestSimulationFixturesAndTemplate(t *testing.T) {
 	}
 	spy := &fakeTools{}
 	s.services.Tools = spy
-	result, err := s.Simulate(ctx, rec.ID, SimulationRequest{Fixtures: fixtures})
+	result, err := s.Simulate(ctx, rec.ID, SimulationRequest{BaseRevision: rec.DraftRevision, Fixtures: fixtures})
 	if err != nil || result.Status != RunSuccess || spy.count() != 0 {
 		t.Fatalf("fixture simulation: %+v %v calls=%d", result, err, spy.count())
 	}
 	for id := range fixtures {
 		bad := map[string]SimulationFixture{id: {Ports: []string{"missing"}}}
-		if _, err := s.Simulate(ctx, rec.ID, SimulationRequest{Fixtures: bad}); !errors.Is(err, ErrInvalidSimulationFixture) {
+		if _, err := s.Simulate(ctx, rec.ID, SimulationRequest{BaseRevision: rec.DraftRevision, Fixtures: bad}); !errors.Is(err, ErrInvalidSimulationFixture) {
 			t.Fatalf("invalid port %s: %v", id, err)
 		}
 	}
 	httpID := b.f.Nodes[1].ID
-	if _, err := s.Simulate(ctx, rec.ID, SimulationRequest{Fixtures: map[string]SimulationFixture{httpID: {Output: map[string]any{"status_code": "not a number"}}}}); !errors.Is(err, ErrInvalidSimulationFixture) {
+	if _, err := s.Simulate(ctx, rec.ID, SimulationRequest{BaseRevision: rec.DraftRevision, Fixtures: map[string]SimulationFixture{httpID: {Output: map[string]any{"status_code": "not a number"}}}}); !errors.Is(err, ErrInvalidSimulationFixture) {
 		t.Fatalf("invalid output type: %v", err)
 	}
 	for _, info := range DescribeTemplates(s.reg) {
@@ -63,7 +63,7 @@ func TestSimulationFixturesAndTemplate(t *testing.T) {
 		t.Fatal(err)
 	}
 	at := time.Date(2026, 5, 1, 8, 0, 0, 0, time.UTC)
-	localResult, err := s.Simulate(ctx, localRec.ID, SimulationRequest{At: at})
+	localResult, err := s.Simulate(ctx, localRec.ID, SimulationRequest{BaseRevision: localRec.DraftRevision, At: at})
 	if err != nil || localResult.Status != RunSuccess || len(localResult.Steps) != 3 || !localResult.StartedAt.Equal(at) {
 		t.Fatalf("local recipe: %+v %v", localResult, err)
 	}
@@ -99,7 +99,7 @@ func TestSimulationFileFixtures(t *testing.T) {
 		{"wrong value type", []any{"report.pdf"}, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			res, err := s.Simulate(ctx, rec.ID, SimulationRequest{Fixtures: map[string]SimulationFixture{
+			res, err := s.Simulate(ctx, rec.ID, SimulationRequest{BaseRevision: rec.DraftRevision, Fixtures: map[string]SimulationFixture{
 				pdf: {Output: map[string]any{"file": tc.file}},
 			}})
 			if !tc.valid {
@@ -157,11 +157,11 @@ func TestSimulationIsIsolated(t *testing.T) {
 		copyDef.OutputsFunc = func(*Node) []string { called.Add(1); return []string{PortOut} }
 		s.reg.Replace(&copyDef)
 	}
-	missing, err := s.Simulate(ctx, rec.ID, SimulationRequest{})
+	missing, err := s.Simulate(ctx, rec.ID, SimulationRequest{BaseRevision: rec.DraftRevision})
 	if err != nil || missing.Status != RunError || missing.ErrorCode != "FLOW_SIMULATION_FIXTURE_REQUIRED" {
 		t.Fatalf("missing fixture: %+v, %v", missing, err)
 	}
-	req := SimulationRequest{Fixtures: map[string]SimulationFixture{web: {Output: map[string]any{"body": "example"}}}}
+	req := SimulationRequest{BaseRevision: rec.DraftRevision, Fixtures: map[string]SimulationFixture{web: {Output: map[string]any{"body": "example"}}}}
 	res, err := s.Simulate(ctx, rec.ID, req)
 	if err != nil || res.Status != RunSuccess || res.Mode != ModeSimulation {
 		t.Fatalf("simulation: %+v, %v", res, err)
@@ -183,13 +183,15 @@ func TestSimulationIsIsolated(t *testing.T) {
 	if blocked.Status != RunError || called.Load() != 0 {
 		t.Fatalf("production engine accepted simulation: %+v", blocked)
 	}
-	if _, err := s.Simulate(ctx, rec.ID, SimulationRequest{BaseRevision: rec.DraftRevision + 1}); !errors.Is(err, ErrRevisionConflict) {
-		t.Fatalf("revision: %v", err)
+	for _, revision := range []int{-1, 0, rec.DraftRevision + 1} {
+		if _, err := s.Simulate(ctx, rec.ID, SimulationRequest{BaseRevision: revision}); !errors.Is(err, ErrRevisionConflict) {
+			t.Fatalf("revision %d: %v", revision, err)
+		}
 	}
-	if _, err := s.Simulate(ctx, rec.ID, SimulationRequest{Fixtures: map[string]SimulationFixture{web: {ErrorCode: "arbitrary"}}}); !errors.Is(err, ErrInvalidSimulationFixture) {
+	if _, err := s.Simulate(ctx, rec.ID, SimulationRequest{BaseRevision: rec.DraftRevision, Fixtures: map[string]SimulationFixture{web: {ErrorCode: "arbitrary"}}}); !errors.Is(err, ErrInvalidSimulationFixture) {
 		t.Fatalf("invalid fixture: %v", err)
 	}
-	if _, err := s.Simulate(ctx, rec.ID, SimulationRequest{TriggerData: map[string]any{"large": strings.Repeat("x", MaxStoredOutputBytes)}}); !errors.Is(err, ErrTestDataTooLarge) {
+	if _, err := s.Simulate(ctx, rec.ID, SimulationRequest{BaseRevision: rec.DraftRevision, TriggerData: map[string]any{"large": strings.Repeat("x", MaxStoredOutputBytes)}}); !errors.Is(err, ErrTestDataTooLarge) {
 		t.Fatalf("oversized data: %v", err)
 	}
 }
@@ -220,7 +222,7 @@ func TestSimulationRejectsUnknownNodesBeforeExecution(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			_, err = s.Simulate(context.Background(), rec.ID, SimulationRequest{})
+			_, err = s.Simulate(context.Background(), rec.ID, SimulationRequest{BaseRevision: rec.DraftRevision})
 			var validation *ValidationError
 			if !errors.As(err, &validation) || findIssue(validation.Issues, IssueNodeTypeUnknown, unknown) == nil {
 				t.Fatalf("unknown node was not refused: %v", err)

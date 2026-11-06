@@ -35,7 +35,7 @@ func checkpointAEAD(key []byte) (cipher.AEAD, error) {
 	return cipher.NewGCM(block)
 }
 
-// sealCheckpoint never accepts an over-budget payload and never reuses a nonce.
+// sealCheckpoint rejects over-budget payloads and generates a fresh random nonce.
 func sealCheckpoint(key []byte, runID string, generation uint64, plain []byte) ([]byte, error) {
 	if runID == "" || len(runID) > 128 || generation == 0 {
 		return nil, errInvalidCheckpoint
