@@ -176,7 +176,7 @@
                 const gr = c.createRadialGradient(g.ACx, g.ACy + R * 0.1, R * 0.05, g.ACx, g.ACy + R * 0.1, R * 0.72);
                 gr.addColorStop(0, v.overdrive > 0 ? 'rgba(255,138,43,0.28)' : boosting ? 'rgba(72,229,255,0.24)' : 'rgba(255,194,51,0.18)');
                 gr.addColorStop(1, 'rgba(0,0,0,0)');
-                c.fillStyle = gr; c.beginPath(); c.arc(g.ACx, g.ACy + R * 0.1, R * 0.72, 0, TAU); c.fill();
+                c.fillStyle = gr; c.beginPath(); c.arc(g.ACx, g.ACy + R * 0.1, R * 0.72, 0, kit.TAU); c.fill();
             }
             const speed = Math.max(0, Math.round(AD.vehicleSpeedKmh(v)));
             kit.text(c, String(speed), g.ACx, g.ACy + R * 0.36, R * 0.86, boosting ? '#ffd66b' : '#ffffff', { align: 'center', weight: 900 });
