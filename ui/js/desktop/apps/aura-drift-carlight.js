@@ -157,8 +157,8 @@
         const glowMat = additive(glowTex), beamMat = additive(beamTex);
         const glowGeo = new T.PlaneGeometry(1, 1);
         const beamGeo = new T.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0.5, 0, 0);
-        const glows = new T.InstancedMesh(glowGeo, glowMat, MAX * 4);
-        const beams = new T.InstancedMesh(beamGeo, beamMat, MAX);
+        const glows = new T.InstancedMesh(glowGeo, glowMat, MAX * 6);
+        const beams = new T.InstancedMesh(beamGeo, beamMat, MAX * 2);
         for (const m of [glows, beams]) {
             m.frustumCulled = false; m.count = 0; m.renderOrder = 4;
             m.instanceMatrix.setUsage(T.DynamicDrawUsage);
@@ -183,12 +183,13 @@
                 const eye = camera.position;
                 for (const car of race.cars) {
                     const v = car.v, idx = race.cars.indexOf(car);
-                    if (v.out || v.cloak > 0 || bi >= MAX) continue;
+                    if (v.out || v.cloak > 0 || gi + 6 > MAX * 6) continue;
                     const dx = v.x - eye.x, dz = v.y - eye.z;
                     if (dx * dx + dz * dz > 190 * 190) continue;
                     const c = Math.cos(v.psi), s = Math.sin(v.psi);
                     const half = halfOf ? halfOf(idx) : 2.2, wid = half * 0.2;
                     const braking = v.brake > 0.1 || v.handbrake || v.vx < -0.5;
+                    const reversing = v.vx < -0.5;
                     const lift = v.z + 0.7;
                     /* Seen from the front the lamps glow, seen from behind the tail lights do. */
                     const fx = eye.x - v.x, fz = eye.z - v.y, fl = Math.hypot(fx, fz) || 1;
@@ -202,11 +203,27 @@
                             const big = braking ? 0.95 : 0.55;
                             put(glows, gi++, v.x - c * (half + 0.1) + lx, lift, v.y - s * (half + 0.1) + lz, camera.quaternion, big, big, 1, (braking ? 2.4 : 1.5) * tailK, (braking ? 0.18 : 0.09) * tailK, (braking ? 0.1 : 0.05) * tailK);
                         }
+                        if (reversing && tailK > 0.05 && gi < MAX * 6) {
+                            put(glows, gi++, v.x - c * (half + 0.11) + lx * 0.55, lift - 0.04, v.y - s * (half + 0.11) + lz * 0.55, camera.quaternion, 0.42, 0.42, 1, 1.5 * tailK, 1.55 * tailK, 1.7 * tailK);
+                        }
                     }
-                    if (useBeams && v.z < 1.2 && !v.airborne) {
+                    if (car.carId === 'softeis' && (night || v.boost || v.overdrive > 0 || v.burst > 0) && gi < MAX * 6) {
+                        const pulse = 0.65 + 0.35 * Math.sin((race.time || 0) * 14 + idx);
+                        put(glows, gi++, v.x - c * 0.15, v.z + 2.25, v.y - s * 0.15, camera.quaternion, 0.85, 0.85, 1, 2.1 * pulse, 0.38 * pulse, 0.65 * pulse);
+                    }
+                    if (v.z < 1.2 && !v.airborne) {
                         e0.set(0, -v.psi, 0);
                         q0.setFromEuler(e0);
-                        put(beams, bi++, v.x + c * (half - 0.2), v.z + 0.09, v.y + s * (half - 0.2), q0, 12 + 8 * headK, 1, 8.5, 0.95, 0.85, 0.6);
+                        const hasUnder = v.overdrive > 0 || v.boost || v.burst > 0 || v.shield > 0 || (v.driftLevel > 0 && v.slip > 1.1);
+                        if (hasUnder && bi < MAX * 2) {
+                            const ur = v.overdrive > 0 ? 1.35 : v.shield > 0 ? 0.25 : v.driftLevel === 3 ? 1.35 : v.driftLevel === 2 ? 1.25 : 0.2;
+                            const ug = v.overdrive > 0 ? 0.48 : v.shield > 0 ? 1.15 : v.driftLevel === 3 ? 0.22 : v.driftLevel === 2 ? 0.82 : 0.95;
+                            const ub = v.overdrive > 0 ? 0.12 : v.shield > 0 ? 0.85 : v.driftLevel === 3 ? 0.88 : v.driftLevel === 2 ? 0.18 : 1.35;
+                            put(beams, bi++, v.x - c * half * 0.85, v.z + 0.08, v.y - s * half * 0.85, q0, half * 1.9, 1, half * 1.45, ur, ug, ub);
+                        }
+                        if (useBeams && bi < MAX * 2) {
+                            put(beams, bi++, v.x + c * (half - 0.2), v.z + 0.09, v.y + s * (half - 0.2), q0, 12 + 8 * headK, 1, 8.5, 0.95, 0.85, 0.6);
+                        }
                     }
                 }
                 glows.count = gi; beams.count = bi;

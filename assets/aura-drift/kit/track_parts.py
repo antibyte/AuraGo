@@ -8,7 +8,7 @@ recorded in ``meta_track.py`` (ramp 9 x 8 x 1.6 m, pad 10 x 6 m, rumble bars 9 x
 import math
 
 from .core import Model
-from .shapes import annulus_z, box, cylinder, cylinder_x, cylinder_z, extrude_z, revolve, sphere, torus, xf
+from .shapes import annulus_z, box, cylinder, cylinder_x, cylinder_z, extrude_z, revolve, sphere, strut, torus, xf
 from .toy import Parts, ensure_materials, ground_ao, install_name_hook
 
 RED, WHITE, ORANGE, NAVY = "#e8262d", "#fff7ec", "#ff8a1f", "#252f5c"
@@ -43,6 +43,14 @@ def ramp():
     for cx in (-2.9, -1.2, 0.5, 2.2):
         chevron(p, "toy", "#fff3b0", (cx + 0.9, deck_y(cx + 0.9) + 0.045, 0.0), slope, arm=2.9, thick=0.05, wide=0.66, angle=48.0)
     p.add("toy", box(0.5, 0.2, 8.0), xf((4.3, height + 0.1, 0.0), rot=(0, 0, slope)), tint="#ffe14d")
+    p.add("glow_cyan", box(0.16, 0.06, 7.8), xf((4.42, height + 0.19, 0.0), rot=(0, 0, slope)), tint="#6ff6ff")
+    for z in (-3.2, -1.6, 0.0, 1.6, 3.2):
+        p.add("matte", strut((4.42, 0.08, z), (4.42, height - 0.08, z), 0.08, 6), tint="#222630")
+    for z0, z1 in ((-3.2, -1.6), (-1.6, 0.0), (0.0, 1.6), (1.6, 3.2)):
+        p.add("matte", strut((4.42, 0.12, z0), (4.42, height - 0.12, z1), 0.055, 6), tint="#2b3140")
+    for rx in (-3.2, -1.0, 1.2, 3.4):
+        for side in (1, -1):
+            p.add("glow", box(0.32, 0.07, 0.2), xf((rx, deck_y(rx) + 0.37, side * 4.25), rot=(0, 0, slope)), tint="#ffaa22")
     return p
 
 
@@ -51,6 +59,12 @@ def boost_pad():
     p.add("matte", box(10.0, 0.14, 6.0, 0.05, 1), xf((0, 0.07, 0)), tint=NAVY)
     for z in (2.76, -2.76):
         p.add("glow_cyan", box(9.4, 0.04, 0.16), xf((0, 0.155, z)), tint="#8ff6ff")
+        for cx in (-3.6, 0.0, 3.6):
+            p.add("matte", cylinder(0.22, 0.18, 0.24, 10), xf((cx, 0.24, z)), tint="#1b2238")
+            p.add("glow_cyan", torus(0.2, 0.035, 10, 4, 0.24), xf((cx, 0.0, z)), tint="#5ff0ff")
+            p.add("chrome", cylinder(0.14, 0.14, 0.05, 8), xf((cx, 0.37, z)), tint="#dfe6f2")
+    for x in (-4.88, 4.88):
+        p.add("chrome", box(0.18, 0.04, 5.4), xf((x, 0.15, 0)), tint="#cfd8e8")
     for k, cx in enumerate((-3.4, -1.15, 1.1, 3.35)):
         chevron(p, "glow_lime", "#c5ff6a" if k % 2 else "#a6ff3a", (cx + 1.0, 0.16, 0.0), 0.0, arm=3.2, thick=0.05, wide=0.7, angle=46.0)
     return p
@@ -111,6 +125,8 @@ def barrier_segment():
         x = -1.5 + k
         shape = extrude_z(profile, -0.485, 0.485, 0.025, 1)
         p.add("toy", shape, xf((x, 0, 0), rot=(0, 90, 0)), tint=RED if k % 2 == 0 else WHITE)
+        p.add("matte", box(0.18, 0.08, 0.14), xf((x, 1.01, 0)), tint="#22262e")
+        p.add("glow_red" if k % 2 == 0 else "glow_white", box(0.14, 0.05, 0.16), xf((x, 1.01, 0)), tint="#ff4030" if k % 2 == 0 else WHITE)
     p.add("toy", box(4.0, 0.07, 0.34), xf((0, 0.94, 0)), tint="#ffd21f")
     return p
 
@@ -143,6 +159,11 @@ def gantry(model):
     p.add("toy", box(1.0, 1.1, 5.9, 0.06, 1), xf((0, 5.5, 0)), tint="#15171c")
     for k in range(5):
         p.add("matte", cylinder_x(0.42, 0.42, 0.1, 10), xf((0.52, 5.5, -2.2 + 1.1 * k)), tint="#2b2f38")
+    for side in (1, -1):
+        p.add("matte", cylinder_x(0.12, 0.34, 0.46, 10), xf((0.42, 4.7, side * 5.95), rot=(0, -side * 18, -12)), tint="#2b2f38")
+        p.add("chrome", sphere(0.11, 8, 4), xf((0.58, 4.66, side * 5.95)), tint="#dfe6f2")
+        p.add("matte", box(0.42, 0.24, 0.36, 0.03, 1), xf((0.35, 5.82, side * 4.4)), tint="#1e222a")
+        p.add("glow_cyan", cylinder_x(0.08, 0.08, 0.08, 8), xf((0.56, 5.8, side * 4.4)), tint="#5ff0ff")
     p.bake(ground_ao(1.2, 0.72))
     model.mesh("track-gantry|body", p.items(), shade="auto", parent=root)
     for k in range(5):

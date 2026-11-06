@@ -89,6 +89,10 @@ def build_nose(car):
     top = TOP(1.2)
     car.add("paint", taper_box(0.9, 0.62, 0.05, 0.62, 0.24, 0.095, 0.03, 1), xf((1.2, top + 0.03, 0.0), rot=(0, 0, -2.5)))
     car.add("trim", box(0.04, 0.17, 0.52, 0.008, 1), xf((1.66, top + 0.14, 0.0)))
+    for z in (0.48, -0.48):
+        car.add("chrome", box(0.07, 0.016, 0.07, 0.01, 1), xf((2.04, TOP(2.04) + 0.008, z)))
+    for lx in (-1.56, -1.40, -1.24):
+        car.add("trim", box(0.09, 0.022, 0.92, 0.005, 1), xf((lx, CANOPY_TOP(lx) + 0.018, 0.0), rot=(0, 0, 22)))
     car.mirror_housing((0.58, 0.95, 0.82))
 
 

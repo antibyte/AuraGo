@@ -87,6 +87,12 @@ def build_speakers(car):
     for z in (0.55, -0.55):
         car.add("trim", box(0.2, 0.1, 0.2, 0.02, 1), xf((0.42, ROOF + 0.05, z)))
         car.add("chrome", cylinder_x(0.05, 0.24, 0.4, 10, 0.01), xf((0.56, ROOF + 0.24, z)))
+    car.add("chrome", box(0.22, 0.05, 0.22, 0.02, 1), xf((0.78, ROOF + 0.02, 0.0)))
+    car.add("brake_light", sphere(0.11, 8, 4), xf((0.78, ROOF + 0.1, 0.0)))
+    zs = HALF_WIDTH(-0.8)
+    for dx in (-0.48, -0.34, -0.20):
+        car.add("paint_accent", revolve([(0.0, -0.08), (0.045, 0.03), (0.0, 0.03)], 6), xf((dx, 1.23, zs + 0.18)))
+        car.add("paint", sphere(0.05, 6, 3), xf((dx, 1.28, zs + 0.18)))
 
 
 def build_nose(car):

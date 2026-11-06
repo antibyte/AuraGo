@@ -52,7 +52,7 @@
         let noise = null;
         let volume = settings.volume, muted = settings.muted;
         let running = false, carId = null, biomeId = null, view = 'race';
-        let lastTick = 0, heading = 0, myX = 0, myY = 0, lastHornAt = -9;
+        let lastTick = 0, heading = 0, myX = 0, myY = 0, lastHornAt = -9, lastKerbAt = -9, lastPassAt = -9;
         let rollGain = null, windGain = null, surfaceGain = null, surfaceFilter = null, sprayGain = null, sprayFilter = null;
         let liveNodes = [];
         const loops = { squeal: null, scrape: null };
@@ -362,7 +362,7 @@
             return h;
         }
 
-        function tyres(v, active, now) {
+        function tyres(v, active, now, race) {
             const speed = Math.max(0, v.vx);
             const surface = v.surface || 'asphalt';
             const profile = surfaceProfile(surface);
@@ -375,6 +375,27 @@
             sprayGain.gain.setTargetAtTime(surface === 'wet' ? clamp(speed / 70, 0, 1) * 0.05 * on : 0, now, 0.1);
             sprayFilter.frequency.setTargetAtTime(1800 + speed * 20, now, 0.1);
             windGain.gain.setTargetAtTime((clamp(speed / 90, 0, 1) * 0.055 + clamp(v.slipstream || 0, 0, 1) * 0.03) * on, now, 0.1);
+
+            if (active && !muted && !v.airborne && speed > 10 && race && race.track && typeof AD.sampleTrack === 'function') {
+                const sm = AD.sampleTrack(race.track, v.x, v.y);
+                if (sm && Math.abs(Math.abs(sm.offset) - sm.halfWidth) < 1.15 && now - lastKerbAt > clamp(1.1 / speed, 0.024, 0.075)) {
+                    lastKerbAt = now;
+                    bank.tone(68 + speed * 1.1, 0.03, 'sawtooth', 0.04, 52 + speed * 0.8, { dest: sfxBus });
+                }
+            }
+            if (active && !muted && race && race.cars && now - lastPassAt > 0.45) {
+                for (let i = 1; i < race.cars.length; i++) {
+                    const rv = race.cars[i] && race.cars[i].v;
+                    if (!rv || rv.out) continue;
+                    const d = Math.hypot(rv.x - v.x, rv.y - v.y);
+                    const rel = Math.hypot((rv.vx || 0) * Math.cos(rv.psi || 0) - (v.vx || 0) * Math.cos(v.psi || 0), (rv.vx || 0) * Math.sin(rv.psi || 0) - (v.vx || 0) * Math.sin(v.psi || 0));
+                    if (d < 6.5 && rel > 22) {
+                        lastPassAt = now;
+                        P('whoosh', spatial(rv.x, rv.y), { rate: clamp(0.85 + rel / 65, 0.9, 1.45), gain: 0.55 });
+                        break;
+                    }
+                }
+            }
 
             const squeal = loopSlot('squeal', 'tyre.squeal');
             if (squeal) {
@@ -431,7 +452,7 @@
                 heading = pose && pose.heading !== undefined ? pose.heading : v.psi;
                 myX = v.x; myY = v.y;
                 if (engine) engine.update(race, active, tick, heading);
-                tyres(v, active, now);
+                tyres(v, active, now, race);
                 followLoops(race);
                 const conditions = race.conditions ? race.conditions.state : null;
                 const player = race.cars[0];

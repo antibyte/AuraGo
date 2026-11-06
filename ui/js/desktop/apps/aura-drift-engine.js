@@ -39,7 +39,7 @@
         const noise = bank.noise;
         let carId = null, disposed = false, checkAt = 0;
         let osc = null, layers = null;         // live stack / sample layers (each null while unused)
-        let limiterPhase = 0, lastGear = 1, lastLoad = 0;
+        let limiterPhase = 0, lastGear = 1, lastLoad = 0, wasBoost = false;
         const rivalDistance = new Array(RIVAL_VOICES).fill(RIVAL_RANGE);
         const rivals = [];
         for (let i = 0; i < RIVAL_VOICES; i++) rivals.push({ carId: null, node: null, mode: 'none', asked: false, checkAt: 0 });
@@ -134,6 +134,7 @@
         function backfire() {
             bank.noiseHit(0.16, 0.12, 380);
             bank.tone(140, 0.09, 'triangle', 0.1, 80);
+            setTimeout(() => { if (!disposed) bank.noiseHit(0.09, 0.08, 520); }, 55);
         }
         /* The turbo dumps its pressure when the throttle closes. */
         function blowOff() {
@@ -181,7 +182,9 @@
             const speed = Math.max(0, v.vx);
             if (v.gear !== lastGear && speed > 2) { gearShift(); lastGear = v.gear; }
             if (lastLoad > 0.55 && load < 0.1 && rpmN > 0.55 && speed > 12) { backfire(); if (rpmN > 0.7) blowOff(); }
+            if (wasBoost && !v.boost && speed > 10) blowOff();
             lastLoad = load;
+            wasBoost = !!(v.boost || v.burst > 0);
             let limiter = 1;
             if (rpmN > 0.965) { limiterPhase += 0.35; limiter = (limiterPhase % 1) > 0.5 ? 0.45 : 1; }
 

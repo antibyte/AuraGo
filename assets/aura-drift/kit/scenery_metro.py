@@ -231,6 +231,9 @@ def food_truck():
         p.add(box(0.5, 0.1, 1.15), xf((x, 3.0, 1.75), (-18, 0, 0)), "#ff5a7a" if k % 2 else "#fff2e0", grad=0.1, jitter=0.0)
     for k in range(8):
         p.add_flat(sphere(0.07, 4, 2), xf((-2.4 + k * 0.5, 2.55, 2.28)), "#ffe2a0", mat="glow_warm")
+    for sx in (-1.55, -0.45):
+        p.add(strut((sx, 0.0, 1.95), (sx, 0.68, 1.95), 0.05, 5), None, "#c9ced8", grad=0.2)
+        p.add(cylinder(0.24, 0.24, 0.09, 8), xf((sx, 0.72, 1.95)), "#ff5a7a", grad=0.1, jitter=0.0)
     # roof: hot-dog sign
     for x in (-2.1, 0.3):
         p.add(strut((x, 3.3, 0.0), (x, 3.9, 0.0), 0.07, 4), None, "#8d90a6", grad=0.0)
@@ -276,6 +279,9 @@ def taxi():
     for z in (-0.65, 0.65):
         p.add_flat(box(0.06, 0.24, 0.42), xf((2.27, 1.0, z)), "#fff2cc", mat="glow_warm")
         p.add_flat(box(0.06, 0.24, 0.42), xf((-2.27, 1.05, z)), "#ff7a6a", mat="glow_red")
+    p.add(box(0.06, 0.24, 0.72), xf((2.27, 0.96, 0.0)), "#20242e", grad=0.0)
+    for z in (-0.98, 0.98):
+        p.add(box(0.16, 0.12, 0.22, 0.02, 1), xf((0.65, 1.36, z)), Y, grad=0.1)
     for x in (-1.4, 1.45):
         for z in (-0.95, 0.95):
             c.wheel(p, x, 0.4, z, 0.4, 0.3, detail=0, tyre="#20242e")

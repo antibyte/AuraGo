@@ -130,6 +130,8 @@ def lighthouse():
     p.add(box(0.38, 0.1, 0.34, 0.03, 1), duck(0.9, 1.05, 0), "#ff7a1f", grad=0.0, jitter=0.0)
     p.add(sphere(0.08, 4, 3), duck(0.7, 1.3, 0.28), (0.02, 0.02, 0.03), grad=0.0, jitter=0.0)
     p.add(sphere(0.08, 4, 3), duck(0.7, 1.3, -0.28), (0.02, 0.02, 0.03), grad=0.0, jitter=0.0)
+    p.add(cylinder(0.26, 0.32, 0.16, 8), duck(0.42, 1.52, 0.0), "#ffffff", grad=0.1, jitter=0.0)
+    p.add(cylinder(0.27, 0.27, 0.05, 8), duck(0.42, 1.44, 0.0), "#252f5c", grad=0.0, jitter=0.0)
     p.add(box(0.5, 0.12, 0.8, 0.02, 1), xf((dx - 0.7 * s, dy + 0.6 * s, 0.0), (0, 0, 12), s), "#ffc800", grad=0.0, jitter=0.0)
     return p
 

@@ -74,6 +74,12 @@ def build_nose(car):
         car.add("head_light", cylinder_x(0.11, 0.11, 0.05, 12), xf((2.27, 0.55, z)))
     car.add("chrome", box(0.05, 0.035, 1.5, 0.008, 1), xf((2.40, 0.20, 0.0)))
     car.add("trim", taper_box(0.3, 1.46, 0.035, 1.54, 0.04, 0.0, 0.01, 1), xf((2.2, 0.13, 0.0)))
+    for z in (0.32, -0.32):
+        car.add("trim", box(0.11, 0.022, 0.32, 0.005, 1), xf((1.62, TOP(1.62) - 0.01, z), rot=(0, 0, -9)))
+        car.add("chrome", box(0.06, 0.028, 0.08, 0.005, 1), xf((1.62, TOP(1.62) - 0.005, z), rot=(0, 0, -9)))
+    for z in (0.18, -0.18):
+        car.add("trim", strut((0.56, 0.88, z - 0.08), (0.34, 1.03, z + 0.14), 0.012, 4))
+    car.pair("chrome", box(0.18, 0.026, 0.036, 0.006, 1), (-0.18, 0.72, 0.785))
     car.anchor_pair("anchor_head", (2.34, 0.55, 0.52))
     car.mirror_housing((0.72, 0.84, 0.72))
 

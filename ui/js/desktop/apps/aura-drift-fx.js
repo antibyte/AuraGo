@@ -419,7 +419,7 @@
         /* ---- state -------------------------------------------------------------- */
         let lastRace = null, time = 0, eyeX = 0, eyeZ = 0, eyeSet = false, night = false;
         const cst = [], timers = [], ufos = [];
-        const carState = i => cst[i] || (cst[i] = { wl: { has: false }, wr: { has: false } });
+        const carState = i => cst[i] || (cst[i] = { wl: { has: false }, wr: { has: false }, gear: 1, thr: 0 });
         function use(race) {
             if (race === lastRace) return;
             lastRace = race; cst.length = 0; timers.length = 0; ufos.length = 0;
@@ -777,6 +777,22 @@
                     if (rnd() < 0.7 * dens * w) glow(ex - cp * 0.5, h, ez - sp * 0.5, wvx, 0, wvz, 0.07, 1.8, 3, core, core, 0.45 * flick);
                 }
                 if (i === 0) addLight(v.x - cp * (g[1] + 1.5), v.z + 0.8, v.y - sp * (g[1] + 1.5), outer, 22 + 12 * flick, 1, 14, true);
+            }
+            const pop = (v.gear !== cs.gear && cs.gear > 0 && speed > 14) || (cs.thr > 0.65 && v.throttle < 0.15 && v.rpm > 4800 && speed > 18);
+            cs.gear = v.gear; cs.thr = v.throttle;
+            if (pop && !(v.boost || v.overdrive > 0 || v.burst > 0)) {
+                for (const side of [-0.5, 0.5]) {
+                    const ex = v.x - cp * g[1] + rx * g[2] * side, ez = v.y - sp * g[1] + rz * g[2] * side, h = v.z + 0.5;
+                    glow(ex - cp * 0.35, h, ez - sp * 0.35, wvx * 0.8 - cp * 8, rr(0, 1.2), wvz * 0.8 - sp * 8, 0.14, 1.35, 0.25, HOT, FIRE, 0.92, 0.4, F.FLAME);
+                    for (let c = 4; c > 0; c--) spark(ex, h, ez, wvx * 0.6 - cp * rr(6, 12) + rx * rr(-2, 2), rr(0.5, 3), wvz * 0.6 - sp * rr(6, 12) + rz * rr(-2, 2), rr(0.14, 0.28), 0.25, HOT, FIRE);
+                }
+                if (i === 0) addLight(v.x - cp * (g[1] + 1), v.z + 0.7, v.y - sp * (g[1] + 1), FIRE, 16, 1, 10, true);
+            }
+            if (speed > 46 && gnd && rnd() < 28 * dens * w * dt) {
+                for (const side of [-1, 1]) {
+                    const wx = v.x - cp * (g[1] - 0.2) + rx * (g[2] + 0.15) * side, wz = v.y - sp * (g[1] - 0.2) + rz * (g[2] + 0.15) * side;
+                    glow(wx, v.z + 0.95, wz, wvx * 0.3 - cp * 6, 0.2, wvz * 0.3 - sp * 6, 0.16, 0.16, 2.2, WHITE, SMOKE0, 0.22 * clamp((speed - 46) / 24, 0, 1), 0, F.STREAK);
+                }
             }
             /* Wall scrape sparks, damage smoke, soot, frost. */
             if (v.impact > 0.35 && speed > 8) {

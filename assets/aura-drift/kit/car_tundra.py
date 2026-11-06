@@ -71,6 +71,9 @@ def build_roof(car):
         car.add("chrome", strut((x, top + 0.12, -0.6), (x, top + 0.12, 0.6), 0.025, 6))
     car.add("paint_accent", box(0.55, 0.2, 0.55, 0.05, 1), xf((-1.15, top + 0.26, -0.1)))
     car.add("trim", box(0.58, 0.04, 0.12, 0.01, 1), xf((-1.15, top + 0.31, -0.1)))
+    car.add("brake_light", box(0.34, 0.24, 0.18, 0.03, 1), xf((-1.12, top + 0.25, 0.36)))
+    car.add("chrome", box(0.06, 0.05, 0.06), xf((-0.98, top + 0.39, 0.36)))
+    car.add("trim", strut((-1.48, top + 0.12, -0.52), (-1.68, top + 0.58, -0.52), 0.014, 4))
     # light bar over the windscreen with four spots
     car.add("trim", box(0.12, 0.08, 1.42, 0.02, 1), xf((0.2, top - 0.02, 0.0)))
     for z in (-0.54, -0.18, 0.18, 0.54):

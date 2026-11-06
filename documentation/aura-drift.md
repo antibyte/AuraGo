@@ -196,13 +196,15 @@ weather motion are removed by reduced motion.
 
 - Runtime: `ui/js/vendor/aura-drift/three-runtime.js`, a three.js **0.186.1 (r186)** IIFE bundle
   (908 369 bytes, manifest and licence beside it in `ui/js/vendor/aura-drift/`).
-- Models: 20 GLB files, 6.6 MiB in total, under `ui/3d/aura-drift/v1`: eight cars, `items`,
+- Models: 20 GLB files, 6.9 MiB in total, under `ui/3d/aura-drift/v1`: eight cars, `items`,
   `track`, `animals`, `shared` props and eight biome scenery kits. `manifest.json` records
   per-file size, hash and car measurements; `LICENSE.txt` lists the licence. The models are made
   by `assets/aura-drift/generate.py` (Blender 5.2, deterministic output) and are untextured:
   chunky low-poly toy shapes, glossy paint through vertex colours and materials.
 - Look: golden-hour diorama lighting, hemisphere and sun, a sky shader with the biome palette,
-  shadow maps by tier, weather (rain, snow, fog, haze) drawn in the sky, terrain and props.
+  shadow maps by tier, weather (rain, snow, fog, haze) drawn in the sky, terrain and props,
+  instanced car lamps, reverse lights, softeis roof beacon, road underglow pools, exhaust
+  backfire pops and wingtip aero vortex streaks.
 - The 3D view needs WebGL2. Without it the game falls back to the Canvas 2D view.
 - On `auto`, a software GL renderer (the renderer string matches SwiftShader, llvmpipe or
   software) is rejected and the 2D view is used. An explicit graphics tier still accepts it.

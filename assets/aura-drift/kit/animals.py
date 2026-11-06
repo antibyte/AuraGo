@@ -77,7 +77,9 @@ def cow(model):
     h.pair("toy", ellipsoid(0.2, 0.09, 0.13, 8, 4), (0.5, 1.45, 1.05), rot=(0, 0, -25), tint=W)
     h.pair("toy", ellipsoid(0.13, 0.05, 0.08, 6, 3), (0.48, 1.45, 1.1), rot=(0, 0, -25), tint=PINK)
     h.place("toy", ellipsoid(0.15, 0.09, 0.14, 6, 3), (0, 1.58, 1.18), tint=K)
+    h.place("toy", torus(0.32, 0.04, 7, 3, 1.06), (0, 0, 0.94), rot=(58, 0, 0), tint="#8a3b1e")
     h.place("toy", sphere(0.1, 7, 4), (0, 0.78, 1.18), tint="#ffcc33")
+    h.place("toy", cylinder(0.09, 0.12, 0.14, 6), (0, 0.74, 1.18), tint="#ffd94a")
     t = rig.part("tail", (0, 1.28, -1.02))
     t.place("toy", tube([(0, 1.28, -1.02), (0, 1.0, -1.18), (0, 0.72, -1.2)], 0.04, 5), tint=W)
     t.place("toy", ellipsoid(0.1, 0.17, 0.1, 7, 4), (0, 0.62, -1.2), tint=K)
@@ -125,6 +127,7 @@ def penguin(model):
     h.place("toy", ellipsoid(0.3, 0.26, 0.2, 8, 4), (0, 1.7, 0.3), tint=W)
     h.place("toy", cylinder(0.12, 0.02, 0.32, 6), (0, 1.7, 0.58), rot=(90, 0, 0), scale=(1.0, 1.0, 0.6), tint=O)
     eye_pair(h, 0.17, 1.86, 0.34, 0.14, look=(0.15, -0.1), pupil=0.55, detail=0.5)
+    h.pair("toy", cylinder(0.12, 0.12, 0.09, 6), (0.16, 2.05, 0.38), rot=(78, 0, 10), tint="#5ff0ff")
     for name, side in (("leg_fl", -1), ("leg_fr", 1)):
         f = rig.part(name, (side * 0.5, 1.2, 0.04))
         f.place("toy", ellipsoid(0.07, 0.4, 0.2, 8, 4), (side * 0.56, 0.9, 0.04), rot=(0, 0, side * 14), tint=D)
@@ -188,6 +191,7 @@ def llama(model):
     h.place("matte", arc_band(0.05, 0.075, 205, 335, 0.0, 0.03, 4), (0, 2.38, 1.28), tint="#5a3c3c")
     eye_pair(h, 0.15, 2.64, 1.06, 0.1, look=(0.0, -0.25), lid=C, pupil=0.5, shine=False, detail=0.5)
     h.pair("fuzz", ellipsoid(0.065, 0.34, 0.08, 6, 3), (0.14, 2.98, 0.86), rot=(0, 0, -12), tint=C)
+    h.pair("fuzz", sphere(0.065, 6, 3), (0.21, 3.24, 0.86), tint=BLANKET[0])
     h.pair("toy", box(0.14, 0.035, 0.07), (0.15, 2.76, 1.1), rot=(0, 0, -14), tint="#8a6a4a")  # arched brow
     h.place("fuzz", sphere(0.2, 7, 4), (0, 2.9, 0.8), scale=(1.0, 0.8, 1.0), tint=F)
     t = rig.part("tail", (0, 1.6, -0.92))

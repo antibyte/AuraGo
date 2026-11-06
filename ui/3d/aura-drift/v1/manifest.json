@@ -2,13 +2,13 @@
   "version": 1,
   "blender": "5.2.2",
   "generator": "assets/aura-drift/generate.py",
-  "totalBytes": 6938976,
+  "totalBytes": 7255528,
   "files": [
     {
       "name": "animals.glb",
-      "bytes": 313080,
-      "sha256": "0a86aac3d275a0547e989d86e088420e34776b366e87c00b79b873aba58115f9",
-      "triangles": 5914,
+      "bytes": 321928,
+      "sha256": "146aa0eacbc0b071da31b990839328c56989a06f4114e0e914a049e9762610cf",
+      "triangles": 6076,
       "kind": "animals"
     },
     {
@@ -20,51 +20,51 @@
     },
     {
       "name": "car-couch.glb",
-      "bytes": 409272,
-      "sha256": "36066a8ce7654e3ba3e76139d68004264cafda3a0bbe1edc1bbe2809d0d593d3",
-      "triangles": 8508,
+      "bytes": 419068,
+      "sha256": "6b6d73ea22b70267fc6ef66c07c4d0257b3804321c2a4c946d77c35ec207b0b7",
+      "triangles": 8644,
       "kind": "car"
     },
     {
       "name": "car-kobalt.glb",
-      "bytes": 360300,
-      "sha256": "a6de84c5a85f8d995fb6e29d522e35ce6f6d042bf0f5bafca65caebad1a71904",
-      "triangles": 8384,
+      "bytes": 381996,
+      "sha256": "45c60110048059a768c575e84c306be6b4304989a5940839c279c178e207b4e1",
+      "triangles": 8672,
       "kind": "car"
     },
     {
       "name": "car-lumen.glb",
-      "bytes": 407008,
-      "sha256": "6502b737af1497709342cb79fe7b99a6813432983a75218b239e3ff6b6e9afeb",
-      "triangles": 8852,
+      "bytes": 423688,
+      "sha256": "bf7581b78db034537eb1beec1e5d1d8ea7ba8081ee11f6c308c9f630651f9d8c",
+      "triangles": 9072,
       "kind": "car"
     },
     {
       "name": "car-maehkoenig.glb",
-      "bytes": 364268,
-      "sha256": "e05637da3bc5022aeb3bde1341bc3172adeebcf66b78d47eb0b682972dfecbfb",
-      "triangles": 7934,
+      "bytes": 375360,
+      "sha256": "4fdb19da5bdf2fb957bcbce0513ca2fae066796452ecc9115856b5fdcb9924f6",
+      "triangles": 8126,
       "kind": "car"
     },
     {
       "name": "car-softeis.glb",
-      "bytes": 444252,
-      "sha256": "137d5496b6054918b091e922b0f1529071d87c77cdc3a1ec3199ac8c22318b1d",
-      "triangles": 9232,
+      "bytes": 460272,
+      "sha256": "89907a6ae45b267cf8cdbba01ab6f3e5a924ca819f5612994436a995b9e3ead0",
+      "triangles": 9432,
       "kind": "car"
     },
     {
       "name": "car-tundra.glb",
-      "bytes": 388964,
-      "sha256": "cae291646a557d1a2619c475d4f41979b80df245e82f309dd3c186a968bb6c3a",
-      "triangles": 8584,
+      "bytes": 393980,
+      "sha256": "3f28afef6980d38d6fd87fcc98a1a8dae97e60b41b9ad7153a59ccdea9521183",
+      "triangles": 8652,
       "kind": "car"
     },
     {
       "name": "car-vektor.glb",
-      "bytes": 373696,
-      "sha256": "886884974ad29564d487c18705482683e4b3b70dc944a9acb5d236439f9cf4ef",
-      "triangles": 8080,
+      "bytes": 394556,
+      "sha256": "5982b14bf49d03648a6e7105a8edaba50818b986d367171eaabc5ee316a3ee3d",
+      "triangles": 8356,
       "kind": "car"
     },
     {
@@ -76,9 +76,9 @@
     },
     {
       "name": "scenery-alpine.glb",
-      "bytes": 224140,
-      "sha256": "0f9615aa3191f1369a6114945e17010c27a9bc438e97ba9f765328b6ec0c6274",
-      "triangles": 3118,
+      "bytes": 232876,
+      "sha256": "9f0f7159f86d9be1a69dc5ae9c7e29658f5e7cf147294514523885d82dcbe7cd",
+      "triangles": 3230,
       "kind": "scenery"
     },
     {
@@ -97,16 +97,16 @@
     },
     {
       "name": "scenery-glacier.glb",
-      "bytes": 207728,
-      "sha256": "60e64429971a00d9242bfb58d60b5ce7187941531e56af2a98a300621cec456a",
-      "triangles": 2808,
+      "bytes": 225860,
+      "sha256": "2b8dbb2b04ebcd1a7460f871f8b71101401df6f4c0b604f0a317aa886664742e",
+      "triangles": 3040,
       "kind": "scenery"
     },
     {
       "name": "scenery-harbour.glb",
-      "bytes": 468560,
-      "sha256": "a9a3b0f698233dd53d6daf3045ee3cff313164afc90639e69809c4c59607a1ea",
-      "triangles": 6490,
+      "bytes": 472144,
+      "sha256": "28a7791c2d8585de5e1992df2de8dadd1b5dc69a2ab93b1ad28403e15fbd6129",
+      "triangles": 6554,
       "kind": "scenery"
     },
     {
@@ -118,9 +118,9 @@
     },
     {
       "name": "scenery-metro.glb",
-      "bytes": 400308,
-      "sha256": "8f82e8f3a29e4c296064b633b1ea6fe8a4457594cf435f3f627ab1ff43a2b476",
-      "triangles": 5358,
+      "bytes": 413520,
+      "sha256": "bb7cadca8f7087ceef48983851936f49198e626e3e2d17e87f3823d2b2498df2",
+      "triangles": 5554,
       "kind": "scenery"
     },
     {
@@ -132,16 +132,16 @@
     },
     {
       "name": "shared.glb",
-      "bytes": 503624,
-      "sha256": "35583c3ecfb4a378a7e58cb676f6148de77d53c3afcef6ac5f81f93e831ba560",
-      "triangles": 8062,
+      "bytes": 577784,
+      "sha256": "51b9f45eb2beaa2f936a3de1bd9c61f3bc18509d62cc4c566fff37f119132f1d",
+      "triangles": 9398,
       "kind": "shared"
     },
     {
       "name": "track.glb",
-      "bytes": 202536,
-      "sha256": "4b2c941008b1e28a2f46321f468a9e2486867529db56210cd2f61775bcc44620",
-      "triangles": 4272,
+      "bytes": 291256,
+      "sha256": "7838b349f65f2f0a42d86df30facc0e2bfac69bf2f09d88848184a2e78a607c5",
+      "triangles": 5920,
       "kind": "track"
     }
   ],
@@ -346,7 +346,7 @@
     "cow": {
       "file": "animals.glb",
       "node": "animal-cow",
-      "length": 3.016,
+      "length": 3.322,
       "height": 1.724,
       "legs": "legs",
       "stride": 0.5,
@@ -409,7 +409,7 @@
         "tags": [
           "hero"
         ],
-        "triangles": 1226
+        "triangles": 1338
       },
       "pine_a": {
         "file": "scenery-alpine.glb",
@@ -593,7 +593,7 @@
         "tags": [
           "hero"
         ],
-        "triangles": 1600
+        "triangles": 1832
       },
       "snow_pine": {
         "file": "scenery-glacier.glb",
@@ -649,7 +649,7 @@
           "tall",
           "far"
         ],
-        "triangles": 1182
+        "triangles": 1246
       },
       "neon_sign": {
         "file": "scenery-harbour.glb",
@@ -730,7 +730,7 @@
         "radius": 3.331,
         "height": 4.95,
         "tags": [],
-        "triangles": 910
+        "triangles": 1006
       },
       "skyscraper_a": {
         "file": "scenery-metro.glb",
@@ -778,7 +778,7 @@
         "radius": 2.45,
         "height": 2.45,
         "tags": [],
-        "triangles": 554
+        "triangles": 654
       }
     },
     "salt": {
@@ -831,7 +831,7 @@
         "tags": [
           "hero"
         ],
-        "triangles": 1524
+        "triangles": 1660
       },
       "gnome_statue": {
         "file": "shared.glb",
@@ -842,17 +842,17 @@
           "hero",
           "tall"
         ],
-        "triangles": 1192
+        "triangles": 1524
       },
       "grandstand": {
         "file": "shared.glb",
         "node": "prop-grandstand",
         "radius": 13.4,
-        "height": 8.855,
+        "height": 11.153,
         "tags": [
           "hero"
         ],
-        "triangles": 2908
+        "triangles": 3196
       },
       "hoarding": {
         "file": "shared.glb",
@@ -870,7 +870,7 @@
         "radius": 1.86,
         "height": 5.007,
         "tags": [],
-        "triangles": 962
+        "triangles": 1094
       },
       "inflatable_arch": {
         "file": "shared.glb",
@@ -880,7 +880,7 @@
         "tags": [
           "tall"
         ],
-        "triangles": 688
+        "triangles": 1000
       },
       "marshal_post": {
         "file": "shared.glb",
@@ -888,7 +888,7 @@
         "radius": 1.425,
         "height": 5.1,
         "tags": [],
-        "triangles": 464
+        "triangles": 600
       },
       "road_sign": {
         "file": "shared.glb",

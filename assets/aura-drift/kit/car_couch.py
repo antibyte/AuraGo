@@ -79,6 +79,10 @@ def build_table(car):
     car.add("paint", cylinder(0.065, 0.06, 0.12, 8), xf((x - 0.1, 1.15, z - 0.12)))
     car.add("trim", cylinder(0.04, 0.04, 0.02, 8), xf((x - 0.1, 1.215, z - 0.12)))
     car.add("glass", cylinder(0.07, 0.055, 0.17, 8), xf((x + 0.1, 1.18, z - 0.1)))  # a tall glass of lemonade
+    car.add("paint_accent", cylinder(0.07, 0.11, 0.09, 8), xf((x - 0.12, 1.13, z + 0.12)))
+    for dx, dz in ((-0.12, 0.12), (-0.09, 0.15), (-0.15, 0.10)):
+        car.add("head_light", sphere(0.038, 6, 3), xf((x + dx, 1.19, z + dz)))
+    car.add("paint_accent", cylinder_x(0.055, 0.055, 0.34, 8), xf((0.05, 0.82, -0.92), rot=(18, 0, 0)))
 
 
 def build_driver(car):

@@ -195,8 +195,10 @@ def station():
     for dz in (-0.5, 0.5):
         p.add(box(2.1, 0.1, 0.22), xf((sx + 0.1, 0.3, sz + dz * 1.0), (0, 25, 0)), "#3a4156", grad=0.0, jitter=0.0)
     p.add_flat(sphere(0.12, 4, 2), xf((sx + 0.95, 0.85, sz - 0.35)), "#fff2cc", mat="glow_warm")
+    penguin(p, (6.4, 0.0, -2.1), 0.72, yaw=-32.0)
     p.add(strut((-6.5, 0.0, -2.5), (-6.5, 4.2, -2.5), 0.05, 4), None, "#8d90a6", grad=0.0)
     p.add(box(0.04, 0.7, 1.1), xf((-6.5, 3.8, -3.1)), "#e0322e", grad=0.0, jitter=0.0)
+    p.add(revolve_x([(0.0, -0.6), (0.14, -0.55), (0.28, 0.55), (0.0, 0.6)], 7), xf((-5.9, 4.05, -2.5), (0, 0, -10)), O, grad=0.2, jitter=0.0)
     # snow on roof and drifts
     p.add(c.lump(3.6, 0.55, 1.5, "roof-snow", 8, 3, 0.1), xf((0.3, 5.9, 0.0)), SNOW, grad=0.1, jitter=0.0)
     for pos, rad in (((-2.0, 0.2, 2.4), (1.8, 0.6, 1.2)), ((3.0, 0.2, -2.6), (1.6, 0.5, 1.2))):

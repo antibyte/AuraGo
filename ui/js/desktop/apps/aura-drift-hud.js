@@ -172,13 +172,20 @@
                 c.lineWidth = long ? 4.5 : 3.2; c.strokeStyle = flick && i > TICKS * 0.8 ? '#ffffff' : TCOL[i]; c.stroke();
             }
             const boosting = v.burst > 0 || v.boost || v.overdrive > 0;
+            if (boosting || v.slipstream > 0.35) {
+                const gr = c.createRadialGradient(g.ACx, g.ACy + R * 0.1, R * 0.05, g.ACx, g.ACy + R * 0.1, R * 0.72);
+                gr.addColorStop(0, v.overdrive > 0 ? 'rgba(255,138,43,0.28)' : boosting ? 'rgba(72,229,255,0.24)' : 'rgba(255,194,51,0.18)');
+                gr.addColorStop(1, 'rgba(0,0,0,0)');
+                c.fillStyle = gr; c.beginPath(); c.arc(g.ACx, g.ACy + R * 0.1, R * 0.72, 0, TAU); c.fill();
+            }
             const speed = Math.max(0, Math.round(AD.vehicleSpeedKmh(v)));
             kit.text(c, String(speed), g.ACx, g.ACy + R * 0.36, R * 0.86, boosting ? '#ffd66b' : '#ffffff', { align: 'center', weight: 900 });
             kit.text(c, 'km/h', g.ACx, g.ACy + R * 0.36 + R * 0.28, R * 0.19, '#a9d6ff', { align: 'center', weight: 700, spacing: 3, sw: 3 });
             const gear = v.gear === 0 ? 'R' : String(v.gear);
             kit.para(c, g.ACx - R * 0.17, g.ACy - R * 0.56, R * 0.34, R * 0.34, 5);
-            c.fillStyle = 'rgba(255,194,51,0.18)'; c.fill(); c.lineWidth = 1.8; c.strokeStyle = '#ffc233'; c.stroke();
-            kit.text(c, gear, g.ACx + 3, g.ACy - R * 0.29, R * 0.3, '#ffc233', { align: 'center', weight: 900, sw: 0 });
+            c.fillStyle = flick ? 'rgba(255,77,77,0.42)' : 'rgba(255,194,51,0.18)'; c.fill();
+            c.lineWidth = 1.8; c.strokeStyle = flick ? '#ff6b6b' : '#ffc233'; c.stroke();
+            kit.text(c, gear, g.ACx + 3, g.ACy - R * 0.29, R * 0.3, flick ? '#ffffff' : '#ffc233', { align: 'center', weight: 900, sw: 0 });
             if (v.slipstream > 0.25) kit.text(c, '»»', g.ACx + R * 0.62, g.ACy + R * 0.64, R * 0.26, '#ffc233', { align: 'center', weight: 900, sw: 3 });
 
             /* Bars: nitro, drift turbo with blue/orange/pink segments, damage pips. */

@@ -72,6 +72,11 @@ def marshal_post(model):
     p.add("toy", box(0.12, 0.7, 0.12), xf((0.25, 3.3, 0.5), rot=(-35, 0, 0)), tint="#ffe14d")
     p.add("toy", cylinder(0.03, 0.03, 1.5, 5), xf((0.25, 3.9, 0.85)), tint=STEEL)
     p.add("toy", extrude_z([(0.0, 0.0), (0.0, 0.7), (0.9, 0.35)], -0.015, 0.015), xf((0.25, 4.35, 0.85), rot=(0, -90, 0)), tint="#ffe14d")
+    p.add("toy", cylinder(0.11, 0.11, 0.48, 8), xf((-0.92, 2.75, 0.65)), tint=RED)
+    p.add("chrome", cylinder(0.04, 0.04, 0.12, 6), xf((-0.92, 3.04, 0.65)), tint=STEEL)
+    p.add("matte", cylinder_x(0.08, 0.26, 0.38, 8), xf((0.88, 2.85, -0.78), rot=(0, 22, 10)), tint=STEEL)
+    for sz in (-0.55, 0.55):
+        p.add("matte", ellipsoid(0.32, 0.14, 0.22, 6, 3), xf((0.85, 0.14, sz)), tint="#c9b486")
     p.bake(ground_ao(2.0, 0.8))
     model.mesh("prop-marshal_post", p.items(), shade="auto")
 
@@ -99,6 +104,10 @@ def hotdog_stand(model):
     zig = [(-1.4 + 0.28 * k, 4.95, 0.12 * (1 if k % 2 else -1)) for k in range(11)]
     p.add("toy", tube(zig, 0.06, 5), tint="#ffd21f")
     p.add("glow", sphere(0.14, 6, 3), xf((1.62, 1.95, 0.7)), tint="#fff1b0")
+    for dz, tone in ((-0.45, RED), (-0.22, "#ffd21f")):
+        p.add("toy", cylinder(0.075, 0.07, 0.24, 6), xf((1.15, 2.04, dz)), tint=tone)
+        p.add("toy", cylinder(0.03, 0.01, 0.09, 5), xf((1.15, 2.2, dz)), tint=tone)
+    p.add("chrome", box(0.22, 0.24, 0.18, 0.02, 1), xf((1.12, 2.04, 0.22)), tint=STEEL)
     p.bake(ground_ao(1.5, 0.8))
     model.mesh("prop-hotdog_stand", p.items(), shade="auto")
 
@@ -139,6 +148,11 @@ def camper_van(model):
         p.add("toy", box(2.6, 0.05, 0.4), xf((-0.4, 2.62 - 0.14 * k, 1.25 + 0.4 * k), rot=(20, 0, 0)), tint="#ff7a59" if k % 2 == 0 else WHITE)
     for x in (-1.6, 0.8):
         p.add("toy", cylinder(0.04, 0.04, 2.0, 5), xf((x, 1.0, 2.7)), tint=STEEL)
+    p.add("toy", box(0.68, 0.44, 0.46, 0.04, 1), xf((-0.35, 0.22, 1.75)), tint=RED)
+    p.add("toy", box(0.7, 0.08, 0.48, 0.02, 1), xf((-0.35, 0.46, 1.75)), tint=WHITE)
+    for cx, tone in ((-1.15, "#ff7a59"), (0.35, "#35c6bd")):
+        p.add("toy", box(0.52, 0.06, 0.52), xf((cx, 0.36, 1.95)), tint=tone)
+        p.add("toy", box(0.52, 0.58, 0.06), xf((cx, 0.64, 1.72), rot=(-14, 0, 0)), tint=tone)
     p.bake(ground_ao(1.4, 0.78))
     model.mesh("prop-camper_van", p.items(), shade="auto")
 

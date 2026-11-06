@@ -74,11 +74,13 @@ def('turbo.1', 1, turbo(1)); def('turbo.2', 1, turbo(2)); def('turbo.3', 1, turb
 def('turbo.tick', 3, (v, r) => [sum(secs(0.1), [scale(noiseBurst(r, 0.04, 0.004, { bp: 2800 + v * 500, q: 2 }), 1), tone(0.04, () => 2100 + v * 250, { env: t => Math.exp(-t / 0.008) * 0.5 })])]);
 def('pad.boost', 1, (v, r) => {
     const n = secs(1.0), saw = tone(0.8, t => 180 * Math.pow(8, Math.pow(t / 0.8, 0.9)), { harmonics: SAW_H.slice(0, 10), env: t => Math.min(1, t / 0.04) * Math.exp(-t / 0.35) });
-    return [softClip(sum(n, [scale(saw, 0.5), scale(whoosh(r, 0.8, 500, 5200, 0.8, 0.35), 0.8), add(mk(n), sparkle(r, 0.6, 12, 3000, 9000, 0.15), 0.1, 0.35), thump(0.15, 140, 70, 0.02, 0.04)]), 1.3)];
+    const shim = tone(0.75, t => 360 * Math.pow(6, Math.pow(t / 0.75, 0.85)), { harmonics: [[1, 1], [1.5, 0.5], [2, 0.3]], env: t => Math.min(1, t / 0.03) * Math.exp(-t / 0.32) * 0.28 });
+    return [softClip(sum(n, [scale(saw, 0.5), shim, scale(whoosh(r, 0.8, 500, 5400, 0.8, 0.35), 0.8), add(mk(n), sparkle(r, 0.65, 16, 3200, 9200, 0.16), 0.08, 0.38), thump(0.18, 150, 65, 0.02, 0.045, 1.2)]), 1.35)];
 });
 def('ramp.launch', 1, (v, r) => {
     const n = secs(1.1), spring = tone(0.7, t => 160 + 1100 * Math.pow(t / 0.7, 0.8) * (1 + 0.1 * Math.sin(TAU * 11 * t)), { harmonics: [[1, 1], [2, 0.4], [3, 0.2]], env: t => Math.min(1, t / 0.01) * Math.exp(-t / 0.45) * 0.5 });
-    return [sum(n, [spring, scale(whoosh(r, 0.9, 400, 2800, 0.9, 0.4), 0.7), thump(0.2, 180, 70, 0.02, 0.05, 1.3)])];
+    const air = scale(noiseBurst(r, 0.22, 0.035, { bp: 2600, q: 1.8 }), 0.35);
+    return [sum(n, [spring, air, scale(whoosh(r, 0.9, 400, 3000, 0.9, 0.4), 0.72), thump(0.22, 185, 68, 0.02, 0.055, 1.35)])];
 });
 def('land.soft', 2, (v, r) => [sum(secs(0.5), [thump(0.35, 130 - v * 20, 62, 0.025, 0.07, 1.3), scale(noiseBurst(r, 0.2, 0.05, { lp: 800 }), 0.8), add(mk(secs(0.5)), tone(0.2, t => 240 + 200 * Math.sin(TAU * 8 * t) * Math.exp(-t / 0.08), { harmonics: [[1, 1], [2, 0.3]], env: t => Math.exp(-t / 0.07) * 0.2 }), 0.07, 1)])]);
 def('land.hard', 2, (v, r) => {

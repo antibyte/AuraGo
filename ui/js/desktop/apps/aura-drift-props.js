@@ -638,7 +638,8 @@
                         const f = part.faces[p.brand];
                         if (f && f.count < f.mesh.instanceMatrix.count) f.mesh.setMatrixAt(f.count++, M);
                     } else if (part.mesh && part.count < part.mesh.instanceMatrix.count) {
-                        if (part.role === 'rotor') live.push({ part: part, slot: part.count, base: place.clone() });
+                        if (part.role === 'rotor') live.push({ kind: 'rotor', part: part, slot: part.count, base: place.clone() });
+                        else if (p.name === 'fishing_boat') live.push({ kind: 'boat', part: part, slot: part.count, base: place.clone(), phase: p.x * 0.07 + p.y * 0.11 });
                         part.mesh.setMatrixAt(part.count, M);
                         part.mesh.setColorAt(part.count, tint);
                         part.count++;
@@ -697,8 +698,15 @@
                 if (live.length) {
                     const ang = reduced ? 0.6 : clock * 1.2;
                     for (const l of live) {
-                        spinM.makeRotationX(ang);
-                        M.multiplyMatrices(l.base, l.part.local).multiply(spinM);
+                        if (l.kind === 'boat') {
+                            if (reduced) continue;
+                            spinM.makeRotationZ(Math.sin(clock * 1.6 + l.phase) * 0.045);
+                            M.multiplyMatrices(l.base, l.part.local).multiply(spinM);
+                            M.elements[13] += Math.sin(clock * 2.1 + l.phase) * 0.08;
+                        } else {
+                            spinM.makeRotationX(ang);
+                            M.multiplyMatrices(l.base, l.part.local).multiply(spinM);
+                        }
                         l.part.mesh.setMatrixAt(l.slot, M);
                         l.part.mesh.instanceMatrix.needsUpdate = true;
                     }

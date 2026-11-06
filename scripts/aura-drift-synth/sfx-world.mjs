@@ -10,7 +10,7 @@ const slowRand = (r, hz, count = 5) => { const p = Array.from({ length: count },
 
 // ---- impacts ----
 def('impact.light', 3, (v, r) => {
-    const n = secs(0.3), o = sum(n, [scale(noiseBurst(r, 0.12, 0.022, { lp: 1700 + v * 300 }), 1), scale(modal(300 + v * 70, [[1, 1, 0.05], [2.1, 0.5, 0.035], [3.3, 0.3, 0.025]], n), 0.8)]);
+    const n = secs(0.3), o = sum(n, [scale(noiseBurst(r, 0.12, 0.022, { lp: 1800 + v * 300 }), 1), scale(modal(300 + v * 70, [[1, 1, 0.05], [2.1, 0.5, 0.035], [3.3, 0.3, 0.025]], n), 0.8), scale(thump(0.11, 155 + v * 15, 68, 0.015, 0.03), 0.45)]);
     for (let k = 0; k < 4; k++) add(o, noiseBurst(r, 0.02, 0.005, { bp: 900 + 600 * r(), q: 3 }), 0.025 + 0.06 * k + 0.02 * r(), 0.3 / (k + 1));
     return [o];
 });

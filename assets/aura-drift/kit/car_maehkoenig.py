@@ -94,7 +94,12 @@ def build_deck(car):
     # front guard bar
     for z in (0.34, -0.34):
         car.add("chrome", strut((DECK_X + 0.2, 0.3, z), (DECK_X + 0.46, 0.34, z * 0.9), 0.028, 6))
+        car.add("chrome", strut((DECK_X + 0.34, 0.24, z), (DECK_X + 0.38, 0.11, z), 0.02, 5))
+        car.add("trim", cylinder(0.09, 0.09, 0.05, 8), xf((DECK_X + 0.38, 0.09, z), rot=(90, 0, 0)))
     car.add("chrome", strut((DECK_X + 0.46, 0.34, 0.31), (DECK_X + 0.46, 0.34, -0.31), 0.03, 6))
+    car.add("trim", cylinder(0.055, 0.05, 0.07, 8), xf((-0.48, 0.65, -0.42)))
+    car.add("brake_light", cylinder(0.042, 0.042, 0.11, 8), xf((-0.48, 0.71, -0.42)))
+    car.add("chrome", cylinder(0.04, 0.04, 0.015, 8), xf((-0.48, 0.77, -0.42)))
 
 
 def build_catcher(car):

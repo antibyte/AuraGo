@@ -133,6 +133,9 @@ def chalet():
     for row, count in enumerate((4, 3, 2)):
         for k in range(count):
             p.add(cylinder_z(0.22, 0.22, 2.0, 6), xf((-3.35, 1.3 + row * 0.38, 1.0 + k * 0.46 + row * 0.23 - 1.3), (0, 0, 0)), "#b97d4a", grad=0.2)
+    p.add_flat(sphere(0.18, 6, 3), xf((4.85, 3.68, -1.2)), "#ffe2a0", mat="glow_warm")
+    for dz, col in ((-1.95, "#e8382d"), (-1.75, "#2f88f0")):
+        p.add(box(0.08, 1.95, 0.14, 0.02, 1), xf((5.02, 1.95, dz), (0, 0, 12)), col, grad=0.2)
     gnome(p, 4.9, 1.1)
     return p
 
