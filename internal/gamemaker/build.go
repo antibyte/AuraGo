@@ -108,7 +108,7 @@ func buildDirectory(ctx context.Context, projectDir string, maxFiles int, maxByt
 		}
 	}
 	banner := ""
-	var plugins []api.Plugin
+	plugins := []api.Plugin{projectImportBounds(projectDir)}
 	if manifest.Dimension == "2d" {
 		banner = phaserSpriteGuard
 	} else {
@@ -122,6 +122,7 @@ func buildDirectory(ctx context.Context, projectDir string, maxFiles int, maxByt
 		Format:         api.FormatESModule,
 		Platform:       api.PlatformBrowser,
 		Target:         api.ES2020,
+		TsconfigRaw:    "{}",
 		External:       []string{"../vendor/*"},
 		Write:          false,
 		Sourcemap:      api.SourceMapExternal,

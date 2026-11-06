@@ -1,4 +1,5 @@
 {
+  "easydrag.help.file_write_path": "Angiv en fast mappe, for eksempel reports/. Data udefra må kun angive filnavnet, ikke undermapper eller stier med ..",
   "easydrag.ui.card_state_off": "slukket",
   "easydrag.ui.close_hint": "Luk ({key})",
   "easydrag.ui.detail_values": "Værdier",

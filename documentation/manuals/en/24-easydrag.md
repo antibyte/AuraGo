@@ -445,6 +445,13 @@ This local approval step cannot authorize external actions.
 
 ## When a Step Fails
 
+For **Write file**, keep the folder fixed when the filename comes from email,
+a webhook, a file read or AI output. For example, `reports/{{trigger.data.name}}.txt`
+accepts the name `daily`. A whole external path, `../config`, subfolders or a
+Windows drive/stream in the name stops the step with `FLOW_PARAM_INVALID` before
+any file access. This also applies to tests and previously published versions.
+The filesystem tool's permissions and protected paths still apply.
+
 - Under *If this step fails* in a step's *Settings* you choose *Stop the run*, *Continue* (the next steps get the error as data; on an *If* step they get it along *No*, on a *Switch* step along *Otherwise*, never along *Yes* or a case) or *Error path* (an extra *Error* output for steps that handle the failure). *Retries*, *Seconds between* and *Time limit (s)* sit next to it.
 - *Data name* in the same tab is the name later steps use in references (`{{data_name.field}}`).
 

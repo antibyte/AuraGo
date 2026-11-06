@@ -1,4 +1,5 @@
 {
+  "easydrag.help.file_write_path": "Zadej složku napevno, například reports/. Externí data mohou určit pouze název souboru, ne podsložky ani cesty s ..",
   "easydrag.ui.card_state_off": "vypnuto",
   "easydrag.ui.close_hint": "Zavřít ({key})",
   "easydrag.ui.detail_values": "Hodnoty",

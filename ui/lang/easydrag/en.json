@@ -1,4 +1,5 @@
 {
+  "easydrag.help.file_write_path": "Set a fixed folder, for example reports/. Outside data may supply only the file name, not subfolders or paths containing ..",
   "easydrag.ui.card_state_off": "turned off",
   "easydrag.ui.close_hint": "Close ({key})",
   "easydrag.ui.detail_values": "Values",

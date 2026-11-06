@@ -1,4 +1,5 @@
 {
+  "easydrag.help.file_write_path": "请指定固定文件夹，例如 reports/。外部数据只能提供文件名，不能指定子文件夹或包含 .. 的路径。",
   "easydrag.ui.card_state_off": "已关闭",
   "easydrag.ui.close_hint": "关闭 ({key})",
   "easydrag.ui.detail_values": "值",

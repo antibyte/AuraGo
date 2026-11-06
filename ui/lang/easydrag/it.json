@@ -1,4 +1,5 @@
 {
+  "easydrag.help.file_write_path": "Imposta una cartella fissa, ad esempio reports/. I dati esterni possono fornire solo il nome del file, non sottocartelle o percorsi con ..",
   "easydrag.ui.card_state_off": "disattivato",
   "easydrag.ui.close_hint": "Chiudi ({key})",
   "easydrag.ui.detail_values": "Valori",

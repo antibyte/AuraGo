@@ -1,4 +1,5 @@
 {
+  "easydrag.help.file_write_path": "Geef een vaste map op, bijvoorbeeld reports/. Externe gegevens mogen alleen de bestandsnaam bepalen, geen submappen of paden met ..",
   "easydrag.ui.card_state_off": "uitgeschakeld",
   "easydrag.ui.close_hint": "Sluiten ({key})",
   "easydrag.ui.detail_values": "Waarden",

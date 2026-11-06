@@ -19,6 +19,7 @@ revision publication and standalone export for Phaser and Three.js games.
 - `assets/game-maker-presentation/` at repository root: editable effects/audio source;
   its build script produces the two bundled effects runtimes here.
 - `runtime.go`: project-local runtime installation, also used by exports.
+- `build.go`, `build_imports.go`: shared compilation and project-bound import loading.
 - `runtime_context.go`, `source_search.go`, `source_batch.go`: installed helper
   descriptors and bounded source discovery/edits for the isolated agent.
 - `three_observation.go`, `three_pickup_observation.go`: build-only compatibility
@@ -33,6 +34,11 @@ revision publication and standalone export for Phaser and Three.js games.
 
 ## Local Contracts
 
+- Every bundled file import passes `secureJoin` before compatibility loaders or
+  esbuild read it. Reject absolute escapes, traversal, symlinks and private managed
+  paths before writing output; keep project-local imports and pinned vendor
+  externals working. Use explicit empty TypeScript configuration so ancestor
+  tsconfig files cannot steer a project build. Verify `TestBuildDirectory*`.
 - Voxel definitions, finite worlds, transactions, evidence and isolated saves:
   `voxel/AGENTS.md`.
 - Validation plan disclosure, repairable checks, tool validation evidence and

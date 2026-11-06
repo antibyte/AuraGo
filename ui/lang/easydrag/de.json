@@ -1,4 +1,5 @@
 {
+  "easydrag.help.file_write_path": "Gib den Ordner fest vor, zum Beispiel reports/. Fremddaten dürfen nur den Dateinamen liefern, keine Unterordner oder Pfade mit ..",
   "easydrag.ui.card_state_off": "ausgeschaltet",
   "easydrag.ui.close_hint": "Schließen ({key})",
   "easydrag.ui.detail_values": "Werte",

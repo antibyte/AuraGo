@@ -21,8 +21,8 @@ type Env struct {
 	Location *time.Location
 	// Untrusted names the roots whose data an attacker can influence: "trigger" for an
 	// untrusted trigger and the key of every tainted node (the lint's taint, see
-	// LintUntrustedData). The engine sets it; nil fences nothing. It takes effect only in
-	// parameters flagged ParamSpec.FenceUntrusted (see resolveParams).
+	// LintUntrustedData). The engine sets it; nil fences nothing. It also guards file.write
+	// targets, in addition to parameters flagged ParamSpec.FenceUntrusted.
 	Untrusted map[string]bool
 	// fence is set on the copy of the Env that resolves a FenceUntrusted parameter.
 	fence bool

@@ -1,4 +1,5 @@
 {
+  "easydrag.help.file_write_path": "Όρισε έναν σταθερό φάκελο, για παράδειγμα reports/. Τα εξωτερικά δεδομένα μπορούν να ορίσουν μόνο το όνομα αρχείου, όχι υποφακέλους ή διαδρομές με ..",
   "easydrag.ui.card_state_off": "απενεργοποιημένο",
   "easydrag.ui.close_hint": "Κλείσιμο ({key})",
   "easydrag.ui.detail_values": "Τιμές",

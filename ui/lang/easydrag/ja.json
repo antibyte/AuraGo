@@ -1,4 +1,5 @@
 {
+  "easydrag.help.file_write_path": "reports/ などの固定フォルダーを指定してください。外部データで指定できるのはファイル名のみです。サブフォルダーや .. を含むパスは指定できません。",
   "easydrag.ui.card_state_off": "オフ",
   "easydrag.ui.close_hint": "閉じる ({key})",
   "easydrag.ui.detail_values": "値",

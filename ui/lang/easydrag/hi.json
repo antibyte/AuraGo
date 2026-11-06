@@ -1,4 +1,5 @@
 {
+  "easydrag.help.file_write_path": "एक निश्चित फ़ोल्डर तय करो, जैसे reports/। बाहरी डेटा केवल फ़ाइल का नाम दे सकता है, सबफ़ोल्डर या .. वाले पथ नहीं।",
   "easydrag.ui.card_state_off": "बंद किया गया",
   "easydrag.ui.close_hint": "बंद करें ({key})",
   "easydrag.ui.detail_values": "मान",

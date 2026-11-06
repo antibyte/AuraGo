@@ -1,4 +1,5 @@
 {
+  "easydrag.help.file_write_path": "Indica una carpeta fija, por ejemplo reports/. Los datos externos solo pueden indicar el nombre del archivo, no subcarpetas ni rutas con ..",
   "easydrag.ui.card_state_off": "desactivado",
   "easydrag.ui.close_hint": "Cerrar ({key})",
   "easydrag.ui.detail_values": "Valores",

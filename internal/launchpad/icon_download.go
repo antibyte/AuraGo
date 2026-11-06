@@ -3,6 +3,7 @@ package launchpad
 import (
 	"aurago/internal/security"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -115,32 +116,59 @@ func downloadIcon(ctx context.Context, dataDir, imageURL, linkID string, clientF
 		ext = ".png" // fallback
 	}
 
-	// Ensure safe filename
-	safeLinkID := strings.ReplaceAll(linkID, "..", "")
-	safeLinkID = filepath.Base(safeLinkID)
-	if safeLinkID == "" {
+	return storeIcon(dataDir, linkID, ext, body)
+}
+
+func openIconRoot(dataDir string, create bool) (*os.Root, error) {
+	if create {
+		if err := os.MkdirAll(dataDir, 0755); err != nil {
+			return nil, err
+		}
+	}
+	data, err := os.OpenRoot(dataDir)
+	if err != nil {
+		return nil, err
+	}
+	defer data.Close()
+	if create {
+		if err := data.Mkdir(iconDir, 0755); err != nil && !errors.Is(err, os.ErrExist) {
+			return nil, err
+		}
+	}
+	info, err := data.Lstat(iconDir)
+	if err != nil {
+		return nil, err
+	}
+	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+		return nil, fmt.Errorf("invalid icon directory")
+	}
+	return data.OpenRoot(iconDir)
+}
+
+func storeIcon(dataDir, linkID, ext string, body []byte) (*DownloadIconResult, error) {
+	safeLinkID := filepath.Base(strings.ReplaceAll(linkID, "..", ""))
+	if safeLinkID == "" || safeLinkID == "." {
 		safeLinkID = "icon"
 	}
-
-	destDir := filepath.Join(dataDir, iconDir)
-	if err := os.MkdirAll(destDir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create icon directory: %w", err)
+	fileName := fmt.Sprintf("%s_%s%s", safeLinkID, time.Now().UTC().Format("20060102_150405.000000000"), ext)
+	if _, err := localIconName(filepath.Join(iconDir, fileName)); err != nil {
+		return nil, err
 	}
-
-	timestamp := time.Now().UTC().Format("20060102_150405")
-	fileName := fmt.Sprintf("%s_%s%s", safeLinkID, timestamp, ext)
-	destPath := filepath.Join(destDir, fileName)
-
-	if err := os.WriteFile(destPath, body, 0644); err != nil {
-		return nil, fmt.Errorf("failed to write icon file: %w", err)
+	icons, err := openIconRoot(dataDir, true)
+	if err != nil {
+		return nil, fmt.Errorf("open icon directory: %w", err)
 	}
-
-	// Store relative path from dataDir for portability
-	relPath := filepath.Join(iconDir, fileName)
-	return &DownloadIconResult{
-		LocalPath: relPath,
-		FileName:  fileName,
-	}, nil
+	defer icons.Close()
+	file, err := icons.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
+	if err != nil {
+		return nil, fmt.Errorf("create icon file: %w", err)
+	}
+	_, writeErr := file.Write(body)
+	if err := errors.Join(writeErr, file.Close()); err != nil {
+		_ = icons.Remove(fileName)
+		return nil, fmt.Errorf("write icon file: %w", err)
+	}
+	return &DownloadIconResult{LocalPath: filepath.Join(iconDir, fileName), FileName: fileName}, nil
 }
 
 // DeleteIcon removes an icon file from disk.
@@ -152,24 +180,12 @@ func DeleteIcon(dataDir, relPath string) error {
 	if err != nil {
 		return err
 	}
-	data, err := os.OpenRoot(dataDir)
-	if err != nil {
-		return err
-	}
-	defer data.Close()
-	info, err := data.Lstat(iconDir)
-	if err != nil {
-		return err
-	}
-	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
-		return fmt.Errorf("invalid icon directory")
-	}
-	icons, err := data.OpenRoot(iconDir)
+	icons, err := openIconRoot(dataDir, false)
 	if err != nil {
 		return err
 	}
 	defer icons.Close()
-	info, err = icons.Lstat(name)
+	info, err := icons.Lstat(name)
 	if err != nil {
 		return err
 	}
@@ -219,27 +235,7 @@ func copyCatalogIconToLink(dataDir, name, format, linkID string) (*DownloadIconR
 	if err != nil {
 		return nil, fmt.Errorf("read cached catalog icon: %w", err)
 	}
-	ext := "." + normalizeCatalogIconFormat(format)
-	safeLinkID := strings.ReplaceAll(linkID, "..", "")
-	safeLinkID = filepath.Base(safeLinkID)
-	if safeLinkID == "" {
-		safeLinkID = "icon"
-	}
-	destDir := filepath.Join(dataDir, iconDir)
-	if err := os.MkdirAll(destDir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create icon directory: %w", err)
-	}
-	timestamp := time.Now().UTC().Format("20060102_150405")
-	fileName := fmt.Sprintf("%s_%s%s", safeLinkID, timestamp, ext)
-	destPath := filepath.Join(destDir, fileName)
-	if err := os.WriteFile(destPath, body, 0644); err != nil {
-		return nil, fmt.Errorf("failed to write icon file: %w", err)
-	}
-	relPath := filepath.Join(iconDir, fileName)
-	return &DownloadIconResult{
-		LocalPath: relPath,
-		FileName:  fileName,
-	}, nil
+	return storeIcon(dataDir, linkID, "."+normalizeCatalogIconFormat(format), body)
 }
 
 func extFromContentType(ct string) string {

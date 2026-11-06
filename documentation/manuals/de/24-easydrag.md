@@ -507,6 +507,14 @@ externen Aktionen.
 
 ## Wenn ein Schritt scheitert
 
+Bei **Datei schreiben** gibst du den Ordner fest vor, wenn der Dateiname aus einer
+E-Mail, einem Webhook, einer gelesenen Datei oder einer KI-Ausgabe stammt.
+`reports/{{trigger.data.name}}.txt` akzeptiert zum Beispiel den Namen `daily`.
+Ein vollständiger fremder Pfad, `../config`, Unterordner oder ein Windows-Laufwerk
+oder Datenstrom im Namen stoppen den Schritt vor jedem Dateizugriff mit
+`FLOW_PARAM_INVALID`. Das gilt auch für Tests und bereits veröffentlichte Versionen.
+Die Berechtigungen und geschützten Pfade des Dateisystem-Werkzeugs gelten weiterhin.
+
 - In den *Einstellungen* eines Schritts wählst du unter *Wenn der Schritt fehlschlägt*: *Lauf stoppen*, *Weitermachen* (die nächsten Schritte erhalten den Fehler als Daten; bei einem *Wenn*-Schritt über *Nein*, bei einem *Verzweigung*-Schritt über *Sonst*, nie über *Ja* oder einen Fall) oder *Fehlerpfad* (ein eigener Ausgang *Fehler* für Schritte, die auf den Fehler reagieren). *Wiederholungen*, *Sekunden dazwischen* und *Zeitlimit (s)* stehen daneben.
 - Der *Datenname* im selben Tab ist der Name, unter dem spätere Schritte die Ausgabe lesen (`{{datenname.feld}}`).
 

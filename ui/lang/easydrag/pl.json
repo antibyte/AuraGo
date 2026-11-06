@@ -1,4 +1,5 @@
 {
+  "easydrag.help.file_write_path": "Wskaż stały folder, na przykład reports/. Dane zewnętrzne mogą określać tylko nazwę pliku, bez podfolderów ani ścieżek z ..",
   "easydrag.ui.card_state_off": "wyłączony",
   "easydrag.ui.close_hint": "Zamknij ({key})",
   "easydrag.ui.detail_values": "Wartości",

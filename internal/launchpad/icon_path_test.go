@@ -63,8 +63,35 @@ func TestIconPathsRejectSymlinks(t *testing.T) {
 	if err := DeleteIcon(data, "launchpad_icons/icon.png"); err == nil {
 		t.Fatal("accepted a symlinked icon directory")
 	}
+	if _, err := storeIcon(data, "link", ".png", []byte("new icon")); err == nil {
+		t.Fatal("wrote through a symlinked icon directory")
+	}
 	if _, err := os.Stat(target); err != nil {
 		t.Fatal(err)
+	}
+	if files, err := os.ReadDir(outside); err != nil || len(files) != 1 {
+		t.Fatalf("changed the directory outside icon ownership: %v, %v", files, err)
+	}
+}
+
+func TestStoreIconKeepsRepeatedDownloadsDistinct(t *testing.T) {
+	data := t.TempDir()
+	first, err := storeIcon(data, "link", ".png", []byte("first"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := storeIcon(data, "link", ".png", []byte("second"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.LocalPath == second.LocalPath {
+		t.Fatal("reused an existing icon path")
+	}
+	for path, want := range map[string]string{first.LocalPath: "first", second.LocalPath: "second"} {
+		body, err := os.ReadFile(filepath.Join(data, path))
+		if err != nil || string(body) != want {
+			t.Fatalf("changed a completed download: %q, %v", body, err)
+		}
 	}
 }
 

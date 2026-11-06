@@ -387,7 +387,7 @@ func fileWriteDef(env CatalogEnv) *NodeDef {
 	def.PrimaryInput = "content"
 	def.Effects = []Effect{EffectWritesFiles}
 	def.Params = []ParamSpec{
-		{Name: "path", Kind: ParamText, LabelKey: "easydrag.param.file_path", Required: true, Templatable: true, SensitiveSink: true},
+		{Name: "path", Kind: ParamText, LabelKey: "easydrag.param.file_path", HelpKey: "easydrag.help.file_write_path", Required: true, Templatable: true, SensitiveSink: true},
 		{Name: "content", Kind: ParamTextarea, LabelKey: "easydrag.param.file_content", Templatable: true, SensitiveSink: true, OutputIndependent: true},
 		{Name: "if_exists", Kind: ParamSegmented, LabelKey: "easydrag.param.if_exists", Default: "overwrite",
 			Options: []Option{option("overwrite", "if_exists_overwrite"), option("unique", "if_exists_unique"), option("fail", "if_exists_fail")}},
@@ -402,6 +402,9 @@ func fileWriteDef(env CatalogEnv) *NodeDef {
 	def.Execute = func(ctx context.Context, in ExecInput) (ExecResult, error) {
 		target, err := filePathParam(in.Params["path"], "enter a file path")
 		if err != nil {
+			return ExecResult{}, err
+		}
+		if err := guardFileWritePath(in, target); err != nil {
 			return ExecResult{}, err
 		}
 		content, err := documentText("content", in.Params["content"])

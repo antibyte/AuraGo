@@ -335,7 +335,8 @@ the contracts below describe the implemented behavior of each delivered slice.
   warning in `ModeDraft`, but `refusalsOf` also blocks the node before execution in live revisions and test runs,
   including revisions published under older rules. The lint taints a node whole, so a constant host field of a
   tainted node is refused too; write the trusted authority directly in the destination parameter. Plain body,
-  header, path and query warnings do not block execution. Verify `TestRunRefusesUntrustedURLAuthority`,
+  header and query warnings do not block execution; `file.write` paths have the
+  separate filename-only runtime rule below. Verify `TestRunRefusesUntrustedURLAuthority`,
   `TestRunStillSendsToFixedAuthorities`, `TestLintUntrustedHostPositionIsError`,
   `TestLintURLWithoutUntrustedDataIsQuiet`, `TestLintUntrustedBodyStaysAWarningAndSecretTargetKeepsItsCode`
   and `TestGenericURLParamsAreURLTargets`.
@@ -795,6 +796,16 @@ the contracts below describe the implemented behavior of each delivered slice.
   accepts such an object or a plain path and reads only a text `path`. `$type` is a path hint, not proof: anyone
   who shapes flow data can write one, so every path-taking param is a `SensitiveSink` and `filePathParam`
   bounds the path (4096 bytes, no NUL, valid UTF-8).
+- `file.write` checks raw path templates against `Env.Untrusted` before any
+  existence probe or tool call. Outside data may supply only the final filename
+  after a literal folder prefix; reject whole external paths, separators,
+  traversal, drive/stream colons and trailing dots/spaces in that filename.
+  Static paths and trusted templates retain native filesystem policy. This runtime
+  rule applies to test runs and previously published revisions; the existing sink
+  lint remains advisory. Do not add per-write approval or widen the tool's jail.
+  `TestFileWriteBoundsUntrustedPathsBeforeAnyToolCall` covers both modes and
+  taint propagated through `logic.set`. Explain the rule through the catalog's
+  `easydrag.help.file_write_path` key in all sixteen locales and manual chapter 24.
 - Retries run non-idempotent effects again:
   - `FLOW_FILE_EXISTS` is retryable. A `file.write` that succeeded but timed out in transit makes the retry hit
     `FLOW_FILE_EXISTS` (`if_exists` `fail`) or write a second copy under the next free name (`unique`, at most

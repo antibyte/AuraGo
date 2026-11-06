@@ -1,4 +1,5 @@
 {
+  "easydrag.help.file_write_path": "Define uma pasta fixa, por exemplo reports/. Os dados externos só podem indicar o nome do arquivo, sem subpastas ou caminhos com ..",
   "easydrag.ui.card_state_off": "desligado",
   "easydrag.ui.close_hint": "Fechar ({key})",
   "easydrag.ui.detail_values": "Valores",

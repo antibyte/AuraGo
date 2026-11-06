@@ -1,4 +1,5 @@
 {
+  "easydrag.help.file_write_path": "Ange en fast mapp, till exempel reports/. Externa data får bara ange filnamnet, inte undermappar eller sökvägar med ..",
   "easydrag.ui.card_state_off": "avstängd",
   "easydrag.ui.close_hint": "Stäng ({key})",
   "easydrag.ui.detail_values": "Värden",
