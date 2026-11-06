@@ -43,6 +43,16 @@
     /* Engine bus level per view: silent in the garage, a low bed under the results, full in a race. */
     const ENGINE_BED = { menu: 0, results: 0.3, race: 1 };
     const MASTER_TRIM = 1.0;            /* volume 1 = full scale into the glue compressor and the -3 dB limiter */
+    const MUSIC_LEVEL = 0.32;           /* the score under the race */
+    const AMBIENCE_LEVEL = 0.8;         /* the world around the track */
+    /* The voice commentary is a dialogue bus of its own: it goes straight to the
+     * limiter and skips the glue compressor, because that compressor has a makeup
+     * gain which would lift a quiet line and squash a loud one again. So a line is
+     * measured here and mixed to a fixed speech level. While a driver speaks, the
+     * race steps back under the voice. */
+    const VOICE_RMS = 0.12;             /* the level a spoken line is mixed to */
+    const VOICE_PEAK = 0.95;            /* the ceiling of a line; the limiter takes the rest */
+    const VOICE_DUCK = { engine: 0.18, music: 0.25, ambience: 0.4 };
 
     AD.createAudio = function (settings) {
         const Ctor = window.AudioContext || window.webkitAudioContext;
@@ -55,6 +65,8 @@
         let lastTick = 0, heading = 0, myX = 0, myY = 0, lastHornAt = -9, lastKerbAt = -9, lastPassAt = -9;
         let rollGain = null, windGain = null, surfaceGain = null, surfaceFilter = null, sprayGain = null, sprayFilter = null;
         let liveNodes = [];
+        let voiceSpeaking = false;       /* a driver is speaking and the race steps back */
+        let voicesPlaying = 0;
         const loops = { squeal: null, scrape: null };
         const worldLoops = new Map();
         const lastPlayed = new Map();
@@ -94,11 +106,13 @@
             master.connect(comp).connect(limiter).connect(ctx.destination);
             engineBus = ctx.createGain(); engineBus.gain.value = ENGINE_BED[view] === undefined ? 1 : ENGINE_BED[view]; engineBus.connect(master);
             sfxBus = ctx.createGain(); sfxBus.gain.value = 1; sfxBus.connect(master);
-            ambBus = ctx.createGain(); ambBus.gain.value = 0.8; ambBus.connect(master);
-            musicBus = ctx.createGain(); musicBus.gain.value = 0.32; musicBus.connect(master);
+            ambBus = ctx.createGain(); ambBus.gain.value = AMBIENCE_LEVEL; ambBus.connect(master);
+            musicBus = ctx.createGain(); musicBus.gain.value = MUSIC_LEVEL; musicBus.connect(master);
             /* The voice commentary has its own bus: it speaks over the race and must
-             * not push the limiter into clipping. */
-            voiceBus = ctx.createGain(); voiceBus.gain.value = 0.9; voiceBus.connect(master);
+             * not push the limiter into clipping. It goes straight to the limiter
+             * and skips the glue compressor, so a line keeps the level it was mixed
+             * to. The bus carries the volume of the player. */
+            voiceBus = ctx.createGain(); voiceBus.gain.value = muted ? 0 : volume * MASTER_TRIM; voiceBus.connect(limiter);
             reverb = ctx.createConvolver();
             reverb.buffer = makeImpulse(1.9, 2.6);
             reverbSend = ctx.createGain(); reverbSend.gain.value = 0;
@@ -145,6 +159,36 @@
             music.setBiome(id);
             if (reverbSend && ctx) reverbSend.gain.setTargetAtTime(REVERB[id] !== undefined ? REVERB[id] : 0.15, ctx.currentTime, 0.4);
             if (bank && BIOME_AMBIENCE[id]) bank.load([BIOME_AMBIENCE[id]], 3);
+        }
+
+        /* The level of a line: measured, not guessed. The model output is quiet,
+         * so a line is lifted to a fixed speech level; the peak stays under the
+         * ceiling and the limiter behind the bus takes what is left. */
+        function voiceGain(samples) {
+            let sum = 0, peak = 0;
+            for (let i = 0; i < samples.length; i++) {
+                const v = samples[i];
+                sum += v * v;
+                const a = v < 0 ? -v : v;
+                if (a > peak) peak = a;
+            }
+            const rms = Math.sqrt(sum / samples.length);
+            if (!isFinite(rms) || rms < 0.001 || peak < 0.001) return 1;   /* silence stays silence */
+            const gain = Math.min(VOICE_RMS / rms, VOICE_PEAK / peak);
+            if (gain > 6) return 6;            /* a whisper is lifted, not amplified into noise */
+            if (gain < 0.5) return 0.5;
+            return gain;
+        }
+
+        /* While a driver speaks the race steps back: the engine, the score and the
+         * ambience go down, the voice is the only thing on top. */
+        function applyVoiceMix(tc) {
+            if (!ctx) return;
+            const now = ctx.currentTime;
+            const bed = ENGINE_BED[view] === undefined ? 1 : ENGINE_BED[view];
+            if (engineBus) engineBus.gain.setTargetAtTime(bed * (voiceSpeaking ? VOICE_DUCK.engine : 1), now, tc);
+            if (musicBus) musicBus.gain.setTargetAtTime(MUSIC_LEVEL * (voiceSpeaking ? VOICE_DUCK.music : 1), now, tc);
+            if (ambBus) ambBus.gain.setTargetAtTime(AMBIENCE_LEVEL * (voiceSpeaking ? VOICE_DUCK.ambience : 1), now, tc);
         }
 
         /* ---- spatial placement ---- */
@@ -426,6 +470,8 @@
             setSettings(next) {
                 volume = clamp(next.volume, 0, 1); muted = !!next.muted;
                 if (master && ctx) master.gain.setTargetAtTime(muted ? 0 : volume * MASTER_TRIM, ctx.currentTime, 0.03);
+                /* The voice bus carries the volume of the player too. */
+                if (voiceBus && ctx) voiceBus.gain.setTargetAtTime(muted ? 0 : volume * MASTER_TRIM, ctx.currentTime, 0.03);
             },
             setBiome(id) {
                 biomeId = id;
@@ -441,7 +487,7 @@
             setView(next) {
                 view = next === 'menu' || next === 'results' ? next : 'race';
                 if (ctx && music) music.setView(view);
-                if (ctx && engineBus) engineBus.gain.setTargetAtTime(ENGINE_BED[view], ctx.currentTime, 0.25);
+                applyVoiceMix(0.25);
             },
             stopWorld,
             worldLoopCount() { return worldLoops.size; },
@@ -452,12 +498,23 @@
                 if (!ctx || !voiceBus || !samples || !samples.length) return 0;
                 const buffer = ctx.createBuffer(1, samples.length, rate || 24000);
                 const target = buffer.getChannelData(0);
-                for (let i = 0; i < samples.length; i++) target[i] = samples[i];
+                /* The model speaks quietly: the line is lifted to a fixed speech level,
+                 * so one driver is as loud as the next. */
+                const gain = voiceGain(samples);
+                const count = Math.min(samples.length, target.length);
+                for (let i = 0; i < count; i++) target[i] = samples[i] * gain;
                 const src = ctx.createBufferSource();
                 src.buffer = buffer;
                 src.connect(voiceBus);
                 src.start();
                 liveNodes.push(src);
+                /* The race steps back while the line is spoken and comes back after. */
+                voicesPlaying++;
+                if (voicesPlaying === 1) { voiceSpeaking = true; applyVoiceMix(0.08); }
+                src.onended = () => {
+                    voicesPlaying = Math.max(0, voicesPlaying - 1);
+                    if (voicesPlaying === 0) { voiceSpeaking = false; applyVoiceMix(0.3); }
+                };
                 return buffer.duration;
             },
             update(race, active, pose) {
@@ -501,6 +558,7 @@
                 if (ctx) { try { ctx.close(); } catch (_) { /* already closed */ } }
                 ctx = null; master = null; comp = null; limiter = null; reverb = null; reverbSend = null;
                 bank = null; engine = null; music = null; voiceBus = null;
+                voiceSpeaking = false; voicesPlaying = 0;
                 loops.squeal = null; loops.scrape = null;
             }
         };
