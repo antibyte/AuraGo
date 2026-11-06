@@ -348,6 +348,7 @@
             renderer.setTrack(track, race);
             audio.setBiome(track.biomeId);
             if (typeof audio.setCar === 'function') audio.setCar(playerCar);
+            if (typeof audio.setView === 'function') audio.setView('race');
             post.setBiome(track.biomeId);
             scheduler.reset();
             camera.reset();
@@ -406,6 +407,7 @@
             resultsShown = false;
             showcaseNow({ carId: settings.car, livery: settings.livery });
             audio.setBiome('alpine');
+            if (typeof audio.setView === 'function') audio.setView('menu');
             ui.showMenu(bests);
         }
 
@@ -536,6 +538,7 @@
             if (pendingResults) {
                 pendingResults.wait -= dt;
                 if (pendingResults.wait <= 0) {
+                    if (typeof audio.setView === 'function') audio.setView('results');
                     ui.showResults(pendingResults.result, pendingResults.info);
                     pendingResults = null;
                     resultsShown = true;
@@ -592,6 +595,7 @@
             if (pendingResults) {
                 pendingResults.wait -= dt;
                 if (pendingResults.wait <= 0) {
+                    if (typeof audio.setView === 'function') audio.setView('results');
                     ui.showResults(pendingResults.result, pendingResults.info);
                     pendingResults = null;
                     resultsShown = true;
