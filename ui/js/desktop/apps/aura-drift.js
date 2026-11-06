@@ -151,18 +151,19 @@
 
         /* Renderer: three.js when the vendor bundle and render3d are present and WebGL2
            works, else the Canvas 2D fallback (created only then). */
-        let renderer = null, glCanvas = null, post = null;
+        let renderer = null, glCanvas = null, post = null, renderer3d = null;
         if (window.AuraDriftThree && typeof AD.createRenderer3D === 'function') {
             glCanvas = document.createElement('canvas');
             glCanvas.className = 'agdrift-gl';
             root.insertBefore(glCanvas, world);
-            try { renderer = AD.createRenderer3D(glCanvas, settings); } catch (_) { renderer = null; }
+            try { renderer = AD.createRenderer3D(glCanvas, settings, t); } catch (_) { renderer = null; }
             if (!renderer) { glCanvas.remove(); glCanvas = null; }
         }
         function attachSurfaces() {
             const three = !!renderer && renderer.kind === 'three';
             world.hidden = three;
             postCanvas.hidden = three;
+            if (glCanvas) glCanvas.hidden = !three;
             post = three ? renderer.post : (typeof AD.createPostProcessor === 'function'
                 ? AD.createPostProcessor(world, postCanvas) : createNoopPost());
         }
@@ -212,16 +213,37 @@
         window.addEventListener('resize', resize);
         resize();
 
-        /* Lost context or a throwing three.js frame: continue in Canvas 2D. */
-        function fallbackTo2D() {
+        /* A throwing three.js frame drops 3D for good; a lost WebGL context only parks it
+           (keep) until the browser restores the context. Either way the race continues in Canvas 2D. */
+        function fallbackTo2D(keep) {
             if (renderer.kind !== 'three') return;
-            try { renderer.dispose(); } catch (_) { /* already gone */ }
-            if (glCanvas) { glCanvas.remove(); glCanvas = null; }
+            const old = renderer;
+            if (keep) {
+                renderer3d = old;
+            } else {
+                try { old.dispose(); } catch (_) { /* already gone */ }
+                if (glCanvas) { glCanvas.remove(); glCanvas = null; }
+            }
             renderer = AD.createRenderer(world, settings);
             attachSurfaces();
             quality = applyQuality();
             resize();
             if (race) renderer.setTrack(race.track, race);
+        }
+        function restore3D() {
+            if (!renderer3d || renderer.kind === 'three') return;
+            const flat = renderer;
+            renderer = renderer3d;
+            renderer3d = null;
+            try { flat.dispose(); } catch (_) { /* nothing to free */ }
+            attachSurfaces();
+            quality = applyQuality();
+            resize();
+            if (race) renderer.setTrack(race.track, race);
+        }
+        if (renderer && renderer.kind === 'three') {
+            renderer.onContextLost = () => fallbackTo2D(true);
+            renderer.onContextRestored = restore3D;
         }
 
         const ui = AD.createUI(root, labels, {
@@ -484,7 +506,9 @@
                 pose: pose, aspect: aspect, kind: renderer.kind,
                 car: [v.x, v.z + 0.5, v.y],
                 aim: [v.x + Math.cos(v.psi) * 30, v.z + 0.5, v.y + Math.sin(v.psi) * 30],
-                psi: v.psi
+                psi: v.psi,
+                /* Body state for visual checks: heading, steer, air pose. */
+                body: { z: v.z, roll: v.roll, pitch: v.pitch, steer: v.steer, vx: v.vx, r: v.r, airborne: !!v.airborne }
             };
         }
 
@@ -514,7 +538,15 @@
                 race.cars[0].weaponLock = 0;
             },
             fire() { if (race) AD.fireWeapon(race, race.cars[0]); },
-            freeze(value) { frozen = !!value; }
+            launch(vz) { if (race) AD.launch(race, race.cars[0], vz || 9, 'debug'); },
+            freeze(value) { frozen = !!value; },
+            /* Garage showcase without the menu panel: { carId, livery, biomeId }. */
+            showcase(config) {
+                startToken++;
+                race = null; view = 'menu'; paused = false;
+                renderer.setShowcase(Object.assign({ carId: settings.car, livery: settings.livery, biomeId: 'alpine' }, config || {}));
+                ui.hide();
+            }
         };
 
         const entry = {
@@ -525,6 +557,8 @@
                 startToken++;
                 window.removeEventListener('resize', resize);
                 renderer.dispose();
+                if (renderer3d) renderer3d.dispose();
+                renderer3d = null;
                 post.dispose();
                 hud.dispose();
                 audio.dispose();
@@ -621,7 +655,9 @@
             warp(fraction) { const d = currentDebug(); if (d) d.warp(fraction); },
             give(id) { const d = currentDebug(); if (d) d.give(id); },
             fire() { const d = currentDebug(); if (d) d.fire(); },
-            freeze(value) { const d = currentDebug(); if (d) d.freeze(value); }
+            launch(vz) { const d = currentDebug(); if (d) d.launch(vz); },
+            freeze(value) { const d = currentDebug(); if (d) d.freeze(value); },
+            showcase(config) { const d = currentDebug(); if (d) d.showcase(config); }
         }
     };
 })();

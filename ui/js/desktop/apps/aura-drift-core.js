@@ -77,9 +77,9 @@
         car('kobalt', 'Kobalt', 'gt', 0.96, 1.02, 1.06, 0.98, 1.02, 1.00, 1.00, 2.05, 1.25, '#4f8cff', '#cfe2ff', ['#4f8cff', '#a78bfa', '#34d399', '#1e293b'], 'wet_grip', 1.06),
         car('lumen', 'Lumen', 'muscle', 1.08, 1.12, 0.95, 1.02, 0.96, 0.95, 1.00, 2.05, 1.25, '#f6c445', '#fff7e6', ['#f6c445', '#fb7185', '#2dd4bf', '#111827'], 'turbo_time', 1.2),
         car('tundra', 'Tundra', 'rally', 0.92, 0.92, 1.04, 1.05, 1.05, 1.05, 0.75, 2.05, 1.25, '#4ade80', '#ffe066', ['#4ade80', '#f97316', '#e0f2fe', '#7c3aed'], 'loose_grip', 1.18),
-        car('softeis', 'Softeis', 'van', 1.10, 1.35, 0.92, 1.18, 0.90, 0.85, 1.00, 2.20, 1.2, '#ffb3d1', '#f3e3c3', ['#ffb3d1', '#fde68a', '#a7f3d0', '#fef3c7'], 'pad_time', 1.4),
-        car('maehkoenig', 'Mähkönig', 'mower', 0.72, 0.50, 1.12, 1.30, 1.15, 1.15, 0.45, 1.80, 1.3, '#7ac74f', '#f3e3c3', ['#7ac74f', '#f59e0b', '#ef4444', '#3b82f6'], 'sturdy', 1),
-        car('couch', 'Couch-Potato', 'sofa', 0.90, 0.72, 0.88, 1.10, 1.12, 1.35, 1.00, 1.90, 1.25, '#b5764a', '#2a2a2a', ['#b5764a', '#6d28d9', '#0f766e', '#be185d'], 'trick_points', 1.25, { driftNitro: 1.3 }),
+        car('softeis', 'Softeis', 'van', 1.10, 1.35, 0.92, 1.18, 0.90, 0.85, 1.00, 2.20, 1.2, '#ffb3d1', '#fff7e6', ['#ffb3d1', '#fde68a', '#a7f3d0', '#fef3c7'], 'pad_time', 1.4),
+        car('maehkoenig', 'Mähkönig', 'mower', 0.72, 0.50, 1.12, 1.30, 1.15, 1.15, 0.45, 1.80, 1.3, '#7ac74f', '#fff7e6', ['#7ac74f', '#f59e0b', '#ef4444', '#3b82f6'], 'sturdy', 1),
+        car('couch', 'Couch-Potato', 'sofa', 0.90, 0.72, 0.88, 1.10, 1.12, 1.35, 1.00, 1.90, 1.25, '#b5764a', '#fff7e6', ['#b5764a', '#6d28d9', '#0f766e', '#be185d'], 'trick_points', 1.25, { driftNitro: 1.3 }),
         car('bertha', 'Big Bertha', 'truck', 1.25, 1.60, 0.98, 1.20, 0.86, 0.90, 0.60, 2.40, 1.15, '#8a5cf6', '#2a2a2a', ['#8a5cf6', '#f97316', '#10b981', '#94a3b8'], 'heavy', 0.6)
     ];
     AD.carIndex = function (id) {
