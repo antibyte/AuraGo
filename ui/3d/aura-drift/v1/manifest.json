@@ -2,8 +2,15 @@
   "version": 1,
   "blender": "5.2.2",
   "generator": "assets/aura-drift/generate.py",
-  "totalBytes": 3237720,
+  "totalBytes": 6938976,
   "files": [
+    {
+      "name": "animals.glb",
+      "bytes": 313080,
+      "sha256": "0a86aac3d275a0547e989d86e088420e34776b366e87c00b79b873aba58115f9",
+      "triangles": 5914,
+      "kind": "animals"
+    },
     {
       "name": "car-bertha.glb",
       "bytes": 489960,
@@ -59,6 +66,83 @@
       "sha256": "886884974ad29564d487c18705482683e4b3b70dc944a9acb5d236439f9cf4ef",
       "triangles": 8080,
       "kind": "car"
+    },
+    {
+      "name": "items.glb",
+      "bytes": 411844,
+      "sha256": "91df808cfd6bcbf8af0ad97964d67e2dd47a89b2dbd240984e3e3bad7f66c6b7",
+      "triangles": 7980,
+      "kind": "items"
+    },
+    {
+      "name": "scenery-alpine.glb",
+      "bytes": 224140,
+      "sha256": "0f9615aa3191f1369a6114945e17010c27a9bc438e97ba9f765328b6ec0c6274",
+      "triangles": 3118,
+      "kind": "scenery"
+    },
+    {
+      "name": "scenery-desert.glb",
+      "bytes": 225088,
+      "sha256": "c37aa27e8be700a15d1dc5f19de2f2779b4f82a13167f907df66243a1aae494c",
+      "triangles": 3188,
+      "kind": "scenery"
+    },
+    {
+      "name": "scenery-forest.glb",
+      "bytes": 264552,
+      "sha256": "69b2ac9a2dad6d3aaa18e94d6685126791a77a49eeb377bc3d9f354a2f5bf26f",
+      "triangles": 3614,
+      "kind": "scenery"
+    },
+    {
+      "name": "scenery-glacier.glb",
+      "bytes": 207728,
+      "sha256": "60e64429971a00d9242bfb58d60b5ce7187941531e56af2a98a300621cec456a",
+      "triangles": 2808,
+      "kind": "scenery"
+    },
+    {
+      "name": "scenery-harbour.glb",
+      "bytes": 468560,
+      "sha256": "a9a3b0f698233dd53d6daf3045ee3cff313164afc90639e69809c4c59607a1ea",
+      "triangles": 6490,
+      "kind": "scenery"
+    },
+    {
+      "name": "scenery-industry.glb",
+      "bytes": 317184,
+      "sha256": "de3cdc8c954ee3096d3c202e7bfff1366892ff1eb46cbfcc2ea807f78250c049",
+      "triangles": 4456,
+      "kind": "scenery"
+    },
+    {
+      "name": "scenery-metro.glb",
+      "bytes": 400308,
+      "sha256": "8f82e8f3a29e4c296064b633b1ea6fe8a4457594cf435f3f627ab1ff43a2b476",
+      "triangles": 5358,
+      "kind": "scenery"
+    },
+    {
+      "name": "scenery-salt.glb",
+      "bytes": 162612,
+      "sha256": "7004db95021f30fbec168eb2b81073661b0310c377210726d065fdcaa78b7205",
+      "triangles": 2244,
+      "kind": "scenery"
+    },
+    {
+      "name": "shared.glb",
+      "bytes": 503624,
+      "sha256": "35583c3ecfb4a378a7e58cb676f6148de77d53c3afcef6ac5f81f93e831ba560",
+      "triangles": 8062,
+      "kind": "shared"
+    },
+    {
+      "name": "track.glb",
+      "bytes": 202536,
+      "sha256": "4b2c941008b1e28a2f46321f468a9e2486867529db56210cd2f61775bcc44620",
+      "triangles": 4272,
+      "kind": "track"
     }
   ],
   "cars": {
@@ -127,8 +211,695 @@
       "wheelbase": 2.7
     }
   },
-  "items": {},
-  "track": {},
-  "animals": {},
-  "props": {}
+  "items": {
+    "air_horn": {
+      "file": "items.glb",
+      "node": "item-air_horn",
+      "radius": 0.924,
+      "height": 2.22,
+      "length": 1.85
+    },
+    "boxing_glove": {
+      "file": "items.glb",
+      "node": "item-boxing_glove",
+      "radius": 1.4,
+      "height": 1.66,
+      "length": 2.8
+    },
+    "bratwurst": {
+      "file": "items.glb",
+      "node": "item-bratwurst",
+      "radius": 0.92,
+      "height": 0.69,
+      "length": 1.84
+    },
+    "crate": {
+      "file": "items.glb",
+      "node": "item-crate",
+      "radius": 1.0,
+      "height": 1.92
+    },
+    "disco_ball": {
+      "file": "items.glb",
+      "node": "item-disco_ball",
+      "radius": 0.795,
+      "height": 2.49
+    },
+    "frost_grenade": {
+      "file": "items.glb",
+      "node": "item-frost_grenade",
+      "radius": 0.615,
+      "height": 1.59
+    },
+    "gnome_mine": {
+      "file": "items.glb",
+      "node": "item-gnome_mine",
+      "radius": 0.977,
+      "height": 2.03
+    },
+    "harpoon": {
+      "file": "items.glb",
+      "node": "item-harpoon",
+      "radius": 1.855,
+      "height": 1.0,
+      "length": 3.71
+    },
+    "rocket": {
+      "file": "items.glb",
+      "node": "item-rocket",
+      "radius": 1.368,
+      "height": 1.34,
+      "length": 2.74
+    },
+    "rubber_duck": {
+      "file": "items.glb",
+      "node": "item-rubber_duck",
+      "radius": 0.795,
+      "height": 1.66
+    }
+  },
+  "track": {
+    "barrel": {
+      "file": "track.glb",
+      "node": "track-barrel",
+      "radius": 0.59,
+      "height": 1.37
+    },
+    "barrier_segment": {
+      "file": "track.glb",
+      "node": "track-barrier_segment",
+      "radius": 2.0,
+      "length": 4.0,
+      "height": 0.98
+    },
+    "boost_pad": {
+      "file": "track.glb",
+      "node": "track-boost_pad",
+      "radius": 5.0,
+      "length": 10.0,
+      "width": 6.0,
+      "height": 0.19
+    },
+    "cone": {
+      "file": "track.glb",
+      "node": "track-cone",
+      "radius": 0.31,
+      "height": 0.82
+    },
+    "gantry": {
+      "file": "track.glb",
+      "node": "track-gantry",
+      "radius": 8.0,
+      "width": 14.6,
+      "height": 7.25
+    },
+    "hay_bale": {
+      "file": "track.glb",
+      "node": "track-hay_bale",
+      "radius": 0.97,
+      "height": 1.9
+    },
+    "ramp": {
+      "file": "track.glb",
+      "node": "track-ramp",
+      "radius": 4.532,
+      "length": 9.0,
+      "width": 9.0,
+      "height": 1.6
+    },
+    "rumble_bars": {
+      "file": "track.glb",
+      "node": "track-rumble_bars",
+      "radius": 6.0,
+      "length": 8.3,
+      "width": 12.0,
+      "height": 0.1
+    },
+    "tyre_stack": {
+      "file": "track.glb",
+      "node": "track-tyre_stack",
+      "radius": 0.9,
+      "height": 1.5
+    }
+  },
+  "animals": {
+    "cow": {
+      "file": "animals.glb",
+      "node": "animal-cow",
+      "length": 3.016,
+      "height": 1.724,
+      "legs": "legs",
+      "stride": 0.5,
+      "bob": 0.05
+    },
+    "crab": {
+      "file": "animals.glb",
+      "node": "animal-crab",
+      "length": 2.19,
+      "height": 1.315,
+      "legs": "merged",
+      "stride": 0.35,
+      "bob": 0.03
+    },
+    "llama": {
+      "file": "animals.glb",
+      "node": "animal-llama",
+      "length": 2.56,
+      "height": 3.313,
+      "legs": "legs",
+      "stride": 0.45,
+      "bob": 0.08
+    },
+    "penguin": {
+      "file": "animals.glb",
+      "node": "animal-penguin",
+      "length": 1.518,
+      "height": 2.18,
+      "legs": "flippers+feet",
+      "stride": 0.7,
+      "bob": 0.04
+    },
+    "sheep": {
+      "file": "animals.glb",
+      "node": "animal-sheep",
+      "length": 2.56,
+      "height": 1.796,
+      "legs": "legs",
+      "stride": 0.6,
+      "bob": 0.06
+    }
+  },
+  "props": {
+    "alpine": {
+      "cablecar_pylon": {
+        "file": "scenery-alpine.glb",
+        "node": "prop-cablecar_pylon",
+        "radius": 3.7,
+        "height": 14.773,
+        "tags": [
+          "tall"
+        ],
+        "triangles": 1000
+      },
+      "chalet": {
+        "file": "scenery-alpine.glb",
+        "node": "prop-chalet",
+        "radius": 4.661,
+        "height": 7.475,
+        "tags": [
+          "hero"
+        ],
+        "triangles": 1226
+      },
+      "pine_a": {
+        "file": "scenery-alpine.glb",
+        "node": "prop-pine_a",
+        "radius": 2.954,
+        "height": 9.72,
+        "tags": [
+          "scatter",
+          "tall"
+        ],
+        "triangles": 192
+      },
+      "pine_b": {
+        "file": "scenery-alpine.glb",
+        "node": "prop-pine_b",
+        "radius": 2.2,
+        "height": 9.47,
+        "tags": [
+          "scatter",
+          "tall"
+        ],
+        "triangles": 312
+      },
+      "rock_a": {
+        "file": "scenery-alpine.glb",
+        "node": "prop-rock_a",
+        "radius": 3.855,
+        "height": 4.56,
+        "tags": [
+          "scatter"
+        ],
+        "triangles": 192
+      },
+      "rock_b": {
+        "file": "scenery-alpine.glb",
+        "node": "prop-rock_b",
+        "radius": 3.407,
+        "height": 7.486,
+        "tags": [
+          "scatter"
+        ],
+        "triangles": 196
+      }
+    },
+    "desert": {
+      "cactus_a": {
+        "file": "scenery-desert.glb",
+        "node": "prop-cactus_a",
+        "radius": 2.63,
+        "height": 6.8,
+        "tags": [
+          "scatter"
+        ],
+        "triangles": 292
+      },
+      "cactus_b": {
+        "file": "scenery-desert.glb",
+        "node": "prop-cactus_b",
+        "radius": 2.118,
+        "height": 4.66,
+        "tags": [
+          "scatter"
+        ],
+        "triangles": 388
+      },
+      "mesa_rock": {
+        "file": "scenery-desert.glb",
+        "node": "prop-mesa_rock",
+        "radius": 11.969,
+        "height": 12.95,
+        "tags": [
+          "hero",
+          "tall",
+          "far"
+        ],
+        "triangles": 396
+      },
+      "water_tower": {
+        "file": "scenery-desert.glb",
+        "node": "prop-water_tower",
+        "radius": 3.925,
+        "height": 15.31,
+        "tags": [
+          "hero",
+          "tall"
+        ],
+        "triangles": 900
+      },
+      "windmill_pump": {
+        "file": "scenery-desert.glb",
+        "node": "prop-windmill_pump",
+        "radius": 4.55,
+        "height": 12.15,
+        "tags": [
+          "hero",
+          "tall"
+        ],
+        "triangles": 1212
+      }
+    },
+    "forest": {
+      "birch": {
+        "file": "scenery-forest.glb",
+        "node": "prop-birch",
+        "radius": 2.337,
+        "height": 10.4,
+        "tags": [
+          "scatter"
+        ],
+        "triangles": 356
+      },
+      "hunting_hide": {
+        "file": "scenery-forest.glb",
+        "node": "prop-hunting_hide",
+        "radius": 4.455,
+        "height": 8.38,
+        "tags": [],
+        "triangles": 822
+      },
+      "log_pile": {
+        "file": "scenery-forest.glb",
+        "node": "prop-log_pile",
+        "radius": 3.707,
+        "height": 2.904,
+        "tags": [],
+        "triangles": 648
+      },
+      "mushroom_cluster": {
+        "file": "scenery-forest.glb",
+        "node": "prop-mushroom_cluster",
+        "radius": 4.702,
+        "height": 6.827,
+        "tags": [
+          "hero"
+        ],
+        "triangles": 1438
+      },
+      "oak": {
+        "file": "scenery-forest.glb",
+        "node": "prop-oak",
+        "radius": 4.165,
+        "height": 9.7,
+        "tags": [
+          "scatter"
+        ],
+        "triangles": 350
+      }
+    },
+    "glacier": {
+      "ice_arch": {
+        "file": "scenery-glacier.glb",
+        "node": "prop-ice_arch",
+        "radius": 8.406,
+        "height": 8.5,
+        "tags": [],
+        "triangles": 382
+      },
+      "ice_block": {
+        "file": "scenery-glacier.glb",
+        "node": "prop-ice_block",
+        "radius": 3.569,
+        "height": 4.566,
+        "tags": [
+          "scatter"
+        ],
+        "triangles": 188
+      },
+      "igloo": {
+        "file": "scenery-glacier.glb",
+        "node": "prop-igloo",
+        "radius": 5.088,
+        "height": 5.5,
+        "tags": [],
+        "triangles": 348
+      },
+      "research_station": {
+        "file": "scenery-glacier.glb",
+        "node": "prop-research_station",
+        "radius": 7.824,
+        "height": 13.1,
+        "tags": [
+          "hero"
+        ],
+        "triangles": 1600
+      },
+      "snow_pine": {
+        "file": "scenery-glacier.glb",
+        "node": "prop-snow_pine",
+        "radius": 2.389,
+        "height": 8.5,
+        "tags": [
+          "scatter"
+        ],
+        "triangles": 290
+      }
+    },
+    "harbour": {
+      "container_stack": {
+        "file": "scenery-harbour.glb",
+        "node": "prop-container_stack",
+        "radius": 3.387,
+        "height": 7.85,
+        "tags": [
+          "hero"
+        ],
+        "triangles": 1560
+      },
+      "crane": {
+        "file": "scenery-harbour.glb",
+        "node": "prop-crane",
+        "radius": 10.534,
+        "height": 21.6,
+        "tags": [
+          "hero",
+          "tall",
+          "far"
+        ],
+        "triangles": 1436
+      },
+      "fishing_boat": {
+        "file": "scenery-harbour.glb",
+        "node": "prop-fishing_boat",
+        "radius": 4.875,
+        "height": 8.88,
+        "tags": [
+          "hero"
+        ],
+        "triangles": 1112
+      },
+      "lighthouse": {
+        "file": "scenery-harbour.glb",
+        "node": "prop-lighthouse",
+        "radius": 5.755,
+        "height": 20.1,
+        "tags": [
+          "hero",
+          "tall",
+          "far"
+        ],
+        "triangles": 1182
+      },
+      "neon_sign": {
+        "file": "scenery-harbour.glb",
+        "node": "prop-neon_sign",
+        "radius": 3.45,
+        "height": 9.7,
+        "tags": [
+          "tall"
+        ],
+        "triangles": 1200
+      }
+    },
+    "industry": {
+      "forklift": {
+        "file": "scenery-industry.glb",
+        "node": "prop-forklift",
+        "radius": 2.64,
+        "height": 3.2,
+        "tags": [],
+        "triangles": 840
+      },
+      "pipes": {
+        "file": "scenery-industry.glb",
+        "node": "prop-pipes",
+        "radius": 4.53,
+        "height": 4.7,
+        "tags": [
+          "scatter"
+        ],
+        "triangles": 424
+      },
+      "pylon": {
+        "file": "scenery-industry.glb",
+        "node": "prop-pylon",
+        "radius": 5.36,
+        "height": 22.22,
+        "tags": [
+          "tall"
+        ],
+        "triangles": 932
+      },
+      "silo": {
+        "file": "scenery-industry.glb",
+        "node": "prop-silo",
+        "radius": 6.55,
+        "height": 15.19,
+        "tags": [
+          "hero",
+          "tall"
+        ],
+        "triangles": 1244
+      },
+      "smokestack": {
+        "file": "scenery-industry.glb",
+        "node": "prop-smokestack",
+        "radius": 5.206,
+        "height": 37.379,
+        "tags": [
+          "tall"
+        ],
+        "triangles": 1016
+      }
+    },
+    "metro": {
+      "billboard": {
+        "file": "scenery-metro.glb",
+        "node": "prop-billboard",
+        "radius": 8.723,
+        "height": 17.134,
+        "tags": [
+          "tall"
+        ],
+        "triangles": 554
+      },
+      "food_truck": {
+        "file": "scenery-metro.glb",
+        "node": "prop-food_truck",
+        "radius": 3.331,
+        "height": 4.95,
+        "tags": [],
+        "triangles": 910
+      },
+      "skyscraper_a": {
+        "file": "scenery-metro.glb",
+        "node": "prop-skyscraper_a",
+        "radius": 7.75,
+        "height": 61.25,
+        "tags": [
+          "tall"
+        ],
+        "triangles": 1032
+      },
+      "skyscraper_b": {
+        "file": "scenery-metro.glb",
+        "node": "prop-skyscraper_b",
+        "radius": 10.0,
+        "height": 57.2,
+        "tags": [
+          "tall"
+        ],
+        "triangles": 1128
+      },
+      "skyscraper_c": {
+        "file": "scenery-metro.glb",
+        "node": "prop-skyscraper_c",
+        "radius": 7.483,
+        "height": 58.54,
+        "tags": [
+          "tall"
+        ],
+        "triangles": 916
+      },
+      "street_lamp": {
+        "file": "scenery-metro.glb",
+        "node": "prop-street_lamp",
+        "radius": 2.15,
+        "height": 9.2,
+        "tags": [
+          "scatter"
+        ],
+        "triangles": 264
+      },
+      "taxi": {
+        "file": "scenery-metro.glb",
+        "node": "prop-taxi",
+        "radius": 2.45,
+        "height": 2.45,
+        "tags": [],
+        "triangles": 554
+      }
+    },
+    "salt": {
+      "flag": {
+        "file": "scenery-salt.glb",
+        "node": "prop-flag",
+        "radius": 1.983,
+        "height": 7.3,
+        "tags": [
+          "scatter",
+          "tall"
+        ],
+        "triangles": 272
+      },
+      "rover": {
+        "file": "scenery-salt.glb",
+        "node": "prop-rover",
+        "radius": 2.358,
+        "height": 4.2,
+        "tags": [],
+        "triangles": 840
+      },
+      "salt_crystal": {
+        "file": "scenery-salt.glb",
+        "node": "prop-salt_crystal",
+        "radius": 2.79,
+        "height": 4.805,
+        "tags": [
+          "scatter"
+        ],
+        "triangles": 196
+      },
+      "ufo": {
+        "file": "scenery-salt.glb",
+        "node": "prop-ufo",
+        "radius": 5.122,
+        "height": 8.88,
+        "tags": [
+          "hero"
+        ],
+        "triangles": 936
+      }
+    },
+    "shared": {
+      "camper_van": {
+        "file": "shared.glb",
+        "node": "prop-camper_van",
+        "radius": 2.902,
+        "height": 3.59,
+        "tags": [
+          "hero"
+        ],
+        "triangles": 1524
+      },
+      "gnome_statue": {
+        "file": "shared.glb",
+        "node": "prop-gnome_statue",
+        "radius": 1.5,
+        "height": 5.365,
+        "tags": [
+          "hero",
+          "tall"
+        ],
+        "triangles": 1192
+      },
+      "grandstand": {
+        "file": "shared.glb",
+        "node": "prop-grandstand",
+        "radius": 13.4,
+        "height": 8.855,
+        "tags": [
+          "hero"
+        ],
+        "triangles": 2908
+      },
+      "hoarding": {
+        "file": "shared.glb",
+        "node": "prop-hoarding",
+        "radius": 4.85,
+        "height": 5.52,
+        "tags": [
+          "tall"
+        ],
+        "triangles": 214
+      },
+      "hotdog_stand": {
+        "file": "shared.glb",
+        "node": "prop-hotdog_stand",
+        "radius": 1.86,
+        "height": 5.007,
+        "tags": [],
+        "triangles": 962
+      },
+      "inflatable_arch": {
+        "file": "shared.glb",
+        "node": "prop-inflatable_arch",
+        "radius": 7.684,
+        "height": 10.9,
+        "tags": [
+          "tall"
+        ],
+        "triangles": 688
+      },
+      "marshal_post": {
+        "file": "shared.glb",
+        "node": "prop-marshal_post",
+        "radius": 1.425,
+        "height": 5.1,
+        "tags": [],
+        "triangles": 464
+      },
+      "road_sign": {
+        "file": "shared.glb",
+        "node": "prop-road_sign",
+        "radius": 0.95,
+        "height": 3.85,
+        "tags": [
+          "scatter"
+        ],
+        "triangles": 110
+      }
+    }
+  }
 }
