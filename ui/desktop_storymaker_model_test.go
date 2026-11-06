@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"aurago/internal/storymaker/render"
 )
 
 // storymakerCode removes the comments of a script, so that a guard sees only what runs.
@@ -116,6 +118,9 @@ class FakeNode {
   click() { if (!this.disabled) this.fire('click'); }
   focus() {}
   querySelector() { return null; }
+  showModal() { this.open = true; }
+  close() { this.open = false; }
+  remove() { if (this.parent) this.parent.removeChild(this); }
   contains() { return true; }
 }
 const document = {
@@ -130,7 +135,7 @@ const document = {
 const context = { console, document, setTimeout, clearTimeout };
 context.globalThis = context; context.window = context;
 vm.createContext(context);
-for (const name of ['storymaker-core.js', 'storymaker-model.js', 'storymaker-export.js']) {
+for (const name of ['storymaker-core.js', 'storymaker-model.js', 'storymaker-dialog.js', 'storymaker-export.js']) {
   vm.runInContext(fs.readFileSync(path.join(dir, name), 'utf8'), context, { filename: name });
 }
 const S = context.StorymakerParts;
@@ -155,6 +160,7 @@ function makeInst(refusal, overrides) {
     ctx: {},
     notes: [],
     shown: [],
+    domId: name => 'test-' + name,
     flushEdits: () => Promise.resolve(true),
     showIssues() {},
     notify(text) { inst.notes.push(text); },
@@ -172,6 +178,8 @@ function makeInst(refusal, overrides) {
   exporter.open();
   find(exporter.el, 'export-start').click();
   await flush();
+  find(exporter.el, 'export-confirm').click();
+  await flush();
   eq(find(exporter.el, 'export-refused').dataset.code, 'narration_incomplete', 'the refusal is shown');
   const missing = find(exporter.el, 'export-missing').textContent;
   eq([missing.includes('s2, s4'), missing.includes('160')], [true, true], 'the missing scenes and characters are named');
@@ -187,6 +195,8 @@ function makeInst(refusal, overrides) {
   exporter.open();
   find(exporter.el, 'export-start').click();
   await flush();
+  find(exporter.el, 'export-confirm').click();
+  await flush();
   eq(find(exporter.el, 'export-missing').textContent, 'storymaker.export.missing_music', 'a music file that is not ready');
   find(exporter.el, 'export-go-music').click();
   eq(inst.shown, ['music'], 'the action leads to the music panel');
@@ -198,6 +208,8 @@ function makeInst(refusal, overrides) {
   exporter = S.createExport(inst);
   exporter.open();
   find(exporter.el, 'export-start').click();
+  await flush();
+  find(exporter.el, 'export-confirm').click();
   await flush();
   eq(find(exporter.el, 'export-missing').textContent, 'storymaker.export.missing_music_source', 'a moved source');
   exporter.dispose();
@@ -757,5 +769,135 @@ function makeInst(captions, job) {
   eq(refused.handoffWish.size, 0, 'no job, no wish');
 
   console.log('storymaker export dialog ok');
+})().catch(fail);
+`
+
+// Missing narration or music blocks the start with its reason and a way to the panel. The start button opens the dialog, and
+// startRender receives the chosen options, in a shape the server's strict parser accepts. A 422 shows its reason in the panel, and
+// the focus goes on to the next button after a start.
+func TestStorymakerExportStartInNode(t *testing.T) {
+	t.Parallel()
+	out := runStorymakerExportScript(t, "storymaker-export-start.js", storymakerExportStartScript)
+	if !strings.Contains(out, "storymaker export start ok") {
+		t.Fatalf("unexpected output:\n%s", out)
+	}
+	_, rest, found := strings.Cut(out, "options: ")
+	if !found {
+		t.Fatalf("the script printed no options:\n%s", out)
+	}
+	line, _, _ := strings.Cut(rest, "\n")
+	options, err := render.ParseRenderOptions([]byte(strings.TrimSpace(line)))
+	if err != nil {
+		t.Fatalf("the server refuses the dialog's options %s: %v", line, err)
+	}
+	if options.BurnInCaptions == nil || *options.BurnInCaptions || !options.SRT || options.VTT || options.Stems || options.Quality != "high" {
+		t.Fatalf("parsed options = %+v", options)
+	}
+}
+
+const storymakerExportStartScript = `
+load(['storymaker-core.js', 'storymaker-model.js', 'storymaker-dialog.js', 'storymaker-export.js']);
+const S = context.StorymakerParts;
+const renders = [];
+const job = { id: 'job-1', project_id: 'p1', kind: 'render', status: 'queued', progress: 0 };
+let refusal = null;
+const inst = {
+  t: key => key, domId: name => 'test-' + name, bus: S.createBus(), parts: {}, ctx: {}, readonly: false, projectId: 'p1', etag: '"e1"', issues: [], handoffWish: new Set(),
+  status: { ffmpeg: { ready: true, version: '8.1' }, browser: { ready: true, source: 'system' }, limits: { max_duration_seconds: 600 } },
+  story: { format: { aspect: '16:9' }, style: { captions: false }, music: null },
+  report: { frame_count: 90, fps: 30, duration_ms: 3000, issues: [], audio_events: [] },
+  audioInfo: { narration: {}, missing: [], chars: { total: 0, missing: 0 }, music: null },
+  flushEdits: () => Promise.resolve(true), showIssues() {}, notify() {},
+  shown: [], showPanel(name) { inst.shown.push(name); },
+  api: { startRender(id, etag, key, options) { if (refusal) return Promise.reject(refusal); renders.push({ id, etag, key, options }); return Promise.resolve(job); } }
+};
+const exporter = S.createExport(inst);
+const root = exporter.el;
+const reasons = () => byStm(root, 'export-blockers').flatMap(list => list.children.map(item => item.dataset.reason));
+const says = (key, what) => { if (!one(root, 'export-blockers').textContent.includes(key)) throw new Error(what + ': no ' + key); };
+(async () => {
+  exporter.open();
+  eq(reasons(), [], 'nothing blocks');
+
+  // Missing narration blocks with its reason.
+  inst.audioInfo.missing = [{ scene_id: 's1', block_id: 's1:n', chars: 12 }];
+  inst.bus.emit('audio');
+  eq(reasons(), ['narration'], 'missing narration');
+  says('storymaker.export.blocked_narration', 'narration');
+  eq(one(root, 'export-start').disabled, true, 'no start while narration is missing');
+  one(root, 'export-go-voice').click();
+  eq(inst.shown, ['voice'], 'the blocker leads to the voice panel');
+  exporter.open();
+  inst.audioInfo.missing = [];
+
+  // Music that is on and has no audio blocks with its reason. The rule is the one of the server's music_incomplete.
+  inst.story.music = { mode: 'file', file: 'Music/a.mp3' };
+  inst.bus.emit('audio');
+  eq(reasons(), ['music'], 'music on without audio');
+  says('storymaker.export.blocked_music', 'music');
+  one(root, 'export-go-music').click();
+  eq(inst.shown, ['voice', 'music'], 'the blocker leads to the music panel');
+  exporter.open();
+  inst.audioInfo.music_issue = 'source_missing';
+  inst.bus.emit('audio');
+  says('storymaker.export.blocked_music_source', 'moved source');
+  delete inst.audioInfo.music_issue;
+  inst.story.music = { mode: 'file', file: 'Music/a.mp3', volume: 0 };
+  inst.bus.emit('audio');
+  eq(reasons(), [], 'volume 0 plays nothing');
+  inst.story.music = { mode: 'none' };
+  inst.bus.emit('audio');
+  eq(reasons(), [], 'mode none');
+  inst.story.music = { mode: 'generated', mood: 'playful' };
+  inst.audioInfo.music = { key: 'a'.repeat(64), ext: 'mp3', duration_ms: 61000 };
+  inst.bus.emit('audio');
+  eq(reasons(), [], 'the music exists');
+
+  // A 422 for the chosen burn-in says why in the panel. It stays out of the issues, so another choice can still start, and the focus
+  // goes back to the start button. An audio answer leaves it, a changed story ends it.
+  refusal = S.errors.fromResponse(422, { error: 'invalid_story', code: 'invalid_story', message: 'No font.', issues: [{ severity: 'warning', code: 'cue_late', scene_id: 's1', path: '', message: 'Late.' }, { severity: 'error', code: 'glyph_missing', scene_id: 's2', path: '/scenes/1/narration', message: 'No font.', fix: 'Replace them.' }] }, null);
+  one(root, 'export-start').click();
+  one(root, 'export-confirm').click();
+  await settle();
+  eq(one(root, 'export-refused').dataset.code, 'invalid_story', 'the refusal is shown');
+  eq(one(root, 'export-missing').textContent, 's2: No font. Replace them.', 'its reason');
+  eq(inst.issues, [], 'the refusal stays out of the issues');
+  eq(one(root, 'export-start').disabled, false, 'another choice can still start');
+  eq(documentFake.activeElement === one(root, 'export-start'), true, 'the focus is on the start button after a refusal');
+  inst.bus.emit('audio');
+  one(root, 'export-refused');
+  inst.bus.emit('story');
+  eq(byStm(root, 'export-refused').length, 0, 'a changed story ends the refusal');
+  refusal = null;
+
+  // The start button opens the dialog and starts nothing.
+  one(root, 'export-start').click();
+  const dialog = one(root, 'export-dialog');
+  eq(dialog.open, true, 'the dialog is open');
+  eq(renders.length, 0, 'nothing starts before the dialog says so');
+
+  // Escape belongs to the open dialog: the popover stays open underneath.
+  documentFake.fire('keydown', { key: 'Escape', stopPropagation() {} });
+  eq(one(root, 'export-panel').hidden, false, 'Escape leaves the popover alone');
+
+  // startRender receives the chosen options.
+  one(dialog, 'export-opt-srt').checked = true;
+  one(dialog, 'export-opt-quality').value = 'high';
+  one(dialog, 'export-confirm').click();
+  await settle();
+  eq(renders.length, 1, 'one start');
+  eq([renders[0].id, renders[0].etag], ['p1', '"e1"'], 'project and ETag');
+  if (!renders[0].key) throw new Error('no idempotency key');
+  eq(renders[0].options, { burn_in_captions: false, srt: true, vtt: false, stems: false, quality: 'high' }, 'options');
+  eq(exporter.job().id, 'job-1', 'the job is tracked');
+  one(root, 'export-progress');
+
+  // The focus moves on from the closed dialog to Cancel, and the repaint of a job event keeps it there.
+  eq(documentFake.activeElement === one(root, 'export-cancel'), true, 'the focus is on Cancel after a start');
+  inst.bus.emit('job', Object.assign({}, job, { status: 'running', progress: 0.5 }));
+  eq(documentFake.activeElement === one(root, 'export-cancel'), true, 'a repaint keeps the focus on Cancel');
+  exporter.dispose();
+  console.log('options: ' + JSON.stringify(renders[0].options));
+  console.log('storymaker export start ok');
 })().catch(fail);
 `

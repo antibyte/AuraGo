@@ -28,6 +28,7 @@
             report: null, frame: 0, playing: false, selected: 0, tab: 'stage', sideTab: 'scene', saveState: 'saved',
             catalog: null, thumbs: new Map(), dirty: false, disposed: false, loadSeq: 0, thumbSeq: 0, conflict: false,
             wantFrame: null, seekBusy: false, seekSent: -1, seekTimer: 0,
+            handoffWish: new Set(),
             view: 'loading', parts: {}, root: null, content: null, liveTimer: 0
         };
         inst.assets = S.createAssets(inst.api);

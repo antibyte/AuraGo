@@ -21,6 +21,13 @@
         return !spoken && !waiting && !audioInfo.music && events.length === 0;
     }
 
+    // The rule of the server's music_incomplete: music is on when its mode is not none and its volume is above 0 (absent means 0.25).
+    function musicOn(story) {
+        const music = story && story.music;
+        if (!music || !music.mode || music.mode === 'none') return false;
+        return music.volume === undefined || music.volume === null || Number(music.volume) > 0;
+    }
+
     function dirOf(path) {
         const text = String(path || '');
         const cut = text.lastIndexOf('/');
@@ -45,6 +52,16 @@
         const panel = el('div', { class: 'stm-export-panel', role: 'dialog', ariaLabel: t('storymaker.export.title'), hidden: true, dataset: { stm: 'export-panel' } });
         const root = el('div', { class: 'stm-export' }, button, panel);
 
+        // Created on first use. It lives inside root, so the popover's outside-click rule leaves it alone.
+        let dialog = null;
+        function optionsDialog() {
+            if (!dialog) {
+                dialog = S.createExportDialog(inst);
+                root.appendChild(dialog.el);
+            }
+            return dialog;
+        }
+
         function limits() { return (inst.status && inst.status.limits) || {}; }
         function isActive() { return !!job && ACTIVE.indexOf(job.status) >= 0; }
 
@@ -68,6 +85,9 @@
             if (counts.error > 0) list.push('errors');
             const max = Number(limits().max_duration_seconds) || 0;
             if (max > 0 && inst.report && inst.report.duration_ms / 1000 > max) list.push('too_long');
+            const audio = inst.audioInfo;
+            if (audio && Array.isArray(audio.missing) && audio.missing.length > 0) list.push('narration');
+            if (audio && !audio.music && musicOn(inst.story)) list.push('music');
             if (!inst.report || !(inst.report.frame_count > 0)) list.push('not_ready');
             return list;
         }
@@ -101,6 +121,8 @@
                 case 'browser': return t('storymaker.export.blocked_browser');
                 case 'errors': return t('storymaker.export.blocked_errors');
                 case 'too_long': return t('storymaker.export.blocked_too_long', { max: S.format.seconds(max) });
+                case 'narration': return t('storymaker.export.blocked_narration');
+                case 'music': return inst.audioInfo && inst.audioInfo.music_issue === 'source_missing' ? t('storymaker.export.blocked_music_source') : t('storymaker.export.blocked_music');
                 default: return t('storymaker.export.blocked_not_ready');
             }
         }
@@ -140,14 +162,35 @@
                 el('div', { class: 'stm-actions' }, el('button', { type: 'button', class: 'stm-btn', dataset: { stm: 'export-again' }, onClick: () => { job = null; paint(); } }, icon('refresh'), el('span', { text: t('storymaker.export.again') }))));
         }
 
+        function goVoiceButton() {
+            return el('button', { type: 'button', class: 'stm-btn', dataset: { stm: 'export-go-voice' }, onClick: () => goPanel('voice') }, icon('user'), el('span', { text: t('storymaker.export.go_voice') }));
+        }
+
+        function goMusicButton() {
+            return el('button', { type: 'button', class: 'stm-btn', dataset: { stm: 'export-go-music' }, onClick: () => goPanel('music') }, icon('sparkle'), el('span', { text: t('storymaker.export.go_music') }));
+        }
+
         function goPanel(name) {
             close(false);
             inst.showPanel(name);
         }
 
+        // A 422 names a problem of the story as this start would draw it, which the issue list need not hold: burned-in captions chosen
+        // in the dialog also check narration that the saved story does not draw. It stays out of inst.issues, so another choice can still
+        // start, and the panel shows the first error. Server texts are shown as text only.
+        function storyRefusedView(data) {
+            const issues = Array.isArray(data.issues) ? data.issues : [];
+            const first = issues.find(item => item && item.severity === 'error') || {};
+            const reason = [first.scene_id ? first.scene_id + ':' : '', first.message || data.message, first.fix].filter(Boolean).join(' ');
+            return el('div', { class: 'stm-job', dataset: { stm: 'export-refused', code: refused.code } },
+                el('p', { class: 'stm-job-title stm-job-bad' }, icon('alert'), el('strong', { text: S.errors.describeJob(t, { code: refused.code }) })),
+                el('p', { class: 'stm-hint', dataset: { stm: 'export-missing' }, text: reason.slice(0, 600) }));
+        }
+
         // A refused start says what is missing and offers the panel that fixes it.
         function refusedView() {
             const data = refused.data && typeof refused.data === 'object' ? refused.data : {};
+            if (refused.story) return storyRefusedView(data);
             let text = '';
             let action = null;
             if (refused.code === 'narration_incomplete') {
@@ -155,10 +198,10 @@
                 const scenes = Array.from(new Set(missing.map(item => String(item && item.scene_id || '')))).filter(Boolean).slice(0, 5).join(', ');
                 const chars = data.chars && Number(data.chars.missing) > 0 ? Number(data.chars.missing) : 0;
                 text = t('storymaker.export.missing_narration', { scenes, chars });
-                action = el('button', { type: 'button', class: 'stm-btn', dataset: { stm: 'export-go-voice' }, onClick: () => goPanel('voice') }, icon('user'), el('span', { text: t('storymaker.export.go_voice') }));
+                action = goVoiceButton();
             } else {
                 text = data.music_issue === 'source_missing' ? t('storymaker.export.missing_music_source') : t('storymaker.export.missing_music');
-                action = el('button', { type: 'button', class: 'stm-btn', dataset: { stm: 'export-go-music' }, onClick: () => goPanel('music') }, icon('sparkle'), el('span', { text: t('storymaker.export.go_music') }));
+                action = goMusicButton();
             }
             return el('div', { class: 'stm-job', dataset: { stm: 'export-refused', code: refused.code } },
                 el('p', { class: 'stm-job-title stm-job-bad' }, icon('alert'), el('strong', { text: refused.code === 'narration_incomplete' ? t('storymaker.job_error.narration_incomplete') : t('storymaker.job_error.music_incomplete') })),
@@ -176,6 +219,8 @@
                 view.appendChild(list);
                 if (reasons.indexOf('ffmpeg') >= 0 || reasons.indexOf('browser') >= 0) view.appendChild(el('p', { class: 'stm-hint', text: t('storymaker.export.still_works') }));
                 if (reasons.indexOf('errors') >= 0) view.appendChild(el('button', { type: 'button', class: 'stm-btn stm-btn-quiet', dataset: { stm: 'export-issues' }, onClick: () => { close(); inst.showIssues(); } }, icon('alert'), el('span', { text: t('storymaker.issues.show') })));
+                if (reasons.indexOf('narration') >= 0) view.appendChild(goVoiceButton());
+                if (reasons.indexOf('music') >= 0) view.appendChild(goMusicButton());
             } else {
                 const seconds = inst.report ? inst.report.duration_ms / 1000 : 0;
                 const size = S.model.exportSize(inst.story.format ? inst.story.format.aspect : '');
@@ -184,7 +229,7 @@
             }
             if (refused) view.appendChild(refusedView());
             view.appendChild(el('div', { class: 'stm-actions' },
-                el('button', { type: 'button', class: 'stm-btn stm-btn-primary', dataset: { stm: 'export-start' }, disabled: blocked || starting || null, onClick: () => start() }, icon('film'), el('span', { text: starting ? t('storymaker.export.starting') : t('storymaker.export.start') }))));
+                el('button', { type: 'button', class: 'stm-btn stm-btn-primary', dataset: { stm: 'export-start' }, ariaHaspopup: 'dialog', disabled: blocked || starting || null, onClick: () => optionsDialog().open() }, icon('film'), el('span', { text: starting ? t('storymaker.export.starting') : t('storymaker.export.open_options') }))));
             return view;
         }
 
@@ -198,6 +243,9 @@
             button.setAttribute('aria-expanded', String(open));
             panel.hidden = !open;
             if (!open) return;
+            // Every repaint replaces the panel's buttons, so the focus moves on to the new button of the same name.
+            const active = document.activeElement;
+            const focused = active && panel.contains(active) ? active.dataset.stm : '';
             S.clear(panel);
             panel.appendChild(el('div', { class: 'stm-export-head' }, el('h3', { text: t('storymaker.export.title') }),
                 el('button', { type: 'button', class: 'stm-btn stm-btn-quiet stm-btn-icon', ariaLabel: t('storymaker.close'), title: t('storymaker.close'), dataset: { stm: 'export-close' }, onClick: () => close() }, icon('close'))));
@@ -206,6 +254,8 @@
             else if (job && job.status === 'succeeded') panel.appendChild(resultView());
             else if (job) panel.appendChild(failedView());
             else panel.appendChild(startView());
+            // While a start runs its button is off. The end of the start moves the focus, see inst.startExport.
+            if (focused && !starting) focusAction(focused);
         }
 
         // ---- job tracking ------------------------------------------------------------------------------------------------
@@ -242,7 +292,7 @@
             schedulePoll();
         }
 
-        async function start() {
+        async function start(options) {
             if (starting || isActive() || blockers().length) return;
             starting = true;
             paint();
@@ -251,13 +301,15 @@
                 if (!saved) return;
                 if (blockers().length) return;
                 refused = null;
-                const created = await inst.api.startRender(inst.projectId, inst.etag, S.uuid());
+                const created = await inst.api.startRender(inst.projectId, inst.etag, S.uuid(), options);
                 job = null;
                 apply(created, true);
+                return created;
             } catch (err) {
                 if (err && err.aborted) return;
                 if (err && err.status === 412) inst.bus.emit('conflict', err);
                 if (err && (err.code === 'narration_incomplete' || err.code === 'music_incomplete')) refused = { code: err.code, data: err.data || {} };
+                if (err && err.status === 422) refused = { code: err.code, data: err.data || {}, story: true };
                 inst.notify(S.errors.describe(t, err, 'render'), 'error');
             } finally {
                 starting = false;
@@ -296,19 +348,37 @@
             if (open && !root.contains(event.target)) close(false);
         }
         function onDocumentKey(event) {
-            if (open && event.key === 'Escape') { event.stopPropagation(); close(true); }
+            if (open && event.key === 'Escape' && !(dialog && dialog.el.open)) { event.stopPropagation(); close(true); }
         }
         document.addEventListener('pointerdown', onDocumentPointer, true);
         document.addEventListener('keydown', onDocumentKey, true);
+
+        // Focuses the named button of the panel, else Cancel, Start or the first button that can take the focus.
+        function focusAction(name) {
+            const pick = stm => panel.querySelector('[data-stm="' + stm + '"]:not([disabled])');
+            const next = (name && pick(name)) || pick('export-cancel') || pick('export-start') || panel.querySelector('button:not([disabled])');
+            if (next) next.focus();
+        }
 
         function toggle() { if (open) close(true); else openPanel(); }
         function openPanel() { open = true; paint(); const first = panel.querySelector('button:not([disabled])'); if (first) first.focus(); }
         function close(restoreFocus) { open = false; paint(); if (restoreFocus) button.focus(); }
 
+        // The dialog starts through this. It answers the new job, or nothing when the start did not happen. The repaints of the start
+        // removed the button that the closed dialog gave the focus back to, so the focus moves on to what comes next.
+        inst.startExport = async options => {
+            const created = await start(options);
+            if (open) focusAction('');
+            return created;
+        };
+
         const off = [
             inst.bus.on('job', next => { if (next && next.kind === 'render') apply(next, false); }),
             inst.bus.on('report', () => { if (open) paint(); }),
-            inst.bus.on('audio', () => { refused = null; if (open) paint(); }),
+            // An audio answer ends an audio refusal and a changed story ends a story refusal. The audio answer of a save can land after
+            // the 422 of the same start, and that must not wipe the reason.
+            inst.bus.on('audio', () => { if (refused && !refused.story) refused = null; if (open) paint(); }),
+            inst.bus.on('story', () => { if (refused && refused.story) { refused = null; if (open) paint(); } }),
             inst.bus.on('issues', () => { if (open) paint(); }),
             inst.bus.on('status', () => { if (open) paint(); }),
             inst.bus.on('readonly', () => { if (open) paint(); })
@@ -327,6 +397,7 @@
                 document.removeEventListener('pointerdown', onDocumentPointer, true);
                 document.removeEventListener('keydown', onDocumentKey, true);
                 off.forEach(fn => fn());
+                if (dialog) dialog.dispose();
             }
         };
     }

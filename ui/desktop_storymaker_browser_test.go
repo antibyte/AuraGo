@@ -328,6 +328,7 @@ func storymakerTour(t *testing.T, fixture storymakerBackend) {
 		t.Fatal("FFmpeg and the browser should both be listed as ready")
 	}
 	storymakerClick(t, page, `[data-stm="export-start"]`)
+	storymakerClick(t, page, `[data-stm="export-confirm"]`)
 	storymakerWait(t, page, `()=>!!document.querySelector('[data-stm="export-progress"]')`)
 	if fixture.watcherCount(id) == 0 {
 		t.Fatal("the app should follow the job on the project's event stream")

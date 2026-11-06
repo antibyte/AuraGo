@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"aurago/internal/storymaker"
+	"aurago/internal/storymaker/render"
 	"github.com/google/uuid"
 )
 
@@ -302,7 +303,7 @@ func (f *storymakerFixture) project(w http.ResponseWriter, r *http.Request, rout
 	case rest == "narration" && r.Method == http.MethodGet:
 		f.narration(w, ctx, id)
 	case rest == "render" && r.Method == http.MethodPost:
-		f.render(w, r, id)
+		f.render(w, r, id, raw)
 	case rest == "music" && r.Method == http.MethodPost:
 		f.writeJSON(w, http.StatusOK, map[string]any{"job": nil})
 	case rest == "events" && r.Method == http.MethodGet:
@@ -427,11 +428,19 @@ func (f *storymakerFixture) narration(w http.ResponseWriter, ctx context.Context
 		f.fail(w, http.StatusInternalServerError, "internal", err.Error(), nil)
 		return
 	}
+	// This stand-in has no narrate route, so its narration can never get audio. Without this, the export's narration blocker
+	// would keep export-start disabled and stop the tour.
+	answer.Missing = []storymaker.MissingBlock{}
+	answer.Chars.Missing = 0
 	w.Header().Set("Cache-Control", "no-store")
 	f.writeJSON(w, http.StatusOK, answer)
 }
 
-func (f *storymakerFixture) render(w http.ResponseWriter, r *http.Request, id string) {
+func (f *storymakerFixture) render(w http.ResponseWriter, r *http.Request, id string, raw []byte) {
+	if _, err := render.ParseRenderOptions(raw); err != nil {
+		f.fail(w, http.StatusBadRequest, "invalid_request", err.Error(), nil)
+		return
+	}
 	f.mu.Lock()
 	ffmpeg, browser := f.ffmpegReady, f.browserReady
 	f.mu.Unlock()
