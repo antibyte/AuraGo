@@ -29,7 +29,8 @@ async function check(name, fn) {
 
 const LANGUAGES = ['cs', 'da', 'de', 'el', 'en', 'es', 'fr', 'hi', 'it', 'ja', 'nl', 'no', 'pl', 'pt', 'sv', 'zh'];
 const DRIVERS = ['viktor', 'rosi', 'bruno', 'dolores', 'gustav', 'heidi', 'ilse', 'kurt'];
-const KINDS = ['pass', 'passed', 'hit', 'got_you', 'wreck', 'win'];
+const KINDS = ['pass', 'passed', 'hit', 'got_you', 'wreck', 'win', 'style'];
+const MARSHAL_LINES = 16;
 /* The drivers of the two voices: Juno is the lower one, Mira the higher one. */
 const MALE = ['viktor', 'bruno', 'gustav', 'kurt'];
 const FEMALE = ['rosi', 'dolores', 'heidi', 'ilse'];
@@ -47,28 +48,53 @@ function loadApp() {
 const AD = loadApp();
 const en = JSON.parse(read('ui/lang/desktop/en.json'));
 
+/* The wordings of a line: one per line of its value. */
+const wordings = key => String(en[key]).split('\n').map(text => text.trim()).filter(Boolean);
+
 await check('the line table holds every english line', () => {
     assert.equal(typeof AD.woofLine, 'function');
+    assert.equal(typeof AD.woofLines, 'function');
     assert.equal(typeof AD.woofVoice, 'function');
     assert.equal(typeof AD.woofPrewarm, 'function');
-    const keys = AD.woofPrewarm();
-    assert.equal(keys.length, DRIVERS.length * KINDS.length + 12, 'line count');
+    const keys = Object.keys(AD.WOOF_LINES);
+    assert.equal(keys.length, DRIVERS.length * KINDS.length + MARSHAL_LINES, 'line count');
     for (const driver of DRIVERS) {
         for (const kind of KINDS) {
             const key = `aura_drift.banter.${driver}.${kind}`;
-            assert.equal(AD.woofLine(key), en[key], key);
+            assert.equal(JSON.stringify(AD.woofLines(key)), JSON.stringify(wordings(key)), key);
         }
     }
-    for (let n = 1; n <= 12; n++) {
+    for (let n = 1; n <= MARSHAL_LINES; n++) {
         const key = `aura_drift.marshal.${n}`;
-        assert.equal(AD.woofLine(key), en[key], key);
+        assert.equal(JSON.stringify(AD.woofLines(key)), JSON.stringify(wordings(key)), key);
     }
     /* No line is invented and none is missing. */
     const expected = new Set();
     for (const driver of DRIVERS) for (const kind of KINDS) expected.add(`aura_drift.banter.${driver}.${kind}`);
-    for (let n = 1; n <= 12; n++) expected.add(`aura_drift.marshal.${n}`);
+    for (let n = 1; n <= MARSHAL_LINES; n++) expected.add(`aura_drift.marshal.${n}`);
     assert.deepEqual(new Set(keys), expected, 'the table and the locale cover the same lines');
     assert.equal(AD.woofLine('aura_drift.banter.nobody.pass'), null, 'an unknown key has no line');
+});
+
+await check('every line has several wordings', () => {
+    for (const key of Object.keys(AD.WOOF_LINES)) {
+        const texts = AD.woofLines(key);
+        assert.ok(texts.length >= 5, key + ' has ' + texts.length + ' wordings');
+        assert.equal(new Set(texts).size, texts.length, key + ' has no duplicate wording');
+        assert.equal(AD.woofLine(key), texts[0], key + ' speaks its first wording');
+        assert.equal(AD.woofLine(key, 2), texts[2], key + ' speaks the wording that is asked for');
+        assert.equal(AD.woofLine(key, 99), texts[0], key + ' falls back to the first wording');
+    }
+});
+
+await check('the warm up speaks every wording, the first wording of every line first', () => {
+    const list = AD.woofPrewarm();
+    const keys = Object.keys(AD.WOOF_LINES);
+    assert.equal(list.length, keys.length * 6, 'every wording of every line');
+    for (let i = 0; i < keys.length; i++) {
+        assert.equal(JSON.stringify(list[i]), JSON.stringify({ key: keys[i], index: 0 }), 'the first wording comes first');
+    }
+    assert.equal(JSON.stringify(list[keys.length]), JSON.stringify({ key: keys[0], index: 1 }), 'the alternatives follow');
 });
 
 await check('the drivers are split over the two voices', () => {
@@ -91,12 +117,54 @@ await check('the banter hands the line key to the voice', () => {
     for (let s = 0; s < 1; s += 0.1) out = banter.update(0.1) || out;
     assert.ok(out, 'the banter speaks');
     assert.equal(out.key, `aura_drift.banter.${DRIVERS[2]}.got_you`, 'the key travels with the line');
-    assert.equal(AD.woofLine(out.key), en[out.key], 'the voice speaks the english original');
+    assert.equal(AD.woofLine(out.key, out.variant), wordings(out.key)[out.variant], 'the voice speaks the english original');
     banter.dispose();
 });
 
-await check('the voice is a setting that can be switched off', () => {
-    const defaults = AD.defaultSettings();
+await check('the radio and the voice say the same thing', () => {
+    const cars = [{ index: 0, isPlayer: true, driver: null, v: { x: 0, y: 0 }, finished: false, finishTime: 0 }];
+    DRIVERS.forEach((id, i) => cars.push({
+        index: i + 1, isPlayer: false, finished: false, finishTime: 0,
+        driver: { id: id }, v: { x: (i + 1) * 10, y: 0 }
+    }));
+    const race = { cars: cars, standings: cars.slice(), weapons: true };
+    const events = [
+        { type: 'hit', car: 0, by: 3, heavy: true },
+        { type: 'landing', car: 0, quality: 'crash' },
+        { type: 'respawn', car: 0 },
+        { type: 'animal_cross' },
+        { type: 'style_bank', car: 0, points: 500, multiplier: 3 },
+        { type: 'finish', car: 0, time: 90 }
+    ];
+    for (const lang of LANGUAGES) {
+        const locale = JSON.parse(read(`ui/lang/desktop/${lang}.json`));
+        const banter = AD.createBanter({
+            seed: 21, t: key => (locale[key] || key), race,
+            /* every wording is ready, so the radio may pick any of them */
+            ready: () => [0, 1, 2, 3, 4, 5]
+        });
+        const spoken = [];
+        for (const evt of events) {
+            banter.onEvent(evt, race);
+            for (let s = 0; s < 30; s += 0.1) {
+                const m = banter.update(0.1);
+                if (m) spoken.push(m);
+            }
+        }
+        assert.ok(spoken.length >= 4, lang + ': the race is commented on');
+        const win = spoken.filter(m => /^aura_drift\.marshal\.1[3-6]$/.test(m.key));
+        assert.equal(win.length, 1, lang + ': the win of the player is announced');
+        for (const m of spoken) {
+            const local = String(locale[m.key] || '').split('\n');
+            assert.equal(local.length, 6, lang + ' ' + m.key + ': the line has six wordings');
+            assert.equal(local[m.variant], m.text, lang + ' ' + m.key + ': the radio shows the wording');
+            assert.equal(AD.woofLine(m.key, m.variant), wordings(m.key)[m.variant], lang + ' ' + m.key + ': the voice speaks it');
+        }
+        banter.dispose();
+    }
+});
+
+await check('the voice is a setting that can be switched off', () => {    const defaults = AD.defaultSettings();
     assert.equal(defaults.voice, true, 'the voice is on by default');
     assert.equal(typeof defaults.voice, 'boolean', 'the setting is a boolean');
     const saved = { ...defaults, voice: false };
@@ -161,26 +229,35 @@ await check('the facade speaks a line and keeps it', async () => {
     assert.equal(voice.status().state, 'ready', 'the worker comes up');
     assert.equal(workers.length, 1, 'one worker');
 
-    voice.say({ key: 'aura_drift.banter.viktor.pass', driverId: 'viktor' });
+    voice.say({ key: 'aura_drift.banter.viktor.pass', driverId: 'viktor', variant: 0 });
     await wait(80);
     const speaks = workers[0].sent.filter(m => m.cmd === 'speak');
     assert.equal(speaks.length, 1, 'the line is spoken');
-    assert.equal(speaks[0].text, en['aura_drift.banter.viktor.pass'], 'the english original is spoken');
+    assert.equal(speaks[0].text, wordings('aura_drift.banter.viktor.pass')[0], 'the english original is spoken');
     assert.equal(speaks[0].voice, 'juno', 'viktor has the lower voice');
     assert.equal(played.length, 1, 'the audio is played');
     assert.equal(played[0].rate, 24000, 'the audio runs at 24 kHz');
 
     /* A line that was spoken once is cached and comes back without the worker. */
-    voice.say({ key: 'aura_drift.banter.viktor.pass', driverId: 'viktor' });
+    voice.say({ key: 'aura_drift.banter.viktor.pass', driverId: 'viktor', variant: 0 });
     await wait(20);
     assert.equal(workers[0].sent.filter(m => m.cmd === 'speak').length, 1, 'a known line is not spoken again');
     assert.equal(played.length, 2, 'the cached line is played again');
+
+    /* Another wording of the same line is a clip of its own. */
+    voice.say({ key: 'aura_drift.banter.viktor.pass', driverId: 'viktor', variant: 3 });
+    await wait(80);
+    const speaksAgain = workers[0].sent.filter(m => m.cmd === 'speak');
+    assert.equal(speaksAgain.length, 2, 'the other wording is spoken');
+    assert.equal(speaksAgain[1].text, wordings('aura_drift.banter.viktor.pass')[3], 'the wording that was asked for');
+    assert.equal(JSON.stringify(voice.readyVariants('aura_drift.banter.viktor.pass')), JSON.stringify([0, 3]), 'the voice knows its wordings');
+    assert.equal(JSON.stringify(voice.readyVariants('aura_drift.banter.nobody.pass')), JSON.stringify([]), 'a line that was never spoken has no wording');
 
     voice.setEnabled(false);
     assert.equal(voice.status().state, 'off', 'the voice is off');
     voice.say({ key: 'aura_drift.banter.rosi.pass', driverId: 'rosi' });
     await wait(20);
-    assert.equal(workers[0].sent.filter(m => m.cmd === 'speak').length, 1, 'an off voice stays quiet');
+    assert.equal(workers[0].sent.filter(m => m.cmd === 'speak').length, 2, 'an off voice stays quiet');
     voice.dispose();
 });
 
@@ -225,14 +302,19 @@ await check('a line for the player jumps the warm up', async () => {
     vm.runInContext(read('ui/js/desktop/apps/aura-drift-woof.js'), sandbox, { filename: 'aura-drift-woof.js' });
     const voice = sandbox.window.AuraDriftCore.createVoiceCommentary({ enabled: true });
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
-    await wait(40);
-    assert.ok(workers[0].sent.some(m => m.cmd === 'speak'), 'the warm up speaks');
-    voice.say({ key: 'aura_drift.banter.viktor.win', driverId: 'viktor' });
+    /* The warm up has 432 wordings to offer, so the worker needs a moment. */
+    let warm = false;
+    for (let i = 0; i < 40 && !warm; i++) {
+        await wait(25);
+        warm = workers[0].sent.some(m => m.cmd === 'speak');
+    }
+    assert.ok(warm, 'the warm up speaks');
+    voice.say({ key: 'aura_drift.banter.viktor.win', driverId: 'viktor', variant: 0 });
     await wait(60);
     assert.equal(workers.length, 2, 'the worker is restarted for the line of the player');
     const demand = workers[1].sent.filter(m => m.cmd === 'speak');
     assert.equal(demand.length, 1, 'the line of the player goes first');
-    assert.equal(demand[0].text, en['aura_drift.banter.viktor.win'], 'the right line');
+    assert.equal(demand[0].text, wordings('aura_drift.banter.viktor.win')[0], 'the right line');
     assert.equal(demand[0].voice, 'juno', 'the right voice');
     voice.dispose();
 });

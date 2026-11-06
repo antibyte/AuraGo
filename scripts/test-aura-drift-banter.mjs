@@ -64,9 +64,71 @@ check('speaker rules per trigger and key names', () => {
         { type: 'landing', car: 0, quality: 'good' }, { type: 'landing', car: 2, quality: 'crash' },
         { type: 'wall_hit', car: 0, heavy: false }, { type: 'hit', car: 2, by: 3 },
         { type: 'respawn', car: 2 }, { type: 'perfect_start', car: 3 }, { type: 'wheelspin', car: 4 },
-        { type: 'finish', car: 0, time: 80 }
+        { type: 'style_bank', car: 0, points: 30, multiplier: 1 },
+        { type: 'style_bank', car: 2, points: 900, multiplier: 4 }
     ]) b.onEvent(evt, race);
     assert.equal(pump(b, 3).length, 0);
+});
+
+check('the player wins: the marshal announces it', () => {
+    const race = mockRace();
+    const b = AD.createBanter({ seed: 5, t, race });
+    b.onEvent({ type: 'finish', car: 0, time: 90 }, race);
+    const out = pump(b, 1);
+    assert.equal(out.length, 1, 'the win is announced');
+    assert.equal(out[0].driverId, 'marshal', 'the marshal announces it');
+    assert.match(out[0].text, /^T:aura_drift\.marshal\.1[3-6]$/);
+    /* An AI that finishes after the player keeps the quiet. */
+    const b2 = AD.createBanter({ seed: 5, t, race });
+    race.cars[2].finished = true;
+    race.cars[2].finishTime = 80;
+    b2.onEvent({ type: 'finish', car: 0, time: 90 }, race);
+    assert.equal(pump(b2, 2).length, 0);
+});
+
+check('a banked style chain is worth a remark', () => {
+    const race = mockRace();
+    const b = AD.createBanter({ seed: 5, t, race });
+    b.onEvent({ type: 'style_bank', car: 0, points: 400, multiplier: 3 }, race);
+    const out = pump(b, 1);
+    assert.equal(out.length, 1, 'the chain is remarked');
+    assert.match(out[0].text, /^T:aura_drift\.banter\..+\.style$/);
+});
+
+check('a line has several wordings and the wording travels with it', () => {
+    const race = mockRace();
+    const t = key => key + '\none\ntwo\nthree';
+    const b = AD.createBanter({ seed: 11, t, race });
+    const seen = [];
+    /* Three drivers in a row, so every line comes back after a while. */
+    for (let round = 0; round < 6; round++) {
+        b.onEvent(hitBy(1 + (round % 3)), race);
+        const out = pump(b, 25);
+        assert.equal(out.length, 1, 'a remark in round ' + round);
+        seen.push(out[0]);
+    }
+    for (const m of seen) {
+        assert.match(m.text, /^(aura_drift\.banter\..+|one|two|three)$/);
+        /* The wording of the radio is the wording of the line. */
+        assert.equal(t(m.key).split('\n')[m.variant], m.text, m.key);
+        assert.ok(m.variant >= 0 && m.variant <= 3, 'the wording index');
+    }
+    /* The same line never sounds the same twice in a row. */
+    const byKey = new Map();
+    for (const m of seen) {
+        if (byKey.has(m.key)) assert.notEqual(m.text, byKey.get(m.key), m.key + ' repeats itself');
+        byKey.set(m.key, m.text);
+    }
+});
+
+check('a wording the voice can speak right now is preferred', () => {
+    const race = mockRace();
+    const t = key => 'one\ntwo\nthree';
+    const b = AD.createBanter({ seed: 11, t, race, ready: () => [1] });
+    b.onEvent(hitBy(1), race);
+    const out = pump(b, 1);
+    assert.equal(out[0].text, 'two', 'the ready wording');
+    assert.equal(out[0].variant, 1);
 });
 
 check('marshal lines: respawn 1..6, animals 7..12, speaker marshal', () => {

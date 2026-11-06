@@ -300,6 +300,37 @@ group can later be replaced by a hash-pinned CC0 recording.
 **Not measured:** nobody has listened to the pack on speakers or headphones. The loudness and
 peak numbers are measured; whether the mix sounds right is open.
 
+## Commentary and voice
+
+The radio comments on the race: eight drivers (Viktor, Rosi, Bruno, Heidi, Ilse, Gustav, Kurt,
+Dolores) react to being overtaken, to hits, to the player's crashes and to the race result, and
+the marshal comments on the respawns, on the animals on the track and on the player's win. The
+rules live in `ui/js/desktop/apps/aura-drift-banter.js`: at most one line every seven seconds,
+never the same speaker twice in a row, at most one line of the same kind every twenty seconds
+and at most one line of the same key every sixty seconds.
+
+- **Every line has six wordings.** A line is one key in the locale files; its six wordings are
+  the six lines of its value. The radio picks one of them, the voice speaks the english original
+  of the very same one, and a line never sounds the same twice in a row. The wording that the
+  voice can speak at once is the one the radio prefers, so a remark never waits for the model.
+- **Two new moments.** `style` is the comment on a style chain the player banked (from 200
+  points on), `marshal.13` to `marshal.16` announce that the player won the race - before, the
+  player's win was the one moment without a comment at all.
+- **The texts live in the locales.** `ui/lang/desktop/en.json` holds the english originals, every
+  other locale holds its own six wordings per line. `scripts/build-aura-drift-woof-lines.mjs`
+  generates `ui/js/desktop/apps/aura-drift-woof-lines.js` (the english table the voice speaks)
+  from the english locale, so the table cannot drift away from the text the radio shows.
+- **The voice** is the Underdog Woof model (ConwayResearch/Underdog-Woof, Underdog Non-Commercial
+  Licence 1.0, free for non-commercial use with the credit "Voice by Underdog Woof"). It runs in
+  a Web Worker, speaks english only and is switched off in the settings. Its weights are part of
+  the game (`ui/3d/aura-drift/voice/`), nothing is downloaded. Every wording is a clip of its
+  own in the memory cache and in IndexedDB, so the second time a wording comes around it is
+  instant. The warm-up speaks the first wording of every line first and the alternatives
+  afterwards, and it pauses while a race runs.
+- **Cost:** 72 lines times six wordings are 432 clips, about 17 s of synthesis each. The warm-up
+  therefore needs roughly two hours in the background before every wording of every line is
+  ready; until then the radio prefers the wordings that are already there.
+
 ## Accessibility
 
 Keyboard-only start journey, visible `:focus-visible` outlines, a screen-reader control hint with
