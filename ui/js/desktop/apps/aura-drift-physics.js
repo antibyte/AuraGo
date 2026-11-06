@@ -107,7 +107,7 @@
            short beat, so cars can unwind from barriers; it never oscillates
            through zero the way a sign-gated brake force did. The latch keeps
            reversing until the pedal is released, so it cannot pulse. */
-        if (!disabled && brake > 0.05 && throttle <= 0 && (speed < 1.4 || v.brakeHold > 0.45)) v.brakeHold += dt;
+        if (!disabled && brake > 0.05 && throttle <= 0 && v.vx < 1.5 && (speed < 1.4 || v.brakeHold > 0.45)) v.brakeHold += dt;
         else v.brakeHold = 0;
         const reversing = v.brakeHold > 0.45;
         /* env.driveK: mode rules, e.g. the hot potato holder (x1.12). */

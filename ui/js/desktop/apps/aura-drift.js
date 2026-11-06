@@ -278,6 +278,17 @@
             return AD.buildTrack(AD.trackById(config.trackId || AD.TRACKS[0].id));
         }
 
+        /* The mode table decides the field (section 2.8); a config value may only
+           change it where rivals are part of the mode. */
+        function fieldSize(mode, config) {
+            const rules = AD.modeRules(mode);
+            let count = rules.opponents;
+            if (count > 0 && config && Number.isFinite(config.opponents)) count = Math.floor(config.opponents);
+            if (count <= 0) return 0;
+            const min = (mode === 'elimination' || mode === 'hot_potato') ? 1 : 0;
+            return Math.max(min, Math.min(5, count));
+        }
+
         function beginRace(track, config, opts) {
             const best = bests[track.id];
             const mode = config.mode || 'quick';
@@ -288,7 +299,7 @@
                 mode: mode,
                 seed: config.seed,
                 laps: config.laps || track.laps,
-                opponents: mode === 'time_trial' ? 0 : 3,
+                opponents: fieldSize(mode, config),
                 weapons: settings.weapons && mode !== 'time_trial',
                 ghostTape: mode === 'time_trial' && best ? best.tape : null,
                 ghostCar: best && best.carId,
@@ -602,6 +613,11 @@
                 if (event.code === 'KeyC') {
                     settings.camera = camera.cycle();
                     AD.saveSettings(settings, readonly);
+                    return;
+                }
+                if (event.code === 'KeyT') {
+                    /* Marshal rescue; consumed (and refused in time trial) by AD.stepRace. */
+                    if (!event.repeat && playing()) race.rescueRequest = true;
                     return;
                 }
                 if (event.code === 'KeyH') {

@@ -113,6 +113,7 @@
         v.wy = v.vx * sin + v.vy * cos;
         v.vz = vz;
         v.airborne = true;
+        v.brakeHold = 0;                              /* a held brake must not carry a reverse latch through the air */
         v.airTime = 0;
         v.rollRate = 0; v.pitchRate = 0; v.spinRate = 0;
         v.rollAccum = 0; v.pitchAccum = 0; v.spinAccum = 0;

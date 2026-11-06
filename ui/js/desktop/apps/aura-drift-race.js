@@ -291,6 +291,18 @@
         if (race.state === 'finished') return;
         race.time += dt;
 
+        /* Player rescue (key T): a one-shot request, never part of the tape, so time
+           trial (ghost replays) ignores it. 3 s cooldown. */
+        if (race.rescueRequest) {
+            race.rescueRequest = false;
+            const me = race.cars[0];
+            if (race.mode !== 'time_trial' && me.isPlayer && !me.v.out && !me.finished &&
+                race.time - (race.rescueAt === undefined ? -Infinity : race.rescueAt) >= 3) {
+                race.rescueAt = race.time;
+                AD.respawnCar(race, me);
+            }
+        }
+
         for (const car of race.cars) {
             if (car.v.out) continue;
             const input = car.isPlayer ? race.playerInput : AD.aiInput(race, car);

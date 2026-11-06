@@ -152,6 +152,17 @@ check('input tape round-trips steering sign', unpacked.steer < -0.45 && unpacked
     check('ghost matches the recorded player within 1e-6', compared > 10000 && worst < 1e-6, compared + ' steps, worst=' + worst);
 }
 
+{
+    /* Reverse latch: engages after 0.45 s at a standstill, but never removes the brakes at speed. */
+    const env = { grip: 1, roll: 0.016 };
+    const stopped = AD.createVehicle(0, 0, 0, 0);
+    for (let i = 0; i < 120; i++) AD.stepVehicle(stopped, { throttle: 0, brake: 1, steer: 0, handbrake: 0, fire: 0, boost: 0 }, AD.STEP, env);
+    check('brake held at a standstill still reverses', stopped.vx < -0.5, 'vx=' + stopped.vx);
+    stopped.vx = 25;                                  /* shunted forward with the pedal still down */
+    for (let i = 0; i < 120; i++) AD.stepVehicle(stopped, { throttle: 0, brake: 1, steer: 0, handbrake: 0, fire: 0, boost: 0 }, AD.STEP, env);
+    check('held brake brakes a car shunted forward to speed', stopped.vx < 16 && stopped.vx > -0.5, 'vx=' + stopped.vx);
+}
+
 if (failures.length) {
     console.error('\n' + failures.length + ' physics check(s) failed');
     process.exit(1);
