@@ -13,23 +13,33 @@ assets/aura-drift/audio/sources.json pins every download by URL, size and SHA-25
 manifest.json records the source and archive member of every file.
 
 OpenGameArt
-  Cannon Fire, by Thimras
+  "Cannon Fire", by Thimras
     https://opengameart.org/content/cannon-fire            -> explosion.small
-  100 CC0 Wood and Metal SFX, by rubberduck
-    https://opengameart.org/content/100-cc0-woodmetal-sfx  -> impact.metal, crate.break, prop.cone
-  75 CC0 Breaking, Falling and Hit SFX, by rubberduck
+  "100 CC0 metal and wood SFX", by rubberduck
+    https://opengameart.org/content/100-cc0-metal-and-wood-sfx
+                                                           -> impact.metal, crate.break, prop.cone
+  "75 CC0 breaking / falling / hit sfx", by rubberduck
     https://opengameart.org/content/75-cc0-breaking-falling-hit-sfx
                                                            -> impact.light, impact.heavy, prop.barrel
-  30 CC0 SFX Loops, by rubberduck
+  "30 CC0 SFX Loops", by rubberduck
     https://opengameart.org/content/30-cc0-sfx-loops       -> amb.machinery
 
-BigSoundBank (https://bigsoundbank.com/), by Joseph Sardin, CC0 as stated on each sound page
-  Cow moos #5 (sound 2385)                   -> animal.cow
-  Sheep #4 (sound 2346)                      -> animal.sheep
-  Shouts and applauses of teens #2 (0237)    -> crowd.cheer
-  Screeching tires #4 (sound 2371)           -> tyre.squeal
-  Metal bucket (sound 0543)                  -> scrape.metal
-  Feet in leaves #1 (sound 0137)             -> prop.hay
-  Beach small waves (sound 0265)             -> amb.sea
-  Forest (sound 0100)                        -> amb.forest
-  Sun and heat #1 (sound 1779)               -> amb.desert
+BigSoundBank (https://bigsoundbank.com/), CC0 as stated on each sound page
+  "Cow moos #5", Joseph SARDIN
+    https://bigsoundbank.com/sound-2385-cow-moos-5.html    -> animal.cow
+  "Sheep #4", Joseph SARDIN
+    https://bigsoundbank.com/sheep-4-s2346.html            -> animal.sheep
+  "Shouts and Applauses of Teens #2", DenisChardonnet
+    https://bigsoundbank.com/shouts-and-applauses-of-teens-2-s0237.html -> crowd.cheer
+  "Screeching Tires #4", Dorian CLAIR
+    https://bigsoundbank.com/screeching-tires-4-s2371.html -> tyre.squeal
+  "Metal bucket", Joseph SARDIN
+    https://bigsoundbank.com/metal-bucket-s0543.html       -> scrape.metal
+  "Feet in Leaves #1", Joseph SARDIN
+    https://bigsoundbank.com/feet-in-leaves-s0137.html     -> prop.hay
+  "Beach: Small Waves", DenisChardonnet
+    https://bigsoundbank.com/beach-small-waves-s0265.html  -> amb.sea
+  "Forest", Joseph SARDIN
+    https://bigsoundbank.com/forest-s0100.html             -> amb.forest
+  "Sun and Heat #1", Joseph SARDIN
+    https://bigsoundbank.com/sun-and-heat-1-s1779.html     -> amb.desert
