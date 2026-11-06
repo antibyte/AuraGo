@@ -788,9 +788,9 @@
             if (v.frozen > 0) for (let c = N(24 * dt); c > 0; c--) glow(v.x + rr(-1.4, 1.4), v.z + rr(0.2, 1.4), v.y + rr(-1.4, 1.4), 0, rr(0.3, 1), 0, rr(0.5, 0.9), 0.5, 0.1, ICE0, WHITE, 0.95, 0, F.STAR);
             if (car.flame > 0) {
                 const nx = v.x + cp * (g[1] + 0.6), nz = v.y + sp * (g[1] + 0.6);
-                for (let c = N(260 * dens * dt); c > 0; c--) {
-                    const sd = rr(24, 36), bk = rr(0, dt);
-                    glow(nx - wvx * bk, v.z + 0.7, nz - wvz * bk, cp * sd + wvx * 0.5 + rr(-2, 2) * rx, rr(-0.3, 2), sp * sd + wvz * 0.5 + rr(-2, 2) * rz, rr(0.3, 0.55), rr(1.2, 1.8), rr(3.6, 5), c % 6 ? FIRE : HOT, EMBER, 0.6, 1.5, F.FLAME);
+                for (let c = N(340 * dens * dt); c > 0; c--) {   /* fan as wide as the 14 degree damage cone, rising: a jet from the chase seat, not an end-on blob */
+                    const sd = rr(24, 36), bk = rr(0, dt), lat = rr(-0.26, 0.26) * sd;
+                    glow(nx - wvx * bk, v.z + 0.7, nz - wvz * bk, cp * sd + wvx * 0.5 + lat * rx, rr(0.5, 6.5), sp * sd + wvz * 0.5 + lat * rz, rr(0.35, 0.6), rr(0.5, 0.9), rr(2.2, 3.2), c % 5 ? FIRE : HOT, EMBER, 0.55, 1.2, F.FLAME);
                 }
                 for (let c = N(30 * dens * dt); c > 0; c--) puff(nx + cp * rr(4, 12), v.z + 1.2, nz + sp * rr(4, 12), rr(-1, 1), rr(1, 3), rr(-1, 1), rr(0.9, 1.5), 1.2, 3.4, SOOT0, SOOT1, 0.5, 1, -0.4);
                 if (i === 0 || near(v.x, v.y, 80)) addLight(nx + cp * 5, v.z + 1, nz + sp * 5, FIRE, 40 + rnd() * 15, 1, 16, true);
@@ -879,7 +879,7 @@
                 const u = ufos[i], age = time - u.t0;
                 if (age > u.dur) { ufos.splice(i, 1); continue; }
                 const f = Math.min(1, age / 0.6) * Math.min(1, (u.dur - age) / 0.8);
-                beam(2, u.x, 24, u.z, u.x, 0, u.z, 1.6, 7.5, UFO0, 0.55 * f);
+                beam(2, u.x, 54, u.z, u.x, 0, u.z, 4, 26, UFO0, 1.0 * f);
                 if (rnd() < 0.7 && near(u.x, u.z, 700)) glow(u.x + rr(-4, 4), 0.3, u.z + rr(-4, 4), 0, rr(4, 9), 0, rr(1, 2), 0.7, 0.2, UFO1, WHITE, 0.8, 0.2);
             }
             for (let i = beamN; i < beams.length; i++) beams[i].mesh.visible = false;
