@@ -40,7 +40,7 @@ func auraDriftSurveyScenes() []auraDriftSurveyScene {
 	scenes = append(scenes,
 		auraDriftSurveyScene{"trick-air", `async()=>{await AuraDriftApp.debug.start({mode:'time_trial'});}`},
 		auraDriftSurveyScene{name: "menu"},
-		auraDriftSurveyScene{name: "results"},
+		auraDriftSurveyScene{name: "results", setup: `async()=>{AuraDriftApp.debug.results({});}`},
 		auraDriftSurveyScene{name: "hud", setup: `async()=>{await AuraDriftApp.debug.start({mode:'quick'});}`},
 	)
 	return scenes

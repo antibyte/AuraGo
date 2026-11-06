@@ -114,7 +114,7 @@
         let env = null, envKey = '', wetness = 0, time = 0, gen = 0;
         let actors = null, terrain = null, road = null, sky = null, props = null, fx = null, fallback = null;
         let post = null, realPost = null;
-        let shadowMode = '';
+        let shadowMode = '', discoCount = 0;
 
         AD.assets.acquire();
         AD.assets.loadCore().then(() => { if (!disposed) refreshShowcase(true); });
@@ -231,7 +231,7 @@
             stop(actors); stop(terrain); stop(road); stop(sky); stop(props); stop(fx); stop(fallback);
             for (const m of [terrain, road]) if (m && m.group) m.group.removeFromParent();
             actors = terrain = road = sky = props = fx = fallback = null;
-            wetness = 0;
+            wetness = 0; discoCount = 0;
         }
         function buildTrack() {
             disposeTrack();
@@ -504,7 +504,7 @@
                 actors.update(r, dt);
                 if (fallback) { fallback.dome.position.copy(camera.position); }
                 if (sky && sky.update) sky.update(dt, pose, r.conditions ? r.conditions.state : null);
-                if (props && props.update) props.update(pose);
+                if (props && props.update) props.update(pose, r);
                 if (fx && fx.update) fx.update(dt, pose);
                 const cond = r.conditions && r.conditions.state;
                 const wetTarget = clamp(look.wet * 0.5 + (cond && cond.kind === 'rain' ? cond.intensity : 0), 0, 1);
@@ -521,6 +521,11 @@
             event(evt) {
                 if (actors) actors.event(evt, race);
                 if (fx && fx.event) fx.event(evt, race);
+                if (evt.type === 'disco_on' || evt.type === 'disco_off') {
+                    discoCount = Math.max(0, discoCount + (evt.type === 'disco_on' ? 1 : -1));
+                    const skyApi = scene.userData.agdriftSky;
+                    if (skyApi && skyApi.setDisco) skyApi.setDisco(discoCount > 0);
+                }
                 if (realPost && evt.type && realPost.impulse && evt.car === 0) {
                     if (evt.type === 'boost_pad' || evt.type === 'turbo_burst') realPost.impulse('boost', 1);
                     else if (evt.type === 'landing' && evt.quality === 'crash') realPost.impulse('impact', 1);
