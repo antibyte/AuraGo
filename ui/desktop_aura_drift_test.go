@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -156,13 +157,120 @@ func TestAuraDriftLocaleKeysCoverAllLanguages(t *testing.T) {
 		"aura_drift.load_error_hint",
 		"aura_drift.style", "aura_drift.combo", "aura_drift.sector",
 		"aura_drift.best_combo", "aura_drift.conditions",
+		"aura_drift.daily_route", "aura_drift.rivals",
 	}
+	// Every id-based key the shell, HUD, banter and props build at run time.
+	ids := func(prefix, suffix string, list ...string) {
+		for _, id := range list {
+			required = append(required, "aura_drift."+prefix+id+suffix)
+		}
+	}
+	drivers := []string{"viktor", "rosi", "bruno", "heidi", "ilse", "gustav", "kurt", "dolores"}
+	cars := []string{"vektor", "kobalt", "lumen", "tundra", "softeis", "maehkoenig", "couch", "bertha"}
+	biomes := []string{"alpine", "desert", "harbour", "salt", "forest", "industry", "glacier", "metro"}
+	tracks := []string{"alpenpass", "wuesten-canyon", "neon-hafen", "salzsee", "wald-rallye", "industrie-ring", "gletscherpass", "metropolis"}
+	weapons := []string{
+		"oil", "gnome_mine", "emp", "rocket", "mg", "shield", "ducks", "railgun", "flamethrower",
+		"frost", "air_horn", "black_hole", "disco", "glove", "harpoon", "cow", "cloak", "overdrive",
+	}
+	modes := []string{"quick", "time_trial", "cup", "daily", "drift_attack", "elimination", "hot_potato"}
+	ids("mode.", ".desc", modes...)
+	ids("mode.", ".name", "drift_attack", "elimination", "hot_potato")
+	ids("car.", ".tag", cars...)
+	ids("car.", ".quirk", cars...)
+	ids("driver.", ".bio", drivers...)
+	ids("biome.", "", biomes...)
+	ids("track.", ".blurb", tracks...)
+	ids("weapon.", ".name", weapons...)
+	ids("weapon.", ".hint", weapons...)
+	ids("stat.", "", "power", "grip", "mass", "top", "air")
+	ids("trick.", "",
+		"air_time", "barrel_roll", "double_barrel", "front_flip", "back_flip", "flat_spin", "spin_720", "corkscrew",
+		"cow_vault", "perfect_start", "drift_blue", "drift_orange", "drift_pink", "slingshot", "reverse_hero", "j_turn")
+	ids("landing.", "", "perfect", "good", "wobble", "pancake")
+	ids("title.", "",
+		"pacifist", "brake_coward", "cow_bowler", "air_force", "pancake_chef", "wall_lover", "drift_king", "reverse_hero",
+		"sausage_baron", "disco_fever", "gardener", "ice_man", "sofa_king", "big_bertha", "last_but_loud", "solid_driver")
+	ids("medal.", "", "bronze", "silver", "gold", "none")
+	ids("hud.", "",
+		"final_lap", "lap_of", "eliminated", "next_out", "bomb", "have_bomb", "pass_it", "clock", "score", "perfect_start",
+		"wheelspin", "slingshot", "drift1", "drift2", "drift3", "near_miss", "boost", "strike", "cow_bowling", "respawn",
+		"shield", "frozen", "toast", "disco", "cloak", "overdrive", "wrong_way", "sweeper")
+	ids("settings.", "",
+		"camera", "camera_chase", "camera_high", "camera_drone", "camera_bumper", "car", "livery", "tab_mode", "tab_car",
+		"tab_track", "tab_settings", "tab_controls", "loading_assets", "fallback_note", "credits", "reset_bests")
+	ids("controls.", "",
+		"steer", "throttle", "brake_reverse", "handbrake", "drift_turbo", "nitro", "fire", "camera", "horn", "rescue",
+		"pause", "restart", "air_roll", "air_flip", "air_spin")
+	ids("weather.", "", "clear", "fog", "snow", "heat", "glare", "rain", "mist", "haze", "sparks")
+	ids("surface.", "", "asphalt", "salt", "wet", "gravel", "mud", "ice", "oil", "sand", "snow")
+	ids("sign.", "",
+		"cow_priority", "brake_is_cowardly", "sofa_lane", "gnomes_watching", "no_wheelies", "speed_limit_ish", "caution_ducks",
+		"free_hugs_ahead", "last_exit_pizza", "mind_the_gap", "drift_zone", "you_are_here", "turn_left_maybe", "wrong_way_fun",
+		"hold_my_nitro", "honk_for_cow")
+	ids("brand.", "", "wurstwerk", "muhmilch", "turbotoast", "sofaspeed", "gnombau", "nebelhorn", "entenbank", "plueschreifen")
+	ids("result.", "", "score", "tricks", "air_time", "animals", "smashed", "cup_total", "eliminated_at", "survived")
+	for _, driver := range drivers {
+		ids("banter."+driver+".", "", "pass", "passed", "hit", "got_you", "wreck", "win")
+	}
+	for n := 1; n <= 12; n++ {
+		required = append(required, "aura_drift.marshal."+strconv.Itoa(n))
+	}
+
+	placeholder := regexp.MustCompile(`\{\w+\}`)
+	english := readMergedLangMap(t, "en")
+	var driftKeys []string
+	for key := range english {
+		if strings.HasPrefix(key, "aura_drift.") {
+			driftKeys = append(driftKeys, key)
+		}
+	}
+	if len(driftKeys) < 330 {
+		t.Fatalf("en has %d aura_drift keys, want at least 330", len(driftKeys))
+	}
+	// The explicit list must be part of en, and every en key must stay in the list's family.
+	for _, key := range required {
+		if strings.TrimSpace(english[key]) == "" {
+			t.Fatalf("en missing required Aura Drift key %s", key)
+		}
+	}
+	driftKeys = append(driftKeys, "desktop.app_aura_drift")
+
 	for _, lang := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
 		values := readMergedLangMap(t, lang)
 		for _, key := range required {
 			if strings.TrimSpace(values[key]) == "" {
 				t.Fatalf("%s missing Aura Drift translation key %s", lang, key)
 			}
+		}
+		for _, key := range driftKeys {
+			value := values[key]
+			if strings.TrimSpace(value) == "" {
+				t.Fatalf("%s missing Aura Drift translation key %s", lang, key)
+			}
+			if strings.ContainsRune(value, rune(0xFFFD)) {
+				t.Fatalf("%s key %s contains U+FFFD", lang, key)
+			}
+			for _, token := range placeholder.FindAllString(english[key], -1) {
+				if !strings.Contains(value, token) {
+					t.Fatalf("%s key %s dropped placeholder %s", lang, key, token)
+				}
+			}
+		}
+		if lang == "en" {
+			continue
+		}
+		differ, total := 0, 0
+		for _, key := range driftKeys {
+			if strings.HasPrefix(key, "aura_drift.banter.") {
+				total++
+				if values[key] != english[key] {
+					differ++
+				}
+			}
+		}
+		if total == 0 || differ*100 < total*60 {
+			t.Fatalf("%s translates only %d of %d banter lines (need 60 percent)", lang, differ, total)
 		}
 	}
 }
