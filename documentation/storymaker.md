@@ -107,7 +107,7 @@ The issues list also shows motion hints. A hint never blocks an export.
 
 ## Sound
 
-The export mixes narration, music and sound effects in AuraGo itself and writes AAC 192k, about -16 LUFS at -1 dBTP at most. The music ducks under speech. An `sfx` beat plays a sound from the catalog (`sfx.whoosh`, `sfx.pop`, `sfx.click`, `sfx.ding`, `sfx.success`, `sfx.error`, `sfx.typing`) on its landing, and `style.auto_sfx` adds a pop to each show with entry `pop`.
+The export mixes narration, music and sound effects in AuraGo itself and writes AAC 192k, about -16 LUFS at -1 dBTP at most. A film with only sound effects ends quieter, near -22 LUFS, because its peaks limit the gain. The music ducks under speech. An `sfx` beat plays a sound from the catalog (`sfx.whoosh`, `sfx.pop`, `sfx.click`, `sfx.ding`, `sfx.success`, `sfx.error`, `sfx.typing`) on its landing, and `style.auto_sfx` adds a pop to each show with entry `pop`.
 
 An export is refused while narration audio or the music file is missing. The export panel says what is missing and opens the panel that fixes it. A scene marked as silent on the Scene tab exports without its narration and keeps the text, while a `say` with its own text still needs audio. A film without narration, music and sound effects exports with a silent track, and the panel says so before you start.
 
@@ -146,7 +146,7 @@ A finished export with stems offers **Open in Video Studio** when Video Studio i
 writable. The action creates a Video Studio project, copies the MP4 and each stem into it, and opens it. The film sits on a video
 track with its own sound detached, and each stem gets its own audio track. This also works after you left the project or closed the
 Storymaker window: open the project again and choose **Show the last export** in the export panel, which offers the newest finished
-export. Unsaved work in an open Video Studio project is saved first.
+export. If you ticked **Open in Video Studio** in the dialog and only left the project during the render, the handoff starts by itself when you open the project again in the same window. When a handoff fails, trying again fills the same Video Studio project. If that project holds clips by then, a new project is created, so your edits stay. Unsaved work in an open Video Studio project is saved first.
 
 ## Export speed
 

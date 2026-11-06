@@ -20,8 +20,9 @@ const maxRenderWorkers = 6
 var renderPreRoll = 0
 
 // ChooseWorkers is N, the number of player workers of a render. Worker encoding exists only for PNG,
-// so every other transport stays serial. Each code scene has its own worker, which N cannot bound, so
-// its memory comes off the budget of the player workers. freeMB 0 means unknown and sets no bound.
+// so every other transport stays serial. Each code scene has its own worker, which N cannot bound; with
+// CJK text that worker also loads the language faces, so its memory comes off the budget of the player
+// workers; without CJK nothing is reserved (accepted in phase 2). freeMB 0 means unknown and sets no bound.
 func ChooseWorkers(transport string, logicalCPUs int, freeMB int64, width, height, chunk int, cjk bool, codeScenes int) int {
 	if transport != TransportPNG {
 		return 1
