@@ -1,4 +1,196 @@
-/* Aura Drift - banter. */
+/* Aura Drift - driver banter and result titles. Pure presentation: it only reads
+ * the race and the event stream, owns its own rng and never touches the sim.
+ *
+ * Line keys (see plan section 2.11):
+ *   aura_drift.banter.<driver>.<kind>   kinds: pass passed hit got_you wreck win
+ *     pass     the driver just overtook the player
+ *     passed   the player just overtook the driver
+ *     hit      the driver was hit by the player
+ *     got_you  the driver hit the player
+ *     wreck    the driver mocks a player crash (landing or heavy wall hit)
+ *     win      an AI driver won the race
+ *   aura_drift.marshal.1..6   after the player was put back on the road
+ *   aura_drift.marshal.7..12  when animals are about to cross
+ * The speaker id of marshal lines is 'marshal'.
+ */
 (function () {
     'use strict';
+    const AD = window.AuraDriftCore;
+
+    const GAP = 7;            /* seconds between two lines */
+    const PER_TYPE = 20;      /* seconds between two lines of the same trigger type */
+    const PER_KEY = 60;       /* seconds before the very same line may repeat */
+    const DELAY = 0.35;       /* a beat between the event and the remark */
+    const MARSHAL_RESPAWN = [1, 6];
+    const MARSHAL_CROSS = [7, 12];
+
+    AD.BANTER_KINDS = ['pass', 'passed', 'hit', 'got_you', 'wreck', 'win'];
+
+    AD.createBanter = function (opts) {
+        opts = opts || {};
+        const t = typeof opts.t === 'function' ? opts.t : (k => k);
+        const rng = AD.rng(((opts.seed >>> 0) ^ 0x51ed) >>> 0);
+        let clock = 0;
+        let lastSpoken = -Infinity;
+        let lastDriver = null;
+        const lastType = Object.create(null);
+        const lastKey = Object.create(null);
+        let pending = null;
+        let disposed = false;
+
+        function allowed(type, driverId) {
+            if (disposed || pending) return false;
+            if (clock - lastSpoken < GAP) return false;
+            if (driverId === lastDriver) return false;
+            if (type in lastType && clock - lastType[type] < PER_TYPE) return false;
+            return true;
+        }
+
+        function say(type, driverId, key) {
+            if (key in lastKey && clock - lastKey[key] < PER_KEY) return;
+            if (!allowed(type, driverId)) return;
+            const text = t(key);
+            if (!text || text === key) return;
+            pending = { driverId: driverId, text: AD.fmt(text, {}), wait: DELAY };
+            lastSpoken = clock;
+            lastDriver = driverId;
+            lastType[type] = clock;
+            lastKey[key] = clock;
+        }
+
+        function driverKey(driver, kind) { return 'aura_drift.banter.' + driver.id + '.' + kind; }
+
+        function aiDriver(race, index) {
+            const c = race && race.cars ? race.cars[index] : null;
+            return c && !c.isPlayer && c.driver ? c.driver : null;
+        }
+
+        function randomRival(race) {
+            const list = (race && race.cars ? race.cars : []).filter(c => !c.isPlayer && c.driver);
+            return list.length ? list[Math.floor(rng() * list.length)].driver : null;
+        }
+
+        function nearestRival(race) {
+            const me = race && race.cars ? race.cars[0] : null;
+            let best = null, bestD = Infinity;
+            if (!me || !me.v) return randomRival(race);
+            for (const c of race.cars) {
+                if (c.isPlayer || !c.driver || !c.v) continue;
+                const d = AD.distance(me.v.x, me.v.y, c.v.x, c.v.y);
+                if (d < bestD) { bestD = d; best = c.driver; }
+            }
+            return best;
+        }
+
+        /* Least recently used marshal line in the range (random among equals). */
+        function marshalKey(range) {
+            let best = [], bestAge = -Infinity;
+            for (let n = range[0]; n <= range[1]; n++) {
+                const key = 'aura_drift.marshal.' + n;
+                const age = key in lastKey ? clock - lastKey[key] : Infinity;
+                if (age > bestAge) { bestAge = age; best = [key]; } else if (age === bestAge) best.push(key);
+            }
+            return best[Math.floor(rng() * best.length)];
+        }
+
+        function onEvent(evt, race) {
+            if (disposed || !evt) return;
+            switch (evt.type) {
+            case 'position': {
+                if (evt.car !== 0) break;
+                const standings = race && race.standings ? race.standings : null;
+                if (evt.to < evt.from) {
+                    const other = standings && standings[evt.to] && !standings[evt.to].isPlayer ? standings[evt.to].driver : randomRival(race);
+                    if (other) say('position', other.id, driverKey(other, 'passed'));
+                } else if (evt.to > evt.from) {
+                    const other = standings && standings[evt.to - 2] && !standings[evt.to - 2].isPlayer ? standings[evt.to - 2].driver : randomRival(race);
+                    if (other) say('position', other.id, driverKey(other, 'pass'));
+                }
+                break;
+            }
+            case 'hit': {
+                if (evt.car === 0) {
+                    const by = aiDriver(race, evt.by);
+                    if (by) say('hit', by.id, driverKey(by, 'got_you'));
+                } else if (evt.by === 0) {
+                    const victim = aiDriver(race, evt.car);
+                    if (victim) say('hit', victim.id, driverKey(victim, 'hit'));
+                }
+                break;
+            }
+            case 'landing':
+                if (evt.car === 0 && evt.quality === 'crash') {
+                    const d = nearestRival(race);
+                    if (d) say('wreck', d.id, driverKey(d, 'wreck'));
+                }
+                break;
+            case 'wall_hit':
+                if (evt.car === 0 && evt.heavy) {
+                    const d = nearestRival(race);
+                    if (d) say('wreck', d.id, driverKey(d, 'wreck'));
+                }
+                break;
+            case 'finish': {
+                if (race && race.cars && race.cars.some(c => c.finished && c.index !== evt.car && c.finishTime <= evt.time)) break;
+                const d = aiDriver(race, evt.car);
+                if (d) say('finish', d.id, driverKey(d, 'win'));
+                break;
+            }
+            case 'respawn':
+                if (evt.car === 0) say('respawn', 'marshal', marshalKey(MARSHAL_RESPAWN));
+                break;
+            case 'animal_cross':
+                say('animal_cross', 'marshal', marshalKey(MARSHAL_CROSS));
+                break;
+            default:
+                break;
+            }
+        }
+
+        function update(dt) {
+            if (disposed) return null;
+            clock += Math.max(0, dt || 0);
+            if (!pending) return null;
+            pending.wait -= dt;
+            if (pending.wait > 0) return null;
+            const out = { driverId: pending.driverId, text: pending.text };
+            pending = null;
+            return out;
+        }
+
+        function dispose() { disposed = true; pending = null; }
+
+        return { onEvent: onEvent, update: update, dispose: dispose };
+    };
+
+    /* First match wins (plan T5.3). `car` is the player's car actor (optional),
+       `race` the race (optional, only to know whether weapons were on). */
+    AD.pickResultTitle = function (result, car, race) {
+        const r = result || {};
+        const tally = r.tally || {};
+        const time = Number(r.time) || 0;
+        const longEnough = time >= 20;        /* tiny runs get no statistical titles */
+        const carId = r.carId || (car && car.v && car.v.car ? car.v.car.id : '');
+        const weaponsOn = race ? race.weapons !== false : r.weapons !== false;
+        const position = r.position || 0;
+        const field = r.field || 0;
+        const n = k => Number(tally[k]) || 0;
+
+        if (weaponsOn && n('weaponsFired') === 0 && position === 1 && field > 1 && longEnough) return 'pacifist';
+        if (longEnough && n('brakeSeconds') < 0.02 * time) return 'brake_coward';
+        if (n('animalHits') >= 5) return 'cow_bowler';
+        if (n('airTime') >= 20) return 'air_force';
+        if (n('crashLandings') >= 3) return 'pancake_chef';
+        if (n('wallHits') >= 25) return 'wall_lover';
+        if (longEnough && n('driftSeconds') >= 0.35 * time) return 'drift_king';
+        if (n('reverseSeconds') >= 20) return 'reverse_hero';
+        if (n('sausageHits') >= 12) return 'sausage_baron';
+        if (n('discoFired') >= 2) return 'disco_fever';
+        if (carId === 'maehkoenig' && n('smashed') >= 15) return 'gardener';
+        if (carId === 'softeis' && position >= 1 && position <= 3) return 'ice_man';
+        if (carId === 'couch' && position >= 1 && position <= 2) return 'sofa_king';
+        if (carId === 'bertha' && n('carHits') >= 15) return 'big_bertha';
+        if (field > 1 && position === field && n('hitsDealt') >= 3) return 'last_but_loud';
+        return 'solid_driver';
+    };
 })();
