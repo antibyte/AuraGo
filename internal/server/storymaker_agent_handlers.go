@@ -126,13 +126,23 @@ func storymakerAgentBusy(jobID string) *storymakerAgentRefusal {
 // refuseStorymakerWhileAgentRuns answers 409 agent_job_active while an agent job of the project is
 // queued or running, and reports whether it answered.
 func refuseStorymakerWhileAgentRuns(w http.ResponseWriter, rt *storymakerRuntime, projectID string) bool {
-	for _, job := range rt.agent.List(projectID) {
-		if !job.Terminal() {
-			writeStorymakerErrorWith(w, http.StatusConflict, "agent_job_active", "The agent is working on this story. Wait until it has finished or cancel it.", map[string]any{"job_id": job.ID})
-			return true
-		}
+	if job, running := storymakerRunningAgentJob(rt, projectID); running {
+		writeStorymakerErrorWith(w, http.StatusConflict, "agent_job_active", storymakerAgentActiveMessage, map[string]any{"job_id": job.ID})
+		return true
 	}
 	return false
+}
+
+const storymakerAgentActiveMessage = "The agent is working on this story. Wait until it has finished or cancel it."
+
+// storymakerRunningAgentJob returns the unfinished agent job of the project, if there is one.
+func storymakerRunningAgentJob(rt *storymakerRuntime, projectID string) (render.Job, bool) {
+	for _, job := range rt.agent.List(projectID) {
+		if !job.Terminal() {
+			return job, true
+		}
+	}
+	return render.Job{}, false
 }
 
 // storymakerStartSeconds applies the default and clamps instead of refusing, so a chat call does not fail.
@@ -163,6 +173,9 @@ func (s *Server) storymakerStartAgentJob(ctx context.Context, acc *storymakerAcc
 	if _, err := acc.rt.projects.Get(ctx, p.ProjectID); err != nil {
 		return render.Job{}, err
 	}
+	// The check and the enqueue are one step against an export or a narration (rule R4).
+	acc.rt.gate.Lock()
+	defer acc.rt.gate.Unlock()
 	if active, busy := storymakerProjectActiveJob(acc.rt, p.ProjectID); busy {
 		return render.Job{}, storymakerAgentBusy(active.ID)
 	}

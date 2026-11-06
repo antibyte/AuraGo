@@ -130,12 +130,18 @@ func handleStorymakerNarrate(s *Server, w http.ResponseWriter, r *http.Request, 
 		writeStorymakerRefusal(w, refusal)
 		return
 	}
+	acc.rt.gate.Lock()
+	if refuseStorymakerWhileAgentRuns(w, acc.rt, id) {
+		acc.rt.gate.Unlock()
+		return
+	}
 	job, replayed, err := acc.rt.narrate.Enqueue(render.EnqueueRequest{
 		ProjectID: id,
 		Kind:      render.KindNarrate,
 		Coalesce:  true,
 		Payload:   storymakerNarratePayload{ProjectID: id},
 	})
+	acc.rt.gate.Unlock()
 	switch {
 	case errors.Is(err, render.ErrBusy):
 		writeStorymakerError(w, http.StatusTooManyRequests, render.CodeBusy, "128 narration jobs are already waiting. Try again when one has finished.", nil)

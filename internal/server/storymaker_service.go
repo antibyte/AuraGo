@@ -50,6 +50,11 @@ type storymakerRuntime struct {
 	agentLog   *agentEventLog        // the agent events of the stream
 	agentUsage *storymakerAgentUsage // daily agent jobs of the app and the chat tool
 
+	// gate makes a job check and its enqueue, and make-silent's read and save, one step. It is held
+	// only for short store and queue steps, never during Prepare, a provider call or a wait. It is
+	// not reentrant, so no gated section may call another gated function.
+	gate sync.Mutex
+
 	musicMu      sync.Mutex
 	musicResults map[string]string // project id + music key -> result path, for a paid result whose pending file was not written
 }

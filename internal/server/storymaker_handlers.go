@@ -688,6 +688,11 @@ func (s *Server) storymakerEnqueueRender(ctx context.Context, acc *storymakerAcc
 		}
 		return render.Job{}, false, storymakerStoreRefusal(err, "project_not_found")
 	}
+	acc.rt.gate.Lock()
+	defer acc.rt.gate.Unlock()
+	if active, running := storymakerRunningAgentJob(acc.rt, id); running {
+		return render.Job{}, false, &storymakerRefusal{Status: http.StatusConflict, Code: "agent_job_active", Message: storymakerAgentActiveMessage, Extra: map[string]any{"job_id": active.ID}}
+	}
 	job, replayed, err := acc.rt.jobs.Enqueue(render.EnqueueRequest{ProjectID: id, Key: key, Fingerprint: id + "\x00" + ifMatch + "\x00" + opts.Fingerprint(), Payload: plan})
 	switch {
 	case errors.Is(err, render.ErrBusy):
