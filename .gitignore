@@ -195,6 +195,7 @@ terminals/
 
 # AuraGolf generator scratch output (P2)
 /assets/minigolf/build/
+/assets/aura-drift/build/
 
 # AI-generated intro videos (AuraGo) — large binaries, local use only.
 # These never go to GitHub: the public intro is published via GitHub Releases.

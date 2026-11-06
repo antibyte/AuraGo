@@ -5,6 +5,8 @@
   "scripts": {
     "test:ziro": "node scripts/test-ziro.mjs && node scripts/test-ziro-bridge.mjs && node scripts/test-ziro-server.mjs",
     "test:ziro-browser": "node scripts/test-ziro-browser.mjs",
+    "build:aura-drift": "node scripts/build-aura-drift-vendor.mjs",
+    "test:aura-drift": "node scripts/test-aura-drift-physics.mjs && node scripts/test-aura-drift-tracks.mjs && node scripts/test-aura-drift-balance.mjs",
     "build:minigolf": "node scripts/build-minigolf-audio.mjs --check && node scripts/build-minigolf.mjs",
     "test:minigolf": "node scripts/test-minigolf-model.mjs && node scripts/test-minigolf-look.mjs && node scripts/test-minigolf-ui.mjs && node scripts/test-minigolf-physics.mjs && node scripts/test-minigolf-collision.mjs && node scripts/test-minigolf-assets.mjs && node scripts/test-minigolf-courses.mjs && node scripts/test-minigolf-audio.mjs",
     "test:synth-studio": "node scripts/test-synth-studio-audio.mjs",

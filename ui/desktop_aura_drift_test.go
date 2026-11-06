@@ -10,23 +10,60 @@ import (
 	"aurago/internal/desktop"
 )
 
+var auraDriftModules = []string{
+	"aura-drift-core.js",
+	"aura-drift-physics.js",
+	"aura-drift-track.js",
+	"aura-drift-style.js",
+	"aura-drift-conditions.js",
+	"aura-drift-tricks.js",
+	"aura-drift-features.js",
+	"aura-drift-weapons.js",
+	"aura-drift-projectiles.js",
+	"aura-drift-modes.js",
+	"aura-drift-ai.js",
+	"aura-drift-race.js",
+	"aura-drift-banter.js",
+	"aura-drift-camera.js",
+	"aura-drift-look.js",
+	"aura-drift-assets.js",
+	"aura-drift-cars.js",
+	"aura-drift-scenery.js",
+	"aura-drift-render.js",
+	"aura-drift-terrain.js",
+	"aura-drift-road.js",
+	"aura-drift-sky.js",
+	"aura-drift-props.js",
+	"aura-drift-actors.js",
+	"aura-drift-fx.js",
+	"aura-drift-post.js",
+	"aura-drift-render3d.js",
+	"aura-drift-hud.js",
+	"aura-drift-hud-fx.js",
+	"aura-drift-audio-bank.js",
+	"aura-drift-engine.js",
+	"aura-drift-audio.js",
+	"aura-drift-music.js",
+	"aura-drift-ui.js",
+	"aura-drift-ui-cards.js",
+	"aura-drift.js",
+}
+
 // Aura Drift is a first-party offline racing app. These checks keep its shell
 // registration, module order, assets and sixteen locale bundles aligned.
 func TestAuraDriftAppRegistration(t *testing.T) {
 	t.Parallel()
 
 	loader := readDesktopAssetText(t, "js/desktop/core/module-loader.js")
-	modules := []string{
-		"aura-drift-core.js", "aura-drift-physics.js", "aura-drift-track.js",
-		"aura-drift-style.js", "aura-drift-conditions.js", "aura-drift-race.js",
-		"aura-drift-cars.js", "aura-drift-scenery.js",
-		"aura-drift-render.js", "aura-drift-post.js",
-		"aura-drift-hud.js", "aura-drift-audio.js", "aura-drift-music.js",
-		"aura-drift-ui.js", "aura-drift.js",
-	}
+	modules := auraDriftModules
 	previous := strings.Index(loader, "'aura-drift': {")
 	if previous < 0 {
 		t.Fatal("module loader has no aura-drift entry")
+	}
+	runtimeIndex := strings.Index(loader[previous:], "'/js/vendor/aura-drift/three-runtime.js'")
+	coreIndex := strings.Index(loader[previous:], "'/js/desktop/apps/aura-drift-core.js'")
+	if runtimeIndex < 0 || coreIndex < 0 || runtimeIndex > coreIndex {
+		t.Fatal("the three.js runtime must load before aura-drift-core.js")
 	}
 	for _, name := range modules {
 		index := strings.Index(loader, "/js/desktop/apps/"+name)
@@ -133,16 +170,16 @@ func TestAuraDriftLocaleKeysCoverAllLanguages(t *testing.T) {
 func TestAuraDriftShipsNoExternalResources(t *testing.T) {
 	t.Parallel()
 
-	for _, name := range []string{
-		"aura-drift-core.js", "aura-drift-physics.js", "aura-drift-track.js",
-		"aura-drift-style.js", "aura-drift-conditions.js", "aura-drift-race.js",
-		"aura-drift-cars.js", "aura-drift-scenery.js",
-		"aura-drift-render.js", "aura-drift-post.js",
-		"aura-drift-hud.js", "aura-drift-audio.js", "aura-drift-music.js",
-		"aura-drift-ui.js", "aura-drift.js",
-	} {
+	for _, name := range auraDriftModules {
 		source := readDesktopAssetText(t, filepath.Join("js", "desktop", "apps", name))
 		for _, forbidden := range []string{"https://", "http://", "fetch(", "XMLHttpRequest", "import("} {
+			if forbidden == "fetch(" && name == "aura-drift-assets.js" {
+				// The asset loader may fetch only versioned same-origin URLs.
+				if strings.Count(source, "fetch(") != strings.Count(source, "fetch(AD.assetURL(") {
+					t.Fatalf("%s calls fetch( without AD.assetURL(", name)
+				}
+				continue
+			}
 			if strings.Contains(source, forbidden) {
 				t.Fatalf("%s contains %q; the racer must stay fully offline", name, forbidden)
 			}
