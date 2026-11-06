@@ -12,9 +12,6 @@
             nameKey: 'aura_drift.weapon.' + id + '.name', hintKey: 'aura_drift.weapon.' + id + '.hint',
             weights: { front: front, mid: mid, back: back }, item: item
         };
-        /* Compatibility shim until T5.1 translates the HUD: the 2D HUD and shell
-           still read `def.name`. Not enumerable, so tables and hashes ignore it. */
-        Object.defineProperty(def, 'name', { value: id, enumerable: false });
         return def;
     }
     const list = [
