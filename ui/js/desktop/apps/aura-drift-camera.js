@@ -26,6 +26,13 @@
         bumper: { dist: -1.0, height: 1.05, ahead: 30, targetY: 0.9, fov: 72, velBlend: 0, follow: 30, zoom2d: 1.2 }
     };
 
+    /* Body height and length in metres, mirrored from the 3D manifest (a contract test compares them). Tall cars (Big Bertha,
+       Softeis) would fill the middle of the screen and hide the road, so the seat rises and backs off with the height. */
+    AD.CAR_VIEW = {
+        vektor: { h: 1.149, l: 4.605 }, kobalt: { h: 1.3, l: 4.82 }, lumen: { h: 1.35, l: 4.835 }, tundra: { h: 1.62, l: 3.9 },
+        softeis: { h: 2.4, l: 5.1 }, maehkoenig: { h: 1.5, l: 2.7 }, couch: { h: 1.62, l: 3.0 }, bertha: { h: 3.1, l: 5.3 }
+    };
+
     function worldVelocity(v) {
         if (v.airborne) return [v.wx || 0, v.wy || 0];
         const c = Math.cos(v.psi), s = Math.sin(v.psi);
@@ -75,10 +82,13 @@
         const w = worldVelocity(v);
         const speed = Math.hypot(w[0], w[1]);
         const fx = Math.cos(h), fy = Math.sin(h);
-        const d = params.dist + 0.025 * speed;
+        /* bump: how far the body rises above a normal car (0..2 m). Not for the bumper view, which sits inside the car. */
+        const view = AD.CAR_VIEW[v.car && v.car.id];
+        const bump = params.dist > 0 && view ? clamp(view.h - 1.4, 0, 2) : 0;
+        const d = params.dist + 0.025 * speed + 1.3 * bump;
         const lift = (state.lift || 0) * 1.4;
-        let eye = [v.x - fx * d, v.z * 0.6 + params.height + lift, v.y - fy * d];
-        const target = [v.x + fx * params.ahead, v.z * 0.85 + params.targetY, v.y + fy * params.ahead];
+        let eye = [v.x - fx * d, v.z * 0.6 + params.height + 1.5 * bump + lift, v.y - fy * d];
+        const target = [v.x + fx * (params.ahead + 2 * bump), v.z * 0.85 + params.targetY, v.y + fy * (params.ahead + 2 * bump)];
         let fov = params.fov;
         let roll = 0;
         if (!params.reduced) {

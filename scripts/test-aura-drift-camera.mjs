@@ -2,6 +2,7 @@
  * of the screen on every track, in every chase mode and in the 2D fallback.
  * Run: node scripts/test-aura-drift-camera.mjs
  */
+import { readFileSync } from 'node:fs';
 import { loadSim } from './aura-drift-sim-loader.mjs';
 
 const AD = loadSim(['camera']);
@@ -109,6 +110,30 @@ for (const entry of manifests) {
     const forward = AD.project2D({ x: 0, y: 0, scale: 5, heading: Math.PI / 2 }, 0, 10, W, H);
     check('heading pi/2: world +x (car left) maps to smaller sx', left[0] < origin[0] - 1, left[0] + ' vs ' + origin[0]);
     check('heading pi/2: world +y (nose) maps to screen up', forward[1] < origin[1] - 1, forward[1] + ' vs ' + origin[1]);
+}
+
+/* --- every car: the body sits low in the frame and the road ahead stays visible ---------------------------------------------- */
+{
+    const manifest = JSON.parse(readFileSync(new URL('../ui/3d/aura-drift/v1/manifest.json', import.meta.url), 'utf8'));
+    for (const car of AD.CARS) {
+        const dims = manifest.cars[car.id];
+        const view = AD.CAR_VIEW[car.id];
+        check(car.id + ' camera dimensions match the 3D manifest', !!dims && !!view && Math.abs(view.h - dims.height) < 0.01 && Math.abs(view.l - dims.length) < 0.01,
+            JSON.stringify(view) + ' vs ' + JSON.stringify(dims && { h: dims.height, l: dims.length }));
+        const track = AD.buildTrack(manifests[0].manifest);
+        const race = AD.createRace({ track, mode: 'time_trial', opponents: 0, weapons: false, playerCar: car.id });
+        race.state = 'running'; race.countdown = 0;
+        stepFor(race, 240, { throttle: 1 });
+        const v = race.cars[0].v;
+        const camera = AD.createChaseCamera({ mode: 'chase' });
+        const pose = settledPose(camera, race, false);
+        const top = project(pose, [v.x, v.z + dims.height, v.y]), base = project(pose, [v.x, v.z, v.y]);
+        const road = project(pose, [v.x + Math.cos(v.psi) * 40, 0, v.y + Math.sin(v.psi) * 40]);
+        const nose = project(pose, ahead(v, dims.length / 2));
+        check(car.id + ' body stays in the lower half and clear of the road ahead', top.y < 0.12 && base.y > -0.95 && road.y > top.y + 0.04 && nose.y > base.y,
+            'top=' + top.y.toFixed(2) + ' base=' + base.y.toFixed(2) + ' road40=' + road.y.toFixed(2));
+        check(car.id + ' does not fill the frame (body height under 55% of the screen)', (top.y - base.y) / 2 < 0.55, 'h=' + ((top.y - base.y) / 2).toFixed(2));
+    }
 }
 
 /* --- reverse keeps the key direction ------------------------------------------ */

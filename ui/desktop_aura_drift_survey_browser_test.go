@@ -22,9 +22,10 @@ func auraDriftSurveyScenes() []auraDriftSurveyScene {
 	scenes := []auraDriftSurveyScene{}
 	// custom: the JS in the file named by AURAGO_AURA_DRIFT_CUSTOM (an async function expression). It may set
 	// window.__steps = [async()=>..., ...]; each step runs and is screenshot as custom-<n>.png.
+	// __ARG__ in the file is replaced by AURAGO_AURA_DRIFT_ARG.
 	if file := os.Getenv("AURAGO_AURA_DRIFT_CUSTOM"); file != "" {
 		if data, err := os.ReadFile(file); err == nil {
-			scenes = append(scenes, auraDriftSurveyScene{"custom", strings.TrimSpace(string(data))})
+			scenes = append(scenes, auraDriftSurveyScene{"custom", strings.ReplaceAll(strings.TrimSpace(string(data)), "__ARG__", os.Getenv("AURAGO_AURA_DRIFT_ARG"))})
 		}
 	}
 	biomes := []string{"alpine", "desert", "harbour", "salt", "forest", "industry", "glacier", "metro"}
