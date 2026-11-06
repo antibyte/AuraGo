@@ -171,6 +171,12 @@ func (r *Runner) Prepare(ctx context.Context, projectID, ifMatch string, st Sett
 }
 
 func (r *Runner) prepareStory(ctx context.Context, projectID, ifMatch string, st Settings, opts RenderOptions) (*Plan, error) {
+	return r.prepareCore(ctx, projectID, ifMatch, st, opts, checkAudioGates)
+}
+
+// prepareCore builds the plan. gate judges the stored audio after validation and before the code bundles, so the order
+// of the refusals stays the same. A nil gate skips it: the compile check estimates what has no audio.
+func (r *Runner) prepareCore(ctx context.Context, projectID, ifMatch string, st Settings, opts RenderOptions, gate func(answer storymaker.AudioAnswer, musicKey string) error) (*Plan, error) {
 	data, etag, err := r.deps.Projects.LoadStory(ctx, projectID)
 	if err != nil {
 		return nil, err
@@ -225,8 +231,10 @@ func (r *Runner) prepareStory(ctx context.Context, projectID, ifMatch string, st
 	if err != nil {
 		return nil, err
 	}
-	if err := checkAudioGates(answer, musicKey); err != nil {
-		return nil, err
+	if gate != nil {
+		if err := gate(answer, musicKey); err != nil {
+			return nil, err
+		}
 	}
 	bundles := map[string][]byte{}
 	for _, sc := range story.Scenes {
