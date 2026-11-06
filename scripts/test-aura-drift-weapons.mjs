@@ -87,8 +87,10 @@ const fire = { 0: { fire: 1 } };
 console.log('Aura Drift weapons');
 check('calm stretch found for scenes', Number.isFinite(S0));
 check('AD.LEGACY_WEAPON_POOL is gone', AD.LEGACY_WEAPON_POOL === undefined);
-check('18 weapons, each with a name shim equal to its id', AD.WEAPON_IDS.length === 18 &&
-    AD.WEAPON_IDS.every(id => AD.WEAPONS[id].name === id && !Object.keys(AD.WEAPONS[id]).includes('name')));
+/* The HUD reads locale keys (T5.1 dropped the old plain-name shim), so every weapon carries nameKey and hintKey. */
+check('18 weapons, each with locale name and hint keys derived from its id', AD.WEAPON_IDS.length === 18 &&
+    AD.WEAPON_IDS.every(id => AD.WEAPONS[id].id === id && AD.WEAPONS[id].nameKey === 'aura_drift.weapon.' + id + '.name' &&
+        AD.WEAPONS[id].hintKey === 'aura_drift.weapon.' + id + '.hint' && !Object.keys(AD.WEAPONS[id]).includes('name')));
 
 /* ---- rollWeapon ---- */
 {
