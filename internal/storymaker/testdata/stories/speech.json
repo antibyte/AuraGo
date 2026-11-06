@@ -53,6 +53,16 @@
      "who": "anna",
      "text": "こんにちは、世界。",
      "style": "speech"
+    },
+    {
+     "do": "show",
+     "text": "滑入的文字",
+     "style": "caption",
+     "at": {
+      "x": 50,
+      "y": 30
+     },
+     "entry": "slide"
     }
    ]
   },

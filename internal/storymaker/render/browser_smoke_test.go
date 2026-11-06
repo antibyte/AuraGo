@@ -24,6 +24,7 @@ import (
 
 	"aurago/internal/storymaker"
 	"aurago/internal/storymaker/storymakertest"
+	"aurago/internal/videostudio"
 
 	"github.com/go-rod/rod/lib/launcher"
 	gnet "github.com/shirou/gopsutil/v4/net"
@@ -574,6 +575,248 @@ func TestPinnedChromiumDownloadsVerifiesAndLaunches(t *testing.T) {
 	fx.rebuild(t)
 	if job := fx.render(t); job.Status != StatusSucceeded {
 		t.Fatalf("export with the pinned Chromium: %+v error %+v", job, job.Error)
+	}
+}
+
+// pageEndSpy keeps the last __smStatus of the render page. execute closes the page when the job ends, so
+// the wrapper reads the status first.
+type pageEndSpy struct {
+	mu   sync.Mutex
+	last string
+}
+
+type pageEndPage struct {
+	browserPage
+	spy *pageEndSpy
+}
+
+func (p *pageEndPage) Close() {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	status := p.browserPage.Status(ctx)
+	cancel()
+	p.spy.mu.Lock()
+	p.spy.last = status
+	p.spy.mu.Unlock()
+	p.browserPage.Close()
+}
+
+// end decodes what the parallel path leaves in __smStatus. A serial render reports no workers.
+func (s *pageEndSpy) end(t *testing.T) (workers, restarts int) {
+	t.Helper()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var doc struct {
+		Workers  int `json:"workers"`
+		Restarts int `json:"restarts"`
+	}
+	if err := json.Unmarshal([]byte(s.last), &doc); err != nil {
+		t.Fatalf("page status %q: %v", s.last, err)
+	}
+	return doc.Workers, doc.Restarts
+}
+
+// newParallelFixture is a real-browser fixture on a stated CPU count, with no memory bound.
+func newParallelFixture(t *testing.T, chrome string, cpus int, observer func(int, string, []byte)) (*runFixture, *pageEndSpy) {
+	t.Helper()
+	fx := newRealFixture(t, chrome)
+	fx.settings.LogicalCPUs = cpus
+	fx.settings.TimeoutSeconds = 600
+	fx.deps.FrameObserver = observer
+	spy := &pageEndSpy{}
+	fx.deps.OpenPage = func(ctx context.Context, o sessionOptions) (browserPage, error) {
+		p, err := openSession(ctx, o)
+		if err != nil {
+			return nil, err
+		}
+		return &pageEndPage{browserPage: p, spy: spy}, nil
+	}
+	fx.rebuild(t)
+	return fx, spy
+}
+
+// loadParallelStory saves a story fixture, gives each code scene the s3 source and seeds the narration, so
+// the narration_incomplete gate passes. SeedNarration writes missing pieces only.
+func (fx *runFixture) loadParallelStory(t *testing.T, name string) storymaker.Story {
+	t.Helper()
+	ctx := context.Background()
+	lf := func(b []byte) []byte { return bytes.ReplaceAll(b, []byte("\r\n"), []byte("\n")) }
+	data, err := os.ReadFile("../testdata/stories/" + name + ".json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fx.projects.SaveStory(ctx, fx.projectID, lf(data), ""); err != nil {
+		t.Fatal(err)
+	}
+	story, _, err := storymaker.DecodeStory(lf(data), fx.settings.Limits)
+	if err != nil {
+		t.Fatal(err)
+	}
+	storymaker.ApplyDefaults(&story)
+	src, err := os.ReadFile("../testdata/scenes/s3.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, sc := range story.Scenes {
+		if sc.Kind != "code" {
+			continue
+		}
+		if _, res, err := fx.projects.SaveCodeScene(ctx, fx.projectID, sc.ID, lf(src), ""); err != nil || len(res.Errors) != 0 {
+			t.Fatalf("SaveCodeScene %s: %v %+v", sc.ID, err, res)
+		}
+	}
+	if err := storymakertest.SeedNarration(ctx, fx.projects, fx.projectID, &story, 1.5); err != nil {
+		t.Fatal(err)
+	}
+	return story
+}
+
+// requireSpeechCoverage keeps the parity test honest: the speech fixture must hold a bubble and a sliding
+// text in the CJK face, the case where a wrap could depend on the frames a worker drew before.
+func requireSpeechCoverage(t *testing.T, fx *runFixture, story *storymaker.Story) {
+	t.Helper()
+	glyphs := fx.deps.Catalog.Glyphs()
+	if glyphs == nil {
+		t.Fatal("the real catalog names no glyphs file")
+	}
+	bubble, sliding := false, false
+	for _, sc := range story.Scenes {
+		for _, b := range sc.Beats {
+			if b.Do == "say" && b.Text != "" {
+				bubble = true
+			}
+			if b.Do != "show" || b.Entry != "slide" {
+				continue
+			}
+			for _, r := range b.Text {
+				if i := glyphs.FaceOf(r); i >= 0 && glyphs.Faces[i].ID == "sm-cjk" {
+					sliding = true
+				}
+			}
+		}
+	}
+	if !bubble {
+		t.Fatal("speech.json has no say with text, so the parity test would not cover a bubble")
+	}
+	if !sliding {
+		t.Fatal("speech.json has no sliding text in the CJK face, so the parity test would not cover the layout memo at moving widths")
+	}
+}
+
+type parallelRun struct {
+	hashes            *frameHashes
+	workers, restarts int
+}
+
+func renderParallelStory(t *testing.T, chrome, name string, cpus int) parallelRun {
+	t.Helper()
+	hashes := newFrameHashes()
+	fx, spy := newParallelFixture(t, chrome, cpus, hashes.observe(t))
+	story := fx.loadParallelStory(t, name)
+	if name == "speech" {
+		requireSpeechCoverage(t, fx, &story)
+	}
+	job := fx.render(t)
+	if job.Status != StatusSucceeded {
+		t.Fatalf("%s on %d CPUs: %+v %+v", name, cpus, job, job.Error)
+	}
+	if hashes.count() != job.FramesTotal {
+		t.Fatalf("%s on %d CPUs: observed %d of %d frames", name, cpus, hashes.count(), job.FramesTotal)
+	}
+	workers, restarts := spy.end(t)
+	return parallelRun{hashes: hashes, workers: workers, restarts: restarts}
+}
+
+// firstFrameDifference is the first frame whose decoded RGBA differs, or -1.
+func firstFrameDifference(a, b *frameHashes) int {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	for n := 0; n < max(len(a.hashes), len(b.hashes)); n++ {
+		if a.hashes[n] != b.hashes[n] {
+			return n
+		}
+	}
+	return -1
+}
+
+func distinctFrames(f *frameHashes) int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	seen := map[string]bool{}
+	for _, h := range f.hashes {
+		seen[h] = true
+	}
+	return len(seen)
+}
+
+func TestParallelParityBrowser(t *testing.T) {
+	chrome := browserSmoke(t)
+	old := renderPreRoll
+	t.Cleanup(func() { renderPreRoll = old })
+	// 14 CPUs give floor((14-2)/3) = 4 workers with no memory bound. 1 CPU clamps to 1, the serial path.
+	for _, name := range []string{"firewall", "speech"} {
+		t.Run(name, func(t *testing.T) {
+			renderPreRoll = 0
+			serial := renderParallelStory(t, chrome, name, 1)
+			if serial.workers != 0 {
+				t.Fatalf("the serial run reports %d pool workers", serial.workers)
+			}
+			if distinctFrames(serial.hashes) < 2 {
+				t.Fatalf("all frames of %s are the same, the comparison proves nothing", name)
+			}
+			for _, preRoll := range []int{0, 2} {
+				renderPreRoll = preRoll
+				run := renderParallelStory(t, chrome, name, 14)
+				if run.workers != 4 {
+					t.Fatalf("pre-roll %d: the page ran %d pool workers, want 4", preRoll, run.workers)
+				}
+				if at := firstFrameDifference(serial.hashes, run.hashes); at >= 0 {
+					t.Errorf("pre-roll %d: frame %d differs from the serial render", preRoll, at)
+				}
+			}
+		})
+	}
+}
+
+func TestParallelEncoderFailureBrowser(t *testing.T) {
+	chrome := browserSmoke(t)
+	var mu sync.Mutex
+	arrivals := map[int]int{}
+	hashes := newFrameHashes()
+	observe := hashes.observe(t)
+	// 14 CPUs give floor((14-2)/3) = 4 workers.
+	fx, spy := newParallelFixture(t, chrome, 14, func(n int, transport string, data []byte) {
+		mu.Lock()
+		arrivals[n]++
+		mu.Unlock()
+		observe(n, transport, data)
+	})
+	// The missing device makes the hardware encoder fail once. recoverEncoder then restarts with libx264.
+	fx.settings.Encoder = videostudio.Encoder{Codec: videostudio.CodecVAAPI, Device: "/dev/dri/does-not-exist"}
+	fx.settings.EncoderName = videostudio.CodecVAAPI
+	fx.loadParallelStory(t, "firewall")
+	job := fx.render(t)
+	if job.Status != StatusSucceeded {
+		t.Fatalf("job = %+v %+v", job, job.Error)
+	}
+	workers, restarts := spy.end(t)
+	if workers != 4 || restarts != 1 {
+		t.Fatalf("the page ran %d pool workers and %d restarts, want 4 and 1", workers, restarts)
+	}
+	mu.Lock()
+	first := arrivals[0]
+	mu.Unlock()
+	// One failure, one restart: frame 0 reaches Go once before the restart and once after it.
+	if first != 2 {
+		t.Errorf("frame 0 arrived %d times, want 2", first)
+	}
+	if hashes.count() != job.FramesTotal {
+		t.Errorf("observed %d of %d frames", hashes.count(), job.FramesTotal)
+	}
+	meta, _ := fx.pub.get("Documents/Storymaker/" + fx.projectID + "/exports/" + job.ID + ".json")
+	if !strings.Contains(string(meta), `"encoder": "libx264"`) {
+		t.Errorf("record = %s", meta)
 	}
 }
 
