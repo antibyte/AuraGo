@@ -135,5 +135,84 @@ if (!fast) {
         }
     }
 }
+// ---- 7. music runtime against a fake AudioContext (T6.4) ----
+async function checkMusicRuntime() {
+    const vm = await import('node:vm');
+    const tick = () => new Promise(resolve => setTimeout(resolve, 5));
+    const fakeParam = () => ({ value: 0, setValueAtTime() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {}, setTargetAtTime() {}, cancelScheduledValues() {} });
+    function makeCtx() {
+        const ctx = { currentTime: 1, sources: [], decodeAudioData: bytes => Promise.resolve({ duration: 8, bytes }) };
+        const node = extra => {
+            const n = { connect(t) { return t; }, disconnect() {}, gain: fakeParam(), frequency: fakeParam(), detune: fakeParam(), Q: fakeParam(), ...extra };
+            return n;
+        };
+        ctx.createGain = () => node();
+        ctx.createBiquadFilter = () => node();
+        ctx.createOscillator = () => node({ start() {}, stop() {} });
+        ctx.createBufferSource = () => {
+            const n = node({ loop: false, buffer: null, stopped: false, start(when) { n.startedAt = when; n.started = true; }, stop() { n.stopped = true; } });
+            ctx.sources.push(n);
+            return n;
+        };
+        return ctx;
+    }
+    function load(fetchOk) {
+        const bytes = path => (fetchOk ? Promise.resolve(Object.assign(new ArrayBuffer(8), { path })) : Promise.reject(new Error('no pack')));
+        const AD = {
+            clamp: (v, lo, hi) => Math.min(hi, Math.max(lo, v)),
+            assetsFetchBytes: bytes,
+            assetsFetchJson: () => (fetchOk ? Promise.resolve(manifest) : Promise.reject(new Error('no pack')))
+        };
+        const sandbox = { window: { AuraDriftCore: AD }, setTimeout, clearTimeout, Math, Object, Promise };
+        vm.runInNewContext(musicSource, sandbox, { filename: 'aura-drift-music.js' });
+        return AD;
+    }
+    for (const withPack of [false, true]) {
+        const label = withPack ? 'with pack' : 'without pack';
+        const AD = load(withPack);
+        const ctx = makeCtx();
+        const music = AD.createMusicEngine(ctx, { fake: 'noise' }, ctx.createGain());
+        let threw = null;
+        try {
+            music.setBiome('alpine');
+            music.update(0.016, 0.9, { intensity: 0.5 });
+            for (const type of ['pickup', 'lap', 'disco_on', 'final_lap', 'finish', 'boom', 'style_bank']) music.event({ type, car: 0 });
+            music.duck(6, 0.4);
+            music.setView('menu'); await tick();
+            music.setView('results'); await tick();
+            music.setView('race'); await tick();
+            music.setBiome('metro'); await tick();
+            music.update(0.016, 0.1, {}, { nitro: true });
+            music.event({ type: 'finish', car: 0, position: 5 });
+            await tick();
+        } catch (error) { threw = error; }
+        ok(!threw, `music ${label}: threw ${threw && threw.stack}`);
+        if (withPack) {
+            const metro = ctx.sources.filter(s => s.loop && s.started && s.buffer.bytes && /music\/metro-(bed|drive|peak)\.ogg/.test(s.buffer.bytes.path));
+            ok(metro.length === 3 && new Set(metro.map(s => s.startedAt)).size === 1, `music with pack: the three metro stems must start together (got ${metro.length} sources at ${[...new Set(metro.map(s => s.startedAt))]})`);
+            ok(ctx.sources.some(s => !s.loop && s.started), 'music with pack: no one-shot (stinger or fanfare) was played');
+        }
+        music.stop();
+        music.stop();
+        ok(ctx.sources.every(s => !s.started || s.stopped), `music ${label}: stop() left a source running`);
+        music.setBiome('forest'); music.update(0.016, 0.5, {}); music.event({ type: 'finish', car: 0 });
+    }
+    // the sad trombone: a poor finish picks fanfare.lose, a win picks fanfare.win
+    const picks = [];
+    {
+        const AD = load(true);
+        const ctx = makeCtx();
+        const bank = { groupBuffer: name => { picks.push(name); return Promise.resolve({ duration: 2 }); } };
+        const music = AD.createMusicEngine(ctx, {}, ctx.createGain(), bank);
+        music.event({ type: 'finish', car: 0, position: 6 });
+        music.event({ type: 'finish', car: 0, position: 1 });
+        music.event({ type: 'finish', car: 0, position: 3 });
+        await tick();
+        music.stop();
+    }
+    ok(picks.includes('fanfare.lose') && picks.includes('fanfare.win') && picks.includes('fanfare.podium'), `music fanfares by position: ${picks}`);
+}
+await checkMusicRuntime();
+
 console.log(`${checks - failures}/${checks} checks passed`);
 if (failures) { console.error(`${failures} failure(s)`); process.exit(1); }

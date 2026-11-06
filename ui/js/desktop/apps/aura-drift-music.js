@@ -30,7 +30,12 @@
         metro: { kick: [0, 4, 8, 12], snare: [4, 12], hat: [2, 6, 10, 14], bass: [0, 3, 8, 11], lead: [5, 13], pad: true }
     };
 
-    AD.createMusicEngine = function (ctx, noiseBuffer, destination) {
+    /* The live synthesiser: the fallback when the sample pack is missing, and
+       the ambience / sting layer that stays available next to it. `mode`
+       switches the parts the pack replaces: the score, the beds with their
+       one-shots, and the finish jingle. */
+    function createLiveScore(ctx, noiseBuffer, destination) {
+        const mode = { score: true, ambience: true, finish: true };
         let musicKey = 'alpine';
         let nextNote = ctx.currentTime + 0.1;
         let noteIndex = 0;
@@ -214,7 +219,7 @@
         }
 
         function scheduleMusic(intensity) {
-            if (!running) return;
+            if (!running || !mode.score) return;
             const tempo = TEMPI[musicKey] || 104;
             const beat = 60 / tempo / 2;
             const scale = SCALES[musicKey] || SCALES.alpine;
@@ -262,6 +267,13 @@
             /* The rare one-shots (birds, gulls, distant clanks) run on their
                own clock, independent of the bed level throttle. */
             birdTimer -= dt;
+            if (!mode.ambience) {
+                ambienceClock -= dt;
+                if (ambienceClock > 0) return;
+                ambienceClock = 0.25;
+                for (const key of Object.keys(beds)) beds[key].gain.gain.setTargetAtTime(0, ctx.currentTime, 0.3);
+                return;
+            }
             if (birdTimer <= 0) {
                 birdTimer = 2.5 + Math.random() * 6;
                 const at = ctx.currentTime;
@@ -288,6 +300,11 @@
         }
 
         return {
+            setMode(next) {
+                /* A score that was off has missed its beats: restart the clock instead of bursting them out. */
+                if (next.score && !mode.score) { nextNote = ctx.currentTime + 0.1; noteIndex = 0; }
+                Object.assign(mode, next);
+            },
             setBiome(id) {
                 musicKey = Object.prototype.hasOwnProperty.call(SCALES, id) ? id : 'alpine';
                 noteIndex = 0;
@@ -309,7 +326,7 @@
                     pluck(now, 720, 0.05); pluck(now + 0.07, 1080, 0.04);
                 } else if (evt.type === 'lap') {
                     bell(now, 660, 0.06); bell(now + 0.12, 990, 0.05);
-                } else if (evt.type === 'finish') {
+                } else if (evt.type === 'finish' && mode.finish) {
                     [523, 659, 784, 1046].forEach((f, i) => bell(now + i * 0.13, f, 0.07));
                 }
             },
@@ -321,6 +338,410 @@
                     try { item.gain.disconnect(); } catch (_) { /* already gone */ }
                     delete beds[key];
                 }
+            }
+        };
+    }
+
+    /* ------------------------------------------------------------------ *
+     * Sample pack playback
+     * ------------------------------------------------------------------ */
+    const PACK_ROOT = '/3d/aura-drift/audio/';
+    const PACK_LEVEL = 0.7;        /* stems are normalised to -16 LUFS summed; the live synth is quieter */
+    const LAYER_SMOOTH = 0.8;      /* seconds for a layer gain to settle */
+    const CROSSFADE = 1.5;         /* biome / view change */
+    const PEAK_OPEN = 18000, PEAK_DULL = 700, DISCO_SECONDS = 4;
+    const AMBIENCE_LEVEL = 0.5;
+    const STINGER_LATE = 2;        /* a stinger that is still loading after this long is dropped */
+    const AMB_GROUP = {
+        alpine: 'amb.wind', desert: 'amb.desert', harbour: 'amb.sea', salt: 'amb.wind',
+        forest: 'amb.forest', industry: 'amb.machinery', glacier: 'amb.snow', metro: 'amb.city'
+    };
+    const STINGERS = ['stinger.final_lap', 'stinger.disco', 'fanfare.win', 'fanfare.podium', 'fanfare.lose'];
+
+    /* Adapter between the music and the sample bank. It prefers whatever the
+       bank (AD.createSampleBank, T6.3) offers and otherwise fetches and
+       decodes from the pack itself, so the music works with or without it.
+         bank.musicBuffer(path) | bank.buffer(path)  -> AudioBuffer or Promise
+         bank.groupBuffer(group) | bank.pick(group)  -> AudioBuffer or Promise
+       Everything resolves to null on failure; nothing here ever throws. */
+    function createPackAdapter(ctx, bank) {
+        const buffers = new Map();
+        let manifestP = null;
+
+        function decode(bytes) {
+            return new Promise((resolve, reject) => {
+                const p = ctx.decodeAudioData(bytes, resolve, reject);
+                if (p && typeof p.then === 'function') p.then(resolve, reject);
+            });
+        }
+        function viaBank(names, arg) {
+            if (!bank) return null;
+            for (const name of names) {
+                if (typeof bank[name] === 'function') {
+                    try { return Promise.resolve(bank[name](arg)); } catch (_) { return null; }
+                }
+            }
+            return null;
+        }
+        function buffer(path) {
+            if (!path) return Promise.resolve(null);
+            if (!buffers.has(path)) {
+                let p = viaBank(['musicBuffer', 'buffer'], path);
+                if (!p && AD.assetsFetchBytes) {
+                    p = AD.assetsFetchBytes(PACK_ROOT + path).then(decode);
+                }
+                buffers.set(path, (p || Promise.resolve(null)).then(b => b || null, () => null));
+            }
+            return buffers.get(path);
+        }
+        function manifest() {
+            if (!manifestP) {
+                manifestP = AD.assetsFetchJson
+                    ? AD.assetsFetchJson(PACK_ROOT + 'manifest.json').catch(() => null)
+                    : Promise.resolve(null);
+            }
+            return manifestP;
+        }
+        return {
+            buffer,
+            /* The three stems of a biome, or the single file of menu / results. */
+            scene(key) {
+                return manifest().then(m => {
+                    const entry = m && m.music && m.music[key];
+                    if (!entry) return null;
+                    if (typeof entry === 'string') {
+                        return buffer(entry).then(b => b ? { bed: b } : null);
+                    }
+                    return Promise.all([buffer(entry.bed), buffer(entry.drive), buffer(entry.peak)]).then(list => (
+                        list[0] && list[1] && list[2] ? { bed: list[0], drive: list[1], peak: list[2] } : null
+                    ));
+                });
+            },
+            /* A random member of an sfx group (stingers, fanfares, ambience). */
+            group(name) {
+                const direct = viaBank(['groupBuffer', 'pick'], name);
+                if (direct) return direct.then(b => b || null, () => null);
+                return manifest().then(m => {
+                    const list = m && m.sfx && m.sfx[name];
+                    if (!list || !list.length) return null;
+                    return buffer(list[Math.floor(Math.random() * list.length)]);
+                });
+            }
+        };
+    }
+
+    AD.createMusicEngine = function (ctx, noiseBuffer, destination, bank) {
+        /* Everything the score plays goes through the duck gain; stingers and
+           ambience bypass it so a fanfare is not ducked by itself. */
+        const duckGain = ctx.createGain();
+        duckGain.gain.value = 1;
+        duckGain.connect(destination);
+        const live = createLiveScore(ctx, noiseBuffer, duckGain);
+        const pack = createPackAdapter(ctx, bank);
+
+        let running = true;
+        let biome = 'alpine';
+        let view = 'race';                 /* 'race' | 'menu' | 'results' */
+        let scene = null;                  /* the scene that is audible */
+        let requestedKey = null, requestToken = 0;
+        const fading = new Set();          /* scenes on their way out */
+        const failed = new Set();          /* keys whose pack failed to load */
+        const oneShots = new Set();
+        let ambNode = null, ambKey = null, ambToken = 0;
+        const ambFailed = new Set();
+        let flags = { nitro: false, finalLap: false, lastPlace: false };
+        let discoUntil = 0;
+        let finishers = 0;
+        let level = { drive: false, peak: false };
+        let gainClock = 0;
+        let lastIntensity = 0;
+
+        function safe(fn) { try { return fn(); } catch (_) { return undefined; } }
+
+        function killNode(node) {
+            if (!node) return;
+            for (const source of node.sources || []) {
+                safe(() => source.stop());
+                safe(() => source.disconnect());
+            }
+            for (const item of node.others || []) safe(() => item.disconnect());
+        }
+
+        /* ---- scenes ------------------------------------------------- */
+        function fadeTo(param, value, seconds) {
+            const now = ctx.currentTime;
+            safe(() => {
+                param.cancelScheduledValues(now);
+                param.setValueAtTime(param.value, now);
+                param.linearRampToValueAtTime(value, now + seconds);
+            });
+        }
+
+        function startScene(key, stems) {
+            const now = ctx.currentTime;
+            const t0 = now + 0.05;           /* one start time for every stem keeps them phase locked */
+            const master = ctx.createGain();
+            master.gain.value = 0;
+            master.connect(duckGain);
+            const node = { key, master, sources: [], others: [master], layers: {}, filter: null };
+            for (const name of ['bed', 'drive', 'peak']) {
+                const buffer = stems[name];
+                if (!buffer) continue;
+                const source = ctx.createBufferSource();
+                source.buffer = buffer;
+                source.loop = true;
+                const gain = ctx.createGain();
+                gain.gain.value = name === 'bed' ? 1 : 0;
+                let tail = source.connect(gain);
+                if (name === 'peak') {
+                    const filter = ctx.createBiquadFilter();
+                    filter.type = 'lowpass';
+                    filter.frequency.value = now < discoUntil ? PEAK_DULL : PEAK_OPEN;
+                    tail.connect(filter);
+                    tail = filter;
+                    node.filter = filter;
+                    node.others.push(filter);
+                }
+                tail.connect(master);
+                source.start(t0);
+                node.sources.push(source);
+                node.others.push(gain);
+                node.layers[name] = gain;
+            }
+            /* equal gain crossfade from whatever is audible */
+            const old = scene;
+            master.gain.setValueAtTime(0, now);
+            master.gain.linearRampToValueAtTime(PACK_LEVEL, now + CROSSFADE);
+            if (old) retire(old);
+            scene = node;
+            level = { drive: false, peak: false };
+            applyLayers(true);
+            live.setMode({ score: false, finish: false });
+            return node;
+        }
+
+        /* Fade a scene or ambience bed out, then stop its sources. */
+        function retire(node) {
+            fading.add(node);
+            fadeTo((node.master || node.gain).gain, 0, CROSSFADE);
+            node.timer = setTimeout(() => { fading.delete(node); killNode(node); }, CROSSFADE * 1000 + 150);
+        }
+
+        function wanted() {
+            if (view === 'menu') return 'menu';
+            if (view === 'results') return 'results';
+            return biome;
+        }
+
+        /* Make the audible scene match the wanted one, loading it if needed. */
+        function sync() {
+            if (!running) return;
+            const key = wanted();
+            syncAmbience();
+            if (scene && scene.key === key) { requestedKey = key; return; }
+            if (requestedKey === key || failed.has(key)) {
+                if (failed.has(key)) fallBack();
+                return;
+            }
+            requestedKey = key;
+            const token = ++requestToken;
+            pack.scene(key).then(stems => {
+                if (!running || token !== requestToken) return;
+                if (!stems) { failed.add(key); fallBack(); return; }
+                startScene(key, stems);
+                prefetchStingers();
+            }, () => { failed.add(key); fallBack(); });
+        }
+
+        /* No pack for this key: leave any current scene and let the live
+           synthesiser carry the race. */
+        function fallBack() {
+            if (scene) { retire(scene); scene = null; }
+            live.setMode({ score: true, finish: true });
+        }
+
+        function prefetchStingers() {
+            for (const name of STINGERS) pack.group(name);
+        }
+
+        /* ---- layer gains ------------------------------------------- */
+        function applyLayers(force) {
+            if (!scene || !scene.layers.drive) return;
+            const now = ctx.currentTime;
+            const i = lastIntensity;
+            /* a little hysteresis keeps a layer from flapping around its threshold */
+            const drive = i > 0.3 || (level.drive && i > 0.24);
+            const peak = i > 0.7 || (level.peak && i > 0.64) || flags.nitro || flags.finalLap || flags.lastPlace;
+            if (!force && drive === level.drive && peak === level.peak) return;
+            level = { drive, peak };
+            const tc = LAYER_SMOOTH / 3;
+            safe(() => scene.layers.drive.gain.setTargetAtTime(drive ? 1 : 0, now, tc));
+            safe(() => scene.layers.peak.gain.setTargetAtTime(peak ? 1 : 0, now, tc));
+        }
+
+        /* ---- ambience beds ----------------------------------------- */
+        function syncAmbience() {
+            const group = view === 'race' ? AMB_GROUP[biome] : null;
+            if (group === ambKey) return;
+            ambKey = group;
+            const token = ++ambToken;
+            if (ambNode) { retire(ambNode); ambNode = null; }
+            if (!group || ambFailed.has(group)) { live.setMode({ ambience: true }); return; }
+            pack.group(group).then(buffer => {
+                if (!running || token !== ambToken) return;
+                if (!buffer) { ambFailed.add(group); live.setMode({ ambience: true }); return; }
+                const source = ctx.createBufferSource();
+                source.buffer = buffer;
+                source.loop = true;
+                const gain = ctx.createGain();
+                gain.gain.value = 0;
+                source.connect(gain).connect(destination);
+                source.start();
+                ambNode = { sources: [source], others: [gain], gain };
+                fadeTo(gain.gain, AMBIENCE_LEVEL, CROSSFADE);
+                live.setMode({ ambience: false });
+            }, () => { ambFailed.add(group); live.setMode({ ambience: true }); });
+        }
+
+        /* ---- one-shots --------------------------------------------- */
+        function duck(db, seconds) {
+            if (!running) return;
+            const now = ctx.currentTime;
+            const depth = Math.pow(10, -(db === undefined ? 6 : db) / 20);
+            const hold = seconds === undefined ? 0.4 : seconds;
+            safe(() => {
+                duckGain.gain.cancelScheduledValues(now);
+                duckGain.gain.setValueAtTime(duckGain.gain.value, now);
+                duckGain.gain.linearRampToValueAtTime(depth, now + 0.03);
+                duckGain.gain.setValueAtTime(depth, now + hold);
+                duckGain.gain.linearRampToValueAtTime(1, now + hold + 0.35);
+            });
+        }
+
+        function playGroup(name, gainValue, duckSeconds) {
+            const asked = ctx.currentTime;
+            return pack.group(name).then(buffer => {
+                if (!running || !buffer || ctx.currentTime - asked > STINGER_LATE) return;
+                const source = ctx.createBufferSource();
+                source.buffer = buffer;
+                const gain = ctx.createGain();
+                gain.gain.value = gainValue;
+                source.connect(gain).connect(destination);
+                const item = { sources: [source], others: [gain] };
+                oneShots.add(item);
+                source.onended = () => { oneShots.delete(item); killNode(item); };
+                source.start();
+                if (duckSeconds) duck(6, Math.min(duckSeconds, Math.max(0.4, buffer.duration * 0.8)));
+            }, () => {});
+        }
+
+        function discoDip() {
+            const now = ctx.currentTime;
+            discoUntil = now + DISCO_SECONDS;
+            if (scene && scene.filter) {
+                const f = scene.filter.frequency;
+                safe(() => {
+                    f.cancelScheduledValues(now);
+                    f.setValueAtTime(f.value, now);
+                    f.exponentialRampToValueAtTime(PEAK_DULL, now + 0.25);
+                    f.setValueAtTime(PEAK_DULL, now + DISCO_SECONDS - 0.3);
+                    f.exponentialRampToValueAtTime(PEAK_OPEN, now + DISCO_SECONDS + 0.5);
+                });
+            }
+        }
+
+        function isPlayer(evt) { return evt.car === undefined || evt.car === 0; }
+
+        /* Finishing place: an explicit field wins, else the order in which
+           finish events arrive (the first one home is first). */
+        function finishPlace(evt) {
+            const direct = evt.position || evt.place || evt.rank;
+            return direct > 0 ? direct : finishers;
+        }
+
+        function fanfareFor(place) {
+            if (place <= 1) return 'fanfare.win';
+            if (place <= 3) return 'fanfare.podium';
+            return 'fanfare.lose';                         /* the sad trombone */
+        }
+
+        function resetRace() {
+            flags = { nitro: false, finalLap: false, lastPlace: false };
+            finishers = 0;
+            level = { drive: false, peak: false };
+        }
+
+        return {
+            setBiome(id) {
+                if (!running) return;
+                const next = Object.prototype.hasOwnProperty.call(SCALES, id) ? id : 'alpine';
+                if (next !== biome) resetRace();
+                biome = next;
+                live.setBiome(next);
+                sync();
+            },
+            /* 'race' | 'menu' | 'results': menu and results have their own tracks. */
+            setView(next) {
+                if (!running) return;
+                const v = next === 'menu' || next === 'results' ? next : 'race';
+                if (v === view) return;
+                view = v;
+                if (v === 'race') resetRace();
+                sync();
+            },
+            setAmbience(next) { live.setAmbience(next); },
+            /* Extra race state for the peak layer: { nitro, finalLap, lastPlace }.
+               `conditions` may carry the same names. */
+            update(dt, intensity, conditions, state) {
+                if (!running) return;
+                lastIntensity = clamp(+intensity || 0, 0, 1);
+                const src = state || conditions || {};
+                if (state || conditions) {
+                    flags.nitro = !!(src.nitro || src.boosting);
+                    flags.lastPlace = !!(src.lastPlace || src.chase);
+                    if (src.finalLap !== undefined) flags.finalLap = !!src.finalLap;
+                }
+                gainClock -= dt;
+                if (gainClock <= 0) { gainClock = 0.2; applyLayers(false); }
+                live.update(dt, lastIntensity, conditions);
+            },
+            event(evt) {
+                if (!running || !evt) return;
+                live.event(evt);
+                switch (evt.type) {
+                    case 'disco_on':
+                        playGroup('stinger.disco', 0.9, 1.2);
+                        discoDip();
+                        break;
+                    case 'final_lap':
+                        if (!isPlayer(evt)) break;
+                        flags.finalLap = true;
+                        applyLayers(false);
+                        playGroup('stinger.final_lap', 0.9, 1.2);
+                        break;
+                    case 'finish':
+                        finishers++;
+                        if (!isPlayer(evt)) break;
+                        flags.finalLap = false; flags.nitro = false; flags.lastPlace = false;
+                        applyLayers(false);
+                        playGroup(fanfareFor(finishPlace(evt)), 1, 4);
+                        break;
+                }
+            },
+            /* Explosions and big stingers: music dips 6 dB for 0.4 s. */
+            duck,
+            stop() {
+                if (!running) return;
+                running = false;
+                requestToken++; ambToken++;
+                for (const node of [scene, ambNode, ...fading, ...oneShots]) {
+                    if (node && node.timer) clearTimeout(node.timer);
+                    killNode(node);
+                }
+                fading.clear(); oneShots.clear();
+                scene = null; ambNode = null;
+                live.stop();
+                safe(() => duckGain.disconnect());
             }
         };
     };
