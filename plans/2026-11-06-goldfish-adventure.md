@@ -1,8 +1,52 @@
 # Goldfish Adventure design and implementation plan
 
 Date: 2026-11-06. Working title: **Bitte nicht das Universum füttern**.
-Proposed app ID: `goldfish-adventure`. Default game language: German.
-Status: reviewed design proposal and two ImageGen concepts; no playable game exists yet.
+App ID: `goldfish-adventure`. Default game language: German.
+Status: implemented locally; automated integration and localization checks pass.
+Human duration, replay, editorial, listening and hardware acceptance remain open.
+
+## Implemented delivery
+
+- Built-in AuraGo Desktop game in the Games category, using the existing shell,
+  lazy loading and native browser facilities. No new engine or backend service.
+- Sixteen playable rooms, eighteen authored puzzle situations (fifteen per route),
+  130 authored actions, three binary branches and three informed endings.
+  The state checks execute all 24 route/ending combinations and 1,608 transitions.
+- The German source contains 1,429 story keys and 16,441 whitespace-delimited words;
+  interface text uses a separate 107-key section. All sixteen locales are complete.
+  The clue ledger references 61 actual inspections/prerequisite dialogue lines.
+- Sixteen original ImageGen background plates at their native 1672 × 941 size,
+  one changed gate plate, eight source atlases, twenty inventory cutouts, the app
+  icon and decorative dialogue frame. Ten sprite definitions use 108 distinct
+  character/monitor/aquarium poses, 56 clip definitions and 14 authored moments.
+  The original 90–120 clip estimate has not been reached and is not claimed.
+- Eight original chamber-score loops, local ambience and four effects, with
+  source notices, reproducible composition inputs and measured audio levels.
+  There is no voice cast. Sound is initially muted and gesture-gated.
+- Three manual saves, autosave, four chapter checkpoints, three branch checkpoints
+  and a pre-final checkpoint use transactional IndexedDB revisions with a prior
+  copy. Export/import provides portable JSON backups; this browser profile and
+  origin own local saves. Nothing synchronizes to a server.
+- Click or keyboard-focus a hotspot, then choose its action; select an inventory
+  item before using it. Tab/Enter operate native controls. Space pauses when focus
+  is outside a button/input; Escape skips a cinematic or dismisses the selection.
+  The journal, optional hotspot labels and three-stage hints are available in-game.
+
+The final room captures and every authored moment render in real Chrome. Both
+Desktop themes, the opening puzzle, close/reopen persistence, all route reducers,
+save conflicts/failures and animation pause/skip/disposal have focused checks.
+Image source hashes, alpha, frame bounds and local paths are checked separately.
+Current art/audio is approximately 78 MiB; R01 image transfer is 14,002,500 bytes and
+the largest room's decoded images occupy 44,044,848 bytes. These figures exclude
+the existing Desktop, canvas/browser overhead and locale/script transfer.
+The packaged game runtime is 85,108,023 bytes (art/audio, scripts, CSS and all locales),
+within the 180 MiB target. Source masters are excluded from that runtime payload.
+
+Remaining human acceptance is explicit: six blind first runs, three replay runs,
+native-language editing, soundtrack listening and the declared ten-minute GPU
+frame-pacing measurement. Automated solving does not establish 3–4 hours of play,
+35–50 minutes of distinct replay content, comedy quality or final animation polish.
+No service restart, deployment or publication is part of this implementation.
 
 ## Product decision
 
@@ -584,16 +628,15 @@ that gate on their own.
 
 ## Scope boundaries and DOX closeout
 
-This deliverable contains the design, production plan, original image concepts and
-source prompts. It does not register a game, change runtime/configuration, execute
-a build, publish or deploy. No full voice cast, procedural stories, multiplayer,
+The implementation registers the game and adds its local content, art, audio,
+browser saves and checks. No full voice cast, procedural stories, multiplayer,
 game editor or additional engine is included.
 
-Root `AGENTS.md` links this plan and its asset owner; the new
-`assets/goldfish-adventure/AGENTS.md` governs the visual source boundary.
-Existing UI/Desktop/runtime guides remain unchanged because no runtime contract
-has changed. During implementation update those owners and the root index for
-the actual module/layout/save/lifecycle/asset contracts, not hypothetical paths.
+Root, UI, Desktop app/catalog and script guides route to
+`assets/goldfish-adventure/AGENTS.md` and
+`ui/js/desktop/apps/goldfish-adventure/AGENTS.md`. The existing asset-package
+extension/directory contract already covers these resources. The presentation
+audio owner remains unchanged because its source files and contracts are reused.
 
-The current worktree contains unrelated work. Commit only this plan, its concept
-assets/prompts/manifest/owner guide and the two root guidance additions.
+The current worktree contains unrelated work. Commit only this game's sources,
+exports, translations, tests and exact shared-registration/guide hunks.

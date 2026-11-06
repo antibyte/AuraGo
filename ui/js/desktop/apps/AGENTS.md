@@ -5239,6 +5239,12 @@ registration lives in `internal/desktop/types.go`.
 
 ## Child DOX Index
 
+- `goldfish-adventure/AGENTS.md` owns **Bitte nicht das Universum füttern**:
+  declarative story and puzzles, Canvas staging, semantic controls, transactional
+  IndexedDB saves and the two dedicated locale sections. Register it as the
+  built-in `goldfish-adventure` game with `GoldfishAdventureApp.render/dispose`;
+  load only its local modules/assets, and restore to a silent start screen.
+
 - `looper.js` / `looper-monitor.js` own Looper v2 (`window.LooperApp` +
   `window.LooperMonitor`). A loop is goal + work + evaluate + optional finish.
   Visible controls are rounds (1–50), target score (50–100), stall rounds

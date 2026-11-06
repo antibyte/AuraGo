@@ -1,0 +1,985 @@
+{
+  "schema_version": 1,
+  "title": "Goldfish Adventure room background source and runtime copies",
+  "generation": {
+    "tool": "built-in image_gen",
+    "provider_model": "not exposed by tool",
+    "native_resolution_requested": "1920x1080 or highest supported native landscape",
+    "actual_native_resolution": "1672x941",
+    "processing": "No resize, crop, repaint, or upscaling. Runtime copies are byte-identical PNG masters.",
+    "reference": "assets/goldfish-adventure/concepts/ship-lounge-v1.png",
+    "completed_rooms": 16,
+    "generation_calls": 16,
+    "retries": 0
+  },
+  "rooms": [
+    {
+      "id": "R01",
+      "prompt": "Use case: illustration-story.\nAsset type: final empty background plate for an original fixed-camera 2D point-and-click adventure, room R01. A single finished scene, no storyboard or collage.\nInput image: ship-lounge-v1.png is a STYLE REFERENCE ONLY for painted texture, visual clarity, warm/cool contrast and skewed but coherent perspective. Its actors and aquarium must NOT be copied.\nArt direction: spectacular, richly hand-painted HD cartoon scenery with strong readable silhouettes, original eccentric crooked architecture, fine purposeful surface wear, warm ochre/copper light against petrol and indigo shade, elegant soft brushwork and crisp intentional shapes, sophisticated classic adventure quality. Distinct room architecture and color palette specified below. No resemblance to existing intellectual property.\nComposition: landscape 16:9, request native 1920 by 1080 pixels or the highest native landscape size supported. Fixed front wide theatrical camera at adult waist/eye height, a complete room with modest perspective depth. Bottom 30–35 percent is continuous clean walkable floor from left edge to right edge. Interactable props occupy separated clear midground clusters above the floor. Entrances/exits at lateral edges remain visible. Do not place foreground objects in the walk corridor. Leave ample midground actor space.\nABSOLUTELY EMPTY ENVIRONMENT: no people, creatures, fish, robots, bodies, character-like appliances, statues, faces, eyes or smiling screen graphics. No aquarium/tank or movable actors baked in. No readable words, letters, numerals, brands, signage, subtitles, HUD or interface. Display screens are blank/inactive shapes so localized overlays can be added later. No border, watermark or fake signature.\nRoom brief: Crooked scrapyard of second chances. In a sunken patchwork junkyard under a twilight sky, tilted metal sheds, stacks of discarded contraptions and bent pipes frame the scene. Palette rusty orange and copper against deep teal and blue. Left midground a short conveyor with clearly spaced rollers and brake housing; overhead a suspended magnetic grabber with a visible contact-clamp socket, not shaped as a face. Center back a small mechanical exit gate with one large shiny bolt and a visible shared cable leading to the conveyor circuit. Right midground an open low toolbox with a single red-handled metal clamp silhouette and a worn maintenance diagram board whose shapes are abstract without words. The far-right exit gate has visible space for later opening. Place all piles behind the usable lower walkway, create a dramatic yet welcoming first room.",
+      "reference": "assets/goldfish-adventure/concepts/ship-lounge-v1.png",
+      "status": "visually_reviewed",
+      "width": 1672,
+      "height": 941,
+      "bytes": 3128300,
+      "sha256": "57474221514bbea73ff1ce1aa6aa7e59c9fe768ffbcba8c8ef0d6aed8fa072cc",
+      "master": "assets/goldfish-adventure/masters/scenes/R01.png",
+      "runtime": "ui/img/goldfish-adventure/scenes/R01.png",
+      "source": "exec-5f5d2668-b74d-42d0-bd7a-3e94da08984e.png",
+      "visual_review": "Empty actors; clear floor and separated prop clusters; no legible text; approved palette and fixed camera.",
+      "landmarks_normalized": {
+        "conveyor": [
+          0.05,
+          0.38,
+          0.36,
+          0.33
+        ],
+        "magnet": [
+          0.24,
+          0.2,
+          0.15,
+          0.22
+        ],
+        "door": [
+          0.46,
+          0.39,
+          0.17,
+          0.25
+        ],
+        "toolbox": [
+          0.66,
+          0.4,
+          0.13,
+          0.13
+        ],
+        "diagram": [
+          0.7,
+          0.27,
+          0.16,
+          0.18
+        ]
+      },
+      "landmark_format": "x,y,width,height as fractions of image; approximate visual estimates for hotspot reconciliation",
+      "walk_corridor_normalized": [
+        0,
+        0.77,
+        1,
+        0.23
+      ]
+    },
+    {
+      "id": "R02",
+      "prompt": "Use case: illustration-story.\nAsset type: final empty background plate for an original fixed-camera 2D point-and-click adventure, room R02. A single finished scene, no storyboard or collage.\nInput image: ship-lounge-v1.png is a STYLE REFERENCE ONLY for painted texture, visual clarity, warm/cool contrast and skewed but coherent perspective. Its actors and aquarium must NOT be copied.\nArt direction: spectacular, richly hand-painted HD cartoon scenery with strong readable silhouettes, original eccentric crooked architecture, fine purposeful surface wear, warm ochre/copper light against petrol and indigo shade, elegant soft brushwork and crisp intentional shapes, sophisticated classic adventure quality. Distinct room architecture and color palette specified below. No resemblance to existing intellectual property.\nComposition: landscape 16:9, request native 1920 by 1080 pixels or the highest native landscape size supported. Fixed front wide theatrical camera at adult waist/eye height, a complete room with modest perspective depth. Bottom 30–35 percent is continuous clean walkable floor from left edge to right edge. Interactable props occupy separated clear midground clusters above the floor. Entrances/exits at lateral edges remain visible. Do not place foreground objects in the walk corridor. Leave ample midground actor space.\nABSOLUTELY EMPTY ENVIRONMENT: no people, creatures, fish, robots, bodies, character-like appliances, statues, faces, eyes or smiling screen graphics. No aquarium/tank or movable actors baked in. No readable words, letters, numerals, brands, signage, subtitles, HUD or interface. Display screens are blank/inactive shapes so localized overlays can be added later. No border, watermark or fake signature.\nRoom brief: Bureau of emotional affairs. A surreal immaculate mint-and-cream administrative office whose polite counters stand above comically filthy hidden service machinery. Tall skewed rectilinear cabinets, rigid cream columns, mint tiles, warm yellow lamps and soft cool green shadow. Left midground a counter service window with a lower document tray, blank frosted pane and a short queue rail. Center upper wall an oversized analog office clock with simple unnumbered ticks, empty round face and two hands. Center-right a paper-stamping apparatus with ivory spools and blank paper curling neatly; beneath it an open service hatch exposes copper gears, grime and pipes. Empty counter and empty walking floor. Large arched exit right, small opening left. Bureaucratic absurdity, friendly discomfort, no characters and no legible writing.",
+      "reference": "assets/goldfish-adventure/concepts/ship-lounge-v1.png",
+      "status": "visually_reviewed",
+      "width": 1672,
+      "height": 941,
+      "bytes": 3031956,
+      "sha256": "0b5ff7a68e508b81b03b4998cc76e272fe958162a6844cb1ff49d148a7d0d196",
+      "master": "assets/goldfish-adventure/masters/scenes/R02.png",
+      "runtime": "ui/img/goldfish-adventure/scenes/R02.png",
+      "source": "exec-69ecf562-abff-44e8-b143-8a6df268633a.png",
+      "visual_review": "Empty actors; clear floor and separated prop clusters; no legible text; approved palette and fixed camera.",
+      "landmarks_normalized": {
+        "counter": [
+          0.05,
+          0.18,
+          0.32,
+          0.6
+        ],
+        "clock": [
+          0.48,
+          0.02,
+          0.18,
+          0.33
+        ],
+        "receipt_machine": [
+          0.5,
+          0.31,
+          0.38,
+          0.25
+        ],
+        "service_hatch": [
+          0.51,
+          0.57,
+          0.32,
+          0.2
+        ],
+        "exit": [
+          0.87,
+          0.18,
+          0.13,
+          0.57
+        ]
+      },
+      "landmark_format": "x,y,width,height as fractions of image; approximate visual estimates for hotspot reconciliation",
+      "walk_corridor_normalized": [
+        0,
+        0.77,
+        1,
+        0.23
+      ]
+    },
+    {
+      "id": "R03",
+      "prompt": "Use case: illustration-story.\nAsset type: final empty background plate for an original fixed-camera 2D point-and-click adventure, room R03. A single finished scene, no storyboard or collage.\nInput image: ship-lounge-v1.png is a STYLE REFERENCE ONLY for painted texture, visual clarity, warm/cool contrast and skewed but coherent perspective. Its actors and aquarium must NOT be copied.\nArt direction: spectacular, richly hand-painted HD cartoon scenery with strong readable silhouettes, original eccentric crooked architecture, fine purposeful surface wear, warm ochre/copper light against petrol and indigo shade, elegant soft brushwork and crisp intentional shapes, sophisticated classic adventure quality. Distinct room architecture and color palette specified below. No resemblance to existing intellectual property.\nComposition: landscape 16:9, request native 1920 by 1080 pixels or the highest native landscape size supported. Fixed front wide theatrical camera at adult waist/eye height, a complete room with modest perspective depth. Bottom 30–35 percent is continuous clean walkable floor from left edge to right edge. Interactable props occupy separated clear midground clusters above the floor. Entrances/exits at lateral edges remain visible. Do not place foreground objects in the walk corridor. Leave ample midground actor space.\nABSOLUTELY EMPTY ENVIRONMENT: no people, creatures, fish, robots, bodies, character-like appliances, statues, faces, eyes or smiling screen graphics. No aquarium/tank or movable actors baked in. No readable words, letters, numerals, brands, signage, subtitles, HUD or interface. Display screens are blank/inactive shapes so localized overlays can be added later. No border, watermark or fake signature.\nRoom brief: Café with an aquarium docking area, but the aquarium and every fish must be ABSENT because the travelling aquarium is a separate movable game object. A warmly lit eccentric café with ochre plaster, petrol blue wainscoting, rich crooked wooden beams, hanging amber lamps, potted ivy and a deep evening blue window. Left midground an inviting rounded café counter with coffee machine; beside it a clearly empty brass docking pedestal at appropriate small-tank height and a disconnected filter loop with safe bypass valves. Center-right a small tabletop reel recorder with three chunky track buttons, no numbers or labels; a broad pale tabletop remains available for overlay props. Rear window and a round door to the right; service door left. Comfy furniture hugs the back walls; the lower third remains a broad clear wooden walkable floor. Cozy layered storytelling texture, emotionally warm, no people, fish, robots, tank or aquarium.",
+      "reference": "assets/goldfish-adventure/concepts/ship-lounge-v1.png",
+      "status": "visually_reviewed",
+      "width": 1672,
+      "height": 941,
+      "bytes": 3080494,
+      "sha256": "5403df6c988c4c4a6827e4fe258362821cf68b999e045a887ec8d8dc569c9c45",
+      "master": "assets/goldfish-adventure/masters/scenes/R03.png",
+      "runtime": "ui/img/goldfish-adventure/scenes/R03.png",
+      "source": "exec-bca665c5-8a3e-4256-b593-e657f812bc35.png",
+      "visual_review": "Empty actors and aquarium; clear lower floor; localized labels remain external; practical puzzle clusters.",
+      "landmarks_normalized": {
+        "counter": [
+          0.11,
+          0.31,
+          0.29,
+          0.38
+        ],
+        "aquarium_dock": [
+          0.39,
+          0.49,
+          0.12,
+          0.19
+        ],
+        "filter_loop": [
+          0.48,
+          0.43,
+          0.1,
+          0.17
+        ],
+        "recorder": [
+          0.6,
+          0.38,
+          0.11,
+          0.14
+        ],
+        "right_door": [
+          0.88,
+          0.14,
+          0.12,
+          0.48
+        ]
+      },
+      "landmark_format": "x,y,width,height as fractions of image; approximate visual estimates for hotspot reconciliation",
+      "walk_corridor_normalized": [
+        0,
+        0.77,
+        1,
+        0.23
+      ]
+    },
+    {
+      "id": "R04",
+      "prompt": "Use case: illustration-story.\nAsset type: final empty background plate for an original fixed-camera 2D point-and-click adventure, room R04. A single finished scene, no storyboard or collage.\nInput image: ship-lounge-v1.png is a STYLE REFERENCE ONLY for painted texture, visual clarity, warm/cool contrast and skewed but coherent perspective. Its actors and aquarium must NOT be copied.\nArt direction: spectacular, richly hand-painted HD cartoon scenery with strong readable silhouettes, original eccentric crooked architecture, fine purposeful surface wear, warm ochre/copper light against petrol and indigo shade, elegant soft brushwork and crisp intentional shapes, sophisticated classic adventure quality. Distinct room architecture and color palette specified below. No resemblance to existing intellectual property.\nComposition: landscape 16:9, request native 1920 by 1080 pixels or the highest native landscape size supported. Fixed front wide theatrical camera at adult waist/eye height, a complete room with modest perspective depth. Bottom 30–35 percent is continuous clean walkable floor from left edge to right edge. Interactable props occupy separated clear midground clusters above the floor. Entrances/exits at lateral edges remain visible. Do not place foreground objects in the walk corridor. Leave ample midground actor space.\nABSOLUTELY EMPTY ENVIRONMENT: no people, creatures, fish, robots, bodies, character-like appliances, statues, faces, eyes or smiling screen graphics. No aquarium/tank or movable actors baked in. No readable words, letters, numerals, brands, signage, subtitles, HUD or interface. Display screens are blank/inactive shapes so localized overlays can be added later. No border, watermark or fake signature.\nRoom brief: Spectacular launch pier under an immense apricot-and-indigo starry sky. A ramshackle handmade space ferry occupies the back-right dock, with copper hull patches, a broad unoccupied boarding gangway and warm empty doorway. The lower third is a continuous weathered timber and metal pier walkway. Left midground a mechanical fuel console with a big unnumbered circular gauge, a clear cylindrical sightglass showing a small fluid line, isolation valve, red-brown hose and separate regulator wheel; distinct silhouettes and physical pipe connections. Rusty mooring bollards stay behind the walking corridor. Tiny floating islands and distant port cranes drift far away in the huge sky. Left edge a clear return arch; right edge gangway/ferry doorway. Grand departure atmosphere, poetic and funny, empty of all actors.",
+      "reference": "assets/goldfish-adventure/concepts/ship-lounge-v1.png",
+      "status": "visually_reviewed",
+      "width": 1672,
+      "height": 941,
+      "bytes": 3178214,
+      "sha256": "2a78bd3bd5c0caa9a50d68eb09631d8e88cc208daeabd199c47aa8fb4147fc93",
+      "master": "assets/goldfish-adventure/masters/scenes/R04.png",
+      "runtime": "ui/img/goldfish-adventure/scenes/R04.png",
+      "source": "exec-cc5091b4-0102-4c9e-bf7d-c4d0467a8f57.png",
+      "visual_review": "Empty actors and aquarium; clear lower floor; localized labels remain external; practical puzzle clusters.",
+      "landmarks_normalized": {
+        "fuel_console": [
+          0.15,
+          0.3,
+          0.29,
+          0.39
+        ],
+        "gauge": [
+          0.19,
+          0.3,
+          0.08,
+          0.18
+        ],
+        "sightglass": [
+          0.28,
+          0.27,
+          0.06,
+          0.22
+        ],
+        "gangway": [
+          0.68,
+          0.39,
+          0.27,
+          0.3
+        ],
+        "ferry_door": [
+          0.82,
+          0.25,
+          0.13,
+          0.29
+        ]
+      },
+      "landmark_format": "x,y,width,height as fractions of image; approximate visual estimates for hotspot reconciliation",
+      "walk_corridor_normalized": [
+        0,
+        0.77,
+        1,
+        0.23
+      ]
+    },
+    {
+      "id": "R05",
+      "prompt": "Use case: illustration-story.\nAsset type: final empty background plate for an original fixed-camera 2D point-and-click adventure, room R05. A single finished scene, no storyboard or collage.\nInput image: ship-lounge-v1.png is a STYLE REFERENCE ONLY for painted texture, visual clarity, warm/cool contrast and skewed but coherent perspective. Its actors and aquarium must NOT be copied.\nArt direction: spectacular, richly hand-painted HD cartoon scenery with strong readable silhouettes, original eccentric crooked architecture, fine purposeful surface wear, warm ochre/copper light against petrol and indigo shade, elegant soft brushwork and crisp intentional shapes, sophisticated classic adventure quality. Distinct room architecture and color palette specified below. No resemblance to existing intellectual property.\nComposition: landscape 16:9, request native 1920 by 1080 pixels or the highest native landscape size supported. Fixed front wide theatrical camera at adult waist/eye height, a complete room with modest perspective depth. Bottom 30–35 percent is continuous clean walkable floor from left edge to right edge. Interactable props occupy separated clear midground clusters above the floor. Entrances/exits at lateral edges remain visible. Do not place foreground objects in the walk corridor. Leave ample midground actor space.\nABSOLUTELY EMPTY ENVIRONMENT: no people, creatures, fish, robots, bodies, character-like appliances, statues, faces, eyes or smiling screen graphics. No aquarium/tank or movable actors baked in. No readable words, letters, numerals, brands, signage, subtitles, HUD or interface. Display screens are blank/inactive shapes so localized overlays can be added later. No border, watermark or fake signature.\nRoom brief: An EMPTY recurring ship bridge and lounge closely matching the approved reference's ship atmosphere. Same original worn petrol-blue metal hull, copper pipes, warm wood, deep star window, amber hanging lights, cozy red padded bench. Helm and steering wheel LEFT below a huge sweeping star window. A brass-rimmed oval metal door at CENTER BACK. An inviting empty red bench at RIGHT with small cup on a side shelf, enough empty space for a large sitting companion overlay. Upper-right a SMALL public wall monitor, BLANK dark green screen with absolutely NO face, letters or logo. Beside helm left a SEPARATE small freight display, also BLANK. No aquarium, fish or party. The entire lower third is clear broad wooden floor for movable actors and a travelling aquarium. Use coherent crooked cabin perspective and intimate quiet warmth.",
+      "reference": "assets/goldfish-adventure/concepts/ship-lounge-v1.png",
+      "status": "visually_reviewed",
+      "width": 1672,
+      "height": 941,
+      "bytes": 3077005,
+      "sha256": "c5f5825a7ce4235757b0e58671160a7a05b4b803be52c48ff26f7a6e5a11acf4",
+      "master": "assets/goldfish-adventure/masters/scenes/R05.png",
+      "runtime": "ui/img/goldfish-adventure/scenes/R05.png",
+      "source": "exec-af056222-201a-4d29-8872-5605e69d31c8.png",
+      "visual_review": "No actors, tank, fish or face; distinct helm/freight/public displays or practical freight clusters; clear lower floor.",
+      "landmarks_normalized": {
+        "helm": [
+          0.05,
+          0.34,
+          0.27,
+          0.43
+        ],
+        "freight_display": [
+          0.03,
+          0.42,
+          0.07,
+          0.11
+        ],
+        "door": [
+          0.47,
+          0.16,
+          0.17,
+          0.55
+        ],
+        "bench": [
+          0.67,
+          0.36,
+          0.33,
+          0.39
+        ],
+        "public_monitor": [
+          0.75,
+          0.02,
+          0.15,
+          0.21
+        ]
+      },
+      "landmark_format": "x,y,width,height as fractions of image; approximate visual estimates for hotspot reconciliation",
+      "walk_corridor_normalized": [
+        0,
+        0.79,
+        1,
+        0.21
+      ]
+    },
+    {
+      "id": "R06",
+      "prompt": "Use case: illustration-story.\nAsset type: final empty background plate for an original fixed-camera 2D point-and-click adventure, room R06. A single finished scene, no storyboard or collage.\nInput image: ship-lounge-v1.png is a STYLE REFERENCE ONLY for painted texture, visual clarity, warm/cool contrast and skewed but coherent perspective. Its actors and aquarium must NOT be copied.\nArt direction: spectacular, richly hand-painted HD cartoon scenery with strong readable silhouettes, original eccentric crooked architecture, fine purposeful surface wear, warm ochre/copper light against petrol and indigo shade, elegant soft brushwork and crisp intentional shapes, sophisticated classic adventure quality. Distinct room architecture and color palette specified below. No resemblance to existing intellectual property.\nComposition: landscape 16:9, request native 1920 by 1080 pixels or the highest native landscape size supported. Fixed front wide theatrical camera at adult waist/eye height, a complete room with modest perspective depth. Bottom 30–35 percent is continuous clean walkable floor from left edge to right edge. Interactable props occupy separated clear midground clusters above the floor. Entrances/exits at lateral edges remain visible. Do not place foreground objects in the walk corridor. Leave ample midground actor space.\nABSOLUTELY EMPTY ENVIRONMENT: no people, creatures, fish, robots, bodies, character-like appliances, statues, faces, eyes or smiling screen graphics. No aquarium/tank or movable actors baked in. No readable words, letters, numerals, brands, signage, subtitles, HUD or interface. Display screens are blank/inactive shapes so localized overlays can be added later. No border, watermark or fake signature.\nRoom brief: Engine and freight hold of the same handmade ferry. Tall copper pipes, petrol blue riveted walls, amber work lamps, warm wooden grates and deep cool indigo recesses. Left midground a small practical engine with exposed safe belt housing and a clearly disconnected copper coupling. Center-right shelves of cylindrical translucent memory canisters with empty metal label plaques and a small glowing read-only diagnostic socket. A distinct brass read head on a short articulated stand next to a waist-height workbench. Rear bulkhead is a clear dead end with pipes, no fake mysterious exit; the sole real rounded exit is left side. Freight documents are blank cream sheets on a small rack. Mechanical connections are visually clear and not character-shaped. Lower third continuous clear walk floor, substantial empty party space.",
+      "reference": "assets/goldfish-adventure/concepts/ship-lounge-v1.png",
+      "status": "visually_reviewed",
+      "width": 1672,
+      "height": 941,
+      "bytes": 3099891,
+      "sha256": "ce35698bb9ad1173dccbfd86cacd1aed9cfd93b4e7c849ea849bf1e61a863f01",
+      "master": "assets/goldfish-adventure/masters/scenes/R06.png",
+      "runtime": "ui/img/goldfish-adventure/scenes/R06.png",
+      "source": "exec-3e980d40-8186-4b49-98e3-072e72c9870b.png",
+      "visual_review": "No actors, tank, fish or face; distinct helm/freight/public displays or practical freight clusters; clear lower floor.",
+      "landmarks_normalized": {
+        "engine": [
+          0.14,
+          0.29,
+          0.26,
+          0.45
+        ],
+        "coupling": [
+          0.34,
+          0.46,
+          0.16,
+          0.25
+        ],
+        "memory_canisters": [
+          0.52,
+          0.25,
+          0.24,
+          0.32
+        ],
+        "read_head": [
+          0.8,
+          0.38,
+          0.11,
+          0.19
+        ],
+        "diagnostic_socket": [
+          0.78,
+          0.37,
+          0.03,
+          0.09
+        ],
+        "exit": [
+          0.01,
+          0.14,
+          0.15,
+          0.64
+        ]
+      },
+      "landmark_format": "x,y,width,height as fractions of image; approximate visual estimates for hotspot reconciliation",
+      "walk_corridor_normalized": [
+        0,
+        0.79,
+        1,
+        0.21
+      ]
+    },
+    {
+      "id": "R07",
+      "prompt": "Use case: illustration-story.\nAsset type: final empty background plate for an original fixed-camera 2D point-and-click adventure, room R07. A single finished scene, no storyboard or collage.\nInput image: ship-lounge-v1.png is a STYLE REFERENCE ONLY for painted texture, visual clarity, warm/cool contrast and skewed but coherent perspective. Its actors and aquarium must NOT be copied.\nArt direction: spectacular, richly hand-painted HD cartoon scenery with strong readable silhouettes, original eccentric crooked architecture, fine purposeful surface wear, warm ochre/copper light against petrol and indigo shade, elegant soft brushwork and crisp intentional shapes, sophisticated classic adventure quality. Distinct room architecture and color palette specified below. No resemblance to existing intellectual property.\nComposition: landscape 16:9, request native 1920 by 1080 pixels or the highest native landscape size supported. Fixed front wide theatrical camera at adult waist/eye height, a complete room with modest perspective depth. Bottom 30–35 percent is continuous clean walkable floor from left edge to right edge. Interactable props occupy separated clear midground clusters above the floor. Entrances/exits at lateral edges remain visible. Do not place foreground objects in the walk corridor. Leave ample midground actor space.\nABSOLUTELY EMPTY ENVIRONMENT: no people, creatures, fish, robots, bodies, character-like appliances, statues, faces, eyes or smiling screen graphics. No aquarium/tank or movable actors baked in. No readable words, letters, numerals, brands, signage, subtitles, HUD or interface. Display screens are blank/inactive shapes so localized overlays can be added later. No border, watermark or fake signature.\nRoom brief: Tilted-asteroid customs station built into a crooked floating rock, enormous starry void outside angled windows. Palette slate blue, ochre brass and muted parchment, theatrical diagonals but stable usable floor. TWO visually separated puzzle zones: LEFT an empty public inspection platform with a large mechanical scale, clearly visible zero-calibration knob, low official ballast weights and blank diagram board; RIGHT a legitimate manual pressure docking station with three differently shaped unnumbered gauges, two separate chunky interlock levers and a round docking airlock. Both zones are accessible from one broad unobstructed lower walkway. No clerk or robots baked in. A bridge exit at far left and pressure hatch exit far right. Silhouette clarity and spatially intelligible alternatives.\nThis specific location's materials and architecture take priority over the style reference. Match only paint quality, staging clarity and palette sophistication. Do NOT copy the reference cabin's metal arches, rivets, copper pipes, star window or plank floor unless this room brief explicitly calls for them. Each room must be a genuinely different location.",
+      "reference": "assets/goldfish-adventure/concepts/ship-lounge-v1.png",
+      "status": "visually_reviewed",
+      "width": 1672,
+      "height": 941,
+      "bytes": 3203449,
+      "sha256": "5b33f87316fa97f77428c242f2969c2c136cea5794ae9caf0db894933a9dd161",
+      "master": "assets/goldfish-adventure/masters/scenes/R07.png",
+      "runtime": "ui/img/goldfish-adventure/scenes/R07.png",
+      "source": "exec-217a84c9-22cb-4bc0-997e-f529dc60af05.png",
+      "visual_review": "Distinct asteroid customs and violet market; no actors; route clusters and lateral exits clear; no legible text.",
+      "landmarks_normalized": {
+        "inspection_scale": [
+          0.19,
+          0.29,
+          0.2,
+          0.4
+        ],
+        "ballast": [
+          0.14,
+          0.48,
+          0.09,
+          0.12
+        ],
+        "calibration_diagram": [
+          0.34,
+          0.31,
+          0.16,
+          0.2
+        ],
+        "pressure_gauges": [
+          0.6,
+          0.25,
+          0.21,
+          0.2
+        ],
+        "interlocks": [
+          0.64,
+          0.44,
+          0.14,
+          0.13
+        ],
+        "docking_airlock": [
+          0.83,
+          0.2,
+          0.17,
+          0.49
+        ]
+      },
+      "landmark_format": "x,y,width,height as fractions of image; approximate visual estimates for hotspot reconciliation",
+      "walk_corridor_normalized": [
+        0,
+        0.76,
+        1,
+        0.24
+      ]
+    },
+    {
+      "id": "R08",
+      "prompt": "Use case: illustration-story.\nAsset type: final empty background plate for an original fixed-camera 2D point-and-click adventure, room R08. A single finished scene, no storyboard or collage.\nInput image: ship-lounge-v1.png is a STYLE REFERENCE ONLY for painted texture, visual clarity, warm/cool contrast and skewed but coherent perspective. Its actors and aquarium must NOT be copied.\nArt direction: spectacular, richly hand-painted HD cartoon scenery with strong readable silhouettes, original eccentric crooked architecture, fine purposeful surface wear, warm ochre/copper light against petrol and indigo shade, elegant soft brushwork and crisp intentional shapes, sophisticated classic adventure quality. Distinct room architecture and color palette specified below. No resemblance to existing intellectual property.\nComposition: landscape 16:9, request native 1920 by 1080 pixels or the highest native landscape size supported. Fixed front wide theatrical camera at adult waist/eye height, a complete room with modest perspective depth. Bottom 30–35 percent is continuous clean walkable floor from left edge to right edge. Interactable props occupy separated clear midground clusters above the floor. Entrances/exits at lateral edges remain visible. Do not place foreground objects in the walk corridor. Leave ample midground actor space.\nABSOLUTELY EMPTY ENVIRONMENT: no people, creatures, fish, robots, bodies, character-like appliances, statues, faces, eyes or smiling screen graphics. No aquarium/tank or movable actors baked in. No readable words, letters, numerals, brands, signage, subtitles, HUD or interface. Display screens are blank/inactive shapes so localized overlays can be added later. No border, watermark or fake signature.\nRoom brief: Luminous violet market of abandoned promises inside odd slanting night-market arches on a small space station. Velvet purple, aubergine and twilight indigo with warm amber glass lanterns, little coral and turquoise accents. Empty stalls in back and sides, draped cloth, paper promises hanging as BLANK cream sheets with abstract wax seals, no writing or icons that resemble letters. Left stall a little tray of clearly visible spare brass hinges and a borrowing receipt pad, blank. Right a closed crooked market hatch whose broken hinge position is visible. Warm stall counter center, no vendors or customers. Clear lateral exits through the archways, full-width lower cobblestone walking floor, counter and props above it. Magical, slightly melancholic, humorous human-scale craftsmanship.\nThis specific location's materials and architecture take priority over the style reference. Match only paint quality, staging clarity and palette sophistication. Do NOT copy the reference cabin's metal arches, rivets, copper pipes, star window or plank floor unless this room brief explicitly calls for them. Each room must be a genuinely different location.",
+      "reference": "assets/goldfish-adventure/concepts/ship-lounge-v1.png",
+      "status": "visually_reviewed",
+      "width": 1672,
+      "height": 941,
+      "bytes": 3307856,
+      "sha256": "2f5dd8bd2a7ba9343734ff23f9c1019a4bfa4c1cb084ffe2f89c59fdc0acfbfa",
+      "master": "assets/goldfish-adventure/masters/scenes/R08.png",
+      "runtime": "ui/img/goldfish-adventure/scenes/R08.png",
+      "source": "exec-7977c1a1-aa55-4fae-8dd5-2de46921b7df.png",
+      "visual_review": "Distinct asteroid customs and violet market; no actors; route clusters and lateral exits clear; no legible text.",
+      "landmarks_normalized": {
+        "hinges": [
+          0.11,
+          0.43,
+          0.1,
+          0.13
+        ],
+        "receipt": [
+          0.2,
+          0.41,
+          0.05,
+          0.13
+        ],
+        "promises": [
+          0.37,
+          0.18,
+          0.26,
+          0.2
+        ],
+        "counter": [
+          0.29,
+          0.48,
+          0.39,
+          0.25
+        ],
+        "broken_hatch": [
+          0.71,
+          0.24,
+          0.17,
+          0.3
+        ],
+        "left_exit": [
+          0,
+          0.18,
+          0.11,
+          0.54
+        ],
+        "right_exit": [
+          0.89,
+          0.15,
+          0.11,
+          0.57
+        ]
+      },
+      "landmark_format": "x,y,width,height as fractions of image; approximate visual estimates for hotspot reconciliation",
+      "walk_corridor_normalized": [
+        0,
+        0.76,
+        1,
+        0.24
+      ]
+    },
+    {
+      "id": "R09",
+      "prompt": "Use case: illustration-story.\nAsset type: final empty background plate for an original fixed-camera 2D point-and-click adventure, room R09. A single finished scene, no storyboard or collage.\nInput image: ship-lounge-v1.png is a STYLE REFERENCE ONLY for painted texture, visual clarity, warm/cool contrast and skewed but coherent perspective. Its actors and aquarium must NOT be copied.\nArt direction: spectacular, richly hand-painted HD cartoon scenery with strong readable silhouettes, original eccentric crooked architecture, fine purposeful surface wear, warm ochre/copper light against petrol and indigo shade, elegant soft brushwork and crisp intentional shapes, sophisticated classic adventure quality. Distinct room architecture and color palette specified below. No resemblance to existing intellectual property.\nComposition: landscape 16:9, request native 1920 by 1080 pixels or the highest native landscape size supported. Fixed front wide theatrical camera at adult waist/eye height, a complete room with modest perspective depth. Bottom 30–35 percent is continuous clean walkable floor from left edge to right edge. Interactable props occupy separated clear midground clusters above the floor. Entrances/exits at lateral edges remain visible. Do not place foreground objects in the walk corridor. Leave ample midground actor space.\nABSOLUTELY EMPTY ENVIRONMENT: no people, creatures, fish, robots, bodies, character-like appliances, statues, faces, eyes or smiling screen graphics. No aquarium/tank or movable actors baked in. No readable words, letters, numerals, brands, signage, subtitles, HUD or interface. Display screens are blank/inactive shapes so localized overlays can be added later. No border, watermark or fake signature.\nRoom brief: Bruno's arboretum, a lovingly maintained beautiful disorder in a huge crooked greenhouse on a tiny floating world. Lush sage, moss, fern green, honey wood and turquoise glass, dappled late-afternoon light. TWO substantial accessible route zones: upper LEFT a visibly broken suspended wooden walkway with surviving braces and recognizable gaps, no repaired bridge yet; lower RIGHT a seed lift and small workhouse with a visible counterweight shaft, irrigation return pipe and plant-guide rails. A comfortably empty worn chair and a single ceramic cup tucked among cared-for plants near center-left as intimate traces of Alma. No person, monkey or statue. Plants frame and sit behind a broad continuous open earth/wood walkway in bottom third; clear exit openings both sides. Tender and specific, never abandoned or dilapidated.\nThis specific location's materials and architecture take priority over the style reference. Match only paint quality, staging clarity and palette sophistication. Do NOT copy the reference cabin's metal arches, rivets, copper pipes, star window or plank floor unless this room brief explicitly calls for them. Each room must be a genuinely different location.",
+      "reference": "assets/goldfish-adventure/concepts/ship-lounge-v1.png",
+      "status": "visually_reviewed",
+      "width": 1672,
+      "height": 941,
+      "bytes": 3509701,
+      "sha256": "836748778e53743deeca1a9bca21837e756b213b61bc40d6b43e5965c42936c6",
+      "master": "assets/goldfish-adventure/masters/scenes/R09.png",
+      "runtime": "ui/img/goldfish-adventure/scenes/R09.png",
+      "source": "exec-65d84235-ef95-4925-9f35-10e356f5dde0.png",
+      "visual_review": "Distinct lush sunlit arboretum and storm-glass greenhouse. Empty actors; upper walkway and seed-lift routes visible, chair/cup intact, weather props clearly separated; floor clear.",
+      "landmarks_normalized": {
+        "old_walkway": [
+          0.07,
+          0.07,
+          0.51,
+          0.31
+        ],
+        "walkway_gap": [
+          0.4,
+          0.25,
+          0.07,
+          0.08
+        ],
+        "alma_chair": [
+          0.2,
+          0.49,
+          0.15,
+          0.28
+        ],
+        "alma_cup": [
+          0.35,
+          0.57,
+          0.04,
+          0.05
+        ],
+        "seed_lift": [
+          0.61,
+          0.02,
+          0.14,
+          0.73
+        ],
+        "counterweight": [
+          0.68,
+          0.29,
+          0.04,
+          0.14
+        ],
+        "workhouse": [
+          0.74,
+          0.22,
+          0.21,
+          0.51
+        ],
+        "irrigation_return": [
+          0.85,
+          0.56,
+          0.08,
+          0.16
+        ]
+      },
+      "landmark_format": "x,y,width,height as fractions of image; approximate visual estimates for hotspot reconciliation",
+      "walk_corridor_normalized": [
+        0,
+        0.81,
+        1,
+        0.19
+      ]
+    },
+    {
+      "id": "R10",
+      "prompt": "Use case: illustration-story.\nAsset type: final empty background plate for an original fixed-camera 2D point-and-click adventure, room R10. A single finished scene, no storyboard or collage.\nInput image: ship-lounge-v1.png is a STYLE REFERENCE ONLY for painted texture, visual clarity, warm/cool contrast and skewed but coherent perspective. Its actors and aquarium must NOT be copied.\nArt direction: spectacular, richly hand-painted HD cartoon scenery with strong readable silhouettes, original eccentric crooked architecture, fine purposeful surface wear, warm ochre/copper light against petrol and indigo shade, elegant soft brushwork and crisp intentional shapes, sophisticated classic adventure quality. Distinct room architecture and color palette specified below. No resemblance to existing intellectual property.\nComposition: landscape 16:9, request native 1920 by 1080 pixels or the highest native landscape size supported. Fixed front wide theatrical camera at adult waist/eye height, a complete room with modest perspective depth. Bottom 30–35 percent is continuous clean walkable floor from left edge to right edge. Interactable props occupy separated clear midground clusters above the floor. Entrances/exits at lateral edges remain visible. Do not place foreground objects in the walk corridor. Leave ample midground actor space.\nABSOLUTELY EMPTY ENVIRONMENT: no people, creatures, fish, robots, bodies, character-like appliances, statues, faces, eyes or smiling screen graphics. No aquarium/tank or movable actors baked in. No readable words, letters, numerals, brands, signage, subtitles, HUD or interface. Display screens are blank/inactive shapes so localized overlays can be added later. No border, watermark or fake signature.\nRoom brief: Storm-glass weather observatory and greenhouse. Spectacular giant bowed glass panes contain dark blue storm clouds and pale violet rain outside; inside warm brass, amber wood and lush botanical green. Left midground a distinct storm-sensitive plant on a wheeled pot stand, leaves tense in curling shapes, next to a closed simple umbrella and a metal watering can with visible detachable spout. Right midground a low-voltage rain sensor and carefully legible physical condensate pipes, heater housing and shutter control wheel, all without words or numbers. Upper shutter louvers partly closed; a condensation vessel and float visible. Center space uncluttered, broad warm dry tile floor in bottom third for party movement. Door left and greenhouse passage right, giant storm as dramatic background.\nThis specific location's materials and architecture take priority over the style reference. Match only paint quality, staging clarity and palette sophistication. Do NOT copy the reference cabin's metal arches, rivets, copper pipes, star window or plank floor unless this room brief explicitly calls for them. Each room must be a genuinely different location.",
+      "reference": "assets/goldfish-adventure/concepts/ship-lounge-v1.png",
+      "status": "visually_reviewed",
+      "width": 1672,
+      "height": 941,
+      "bytes": 3344830,
+      "sha256": "c396e9942dd21d00d8df07d33eabd3031ae40d26405111cdcaeac32c82787ae6",
+      "master": "assets/goldfish-adventure/masters/scenes/R10.png",
+      "runtime": "ui/img/goldfish-adventure/scenes/R10.png",
+      "source": "exec-b71a36a0-f5eb-49e3-b2bb-3de0f78c0b3d.png",
+      "visual_review": "Distinct lush sunlit arboretum and storm-glass greenhouse. Empty actors; upper walkway and seed-lift routes visible, chair/cup intact, weather props clearly separated; floor clear.",
+      "landmarks_normalized": {
+        "weather_plant": [
+          0.14,
+          0.31,
+          0.2,
+          0.44
+        ],
+        "umbrella": [
+          0.32,
+          0.48,
+          0.05,
+          0.25
+        ],
+        "watering_can": [
+          0.35,
+          0.58,
+          0.1,
+          0.15
+        ],
+        "rain_sensor": [
+          0.58,
+          0.4,
+          0.07,
+          0.17
+        ],
+        "shutter_control": [
+          0.66,
+          0.36,
+          0.11,
+          0.23
+        ],
+        "condensate_float": [
+          0.75,
+          0.27,
+          0.09,
+          0.24
+        ],
+        "heater": [
+          0.65,
+          0.56,
+          0.14,
+          0.16
+        ],
+        "shutters": [
+          0.42,
+          0,
+          0.4,
+          0.24
+        ]
+      },
+      "landmark_format": "x,y,width,height as fractions of image; approximate visual estimates for hotspot reconciliation",
+      "walk_corridor_normalized": [
+        0,
+        0.81,
+        1,
+        0.19
+      ]
+    },
+    {
+      "id": "R11",
+      "prompt": "Use case: illustration-story.\nAsset type: final empty background plate for an original fixed-camera 2D point-and-click adventure, room R11. A single finished scene, no storyboard or collage.\nInput image: ship-lounge-v1.png is a STYLE REFERENCE ONLY for painted texture, visual clarity, warm/cool contrast and skewed but coherent perspective. Its actors and aquarium must NOT be copied.\nArt direction: spectacular, richly hand-painted HD cartoon scenery with strong readable silhouettes, original eccentric crooked architecture, fine purposeful surface wear, warm ochre/copper light against petrol and indigo shade, elegant soft brushwork and crisp intentional shapes, sophisticated classic adventure quality. Distinct room architecture and color palette specified below. No resemblance to existing intellectual property.\nComposition: landscape 16:9, request native 1920 by 1080 pixels or the highest native landscape size supported. Fixed front wide theatrical camera at adult waist/eye height, a complete room with modest perspective depth. Bottom 30–35 percent is continuous clean walkable floor from left edge to right edge. Interactable props occupy separated clear midground clusters above the floor. Entrances/exits at lateral edges remain visible. Do not place foreground objects in the walk corridor. Leave ample midground actor space.\nABSOLUTELY EMPTY ENVIRONMENT: no people, creatures, fish, robots, bodies, character-like appliances, statues, faces, eyes or smiling screen graphics. No aquarium/tank or movable actors baked in. No readable words, letters, numerals, brands, signage, subtitles, HUD or interface. Display screens are blank/inactive shapes so localized overlays can be added later. No border, watermark or fake signature.\nRoom brief: Memory registry depot, an original submerged archival hall behind immense thick glass. Deep icy cyan, teal and navy water surrounds drowned library shelves outside/behind glass; warm amber desk lamps create a humane dry foreground refuge. Back wall underwater shelves recede in the blue with faint particles and water caustics, no fish or sea creatures. Left-center dry wooden records desk with a bulky reader, three separate blank document slots and little mechanical phase lamps; papers blank. Right midground a compact register mechanism with three unnumbered sliders and a transcript tray, no screens with text. Warm brass frames, skewed old archive architecture. Left airlock entrance and right dry archive door. Bottom third broad continuous dry slate-and-wood floor, no water flooding walking area, plenty of actor space.\nThis specific location's materials and architecture take priority over the style reference. Match only paint quality, staging clarity and palette sophistication. Do NOT copy the reference cabin's metal arches, rivets, copper pipes, star window or plank floor unless this room brief explicitly calls for them. Each room must be a genuinely different location.",
+      "reference": "assets/goldfish-adventure/concepts/ship-lounge-v1.png",
+      "status": "visually_reviewed",
+      "width": 1672,
+      "height": 941,
+      "bytes": 3066305,
+      "sha256": "93aa58c6794134d3dd34c3a5db166712539d04425dfc66e917cf57e459aa3256",
+      "master": "assets/goldfish-adventure/masters/scenes/R11.png",
+      "runtime": "ui/img/goldfish-adventure/scenes/R11.png",
+      "source": "exec-828a19e7-d378-4cb6-a228-7b0e3d70048e.png",
+      "visual_review": "Submerged archive behind dry glass and cathedral-like repair hall are distinct; empty actors; dry clear floor; diagnostic and assembly clusters visibly separate.",
+      "landmarks_normalized": {
+        "reader": [
+          0.19,
+          0.33,
+          0.12,
+          0.23
+        ],
+        "witness_slots": [
+          0.32,
+          0.46,
+          0.17,
+          0.08
+        ],
+        "phase_lamps": [
+          0.31,
+          0.35,
+          0.18,
+          0.11
+        ],
+        "register": [
+          0.68,
+          0.36,
+          0.17,
+          0.36
+        ],
+        "sliders": [
+          0.7,
+          0.43,
+          0.11,
+          0.09
+        ],
+        "transcript_tray": [
+          0.7,
+          0.54,
+          0.09,
+          0.06
+        ],
+        "submerged_shelves": [
+          0.23,
+          0.02,
+          0.58,
+          0.4
+        ]
+      },
+      "landmark_format": "x,y,width,height as fractions of image; approximate visual estimates for hotspot reconciliation",
+      "walk_corridor_normalized": [
+        0,
+        0.81,
+        1,
+        0.19
+      ]
+    },
+    {
+      "id": "R12",
+      "prompt": "Use case: illustration-story.\nAsset type: final empty background plate for an original fixed-camera 2D point-and-click adventure, room R12. A single finished scene, no storyboard or collage.\nInput image: ship-lounge-v1.png is a STYLE REFERENCE ONLY for painted texture, visual clarity, warm/cool contrast and skewed but coherent perspective. Its actors and aquarium must NOT be copied.\nArt direction: spectacular, richly hand-painted HD cartoon scenery with strong readable silhouettes, original eccentric crooked architecture, fine purposeful surface wear, warm ochre/copper light against petrol and indigo shade, elegant soft brushwork and crisp intentional shapes, sophisticated classic adventure quality. Distinct room architecture and color palette specified below. No resemblance to existing intellectual property.\nComposition: landscape 16:9, request native 1920 by 1080 pixels or the highest native landscape size supported. Fixed front wide theatrical camera at adult waist/eye height, a complete room with modest perspective depth. Bottom 30–35 percent is continuous clean walkable floor from left edge to right edge. Interactable props occupy separated clear midground clusters above the floor. Entrances/exits at lateral edges remain visible. Do not place foreground objects in the walk corridor. Leave ample midground actor space.\nABSOLUTELY EMPTY ENVIRONMENT: no people, creatures, fish, robots, bodies, character-like appliances, statues, faces, eyes or smiling screen graphics. No aquarium/tank or movable actors baked in. No readable words, letters, numerals, brands, signage, subtitles, HUD or interface. Display screens are blank/inactive shapes so localized overlays can be added later. No border, watermark or fake signature.\nRoom brief: Cathedral-like retired robot repair hall, completely EMPTY of robots and characters. Tall timber/metal rafters, deep petrol shadows, shafts of warm dusty amber light, old red brick and copper workshop fittings. LEFT a protected private workshop alcove: a workbench with one small standalone diagnostic logger box, three visible test sockets, protective cover and independent battery. RIGHT a spacious public assembly area with three EMPTY low distinct podiums and three separate microphone-like protocol devices wired independently; no bodies, torsos or robot heads. Empty repair benches line rear walls, every bench is furniture rather than a character. An inviting old hall with dignity and readiness. Large entry left, further arch exit right, bottom third broad empty worn timber floor.\nThis specific location's materials and architecture take priority over the style reference. Match only paint quality, staging clarity and palette sophistication. Do NOT copy the reference cabin's metal arches, rivets, copper pipes, star window or plank floor unless this room brief explicitly calls for them. Each room must be a genuinely different location.",
+      "reference": "assets/goldfish-adventure/concepts/ship-lounge-v1.png",
+      "status": "visually_reviewed",
+      "width": 1672,
+      "height": 941,
+      "bytes": 3086619,
+      "sha256": "0ad6247bf04a95eae848035b13a085f020ac807058e1ed796d858053a59958b9",
+      "master": "assets/goldfish-adventure/masters/scenes/R12.png",
+      "runtime": "ui/img/goldfish-adventure/scenes/R12.png",
+      "source": "exec-95423b5a-425b-4a44-99dc-bd9d0c265ac0.png",
+      "visual_review": "Submerged archive behind dry glass and cathedral-like repair hall are distinct; empty actors; dry clear floor; diagnostic and assembly clusters visibly separate.",
+      "landmarks_normalized": {
+        "logger": [
+          0.17,
+          0.48,
+          0.06,
+          0.1
+        ],
+        "write_protection": [
+          0.23,
+          0.47,
+          0.07,
+          0.11
+        ],
+        "independent_battery": [
+          0.3,
+          0.49,
+          0.04,
+          0.09
+        ],
+        "assembly_left": [
+          0.44,
+          0.48,
+          0.13,
+          0.21
+        ],
+        "assembly_center": [
+          0.59,
+          0.44,
+          0.15,
+          0.26
+        ],
+        "assembly_right": [
+          0.77,
+          0.48,
+          0.13,
+          0.21
+        ],
+        "workshop": [
+          0.14,
+          0.28,
+          0.24,
+          0.45
+        ]
+      },
+      "landmark_format": "x,y,width,height as fractions of image; approximate visual estimates for hotspot reconciliation",
+      "walk_corridor_normalized": [
+        0,
+        0.81,
+        1,
+        0.19
+      ]
+    },
+    {
+      "id": "R13",
+      "prompt": "Use case: illustration-story.\nAsset type: final empty background plate for an original fixed-camera 2D point-and-click adventure, room R13. A single finished scene, no storyboard or collage.\nInput image: ship-lounge-v1.png is a STYLE REFERENCE ONLY for painted texture, visual clarity, warm/cool contrast and skewed but coherent perspective. Its actors and aquarium must NOT be copied.\nArt direction: spectacular, richly hand-painted HD cartoon scenery with strong readable silhouettes, original eccentric crooked architecture, fine purposeful surface wear, warm ochre/copper light against petrol and indigo shade, elegant soft brushwork and crisp intentional shapes, sophisticated classic adventure quality. Distinct room architecture and color palette specified below. No resemblance to existing intellectual property.\nComposition: landscape 16:9, request native 1920 by 1080 pixels or the highest native landscape size supported. Fixed front wide theatrical camera at adult waist/eye height, a complete room with modest perspective depth. Bottom 30–35 percent is continuous clean walkable floor from left edge to right edge. Interactable props occupy separated clear midground clusters above the floor. Entrances/exits at lateral edges remain visible. Do not place foreground objects in the walk corridor. Leave ample midground actor space.\nABSOLUTELY EMPTY ENVIRONMENT: no people, creatures, fish, robots, bodies, character-like appliances, statues, faces, eyes or smiling screen graphics. No aquarium/tank or movable actors baked in. No readable words, letters, numerals, brands, signage, subtitles, HUD or interface. Display screens are blank/inactive shapes so localized overlays can be added later. No border, watermark or fake signature.\nRoom brief: ALLGUT reception, sterile gold-white bureaucratic reassurance. Echoes of mint-cream feelings bureau transformed into oversized mathematically rigid gilded ivory architecture, milky glass, cold white light and tiny overcontrolled mint accents. Two nearly identical clean doors stand side by side on the rear right, same proportions, no labels, equal doors connected by visible matching conduit loops. Left a pristine unoccupied reception counter with a blank reassuring display, absolutely no face. A small raw maintenance port at the lower counter edge exposes dark copper cables and an unplugged return lead, distinctly contrasting with polished reception. Entrance far left. Entire bottom third wide pristine white-gold tiled walking floor, empty and tense, no logo, words, figures or ornamental statues.\nThis specific location's materials and architecture take priority over the style reference. Match only paint quality, staging clarity and palette sophistication. Do NOT copy the reference cabin's metal arches, rivets, copper pipes, star window or plank floor unless this room brief explicitly calls for them. Each room must be a genuinely different location.",
+      "reference": "assets/goldfish-adventure/concepts/ship-lounge-v1.png",
+      "status": "visually_reviewed",
+      "width": 1672,
+      "height": 941,
+      "bytes": 2629735,
+      "sha256": "f7abe1870e1c2aad14252fd8a7f976382b2020a6f717db0c62a27b5701fdeb7f",
+      "master": "assets/goldfish-adventure/masters/scenes/R13.png",
+      "runtime": "ui/img/goldfish-adventure/scenes/R13.png",
+      "source": "exec-318272a3-6d34-4756-9e64-1b24e1b945c4.png",
+      "visual_review": "Distinct pristine gold/white ALLGUT and immense tribunal; no actors or faces; maintenance port and twin choices clear; four-panel rights board and three protocol devices clear.",
+      "landmarks_normalized": {
+        "reception": [
+          0.1,
+          0.34,
+          0.47,
+          0.4
+        ],
+        "blank_display": [
+          0.21,
+          0.36,
+          0.13,
+          0.16
+        ],
+        "maintenance_port": [
+          0.46,
+          0.59,
+          0.1,
+          0.16
+        ],
+        "choice_door_left": [
+          0.58,
+          0.24,
+          0.17,
+          0.47
+        ],
+        "choice_door_right": [
+          0.77,
+          0.24,
+          0.18,
+          0.47
+        ],
+        "shared_conduits": [
+          0.65,
+          0.14,
+          0.24,
+          0.17
+        ]
+      },
+      "landmark_format": "x,y,width,height as fractions of image; approximate visual estimates for hotspot reconciliation",
+      "walk_corridor_normalized": [
+        0,
+        0.81,
+        1,
+        0.19
+      ]
+    },
+    {
+      "id": "R14",
+      "prompt": "Use case: illustration-story.\nAsset type: final empty background plate for an original fixed-camera 2D point-and-click adventure, room R14. A single finished scene, no storyboard or collage.\nInput image: ship-lounge-v1.png is a STYLE REFERENCE ONLY for painted texture, visual clarity, warm/cool contrast and skewed but coherent perspective. Its actors and aquarium must NOT be copied.\nArt direction: spectacular, richly hand-painted HD cartoon scenery with strong readable silhouettes, original eccentric crooked architecture, fine purposeful surface wear, warm ochre/copper light against petrol and indigo shade, elegant soft brushwork and crisp intentional shapes, sophisticated classic adventure quality. Distinct room architecture and color palette specified below. No resemblance to existing intellectual property.\nComposition: landscape 16:9, request native 1920 by 1080 pixels or the highest native landscape size supported. Fixed front wide theatrical camera at adult waist/eye height, a complete room with modest perspective depth. Bottom 30–35 percent is continuous clean walkable floor from left edge to right edge. Interactable props occupy separated clear midground clusters above the floor. Entrances/exits at lateral edges remain visible. Do not place foreground objects in the walk corridor. Leave ample midground actor space.\nABSOLUTELY EMPTY ENVIRONMENT: no people, creatures, fish, robots, bodies, character-like appliances, statues, faces, eyes or smiling screen graphics. No aquarium/tank or movable actors baked in. No readable words, letters, numerals, brands, signage, subtitles, HUD or interface. Display screens are blank/inactive shapes so localized overlays can be added later. No border, watermark or fake signature.\nRoom brief: Oversized consent tribunal, huge theatrical chamber designed around one official answer, completely empty of people and machines resembling characters. Ivory stone, gold-white institutional ribs with deep indigo shadows and subtle warm copper accents. Center-back immense raised neutral dais, BLANK plaques, no judge seat character. LEFT midground an evidence worktable with four clearly separate unmarked document holders and a physical rights board with four empty inset panels, no words or icons that look like letters. RIGHT midground three distinct protocol preparation devices: one with individual key-shaped metal pieces, one with a transparent custody seal compartment, one with a guarded purge handle, physically separate. Door openings left and right. Bottom third continuous level open stone floor for party, evidence, and actor overlays.\nThis specific location's materials and architecture take priority over the style reference. Match only paint quality, staging clarity and palette sophistication. Do NOT copy the reference cabin's metal arches, rivets, copper pipes, star window or plank floor unless this room brief explicitly calls for them. Each room must be a genuinely different location.",
+      "reference": "assets/goldfish-adventure/concepts/ship-lounge-v1.png",
+      "status": "visually_reviewed",
+      "width": 1672,
+      "height": 941,
+      "bytes": 3100864,
+      "sha256": "b9ffb598e7425219861380c42803ddb0d1fdc25b118a4db8a662cabc105f63b9",
+      "master": "assets/goldfish-adventure/masters/scenes/R14.png",
+      "runtime": "ui/img/goldfish-adventure/scenes/R14.png",
+      "source": "exec-4358389a-73e6-4a8e-b657-98d7b324112c.png",
+      "visual_review": "Distinct pristine gold/white ALLGUT and immense tribunal; no actors or faces; maintenance port and twin choices clear; four-panel rights board and three protocol devices clear.",
+      "landmarks_normalized": {
+        "rights_board": [
+          0.09,
+          0.16,
+          0.21,
+          0.35
+        ],
+        "evidence_table": [
+          0.07,
+          0.49,
+          0.3,
+          0.21
+        ],
+        "keys_protocol": [
+          0.66,
+          0.43,
+          0.1,
+          0.25
+        ],
+        "custody_protocol": [
+          0.75,
+          0.37,
+          0.09,
+          0.33
+        ],
+        "purge_protocol": [
+          0.84,
+          0.39,
+          0.09,
+          0.3
+        ],
+        "dais": [
+          0.33,
+          0.37,
+          0.34,
+          0.3
+        ]
+      },
+      "landmark_format": "x,y,width,height as fractions of image; approximate visual estimates for hotspot reconciliation",
+      "walk_corridor_normalized": [
+        0,
+        0.81,
+        1,
+        0.19
+      ]
+    },
+    {
+      "id": "R15",
+      "prompt": "Use case: illustration-story.\nAsset type: final empty background plate for an original fixed-camera 2D point-and-click adventure, room R15. A single finished scene, no storyboard or collage.\nInput image: ship-lounge-v1.png is a STYLE REFERENCE ONLY for painted texture, visual clarity, warm/cool contrast and skewed but coherent perspective. Its actors and aquarium must NOT be copied.\nArt direction: spectacular, richly hand-painted HD cartoon scenery with strong readable silhouettes, original eccentric crooked architecture, fine purposeful surface wear, warm ochre/copper light against petrol and indigo shade, elegant soft brushwork and crisp intentional shapes, sophisticated classic adventure quality. Distinct room architecture and color palette specified below. No resemblance to existing intellectual property.\nComposition: landscape 16:9, request native 1920 by 1080 pixels or the highest native landscape size supported. Fixed front wide theatrical camera at adult waist/eye height, a complete room with modest perspective depth. Bottom 30–35 percent is continuous clean walkable floor from left edge to right edge. Interactable props occupy separated clear midground clusters above the floor. Entrances/exits at lateral edges remain visible. Do not place foreground objects in the walk corridor. Leave ample midground actor space.\nABSOLUTELY EMPTY ENVIRONMENT: no people, creatures, fish, robots, bodies, character-like appliances, statues, faces, eyes or smiling screen graphics. No aquarium/tank or movable actors baked in. No readable words, letters, numerals, brands, signage, subtitles, HUD or interface. Display screens are blank/inactive shapes so localized overlays can be added later. No border, watermark or fake signature.\nRoom brief: Core and withdrawal interlock, final original handmade mechanical control chamber beneath sterile bureaucracy. Deep midnight petrol vault, warm copper circuits and ivory-gold control furniture, dramatic soft light. VERY LEGIBLE geography with THREE physically distinct protocol stations in midground: LEFT individual key-transfer racks with separate large key silhouettes; CENTER custody console with clear seal compartment and split bus conduits; RIGHT purge station with a transparent closed guard over a large lever. Upper back wall a neglected manual withdrawal channel: disconnected thick copper line, plain mechanical relay, service breaker and independent power box. Physical pipes and cables visibly connect stations through the relay without becoming a confusing tangle. No words, digits, screens with faces, robots or figures. Broad lower third safe level metal walk floor, entrance left, observation passage right.\nThis specific location's materials and architecture take priority over the style reference. Match only paint quality, staging clarity and palette sophistication. Do NOT copy the reference cabin's metal arches, rivets, copper pipes, star window or plank floor unless this room brief explicitly calls for them. Each room must be a genuinely different location.",
+      "reference": "assets/goldfish-adventure/concepts/ship-lounge-v1.png",
+      "status": "visually_reviewed",
+      "width": 1672,
+      "height": 941,
+      "bytes": 3052880,
+      "sha256": "24be9557026a2bfc3ae57180a227433f30ae0ad536d6bde58850f65baf4df51e",
+      "master": "assets/goldfish-adventure/masters/scenes/R15.png",
+      "runtime": "ui/img/goldfish-adventure/scenes/R15.png",
+      "source": "exec-d296384e-45dd-43e5-99ef-67eb7ab08688.png",
+      "visual_review": "Core key/custody/purge stations and neglected manual channel are physically legible; quiet observatory has empty bench/table and broad view. No actors, tanks, text or faces; lower floor clear.",
+      "landmarks_normalized": {
+        "key_station": [
+          0.11,
+          0.26,
+          0.21,
+          0.46
+        ],
+        "custody_station": [
+          0.33,
+          0.39,
+          0.35,
+          0.34
+        ],
+        "purge_station": [
+          0.69,
+          0.3,
+          0.18,
+          0.43
+        ],
+        "withdrawal_channel": [
+          0.23,
+          0.04,
+          0.4,
+          0.19
+        ],
+        "disconnected_line": [
+          0.43,
+          0.1,
+          0.08,
+          0.09
+        ],
+        "relay": [
+          0.45,
+          0.2,
+          0.08,
+          0.16
+        ],
+        "service_breaker": [
+          0.67,
+          0.08,
+          0.08,
+          0.15
+        ],
+        "power_box": [
+          0.8,
+          0.05,
+          0.09,
+          0.19
+        ]
+      },
+      "landmark_format": "x,y,width,height as fractions of image; approximate visual estimates for hotspot reconciliation",
+      "walk_corridor_normalized": [
+        0,
+        0.79,
+        1,
+        0.21
+      ]
+    },
+    {
+      "id": "R16",
+      "prompt": "Use case: illustration-story.\nAsset type: final empty background plate for an original fixed-camera 2D point-and-click adventure, room R16. A single finished scene, no storyboard or collage.\nInput image: ship-lounge-v1.png is a STYLE REFERENCE ONLY for painted texture, visual clarity, warm/cool contrast and skewed but coherent perspective. Its actors and aquarium must NOT be copied.\nArt direction: spectacular, richly hand-painted HD cartoon scenery with strong readable silhouettes, original eccentric crooked architecture, fine purposeful surface wear, warm ochre/copper light against petrol and indigo shade, elegant soft brushwork and crisp intentional shapes, sophisticated classic adventure quality. Distinct room architecture and color palette specified below. No resemblance to existing intellectual property.\nComposition: landscape 16:9, request native 1920 by 1080 pixels or the highest native landscape size supported. Fixed front wide theatrical camera at adult waist/eye height, a complete room with modest perspective depth. Bottom 30–35 percent is continuous clean walkable floor from left edge to right edge. Interactable props occupy separated clear midground clusters above the floor. Entrances/exits at lateral edges remain visible. Do not place foreground objects in the walk corridor. Leave ample midground actor space.\nABSOLUTELY EMPTY ENVIRONMENT: no people, creatures, fish, robots, bodies, character-like appliances, statues, faces, eyes or smiling screen graphics. No aquarium/tank or movable actors baked in. No readable words, letters, numerals, brands, signage, subtitles, HUD or interface. Display screens are blank/inactive shapes so localized overlays can be added later. No border, watermark or fake signature.\nRoom brief: Common observatory for a quiet ending, original intimate handcrafted refuge against an immense view. Vast asymmetrical curved window reveals a soft star field, distant blue nebula and tiny warm-lit worlds, with enormous peaceful negative space. Warm worn wooden floor, muted copper frame, petrol-blue shadows and a single amber lamp. Midground LEFT a modest empty bench with room for a large seated companion overlay; center a small simple table with ample blank surface for ending prop overlays; RIGHT an old brass telescope angled toward the sky. A plain open door at left edge and small corridor right. No party, fish, aquarium, robots or people, no baked-in ending symbols. Bottom third clear wide wooden walkable floor, restrained composition with tenderness, calm and possibility rather than victory spectacle.\nThis specific location's materials and architecture take priority over the style reference. Match only paint quality, staging clarity and palette sophistication. Do NOT copy the reference cabin's metal arches, rivets, copper pipes, star window or plank floor unless this room brief explicitly calls for them. Each room must be a genuinely different location.",
+      "reference": "assets/goldfish-adventure/concepts/ship-lounge-v1.png",
+      "status": "visually_reviewed",
+      "width": 1672,
+      "height": 941,
+      "bytes": 2879795,
+      "sha256": "64b14762fee3eb6b9085b5d31aca6b34ee1f0d39f736eae9c829ee23e73e3f7d",
+      "master": "assets/goldfish-adventure/masters/scenes/R16.png",
+      "runtime": "ui/img/goldfish-adventure/scenes/R16.png",
+      "source": "exec-5b8975b7-0feb-4b13-9cc7-fccbdc41ede0.png",
+      "visual_review": "Core key/custody/purge stations and neglected manual channel are physically legible; quiet observatory has empty bench/table and broad view. No actors, tanks, text or faces; lower floor clear.",
+      "landmarks_normalized": {
+        "bench": [
+          0.15,
+          0.44,
+          0.28,
+          0.28
+        ],
+        "ending_table": [
+          0.45,
+          0.52,
+          0.18,
+          0.19
+        ],
+        "telescope": [
+          0.67,
+          0.28,
+          0.16,
+          0.43
+        ],
+        "sky_view": [
+          0.24,
+          0.02,
+          0.6,
+          0.48
+        ],
+        "left_exit": [
+          0,
+          0.14,
+          0.13,
+          0.65
+        ],
+        "right_exit": [
+          0.89,
+          0.24,
+          0.11,
+          0.46
+        ]
+      },
+      "landmark_format": "x,y,width,height as fractions of image; approximate visual estimates for hotspot reconciliation",
+      "walk_corridor_normalized": [
+        0,
+        0.79,
+        1,
+        0.21
+      ]
+    }
+  ]
+}

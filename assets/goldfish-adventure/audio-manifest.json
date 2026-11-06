@@ -1,0 +1,120 @@
+{
+  "version": 1,
+  "sample_rate": 48000,
+  "earshot_version": "0.4.0",
+  "bank": "forge_v2r6+forge04r1+fit1+pluck1",
+  "assets": [
+    {
+      "id": "second-chances",
+      "path": "audio/second-chances.ogg",
+      "duration": 45.0,
+      "bpm": 96,
+      "bars": 24,
+      "source": "Original score; Earshot mallet instruments",
+      "ambience": "industrial",
+      "peak_db": -8,
+      "sha256": "721687e77ed87db80f89042e07587fab1bcc36c415cb3299e6744324212f33d6"
+    },
+    {
+      "id": "paper-moons",
+      "path": "audio/paper-moons.ogg",
+      "duration": 38.571,
+      "bpm": 112,
+      "bars": 24,
+      "source": "Original score; Earshot mallet instruments",
+      "ambience": null,
+      "peak_db": -8,
+      "sha256": "42f80b0ded8b5f2137d5f85caaab639d37d5225a6f2a4004f449fcdd0685dc71"
+    },
+    {
+      "id": "borrowed-stars",
+      "path": "audio/borrowed-stars.ogg",
+      "duration": 56.842,
+      "bpm": 76,
+      "bars": 24,
+      "source": "Original score; Earshot mallet instruments",
+      "ambience": "space-hum",
+      "peak_db": -8,
+      "sha256": "3eb9377476ebf92ac7eb0ac90cbb8571d12f99c369acbcfa049df2a35ab2a5e8"
+    },
+    {
+      "id": "unkept-promises",
+      "path": "audio/unkept-promises.ogg",
+      "duration": 41.538,
+      "bpm": 104,
+      "bars": 24,
+      "source": "Original score; Earshot mallet instruments",
+      "ambience": null,
+      "peak_db": -8,
+      "sha256": "35da2facfc09a2678d4636e8b5e6eeadb64febf06410de2d083d21cfcb4552da"
+    },
+    {
+      "id": "alma",
+      "path": "audio/alma.ogg",
+      "duration": 60.0,
+      "bpm": 72,
+      "bars": 24,
+      "source": "Original score; Earshot mallet instruments",
+      "ambience": "forest-day",
+      "peak_db": -8,
+      "sha256": "8b25ae80f76dcd237b43827ed0a1bd74d5c848ff8e4def6a57ef7651e653735b"
+    },
+    {
+      "id": "weather-permission",
+      "path": "audio/weather-permission.ogg",
+      "duration": 49.091,
+      "bpm": 88,
+      "bars": 24,
+      "source": "Original score; Earshot mallet instruments",
+      "ambience": "rain-light",
+      "peak_db": -8,
+      "sha256": "cd77223d7d7b957fb55562651929e95712cfe44c09f54e6b570394e0445e677c"
+    },
+    {
+      "id": "a-useful-no",
+      "path": "audio/a-useful-no.ogg",
+      "duration": 54.0,
+      "bpm": 80,
+      "bars": 24,
+      "source": "Original score; Earshot mallet instruments",
+      "ambience": "space-hum",
+      "peak_db": -8,
+      "sha256": "70fa4496520cbe5a4d7ab04f48d4149155b08b47a637d88bf1bd778131924daf"
+    },
+    {
+      "id": "the-next-question",
+      "path": "audio/the-next-question.ogg",
+      "duration": 51.429,
+      "bpm": 84,
+      "bars": 24,
+      "source": "Original score; Earshot mallet instruments",
+      "ambience": null,
+      "peak_db": -8,
+      "sha256": "7c047b24868a6c23a59350b3b1736d634f32c79752ac7c7dab677d560be286b3"
+    },
+    {
+      "id": "door-metal",
+      "path": "audio/door-metal.wav",
+      "source": "AuraGo presentation pack; see audio-notices.txt",
+      "sha256": "32482418249bd29b41c1c18477cc7aa803a9b6f9e95cfbacf78003861d15b2d9"
+    },
+    {
+      "id": "water-splash",
+      "path": "audio/water-splash.wav",
+      "source": "AuraGo presentation pack; see audio-notices.txt",
+      "sha256": "1505a9ee7522239abd7e1ab3cbc5de3dd560f01b570615d4974b353ebdec1cf3"
+    },
+    {
+      "id": "ui-click",
+      "path": "audio/ui-click.wav",
+      "source": "AuraGo presentation pack; see audio-notices.txt",
+      "sha256": "c36b405e3b197cba27208348d72db28f502293841017c839d0a59eb303aff436"
+    },
+    {
+      "id": "electric-spark",
+      "path": "audio/electric-spark.wav",
+      "source": "AuraGo presentation pack; see audio-notices.txt",
+      "sha256": "3b644b8edd3fa891c9f8393c8c1472e9fd593ede1a3747ab6c23b92fe9ab4a6f"
+    }
+  ]
+}

@@ -38,6 +38,21 @@
             styles: appStyles('/css/desktop-app-minigolf.css'),
             scripts: ['/js/desktop/apps/minigolf.js']
         },
+        'goldfish-adventure': {
+            styles: appStyles('/css/desktop-app-goldfish-adventure.css'),
+            scripts: [
+                '/js/desktop/apps/goldfish-adventure/content.js',
+                '/js/desktop/apps/goldfish-adventure/content-act1.js',
+                '/js/desktop/apps/goldfish-adventure/content-act2.js',
+                '/js/desktop/apps/goldfish-adventure/content-act3.js',
+                '/js/desktop/apps/goldfish-adventure/content-act4.js',
+                '/js/desktop/apps/goldfish-adventure/state.js',
+                '/js/desktop/apps/goldfish-adventure/save.js',
+                '/js/desktop/apps/goldfish-adventure/renderer.js',
+                '/js/desktop/apps/goldfish-adventure/interactions.js',
+                '/js/desktop/apps/goldfish-adventure/app.js'
+            ]
+        },
         'aura-drift': {
             styles: appStyles('/css/desktop-app-aura-drift.css'),
             scripts: [

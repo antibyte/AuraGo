@@ -10,6 +10,13 @@ The Service owns authorization, read-only state, mutation locks and cache invali
 
 ## Local Contracts
 
+- Goldfish Adventure (`goldfish-adventure`, category `games`) is a built-in
+  local point-and-click app without a capability/config gate. Its app-owned
+  `logo_path` is `/img/goldfish-adventure/icon.png`; keep it out of themed icon
+  substitution. Runtime and browser-save ownership belongs to
+  `../../ui/js/desktop/apps/goldfish-adventure/AGENTS.md`. Verify
+  `go test ./ui -run TestGoldfishAppRegistration` and the built-in category test.
+
 - Aura Drift (`aura-drift`, category `games`) is a built-in offline single-player
   racing app with no capability gate and no config switch. Its app-owned icon is
   `logo_path` `/img/desktop-icons/aura-drift.svg`; the `Icon` value `aura-drift`

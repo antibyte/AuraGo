@@ -1,0 +1,480 @@
+{
+  "version": 1,
+  "tool": "Earshot sfx_render",
+  "bank": "forge_v2r6+forge04r1+fit1+pluck1",
+  "seed": 67,
+  "sampleRate": 48000,
+  "peakDb": -8,
+  "takes": [
+    {
+      "name": "celesta-64.wav",
+      "sound": "mallet/celesta",
+      "midi": 64,
+      "pitchHz": 329.6275569128699,
+      "sha256": "ab2b93effc6991cb92548dca630bf54bdf95f1c689e1e1eb9caddad0652058ea"
+    },
+    {
+      "name": "celesta-65.wav",
+      "sound": "mallet/celesta",
+      "midi": 65,
+      "pitchHz": 349.2282314330039,
+      "sha256": "8ce6fcc5a10f3821dccb446fb9c3c335216079cbd22e92e7eb18295e275b8765"
+    },
+    {
+      "name": "celesta-67.wav",
+      "sound": "mallet/celesta",
+      "midi": 67,
+      "pitchHz": 391.99543598174927,
+      "sha256": "eaff2d53394872f69a5b8999a42647f5cb531175c6be1629c26fc5ed3bb9d393"
+    },
+    {
+      "name": "celesta-69.wav",
+      "sound": "mallet/celesta",
+      "midi": 69,
+      "pitchHz": 440,
+      "sha256": "e9e9ddf79c0321ca623093d961da3064c93dee54984b94e3aba8cd7cf1e9bedf"
+    },
+    {
+      "name": "celesta-70.wav",
+      "sound": "mallet/celesta",
+      "midi": 70,
+      "pitchHz": 466.1637615180899,
+      "sha256": "25ed2848e142ac9290e2d288a932993dc9d6e91800fe4b5000e20a81688c621a"
+    },
+    {
+      "name": "celesta-71.wav",
+      "sound": "mallet/celesta",
+      "midi": 71,
+      "pitchHz": 493.8833012561241,
+      "sha256": "bb1e2d0cebfc46461a4fcfd978444fe52521ae9b170e693eb44aef9272c2581d"
+    },
+    {
+      "name": "celesta-72.wav",
+      "sound": "mallet/celesta",
+      "midi": 72,
+      "pitchHz": 523.2511306011972,
+      "sha256": "845fd0ffe9cdce2335eecdcc2d2c3290e670a37c50ea4cd72a73f6ee356f286b"
+    },
+    {
+      "name": "celesta-73.wav",
+      "sound": "mallet/celesta",
+      "midi": 73,
+      "pitchHz": 554.3652619537442,
+      "sha256": "c4893f4b7c866fb7631c5daa024ef709edf0d629fa67c277fa3eadfab378953d"
+    },
+    {
+      "name": "celesta-74.wav",
+      "sound": "mallet/celesta",
+      "midi": 74,
+      "pitchHz": 587.3295358348151,
+      "sha256": "dd9222ffb670d16d9ad4315d252ec170df41a69c1d0cf64d6cc5c7b1a8dbaf39"
+    },
+    {
+      "name": "celesta-75.wav",
+      "sound": "mallet/celesta",
+      "midi": 75,
+      "pitchHz": 622.2539674441618,
+      "sha256": "614429cc036c5a62bfbf5c5afb208772d91c973b3a9a33ade1b243262a63f149"
+    },
+    {
+      "name": "celesta-76.wav",
+      "sound": "mallet/celesta",
+      "midi": 76,
+      "pitchHz": 659.2551138257398,
+      "sha256": "9ba405c022126a946fc2b916714dc2648161960e97c4229cc87d035a0644f0fc"
+    },
+    {
+      "name": "celesta-77.wav",
+      "sound": "mallet/celesta",
+      "midi": 77,
+      "pitchHz": 698.4564628660078,
+      "sha256": "ebb70c01d0b83eb40c71f553900cbfc6964f4dc3ae26553a20d1f92fe36dfd9b"
+    },
+    {
+      "name": "celesta-78.wav",
+      "sound": "mallet/celesta",
+      "midi": 78,
+      "pitchHz": 739.9888454232688,
+      "sha256": "d275a0c1aaf44bba6b822386ebdd9d7240c8dd406ca8cdfc29691fab76740c9b"
+    },
+    {
+      "name": "celesta-79.wav",
+      "sound": "mallet/celesta",
+      "midi": 79,
+      "pitchHz": 783.9908719634985,
+      "sha256": "4e88f39e3d05def563941a5dff2a7320703118ca6406810531073a17bd74dde5"
+    },
+    {
+      "name": "celesta-81.wav",
+      "sound": "mallet/celesta",
+      "midi": 81,
+      "pitchHz": 880,
+      "sha256": "beb33807fb8d699228755829453e2bdc41657d89cb7649540a416446b4c1720b"
+    },
+    {
+      "name": "celesta-82.wav",
+      "sound": "mallet/celesta",
+      "midi": 82,
+      "pitchHz": 932.3275230361799,
+      "sha256": "b097e012a2a24086c8a7857dcb83092f2e5fac79c34bc9f7473ec4d085357782"
+    },
+    {
+      "name": "celesta-83.wav",
+      "sound": "mallet/celesta",
+      "midi": 83,
+      "pitchHz": 987.7666025122483,
+      "sha256": "32bc43c9b223b96e5fb32566a1b433fb0b4137f3bda31caa6d53744f8ba4070a"
+    },
+    {
+      "name": "celesta-84.wav",
+      "sound": "mallet/celesta",
+      "midi": 84,
+      "pitchHz": 1046.5022612023945,
+      "sha256": "9e347f0100f302a01605c8289becef25ce89bad1e006f0125d3f3bc2b8b48d8e"
+    },
+    {
+      "name": "celesta-85.wav",
+      "sound": "mallet/celesta",
+      "midi": 85,
+      "pitchHz": 1108.7305239074883,
+      "sha256": "baea4abed3f915eb77843933b145999ad0f1784e45b45d46da8a4b163f8ff65f"
+    },
+    {
+      "name": "celesta-86.wav",
+      "sound": "mallet/celesta",
+      "midi": 86,
+      "pitchHz": 1174.6590716696303,
+      "sha256": "4a6eb62fb0db371804d00068891b320ed3af00803400fe956b63fcb5a6e50550"
+    },
+    {
+      "name": "celesta-87.wav",
+      "sound": "mallet/celesta",
+      "midi": 87,
+      "pitchHz": 1244.5079348883237,
+      "sha256": "b400e3be3c0a862679ac1c614e600351e4a893f6921f56bfa1dda491d2f06d55"
+    },
+    {
+      "name": "celesta-89.wav",
+      "sound": "mallet/celesta",
+      "midi": 89,
+      "pitchHz": 1396.9129257320155,
+      "sha256": "6d68ede416f3b079372a20cd9c346d40119ab103fe5c68dcca180a15e04a18bf"
+    },
+    {
+      "name": "celesta-90.wav",
+      "sound": "mallet/celesta",
+      "midi": 90,
+      "pitchHz": 1479.9776908465376,
+      "sha256": "8a3fa703911a01ee53ab2cab158ec29aeb5a7d793a7a389b8ecbaf1c2cb97cf4"
+    },
+    {
+      "name": "celesta-91.wav",
+      "sound": "mallet/celesta",
+      "midi": 91,
+      "pitchHz": 1567.981743926997,
+      "sha256": "14f6f937c06c8d1212852f40282e0a7b37e062f6f3bda65380986d28d3c6466e"
+    },
+    {
+      "name": "marimba-52.wav",
+      "sound": "mallet/marimba",
+      "midi": 52,
+      "pitchHz": 164.81377845643496,
+      "seed": 7,
+      "sha256": "bd440ce859ddb3b29608b0d2b77ceabdcaa69f5d579131b4e78058f0660b0e89"
+    },
+    {
+      "name": "marimba-53.wav",
+      "sound": "mallet/marimba",
+      "midi": 53,
+      "pitchHz": 174.61411571650194,
+      "sha256": "06b11790c137a222c70dc54eb0226fcb89603e71258b7c15a59f204387824d27"
+    },
+    {
+      "name": "marimba-55.wav",
+      "sound": "mallet/marimba",
+      "midi": 55,
+      "pitchHz": 195.99771799087463,
+      "sha256": "fe165e56af8fe8466796fc53c7b1a5c11343adff7277a93cffe6c5ad9524255b"
+    },
+    {
+      "name": "marimba-56.wav",
+      "sound": "mallet/marimba",
+      "midi": 56,
+      "pitchHz": 207.65234878997256,
+      "sha256": "fe8fd9632f518a90674351ba51017b1ac403efd8a87bd00e9655dfae83557b9b"
+    },
+    {
+      "name": "marimba-57.wav",
+      "sound": "mallet/marimba",
+      "midi": 57,
+      "pitchHz": 220,
+      "sha256": "d7825fe8330310a23936eb21b1bd5e147b402c7a8361204c04b6fb668286bd45"
+    },
+    {
+      "name": "marimba-58.wav",
+      "sound": "mallet/marimba",
+      "midi": 58,
+      "pitchHz": 233.08188075904496,
+      "sha256": "d09a09d971bd1d41d02b7e10af90bc2ca0b1d3bbcd7d12f26b5c9021b1a8f1b4"
+    },
+    {
+      "name": "marimba-59.wav",
+      "sound": "mallet/marimba",
+      "midi": 59,
+      "pitchHz": 246.94165062806206,
+      "sha256": "e499feb0a597af8028fcb8898d6898ac12b4dd0ac54379388b9e8c6163d73979"
+    },
+    {
+      "name": "marimba-60.wav",
+      "sound": "mallet/marimba",
+      "midi": 60,
+      "pitchHz": 261.6255653005986,
+      "sha256": "7982fd3aa36d84b223497edc97d43dd3a765a1e8324ab055c30b5a40ed8e0ac3"
+    },
+    {
+      "name": "marimba-61.wav",
+      "sound": "mallet/marimba",
+      "midi": 61,
+      "pitchHz": 277.1826309768721,
+      "sha256": "fa6fcb603d0535679eec4dbec5186a4240cf79b029e2ce7b3c7af70af43693c7"
+    },
+    {
+      "name": "marimba-62.wav",
+      "sound": "mallet/marimba",
+      "midi": 62,
+      "pitchHz": 293.6647679174076,
+      "sha256": "b26c7350c271b9818f9484124adacf24e9dcad39071d67f6478e60eef1fb8ad3"
+    },
+    {
+      "name": "marimba-63.wav",
+      "sound": "mallet/marimba",
+      "midi": 63,
+      "pitchHz": 311.1269837220809,
+      "sha256": "da570591e59635382b8ad5311b29e3f9417620008ef571e0971acb05570d4e75"
+    },
+    {
+      "name": "marimba-64.wav",
+      "sound": "mallet/marimba",
+      "midi": 64,
+      "pitchHz": 329.6275569128699,
+      "sha256": "a83f9a1cb24176ec0307fc035eb05b7781568dce6ecd8e1167ea355de6d3c476"
+    },
+    {
+      "name": "marimba-65.wav",
+      "sound": "mallet/marimba",
+      "midi": 65,
+      "pitchHz": 349.2282314330039,
+      "sha256": "6ab5aea5b02c4b007179c9cef0aca9e55f2472849bc2b9fe132adacf20083376"
+    },
+    {
+      "name": "marimba-67.wav",
+      "sound": "mallet/marimba",
+      "midi": 67,
+      "pitchHz": 391.99543598174927,
+      "sha256": "d0e4989352f87beef54378d419783ec40a4a62c5c018666370950aa54a59eafc"
+    },
+    {
+      "name": "marimba-68.wav",
+      "sound": "mallet/marimba",
+      "midi": 68,
+      "pitchHz": 415.3046975799451,
+      "sha256": "6bd64b68a339c45f729c7ee016752198814193ea3fb96f8f485e2a373ba14b33"
+    },
+    {
+      "name": "pluck-55.wav",
+      "sound": "mallet/celesta",
+      "midi": 55,
+      "pitchHz": 195.99771799087463,
+      "sha256": "d3537faf8eaf890e370225e118be6427da0e6a8a4f3247d989ecfa96c13065d3"
+    },
+    {
+      "name": "pluck-57.wav",
+      "sound": "mallet/celesta",
+      "midi": 57,
+      "pitchHz": 220,
+      "sha256": "a385f23b3585128d23e2da07d8c68ea7f514c16bc319506b149ad454b2d3d5ce"
+    },
+    {
+      "name": "pluck-58.wav",
+      "sound": "mallet/pluck",
+      "midi": 58,
+      "pitchHz": 233.08188075904496,
+      "sha256": "e1da152f76125e10222808aeb55c6dbdc51c00d188ac6c26fe93f95fc50a97ec"
+    },
+    {
+      "name": "pluck-59.wav",
+      "sound": "mallet/celesta",
+      "midi": 59,
+      "pitchHz": 246.94165062806206,
+      "sha256": "5e71a83af79636d4136045d89b5273579fe6ec7e0687eb105df5cd518d2993ba"
+    },
+    {
+      "name": "pluck-60.wav",
+      "sound": "mallet/celesta",
+      "midi": 60,
+      "pitchHz": 261.6255653005986,
+      "sha256": "512498c10d0e5e76b0925fb0e30ac9c6a9cd314e0beee3ce6c651bd5a102c1ed"
+    },
+    {
+      "name": "pluck-61.wav",
+      "sound": "mallet/celesta",
+      "midi": 61,
+      "pitchHz": 277.1826309768721,
+      "sha256": "c65c1c973e4bafaee8254b0b77f074477d376c901745d10f60a81673677e58b0"
+    },
+    {
+      "name": "pluck-62.wav",
+      "sound": "mallet/pluck",
+      "midi": 62,
+      "pitchHz": 293.6647679174076,
+      "sha256": "1b93b2475144bddf18f8d069f25e5ad379c76bc88edeb0946d774c9b2d552cb1"
+    },
+    {
+      "name": "pluck-63.wav",
+      "sound": "mallet/pluck",
+      "midi": 63,
+      "pitchHz": 311.1269837220809,
+      "sha256": "e786f56f533cae491fa8367ecccab69db8d4c77f072318d744b146eea4604854"
+    },
+    {
+      "name": "pluck-64.wav",
+      "sound": "mallet/pluck",
+      "midi": 64,
+      "pitchHz": 329.6275569128699,
+      "sha256": "bf12b715b8893071c97d7d1f3aaa39a5da0c0967adf2c9b197f47ff33135821a"
+    },
+    {
+      "name": "pluck-65.wav",
+      "sound": "mallet/pluck",
+      "midi": 65,
+      "pitchHz": 349.2282314330039,
+      "sha256": "29137ccc9c4a4233512f60cc70a90d6b247ac2983e639e1c391cb2c8e4dd6aa6"
+    },
+    {
+      "name": "pluck-66.wav",
+      "sound": "mallet/pluck",
+      "midi": 66,
+      "pitchHz": 369.9944227116344,
+      "sha256": "47530c77f20a6eda94948aec42a82377b86ce4d4c63b40bd65abf1e7bd143153"
+    },
+    {
+      "name": "pluck-67.wav",
+      "sound": "mallet/pluck",
+      "midi": 67,
+      "pitchHz": 391.99543598174927,
+      "sha256": "9ea12cf46beab25e4cb8dde40109aeada6104c14f2ecf0dad06a31c17df86eee"
+    },
+    {
+      "name": "pluck-68.wav",
+      "sound": "mallet/pluck",
+      "midi": 68,
+      "pitchHz": 415.3046975799451,
+      "sha256": "de5e5de3e3d93122cb12552133b0ab369bbe302c38d251df0bca2c5b7bd032c4"
+    },
+    {
+      "name": "pluck-69.wav",
+      "sound": "mallet/pluck",
+      "midi": 69,
+      "pitchHz": 440,
+      "sha256": "5e99cf0721376d1ec821544785831b9726b0163ffd31f925249be0ea7ed22397"
+    },
+    {
+      "name": "pluck-70.wav",
+      "sound": "mallet/pluck",
+      "midi": 70,
+      "pitchHz": 466.1637615180899,
+      "sha256": "f48ee791f0ef22479c24ccea6a3a7e8a6032f5d1c84afd9e054971939312edac"
+    },
+    {
+      "name": "pluck-71.wav",
+      "sound": "mallet/pluck",
+      "midi": 71,
+      "pitchHz": 493.8833012561241,
+      "sha256": "130f10eb4ef36202a7621b03e8dcd03fd1344d522b60139fa9741a857aa4913f"
+    },
+    {
+      "name": "pluck-72.wav",
+      "sound": "mallet/pluck",
+      "midi": 72,
+      "pitchHz": 523.2511306011972,
+      "sha256": "57a2a5536ea825ce5ca242d2543aac7f5b5b5bae6d9cb372d8e636bf62182583"
+    },
+    {
+      "name": "pluck-73.wav",
+      "sound": "mallet/pluck",
+      "midi": 73,
+      "pitchHz": 554.3652619537442,
+      "sha256": "ebee16dd8363ef51e6958b66bb6d22570d8a0667465c8823a5643adc06e11301"
+    },
+    {
+      "name": "pluck-74.wav",
+      "sound": "mallet/pluck",
+      "midi": 74,
+      "pitchHz": 587.3295358348151,
+      "sha256": "c5573ee4a11944c96c570102d745530ac681a27219cd119a456c71c6ad188f49"
+    },
+    {
+      "name": "pluck-75.wav",
+      "sound": "mallet/pluck",
+      "midi": 75,
+      "pitchHz": 622.2539674441618,
+      "sha256": "ec524e6add3e6216f75beb8ac3f4f9bfd6faf2951556fb447e3454ce85a37f79"
+    },
+    {
+      "name": "pluck-76.wav",
+      "sound": "mallet/pluck",
+      "midi": 76,
+      "pitchHz": 659.2551138257398,
+      "sha256": "e3d796f9a690062351d39d0c1e844342b5e106776c5a3b4af9cb929a27f6ab80"
+    },
+    {
+      "name": "pluck-77.wav",
+      "sound": "mallet/pluck",
+      "midi": 77,
+      "pitchHz": 698.4564628660078,
+      "sha256": "51246dcdb1c68de8dc9b1067b0127be7d826cdb4f440aa5d4977e7029882939d"
+    },
+    {
+      "name": "pluck-78.wav",
+      "sound": "mallet/pluck",
+      "midi": 78,
+      "pitchHz": 739.9888454232688,
+      "sha256": "bf6d3724abb91b4ac23702991828ac8b209a2d198ca4700b2aba412e293429d7"
+    },
+    {
+      "name": "pluck-79.wav",
+      "sound": "mallet/pluck",
+      "midi": 79,
+      "pitchHz": 783.9908719634985,
+      "sha256": "8b31088bf9136a628bde4b23b0e318283f944d699a99628cb6c77c1104038c4c"
+    },
+    {
+      "name": "pluck-80.wav",
+      "sound": "mallet/pluck",
+      "midi": 80,
+      "pitchHz": 830.6093951598903,
+      "sha256": "c0219208790ba34a7494aa620b914ee8b99931451a658e0684ed841c5a599677"
+    },
+    {
+      "name": "pluck-81.wav",
+      "sound": "mallet/pluck",
+      "midi": 81,
+      "pitchHz": 880,
+      "sha256": "ff54dee55e15f449c631496d54062b27a71ad55f2b46a53943a88d3808376e25"
+    },
+    {
+      "name": "pluck-82.wav",
+      "sound": "mallet/pluck",
+      "midi": 82,
+      "pitchHz": 932.3275230361799,
+      "sha256": "0ec070dd3d0fec6186ede3c65b9473d6230ccd6c3c6105ab4dda68b266c9c8fd"
+    },
+    {
+      "name": "pluck-83.wav",
+      "sound": "mallet/pluck",
+      "midi": 83,
+      "pitchHz": 987.7666025122483,
+      "sha256": "a15914939c06c8e8275f13d67422c8cd61f7543256a987bdc0beda6e594d1c09"
+    }
+  ]
+}

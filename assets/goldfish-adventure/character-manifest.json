@@ -1,0 +1,99 @@
+{
+  "version": 1,
+  "sheets": [
+    {
+      "columns": 4,
+      "width": 1448,
+      "rows": 3,
+      "height": 1086,
+      "runtime": "characters/r0st-atlas.png",
+      "sha256": "8eb86a9ab7de333a2a7221211faa7cd81cef0d0597847fb2774e213bc0122234",
+      "source": "masters/characters/r0st-atlas.png"
+    },
+    {
+      "columns": 4,
+      "width": 1448,
+      "rows": 3,
+      "height": 1086,
+      "runtime": "characters/bruno-atlas.png",
+      "sha256": "79d996290f1a6cf1b44f8f569f84d8860b41eb85b2299834ed590e4777327a4c",
+      "source": "masters/characters/bruno-atlas.png"
+    },
+    {
+      "columns": 4,
+      "width": 1122,
+      "rows": 5,
+      "height": 1402,
+      "sha256": "3ee07df4d26c92bbc28d2929c61f444bc23c76ba3b4240261fbacd4ea595e1cf",
+      "source": "masters/items/inventory-atlas.png"
+    },
+    {
+      "columns": 4,
+      "width": 1774,
+      "rows": 2,
+      "height": 887,
+      "runtime": "characters/aquarium-atlas.png",
+      "sha256": "5750de4e4f871ecf72512d4dd2ac339ebd78d978bdbabdb509a142b204a46c07",
+      "source": "masters/characters/aquarium-atlas.png"
+    },
+    {
+      "columns": 4,
+      "width": 1122,
+      "rows": 5,
+      "height": 1402,
+      "runtime": "characters/npc-atlas.png",
+      "sha256": "b7063d030efd8a0f462ac60894be6362b30520eaa03aca257f41755cf03a618e",
+      "source": "masters/characters/npc-atlas.png"
+    },
+    {
+      "columns": 4,
+      "width": 1774,
+      "rows": 2,
+      "height": 887,
+      "runtime": "characters/monitors-atlas.png",
+      "sha256": "34631d4c1e534181e8d69a54b1ec08d7b57f2f4d31895dcae37204013c2322f7",
+      "source": "masters/characters/monitors-atlas.png"
+    },
+    {
+      "columns": 4,
+      "width": 1024,
+      "rows": 6,
+      "height": 1536,
+      "runtime": "characters/r0st-acting.png",
+      "sha256": "1bdc4ad667f40bf64eb2c4a5710df7128eb78e4bb9fed0a2085d376922e0b58c",
+      "source": "masters/characters/r0st-acting.png"
+    },
+    {
+      "columns": 4,
+      "width": 1024,
+      "rows": 6,
+      "height": 1536,
+      "runtime": "characters/bruno-acting.png",
+      "sha256": "e6ed9e016f99488723cc0afd2bdb5a14f4d99159a0b426d1d64b8ac92c4f1ffc",
+      "source": "masters/characters/bruno-acting.png"
+    },
+    {
+      "source": "masters/interface/icon.png",
+      "height": 1254,
+      "width": 1254,
+      "runtime": "icon.png",
+      "sha256": "05a8e69f9f0e3fea5be9121ddf800fe3599a2d46793a6b9c87d259c2e78fd4b8"
+    },
+    {
+      "source": "masters/interface/dialogue-frame.png",
+      "height": 1024,
+      "width": 1536,
+      "runtime": "interface/dialogue-frame.png",
+      "sha256": "139824885c8fe99cbd6bc154e64392261b8252571d77379b3719749a58e27947"
+    },
+    {
+      "source": "masters/scenes/R01-open.png",
+      "height": 941,
+      "width": 1672,
+      "runtime": "scenes/R01-open.png",
+      "sha256": "9a6672a61c0a7b7e0139b196ae49470a2f874217ffb55d63b54945cb7aaf7422"
+    }
+  ],
+  "tool": "built-in image_gen",
+  "processing": "Unscaled byte copies and authored grid/row extraction only. Frame pivots use the nontransparent base/feet band."
+}

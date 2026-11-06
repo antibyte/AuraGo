@@ -10945,6 +10945,7 @@
   "desktop.mc_state_waiting": "Wartet",
   "desktop.mc_error_durable_cancel": "Diese Mission enthält gespeicherte Läufe. Öffne den Lauf, den du stoppen willst, in EasyDrag und stoppe ihn dort.",
   "desktop.app_aura_drift": "Aura Drift",
+  "desktop.app_goldfish_adventure": "Bitte nicht das Universum füttern",
   "aura_drift.title": "Aura Drift",
   "aura_drift.subtitle": "Top-Down-Rennen mit echter Reifenphysik, großen Strecken und Waffen nach Wahl.",
   "aura_drift.quick_race": "Schnellrennen",

@@ -1339,6 +1339,7 @@
             pixel: { width: 1100, height: 750 },
             'galaxa-deluxe': { width: 600, height: 800 },
             'aura-drift': { width: 1120, height: 720 },
+            'goldfish-adventure': { width: 1200, height: 820 },
             chess: { width: 980, height: 680 },
             layerling: { width: 1280, height: 850 },
             nasscad: { width: 1280, height: 850 },
