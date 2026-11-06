@@ -26,7 +26,7 @@
     function noopHud(canvas) {
         const c = canvas.getContext('2d');
         return {
-            resize(w, h) { canvas.width = Math.round(w); canvas.height = Math.round(h); },
+            resize(w, h) { canvas.width = Math.round(w); canvas.height = Math.round(h); }, setInset() {},
             event() {}, radio() {}, showMessage() {}, popup() {}, clear() { c.clearRect(0, 0, canvas.width, canvas.height); },
             render() { c.clearRect(0, 0, canvas.width, canvas.height); }, dispose() {}
         };
@@ -40,7 +40,7 @@
         const callouts = kit.createCallouts(3);
         const up = s => String(s).toUpperCase();
 
-        let cw = 960, ch = 540, dpr = 1, k = 1, W = 1280, H = 720, M = 24, compact = false;
+        let cw = 960, ch = 540, dpr = 1, k = 1, W = 1280, H = 720, Hb = 720, inset = 0, M = 24, compact = false;
         let G = null, layer = null;
         let time = 0, reduced = false, mqAt = -9;
         let comms = null;
@@ -71,11 +71,13 @@
             compact = cw < 660;
             k = compact ? clamp(cw / 780, 0.5, 1) : clamp(Math.min(cw / 1280, ch / 720), 0.55, 1.6);
             W = cw / k; H = ch / k;
+            /* Hb is the bottom anchor: the touch pads own the lowest `inset` px, so the gauges sit above them. */
+            Hb = H - inset / k;
             M = compact ? 14 : 24;
             const R = compact ? 62 : 92;
             const g = G = { R: R };
             g.ACx = M + R + 14;
-            g.ACy = H - M - R * 0.72 - 20;
+            g.ACy = Hb - M - R * 0.72 - 20;
             g.BX = g.ACx + R + (compact ? 6 : 18);
             g.BW = compact ? 118 : 200;
             g.BH = compact ? 11 : 15;
@@ -86,7 +88,7 @@
             g.nitroY = g.turboY - g.gap;
             g.dmgY = g.nitroY - g.gap + 6;
             g.SW = compact ? 92 : 124; g.SH = compact ? 78 : 104;
-            g.WX = W - M - g.SW / 2 - 12; g.WY = H - M - g.SH / 2 - 12;
+            g.WX = W - M - g.SW / 2 - 12; g.WY = Hb - M - g.SH / 2 - 12;
             g.MS = compact ? 108 : 160;
             g.MX = W - M - g.MS - 4; g.MY = M + 4;
             g.RW = compact ? 150 : 196; g.RH = compact ? 22 : 29;
@@ -115,7 +117,7 @@
                 s.fillStyle = gr; s.fillRect(x - r, y - r, r * 2, r * 2);
             };
             scrim(g.ACx + 70, g.ACy + 40, compact ? 280 : 400, 0.55);
-            scrim(g.WX, H, compact ? 220 : 320, 0.5);
+            scrim(g.WX, Hb, compact ? 220 : 320, 0.5);
             scrim(0, 0, compact ? 220 : 320, 0.36);
             scrim(W, 0, compact ? 170 : 240, 0.3);
             s.lineCap = 'round';
@@ -286,7 +288,7 @@
             const pending = st.raw * st.multiplier, total = st.banked + pending;
             const active = st.drifting || st.timer > 0;
             if (total < 1 && !active) return;
-            const g = G, x = g.WX + g.SW / 2 + 8, y = race.weapons ? g.WY - g.SH / 2 - (compact ? 34 : 50) : H - M - (compact ? 16 : 22);
+            const g = G, x = g.WX + g.SW / 2 + 8, y = race.weapons ? g.WY - g.SH / 2 - (compact ? 34 : 50) : Hb - M - (compact ? 16 : 22);
             kit.text(c, kit.number(total), x, y, compact ? 26 : 38, active ? '#ffffff' : '#c5d6ee', { align: 'right', weight: 900 });
             if (st.multiplier > 1.01) {
                 const m = 'x' + st.multiplier.toFixed(1);
@@ -526,7 +528,7 @@
             if (!items.length) return;
             const w = compact ? 86 : 118, gap = 8, total = items.length * (w + gap) - gap;
             let x = W / 2 - total / 2;
-            const y = H - M - (compact ? 14 : 18);
+            const y = Hb - M - (compact ? 14 : 18);
             for (const it of items) {
                 kit.para(c, x, y, w, compact ? 18 : 22, 7); c.fillStyle = 'rgba(6,10,24,0.78)'; c.fill();
                 c.lineWidth = 1.6; c.strokeStyle = it[2]; c.stroke();
@@ -721,6 +723,8 @@
 
         return {
             resize: resize,
+            /* Reserve the lowest px of the canvas for on-screen touch controls. */
+            setInset(px) { px = Math.max(0, px | 0); if (px !== inset) { inset = px; layout(); } },
             event: event,
             radio: radio,
             showMessage(value, seconds) { callouts.push({ text: value, colour: '#ffe6a8', size: 38, life: seconds || 1.6 }); },
