@@ -464,3 +464,97 @@ func TestStorymakerAgentScriptedWeakModel(t *testing.T) {
 		t.Fatal("the prose reply got no recovery nudge")
 	}
 }
+
+// smScriptDeadline is a job context whose deadline passes when pass is called.
+type smScriptDeadline struct {
+	context.Context
+	done chan struct{}
+	once sync.Once
+}
+
+func (d *smScriptDeadline) Done() <-chan struct{} { return d.done }
+
+func (d *smScriptDeadline) Err() error {
+	select {
+	case <-d.done:
+	default:
+		return nil
+	}
+	if err := d.Context.Err(); err != nil {
+		return err
+	}
+	return context.DeadlineExceeded
+}
+
+func (d *smScriptDeadline) pass() { d.once.Do(func() { close(d.done) }) }
+
+// smScriptBlockedTurns saves scene s1 and then stops the model on scene s2.
+func smScriptBlockedTurns() map[string][]smScriptTurn {
+	turns := smScriptHappyTurns()
+	turns[storymaker.PhaseFill] = []smScriptTurn{
+		smScriptStoryCall("put_scene", "s1", smScriptSceneOne()),
+		{block: true},
+	}
+	return turns
+}
+
+// smScriptRequireKept requires a valid story with s1 saved and s2 still in its outline form.
+func smScriptRequireKept(t *testing.T, env *narrateJobEnv) {
+	t.Helper()
+	st := smScriptStory(t, env)
+	smScriptRequireFilled(t, st, "s1")
+	if len(st.Scenes) != 2 || st.Scenes[1].ID != "s2" || st.Scenes[1].Narration != smScriptSecondLine || smScriptFilled(st.Scenes[1]) {
+		t.Fatalf("scenes after the stop = %+v", st.Scenes)
+	}
+}
+
+func TestStorymakerAgentCancelAndTimeoutKeepValidScenes(t *testing.T) {
+	t.Run("cancel", func(t *testing.T) {
+		reached := make(chan struct{})
+		client := &smScriptClient{turns: smScriptBlockedTurns(), onBlock: func() { close(reached) }}
+		env := newSMScriptEnv(t, smScriptNativeModel, client)
+		started := smScriptEnqueue(t, env.rt.agent, env)
+		select {
+		case <-reached:
+		case <-time.After(60 * time.Second):
+			t.Fatal("the model never reached scene s2")
+		}
+		if _, ok := env.rt.agent.Cancel(started.ID); !ok {
+			t.Fatal("the job was not found for its cancel")
+		}
+		job := smScriptWait(t, env.rt.agent, started.ID)
+		if job.Status != render.StatusCancelled {
+			t.Fatalf("job = %+v, want cancelled", job)
+		}
+		smScriptRequireKept(t, env)
+	})
+
+	t.Run("timeout", func(t *testing.T) {
+		deadline := &smScriptDeadline{done: make(chan struct{})}
+		client := &smScriptClient{turns: smScriptBlockedTurns(), onBlock: deadline.pass}
+		env := newSMScriptEnv(t, smScriptNativeModel, client)
+		m, err := render.NewManager(render.ManagerOptions{
+			Dir:     t.TempDir(),
+			Kinds:   []string{render.KindAgent},
+			Workers: 1,
+			Run: func(ctx context.Context, job render.Job, payload any, h *render.Handle) (render.Output, error) {
+				deadline.Context = ctx
+				stop := context.AfterFunc(ctx, deadline.pass)
+				defer stop()
+				return env.s.storymakerAgentRun(deadline, env.rt, job, payload, h)
+			},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(m.Close)
+		job := smScriptWait(t, m, smScriptEnqueue(t, m, env).ID)
+		if job.Status != render.StatusSucceeded || job.Agent == nil || job.Agent.Outcome != storymaker.OutcomeIncomplete {
+			t.Fatalf("job = %+v, agent = %+v, want succeeded with %s", job, job.Agent, storymaker.OutcomeIncomplete)
+		}
+		if queued := env.rt.narrate.List(env.id); len(queued) != 0 {
+			t.Fatalf("a timed-out job queued %d narrate jobs", len(queued))
+		}
+		smScriptRequireKept(t, env)
+	})
+}
