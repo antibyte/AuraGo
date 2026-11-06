@@ -202,6 +202,10 @@ check('titles: default and each rule', () => {
     assert.equal(title({ position: 2 }, { weaponsFired: 0 }), 'solid_driver');
     assert.equal(title({}, { brakeSeconds: 2.3 }), 'brake_coward');
     assert.equal(title({}, { brakeSeconds: 2.5 }), 'solid_driver', '2 percent is not under 2 percent');
+    assert.equal(title({ position: 4 }, { brakeSeconds: 2.3 }), 'solid_driver', 'brake_coward needs a top-half finish');
+    assert.equal(title({ position: 3, field: 6 }, { brakeSeconds: 0 }), 'brake_coward', 'third of six is the top half');
+    assert.equal(title({ time: 30 }, { brakeSeconds: 0.1 }), 'solid_driver', 'brake_coward needs a real race length');
+    assert.equal(title({ position: 0 }, { brakeSeconds: 0 }), 'solid_driver', 'no finishing position, no title');
     assert.equal(title({}, { animalHits: 5 }), 'cow_bowler');
     assert.equal(title({}, { airTime: 20 }), 'air_force');
     assert.equal(title({}, { crashLandings: 3 }), 'pancake_chef');

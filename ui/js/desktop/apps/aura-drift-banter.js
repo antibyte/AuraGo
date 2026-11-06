@@ -177,7 +177,9 @@
         const n = k => Number(tally[k]) || 0;
 
         if (weaponsOn && n('weaponsFired') === 0 && position === 1 && field > 1 && longEnough) return 'pacifist';
-        if (longEnough && n('brakeSeconds') < 0.02 * time) return 'brake_coward';
+        /* Never braking only deserves a cheer when it worked: a top-half finish over a real race length. */
+        const topHalf = position >= 1 && (field <= 1 || position <= Math.ceil(field / 2));
+        if (time >= 45 && topHalf && n('brakeSeconds') < 0.02 * time) return 'brake_coward';
         if (n('animalHits') >= 5) return 'cow_bowler';
         if (n('airTime') >= 20) return 'air_force';
         if (n('crashLandings') >= 3) return 'pancake_chef';

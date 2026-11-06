@@ -101,7 +101,7 @@
             resume: 'aura_drift.resume', restart: 'aura_drift.restart',
             menu: 'aura_drift.menu', results: 'aura_drift.results',
             finish: 'aura_drift.finish', position: 'aura_drift.position',
-            newRecord: 'aura_drift.new_record', nextTrack: 'aura_drift.next_track',
+            newRecord: 'aura_drift.new_record', newRecordScore: 'aura_drift.new_record_score', nextTrack: 'aura_drift.next_track',
             ready: 'aura_drift.ready', lap: 'aura_drift.lap',
             weapon: 'aura_drift.weapon', loading: 'aura_drift.loading',
             catchup: 'aura_drift.catchup', nitro: 'aura_drift.nitro',

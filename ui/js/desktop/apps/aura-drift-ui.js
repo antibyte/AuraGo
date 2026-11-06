@@ -467,7 +467,7 @@
             hero.appendChild(big);
             const titleText = result.title ? L('aura_drift.title.' + result.title) : '';
             if (titleText) hero.appendChild(el('h2', 'agdrift-res-title', titleText));
-            if (info.record) hero.appendChild(el('p', 'agdrift-record', labels.newRecord));
+            if (info.record) hero.appendChild(el('p', 'agdrift-record', result.mode === 'drift_attack' && labels.newRecordScore ? labels.newRecordScore : labels.newRecord));
             resultBody.appendChild(hero);
 
             const rows = [];

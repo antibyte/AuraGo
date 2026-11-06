@@ -513,7 +513,7 @@
             if (wrongWay > 1.0) add(up(tr('hud.wrong_way')), '', WARN_RED, 'warn');
             for (let i = animalWarn.length - 1; i >= 0 && count < 2; i--) {
                 const a = animalWarn[i], d = Math.round(Math.hypot(a.x - me.x, a.y - me.y));
-                if (d < 260) add(d + ' m', '', WARN_AMBER, 'warn');
+                if (d < 260) add(up(tr('hud.animals_ahead')), d + ' m', WARN_AMBER, 'warn');
             }
         }
 
@@ -687,7 +687,13 @@
                 case 'reverse_hero': if (me) say(tr('trick.reverse_hero'), '#fde047', 46, '+' + kit.number(evt.points || 0)); break;
                 case 'j_turn': if (me) say(tr('trick.j_turn'), '#fde047', 50, '+' + kit.number(evt.points || 0)); break;
                 case 'boost_pad': if (me) say(tr('hud.boost'), WARN_AMBER, 42, '', 1.0); break;
-                case 'animal_cross': animalWarn.push({ x: evt.x, y: evt.y, t: 4 }); if (animalWarn.length > 4) animalWarn.shift(); break;
+                case 'animal_cross': {
+                    /* One row per crossing: a repeat of the same crossing, or a neighbour within 14 m, only refreshes it. */
+                    const same = animalWarn.find(a => (evt.crossing !== undefined && a.id === evt.crossing) || Math.hypot(a.x - evt.x, a.y - evt.y) < 14);
+                    if (same) same.t = 4; else animalWarn.push({ x: evt.x, y: evt.y, t: 4, id: evt.crossing });
+                    if (animalWarn.length > 4) animalWarn.shift();
+                    break;
+                }
                 case 'animal_hit': if (me) say(tr('hud.cow_bowling'), '#f8fafc', 52, '+' + kit.number(evt.points || 0)); break;
                 case 'strike': if (me) say(tr('hud.strike'), '#ffd66b', 78, 'x' + evt.count, 2.0); break;
                 case 'pickup': if (me) slotPulse = 1; break;
