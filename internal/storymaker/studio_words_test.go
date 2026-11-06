@@ -7,7 +7,7 @@ import (
 
 func TestLintWordsFindsTellsAndDashes(t *testing.T) {
 	german := &Story{Scenes: []Scene{
-		{ID: "s1", Narration: "Stell dir vor, dein Büro ist leer.", Beats: []Beat{{Do: "show", Text: "Mehr als nur Papier"}}},
+		{ID: "s1", Narration: "Jeder Moment zählt, dein Büro ist leer.", Beats: []Beat{{Do: "show", Text: "Mehr als nur Papier"}}},
 		{ID: "s2", Narration: "Die Seiten 1–3 sind wichtig. Das {1}ist nahtlos — fast."},
 	}}
 	got := LintWords(german, "de-DE")
@@ -21,7 +21,7 @@ func TestLintWordsFindsTellsAndDashes(t *testing.T) {
 		}
 	}
 
-	english := &Story{Scenes: []Scene{{ID: "s1", Narration: "Little {1}did we know. Imagine the office."}}}
+	english := &Story{Scenes: []Scene{{ID: "s1", Narration: "Little {1}did we know. A breathtaking office."}}}
 	if got := LintWords(english, "en"); len(got) != 2 {
 		t.Fatalf("en: %d issues, want 2 (a marker inside a phrase does not hide it): %+v", len(got), got)
 	}
@@ -36,7 +36,7 @@ func TestLintWordsFindsTellsAndDashes(t *testing.T) {
 func TestStudioCheckAdvisesWordsTell(t *testing.T) {
 	s, _, _ := fixtureStudio(t, nil)
 	s.SetPhase(PhaseOutline, "")
-	if res, _ := callOutline(t, s, "concept_explainer", "Stell dir vor, das Büro ist leer.", "Ein zweiter Satz."); res.Status != "ok" {
+	if res, _ := callOutline(t, s, "concept_explainer", "Jeder Moment zählt, das Büro ist leer.", "Ein zweiter Satz."); res.Status != "ok" {
 		t.Fatalf("outline: %s", res.JSON)
 	}
 	report, err := s.Check(context.Background())

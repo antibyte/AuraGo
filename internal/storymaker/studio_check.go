@@ -306,7 +306,7 @@ func checkTiming(story *Story, summary CompileSummary) ([]CheckScene, float64) {
 		if c, ok := compiled[sc.ID]; ok {
 			row.EndSeconds = checkRound(float64(c.EndMS) / 1000)
 			for _, cue := range c.CuesMS {
-				row.CueTimes = append(row.CueTimes, checkRound(float64(cue.AtMS)/1000))
+				row.CueTimes = append(row.CueTimes, checkRound(float64(c.StartMS+cue.AtMS)/1000))
 			}
 		}
 		out = append(out, row)

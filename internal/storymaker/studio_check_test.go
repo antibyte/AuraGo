@@ -5,6 +5,17 @@ import (
 	"testing"
 )
 
+func TestStudioCheckCueTimesAreFilmTime(t *testing.T) {
+	story := &Story{Scenes: []Scene{{ID: "s3"}}}
+	summary := CompileSummary{Available: true, DurationMS: 8000, Scenes: []CompileScene{
+		{ID: "s3", StartMS: 4000, EndMS: 8000, CuesMS: []CompileCue{{Marker: 1, AtMS: 700}}},
+	}}
+	rows, _ := checkTiming(story, summary)
+	if len(rows) != 1 || len(rows[0].CueTimes) != 1 || rows[0].CueTimes[0] != 4.7 {
+		t.Fatalf("rows = %+v, want the cue at film time 4.7", rows)
+	}
+}
+
 func TestStudioCheckFindsUnfilledAndEnvironmentNeverBlocks(t *testing.T) {
 	ctx := context.Background()
 	compiles := 0

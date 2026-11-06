@@ -13,15 +13,15 @@ const CodeWordsTell = "words_tell"
 // wordsTellEN and wordsTellDE are phrases a film does not need. A match ignores case and needs a
 // word boundary on both sides.
 var wordsTellEN = []string{
-	"in a world where", "little did", "what if", "more than just", "every moment counts",
-	"against all odds", "it's not about", "nothing would ever be the same", "imagine", "tapestry",
-	"vibrant", "breathtaking", "game changer", "game-changer", "unlock", "seamless", "delve", "journey",
+	"in a world where", "little did", "more than just", "every moment counts",
+	"against all odds", "it's not about", "nothing would ever be the same", "tapestry",
+	"vibrant", "breathtaking", "game changer", "game-changer", "seamless", "delve",
 }
 
 var wordsTellDE = []string{
-	"in einer welt, in der", "stell dir vor", "mehr als nur", "jeder moment zählt",
+	"in einer welt, in der", "mehr als nur", "jeder moment zählt",
 	"allen widrigkeiten zum trotz", "es geht nicht um", "nichts würde mehr so sein", "atemberaubend",
-	"bahnbrechend", "nahtlos", "auf eine reise", "auf einer reise", "tauche ein", "nicht nur",
+	"bahnbrechend", "nahtlos", "auf eine reise", "auf einer reise", "tauche ein",
 }
 
 var (
