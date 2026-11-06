@@ -87,6 +87,12 @@
                     canvas: function (name, w, h) { return self.canvas(name, w, h); }
                 };
                 SM.renderFrame(tl, msg.n, main.ctx, assetsObj, { width: width === tl.width ? 0 : width });
+                if (msg.png) {   // the parallel path of the render page: the PNG is encoded here, so the host main thread stays free
+                    var blob = await main.canvas.convertToBlob({ type: 'image/png' });
+                    var painted = msg.codeFrames || {};
+                    for (var cid in painted) if (painted[cid] && typeof painted[cid].close === 'function') painted[cid].close();
+                    return { payload: { blob: blob, width: width, height: height } };
+                }
                 var bitmap = typeof main.canvas.transferToImageBitmap === 'function' ? main.canvas.transferToImageBitmap() : main.canvas;
                 var frames = msg.codeFrames || {};
                 for (var id in frames) if (frames[id] && typeof frames[id].close === 'function') frames[id].close();

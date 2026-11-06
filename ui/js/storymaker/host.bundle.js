@@ -282,7 +282,7 @@
         }
     };
 
-    // load(msg): msg = {story, catalog, audio_info, assets, fonts, code_bundles, format}. Resolves with the compile report
+    // load(msg): msg = {story, catalog, audio_info, assets, fonts, code_bundles, format, shared_code_scenes?}. Resolves with the compile report
     // as soon as it exists and prepare(), which loads the assets (the readiness barrier before frame 0).
     Engine.prototype.load = async function (msg) {
         this.dispose();
@@ -301,6 +301,10 @@
         var plan = planReply.plan;
         var codeScenes = {}, sceneIssues = [], sceneNeeds = {}, codeIds = Object.keys(plan.scenes).filter(function (k) { return plan.scenes[k].kind === 'code'; });
         await Promise.all(codeIds.map(async function (cid) {
+            if (msg.shared_code_scenes) {   // a helper engine of the parallel path: the main engine built the scene, this one only takes its duration
+                codeScenes[cid] = msg.shared_code_scenes[cid] || {};
+                return;
+            }
             if (self.mode === 'fallback') {
                 codeScenes[cid] = {};
                 self.codeErrors[cid] = 'Code scenes are not previewed in this browser. Export renders them.';
@@ -319,6 +323,7 @@
         }));
         if (id !== this.loadId) throw fail('cancelled', 'superseded');
 
+        this.codeScenesInfo = codeScenes;
         var compiled = await this.send({ type: 'compile', story: story, catalog: msg.catalog, audioInfo: msg.audio_info || {}, opts: Object.assign({ codeScenes: codeScenes }, sizeOpts) }, env.limits.compileDeadlineMs);
         var report = compiled.report;
         sceneIssues.forEach(function (i) { report.issues.push(i); });
@@ -387,7 +392,7 @@
         }));
     };
 
-    // render(n, opts): the frame as an ImageBitmap (a canvas in the fallback). Calls are serialised.
+    // render(n, opts): the frame as an ImageBitmap (a canvas in the fallback), or with opts.png as a PNG Blob encoded in the worker. Calls are serialised.
     Engine.prototype.render = function (n, opts) {
         var self = this;
         var run = function () { return self.renderNow(n, opts || {}); };
@@ -422,9 +427,9 @@
             }
         }
         try {
-            var out = await this.send({ type: 'render', n: n, width: width, codeFrames: codeFrames, codeErrors: this.codeErrors }, ms, transfer);
+            var out = await this.send({ type: 'render', n: n, width: width, codeFrames: codeFrames, codeErrors: this.codeErrors, png: !!opts.png }, ms, transfer);
             this.rendered++;
-            return out.bitmap;
+            return opts.png ? out.blob : out.bitmap;
         } catch (err) {
             var pe = asError(err);
             if (pe.code === 'deadline') { this.dead = true; Object.keys(this.sceneChannels).forEach(function (k) { self.sceneChannels[k].kill(pe); }); }

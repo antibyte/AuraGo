@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { plain, InProcessWorker, until } from '../storymaker-test-support.mjs';
+import { loadHost, TEST_LIMITS } from '../storymaker-test-support.mjs';
 import { t } from '../storymaker-test-context.mjs';
 
 const { check, catalog, files, firewall, minimal, s3Bundle } = t;
@@ -79,6 +80,50 @@ check('player worker: messages are handled one at a time, in order; a worker fon
     const failed = await c.call({ type: 'assets', assets: {}, fonts: [{ name: 'other', family: 'Other', weight: 700, data: new ArrayBuffer(0) }] });
     assert.equal(failed.ok, false); assert.equal(failed.error.code, 'readiness'); assert.match(failed.error.message, /Font "Other" \(700\) could not be loaded: A network error occurred./);
     w.terminate();
+});
+
+check('player worker: render with png answers a blob from convertToBlob, and no bitmap', async () => {
+    const w = new InProcessWorker('player', ''), c = client(w), types = [];
+    // env.makeCanvas reads OffscreenCanvas when the first frame draws, so this stand-in sees the encode call.
+    w.context.OffscreenCanvas = class extends w.context.OffscreenCanvas {
+        async convertToBlob(options) { types.push(options.type); return super.convertToBlob(options); }
+    };
+    await until(() => c.hello === 'player', 'hello');
+    await c.call({ type: 'compile', story: minimal, catalog, audioInfo: {}, opts: {} });
+    await c.call({ type: 'assets', assets: allAssets(), fonts: [font] });
+    const frame = await c.call({ type: 'render', n: 3, codeFrames: {}, codeErrors: {}, png: true });
+    assert.equal(frame.ok, true, JSON.stringify(frame.error));
+    assert.equal(frame.bitmap, undefined, 'a png render hands over no bitmap');
+    assert.ok(frame.blob.size > 0, 'the fake blob counts the draw calls of the frame');
+    assert.deepEqual(types, ['image/png']);
+    w.terminate();
+});
+
+check('engine: shared_code_scenes builds no scene workers and compiles the same film; render with png returns the blob', async () => {
+    const roles = [], errors = [];
+    const H = loadHost().StorymakerHost;
+    const env = H.defaultEnv('http://unused', {
+        hasWorkers: true,
+        createWorker(role, text) { roles.push(role); return new InProcessWorker(role, text, {}); },
+        setTimer: (fn, ms) => setTimeout(fn, ms), clearTimer: h => clearTimeout(h), now: () => Date.now(), limits: TEST_LIMITS,
+        onError: e => errors.push(e.code)
+    });
+    const load = extra => ({ story: firewall, catalog, audio_info: {}, assets: allAssets(), fonts: [font], format: { fps: 30, width: 192, height: 108 }, ...extra });
+    const main = H.createEngine(env), mainLoaded = await main.load(load({ code_bundles: { s3: s3Bundle } }));
+    assert.deepEqual(roles, ['player', 'scene']);
+    roles.length = 0;
+    const helper = H.createEngine(env), helperLoaded = await helper.load(load({ code_bundles: {}, shared_code_scenes: main.codeScenesInfo }));
+    assert.deepEqual(roles, ['player'], 'a helper engine builds no scene worker');
+    assert.deepEqual(errors, [], 'a helper engine reports no missing bundle');
+    assert.equal(helperLoaded.report.frame_count, mainLoaded.report.frame_count);
+    assert.equal(JSON.stringify(helper.schedule), JSON.stringify(main.schedule));
+    await helperLoaded.prepare();
+    const blob = await helper.render(0, { png: true });
+    assert.ok(blob && blob.size > 0, 'render with png returns the blob');
+    const bitmap = await helper.render(1);
+    assert.ok(bitmap.digest, 'without png the answer stays a bitmap');
+    main.dispose();
+    helper.dispose();
 });
 
 check('worker realm: the determinism shadows are installed before any scene code runs', async () => {
