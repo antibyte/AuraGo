@@ -44,11 +44,16 @@
                 '/js/desktop/apps/aura-drift-core.js',
                 '/js/desktop/apps/aura-drift-physics.js',
                 '/js/desktop/apps/aura-drift-track.js',
+                '/js/desktop/apps/aura-drift-style.js',
+                '/js/desktop/apps/aura-drift-conditions.js',
                 '/js/desktop/apps/aura-drift-race.js',
+                '/js/desktop/apps/aura-drift-cars.js',
+                '/js/desktop/apps/aura-drift-scenery.js',
                 '/js/desktop/apps/aura-drift-render.js',
                 '/js/desktop/apps/aura-drift-post.js',
                 '/js/desktop/apps/aura-drift-hud.js',
                 '/js/desktop/apps/aura-drift-audio.js',
+                '/js/desktop/apps/aura-drift-music.js',
                 '/js/desktop/apps/aura-drift-ui.js',
                 '/js/desktop/apps/aura-drift.js'
             ]

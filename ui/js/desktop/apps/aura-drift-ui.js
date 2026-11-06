@@ -25,6 +25,9 @@
     }
 
     AD.createUI = function (root, labels, callbacks, settings) {
+        function clickSound(kind) {
+            if (typeof callbacks.onUi === 'function') callbacks.onUi(kind);
+        }
         const overlay = el('div', 'agdrift-overlay');
         const menu = el('div', 'agdrift-panel agdrift-menu');
         const pause = el('div', 'agdrift-panel agdrift-pause');
@@ -52,6 +55,7 @@
                 modeButtons.forEach((item, j) => item.classList.toggle('is-active', j === i));
                 trackRow.style.opacity = (id === 'cup' || id === 'daily') ? '0.5' : '1';
                 trackSelect.disabled = (id === 'cup' || id === 'daily');
+                clickSound('move');
             });
             if (i === 0) b.classList.add('is-active');
             modeButtons.push(b); modes.appendChild(b);
@@ -116,6 +120,7 @@
         const bestLine = el('p', 'agdrift-best', '');
         menu.appendChild(bestLine);
         menu.appendChild(button(labels.start, 'agdrift-primary', () => {
+            clickSound('start');
             callbacks.onStart({
                 mode: selectedMode,
                 trackId: trackSelect.value,
@@ -124,9 +129,9 @@
         }));
 
         pause.appendChild(el('h2', null, labels.pause));
-        pause.appendChild(button(labels.resume, 'agdrift-primary', () => callbacks.onResume()));
-        pause.appendChild(button(labels.restart, 'agdrift-secondary', () => callbacks.onRestart()));
-        pause.appendChild(button(labels.menu, 'agdrift-secondary', () => callbacks.onQuit()));
+        pause.appendChild(button(labels.resume, 'agdrift-primary', () => { clickSound('confirm'); callbacks.onResume(); }));
+        pause.appendChild(button(labels.restart, 'agdrift-secondary', () => { clickSound('confirm'); callbacks.onRestart(); }));
+        pause.appendChild(button(labels.menu, 'agdrift-secondary', () => { clickSound('back'); callbacks.onQuit(); }));
 
         results.appendChild(el('div', 'agdrift-kicker', 'AURA DRIFT'));
         results.appendChild(el('h2', null, labels.results));
@@ -185,6 +190,11 @@
                     [labels.position, result.position + '/' + info.field],
                     [labels.track, info.track]
                 ];
+                if (result.style) {
+                    rows.push([labels.style, String(result.style.banked)]);
+                    rows.push([labels.bestCombo, 'x' + (result.style.maxMultiplier || 1) +
+                        ' · ' + result.style.drifts + ' ' + labels.combo]);
+                }
                 for (const [label, value] of rows) {
                     const row = el('div', 'agdrift-result-row');
                     row.appendChild(el('span', null, label));
@@ -192,9 +202,9 @@
                     resultBody.appendChild(row);
                 }
                 if (info.record) resultBody.appendChild(el('p', 'agdrift-record', labels.newRecord));
-                resultButtons.appendChild(button(labels.restart, 'agdrift-primary', () => callbacks.onRestart()));
-                if (info.hasNext) resultButtons.appendChild(button(labels.nextTrack, 'agdrift-secondary', () => callbacks.onNext()));
-                resultButtons.appendChild(button(labels.menu, 'agdrift-secondary', () => callbacks.onQuit()));
+                resultButtons.appendChild(button(labels.restart, 'agdrift-primary', () => { clickSound('confirm'); callbacks.onRestart(); }));
+                if (info.hasNext) resultButtons.appendChild(button(labels.nextTrack, 'agdrift-secondary', () => { clickSound('confirm'); callbacks.onNext(); }));
+                resultButtons.appendChild(button(labels.menu, 'agdrift-secondary', () => { clickSound('back'); callbacks.onQuit(); }));
                 show(results);
             },
             hide() { overlay.hidden = true; touch.hidden = false; },

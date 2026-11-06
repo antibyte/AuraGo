@@ -1,34 +1,27 @@
-/* Aura Drift - procedural Web Audio engine, effects and adaptive music. */
+/* Aura Drift - procedural Web Audio engine, effects, spatial rivals and score. */
 (function () {
     'use strict';
     const AD = window.AuraDriftCore;
     const clamp = AD.clamp;
-
-    const SCALES = {
-        alpine: [0, 3, 5, 7, 10], desert: [0, 2, 5, 7, 9],
-        harbour: [0, 3, 7, 10, 12], salt: [0, 2, 4, 7, 9],
-        forest: [0, 2, 5, 7, 11], industry: [0, 1, 5, 7, 8]
-    };
-    const TEMPI = {
-        alpine: 100, desert: 118, harbour: 92,
-        salt: 106, forest: 96, industry: 128
-    };
-    /* One chord walk per bar; degrees index into the biome scale. */
-    const PROGRESSION = [0, 3, 1, 4];
 
     AD.createAudio = function (settings) {
         const Ctor = window.AudioContext || window.webkitAudioContext;
         let ctx = null, master = null, comp = null;
         let engineGain = null, sfxGain = null, musicGain = null;
         let engineNodes = [], noiseBuffer = null, rivalNodes = [];
-        let tyreGain = null, windGain = null, engineFilter = null;
+        let rollGain = null, windGain = null, engineFilter = null;
         let squealOsc = null, squealGain = null, squealFilter = null;
         let surfaceGain = null, surfaceFilter = null, scrapeGain = null;
-        let turboOsc = null, turboGain = null;
-        let voices = 0, nextNote = 0, noteIndex = 0, musicKey = 'alpine';
+        let sprayGain = null, sprayFilter = null;
+        let turboOsc = null, turboGain = null, whineOsc = null, whineGain = null;
+        let reverb = null, reverbSend = null;
+        let voices = 0, music = null;
+        let lastTick = 0;
         let volume = settings.volume, muted = settings.muted;
         let running = false;
-        let lastGear = 1, lastLoad = 0;
+        let lastGear = 1, lastLoad = 0, lastRpm = 0;
+        let limiterPhase = 0;
+        const rivalDistance = [70, 70, 70];
 
         function makeNoise() {
             const buffer = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
@@ -37,6 +30,21 @@
             for (let i = 0; i < data.length; i++) {
                 seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
                 data[i] = (seed / 2147483648) - 1;
+            }
+            return buffer;
+        }
+
+        /* A generated impulse response gives the venues their size: a long,
+           bright tail in the harbour, a tight one in the salt flats. */
+        function makeImpulse(seconds, decay) {
+            const length = Math.max(1, Math.floor(ctx.sampleRate * seconds));
+            const buffer = ctx.createBuffer(2, length, ctx.sampleRate);
+            for (let ch = 0; ch < 2; ch++) {
+                const data = buffer.getChannelData(ch);
+                for (let i = 0; i < length; i++) {
+                    const t = i / length;
+                    data[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, decay);
+                }
             }
             return buffer;
         }
@@ -67,6 +75,14 @@
             sfxGain = ctx.createGain(); sfxGain.gain.value = 0.9; sfxGain.connect(master);
             musicGain = ctx.createGain(); musicGain.gain.value = 0.32; musicGain.connect(master);
 
+            /* Reverb bus: everything that needs room tone feeds it. */
+            reverb = ctx.createConvolver();
+            reverb.buffer = makeImpulse(1.9, 2.6);
+            reverbSend = ctx.createGain();
+            reverbSend.gain.value = 0.0;
+            reverbSend.connect(reverb);
+            reverb.connect(master);
+
             noiseBuffer = makeNoise();
             engineFilter = ctx.createBiquadFilter();
             engineFilter.type = 'lowpass'; engineFilter.frequency.value = 900;
@@ -74,23 +90,28 @@
             engineFilter.connect(engineGain);
 
             /* Engine stack: two saws a few cents apart plus a square an octave
-               down for body, and a quiet upper harmonic for rasp. */
+               down for body, a quiet upper harmonic for rasp and a sub growl
+               that only speaks under load. */
             for (const spec of [
                 { type: 'sawtooth', detune: 0, gain: 0.30, ratio: 1 },
                 { type: 'sawtooth', detune: -9, gain: 0.18, ratio: 1 },
                 { type: 'square', detune: 7, gain: 0.14, ratio: 0.5 },
-                { type: 'sawtooth', detune: 3, gain: 0.07, ratio: 2 }
+                { type: 'sawtooth', detune: 3, gain: 0.07, ratio: 2 },
+                { type: 'sawtooth', detune: -22, gain: 0.12, ratio: 0.5 }
             ]) {
                 const osc = ctx.createOscillator();
                 osc.type = spec.type; osc.frequency.value = 60; osc.detune.value = spec.detune;
                 const g = ctx.createGain(); g.gain.value = spec.gain;
                 osc.connect(g).connect(engineFilter);
                 osc.start();
-                engineNodes.push({ osc, g, base: spec.gain, ratio: spec.ratio });
+                engineNodes.push({ osc, gain: g, base: spec.gain, ratio: spec.ratio });
             }
             const intake = loopNoise('bandpass', 420, 0.12);
             intake.gain.connect(engineGain);
             engineNodes.push({ source: intake.source, filter: intake.filter, gain: intake.gain, noise: true });
+            const exhaust = loopNoise('bandpass', 260, 0.05);
+            exhaust.gain.connect(engineGain);
+            engineNodes.push({ source: exhaust.source, filter: exhaust.filter, gain: exhaust.gain, noise: true });
 
             /* Turbo whistle rides on load and revs. */
             turboOsc = ctx.createOscillator();
@@ -99,8 +120,16 @@
             turboOsc.connect(turboGain).connect(master);
             turboOsc.start();
 
+            /* Gear whine: the thin top-end that makes a gearbox sound fast. */
+            whineOsc = ctx.createOscillator();
+            whineOsc.type = 'triangle'; whineOsc.frequency.value = 900;
+            whineGain = ctx.createGain(); whineGain.gain.value = 0;
+            whineOsc.connect(whineGain).connect(master);
+            whineOsc.start();
+
+            /* Rolling noise under the tyres, separate from the slip squeal. */
             const tyre = loopNoise('bandpass', 1900, 0);
-            tyre.gain.connect(master); tyreGain = tyre.gain;
+            tyre.gain.connect(master); rollGain = tyre.gain;
             const wind = loopNoise('highpass', 900, 0);
             wind.gain.connect(master); windGain = wind.gain;
 
@@ -112,18 +141,27 @@
             squealGain = ctx.createGain(); squealGain.gain.value = 0;
             squealOsc.connect(squealFilter).connect(squealGain).connect(master);
             squealOsc.start();
+            const squealAir = loopNoise('bandpass', 3200, 0);
+            squealAir.gain.connect(master);
+            squealAir.gain.gain.value = 0;
 
-            /* Surface grit: gravel, sand and mud spray under the tyres. */
+            /* Surface grit: gravel, sand, mud and snow spray under the tyres. */
             const surface = loopNoise('highpass', 1400, 0);
             surface.gain.connect(master);
             surfaceGain = surface.gain; surfaceFilter = surface.filter;
+
+            /* Water spray on wet asphalt. */
+            const spray = loopNoise('highpass', 2600, 0);
+            spray.gain.connect(master);
+            sprayGain = spray.gain; sprayFilter = spray.filter;
 
             /* Wall scrape layer fed by the impact envelope. */
             const scrape = loopNoise('bandpass', 2600, 0);
             scrape.gain.connect(master); scrapeGain = scrape.gain;
 
             /* Rival engines: one lean saw voice per opponent with distance
-               gain and stereo pan, so duels are heard, not just seen. */
+               gain, distance low-pass, Doppler shift and a reverb send, so a
+               duel is heard the way it looks. */
             for (let i = 0; i < 3; i++) {
                 const osc = ctx.createOscillator();
                 osc.type = 'sawtooth'; osc.frequency.value = 70;
@@ -138,11 +176,19 @@
                 } catch (_) { pan = null; }
                 if (pan) osc.connect(filter).connect(gain).connect(pan).connect(master);
                 else osc.connect(filter).connect(gain).connect(master);
+                gain.connect(reverbSend);
                 osc.start();
                 rivalNodes.push({ osc, filter, gain, pan });
             }
 
-            nextNote = ctx.currentTime + 0.1;
+            if (typeof AD.createMusicEngine === 'function') {
+                music = AD.createMusicEngine(ctx, noiseBuffer, musicGain);
+            } else {
+                music = {
+                    setBiome() {}, setAmbience() {}, update() {}, event() {}, stop() {}
+                };
+            }
+
             running = true;
             return true;
         }
@@ -163,12 +209,13 @@
             osc.onended = () => { voices = Math.max(0, voices - 1); osc.disconnect(); gain.disconnect(); };
         }
 
-        function noiseHit(level, duration, freq) {
+        function noiseHit(level, duration, freq, type) {
             if (!ctx || muted || voices >= 32) return;
             voices++;
             const now = ctx.currentTime;
             const source = ctx.createBufferSource(); source.buffer = noiseBuffer;
-            const filter = ctx.createBiquadFilter(); filter.type = 'bandpass'; filter.frequency.value = freq || 900;
+            const filter = ctx.createBiquadFilter();
+            filter.type = type || 'bandpass'; filter.frequency.value = freq || 900;
             const gain = ctx.createGain();
             gain.gain.setValueAtTime(level, now);
             gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
@@ -177,11 +224,15 @@
             source.onended = () => { voices = Math.max(0, voices - 1); source.disconnect(); filter.disconnect(); gain.disconnect(); };
         }
 
-        /* Layered impact: low body thump plus a noise crack. */
+        /* Layered impact: low body thump plus a noise crack and, on heavy
+           hits, a ringing piece of metal. */
         function impact(heavy) {
             tone(heavy ? 88 : 120, heavy ? 0.26 : 0.14, 'sine', heavy ? 0.22 : 0.12, heavy ? 42 : 70);
             noiseHit(heavy ? 0.3 : 0.15, heavy ? 0.34 : 0.16, heavy ? 320 : 520);
-            if (heavy) noiseHit(0.12, 0.5, 1800);
+            if (heavy) {
+                noiseHit(0.12, 0.5, 1800);
+                tone(1480, 0.5, 'triangle', 0.05, 900);
+            }
         }
 
         function gearShift() {
@@ -192,6 +243,32 @@
         function backfire() {
             noiseHit(0.16, 0.12, 380);
             tone(140, 0.09, 'triangle', 0.1, 80);
+        }
+
+        /* Blow-off valve: the turbo dumps its pressure when the throttle
+           closes. It is the sound of a car that was working hard. */
+        function blowOff() {
+            if (!ctx || muted) return;
+            const now = ctx.currentTime;
+            const source = ctx.createBufferSource(); source.buffer = noiseBuffer;
+            const filter = ctx.createBiquadFilter();
+            filter.type = 'bandpass'; filter.frequency.setValueAtTime(4200, now);
+            filter.frequency.exponentialRampToValueAtTime(1400, now + 0.22);
+            filter.Q.value = 1.4;
+            const gain = ctx.createGain();
+            gain.gain.setValueAtTime(0.11, now);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.26);
+            source.connect(filter).connect(gain).connect(sfxGain);
+            source.start(now); source.stop(now + 0.3);
+            source.onended = () => { source.disconnect(); filter.disconnect(); gain.disconnect(); };
+        }
+
+        function ui(kind) {
+            if (!ctx || muted) return;
+            if (kind === 'confirm') { tone(560, 0.09, 'triangle', 0.10, 780); tone(840, 0.12, 'sine', 0.05, 1120); }
+            else if (kind === 'back') { tone(420, 0.10, 'triangle', 0.08, 260); }
+            else if (kind === 'move') { tone(700, 0.04, 'sine', 0.05); }
+            else if (kind === 'start') { tone(330, 0.16, 'sawtooth', 0.09, 660); noiseHit(0.06, 0.2, 1800); }
         }
 
         function event(evt) {
@@ -208,7 +285,25 @@
                 case 'hit': impact(!!evt.heavy); break;
                 case 'emp_pulse': tone(120, 0.4, 'sawtooth', 0.13, 60); tone(240, 0.32, 'sine', 0.08, 90); break;
                 case 'lap': tone(660, 0.16, 'sine', 0.16, 990); tone(990, 0.2, 'triangle', 0.08, 1320); break;
+                case 'sector': tone(evt.index === 0 ? 520 : 740, 0.09, 'sine', 0.09, evt.index === 0 ? 640 : 880); break;
                 case 'respawn': tone(280, 0.18, 'triangle', 0.12, 520); break;
+                case 'drift_start':
+                    /* Only the player's own slides get a cue; the AI drifts
+                       silently so the mix stays readable. */
+                    if (evt.car === 0) noiseHit(0.05, 0.18, 2600, 'bandpass');
+                    break;
+                case 'near_miss':
+                    if (evt.car !== 0) break;
+                    noiseHit(0.09, 0.26, 1400, 'bandpass');
+                    tone(1180, 0.16, 'sine', 0.05, 700);
+                    break;
+                case 'style_bank': {
+                    if (evt.car !== 0) break;
+                    const base = 660 + Math.min(8, evt.multiplier || 1) * 60;
+                    tone(base, 0.12, 'triangle', 0.07, base * 1.5);
+                    tone(base * 1.5, 0.16, 'sine', 0.05, base * 2);
+                    break;
+                }
                 case 'finish':
                     [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => {
                         tone(f, 0.32, 'triangle', 0.15);
@@ -216,143 +311,39 @@
                     }, i * 130));
                     break;
             }
+            if (music) music.event(evt);
         }
 
-        /* --- adaptive music ------------------------------------------------ */
-        function noteFreq(scale, degree, root) {
-            const steps = scale.length;
-            const octave = Math.floor(degree / steps);
-            const semi = scale[((degree % steps) + steps) % steps];
-            return root * Math.pow(2, (semi + octave * 12) / 12);
-        }
-
-        function kick(time) {
-            const osc = ctx.createOscillator(), gain = ctx.createGain();
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(128, time);
-            osc.frequency.exponentialRampToValueAtTime(44, time + 0.11);
-            gain.gain.setValueAtTime(0.5, time);
-            gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.16);
-            osc.connect(gain).connect(musicGain);
-            osc.start(time); osc.stop(time + 0.18);
-            osc.onended = () => { osc.disconnect(); gain.disconnect(); };
-        }
-
-        function hat(time, open) {
-            const source = ctx.createBufferSource(); source.buffer = noiseBuffer;
-            const filter = ctx.createBiquadFilter(); filter.type = 'highpass'; filter.frequency.value = 6800;
-            const gain = ctx.createGain();
-            gain.gain.setValueAtTime(open ? 0.12 : 0.07, time);
-            gain.gain.exponentialRampToValueAtTime(0.0001, time + (open ? 0.12 : 0.045));
-            source.connect(filter).connect(gain).connect(musicGain);
-            source.start(time); source.stop(time + 0.16);
-            source.onended = () => { source.disconnect(); filter.disconnect(); gain.disconnect(); };
-        }
-
-        function bass(time, freq, dur, level) {
-            const osc = ctx.createOscillator(), gain = ctx.createGain(), filter = ctx.createBiquadFilter();
-            osc.type = 'sawtooth'; osc.frequency.value = freq;
-            filter.type = 'lowpass'; filter.frequency.value = 420;
-            gain.gain.setValueAtTime(0.0001, time);
-            gain.gain.exponentialRampToValueAtTime(level, time + 0.012);
-            gain.gain.exponentialRampToValueAtTime(0.0001, time + dur);
-            osc.connect(filter).connect(gain).connect(musicGain);
-            osc.start(time); osc.stop(time + dur + 0.03);
-            osc.onended = () => { osc.disconnect(); filter.disconnect(); gain.disconnect(); };
-        }
-
-        function pluck(time, freq, level) {
-            const osc = ctx.createOscillator(), gain = ctx.createGain();
-            osc.type = 'triangle'; osc.frequency.value = freq;
-            gain.gain.setValueAtTime(0.0001, time);
-            gain.gain.exponentialRampToValueAtTime(level, time + 0.01);
-            gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.22);
-            osc.connect(gain).connect(musicGain);
-            osc.start(time); osc.stop(time + 0.25);
-            osc.onended = () => { osc.disconnect(); gain.disconnect(); };
-        }
-
-        function pad(time, freqs, dur) {
-            for (const freq of freqs) {
-                for (const detune of [-6, 6]) {
-                    const osc = ctx.createOscillator(), gain = ctx.createGain(), filter = ctx.createBiquadFilter();
-                    osc.type = 'sawtooth'; osc.frequency.value = freq; osc.detune.value = detune;
-                    filter.type = 'lowpass'; filter.frequency.value = 900;
-                    gain.gain.setValueAtTime(0.0001, time);
-                    gain.gain.exponentialRampToValueAtTime(0.028, time + dur * 0.3);
-                    gain.gain.exponentialRampToValueAtTime(0.0001, time + dur);
-                    osc.connect(filter).connect(gain).connect(musicGain);
-                    osc.start(time); osc.stop(time + dur + 0.05);
-                    osc.onended = () => { osc.disconnect(); filter.disconnect(); gain.disconnect(); };
-                }
-            }
-        }
-
-        function snare(time, level) {
-            const source = ctx.createBufferSource(); source.buffer = noiseBuffer;
-            const filter = ctx.createBiquadFilter(); filter.type = 'bandpass'; filter.frequency.value = 2100; filter.Q.value = 0.8;
-            const gain = ctx.createGain();
-            gain.gain.setValueAtTime(level, time);
-            gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.11);
-            source.connect(filter).connect(gain).connect(musicGain);
-            source.start(time); source.stop(time + 0.13);
-            source.onended = () => { source.disconnect(); filter.disconnect(); gain.disconnect(); };
-            const osc = ctx.createOscillator(), og = ctx.createGain();
-            osc.type = 'triangle'; osc.frequency.value = 190;
-            og.gain.setValueAtTime(level * 0.7, time);
-            og.gain.exponentialRampToValueAtTime(0.0001, time + 0.08);
-            osc.connect(og).connect(musicGain);
-            osc.start(time); osc.stop(time + 0.1);
-            osc.onended = () => { osc.disconnect(); og.disconnect(); };
-        }
-
-        function scheduleMusic(intensity) {
-            if (!ctx || muted || !running) return;
-            const tempo = TEMPI[musicKey] || 104;
-            const beat = 60 / tempo / 2;
-            const scale = SCALES[musicKey] || SCALES.alpine;
-            const root = 55;
-            while (nextNote < ctx.currentTime + 0.12) {
-                const step = noteIndex % 16;
-                const bar = Math.floor(noteIndex / 16);
-                const degree = PROGRESSION[bar % PROGRESSION.length];
-                if (step === 0) {
-                    kick(nextNote);
-                    pad(nextNote, [
-                        noteFreq(scale, degree, root * 4),
-                        noteFreq(scale, degree + 2, root * 4),
-                        noteFreq(scale, degree + 4, root * 4)
-                    ], beat * 8);
-                }
-                if (step === 8 || (intensity > 0.72 && step === 6)) kick(nextNote);
-                if ((step === 4 || step === 12) && intensity > 0.35) snare(nextNote, 0.10 + intensity * 0.08);
-                if (step % 2 === 1 && intensity > 0.3) hat(nextNote, step % 8 === 7);
-                if (step % 4 === 0 || step === 14) {
-                    bass(nextNote, noteFreq(scale, degree, root), beat * 1.7, 0.16 + intensity * 0.08);
-                    if (step === 14 && intensity > 0.55) bass(nextNote, noteFreq(scale, degree, root * 2), beat * 0.9, 0.07);
-                }
-                if (intensity > 0.45 && (step === 2 || step === 5 || step === 10 || step === 13)) {
-                    pluck(nextNote, noteFreq(scale, degree + 2 + (step % 3), root * 8), 0.05 + intensity * 0.05);
-                }
-                if (intensity > 0.68 && bar % 2 === 1 && (step === 7 || step === 15)) {
-                    pluck(nextNote, noteFreq(scale, degree + 4 + (step === 7 ? 0 : 2), root * 16), 0.035);
-                }
-                nextNote += beat;
-                noteIndex++;
+        /* Per-surface tyre character: asphalt hums, gravel rattles, snow
+           crunches, wet asphalt sprays and ice is almost silent. */
+        function surfaceProfile(surface) {
+            switch (surface) {
+                case 'gravel': return { freq: 1500, type: 'bandpass', level: 1.0, q: 1.2 };
+                case 'sand': return { freq: 420, type: 'lowpass', level: 1.15, q: 0.8 };
+                case 'mud': return { freq: 700, type: 'bandpass', level: 0.85, q: 2.2 };
+                case 'snow': return { freq: 950, type: 'bandpass', level: 0.7, q: 1.4 };
+                case 'ice': return { freq: 2600, type: 'highpass', level: 0.25, q: 0.7 };
+                case 'wet': return { freq: 2200, type: 'highpass', level: 0.8, q: 0.7 };
+                case 'salt': return { freq: 1800, type: 'bandpass', level: 0.55, q: 1.0 };
+                default: return { freq: 420, type: 'bandpass', level: 0.5, q: 0.9 };
             }
         }
 
         return {
             unlock,
             available() { return !!Ctor; },
+            ui,
             setSettings(next) {
                 volume = clamp(next.volume, 0, 1); muted = !!next.muted;
                 if (master && ctx) master.gain.setTargetAtTime(muted ? 0 : volume * 0.72, ctx.currentTime, 0.03);
             },
             setBiome(id) {
-                musicKey = Object.prototype.hasOwnProperty.call(SCALES, id) ? id : 'alpine';
-                noteIndex = 0;
-                if (ctx) nextNote = ctx.currentTime + 0.1;
+                if (music) music.setBiome(id);
+                if (reverbSend && ctx) {
+                    /* Big open venues ring longer than a tight street circuit. */
+                    const sizes = { harbour: 0.34, industry: 0.30, metro: 0.26, glacier: 0.22, alpine: 0.16, forest: 0.12, salt: 0.06, desert: 0.06 };
+                    reverbSend.gain.setTargetAtTime(sizes[id] !== undefined ? sizes[id] : 0.15, ctx.currentTime, 0.4);
+                }
             },
             update(race, active) {
                 if (!ctx || !running) return;
@@ -361,11 +352,26 @@
                 const load = clamp(v.throttle, 0, 1);
                 const speed = Math.max(0, v.vx);
                 const now = ctx.currentTime;
+                /* The real frame time drives the Doppler shift and the score
+                   scheduler, so they stay correct at any frame rate. */
+                const tick = clamp(now - lastTick, 0.004, 0.1);
+                lastTick = now;
 
                 /* Gear shift clicks and throttle-lift backfires. */
                 if (v.gear !== lastGear && speed > 2) { gearShift(); lastGear = v.gear; }
-                if (lastLoad > 0.55 && load < 0.1 && rpm > 0.55 && speed > 12) backfire();
+                if (lastLoad > 0.55 && load < 0.1 && rpm > 0.55 && speed > 12) {
+                    backfire();
+                    if (rpm > 0.7) blowOff();
+                }
                 lastLoad = load;
+
+                /* Rev limiter: the engine bounces off the cut instead of
+                   running flat out. */
+                let limiter = 1;
+                if (rpm > 0.965) {
+                    limiterPhase += 0.35;
+                    limiter = (limiterPhase % 1) > 0.5 ? 0.45 : 1;
+                }
 
                 for (const node of engineNodes) {
                     if (node.noise) {
@@ -373,36 +379,49 @@
                         node.gain.gain.setTargetAtTime(0.03 + load * 0.12, now, 0.06);
                     } else {
                         node.osc.frequency.setTargetAtTime((48 + rpm * 145) * node.ratio, now, 0.04);
-                        node.g.gain.setTargetAtTime(node.base * (0.55 + load * 0.6), now, 0.05);
+                        node.gain.gain.setTargetAtTime(node.base * (0.55 + load * 0.6) * limiter, now, 0.05);
                     }
                 }
                 engineFilter.frequency.setTargetAtTime(420 + rpm * 2600 + load * 500, now, 0.05);
-                engineGain.gain.setTargetAtTime(active ? 0.16 + load * 0.10 : 0.02, now, 0.08);
+                engineGain.gain.setTargetAtTime(active ? (0.16 + load * 0.10) * limiter : 0.02, now, 0.08);
                 turboGain.gain.setTargetAtTime(
                     active ? clamp((rpm - 0.42) * 0.5, 0, 1) * load * 0.028 : 0, now, 0.08);
                 turboOsc.frequency.setTargetAtTime(1900 + rpm * 2400, now, 0.09);
+                whineGain.gain.setTargetAtTime(
+                    active ? clamp(rpm - 0.45, 0, 1) * 0.014 * (v.gear || 1) : 0, now, 0.06);
+                whineOsc.frequency.setTargetAtTime(600 + rpm * 2600, now, 0.06);
+                lastRpm = rpm;
 
                 /* Tyre layers: rolling noise, slip squeal and surface grit. */
-                tyreGain.gain.setTargetAtTime(clamp(v.slip * 0.014, 0, 0.16) * (active ? 1 : 0), now, 0.05);
+                const surface = v.surface || 'asphalt';
+                const profile = surfaceProfile(surface);
+                rollGain.gain.setTargetAtTime(
+                    clamp(speed / 90, 0, 1) * 0.05 * profile.level * (active ? 1 : 0), now, 0.06);
                 const squeal = clamp((v.slip - 1.6) * 0.05, 0, 0.22) * (active ? 1 : 0);
-                squealGain.gain.setTargetAtTime(squeal, now, 0.04);
+                squealGain.gain.setTargetAtTime(squeal * (surface === 'ice' ? 1.4 : 1), now, 0.04);
                 squealOsc.frequency.setTargetAtTime(520 + v.slip * 60, now, 0.06);
-                const gritty = v.surface === 'gravel' || v.surface === 'sand' || v.surface === 'mud';
+                squealFilter.frequency.setTargetAtTime(1500 + v.slip * 40, now, 0.05);
                 surfaceGain.gain.setTargetAtTime(
-                    gritty ? clamp(speed / 80, 0, 1) * 0.09 * (active ? 1 : 0) : 0, now, 0.08);
-                surfaceFilter.frequency.setTargetAtTime(
-                    v.surface === 'mud' ? 900 : (v.surface === 'sand' ? 2600 : 1900), now, 0.1);
+                    clamp(speed / 80, 0, 1) * 0.09 * profile.level * (active ? 1 : 0), now, 0.08);
+                surfaceFilter.type = profile.type;
+                surfaceFilter.frequency.setTargetAtTime(profile.freq, now, 0.1);
+                if (surfaceFilter.Q) surfaceFilter.Q.setTargetAtTime(profile.q, now, 0.1);
+                const wet = surface === 'wet';
+                sprayGain.gain.setTargetAtTime(wet ? clamp(speed / 70, 0, 1) * 0.05 * (active ? 1 : 0) : 0, now, 0.1);
+                sprayFilter.frequency.setTargetAtTime(1800 + speed * 20, now, 0.1);
                 scrapeGain.gain.setTargetAtTime(clamp(v.impact * 0.16, 0, 0.16), now, 0.03);
                 const draftWind = clamp((v.slipstream || 0), 0, 1) * 0.03;
                 windGain.gain.setTargetAtTime((clamp(speed / 90, 0, 1) * 0.055 + draftWind) * (active ? 1 : 0), now, 0.1);
 
-                /* Rival engines: distance gain, lateral pan, rev pitch. */
+                /* Rival engines: distance gain, distance low-pass, Doppler
+                   shift and stereo pan. */
                 const cos = Math.cos(v.psi), sin = Math.sin(v.psi);
                 for (let i = 0; i < rivalNodes.length; i++) {
                     const node = rivalNodes[i];
                     const rival = race.cars[i + 1];
                     if (!rival || !active) {
                         node.gain.gain.setTargetAtTime(0, now, 0.1);
+                        rivalDistance[i] = 70;
                         continue;
                     }
                     const dx = rival.v.x - v.x, dy = rival.v.y - v.y;
@@ -410,19 +429,31 @@
                     const lateral = (-dx * sin + dy * cos) / Math.max(1, dist);
                     const rrpm = clamp(rival.v.rpm / 7200, 0, 1);
                     const level = clamp(1 - dist / 70, 0, 1);
-                    node.osc.frequency.setTargetAtTime(48 + rrpm * 145, now, 0.08);
-                    node.filter.frequency.setTargetAtTime(500 + rrpm * 1800, now, 0.08);
-                    node.gain.gain.setTargetAtTime(level * level * 0.12, now, 0.1);
+                    /* Doppler: the rate at which the distance changes bends
+                       the pitch exactly like a real engine passing by. */
+                    const rate = (dist - rivalDistance[i]) / tick;
+                    rivalDistance[i] = dist;
+                    const doppler = clamp(1 / (1 + rate / 343), 0.82, 1.22);
+                    node.osc.frequency.setTargetAtTime((48 + rrpm * 145) * doppler, now, 0.05);
+                    node.filter.frequency.setTargetAtTime(
+                        380 + level * 2200 + rrpm * 600, now, 0.08);
+                    node.gain.gain.setTargetAtTime(level * level * 0.13, now, 0.1);
                     if (node.pan) node.pan.pan.setTargetAtTime(clamp(lateral, -1, 1) * 0.8, now, 0.1);
                 }
 
-                scheduleMusic(clamp(speed / 70, 0, 1));
+                const conditions = race.conditions ? race.conditions.state : null;
+                const intensity = clamp(speed / 70, 0, 1);
+                if (music) {
+                    music.update(tick, intensity, conditions);
+                    if (conditions && conditions.ambience) music.setAmbience(conditions.ambience);
+                }
             },
             event,
             suspend() { if (ctx && ctx.state === 'running') ctx.suspend().catch(() => {}); running = false; },
-            resume() { if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {}); running = true; if (ctx) nextNote = ctx.currentTime + 0.1; },
+            resume() { if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {}); running = true; },
             dispose() {
                 running = false;
+                if (music) music.stop();
                 for (const node of engineNodes) {
                     try { if (node.osc) node.osc.stop(); if (node.source) node.source.stop(); } catch (_) { /* already stopped */ }
                 }
@@ -433,12 +464,13 @@
                     try { if (node.pan) node.pan.disconnect(); } catch (_) { /* already gone */ }
                 }
                 rivalNodes = [];
-                for (const osc of [squealOsc, turboOsc]) {
+                for (const osc of [squealOsc, turboOsc, whineOsc]) {
                     try { if (osc) osc.stop(); } catch (_) { /* already stopped */ }
                 }
                 if (ctx) { try { ctx.close(); } catch (_) { /* already closed */ } }
-                ctx = null; master = null; comp = null;
-                squealOsc = null; turboOsc = null; lastGear = 1; lastLoad = 0;
+                ctx = null; master = null; comp = null; reverb = null; reverbSend = null;
+                squealOsc = null; turboOsc = null; whineOsc = null;
+                lastGear = 1; lastLoad = 0; lastRpm = 0;
             }
         };
     };

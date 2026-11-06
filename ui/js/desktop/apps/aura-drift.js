@@ -102,7 +102,10 @@
             newRecord: 'aura_drift.new_record', nextTrack: 'aura_drift.next_track',
             ready: 'aura_drift.ready', lap: 'aura_drift.lap',
             weapon: 'aura_drift.weapon', loading: 'aura_drift.loading',
-            catchup: 'aura_drift.catchup', nitro: 'aura_drift.nitro'
+            catchup: 'aura_drift.catchup', nitro: 'aura_drift.nitro',
+            style: 'aura_drift.style', combo: 'aura_drift.combo',
+            sector: 'aura_drift.sector', bestCombo: 'aura_drift.best_combo',
+            conditions: 'aura_drift.conditions'
         };
         const result = {};
         for (const [name, key] of Object.entries(keys)) result[name] = t(key);
@@ -195,6 +198,7 @@
                 cupIndex++;
                 startRace(currentConfig);
             },
+            onUi(kind) { audio.ui(kind); },
             onSettings(next) {
                 AD.saveSettings(next, readonly);
                 audio.setSettings(next);
@@ -293,6 +297,13 @@
                     hud.showMessage(labels.lap + ' ' + evt.lap + ' · ' + AD.formatTime(evt.time), 1.8);
                 } else if (evt.type === 'go') {
                     hud.showMessage(labels.ready, 0.9);
+                } else if (evt.type === 'style_bank' && evt.car === 0) {
+                    hud.popup('+' + Math.round(evt.points), evt.multiplier > 2 ? '#ffd166' : '#7dd3fc');
+                } else if (evt.type === 'near_miss' && evt.car === 0) {
+                    hud.popup(labels.combo + '!', '#ff9d4a');
+                    camera.shake = Math.min(1, camera.shake + 0.18);
+                } else if (evt.type === 'sector') {
+                    hud.showMessage(labels.sector + ' ' + (evt.index + 1) + ' · ' + AD.formatTime(evt.time), 1.4);
                 }
             }
             race.events.length = 0;
@@ -307,17 +318,25 @@
                 surface === 'sand' ? '#d8b078' :
                 surface === 'gravel' ? '#a89a84' :
                 surface === 'mud' ? '#6b5a42' :
+                surface === 'snow' ? '#eef4fb' :
                 surface === 'wet' ? '#9db4c8' :
                 surface === 'ice' ? '#e2edf5' :
                 surface === 'salt' ? '#f2f2ea' :
                 race.track.biome.night ? '#8fa4bd' : '#c9cbd0';
-            if (v.slip > 2.4 && speed > 8 && quality.particles > 0 && frameCount % 2 === 0) {
-                const cos = Math.cos(v.psi), sin = Math.sin(v.psi);
+            /* Every car lays its own dust: rivals sliding through a corner
+               are part of the picture, not just the player's car. */
+            for (const car of race.cars) {
+                const cv = car.v;
+                const cs = Math.max(0, cv.vx);
+                if (cv.slip <= 2.4 || cs <= 8 || quality.particles <= 0) continue;
+                if (frameCount % 2 !== 0 && car.isPlayer) continue;
+                if (frameCount % 3 !== 0 && !car.isPlayer) continue;
+                const cos = Math.cos(cv.psi), sin = Math.sin(cv.psi);
                 for (const side of [-1, 1]) {
-                    const x = v.x - cos * 1.7 + sin * side * 1.05;
-                    const y = v.y - sin * 1.7 - cos * side * 1.05;
+                    const x = cv.x - cos * 1.7 + sin * side * 1.05;
+                    const y = cv.y - sin * 1.7 - cos * side * 1.05;
                     renderer.smoke(x, y, dustColour);
-                    renderer.addDecal(x, y, v.psi, Math.min(1, v.slip / 9));
+                    if (car.isPlayer) renderer.addDecal(x, y, cv.psi, Math.min(1, cv.slip / 9));
                 }
             }
             if (v.boost && speed > 12 && frameCount % 3 === 0) {
@@ -328,6 +347,14 @@
             }
             if (v.impact > 0.55 && quality.particles > 0) {
                 renderer.burst('spark', v.x, v.y, 3, '#ffb347');
+            }
+            /* Water thrown up on wet asphalt and powder on snow. */
+            const wetSurface = surface === 'wet';
+            const snowSurface = surface === 'snow';
+            if ((wetSurface || snowSurface) && speed > 14 && frameCount % 2 === 0) {
+                const cos = Math.cos(v.psi), sin = Math.sin(v.psi);
+                renderer.smoke(v.x - cos * 2.1 + sin * 0.9, v.y - sin * 2.1 - cos * 0.9,
+                    wetSurface ? '#b9cede' : '#f3f8ff');
             }
         }
 

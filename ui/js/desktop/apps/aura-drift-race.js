@@ -33,10 +33,13 @@
                 input: AD.createInput(),
                 lap: 0, gate: 0, started: false, lastS: g.s, progress: g.s,
                 lapStart: 0, bestLap: Infinity, lastLap: 0,
+                sector: 0, sectorStart: 0, bestSectors: [Infinity, Infinity, Infinity],
                 finished: false, finishTime: 0,
                 weapon: null, ammo: 0, cooldown: 0,
+                style: typeof AD.createStyleState === 'function' ? AD.createStyleState() : null,
                 ai: {
                     aggression: 0.82 + rng() * 0.3,
+                    skill: 0.88 + rng() * 0.12,
                     lane: (rng() - 0.5) * track.width * 0.3,
                     fireTimer: 3 + rng() * 5,
                     stuckTime: 0, recover: 0, respawns: 0, catchup: false
@@ -63,7 +66,10 @@
             ghostTape: options.ghostTape || null,
             ghost: null, ghostStep: 0,
             bestLap: Infinity, totalLaps: options.laps || track.laps,
-            standings: [], result: null, readonly: !!options.readonly
+            standings: [], result: null, readonly: !!options.readonly,
+            conditions: typeof AD.createConditions === 'function'
+                ? AD.createConditions(track, seed)
+                : null
         };
 
         if (race.ghostTape && race.ghostTape.length && options.showGhost !== false) {
@@ -98,7 +104,20 @@
         const speed = Math.max(0, v.vx);
         const ahead = AD.pointAt(track, sample.s + 26 + speed * 0.85);
         const curvature = Math.abs(ahead.tx * sample.ty - ahead.ty * sample.tx);
-        const lane = car.ai.lane * (1 - clamp(curvature * 4, 0, 0.8));
+        let lane = car.ai.lane * (1 - clamp(curvature * 4, 0, 0.8));
+        /* Overtaking line: a rival just ahead is worth moving around, but
+           only if there is room on one side of the corridor. */
+        for (const other of race.cars) {
+            if (other === car) continue;
+            const dx = other.v.x - v.x, dy = other.v.y - v.y;
+            const dist = Math.hypot(dx, dy);
+            if (dist > 16 || dist < 3) continue;
+            const aheadDot = (dx * Math.cos(v.psi) + dy * Math.sin(v.psi)) / Math.max(0.001, dist);
+            if (aheadDot < 0.7) continue;
+            const side = Math.sign(-dx * Math.sin(v.psi) + dy * Math.cos(v.psi)) || 1;
+            lane += side * track.width * 0.26 * (1 - dist / 16);
+        }
+        lane = clamp(lane, -track.width * 0.38, track.width * 0.38);
         const tx = ahead.x + ahead.nx * lane, ty = ahead.y + ahead.ny * lane;
         const wanted = Math.atan2(ty - v.y, tx - v.x);
         const error = AD.wrapAngle(wanted - v.psi);
@@ -120,11 +139,16 @@
         car.ai.catchup = catchup > 1.001;
         car.ai.catchupFactor = catchup;
 
-        const cornerLimit = 18 + 58 * car.ai.aggression / Math.max(0.35, 1 + curvature * 14 + Math.abs(sample.offset) / 40);
+        const cornerLimit = 18 + 62 * car.ai.aggression * (car.ai.skill || 1) /
+            Math.max(0.35, 1 + curvature * 14 + Math.abs(sample.offset) / 40);
         const target = clamp(cornerLimit * gripFactor * corridorFactor * catchup, 10, 74);
         input.throttle = speed < target ? 1 : 0;
         input.brake = speed > target + 5 ? clamp((speed - target) / 14, 0, 1) : 0;
-        input.handbrake = (curvature > 0.3 && speed > 38 && Math.abs(error) > 0.42) ? 1 : 0;
+        /* Rivals throw the car into the corner: the handbrake makes them
+           slide, which reads on screen and feeds the style score. It is only
+           safe where there is grip left - on mud or ice it would be a
+           wall-scraping convoy. */
+        input.handbrake = (curvature > 0.22 && speed > 24 && surface.grip > 0.6) ? 1 : 0;
         /* Same nitro resource as the player: burn it on clean straights only. */
         input.boost = (v.nitro > 0.55 && curvature < 0.02 && speed > 46) ? 1 : 0;
         input.fire = 0;
@@ -167,6 +191,8 @@
         const sample = AD.sampleTrack(race.track, v.x, v.y);
         const surface = AD.surfaceAt(race.track, sample.s, sample.offset, sample);
         let grip = surface.grip, roll = surface.roll;
+        /* Rain and snow take the grip away in the same way for every driver. */
+        if (race.conditions) grip *= race.conditions.state.grip;
         for (const h of race.hazards) {
             if (h.type === 'oil' && h.ttl > 0 && AD.distance(v.x, v.y, h.x, h.y) < h.r) {
                 grip = Math.min(grip, AD.SURFACES.oil.grip);
@@ -342,8 +368,25 @@
             }
             car.started = true;
             car.gate = 1;
+            car.sector = 0;
+            car.sectorStart = race.time;
         } else if (car.started) {
             while (car.gate < 12 && s >= race.track.gates[car.gate]) car.gate++;
+        }
+        /* Sector splits: the rhythm of a race lap and the thing a driver
+           actually compares between attempts. */
+        const sectors = race.track.sectors;
+        if (car.started && sectors && sectors.length) {
+            while (car.sector < sectors.length && s >= sectors[car.sector]) {
+                const index = car.sector;
+                const split = race.time - car.sectorStart;
+                car.sectorStart = race.time;
+                car.sector++;
+                if (car.isPlayer) {
+                    if (split < car.bestSectors[index]) car.bestSectors[index] = split;
+                    emit(race, 'sector', { index: index, time: split, best: car.bestSectors[index] });
+                }
+            }
         }
         car.lastS = s;
         car.progress = car.lap * length + s;
@@ -403,6 +446,8 @@
         updateHazards(race, dt);
         updatePickups(race);
         updateGhost(race, dt);
+        if (race.conditions) race.conditions.update(dt);
+        if (typeof AD.updateStyle === 'function') AD.updateStyle(race, dt);
 
         race.standings = race.cars.slice().sort((a, b) => {
             if (a.finished !== b.finished) return a.finished ? -1 : 1;
@@ -416,7 +461,9 @@
             race.result = {
                 time: player.finishTime, bestLap: player.bestLap,
                 position: race.standings.indexOf(player) + 1,
-                tape: player.tape.slice()
+                tape: player.tape.slice(),
+                style: typeof AD.styleSummary === 'function' ? AD.styleSummary(player) : null,
+                sectors: player.bestSectors.slice()
             };
         }
     };

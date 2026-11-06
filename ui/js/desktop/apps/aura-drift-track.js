@@ -11,7 +11,9 @@
         harbour: { ground: '#202a38', groundAlt: '#293648', edge: '#3d4a5d', road: '#242a33', line: '#8bb6d8', accent: '#4ad8ff', night: true, weather: 'rain', base: 'wet', runoff: 'wet' },
         salt: { ground: '#d6d8cf', groundAlt: '#e6e8df', edge: '#f2f3ea', road: '#b9bcb2', line: '#f7f5e9', accent: '#ffffff', night: false, weather: 'glare', base: 'salt', runoff: 'salt' },
         forest: { ground: '#243b2b', groundAlt: '#2e4a34', edge: '#4a6040', road: '#343632', line: '#cdd4b3', accent: '#a8e08a', night: false, weather: 'mist', base: 'mud', runoff: 'gravel' },
-        industry: { ground: '#34383c', groundAlt: '#3f4449', edge: '#596067', road: '#2c2f33', line: '#e3c15a', accent: '#ff9d4a', night: true, weather: 'sparks', base: 'asphalt', runoff: 'gravel' }
+        industry: { ground: '#34383c', groundAlt: '#3f4449', edge: '#596067', road: '#2c2f33', line: '#e3c15a', accent: '#ff9d4a', night: true, weather: 'sparks', base: 'asphalt', runoff: 'gravel' },
+        glacier: { ground: '#3b4a5c', groundAlt: '#4a5c72', edge: '#7f9db8', road: '#333c48', line: '#cfe4f6', accent: '#8ce9ff', night: true, weather: 'snow', base: 'asphalt', runoff: 'snow' },
+        metro: { ground: '#2a2d33', groundAlt: '#343841', edge: '#4d525c', road: '#262930', line: '#d8dde6', accent: '#ff5ec4', night: true, weather: 'rain', base: 'asphalt', runoff: 'wet' }
     };
     AD.BIOMES = BIOMES;
 
@@ -52,6 +54,18 @@
             harmonics: [{ k: 3, amp: 0.13, phase: 1.4 }, { k: 6, amp: 0.045, phase: 0.7 }],
             width: 25, laps: 2, biome: 'industry',
             zones: [{ from: 0.30, to: 0.38, side: 1, type: 'gravel' }]
+        },
+        {
+            id: 'gletscherpass', name: 'Gletscherpass', seed: 7707, radius: 529, aspect: 0.66,
+            harmonics: [{ k: 3, amp: 0.17, phase: 2.1 }, { k: 7, amp: 0.05, phase: 0.3 }],
+            width: 24, laps: 2, biome: 'glacier',
+            zones: [{ from: 0.18, to: 0.46, side: 0, type: 'snow' }, { from: 0.72, to: 0.80, side: -1, type: 'ice' }]
+        },
+        {
+            id: 'metropolis', name: 'Metropolis-Ring', seed: 8808, radius: 648, aspect: 0.79,
+            harmonics: [{ k: 2, amp: 0.12, phase: 0.6 }, { k: 5, amp: 0.05, phase: 1.9 }],
+            width: 26, laps: 2, biome: 'metro',
+            zones: [{ from: 0.44, to: 0.62, side: 0, type: 'wet' }]
         }
     ];
 
@@ -143,6 +157,12 @@
             biome: BIOMES[manifest.biome] || BIOMES.alpine,
             biomeId: manifest.biome, zones: manifest.zones || [],
             laps: manifest.laps, points: points,
+            /* Three timing sectors per lap give the race a rhythm: green and
+               purple splits are what the driver is really chasing. */
+            sectors: [length / 3, (length * 2) / 3],
+            driftZones: typeof AD.buildDriftZones === 'function' ? AD.buildDriftZones({
+                samples: samples, length: length
+            }) : [],
             bounds: (function () {
                 let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
                 for (const p of positions) {

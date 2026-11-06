@@ -15,6 +15,8 @@ vm.createContext(sandbox);
 for (const file of [
     'ui/js/desktop/apps/aura-drift-core.js',
     'ui/js/desktop/apps/aura-drift-physics.js',
+    'ui/js/desktop/apps/aura-drift-style.js',
+    'ui/js/desktop/apps/aura-drift-conditions.js',
     'ui/js/desktop/apps/aura-drift-track.js',
     'ui/js/desktop/apps/aura-drift-race.js'
 ]) {
@@ -60,6 +62,9 @@ function simulate(manifest, seed) {
         respawns: race.cars.reduce((sum, c) => sum + c.ai.respawns, 0),
         maxCatchup: maxCatchup,
         events: events,
+        style: race.cars.reduce((sum, c) => sum + (c.style ? c.style.banked : 0), 0),
+        weather: race.conditions ? race.conditions.state.kind : 'none',
+        grip: race.conditions ? race.conditions.state.grip : 1,
         finite: race.cars.every(c => AD.vehicleState(c.v).every(Number.isFinite))
     };
 }
@@ -101,6 +106,21 @@ const b = simulate(AD.TRACKS[0], 777);
 check('balance simulation is reproducible',
     a.fastest === b.fastest && a.walls === b.walls && a.events.weapon === b.events.weapon,
     a.fastest.toFixed(3) + ' vs ' + b.fastest.toFixed(3));
+
+/* Weather is part of the simulation: it must be reproducible and it must
+   never hand a driver more grip than dry tarmac. */
+check('weather is deterministic for a seed',
+    a.weather === b.weather && a.grip === b.grip, a.weather + ' vs ' + b.weather);
+check('weather never adds grip', results.every(r => r.grip <= 1.0001),
+    results.map(r => r.id + ':' + r.grip.toFixed(3)).join(' '));
+
+/* The style score has to be reachable: a full AI lap has to produce drift
+   chains, or the meter would only ever show zeroes. */
+const scoring = results.filter(r => r.style > 0);
+check('style points accumulate on most layouts', scoring.length >= 5,
+    results.map(r => r.id + ':' + Math.round(r.style)).join(' '));
+check('style scores stay in a readable range',
+    results.every(r => r.style < 60000), results.map(r => Math.round(r.style)).join(' '));
 
 if (failures.length) {
     console.error('\n' + failures.length + ' balance check(s) failed');

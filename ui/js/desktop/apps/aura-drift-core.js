@@ -43,7 +43,8 @@
         mud: { grip: 0.50, roll: 0.048, label: 'Matsch' },
         ice: { grip: 0.34, roll: 0.010, label: 'Eis' },
         oil: { grip: 0.20, roll: 0.010, label: 'Öl' },
-        sand: { grip: 0.55, roll: 0.055, label: 'Sand' }
+        sand: { grip: 0.55, roll: 0.055, label: 'Sand' },
+        snow: { grip: 0.42, roll: 0.030, label: 'Schnee' }
     };
 
     AD.WEAPONS = {
@@ -56,18 +57,34 @@
     };
     AD.WEAPON_IDS = Object.keys(AD.WEAPONS);
 
+    /* shape picks the pre-rendered silhouette: the prototype, the GT coupe,
+       the muscle car and the rally hatch all read differently at a glance. */
     AD.CARS = [
-        { name: 'Vektor', colour: '#ff5a4e', accent: '#ffd7c2', grip: 1.00, power: 1.00 },
-        { name: 'Kobalt', colour: '#4f8cff', accent: '#cfe2ff', grip: 1.04, power: 0.96 },
-        { name: 'Lumen', colour: '#f6c445', accent: '#fff0bd', grip: 0.97, power: 1.05 },
-        { name: 'Tundra', colour: '#4ade80', accent: '#d6ffe4', grip: 1.08, power: 0.92 }
+        { name: 'Vektor', colour: '#ff5a4e', accent: '#ffd7c2', grip: 1.00, power: 1.00, shape: 'wedge' },
+        { name: 'Kobalt', colour: '#4f8cff', accent: '#cfe2ff', grip: 1.04, power: 0.96, shape: 'gt' },
+        { name: 'Lumen', colour: '#f6c445', accent: '#fff0bd', grip: 0.97, power: 1.05, shape: 'muscle' },
+        { name: 'Tundra', colour: '#4ade80', accent: '#d6ffe4', grip: 1.08, power: 0.92, shape: 'rally' }
     ];
 
+    /* Style scoring: reward sideways momentum, chain it into a multiplier and
+       pay out for clean exits, close passes and air time. */
+    AD.STYLE = {
+        driftAngleMin: 0.17,
+        driftSpeedMin: 9,
+        driftRate: 3.5,
+        comboWindow: 1.5,
+        multiplierStep: 0.5,
+        multiplierMax: 8,
+        nearMissDistance: 2.7,
+        nearMissWindow: 0.85,
+        bankRate: 0.75
+    };
+
     AD.QUALITY = {
-        low: { particles: 70, weather: 0.25, lighting: false, bloom: false, chunkCache: 24 },
-        medium: { particles: 180, weather: 0.6, lighting: true, bloom: false, chunkCache: 40 },
-        high: { particles: 380, weather: 1, lighting: true, bloom: true, chunkCache: 64 },
-        ultra: { particles: 620, weather: 1.4, lighting: true, bloom: true, chunkCache: 96 }
+        low: { particles: 70, weather: 0.25, lighting: false, bloom: false, chunkCache: 24, detail: 0.35 },
+        medium: { particles: 180, weather: 0.6, lighting: true, bloom: false, chunkCache: 40, detail: 0.7 },
+        high: { particles: 380, weather: 1, lighting: true, bloom: true, chunkCache: 64, detail: 1 },
+        ultra: { particles: 620, weather: 1.4, lighting: true, bloom: true, chunkCache: 96, detail: 1.35 }
     };
 
     AD.defaultSettings = function () {

@@ -11,6 +11,7 @@ const sandbox = { window: {}, console };
 vm.createContext(sandbox);
 for (const file of [
     'ui/js/desktop/apps/aura-drift-core.js',
+    'ui/js/desktop/apps/aura-drift-style.js',
     'ui/js/desktop/apps/aura-drift-track.js'
 ]) {
     vm.runInContext(readFileSync(path.join(root, file), 'utf8'), sandbox, { filename: file });
@@ -45,11 +46,32 @@ for (const manifest of AD.TRACKS) {
 }
 
 const signatures = built.map(t => t.points.map(p => Math.round(p[0]) + ':' + Math.round(p[1])).join('|'));
-check('all six layouts are genuinely distinct', new Set(signatures).size === AD.TRACKS.length);
+check('every layout is genuinely distinct', new Set(signatures).size === AD.TRACKS.length);
 const widths = built.map(t => t.width);
 check('tracks differ in width', new Set(widths).size >= 4, widths.join(','));
 const baseSurfaces = built.map(t => t.biome.base);
 check('tracks differ in grip profile', new Set(baseSurfaces).size >= 4, baseSurfaces.join(','));
+
+/* Drift zones are derived from the geometry: they must sit inside the lap
+   and they must exist on every layout, otherwise the style score has no
+   corner rewards. */
+let zoneOk = true, zoneReasons = [];
+for (const track of built) {
+    if (!track.driftZones.length) { zoneOk = false; zoneReasons.push(track.id + ': none'); continue; }
+    for (const zone of track.driftZones) {
+        if (zone.from < 0 || zone.to > track.length || zone.to < zone.from) {
+            zoneOk = false; zoneReasons.push(track.id + ': ' + zone.from.toFixed(0) + '-' + zone.to.toFixed(0));
+        }
+    }
+}
+check('every layout has drift zones inside the lap', zoneOk, zoneReasons.slice(0, 3).join(' | '));
+
+let sectorOk = true, sectorReasons = [];
+for (const track of built) {
+    if (!track.sectors || track.sectors.length !== 2) { sectorOk = false; sectorReasons.push(track.id + ': splits'); continue; }
+    if (track.sectors[1] <= track.sectors[0]) { sectorOk = false; sectorReasons.push(track.id + ': order'); }
+}
+check('every layout is split into three sectors', sectorOk, sectorReasons.slice(0, 3).join(' | '));
 
 let dailyOk = true, dailyReasons = [];
 for (let seed = 1; seed <= 20; seed++) {

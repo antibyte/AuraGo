@@ -39,6 +39,7 @@
         v.gear = 1; v.rpm = 900; v.slip = 0;
         v.damage = 0; v.disabled = 0; v.boost = 0; v.shield = 0;
         v.nitro = 1; v.brakeHold = 0; v.slipstream = 0;
+        v.handbrake = 0;
         v.impact = 0; v.wallContacts = 0;
     };
 
@@ -53,6 +54,9 @@
         const disabled = (env && env.disabled) || v.disabled > 0;
         const handbrake = input.handbrake ? 1 : 0;
         const boost = input.boost ? 1 : 0;
+        /* The handbrake is published on the vehicle so the renderer can light
+           the brake lamps and the audio can hear a locked rear axle. */
+        v.handbrake = handbrake;
         const power = v.car.power * (1 - 0.32 * clamp(v.damage / 100, 0, 1));
 
         const speed = Math.abs(v.vx);

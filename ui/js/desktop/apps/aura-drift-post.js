@@ -22,6 +22,8 @@ uniform vec3 uGrade;
 uniform float uTime;
 uniform float uBloom;
 uniform float uWet;
+uniform float uHeat;
+uniform float uRain;
                 uniform float uImpact;
                 uniform float uBoost;
                 uniform float uDamage;
@@ -33,6 +35,11 @@ vec3 sane(vec3 c) {
     if (!(c.g == c.g)) c.g = 0.0;
     if (!(c.b == c.b)) c.b = 0.0;
     return min(max(c, vec3(0.0)), vec3(4.0));
+}
+
+float saneF(float v) {
+    if (!(v == v)) v = 0.0;
+    return clamp(v, 0.0, 4.0);
 }
 
 float luma(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
@@ -93,6 +100,31 @@ void main() {
     }
 
     vec3 color = base + bloom * uBloom + wet * uWet * 0.55;
+
+    /* Heat shimmer: the air itself moves over a hot surface. */
+    if (uHeat > 0.001) {
+        float wob = sin(uv.y * 88.0 + uTime * 3.1) * 0.0018 * uHeat;
+        color.r = saneF(texture(uScene, uv + vec2(wob, 0.0)).r);
+        color.g = saneF(texture(uScene, uv + vec2(wob * 0.6, 0.0)).g);
+        color.b = saneF(texture(uScene, uv + vec2(wob * 1.3, 0.0)).b);
+        color = sane(color);
+    }
+
+    /* Rain on the lens: a sparse grid of drops that bend the scene. */
+    if (uRain > 0.001) {
+        vec2 grid = vec2(15.0, 10.0);
+        vec2 cell = floor(uv * grid);
+        float h = fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453);
+        if (h > 1.0 - uRain * 0.18) {
+            vec2 local = fract(uv * grid) - 0.5;
+            float d = length(local);
+            vec2 off = local * d * 0.07;
+            vec3 through = sane(texture(uScene, uv - off).rgb);
+            color = mix(color, through, clamp(1.0 - d * 1.6, 0.0, 1.0));
+            color += vec3(0.04, 0.06, 0.08) * clamp(1.0 - d * 2.2, 0.0, 1.0);
+        }
+    }
+
     color *= uGrade;
     float vignette = 1.0 - 0.22 * smoothstep(0.35, 0.78, length(radial));
     color *= vignette;
@@ -111,7 +143,9 @@ void main() {
         harbour: [0.88, 0.96, 1.12],
         salt: [1.04, 1.04, 1.00],
         forest: [0.94, 1.02, 0.94],
-        industry: [1.05, 0.98, 0.92]
+        industry: [1.05, 0.98, 0.92],
+        glacier: [0.86, 0.95, 1.16],
+        metro: [1.02, 0.95, 1.10]
     };
 
     function compile(gl, type, source) {
@@ -185,7 +219,8 @@ void main() {
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
-            for (const name of ['uScene', 'uTexel', 'uGrade', 'uTime', 'uBloom', 'uWet', 'uImpact', 'uBoost', 'uDamage', 'uReduced', 'uSpeed']) {
+            for (const name of ['uScene', 'uTexel', 'uGrade', 'uTime', 'uBloom', 'uWet', 'uHeat', 'uRain',
+                'uImpact', 'uBoost', 'uDamage', 'uReduced', 'uSpeed']) {
                 uniforms[name] = gl.getUniformLocation(program, name);
             }
             gl.useProgram(program);
@@ -241,7 +276,17 @@ void main() {
                 gl.uniform3f(uniforms.uGrade, grade[0], grade[1], grade[2]);
                 gl.uniform1f(uniforms.uTime, time);
                 gl.uniform1f(uniforms.uBloom, quality === 'ultra' ? 0.95 : 0.55);
-                gl.uniform1f(uniforms.uWet, biome === 'harbour' ? 1.0 : (biome === 'industry' ? 0.45 : 0.0));
+                /* Live weather drives the wet pass: rain darkens the asphalt
+                   and puts water on the lens, heat makes the air move. */
+                const conditions = race && race.conditions ? race.conditions.state : null;
+                const kind = conditions ? conditions.kind : '';
+                const intensity = conditions ? conditions.intensity : 0;
+                const wetBase = biome === 'harbour' ? 0.75 : (biome === 'industry' ? 0.35 :
+                    (biome === 'metro' ? 0.3 : 0.0));
+                const wetNow = kind === 'rain' ? wetBase + intensity * 0.5 : wetBase;
+                gl.uniform1f(uniforms.uWet, clamp(wetNow, 0, 1.4));
+                gl.uniform1f(uniforms.uHeat, kind === 'heat' ? intensity : 0);
+                gl.uniform1f(uniforms.uRain, kind === 'rain' ? intensity : 0);
                 const v = race && race.cars[0] ? race.cars[0].v : null;
                 gl.uniform1f(uniforms.uImpact, v ? clamp(v.impact, 0, 1) : 0);
                 gl.uniform1f(uniforms.uBoost, v ? v.boost : 0);

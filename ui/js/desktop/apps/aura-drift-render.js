@@ -3,200 +3,32 @@
     'use strict';
     const AD = window.AuraDriftCore;
     const clamp = AD.clamp;
-    const CHUNK_PX = 320;
 
     AD.createCamera = function () {
         return {
-            x: 0, y: 0, scale: 5.2, shake: 0, lookX: 0, lookY: 0,
+            x: 0, y: 0, scale: 5.2, shake: 0, lookX: 0, lookY: 0, punch: 0,
             update(v, dt, quality, reducedMotion) {
-                const targetScale = quality.lowZoom ? 5.0 : clamp(7.0 - Math.max(0, v.vx) * 0.02, 5.2, 7.0);
-                this.scale = AD.smooth(this.scale, targetScale, 2.4, dt);
+                const speed = Math.max(0, v.vx);
+                const boost = v.boost ? 1 : 0;
+                let targetScale = quality.lowZoom ? 5.0 : clamp(7.0 - speed * 0.02, 5.2, 7.0);
+                /* Nitro punches the field of view in: the speed reads in the
+                   frame, not only on the dial. */
+                if (!quality.lowZoom) targetScale *= 1 - boost * 0.06;
+                this.scale = AD.smooth(this.scale, targetScale, boost ? 7 : 2.4, dt);
                 const cos = Math.cos(v.psi), sin = Math.sin(v.psi);
-                const lead = reducedMotion ? 0 : clamp(v.vx * 0.55, 0, 42);
-                this.lookX = AD.smooth(this.lookX, cos * lead, 3, dt);
-                this.lookY = AD.smooth(this.lookY, sin * lead, 3, dt);
+                const lead = reducedMotion ? 0 : clamp(speed * 0.55, 0, 42);
+                /* Drift lean: the camera looks into the slide so the apex of
+                   the corner stays in frame while the car is sideways. */
+                const lateral = reducedMotion ? 0 : clamp(-v.vy * 0.55, -16, 16);
+                this.lookX = AD.smooth(this.lookX, cos * lead - sin * lateral, 3, dt);
+                this.lookY = AD.smooth(this.lookY, sin * lead + cos * lateral, 3, dt);
+                this.punch = AD.smooth(this.punch, boost, 9, dt);
                 this.x = v.x + this.lookX;
                 this.y = v.y + this.lookY;
                 this.shake = Math.max(0, this.shake - dt * 2.4);
             }
         };
     };
-
-    function makeChunk(track, cx, cy) {
-        const canvas = document.createElement('canvas');
-        canvas.width = CHUNK_PX; canvas.height = CHUNK_PX;
-        const c = canvas.getContext('2d');
-        const biome = track.biome;
-        const rng = AD.rng(AD.hashString(track.id + '/' + track.seed + '/' + cx + '/' + cy));
-        c.fillStyle = biome.ground;
-        c.fillRect(0, 0, CHUNK_PX, CHUNK_PX);
-
-        const patches = 26;
-        for (let i = 0; i < patches; i++) {
-            const x = rng() * CHUNK_PX, y = rng() * CHUNK_PX;
-            const r = 16 + rng() * 72;
-            const g = c.createRadialGradient(x, y, 0, x, y, r);
-            const tint = rng() > 0.5 ? biome.groundAlt : biome.edge;
-            const a = 0.05 + rng() * 0.08;
-            g.addColorStop(0, tint);
-            g.addColorStop(1, 'rgba(0,0,0,0)');
-            c.globalAlpha = a;
-            c.fillStyle = g;
-            c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fill();
-        }
-        c.globalAlpha = 1;
-        const speckles = 520;
-        for (let i = 0; i < speckles; i++) {
-            const x = rng() * CHUNK_PX, y = rng() * CHUNK_PX;
-            c.fillStyle = rng() > 0.55 ? biome.edge : biome.groundAlt;
-            c.globalAlpha = 0.05 + rng() * 0.13;
-            c.fillRect(x, y, 1 + rng() * 1.4, 1 + rng() * 1.4);
-        }
-        c.globalAlpha = 1;
-        /* Fine grain: tiny stones and grass blades break the flat fill. */
-        for (let i = 0; i < 90; i++) {
-            const x = rng() * CHUNK_PX, y = rng() * CHUNK_PX;
-            c.strokeStyle = rng() > 0.5 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.08)';
-            c.lineWidth = 1;
-            c.beginPath(); c.moveTo(x, y); c.lineTo(x + (rng() - 0.5) * 4, y - 1 - rng() * 3); c.stroke();
-        }
-        if (track.biomeId === 'salt') {
-            c.strokeStyle = 'rgba(120,130,125,0.16)'; c.lineWidth = 1;
-            for (let i = 0; i < 16; i++) {
-                c.beginPath();
-                let x = rng() * CHUNK_PX, y = rng() * CHUNK_PX;
-                c.moveTo(x, y);
-                for (let j = 0; j < 4; j++) { x += (rng() - 0.5) * 48; y += (rng() - 0.5) * 48; c.lineTo(x, y); }
-                c.stroke();
-            }
-        }
-        if (track.biomeId === 'harbour' || track.biomeId === 'industry') {
-            c.strokeStyle = 'rgba(140,170,200,0.10)'; c.lineWidth = 2;
-            for (let i = 0; i < 6; i++) {
-                const x = rng() * CHUNK_PX;
-                c.beginPath(); c.moveTo(x, 0); c.lineTo(x, CHUNK_PX); c.stroke();
-            }
-        }
-        if (track.biomeId === 'desert') {
-            c.strokeStyle = 'rgba(228,190,130,0.10)'; c.lineWidth = 1.5;
-            for (let i = 0; i < 10; i++) {
-                const y = rng() * CHUNK_PX;
-                c.beginPath();
-                c.moveTo(0, y);
-                for (let x = 0; x <= CHUNK_PX; x += 24) c.lineTo(x, y + Math.sin(x * 0.05 + rng() * 2) * 5);
-                c.stroke();
-            }
-        }
-        return canvas;
-    }
-
-    function drawProp(c, prop, sx, sy, scale) {
-        const size = prop.size * 3.3 * scale;
-        c.save(); c.translate(sx, sy); c.rotate(prop.angle);
-        c.fillStyle = 'rgba(6,10,16,0.30)';
-        c.beginPath(); c.ellipse(size * 0.16, size * 0.2, size * 0.62, size * 0.4, 0, 0, Math.PI * 2); c.fill();
-        switch (prop.kind) {
-            case 'alpine':
-                c.fillStyle = '#4a3b2c';
-                c.fillRect(-size * 0.07, size * 0.1, size * 0.14, size * 0.38);
-                c.fillStyle = '#1c3323';
-                c.beginPath(); c.moveTo(-size * 0.52, size * 0.22); c.lineTo(0, -size * 0.72); c.lineTo(size * 0.52, size * 0.22); c.closePath(); c.fill();
-                c.fillStyle = '#2c5236';
-                c.beginPath(); c.moveTo(-size * 0.38, -size * 0.02); c.lineTo(0, -size * 0.62); c.lineTo(size * 0.38, -size * 0.02); c.closePath(); c.fill();
-                c.fillStyle = 'rgba(226,238,246,0.5)';
-                c.beginPath(); c.moveTo(-size * 0.16, -size * 0.36); c.lineTo(0, -size * 0.62); c.lineTo(size * 0.16, -size * 0.36); c.closePath(); c.fill();
-                break;
-            case 'desert':
-                if (prop.size > 1.1) {
-                    c.fillStyle = '#7d5a34';
-                    c.beginPath(); c.moveTo(-size * 0.55, size * 0.42); c.lineTo(-size * 0.1, -size * 0.62); c.lineTo(size * 0.58, size * 0.42); c.closePath(); c.fill();
-                    c.fillStyle = '#b98a4c';
-                    c.beginPath(); c.moveTo(-size * 0.24, size * 0.42); c.lineTo(-size * 0.06, -size * 0.42); c.lineTo(size * 0.16, size * 0.42); c.closePath(); c.fill();
-                } else {
-                    c.fillStyle = '#4e7c46';
-                    c.fillRect(-size * 0.12, -size * 0.5, size * 0.24, size * 0.95);
-                    c.fillRect(-size * 0.42, -size * 0.22, size * 0.3, size * 0.16);
-                    c.fillRect(size * 0.12, -size * 0.38, size * 0.3, size * 0.16);
-                    c.fillStyle = '#6d9c5c';
-                    c.fillRect(-size * 0.07, -size * 0.5, size * 0.08, size * 0.95);
-                }
-                break;
-            case 'harbour': {
-                const hue = ['#2c4055', '#5a3b46', '#3b5546', '#57492e'][Math.floor(prop.size * 3) % 4];
-                c.fillStyle = hue;
-                c.fillRect(-size * 0.62, -size * 0.36, size * 1.24, size * 0.72);
-                c.strokeStyle = 'rgba(190,215,235,0.32)'; c.lineWidth = 1;
-                for (let i = -2; i <= 2; i++) {
-                    c.beginPath();
-                    c.moveTo(i * size * 0.22, -size * 0.36); c.lineTo(i * size * 0.22, size * 0.36);
-                    c.stroke();
-                }
-                c.strokeRect(-size * 0.62, -size * 0.36, size * 1.24, size * 0.72);
-                break;
-            }
-            case 'salt':
-                c.fillStyle = '#8d959c';
-                c.fillRect(-size * 0.05, -size * 0.7, size * 0.1, size * 1.05);
-                c.fillStyle = '#e8564a';
-                c.fillRect(-size * 0.08, -size * 0.78, size * 0.16, size * 0.18);
-                c.fillStyle = 'rgba(255,255,255,0.55)';
-                c.fillRect(-size * 0.03, -size * 0.5, size * 0.06, size * 0.3);
-                break;
-            case 'forest':
-                c.fillStyle = '#4a3b2c';
-                c.fillRect(-size * 0.08, size * 0.08, size * 0.16, size * 0.4);
-                c.fillStyle = '#1d3a26';
-                c.beginPath(); c.arc(0, -size * 0.1, size * 0.58, 0, Math.PI * 2); c.fill();
-                c.fillStyle = '#315c39';
-                c.beginPath(); c.arc(-size * 0.16, -size * 0.22, size * 0.38, 0, Math.PI * 2); c.fill();
-                c.fillStyle = '#4a7c4c';
-                c.beginPath(); c.arc(-size * 0.22, -size * 0.34, size * 0.2, 0, Math.PI * 2); c.fill();
-                break;
-            case 'industry':
-                if (prop.size > 1.15) {
-                    c.fillStyle = '#4a5057';
-                    c.beginPath(); c.arc(0, 0, size * 0.52, 0, Math.PI * 2); c.fill();
-                    c.strokeStyle = '#6b747d'; c.lineWidth = 2;
-                    c.beginPath(); c.arc(0, 0, size * 0.52, 0, Math.PI * 2); c.stroke();
-                    c.fillStyle = '#77828c';
-                    c.beginPath(); c.arc(0, 0, size * 0.16, 0, Math.PI * 2); c.fill();
-                } else {
-                    c.fillStyle = '#4a5057'; c.fillRect(-size * 0.4, -size * 0.55, size * 0.8, size * 1.1);
-                    c.fillStyle = '#ff9d4a'; c.globalAlpha = 0.55;
-                    c.fillRect(-size * 0.25, -size * 0.3, size * 0.5, size * 0.14);
-                    c.fillRect(-size * 0.25, -size * 0.02, size * 0.5, size * 0.14);
-                    c.globalAlpha = 1;
-                    c.fillStyle = '#2f343a'; c.fillRect(-size * 0.4, -size * 0.55, size * 0.8, size * 0.12);
-                }
-                break;
-            default:
-                c.fillStyle = '#8f9a86';
-                c.beginPath(); c.arc(0, 0, size * 0.4, 0, Math.PI * 2); c.fill();
-        }
-        /* Rim light from the top-left grounds every prop in sun and neon. */
-        c.fillStyle = 'rgba(255,255,255,0.08)';
-        c.beginPath(); c.arc(-size * 0.15, -size * 0.2, size * 0.3, 0, Math.PI * 2); c.fill();
-        c.restore();
-    }
-
-    /* Red/white tyre stacks guard tight corners and mark braking points. */
-    function drawStackAt(sx, sy, scale) {
-        if (sx < -30 || sx > width + 30 || sy < -30 || sy > height + 30) return;
-        const r = 1.35 * scale;
-        c.fillStyle = 'rgba(6,10,16,0.35)';
-        c.beginPath(); c.ellipse(sx + r * 0.2, sy + r * 0.35, r * 1.5, r * 0.8, 0, 0, Math.PI * 2); c.fill();
-        const rows = [['#c22f2f', 0], ['#e8ecef', -r * 0.82], ['#c22f2f', -r * 1.64]];
-        for (const [colour, dy] of rows) {
-            c.fillStyle = 'rgba(8,10,14,0.5)';
-            c.beginPath(); c.arc(sx, sy + dy, r, 0, Math.PI * 2); c.fill();
-            c.fillStyle = colour;
-            c.beginPath(); c.arc(sx, sy + dy, r * 0.82, 0, Math.PI * 2); c.fill();
-            c.fillStyle = 'rgba(8,10,14,0.55)';
-            c.beginPath(); c.arc(sx, sy + dy, r * 0.38, 0, Math.PI * 2); c.fill();
-            c.fillStyle = 'rgba(255,255,255,0.14)';
-            c.beginPath(); c.arc(sx - r * 0.25, sy + dy - r * 0.25, r * 0.22, 0, Math.PI * 2); c.fill();
-        }
-    }
 
     AD.createRenderer = function (canvas, settings) {
         const c = canvas.getContext('2d', { alpha: false });
@@ -206,7 +38,7 @@
         const decals = [];
         const particles = [];
         const lights = [];
-        const stacks = [];
+        const furniture = [];
         let frame = 0;
         let camPrevX = 0, camPrevY = 0, camVX = 0, camVY = 0;
 
@@ -217,7 +49,7 @@
                 chunks.delete(key); chunks.set(key, hit);
                 return hit;
             }
-            const entry = { canvas: makeChunk(track, cx, cy), props: AD.chunkProps(track, cx, cy) };
+            const entry = { canvas: AD.makeChunkCanvas(track, cx, cy), props: AD.chunkProps(track, cx, cy) };
             chunks.set(key, entry);
             while (chunks.size > quality.chunkCache) chunks.delete(chunks.keys().next().value);
             return entry;
@@ -357,7 +189,7 @@
             c.closePath();
         }
 
-        function drawRoadSurface(track, cam) {
+        function drawRoadSurface(track, cam, race) {
             /* Dark shoulder grounds the kerbs, then the asphalt ribbon. */
             c.fillStyle = track.biome.edge;
             ribbonPath(cam, track, 1.35);
@@ -378,6 +210,14 @@
             const lane = track.width * 0.22;
             offsetPath(cam, track, lane); c.stroke();
             offsetPath(cam, track, -lane); c.stroke();
+            /* Rain darkens and cools the asphalt before the post pass adds
+               the reflections on top. */
+            const conditions = race && race.conditions ? race.conditions.state : null;
+            if (conditions && conditions.kind === 'rain' && conditions.intensity > 0.08) {
+                c.fillStyle = 'rgba(72,112,152,' + (0.08 + conditions.intensity * 0.18).toFixed(3) + ')';
+                ribbonPath(cam, track, 0);
+                c.fill();
+            }
         }
 
         /* Faint transverse joints every 55 m: true world quads, so the eye can
@@ -404,6 +244,42 @@
                 c.lineTo(...worldToScreen(x2, y2, cam));
                 c.lineTo(...worldToScreen(x3, y3, cam));
                 c.closePath(); c.fill();
+            }
+        }
+
+        /* Repair patches and tar snakes: the asphalt is old, and the eye
+           reads a used surface far better than a flat fill. The placement is
+           derived from the track seed, so it is stable for the whole race. */
+        function drawRoadPatches(track, cam) {
+            const rng = AD.rng(AD.hashString(track.id + '/patches/' + track.seed));
+            const count = 34;
+            for (let i = 0; i < count; i++) {
+                const s = rng() * track.length;
+                const p = AD.pointAt(track, s);
+                const off = (rng() - 0.5) * p.halfWidth * 1.2;
+                const len = 3 + rng() * 11;
+                const wide = 1.4 + rng() * 3.4;
+                const x = p.x + p.nx * off;
+                const y = p.y + p.ny * off;
+                const q = [
+                    worldToScreen(x - p.tx * len * 0.5 - p.nx * wide * 0.5, y - p.ty * len * 0.5 - p.ny * wide * 0.5, cam),
+                    worldToScreen(x + p.tx * len * 0.5 - p.nx * wide * 0.5, y + p.ty * len * 0.5 - p.ny * wide * 0.5, cam),
+                    worldToScreen(x + p.tx * len * 0.5 + p.nx * wide * 0.5, y + p.ty * len * 0.5 + p.ny * wide * 0.5, cam),
+                    worldToScreen(x - p.tx * len * 0.5 + p.nx * wide * 0.5, y - p.ty * len * 0.5 + p.ny * wide * 0.5, cam)
+                ];
+                if (q.every(v => v[0] < -30 || v[0] > width + 30)) continue;
+                if (q.every(v => v[1] < -30 || v[1] > height + 30)) continue;
+                c.fillStyle = track.biome.night ? 'rgba(8,12,18,0.30)' : 'rgba(24,26,30,0.17)';
+                c.beginPath();
+                c.moveTo(q[0][0], q[0][1]);
+                c.lineTo(q[1][0], q[1][1]);
+                c.lineTo(q[2][0], q[2][1]);
+                c.lineTo(q[3][0], q[3][1]);
+                c.closePath(); c.fill();
+                /* The sealed edge of the repair. */
+                c.strokeStyle = track.biome.night ? 'rgba(150,175,205,0.10)' : 'rgba(255,255,255,0.07)';
+                c.lineWidth = 1;
+                c.stroke();
             }
         }
 
@@ -480,148 +356,20 @@
             }
         }
 
+        /* Car art lives in aura-drift-cars.js: one pre-rendered silhouette
+           per car class, with wheels, lights and damage drawn on top. */
         function drawCar(car, cam, ghost) {
             const v = car.v || car;
             const [sx, sy] = worldToScreen(v.x, v.y, cam);
-            if (sx < -80 || sx > width + 80 || sy < -80 || sy > height + 80) return;
-            const len = 4.5 * cam.scale, wid = 2.2 * cam.scale;
-            const night = !!carNight;
-            const isPlayer = !ghost && car.isPlayer;
-            c.save(); c.translate(sx, sy); c.rotate(v.psi);
-            if (ghost) c.globalAlpha = 0.32;
-
-            /* Soft contact shadow, stretched with speed. */
-            const speed = Math.max(0, v.vx || 0);
-            c.fillStyle = 'rgba(0,0,0,0.38)';
-            c.beginPath(); c.ellipse(1.5 + speed * 0.008, 2.4, len * 0.56, wid * 0.54, 0, 0, Math.PI * 2); c.fill();
-
-            /* Wheels: the front pair visibly follows the steering angle. */
-            const steerAngle = ghost ? 0 : (v.steer || 0);
-            c.fillStyle = '#15181c';
-            for (const [wx, wy, steer] of [
-                [-len * 0.34, -wid * 0.58, 0], [-len * 0.34, wid * 0.58, 0],
-                [len * 0.30, -wid * 0.6, steerAngle], [len * 0.30, wid * 0.6, steerAngle]
-            ]) {
-                c.save(); c.translate(wx, wy); c.rotate(steer);
-                c.fillRect(-len * 0.11, -wid * 0.09, len * 0.22, wid * 0.18);
-                c.fillStyle = 'rgba(200,215,230,0.25)';
-                c.fillRect(-len * 0.02, -wid * 0.09, len * 0.03, wid * 0.18);
-                c.fillStyle = '#15181c';
-                c.restore();
-            }
-
-            const body = c.createLinearGradient(0, -wid / 2, 0, wid / 2);
-            const colour = ghost ? '#9fd6ff' : (v.car ? v.car.colour : '#ff5a4e');
-            body.addColorStop(0, shade(colour, 0.22));
-            body.addColorStop(0.35, shade(colour, 0.05));
-            body.addColorStop(0.5, colour);
-            body.addColorStop(0.62, shade(colour, -0.3));
-            body.addColorStop(1, shade(colour, -0.58));
-            c.fillStyle = body;
-            roundRect(c, -len / 2, -wid / 2, len, wid, wid * 0.3); c.fill();
-            /* Dark outline grounds the body on bright salt/sand. */
-            c.strokeStyle = 'rgba(8,10,14,0.45)';
-            c.lineWidth = Math.max(1, 0.08 * cam.scale);
-            c.stroke();
-
-            /* Racing stripe down the nose and a subtle side highlight. */
-            c.fillStyle = 'rgba(255,255,255,0.18)';
-            c.fillRect(-len * 0.06, -wid * 0.1, len * 0.52, wid * 0.2);
-            c.fillStyle = 'rgba(255,255,255,0.12)';
-            c.fillRect(-len * 0.42, -wid * 0.5, len * 0.84, wid * 0.08);
-            if (isPlayer) {
-                c.fillStyle = 'rgba(255,255,255,0.85)';
-                c.beginPath();
-                c.moveTo(len * 0.1, -wid * 0.07); c.lineTo(len * 0.24, -wid * 0.07);
-                c.lineTo(len * 0.17, wid * 0.07); c.lineTo(len * 0.03, wid * 0.07);
-                c.closePath(); c.fill();
-            }
-
-            c.fillStyle = 'rgba(14,24,36,0.88)';
-            roundRect(c, -len * 0.12, -wid * 0.38, len * 0.34, wid * 0.76, wid * 0.12); c.fill();
-            /* Windshield reflection sweeps with steering for a glass feel. */
-            const sweep = clamp((v.steer || 0) * 0.5, -0.06, 0.06);
-            c.fillStyle = 'rgba(190,225,255,0.4)';
-            c.fillRect(-len * 0.1 + sweep * len, -wid * 0.32, len * 0.1, wid * 0.64);
-            c.fillStyle = 'rgba(150,195,235,0.3)';
-            c.fillRect(-len * 0.23 + sweep * len * 0.6, -wid * 0.3, len * 0.08, wid * 0.6);
-            c.fillStyle = ghost ? '#9fd6ff' : (v.car ? v.car.accent : '#ffd7c2');
-            c.fillRect(len * 0.44, -wid * 0.42, len * 0.05, wid * 0.84);
-
-            if (!ghost) {
-                const braking = v.brake > 0.05;
-                c.fillStyle = braking ? '#ff3b30' : '#8a231c';
-                c.fillRect(-len * 0.5, -wid * 0.42, len * 0.05, wid * 0.22);
-                c.fillRect(-len * 0.5, wid * 0.2, len * 0.05, wid * 0.22);
-                if (braking && quality.bloom) {
-                    const glow = c.createRadialGradient(-len * 0.56, 0, 0, -len * 0.56, 0, len * 0.34);
-                    glow.addColorStop(0, 'rgba(255,60,40,0.45)');
-                    glow.addColorStop(1, 'rgba(255,60,40,0)');
-                    c.fillStyle = glow;
-                    c.fillRect(-len * 0.94, -wid * 0.75, len * 0.64, wid * 1.5);
-                }
-                if (night && quality.lighting) {
-                    for (const side of [-1, 1]) {
-                        const hx = len * 0.5, hy = side * wid * 0.3;
-                        const beam = c.createLinearGradient(hx, 0, hx + len * 5, 0);
-                        beam.addColorStop(0, 'rgba(255,236,190,0.13)');
-                        beam.addColorStop(1, 'rgba(255,236,190,0)');
-                        c.fillStyle = beam;
-                        c.beginPath();
-                        c.moveTo(hx, hy - wid * 0.08);
-                        c.lineTo(hx + len * 5, hy - wid * 0.85);
-                        c.lineTo(hx + len * 5, hy + wid * 0.85);
-                        c.lineTo(hx, hy + wid * 0.08);
-                        c.closePath(); c.fill();
-                        c.fillStyle = 'rgba(255,244,214,0.95)';
-                        c.beginPath(); c.arc(hx, hy, wid * 0.08, 0, Math.PI * 2); c.fill();
-                    }
-                    /* Headlight halo on the asphalt ahead. */
-                    const halo = c.createRadialGradient(len * 2.4, 0, 0, len * 2.4, 0, len * 2.2);
-                    halo.addColorStop(0, 'rgba(255,240,200,0.10)');
-                    halo.addColorStop(1, 'rgba(255,240,200,0)');
-                    c.fillStyle = halo;
-                    c.beginPath(); c.arc(len * 2.4, 0, len * 2.2, 0, Math.PI * 2); c.fill();
-                }
-                if (v.boost) {
-                    const flicker = 0.85 + Math.random() * 0.15;
-                    const glow = c.createLinearGradient(-len * 0.95, 0, -len * 0.45, 0);
-                    glow.addColorStop(0, 'rgba(90,200,255,0)');
-                    glow.addColorStop(1, 'rgba(160,235,255,' + (0.9 * flicker).toFixed(2) + ')');
-                    c.fillStyle = glow;
-                    c.fillRect(-len * 0.95, -wid * 0.24, len * 0.5, wid * 0.48);
-                    c.fillStyle = 'rgba(235,252,255,0.9)';
-                    c.beginPath(); c.ellipse(-len * 0.52, 0, len * 0.11, wid * 0.14, 0, 0, Math.PI * 2); c.fill();
-                }
-                if (v.shield > 0) {
-                    const pulse = 0.65 + 0.35 * Math.sin(frame * 0.12);
-                    c.strokeStyle = 'rgba(94,234,212,' + (0.55 + 0.35 * pulse).toFixed(2) + ')';
-                    c.lineWidth = 2;
-                    c.beginPath(); c.ellipse(0, 0, len * (0.62 + 0.03 * pulse), wid * (0.9 + 0.05 * pulse), 0, 0, Math.PI * 2); c.stroke();
-                }
-                if (v.disabled > 0) {
-                    c.strokeStyle = 'rgba(56,189,248,0.85)'; c.lineWidth = 1.5;
-                    c.setLineDash([4, 4]); c.lineDashOffset = -frame * 0.7;
-                    c.beginPath(); c.arc(0, 0, len * 0.62, 0, Math.PI * 2); c.stroke();
-                    c.setLineDash([]);
-                }
-                if (v.damage > 55) {
-                    c.fillStyle = 'rgba(30,26,24,0.45)';
-                    c.beginPath(); c.arc(len * 0.2, wid * 0.18, wid * 0.24, 0, Math.PI * 2); c.fill();
-                }
-                if (isPlayer) {
-                    /* Player chevron: readable at a glance in a pack of four. */
-                    c.fillStyle = 'rgba(255,255,255,0.9)';
-                    c.beginPath();
-                    c.moveTo(0, -wid * 1.05); c.lineTo(len * 0.22, -wid * 0.8); c.lineTo(-len * 0.22, -wid * 0.8);
-                    c.closePath(); c.fill();
-                    c.fillStyle = 'rgba(8,10,14,0.55)';
-                    c.beginPath();
-                    c.moveTo(0, -wid * 0.98); c.lineTo(len * 0.13, -wid * 0.82); c.lineTo(-len * 0.13, -wid * 0.82);
-                    c.closePath(); c.fill();
-                }
-            }
-            c.restore();
+            AD.drawCar(c, car, sx, sy, cam.scale, {
+                ghost: ghost,
+                night: !!carNight,
+                lighting: quality.lighting,
+                bloom: quality.bloom,
+                frame: frame,
+                width: width,
+                height: height
+            });
         }
 
         function shade(hex, amount) {
@@ -726,9 +474,15 @@
         }
 
         function drawWeather(race, cam, dt, reducedMotion) {
-            const weather = race.track.biome.weather;
+            const biome = race.track.biome;
+            /* Live conditions win over the biome default: a race can start in
+               the sun and end in a downpour. */
+            const conditions = race.conditions ? race.conditions.state : null;
+            const weather = conditions ? conditions.kind : biome.weather;
+            const intensity = conditions ? conditions.intensity : 0.65;
             if (!weather || reducedMotion || quality.weather <= 0) return;
-            const amount = Math.floor(quality.weather * (weather === 'rain' ? 90 : 45));
+            const amount = Math.floor(quality.weather * intensity *
+                (weather === 'rain' || weather === 'snow' ? 90 : 45));
             c.save();
             if (weather === 'rain') {
                 /* Streaks lean with camera motion so the rain feels alive. */
@@ -758,6 +512,18 @@
                     c.beginPath(); c.ellipse(x, y, r * 1.6, r * 0.6, 0, 0, Math.PI * 2); c.stroke();
                 }
                 c.globalAlpha = 1;
+            } else if (weather === 'snow') {
+                /* Slow flakes with a sideways drift: the difference between
+                   snow and rain has to be readable at a glance. */
+                c.fillStyle = 'rgba(238,246,255,0.55)';
+                for (let i = 0; i < amount; i++) {
+                    const x = (i * 89 + frame * 1.9 + Math.sin(i) * 22) % (width + 60) - 30;
+                    const y = (i * 47 + frame * 2.6) % (height + 60) - 30;
+                    const r = 1 + (i % 3) * 0.6;
+                    c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fill();
+                }
+                c.fillStyle = 'rgba(220,234,250,0.06)';
+                c.fillRect(0, 0, width, height);
             } else if (weather === 'sparks') {
                 c.strokeStyle = 'rgba(255,170,80,0.28)';
                 c.lineWidth = 1;
@@ -775,9 +541,13 @@
                     c.beginPath(); c.moveTo(x, y); c.lineTo(x - 1, y + 3); c.stroke();
                 }
             }
-            if (weather === 'fog' || weather === 'mist' || weather === 'glare') {
-                c.fillStyle = weather === 'glare' ? 'rgba(255,255,240,0.10)' : 'rgba(200,215,205,0.10)';
+            if (weather === 'fog' || weather === 'mist' || weather === 'glare' || weather === 'haze') {
+                const veil = weather === 'glare' ? 'rgba(255,255,240,0.12)' :
+                    (weather === 'haze' ? 'rgba(198,168,120,0.10)' : 'rgba(200,215,205,0.12)');
+                c.fillStyle = veil;
+                c.globalAlpha = clamp(0.35 + intensity * 0.75, 0, 1);
                 c.fillRect(0, 0, width, height);
+                c.globalAlpha = 1;
                 c.fillStyle = weather === 'glare' ? 'rgba(255,252,235,0.05)' : 'rgba(210,222,212,0.05)';
                 const band = (frame * 0.18) % (height + 240) - 120;
                 c.fillRect(0, band, width, 120);
@@ -836,7 +606,7 @@
             setQuality(q) { quality = AD.QUALITY[q] || AD.QUALITY.high; },
             setTrack(track) {
                 chunks.clear(); decals.length = 0; particles.length = 0;
-                lights.length = 0; stacks.length = 0;
+                lights.length = 0; furniture.length = 0;
                 /* Lamp posts every ~110 m alternate sides of the road. */
                 const spacing = 110;
                 for (let s = 0, i = 0; s < track.length; s += spacing, i++) {
@@ -847,23 +617,11 @@
                         y: p.y + p.ny * (p.halfWidth + 4.5) * side
                     });
                 }
-                /* Tyre stacks guard the outside of tight corners: world-anchored
-                   braking markers that make every lap read better. */
-                const samples = track.samples;
-                for (let i = 0; i < samples.length; i += 9) {
-                    const a = samples[i];
-                    const b = samples[(i + 14) % samples.length];
-                    const cross = Math.abs(a.tx * b.ty - a.ty * b.tx);
-                    if (cross < 0.24 || cross > 0.9) continue;
-                    const turn = a.tx * b.ny - a.ty * b.nx;
-                    const side = turn > 0 ? 1 : -1;
-                    const p = AD.pointAt(track, a.s + 7);
-                    stacks.push({
-                        x: p.x + p.nx * (p.halfWidth + 3.1) * side,
-                        y: p.y + p.ny * (p.halfWidth + 3.1) * side,
-                        s: p.s || a.s
-                    });
-                    if (stacks.length >= 26) break;
+                /* Trackside furniture: grandstands, hoardings, tyre walls,
+                   marshal posts, braking boards and the biome set pieces. */
+                if (typeof AD.trackFurniture === 'function') {
+                    const items = AD.trackFurniture(track);
+                    for (const item of items) furniture.push(item);
                 }
             },
             addDecal(x, y, angle, alpha) {
@@ -909,18 +667,22 @@
                         for (const prop of chunk.props) {
                             const [px, py] = worldToScreen(cx * AD.CHUNK_METRES + (prop.x - cx * AD.CHUNK_METRES),
                                 cy * AD.CHUNK_METRES + (prop.y - cy * AD.CHUNK_METRES), cam);
-                            drawProp(c, prop, px, py, cam.scale);
+                            AD.drawProp(c, prop, px, py, cam.scale);
                         }
                     }
                 }
-                drawRoadSurface(track, cam);
+                drawRoadSurface(track, cam, race);
                 if (quality.body !== 0) drawSeams(track, cam);
+                drawRoadPatches(track, cam);
                 drawDecals(cam);
                 drawCurbs(track, cam);
                 drawRoadMarkings(track, cam);
-                for (const stack of stacks) {
-                    const [sx, sy] = worldToScreen(stack.x, stack.y, cam);
-                    drawStackAt(sx, sy, cam.scale);
+                /* Trackside furniture frames the road: grandstands, hoardings,
+                   tyre walls, marshal posts and the biome set pieces. */
+                for (const item of furniture) {
+                    const [sx, sy] = worldToScreen(item.x, item.y, cam);
+                    if (sx < -220 || sx > width + 220 || sy < -220 || sy > height + 220) continue;
+                    AD.drawFurniture(c, item, sx, sy, cam.scale, frame);
                 }
 
                 /* Pickups, hazards and projectiles live in world space. */

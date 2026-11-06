@@ -18,8 +18,11 @@ func TestAuraDriftAppRegistration(t *testing.T) {
 	loader := readDesktopAssetText(t, "js/desktop/core/module-loader.js")
 	modules := []string{
 		"aura-drift-core.js", "aura-drift-physics.js", "aura-drift-track.js",
-		"aura-drift-race.js", "aura-drift-render.js", "aura-drift-post.js",
-		"aura-drift-hud.js", "aura-drift-audio.js", "aura-drift-ui.js", "aura-drift.js",
+		"aura-drift-style.js", "aura-drift-conditions.js", "aura-drift-race.js",
+		"aura-drift-cars.js", "aura-drift-scenery.js",
+		"aura-drift-render.js", "aura-drift-post.js",
+		"aura-drift-hud.js", "aura-drift-audio.js", "aura-drift-music.js",
+		"aura-drift-ui.js", "aura-drift.js",
 	}
 	previous := strings.Index(loader, "'aura-drift': {")
 	if previous < 0 {
@@ -114,6 +117,8 @@ func TestAuraDriftLocaleKeysCoverAllLanguages(t *testing.T) {
 		"aura_drift.next_track", "aura_drift.ready", "aura_drift.lap",
 		"aura_drift.weapon", "aura_drift.loading", "aura_drift.catchup",
 		"aura_drift.load_error_hint",
+		"aura_drift.style", "aura_drift.combo", "aura_drift.sector",
+		"aura_drift.best_combo", "aura_drift.conditions",
 	}
 	for _, lang := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
 		values := readMergedLangMap(t, lang)
@@ -130,8 +135,11 @@ func TestAuraDriftShipsNoExternalResources(t *testing.T) {
 
 	for _, name := range []string{
 		"aura-drift-core.js", "aura-drift-physics.js", "aura-drift-track.js",
-		"aura-drift-race.js", "aura-drift-render.js", "aura-drift-post.js",
-		"aura-drift-hud.js", "aura-drift-audio.js", "aura-drift-ui.js", "aura-drift.js",
+		"aura-drift-style.js", "aura-drift-conditions.js", "aura-drift-race.js",
+		"aura-drift-cars.js", "aura-drift-scenery.js",
+		"aura-drift-render.js", "aura-drift-post.js",
+		"aura-drift-hud.js", "aura-drift-audio.js", "aura-drift-music.js",
+		"aura-drift-ui.js", "aura-drift.js",
 	} {
 		source := readDesktopAssetText(t, filepath.Join("js", "desktop", "apps", name))
 		for _, forbidden := range []string{"https://", "http://", "fetch(", "XMLHttpRequest", "import("} {

@@ -28,7 +28,7 @@ New app-scoped prefixes must contain no `ad` substring; verify
 ## Ownership
 
 - Aura Drift (`aura-drift`, category `games`) is a first-party offline top-down racer.
-  Its ten lazy-loaded modules (including the WebGL2 post pass), stylesheet, icon and
+  Its fifteen lazy-loaded modules (including the WebGL2 post pass), stylesheet, icon and
   `aura_drift.*` keys in all sixteen `lang/desktop/*.json` bundles are owned by
   `js/desktop/apps/AGENTS.md`; the catalog entry belongs to
   `../internal/desktop/AGENTS.md`; the technical guide is

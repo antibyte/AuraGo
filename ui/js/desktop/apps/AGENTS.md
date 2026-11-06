@@ -2653,10 +2653,14 @@ buttons and menu popovers remain excluded from those gestures.
 - Interaction: plain click opens the lightbox, Ctrl/Cmd-click, Shift-click,
   the tile checkbox or selection mode select; arrow keys/Home/End navigate,
   Space toggles, Enter opens, Delete deletes, Ctrl/Cmd-A selects, Escape clears.
-  Lightbox: arrow keys/PageUp/PageDown/Home/End navigate, `+`/`-`/`0`/`1`
-  zoom, `I` info, `D` download, `F2` rename, Delete deletes, Space toggles the
-  slideshow, Escape closes; chrome auto-hides via `is-idle`, and backdrop
-  clicks within 450 ms of opening are ignored (tile double-click).
+  Lightbox (image viewer): arrow keys/PageUp/PageDown/Home/End navigate,
+  `+`/`-`/`0`/`1` zoom, `R`/`Shift+R` rotate, `F` in lower case flips,
+  `Shift+F` toggles fullscreen, `C` copies the image, `I` info, `D` download,
+  `F2` rename, Delete deletes, Space toggles the slideshow, Escape closes;
+  the bottom dock offers zoom, rotate, flip, fullscreen, copy and Edit in
+  Pixel for images; the header keeps the prominent Edit in Pixel action.
+  Chrome auto-hides via `is-idle`, and backdrop clicks within 450 ms of
+  opening are ignored (tile double-click).
 - Readonly omits rename/delete controls and shows the readonly hint instead of
   rendering disabled buttons. There is no upload because media mounts are
   server-side read-only.
@@ -3489,8 +3493,9 @@ buttons and menu popovers remain excluded from those gestures.
   errors use translated messages; Detective renders invalid URLs as text.
 
 - `aura-drift-*.js` implements Aura Drift, a first-party offline top-down racer.
-  Load order is defined under the `aura-drift` entry: core, physics, track, race,
-  render, post, hud, audio, ui, then `aura-drift.js` (which exposes
+  Load order is defined under the `aura-drift` entry: core, physics, track, style,
+  conditions, race, cars, scenery, render, post, hud, audio, music, ui, then
+  `aura-drift.js` (which exposes
   `window.AuraDriftApp = { render, dispose, stats }`). Shared state lives on
   `window.AuraDriftCore`. The simulation runs at a fixed 120 Hz via
   `AD.createScheduler` with a five-substep clamp; `AD.stepRace` uses only the
@@ -3506,16 +3511,27 @@ buttons and menu popovers remain excluded from those gestures.
   deterministic vehicle resource: drifting refills it, boost spends it, and the
   AI only spends it on clean straights. Tracks are closed Catmull-Rom splines
   with a 64 m spatial grid and 320 m procedurally generated chunk canvases
-  capped per quality tier. The world is Canvas 2D; `aura-drift-post.js` adds a
+  capped per quality tier. Car art lives in `aura-drift-cars.js` (pre-rendered
+  silhouettes per class, steered wheels, lights, damage) and trackside dressing in
+  `aura-drift-scenery.js` (grandstands, hoardings, tyre walls, marshal posts,
+  braking boards, biome set pieces); the renderer only composes them. The world is
+  Canvas 2D; `aura-drift-post.js` adds a
   WebGL2 High/Ultra fullscreen pass (bloom, speed streaks, wet reflections,
-  grade, impact aberration, grain) with NaN-guarded shader math, context-loss
+  heat shimmer, lens rain, grade, impact aberration, grain) with NaN-guarded shader math, context-loss
   handling, disposal and a Canvas 2D fallback. Web Audio is synthesized with
   separate music/SFX/engine buses into a master compressor; engine stack, gear
-  shifts, backfires, turbo, tyre slip squeal, surface grit and wind react to
-  vehicle state, and each biome drives its own scale and tempo for the adaptive
+  shifts, backfires, turbo, blow-off, tyre slip squeal, per-surface layers and wind react to
+  vehicle state, rival engines are spatialised with distance gain, low-pass and Doppler
+  shift, everything feeds a generated venue reverb, and each biome drives its own scale, tempo,
+  drum pattern and ambience bed for the adaptive
   kick/bass/arp/pad scheduler.
   AI uses grip/corridor-aware corner speeds, a bounded disclosed 6% catch-up,
-  reverse recovery and a deterministic marshal respawn. One RAF per window,
+  an overtaking line around a rival ahead, handbrake slides where grip allows,
+  reverse recovery and a deterministic marshal respawn. `aura-drift-style.js` scores
+  drift chains (linked inside a short window, multiplied up to x8, banked on a clean
+  exit), near misses and drift zones; `aura-drift-conditions.js` runs the seeded
+  weather schedule that changes grip for every driver and drives both the look and the
+  ambience. One RAF per window,
   `isActive` gating, focus-loss pause with released input, reduced motion,
   read-only Desktop (no settings/best writes), keyboard focus and screen-reader
   affordances, and full disposal of listeners, RAF, AudioContext, WebGL

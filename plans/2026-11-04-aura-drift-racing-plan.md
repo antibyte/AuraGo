@@ -1,10 +1,26 @@
 # Aura Drift — top-down racing for the Virtual Desktop
 
 Status: **phases 0–2 and the craft slice of phase 3 implemented** (2026-11-04/05, quality
-pass 2026-11-05). The game is a playable first-party Virtual Desktop app with WebGL2
-post-processing, measured AI balance and a browser acceptance matrix. Remaining phase-3/4
+pass 2026-11-05, look-and-feel overhaul 2026-11-06). The game is a playable first-party
+Virtual Desktop app with WebGL2 post-processing, measured AI balance and a browser
+acceptance matrix. Remaining phase-3/4
 items are listed below. Baseline: working tree inspected on 2026-11-04; reconfirm affected
 sources before further work.
+
+## Look-and-feel overhaul (2026-11-06)
+
+The user asked for a prettier, more exciting and more varied game with much better graphics
+and better sound. The overhaul keeps every existing contract (deterministic 120 Hz
+simulation, Canvas 2D world, WebGL2 only as an optional post pass, Web Audio synthesis
+without sample files, 16 locales) and delivers:
+
+| Area | Delivered in the overhaul |
+| --- | --- |
+| Graphics | `aura-drift-cars.js` renders one high-fidelity silhouette per car class (prototype, GT, muscle, rally) with shell shading, glass, livery, race numbers, wings, steered front wheels, brake lights, headlight cones, boost flames, shields and damage. `aura-drift-scenery.js` dresses every venue with grandstands and a crowd, sponsor hoardings, tyre walls, fencing, marshal posts, braking boards, pit garages and biome set pieces. The camera leans into the slide and punches the field of view on nitro. |
+| Excitement | `aura-drift-style.js` scores drift chains (linked, multiplied up to x8, banked on a clean exit), near misses and drift zones; the HUD shows the chain, the multiplier and the pending points. `aura-drift-conditions.js` runs a seeded weather schedule that changes grip for every driver. Three timing sectors per lap split every run. |
+| Variety | Two new venues: **Gletscherpass** (glacier, night, aurora, ice and snow) and **Metropolis-Ring** (city, night, neon, wet asphalt). Both have their own biome palette, prop set, score arrangement and reverb size. Eight tracks in total. |
+| Sound | Engine stack with rev limiter, gear whine, backfires and a turbo blow-off; per-surface tyre layers; rival engines spatialised with distance gain, distance low-pass, Doppler shift and stereo pan; a generated convolution reverb sized per venue; `aura-drift-music.js` plays a different arrangement per biome plus wind, water, machinery, crowd and bird ambience beds. |
+| Post pass | Heat shimmer and rain on the lens in the WebGL2 High/Ultra pass; the wet pass now follows the live weather. |
 
 ## Implementation status
 
@@ -12,12 +28,12 @@ sources before further work.
 | --- | --- | --- |
 | Platform decision | First-party modular Desktop app (`ui/js/desktop/apps/aura-drift-*.js`), catalog entry, shell registration, 16 locales, icon, DE/EN manuals, operator guide | Game Maker Studio phase-0 feel lab was not needed as a separate prototype; the deterministic harness served that purpose |
 | Physics | Bicycle model at fixed 120 Hz, seeded RNG, surfaces, wall/car collisions, replay-hash and 30/144 FPS equivalence tests; braking holds at standstill (no slip-sign chatter), held brake engages a bounded reverse, player steering flips while rolling backwards, drift-refilled nitro resource | Engineering-grade tyre data, measured handling sessions on reference hardware |
-| Tracks | Six distinct validated spline layouts, 320 m chunk streaming with LRU caps, seeded daily generator with drivability validator, minimap | Track editor, branch shortcuts, moving gates |
-| Graphics | Canvas 2D world with procedural chunks, **world-anchored road markings** (kerbs, dashed centre line, worn racing-line bands, checkered start/finish that never animate with frame time), decals over the road surface, procedural cars with steering front wheels, night headlight cones/lamp posts, particles, weather, vignette, speed streaks, four quality tiers plus automatic selection, reduced motion; **WebGL2 High/Ultra post pass** (bloom, speed streaks, wet reflections, grade, impact aberration, grain, NaN-guarded, context-loss fallback) | WebGL2 scene geometry (the plan's optional Three.js path), reference-hardware screenshot review |
-| Audio | Fully synthesized layered engine/gear-shift/backfire/tyre-slip/surface/wind/SFX, adaptive kick/bass/arp/pad music per biome scale and tempo, separate buses, master compressor, mute/volume/focus/dispose | Offline capture with clipping analysis, fully authored per-biome themes |
+| Tracks | Eight distinct validated spline layouts, 320 m chunk streaming with LRU caps, seeded daily generator with drivability validator, minimap, three timing sectors and derived drift zones per layout | Track editor, branch shortcuts, moving gates |
+| Graphics | Canvas 2D world with procedural chunks, **world-anchored road markings** (kerbs, dashed centre line, worn racing-line bands, checkered start/finish that never animate with frame time), decals over the road surface, pre-rendered car silhouettes (`aura-drift-cars.js`) with steered wheels, lights and damage, trackside furniture (`aura-drift-scenery.js`), night headlight cones/lamp posts, particles, live weather, vignette, speed streaks, four quality tiers plus automatic selection, reduced motion; **WebGL2 High/Ultra post pass** (bloom, speed streaks, wet reflections, heat shimmer, lens rain, grade, impact aberration, grain, NaN-guarded, context-loss fallback) | WebGL2 scene geometry (the plan's optional Three.js path), reference-hardware screenshot review |
+| Audio | Fully synthesized layered engine/gear-shift/backfire/turbo/blow-off/tyre-slip/per-surface/wind/SFX, spatialised rival engines with distance low-pass and Doppler, generated venue reverb, adaptive per-biome arrangements and ambience beds, separate buses, master compressor, mute/volume/focus/dispose | Offline capture with clipping analysis, recorded-instrument layer on top of the synthesised score |
 | Weapons | Six counterable weapons, pickups, hazards, projectiles, AI use, weapon-free mode | Formal human balance sessions |
-| AI / balance | Grip- and corridor-aware corner speeds, bounded disclosed 6% catch-up, nitro spent only on clean straights, two-stage recovery (brief reverse, deterministic marshal respawn); `scripts/test-aura-drift-balance.mjs` measures six seeded AI-only laps (89–117 s), finishers, wall contacts, weapon events and reproducibility | Handling sessions on reference hardware |
-| Modes | Quick race, Time trial with input-tape ghost, Cup, Daily route, local bests, track-driven recommended lap count | Cup aggregate scoring, published daily leaderboard (out of scope offline) |
+| AI / balance | Grip- and corridor-aware corner speeds, overtaking line, handbrake slides where grip allows, bounded disclosed 6% catch-up, nitro spent only on clean straights, two-stage recovery (brief reverse, deterministic marshal respawn); `scripts/test-aura-drift-balance.mjs` measures eight seeded AI-only laps (89–117 s), finishers, wall contacts, weapon events, weather determinism, style scores and reproducibility | Handling sessions on reference hardware |
+| Modes | Quick race, Time trial with input-tape ghost, Cup, Daily route, local bests, track-driven recommended lap count, drift-chain style score on the result screen | Cup aggregate scoring, published daily leaderboard (out of scope offline) |
 | Accessibility | Keyboard-only start, focus-visible outlines, screen-reader control hint, 56 px touch targets, reduced motion, no colour-only HUD state | Full WCAG 2.2 AA audit, NVDA/VoiceOver sessions |
 | Verification | `scripts/test-aura-drift-{physics,tracks,balance}.mjs`, `ui/desktop_aura_drift_test.go`, three headless Chrome tests (drive/dispose, 5-case quality/theme/viewport/reduced-motion matrix, night-harbour wet pass), bundle check, i18n/catalog/asset tests, DOX pass | Reference-hardware acceptance, 30-minute audio/soak run, offline clipping capture, all-tier screenshot review |
 
@@ -107,7 +123,7 @@ Reuse existing first-party contracts instead of inventing a framework:
 - Race loop: start grid, lap or point-to-point checkpoints, splits, finish, results with
   best lap and ghost unlock. Restart resets every cooldown, spawn timestamp, run flag and
   RNG generation (Phaser reuses scene instances; the same discipline applies here).
-- Modes: **Schnellrennen**, **Cup** (six tracks), **Zeitfahren** with an input-tape ghost,
+- Modes: **Schnellrennen**, **Cup** (eight tracks), **Zeitfahren** with an input-tape ghost,
   **Tagesroute** (seeded), and a weapon-free **Friedlicher Modus** for pure racing.
   Personal bests stay local to the browser; no accounts, backend, network or multiplayer.
 - Controls: arrows/WASD steering and throttle, Space primary weapon, Shift handbrake,
@@ -252,20 +268,23 @@ order under the `aura-drift` entry, and an app shell exposing
 files above 1,100 lines need an entry in `knownOversizedContinuations`
 (`ui/desktop_js_line_budget_test.go`).
 
-| Area | Proposed file |
+| Area | File |
 | --- | --- |
 | Shell, state, seeded RNG, fixed-step scheduler, disposal | `ui/js/desktop/apps/aura-drift-core.js`, `aura-drift.js` |
 | Vehicle, surfaces, collisions | `aura-drift-physics.js` |
-| Opponents and racing line | `aura-drift-ai.js` |
-| Spline, chunks, streaming, validator | `aura-drift-track.js` |
-| Six manifests, cars, weapon defs | `aura-drift-content.js` |
-| Rendering | `aura-drift-render-{world,fx,post,hud}.js` |
-| Audio | `aura-drift-audio-{core,sfx,music}.js` |
+| Opponents and racing line | `aura-drift-race.js` |
+| Spline, chunks, streaming, validator, manifests | `aura-drift-track.js` |
+| Style scoring, sectors, drift zones | `aura-drift-style.js` |
+| Weather schedule, biome ambience profiles | `aura-drift-conditions.js` |
+| Car art: silhouettes, wheels, lights, damage | `aura-drift-cars.js` |
+| World building: chunks, props, trackside furniture | `aura-drift-scenery.js` |
+| Rendering | `aura-drift-render.js`, `aura-drift-post.js`, `aura-drift-hud.js` |
+| Audio | `aura-drift-audio.js` (engine, effects, spatial rivals), `aura-drift-music.js` (score, ambience) |
 | Menus, results, settings | `aura-drift-ui.js` |
-| Styles and art | `ui/css/aura-drift.css`, `ui/img/aura-drift/` with `atlas.json` + `provenance.json` |
+| Styles and art | `ui/css/desktop-app-aura-drift.css`, `ui/img/desktop-icons/aura-drift.svg` |
 | Locales | `aura_drift.*` keys and `desktop.app_aura_drift` in all 16 `ui/lang/desktop/*.json` |
 | Registration | `ui/js/desktop/core/module-loader.js`, `desktop-foundation.js`, `menus-and-routing.js` |
-| Dev scripts | `scripts/build-aura-drift-assets.mjs`, `scripts/test-aura-drift-physics.mjs`, `scripts/test-aura-drift-tracks.mjs` |
+| Dev scripts | `scripts/test-aura-drift-physics.mjs`, `scripts/test-aura-drift-tracks.mjs`, `scripts/test-aura-drift-balance.mjs` |
 | Operator guide | `documentation/aura-drift.md` |
 
 Contracts: lazy load, one render loop per window, `isActive` gating, focus loss handling,

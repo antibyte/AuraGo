@@ -11,10 +11,16 @@ Open **Aura Drift** from the Desktop start menu (Games). Choose a mode, a track 
 number of laps, then start. Selecting a track applies its recommended lap count (two laps,
 about three minutes per race); 1–5 laps remain selectable. Four modes are available:
 Quick race (three AI opponents), Time trial (solo, with a ghost replay of the recorded
-best run), Cup (all six tracks in sequence) and Daily route (a seeded, validated layout
+best run), Cup (all eight tracks in sequence) and Daily route (a seeded, validated layout
 generated from the UTC date). Weapons can be switched off in the settings; Time trial
 never uses them. Trailing AI opponents receive a bounded catch-up of at most 6% target
 speed, never extra grip; the menu discloses this in all 16 languages.
+
+Every race runs a seeded **weather schedule**: conditions arrive and clear during the
+race (rain on the harbour and in the city, snow on the glacier, fog, mist, haze, glare,
+heat), and they are part of the deterministic simulation, so a replay always sees the
+same weather at the same time. Weather changes the grip of every driver equally, is
+drawn on the road and in the sky and drives the ambience mix of the score.
 
 | Input | Action |
 | --- | --- |
@@ -35,7 +41,7 @@ allows racing but does not write settings or personal bests.
 
 - **Physics:** a deterministic bicycle model with front/rear slip angles, saturating tire
   forces, load transfer, drag, rolling resistance, brake bias, handbrake rear-grip loss,
-  damage, a drift-refilled nitro resource and eight surface types. It runs at a fixed
+  damage, a drift-refilled nitro resource and nine surface types. It runs at a fixed
   120 Hz with an accumulator and a five-substep catch-up clamp; rendering is independent
   and interpolated by the camera. Braking fades out at standstill (no slip-sign chatter),
   a held brake engages a bounded reverse, and the solver maps raw steering to an arcade
@@ -43,37 +49,64 @@ allows racing but does not write settings or personal bests.
   to zero at a standstill so it never snaps through zero). Drafting a rival's wake trims
   drag and refills nitro. All gameplay
   randomness comes from a seeded PRNG; particles use a separate source.
-- **Tracks:** six authored radial-harmonic layouts with different widths, grip profiles,
+- **Tracks:** eight authored radial-harmonic layouts with different widths, grip profiles,
   weather, lighting and checkpoint orders, plus a seeded daily generator. Closed Catmull-Rom
   splines are arc-length parameterized into roughly 4 m samples with a 64 m spatial grid.
   Ground and props are generated per 320 m chunk into offscreen canvases with an LRU cache
   capped by quality tier. `AD.validateTrack` checks length, width, spacing, corner radius
-  and overlapping sections.
+  and overlapping sections. Every layout is split into three **timing sectors** and its
+  sharpest corners are derived into **drift zones**, which multiply the style score.
+  The eight venues are: Alpenpass, Wüsten-Canyon, Neon-Hafen, Salzsee, Wald-Rallye,
+  Industrie-Ring, Gletscherpass and Metropolis-Ring.
+- **Style scoring:** sliding sideways above 9 m/s and 10 degrees of slip angle starts a
+  drift chain. Chains are linked inside a 1.5 s window and grow a multiplier up to x8;
+  the chain is banked when it ends, and only then counts. Loose surfaces pay more than
+  tarmac and drift zones pay most. Near misses (a rival inside 2.7 m at closing speed)
+  pay a bonus. The HUD shows the pending points, the live multiplier and the time left
+  to link the next slide; the result screen shows the banked total and the best chain.
 - **Graphics:** Canvas 2D world renderer with streamed ground chunks and a true offset
   road ribbon, so the surface edge always meets the kerbs exactly, even in hairpins.
   World-anchored markings (staggered red/white kerbs, haloed dashed centre line, worn
   racing-line bands, faint 55 m transverse joints, framed checkered start with gantry)
   never animate with frame time and scale with the camera zoom; skid-mark decals fade
-  over the road surface. Red/white tyre stacks guard tight corners, procedural cars show
-  steering front wheels, player chevron, night headlight cones and lamp posts, particles,
-  weather (harbour rain with splash rings, industry sparks, night fog, glare, heat),
-  vignette and speed streaks. The HUD adds a live position tower with gaps plus
-  drift/nitro and slipstream feedback.
+  over the road surface. Cars are pre-rendered silhouettes (`aura-drift-cars.js`): four
+  distinct shapes (prototype, GT, muscle, rally), body shading across the shell, glass
+  with a sliding reflection, livery stripes, race numbers, wings and splitters, steered
+  front wheels, spinning rears, brake lights with bloom, headlight cones at night,
+  boost flames, shields, EMP rings and damage. Trackside furniture
+  (`aura-drift-scenery.js`) dresses every venue: grandstands with tiers and a crowd,
+  sponsor hoardings, tyre walls, safety fencing, marshal posts with flags, braking
+  boards, pit garages and biome set pieces (cranes, containers, silos, pylons, radio
+  masts, wind turbines, ice blocks, neon signs). The camera leans into the slide,
+  punches the field of view on nitro and looks further ahead the faster the car goes.
+  Particles cover tyre smoke for every car, water spray on wet asphalt, snow powder,
+  boost flames, wall sparks and damage smoke. Weather draws rain, snow, fog, mist,
+  haze, glare and heat shimmer. The HUD adds a live position tower with gaps, an
+  rpm arc, gear, damage and nitro bars, the style meter, sector splits and a minimap
+  with sector colours, rival dots and a start-line marker.
   The High and Ultra tiers add a WebGL2 post-processing pass (`aura-drift-post.js`) over
   the 2D frame: bright-pass bloom, radial speed streaks, short vertical wet-asphalt
-  reflections (night harbour and industry), per-biome colour grading, vignette, impact
+  reflections (night harbour and industry, and any track while it rains), heat shimmer,
+  rain on the lens, per-biome colour grading, vignette, impact
   chromatic aberration, damage heartbeat and film grain. Shader math is NaN-guarded and clamped; context
   loss, disposal and a Canvas 2D fallback are implemented. Four quality tiers scale
   particles, weather, lighting and chunk cache; `auto` selects a tier from measured frame
   time with a 2.5 s window and hysteresis. Reduced motion disables shake, weather, speed
   lines and shader animation.
-- **Audio:** Web Audio synthesis only. A layered engine stack (harmonics, intake, turbo),
-  gear-shift clicks, throttle-lift backfires, tyre slip squeal, surface grit, wall scrape
-  and wind noise (plus slipstream draft) are driven by physical state; stereo rival engines
-  are panned by relative position, and separate buses feed a master compressor.
-  Adaptive music runs a kick/snare/bass/arp/pad scheduler on each biome's scale and tempo with
-  intensity from speed. Volume, mute, focus and disposal are honoured. No sample files or
-  external URLs.
+- **Audio:** Web Audio synthesis only, no sample files. The engine stack (two detuned saws,
+  a square body, an upper harmonic, a sub growl, intake and exhaust noise) is driven by
+  rpm, load and the rev limiter; gear shifts click, throttle lifts backfire, the turbo
+  spools and dumps through a blow-off valve, and a gear whine tracks the top end.
+  Tyres have rolling noise, a resonant slip squeal, a surface layer per material
+  (gravel rattle, sand rumble, mud squelch, snow crunch, wet spray, near silence on ice)
+  and a wall-scrape layer. Rival engines are spatialised with distance gain, a distance
+  low-pass, a **Doppler** pitch bend and a stereo pan, and everything feeds a generated
+  convolution reverb sized to the venue. The score (`aura-drift-music.js`) plays a
+  different arrangement per biome - drum pattern, bass rhythm, lead voice, tempo and scale -
+  with an intensity that follows the speed, plus per-biome ambience beds (wind, water,
+  machinery, crowd, birds) and one-shot gulls, clanks and bird calls. Menu, countdown,
+  pickup, weapon, impact, sector, near miss, style bank and finish have their own cues.
+  Volume, mute, focus and disposal are honoured.
 - **Weapons:** oil slick, mine, EMP, homing rocket, MG salvo and shield, each with a
   telegraph, cooldown, ammo and a counter. AI uses the same rules. Hazards and projectiles
   live in the deterministic simulation.
@@ -81,12 +114,15 @@ allows racing but does not write settings or personal bests.
   that tape through the identical solver to produce a ghost; the same tape is stored with a
   personal best in browser local storage.
 - **AI and balance:** opponents use the identical solver with look-ahead pure pursuit,
-  grip- and corridor-aware corner speeds, bounded catch-up, nitro spent only on clean
-  straights, and a two-stage recovery (brief reverse, then a deterministic marshal
+  grip- and corridor-aware corner speeds, an overtaking line that moves around a rival
+  ahead, bounded catch-up, nitro spent only on clean
+  straights, handbrake slides through the tight corners where there is grip left, and a
+  two-stage recovery (brief reverse, then a deterministic marshal
   respawn) after spins or weapon hits.
-  `scripts/test-aura-drift-balance.mjs` runs seeded AI-only laps on all six tracks and
-  checks finishers, lap times (89–117 s), wall contacts, weapon usage, catch-up bounds and
-  reproducibility; wall contacts stay in the low hundreds over a four-car race.
+  `scripts/test-aura-drift-balance.mjs` runs seeded AI-only laps on all eight tracks and
+  checks finishers, lap times (89–117 s), wall contacts, weapon usage, catch-up bounds,
+  weather determinism and reproducibility; wall contacts stay in the low hundreds over a
+  four-car race.
 - **Accessibility:** keyboard-only start journey, visible `:focus-visible` outlines,
   screen-reader control hint with pointer-only touch controls hidden from the accessibility
   tree, 56 px touch targets, reduced motion, and no colour-only state in the HUD.
@@ -124,8 +160,8 @@ with a no-op so the game stays fully playable on Canvas 2D.
 tunable and believable — not an engineering-grade vehicle simulation. The world renderer
 is Canvas 2D; WebGL2 is used for the optional High/Ultra post pass, not for scene geometry.
 There is no multiplayer, backend, agent tool, config switch, external API or deployment.
-Still open: engineering-grade tyre data, fully authored per-biome music themes (scale and
-tempo layers ship today), offline audio clipping capture, a full WCAG 2.2 AA review,
+Still open: engineering-grade tyre data, a recorded-instrument music layer on top of the
+per-biome synthesised arrangements, offline audio clipping capture, a full WCAG 2.2 AA review,
  30-minute soak runs, acceptance on recorded reference hardware, a track editor and branch
  shortcuts. Cup aggregate scoring ships as 25-18-15-12 points shown with the cup total
  on each cup result screen.
@@ -156,8 +192,9 @@ time, speed, pause, quality, renderer caches and post-processing status).
 
 The physics check compares state hashes for identical input tapes at 30 and 144 render FPS,
 verifies solver bounds, low-grip understeer, wall contact at maximum speed, race replay
-identity and input-tape round-tripping. The track check validates all six authored layouts,
-twenty generated daily routes, distinct shapes, spline round-trips and surface zones. The
+identity and input-tape round-tripping. The track check validates all eight authored layouts,
+twenty generated daily routes, distinct shapes, spline round-trips, surface zones, drift
+zones and sector splits. The
 balance check runs seeded AI-only full laps and measures the figures described above.
 
 Ownership: `ui/js/desktop/apps/AGENTS.md` (app modules and contracts), `ui/AGENTS.md`

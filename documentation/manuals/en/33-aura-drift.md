@@ -2,14 +2,14 @@
 
 Aura Drift is a top-down car racer that lives on the Virtual Desktop. It runs entirely in
 your browser: no account, no provider, no network call. Race three AI opponents, chase a
-personal best, or work through a six-track cup.
+personal best, or work through an eight-track cup.
 
 ## Opening and starting
 
 Launch **Aura Drift** from the start menu under **Games**. Choose a mode, a track and the
 number of laps; switching tracks applies its recommended two laps (about three minutes per
 race). **Quick race** is the fast entry point, **Time trial** drives solo against a ghost
-replay, **Cup** chains all six tracks, and **Daily route** builds a new validated layout
+replay, **Cup** chains all eight tracks, and **Daily route** builds a new validated layout
 from the UTC date.
 
 ## Controls
@@ -50,12 +50,30 @@ off in the menu and are always disabled in Time trial.
 | Salzsee | Wide open flats, very high grip |
 | Wald-Rallye | Narrow, muddy, dusk |
 | Industrie-Ring | Oval core with factory shortcuts |
+| Gletscherpass | Ice and snow, aurora light, low grip |
+| Metropolis-Ring | City at night, neon, wet asphalt |
 
 The world is generated in chunks around the camera instead of loading one huge image. Four
 graphics tiers (plus an automatic choice) scale particles, weather, lighting and cache size.
 **High** and **Ultra** add a WebGL2 post-processing pass: bloom around headlights, vertical
-reflections on wet harbour asphalt, per-track colour grading and a brief chromatic shock on
-impact. Without WebGL2, or after a context loss, the game continues with Canvas 2D alone.
+reflections on wet asphalt, heat shimmer, rain on the lens, per-track colour grading and a
+brief chromatic shock on impact. Without WebGL2, or after a context loss, the game continues
+with Canvas 2D alone.
+
+## Weather and style points
+
+The weather changes during the race on a fixed schedule: rain in the harbour and in the
+city, snow on the glacier, plus fog, mist, heat and glare. It hits every car equally and
+takes grip away from all of them; the HUD shows the current condition.
+
+Sliding sideways pays: hold more than 10 degrees of slip angle and you start a drift
+chain. Keep the chain alive within 1.5 seconds and the multiplier grows to x8; the chain
+only counts once it ends. Loose surfaces and the marked drift zones pay extra, and so does
+a rival you pass within arm's length. The HUD shows the pending points, the multiplier and
+the time left to link the next slide; the result screen shows the total and the best chain.
+
+Every lap is split into three sectors, and the split times in the HUD show you where you
+are losing it.
 
 Opponents use the same tyre model you do. A car far behind receives at most 6% more target
 speed, never extra grip — the menu discloses this. After a spin the AI briefly reverses;
