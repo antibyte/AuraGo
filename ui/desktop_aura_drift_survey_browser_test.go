@@ -25,6 +25,11 @@ func auraDriftSurveyScenes() []auraDriftSurveyScene {
 		scenes = append(scenes, auraDriftSurveyScene{"biome-" + biome, fmt.Sprintf(
 			`async()=>{const tr=AuraDriftCore.TRACKS.find(x=>x.biome===%q)||AuraDriftCore.TRACKS[0];await AuraDriftApp.debug.start({mode:'time_trial',trackId:tr.id});AuraDriftApp.debug.setCamera('chase');}`, biome)})
 	}
+	// run-<biome>: a quick race driven by the autopilot for 25 simulated seconds, so the shot shows the HUD, rivals and effects mid-race.
+	for _, biome := range biomes {
+		scenes = append(scenes, auraDriftSurveyScene{"run-" + biome, fmt.Sprintf(
+			`async()=>{const tr=AuraDriftCore.TRACKS.find(x=>x.biome===%q)||AuraDriftCore.TRACKS[0];await AuraDriftApp.debug.start({mode:'quick',trackId:tr.id});AuraDriftApp.debug.autopilot(true,{skill:1});AuraDriftApp.debug.fastForward(29,{renderEvery:30});}`, biome)})
+	}
 	for _, mode := range []string{"chase", "high", "drone", "bumper"} {
 		scenes = append(scenes, auraDriftSurveyScene{"camera-" + mode, fmt.Sprintf(
 			`async()=>{await AuraDriftApp.debug.start({mode:'time_trial'});AuraDriftApp.debug.setCamera(%q);}`, mode)})

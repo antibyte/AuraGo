@@ -459,7 +459,8 @@
                 big.classList.add('is-score');
                 big.appendChild(el('span', 'agdrift-res-pos', AD.formatTime(result.time)));
             } else {
-                big.classList.add(medalClass(result.position));
+                const medalCls = medalClass(result.position);
+                if (medalCls) big.classList.add(medalCls);
                 big.appendChild(el('span', 'agdrift-res-pos', String(result.position || '-')));
                 big.appendChild(el('span', 'agdrift-res-of', '/' + (result.field || info.field || '')));
             }

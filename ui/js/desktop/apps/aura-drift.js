@@ -503,6 +503,49 @@
             hudCanvas.getContext('2d').clearRect(0, 0, hudCanvas.width, hudCanvas.height);
         }
 
+        /* Debug autopilot: the player slot drives itself with the opponent controller (AD.aiInput), fires when a
+           weapon is held and lines up the next ramp. Used by the playthrough harness only. */
+        let autopilot = null;
+        function driveAuto() {
+            if (!autopilot || !race || !playing() || race.state === 'finished') return;
+            const car = race.cars[0], v = car.v;
+            if (v.out) return;
+            car.ai.skill = car.ai.aggression = autopilot.skill;
+            let lane = 0;
+            if (autopilot.ramps && race.features && race.features.ramps && !v.airborne) {
+                const here = AD.sampleTrack(race.track, v.x, v.y), L = race.track.length;
+                for (const r of race.features.ramps) {
+                    const ds = ((r.s - here.s) % L + L) % L;
+                    if (ds > 8 && ds < 90) { lane = r.offset || 0; break; }
+                }
+            }
+            car.ai.lane = lane;
+            const input = AD.aiInput(race, car), target = race.playerInput;
+            for (const key of Object.keys(input)) target[key] = input[key];
+        }
+        function stepOnce(step) { if (autopilot) driveAuto(); AD.stepRace(race, step); }
+
+        /* One presentation tick for the events and effects a batch of steps produced (the RAF loop minus the wall clock). */
+        function presentTick(dt) {
+            renderer.emit(race, dt);
+            audio.update(race, true, lastPose);
+            if (banter) {
+                const msg = banter.update(dt);
+                if (msg && typeof hud.radio === 'function') hud.radio(msg);
+            }
+            if (pendingResults) {
+                pendingResults.wait -= dt;
+                if (pendingResults.wait <= 0) {
+                    ui.showResults(pendingResults.result, pendingResults.info);
+                    pendingResults = null;
+                    resultsShown = true;
+                }
+            }
+            lastPose = camera.update(race, dt, { reduced: reducedMotion, paused: false, lowZoom: !!quality.lowZoom });
+            renderer.render(race, lastPose, dt, reducedMotion);
+            if (playing() && !resultsShown) hud.render(race, dt, settings, lastPose); else clearHud();
+        }
+
         function loop(now) {
             raf = requestAnimationFrame(loop);
             const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
@@ -511,7 +554,10 @@
             try {
                 frame(now, dt);
             } catch (error) {
-                if (renderer.kind === 'three') fallbackTo2D(); else throw error;
+                if (renderer.kind === 'three') {
+                    if (window.console && console.error) console.error('Aura Drift: 3D frame failed, continuing in 2D', error);
+                    fallbackTo2D();
+                } else throw error;
             }
         }
 
@@ -526,8 +572,8 @@
             }
             const simDt = paused ? 0 : timeWarp.scale(dt);
             if (!paused && !frozen) {
-                if (playing() && (race.state === 'running' || race.state === 'countdown')) readInput();
-                scheduler.advance(simDt, step => AD.stepRace(race, step));
+                if (!autopilot && playing() && (race.state === 'running' || race.state === 'countdown')) readInput();
+                scheduler.advance(simDt, stepOnce);
                 drainEvents();
                 renderer.emit(race, simDt);
                 audio.update(race, true, lastPose);
@@ -601,6 +647,32 @@
             },
             fire() { if (race) AD.fireWeapon(race, race.cars[0]); },
             launch(vz) { if (race) AD.launch(race, race.cars[0], vz || 9, 'debug'); },
+            /* The player slot drives itself: opts { skill 0.3..1.2, ramps }. */
+            autopilot(on, opts) {
+                autopilot = on ? Object.assign({ skill: 0.9, ramps: true }, opts || {}) : null;
+                if (!on) for (const key of Object.keys(race ? race.playerInput : {})) if (typeof race.playerInput[key] === 'number') race.playerInput[key] = 0;
+            },
+            /* Steps the sim without waiting for animation frames: events go to renderer, hud, audio, banter, camera and
+               time warp as in the loop, and every opts.renderEvery-th step (30) is rendered. Returns a status line. */
+            fastForward(seconds, opts) {
+                if (!race) return null;
+                const every = Math.max(1, (opts && opts.renderEvery) | 0) || 30;
+                let left = Math.round(seconds / AD.STEP), ticks = 0, rendered = 0;
+                while (left-- > 0 && race && !paused) {
+                    if (race.state !== 'finished') {
+                        if (!autopilot && playing() && (race.state === 'running' || race.state === 'countdown')) readInput();
+                        stepOnce(AD.STEP);
+                        drainEvents();
+                        if (race.state === 'finished' && race.cars[0].isPlayer) finishRace();
+                    }
+                    if (++ticks % every === 0) { presentTick(Math.min(0.05, AD.STEP * every)); rendered++; }
+                }
+                return { time: race ? race.time : 0, state: race ? race.state : view, rendered: rendered, results: resultsShown };
+            },
+            pause(value) { if (race && view === 'play') setPaused(value === undefined ? !paused : !!value); },
+            quit() { showMenu(); },
+            /* Shell state for harnesses. */
+            view() { return { view: view, ghost: !!(race && race.ghost), track: race ? race.track.id : '', paused: paused, results: resultsShown, pending: !!pendingResults, race: race ? race.state : '', cup: cupIndex, cupScores: cupScores.slice() }; },
             freeze(value) { frozen = !!value; },
             /* Garage showcase without the menu panel: { carId, livery, biomeId }. */
             showcase(config) {
@@ -746,6 +818,11 @@
             give(id) { const d = currentDebug(); if (d) d.give(id); },
             fire() { const d = currentDebug(); if (d) d.fire(); },
             launch(vz) { const d = currentDebug(); if (d) d.launch(vz); },
+            autopilot(on, opts) { const d = currentDebug(); if (d) d.autopilot(on, opts); },
+            fastForward(seconds, opts) { const d = currentDebug(); return d ? d.fastForward(seconds, opts) : null; },
+            pause(value) { const d = currentDebug(); if (d) d.pause(value); },
+            quit() { const d = currentDebug(); if (d) d.quit(); },
+            view() { const d = currentDebug(); return d ? d.view() : null; },
             freeze(value) { const d = currentDebug(); if (d) d.freeze(value); },
             showcase(config) { const d = currentDebug(); if (d) d.showcase(config); },
             results(spec) { const d = currentDebug(); if (d) d.results(spec); }
