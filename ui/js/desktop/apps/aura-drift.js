@@ -358,7 +358,13 @@
                 livery: config.livery !== undefined ? config.livery : settings.livery
             });
             banter = typeof AD.createBanter === 'function'
-                ? AD.createBanter({ seed: race.seed, t: t, race: race }) : null;
+                ? AD.createBanter({
+                    seed: race.seed, t: t, race: race,
+                    /* The voice knows which wordings of a line it can speak right
+                     * now: the radio prefers those, so a remark never has to wait. */
+                    ready: voice && typeof voice.readyVariants === 'function'
+                        ? key => voice.readyVariants(key) : null
+                }) : null;
             renderer.setTrack(track, race);
             audio.setBiome(track.biomeId);
             if (typeof audio.setCar === 'function') audio.setCar(playerCar);

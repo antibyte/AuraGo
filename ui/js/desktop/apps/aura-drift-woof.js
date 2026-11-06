@@ -37,15 +37,20 @@
         ? script.replace(/aura-drift-woof\.js(\?.*)?$/, 'aura-drift-woof-worker.js$1')
         : '/js/desktop/apps/aura-drift-woof-worker.js';
 
-    /* A stable seed per line: the same remark always sounds the same. */
-    function seedFor(key) {
+    /* A stable seed per line and wording: the same remark always sounds the same,
+     * and every wording of a line has its own voice of it. */
+    function seedFor(key, index) {
         let h = 0x811c9dc5;
-        for (let i = 0; i < key.length; i++) {
-            h ^= key.charCodeAt(i);
+        const text = key + '#' + (index | 0);
+        for (let i = 0; i < text.length; i++) {
+            h ^= text.charCodeAt(i);
             h = Math.imul(h, 0x01000193) >>> 0;
         }
         return h % 100000;
     }
+
+    /* A line has several wordings and every wording is a clip of its own. */
+    function clipId(key, index) { return key + '#' + (index | 0); }
 
     function openStore() {
         return new Promise(resolve => {
@@ -98,7 +103,8 @@
         let racing = false;
         let nextId = 1;
         let running = null;                 /* the job the worker is busy with */
-        const clips = new Map();             /* key -> Float32Array */
+        const clips = new Map();             /* clip id -> Float32Array */
+        const ready = new Map();             /* line key -> Set of the wordings it can speak */
         const queue = [];                    /* synthesis jobs */
         let prewarmAt = 0;
         let store = null;
@@ -178,8 +184,10 @@
                 const job = running && running.id === msg.id ? running : null;
                 if (!job) return;
                 running = null;
-                clips.set(job.key, msg.samples);
-                storePut(store, job.key, msg.samples);
+                const id = clipId(job.key, job.index);
+                clips.set(id, msg.samples);
+                storePut(store, id, msg.samples);
+                markReady(job.key, job.index);
                 if (job.demand && !job.superseded) {
                     const age = (performance.now() - job.at) / 1000;
                     if (age <= LATE_SECONDS) play(msg.samples);
@@ -231,14 +239,15 @@
             boot();
         }
 
-        function enqueue(key, text, voice, demand) {
-            if (clips.has(key)) return null;
+        function enqueue(key, index, text, voice, demand) {
+            if (clips.has(clipId(key, index))) return null;
             const job = {
                 id: nextId++,
                 key: key,
+                index: index | 0,
                 text: text,
                 voice: voice,
-                seed: seedFor(key),
+                seed: seedFor(key, index),
                 demand: !!demand,
                 superseded: false,
                 at: performance.now()
@@ -256,42 +265,74 @@
             return job;
         }
 
+        /* The wordings of a line the voice can speak right now. */
+        function readyVariants(key) {
+            const set = ready.get(key);
+            if (!set || !set.size) return [];
+            return Array.from(set).sort((a, b) => a - b);
+        }
+
+        function markReady(key, index) {
+            let set = ready.get(key);
+            if (!set) { set = new Set(); ready.set(key, set); }
+            set.add(index | 0);
+        }
+
         /* A remark of the race. The text of the radio is in the game's language, the
-         * voice speaks the english original of it. */
+         * voice speaks the english original of the very same wording. */
         function say(msg) {
             if (!enabled || !msg || !msg.key) return;
-            const text = AD.woofLine ? AD.woofLine(msg.key) : null;
+            const index = typeof msg.variant === 'number' && msg.variant >= 0 ? Math.floor(msg.variant) : 0;
+            const text = AD.woofLine ? AD.woofLine(msg.key, index) : null;
             if (!text) return;
             const voice = AD.woofVoice ? AD.woofVoice(msg.driverId) : 'juno';
-            const clip = clips.get(msg.key);
+            const clip = clips.get(clipId(msg.key, index));
             if (clip) { play(clip); return; }
-            enqueue(msg.key, text, voice, true);
+            /* The wording is not spoken yet. Another wording of the same line is
+             * better than a remark that arrives half a minute late. */
+            const known = readyVariants(msg.key);
+            if (known.length) {
+                play(clips.get(clipId(msg.key, known[0])));
+                enqueue(msg.key, index, text, voice, false);
+                return;
+            }
+            enqueue(msg.key, index, text, voice, true);
         }
 
         /* The lines that were never spoken yet are spoken in the background, so the
-         * next race already has them. */
+         * next race already has them. The first wording of every line comes first,
+         * the alternatives follow. */
         function prewarm() {
             if (!enabled || !AD.woofPrewarm) return;
-            const keys = AD.woofPrewarm();
-            for (let i = prewarmAt; i < keys.length; i++) {
-                const key = keys[i];
-                if (clips.has(key)) continue;
-                const text = AD.woofLine ? AD.woofLine(key) : null;
+            const list = AD.woofPrewarm();
+            for (let i = prewarmAt; i < list.length; i++) {
+                const item = list[i] || {};
+                const key = item.key || null;
+                const index = typeof item.index === 'number' ? item.index : 0;
+                if (!key) continue;
+                if (clips.has(clipId(key, index))) continue;
+                const text = AD.woofLine ? AD.woofLine(key, index) : null;
                 if (!text) continue;
                 const driverId = key.indexOf('.marshal.') >= 0 ? 'marshal' : key.split('.')[2];
-                enqueue(key, text, AD.woofVoice ? AD.woofVoice(driverId) : 'juno', false);
+                enqueue(key, index, text, AD.woofVoice ? AD.woofVoice(driverId) : 'juno', false);
             }
-            prewarmAt = keys.length;
+            prewarmAt = list.length;
         }
 
         /* The clips of a previous session are worth more than speaking them again. */
         async function restore() {
             store = await openStore();
             if (!store) return;
-            const keys = AD.woofPrewarm ? AD.woofPrewarm() : [];
-            for (const key of keys) {
-                const clip = await storeGet(store, key);
-                if (clip && clip.length) clips.set(key, clip);
+            const list = AD.woofPrewarm ? AD.woofPrewarm() : [];
+            for (const item of list) {
+                const key = item && item.key ? item.key : null;
+                const index = item && typeof item.index === 'number' ? item.index : 0;
+                if (!key) continue;
+                const clip = await storeGet(store, clipId(key, index));
+                if (clip && clip.length) {
+                    clips.set(clipId(key, index), clip);
+                    markReady(key, index);
+                }
             }
         }
 
@@ -332,6 +373,7 @@
             queue.length = 0;
             running = null;
             clips.clear();
+            ready.clear();
         }
 
         if (enabled) {
@@ -345,6 +387,9 @@
             say: say,
             setEnabled: setEnabled,
             setRacing: setRacing,
+            /* The wordings of a line the voice can speak right now. The banter uses
+             * it to pick a wording that is ready and does not have to wait. */
+            readyVariants: readyVariants,
             status: status,
             dispose: dispose
         };

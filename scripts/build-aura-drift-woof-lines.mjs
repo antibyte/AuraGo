@@ -4,6 +4,10 @@
  * of a line, whatever language the game runs in. The table is generated from
  * ui/lang/desktop/en.json so it can never drift away from the text the radio shows.
  *
+ * Every line holds several wordings, one per line of its value. The radio picks one
+ * of them and the voice speaks the english original of the very same one, so the two
+ * always say the same thing.
+ *
  *   node scripts/build-aura-drift-woof-lines.mjs
  */
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
@@ -27,9 +31,15 @@ const DRIVER_VOICES = {
     heidi: 'mira',
     ilse: 'mira'
 };const MARSHAL_VOICE = 'juno';
-const KINDS = ['pass', 'passed', 'hit', 'got_you', 'wreck', 'win'];
+const KINDS = ['pass', 'passed', 'hit', 'got_you', 'wreck', 'win', 'style'];
 
-const DRIVERS = ['viktor', 'rosi', 'bruno', 'dolores', 'gustav', 'heidi', 'ilse', 'kurt'];
+const DRIVERS = ['viktor', 'rosi', 'bruno', 'heidi', 'ilse', 'gustav', 'kurt', 'dolores'];
+const MARSHAL_LINES = 16;
+
+/* One line of the locale holds several wordings, one per line of its value. */
+function wordings(value) {
+    return String(value).split('\n').map(text => text.trim()).filter(Boolean);
+}
 
 async function main() {
     const lang = JSON.parse(await readFile(langPath, 'utf8'));
@@ -38,13 +48,17 @@ async function main() {
         for (const kind of KINDS) {
             const key = `aura_drift.banter.${driver}.${kind}`;
             if (typeof lang[key] !== 'string' || !lang[key]) throw new Error(`missing banter line: ${key}`);
-            lines.push([key, lang[key]]);
+            const texts = wordings(lang[key]);
+            if (texts.length < 2) throw new Error(`the line needs more than one wording: ${key}`);
+            lines.push([key, texts]);
         }
     }
-    for (let n = 1; n <= 12; n++) {
+    for (let n = 1; n <= MARSHAL_LINES; n++) {
         const key = `aura_drift.marshal.${n}`;
         if (typeof lang[key] !== 'string' || !lang[key]) throw new Error(`missing marshal line: ${key}`);
-        lines.push([key, lang[key]]);
+        const texts = wordings(lang[key]);
+        if (texts.length < 2) throw new Error(`the line needs more than one wording: ${key}`);
+        lines.push([key, texts]);
     }
 
     const voices = {};
@@ -63,20 +77,31 @@ async function main() {
  * The model speaks english only, so the commentary reads the english original of a
  * line in every language of the game. The lines are the same ones the radio shows,
  * they are only spoken in english.
+ *
+ * A line holds several wordings. The radio picks one of them, the voice speaks the
+ * english original of the very same one, so both always say the same thing.
  */
 (function () {
     'use strict';
     const AD = window.AuraDriftCore;
 
     AD.WOOF_LINES = {
-${lines.map(([key, text]) => `        ${JSON.stringify(key)}: ${JSON.stringify(text)}`).join(',\n')}
+${lines.map(([key, texts]) => `        ${JSON.stringify(key)}: ${JSON.stringify(texts)}`).join(',\n')}
     };
 
     /* Which voice speaks which driver. */
     AD.WOOF_VOICES = ${JSON.stringify(voices, null, 4).replace(/\n/g, '\n    ')};
 
     /* The english text of a banter key, or null when the key is not a line. */
-    AD.woofLine = function (key) {
+    AD.woofLine = function (key, index) {
+        const lines = AD.WOOF_LINES[key];
+        if (!lines) return null;
+        const at = typeof index === 'number' && index >= 0 ? Math.floor(index) : 0;
+        return lines[at] || lines[0] || null;
+    };
+
+    /* Every wording of a line, or null when the key is not a line. */
+    AD.woofLines = function (key) {
         return AD.WOOF_LINES[key] || null;
     };
 
@@ -85,16 +110,25 @@ ${lines.map(([key, text]) => `        ${JSON.stringify(key)}: ${JSON.stringify(t
         return AD.WOOF_VOICES[driverId] || 'juno';
     };
 
-    /* Every line, in the order the prewarm pass should speak them. */
+    /* Every line and every wording, in the order the prewarm pass should speak
+     * them: the first wording of every line first, the alternatives afterwards. */
     AD.woofPrewarm = function () {
-        return Object.keys(AD.WOOF_LINES);
+        const keys = Object.keys(AD.WOOF_LINES);
+        const list = [];
+        for (const key of keys) list.push({ key: key, index: 0 });
+        for (const key of keys) {
+            const lines = AD.WOOF_LINES[key];
+            for (let i = 1; i < lines.length; i++) list.push({ key: key, index: i });
+        }
+        return list;
     };
 })();
 `;
 
     await mkdir(path.dirname(outPath), { recursive: true });
     await writeFile(outPath, body, 'utf8');
-    console.log(`Wrote ${path.relative(root, outPath)} (${lines.length} lines, ${Object.keys(voices).length} voices).`);
+    const wordingsTotal = lines.reduce((sum, [, texts]) => sum + texts.length, 0);
+    console.log(`Wrote ${path.relative(root, outPath)} (${lines.length} lines, ${wordingsTotal} wordings, ${Object.keys(voices).length} voices).`);
 }
 
 main().catch(err => {

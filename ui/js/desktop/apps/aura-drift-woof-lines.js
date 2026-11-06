@@ -6,72 +6,87 @@
  * The model speaks english only, so the commentary reads the english original of a
  * line in every language of the game. The lines are the same ones the radio shows,
  * they are only spoken in english.
+ *
+ * A line holds several wordings. The radio picks one of them, the voice speaks the
+ * english original of the very same one, so both always say the same thing.
  */
 (function () {
     'use strict';
     const AD = window.AuraDriftCore;
 
     AD.WOOF_LINES = {
-        "aura_drift.banter.viktor.pass": "Wave goodbye! That's my exhaust, not the horizon.",
-        "aura_drift.banter.viktor.passed": "Pfft, I was just taking a run-up!",
-        "aura_drift.banter.viktor.hit": "Ow! My paint! That cost more than your whole car!",
-        "aura_drift.banter.viktor.got_you": "Oops! That's called right of way with emphasis.",
-        "aura_drift.banter.viktor.wreck": "Ouch. I'd have done it with style, of course.",
-        "aura_drift.banter.viktor.win": "First! I'm faster than my own reputation!",
-        "aura_drift.banter.rosi.pass": "See you around. Specifically in my rear-view mirror.",
-        "aura_drift.banter.rosi.passed": "Overtaking me? How adorable. I'm making a note of it.",
-        "aura_drift.banter.rosi.hit": "Ah, so that's how it's done. I'll remember that.",
-        "aura_drift.banter.rosi.got_you": "Sorry, blind spot. It does what it says on the tin.",
-        "aura_drift.banter.rosi.wreck": "Ouch. It looked even worse in the rear-view mirror.",
-        "aura_drift.banter.rosi.win": "Won. Just checking the mirror to see if anyone's following.",
-        "aura_drift.banter.bruno.pass": "Engine size beats brains. Bye now!",
-        "aura_drift.banter.bruno.passed": "What? When? I was thinking about sausages!",
-        "aura_drift.banter.bruno.hit": "Hey! This is a muscle car, not a bumper car!",
-        "aura_drift.banter.bruno.got_you": "Sorry, my lead foot has right of way.",
-        "aura_drift.banter.bruno.wreck": "Ha! You landed like a schnitzel: flat!",
-        "aura_drift.banter.bruno.win": "Victory! The sausages are on me!",
-        "aura_drift.banter.dolores.pass": "I don't brake. I have principles. And forty tons.",
-        "aura_drift.banter.dolores.passed": "Well, look who's ahead. I'm memorising your plate, sweetheart.",
-        "aura_drift.banter.dolores.hit": "Did you just bump me? That's like shoving a mountain.",
-        "aura_drift.banter.dolores.got_you": "Did I get you? That was only the bumper. The nice one.",
-        "aura_drift.banter.dolores.wreck": "Oh sweetie. At least you were on top for a moment.",
-        "aura_drift.banter.dolores.win": "Won. Anyone who stood in the way is now part of the road.",
-        "aura_drift.banter.gustav.pass": "Make way! I have to get home and mow the lawn!",
-        "aura_drift.banter.gustav.passed": "Outrageous! One does not overtake on my lawn!",
-        "aura_drift.banter.gustav.hit": "No trespassing! That was my fence! I mean, my car!",
-        "aura_drift.banter.gustav.got_you": "Got you! Now get off my lawn!",
-        "aura_drift.banter.gustav.wreck": "See? If you'd mowed the lawn, this wouldn't have happened.",
-        "aura_drift.banter.gustav.win": "Won! Now, about trimming that hedge.",
-        "aura_drift.banter.heidi.pass": "Driving straight means you never understood corners, babe!",
-        "aura_drift.banter.heidi.passed": "Okay, okay, but my skid marks are prettier!",
-        "aura_drift.banter.heidi.hit": "Dude! I'm the only one allowed to go sideways here!",
-        "aura_drift.banter.heidi.got_you": "Sorry! The handbrake was faster than my conscience.",
-        "aura_drift.banter.heidi.wreck": "Awesome! Five points for style, minus ten for the landing!",
-        "aura_drift.banter.heidi.win": "Won sideways! Driving straight is like tofu without sauce.",
-        "aura_drift.banter.ilse.pass": "Care for an ice cream? No? Have some dust instead.",
-        "aura_drift.banter.ilse.passed": "Oh, young one! Not so fast, my ice cream is melting!",
-        "aura_drift.banter.ilse.hit": "My cone! Who rams an ice cream parlour?!",
-        "aura_drift.banter.ilse.got_you": "Oh, pardon! Here, a scoop of apology. Vanilla.",
-        "aura_drift.banter.ilse.wreck": "Oh dear! I'll get you an ice cream. For the bruise.",
-        "aura_drift.banter.ilse.win": "Won! Next round of ice cream is on me. Two scoops each, queue up!",
-        "aura_drift.banter.kurt.pass": "Hang on, just overtaking quickly, then back to lying down.",
-        "aura_drift.banter.kurt.passed": "Oh, you go ahead. I'll watch from here.",
-        "aura_drift.banter.kurt.hit": "Ow! My cushion! I'd just settled in!",
-        "aura_drift.banter.kurt.got_you": "Oops, the remote slipped. While steering.",
-        "aura_drift.banter.kurt.wreck": "And you call this sport? I'll stick to TV.",
-        "aura_drift.banter.kurt.win": "Won? I never even got up.",
-        "aura_drift.marshal.1": "Back on your wheels. Please don't lie down again.",
-        "aura_drift.marshal.2": "Your car is standing again. The rest is up to you.",
-        "aura_drift.marshal.3": "You're welcome. The invoice is in the post.",
-        "aura_drift.marshal.4": "Welcome back. The crane costs extra.",
-        "aura_drift.marshal.5": "Back on track. Reminder: the track is the grey part.",
-        "aura_drift.marshal.6": "Very creative. Try steering next time.",
-        "aura_drift.marshal.7": "Warning, livestock on the road! It has right of way.",
-        "aura_drift.marshal.8": "Animals crossing. Please do not treat as a chicane.",
-        "aura_drift.marshal.9": "Something fluffy ahead. Please stay polite.",
-        "aura_drift.marshal.10": "Animal crossing! No licence, but plenty of rights.",
-        "aura_drift.marshal.11": "The animals were here first. The animals are always here first.",
-        "aura_drift.marshal.12": "Honking doesn't help. We've tried. Repeatedly."
+        "aura_drift.banter.viktor.pass": ["Wave goodbye! That's my exhaust, not the horizon.","Out of my way, I have a meeting to be late for.","Keep up, or buy a map. Preferably the expensive one.","I've forgotten your face, but I'll remember your invoice.","The horizon is mine. I pay for the view.","Nice car. Shame about the other one."],
+        "aura_drift.banter.viktor.passed": ["Pfft, I was just taking a run-up!","That corner was badly negotiated. On my part. Slightly.","Congratulations. My accountant is not amused.","I let you through. Don't get used to it.","Careful. I don't lose often, and I remember well.","That was my last free lesson. The next one costs."],
+        "aura_drift.banter.viktor.hit": ["Ow! My paint! That cost more than your whole car!","That was a bumper. A very expensive bumper.","I'm sending you the invoice. With interest.","My insurance will be in touch. So will my lawyer.","You scratched a car that never needed polishing.","Careful. I am fragile, and I bill for it."],
+        "aura_drift.banter.viktor.got_you": ["Oops! That's called right of way with emphasis.","My fault. Entirely. I'd like my money back.","The indicator was on the other side. Sorry.","I did that on purpose. You just didn't notice.","Consider it a lesson in road etiquette.","Next time I'll wave before I take the corner."],
+        "aura_drift.banter.viktor.wreck": ["Ouch. I'd have done it with style, of course.","That's a new sound. Expensive sound.","Your paint job has now seen things. Enjoy the view.","I'd have kept it on the road. But then, I have money.","That wasn't a crash, it was an exit strategy. Yours, anyway.","I'm calling the studio. No, the morgue. No, the studio."],
+        "aura_drift.banter.viktor.win": ["First! I'm faster than my own reputation!","Win. As expected. I did have a bet running.","Victory tastes like money. Funny how that works.","I paid for this. Obviously I'd win.","Someone had to win. I'd hate for it to be embarrassing.","The trophy is mine. The parking spot is mine too."],
+        "aura_drift.banter.viktor.style": ["Impressive. Very impressive. Was that the rental car?","Style points. I'd buy them, if I had anything left to impress.","That was a lot of effort for a corner. I admire commitment.","My accountant says your tires cost more than my car.","You slide beautifully. It doesn't change the outcome.","I've seen worse in my clients' portfolios. But not many."],
+        "aura_drift.banter.rosi.pass": ["See you around. Specifically in my rear-view mirror.","You had a good line. I had a better car.","Don't take it personally. I don't take anything personally.","Behind me is my favourite place in the world.","That corner was mine before you knew it existed.","I don't overtake people. Time does it for me."],
+        "aura_drift.banter.rosi.passed": ["Overtaking me? How adorable. I'm making a note of it.","Bold. Very bold. Boldly straight, though.","I'll let you have that one. It was a long week.","Enjoy the view. It won't last.","Somewhere, a trophy case is empty and needs you.","Careful. Being humble doesn't make you faster."],
+        "aura_drift.banter.rosi.hit": ["Ah, so that's how it's done. I'll remember that.","Rude. Elegant, but rude.","That was my door. I liked that door.","I'll have it repaired. I'll also have a word.","You touched a car that has never been touched.","Consider this a lesson. Expensive ones exist."],
+        "aura_drift.banter.rosi.got_you": ["Sorry, blind spot. It does what it says on the tin.","My mirror is bigger than your excuse.","You were there. I was simply better placed.","Don't look back. It only makes it worse.","I could have waited. Waiting isn't my style.","That corner was taken. I took it."],
+        "aura_drift.banter.rosi.wreck": ["Ouch. It looked even worse in the rear-view mirror.","I have mirrors for a reason. None of them showed that.","That was almost graceful. Almost.","I'd like to say I saw it coming. I'd like many things.","Ruined, yes. But beautifully framed, I'll admit.","Next time, brake a little. It's not a costume."],
+        "aura_drift.banter.rosi.win": ["Won. Just checking the mirror to see if anyone's following.","First. It was only ever a question of styling.","I won. Now I shall win again, somewhere prettier.","The line was mine. The win was inevitable.","Don't take notes. Some things can't be copied.","Victory looks good on me. It would probably look good on you. Eventually."],
+        "aura_drift.banter.rosi.style": ["That corner was beautiful. I didn't enjoy it.","Style like that is either talent or a good instructor.","I saw it. I chose not to copy it. Deliberately.","Lovely. Now do it again, faster.","Some people drift. Some people make it look like dancing.","I'd applaud, but I'm busy being ahead."],
+        "aura_drift.banter.bruno.pass": ["Engine size beats brains. Bye now!","That's the sound of a proper engine. Yours is a hairdryer.","Move over! I have sausages to deliver!","Out of the way, small car! Big car coming through!","I didn't even try! Try! It won't help!","Faster than you, cheaper than you, better than you!"],
+        "aura_drift.banter.bruno.passed": ["What? When? I was thinking about sausages!","You cheated! I saw it! I saw nothing, but I saw it!","That was my line! My line! I have a line!","Fine! Fine! But on the next straight I'm through you!","My engine is bigger! That counts for something! It does!","I'll get you back. I'll get you back with sausages."],
+        "aura_drift.banter.bruno.hit": ["Hey! This is a muscle car, not a bumper car!","That was my door! My door has sausage on it!","Ow! Ow ow ow! You brute! You animal!","Big car does not get hit by small car! Not allowed!","I'll fix this with sausage and volume!","You scratched the beef! The actual beef!"],
+        "aura_drift.banter.bruno.got_you": ["Sorry, my lead foot has right of way.","I didn't see you! I only saw sausages!","My foot decides! My foot is always right!","You were in my way! That is your fault and my foot!","Blame the beef! The beef is slippery!","I meant to! Mostly! Very mostly!"],
+        "aura_drift.banter.bruno.wreck": ["Ha! You landed like a schnitzel: flat!","Flat as a pancake! Like a schnitzel! Worse! A schnitzel!","That is what happens when you drive like a small car!","I have seen worse. In a film. That I watched alone.","Your roof is now a convertible! Congratulations, cheap car!","I would never. I would. But I would look better doing it."],
+        "aura_drift.banter.bruno.win": ["Victory! The sausages are on me!","I win! I win because I am big and loud and fast!","Winner! Sausage party! Everybody gets a sausage!","Did you see that? Of course you saw that. Everybody saw that.","First! Now I rest. And I eat. Mostly I eat.","I told you the big engine wins! Nobody listens!"],
+        "aura_drift.banter.bruno.style": ["Whoa! Sideways! You did it sideways! Like a big car would!","That was almost a drift! Almost the same as my drift!","I don't slide. I refuse! ...That looked good though.","You slid! I have never slid! That's the difference!","Style! Good. Now do it with more sausage.","Big car does not slide. Small car slides. Small car wins nothing."],
+        "aura_drift.banter.heidi.pass": ["Driving straight means you never understood corners, babe!","Behind me, babe. That's where the good angles are.","Keep it lit, babe! I'm coming through like a wave!","That line was so straight it needed a map, babe!","You can go fast. I go cool. Different sports, babe.","Catch my wave, babe! Or don't. Watch from the beach."],
+        "aura_drift.banter.heidi.passed": ["Okay, okay, but my skid marks are prettier!","Fine, babe, you win this one. Don't get used to sunshine.","Big wave, small wave, still a wave, babe!","You got me! You got me! That's the last one!","My style is still better. Style always is.","Okay! Okay! But I'm the one with the soundtrack, babe!"],
+        "aura_drift.banter.heidi.hit": ["Dude! I'm the only one allowed to go sideways here!","Hey! That was my line! I'm the surfer here, babe!","Ouch! My flow! You interrupted my flow, babe!","I was drifting! Drifting! You're in the way of art!","That was a bad vibe! The worst vibe!","Rude! Uncool! Very uncool, babe!"],
+        "aura_drift.banter.heidi.got_you": ["Sorry! The handbrake was faster than my conscience.","Whoa, that was close! Close is my favourite, babe!","Tricked you! Tricked myself! Both of us! Babe!","I saw you coming! I saw you later! Babe!","That was the plan! The plan was to crash into you!","Style! Not sorry! Very style! Babe!"],
+        "aura_drift.banter.heidi.wreck": ["Awesome! Five points for style, minus ten for the landing!","Wow! That was art! Ugly art, babe! But art!","Ten points for the flip! Minus twenty for the face!","That landing had more wobble than my hair after the windsurf!","You're okay! You're okay! Come on, the water's fine!","Crash first, pose later! That's the rule, babe!"],
+        "aura_drift.banter.heidi.win": ["Won sideways! Driving straight is like tofu without sauce.","First place, babe! With style! Obviously with style!","I won! Nobody saw it! Everybody saw it! Babe!","Victory wave! Yeah! I'm talking about the car too!","That was so smooth it should be printed on a cereal box.","I'd toast to this, but I'm driving, babe! Next time!"],
+        "aura_drift.banter.heidi.style": ["Whoa! That was so smooth! That was beautiful, babe!","Okay, that's style! That's real style! I felt that!","You slide like a surfer! A surfer with a mortgage!","Those angles! Those angles are illegal in my good books!","I want a rematch! A style rematch! Babe!","Okay, fine! You're cooler than me! Don't tell anyone!"],
+        "aura_drift.banter.ilse.pass": ["Care for an ice cream? No? Have some dust instead.","Sorry, I'm in a hurry! The ice cream melts faster than I do!","Next time, come to the van! I'm there all day!","You missed me! Behind me is where the good flavours are!","I'll save you a cone! With my own spit on it! ...Joke!","Come back for seconds! Seconds are always free!"],
+        "aura_drift.banter.ilse.passed": ["Oh, young one! Not so fast, my ice cream is melting!","Faster than me! Faster than the melting! Good for you!","Careful, careful! The sundae is a delicate thing!","Go on then! I'll be here, serving cones to the winners!","Don't drive too fast, the ice cream doesn't like speed!","Come back when you're slower! I have time and sprinkles!"],
+        "aura_drift.banter.ilse.hit": ["My cone! Who rams an ice cream parlour?!","Oh! My sprinkles! They are everywhere! Everywhere!","The van! You hit the van! The van is my life!","That's the cherry on top! Just not the way I wanted it!","Please don't hit the van! The van has a heart! A big one!","I'll need a new tub. And a new driver. Mainly a new tub."],
+        "aura_drift.banter.ilse.got_you": ["Oh, pardon! Here, a scoop of apology. Vanilla.","Sorry! Sorry! Take a cone! It's cold! Like my apologies!","I didn't see you! The sun was in my eyes! Literally!","Here, take this. It costs me nothing and you everything.","My wipers are the problem! Ask them! They're new!","Peace offering! Chocolate! Take it before I change my mind!"],
+        "aura_drift.banter.ilse.wreck": ["Oh dear! I'll get you an ice cream. For the bruise.","Two cones for the hospital! One for you, one for the driver!","You flipped! Like a pancake! But with more salt!","Stay still! I'm coming with the ice cream and the blanket!","That's the best part of the crash! The part where you're alive!","Vanilla for the shock. Chocolate for the courage."],
+        "aura_drift.banter.ilse.win": ["Won! Next round of ice cream is on me. Two scoops each, queue up!","First! The winner gets a sundae! The winner is me! Of course!","I won and the freezer survived! Double celebration!","Come to the van! Bring your appetite! And your coins! Ha!","A victory cone! With a cherry! And my own handwriting on it!","Now! Who wants ice cream? You do. Everyone does. I have too much."],
+        "aura_drift.banter.ilse.style": ["Oh my, what a swirl! Like soft serve made by a poet!","That was pretty! Pretty like a three-scoop tower!","You slide! Like a sundae sliding off the spoon! Careful!","I'm impressed! I'll make you one on the house! The big one!","That style has sprinkles all over it. I like it.","Now that was delicious! Driving, I mean! Delicious!"],
+        "aura_drift.banter.gustav.pass": ["Make way! I have to get home and mow the lawn!","Out of my way! The lawn won't cut itself! It never does!","Careful! I'm on a schedule! The grass is on a schedule!","Your dust! On my lawn! I'll be mowing that for hours!","I leave at five! No! I leave at four! I leave early!","Move! Before the neighbours see that I lost again!"],
+        "aura_drift.banter.gustav.passed": ["Outrageous! One does not overtake on my lawn!","The lawn! The street! My street! You have no respect!","That is MY road! The one with the hedge and the gnome!","I'll mow around you! I'll mow in circles for a year!","My garden! My hedge! My dignity! All of it!","Next time I'll put up a sign! A big one! With a fence!"],
+        "aura_drift.banter.gustav.hit": ["No trespassing! That was my fence! I mean, my car!","My car! My nice car! With the little flag on the antenna!","You scratched the paint! I just waxed it! On a Sunday!","That was my bumper! It only has one! It's a vintage!","Trespassing with a car! That's a new one! For me!","I'll be telling the neighbours! And the police! And my dog!"],
+        "aura_drift.banter.gustav.got_you": ["Got you! Now get off my lawn!","Out of the way! I'm mowing! I'm always mowing!","That's what you get! For making me chase you past the bins!","My driveway! My rules! My little gnome saw it all!","I had you! I had you right by the recycling bin!","Don't you pick on the lawn! Don't you dare!"],
+        "aura_drift.banter.gustav.wreck": ["See? If you'd mowed the lawn, this wouldn't have happened.","Grass! Grass! You are full of grass! That's my grass!","I told you to slow down! Slow! Down! Is that so hard?","That hedge! That hedge is older than you! Respect the hedge!","Now the neighbours will talk! They already talk! Now they'll have proof!","I'll be mowing around this for a fortnight! A fortnight!"],
+        "aura_drift.banter.gustav.win": ["Won! Now, about trimming that hedge.","First! The lawn can wait! It has waited this long!","Victory! I'm going to buy a bigger lawn! A far bigger lawn!","I won! Nobody tell my wife! Nobody tell the neighbours!","The trophy goes on the mantelpiece! Next to the lawn awards!","Well! That'll teach the mower! That mower had it coming!"],
+        "aura_drift.banter.gustav.style": ["You've made a mess! Of the road! Not of my lawn! Yet!","Sliding! On public roads! Where's the grass? None!","That's not drifting, that's neglect! I know the difference!","I'll mow that up! Eventually! When I get to it!","Look at you! All style! And no sense! The worst combination!","Impressive! I'd do it too, but I have a lawn to think about."],
+        "aura_drift.banter.kurt.pass": ["Hang on, just overtaking quickly, then back to lying down.","Wow, you're fast. That's a lot of effort for you.","I'd overtake you back, but I'd have to sit up.","There. Done. Now the important business resumes.","I passed you while thinking about dinner. That's impressive.","Don't wait for me. I might nap."],
+        "aura_drift.banter.kurt.passed": ["Oh, you go ahead. I'll watch from here.","Fine. Go. I'll be horizontal about it.","I could try, but effort is a limited resource.","Enjoy it. I'm quite comfortable here.","That was quick. I didn't even have to sit up.","The couch misses you. It says hi. It's lying down too."],
+        "aura_drift.banter.kurt.hit": ["Ow! My cushion! I'd just settled in!","Hey! I was comfortable! That takes effort to achieve!","That was my nap! Three hours! Ripped! Ruined!","I felt that in my spine. And my spine is old.","Don't wake the driver. He's been sleeping since the start.","Ah. See? That's why I don't race. I just lie here."],
+        "aura_drift.banter.kurt.got_you": ["Oops, the remote slipped. While steering.","Sorry. I was reaching for the second pillow.","That was the TV remote. It has buttons. It went off.","I didn't see you. I was in the middle of something. A programme.","My mistake. My eyes were closed. For a reason. Comfort.","Shh. Don't tell anyone I was awake."],
+        "aura_drift.banter.kurt.wreck": ["And you call this sport? I'll stick to TV.","That looked painful. I was comfortable. That's enough.","I saw that from the sofa. It was exciting. From here.","Crash! Loud! Very loud! I was almost awake!","No thank you. My idea of racing involves a blanket.","Are you okay? Yes? Good. Back to the programme."],
+        "aura_drift.banter.kurt.win": ["Won? I never even got up.","I won? Was I in this race? Interesting.","First place. I'll celebrate when I find the remote.","I was asleep. Still am. This is a dream.","Victory is nice, but the sofa is better.","Well. That settles it. Back to the couch."],
+        "aura_drift.banter.kurt.style": ["That was a lot of effort for a corner. I'm impressed.","Sliding! You slid! I would never. I would hardly.","Nice drift. Very nice. Now lay down and watch the replay.","You make it look complicated. I like simple.","Style points. I'd trade them for a blanket.","Hm. Nice. Is there a sofa version of that?"],
+        "aura_drift.banter.dolores.pass": ["I don't brake. I have principles. And forty tons.","Move aside. I have a schedule and it doesn't bend.","You drive like a bicycle. I drive like a landslide.","Out of the way. I don't take the small roads well.","Did you really think that corner was yours, sweetheart?","I didn't overtake you. Gravity did. I just steered."],
+        "aura_drift.banter.dolores.passed": ["Well, look who's ahead. I'm memorising your plate, sweetheart.","Cute. You're fast for a moment. Then there's the next curve.","Enjoy it while it lasts, sweetie. It really won't.","That's a nice little car. Shame about the way it drives.","I'll be right behind you. Right behind. Always behind.","Don't get excited. Some turns are mine."],
+        "aura_drift.banter.dolores.hit": ["Did you just bump me? That's like shoving a mountain.","Careful! I have a trailer! A trailer with your future in it!","That was my fender! It's been bent since 1987!","You hit a truck! With your tiny car! Do you see the problem?","I'd squash you. I don't, because I'm generous.","That's going in the report. Under \"rude\"."],
+        "aura_drift.banter.dolores.got_you": ["Did I get you? That was only the bumper. The nice one.","Sorry, sweetheart. I have a schedule and you were in it.","That was the corner. I have a corner like that every lap.","I didn't see you. I see about three things: road, sky, truck.","You should have been faster. Or smaller. Either works.","Consider it a toll. I don't take cards."],
+        "aura_drift.banter.dolores.wreck": ["Oh sweetie. At least you were on top for a moment.","I could have stopped. I didn't want to. That's the truth.","That's the sound of a small car having a big day.","You flew! Actually flew! I'd applaud if my hands were free.","Come on. Up you get. The gravel's softer than it looks.","I'm not going to help. But I'll wait. That's more than I usually do."],
+        "aura_drift.banter.dolores.win": ["Won. Anyone who stood in the way is now part of the road.","First. The road was long and you were in it.","Victory. Forty tons of it.","I win. Say it quietly, so nobody hears you agree.","The finish line and I had a date. You were late.","First place. Don't get used to the trophy shelf. It's mine."],
+        "aura_drift.banter.dolores.style": ["You slide? With that little car? Show off.","That's a lot of drifting for someone who was behind me.","Style. Sure. Come back when you've won something with it.","I have four wheels and I don't spin. That's my style.","Pretty. Very pretty. I'd know, I do everything slowly.","You made that corner look easy. It wasn't. Take the win."],
+        "aura_drift.marshal.1": ["Back on your wheels. Please don't lie down again.","Up you get. The car looks sadder about it than you do.","That's the third time this lap. I stopped counting.","Standing again. I'll allow it. This once.","Back in the race. The dust, however, is permanent.","You have two wheels and one dent. Progress."],
+        "aura_drift.marshal.2": ["Your car is standing again. The rest is up to you.","There. Upright. That was the easy part.","Rebuilt, mostly. The racing bits are yours to fix.","Back on four wheels. The mechanic says \"probably\".","Upright again. Try to keep it that way, it's a nice shape.","Repaired. The invoice follows. It always follows."],
+        "aura_drift.marshal.3": ["You're welcome. The invoice is in the post.","Don't thank me yet. The invoice is the exciting part.","The crane worked. My coffee didn't. You'll get the bill.","You're welcome! No, you're not. The invoice is in the post.","Rescue complete. The cost is added to your principles.","I fetched you. Now you owe me a story."],
+        "aura_drift.marshal.4": ["Welcome back. The crane costs extra.","Welcome back! The crane charges by the metre. It's very expensive.","Back in the race! The crane sends its regards, and its invoice.","You were upside down. The crane has a sense for drama.","Here you are. The crane was almost as excited as I was.","Rescued. The crane would like to discuss overtime."],
+        "aura_drift.marshal.5": ["Back on track. Reminder: the track is the grey part.","On the track! Which is the grey bit. Yes, that one.","Back on the grey. Stay there. It's easier for everyone.","Track found! It's the flat, grey, painted part. Impressive.","You're on the track again. The grass is disappointed.","On track. On the track. The other one is a shortcut to nowhere."],
+        "aura_drift.marshal.6": ["Very creative. Try steering next time.","Creative! Truly! I'd applaud if the seatbelts weren't so tight.","That was a new way to lose speed. Congratulations.","Steering! The round thing! Turn it! Do that next time!","Well. I've seen worse. Not today, though.","You invented a shortcut. It was mostly downhill."],
+        "aura_drift.marshal.7": ["Warning, livestock on the road! It has right of way.","Livestock! They were here before the road. Remember that.","Cows on the track. They do not move for cars. Not for you.","Warning! Animals! The sign means it, the sign means it!","Livestock crossing. They pay no taxes and they still win.","Careful! Cows! They have more right of way than you do."],
+        "aura_drift.marshal.8": ["Animals crossing. Please do not treat as a chicane.","Animals crossing! A chicane would at least apologise first.","Careful, animals! They have no idea what a racing line is.","The animals are crossing. The animals are not impressed.","Livestock ahead. They have never lost a race, either.","Watch out! Something with hooves and no patience!"],
+        "aura_drift.marshal.9": ["Something fluffy ahead. Please stay polite.","Fluffy! Please be polite. Fluffy has rights.","Something soft ahead. Don't be rough with it.","Caution! Fluffy! The kind with opinions!","A fluffy one ahead. Say hello. Politely.","Watch for the fluffy ones. They don't brake for anyone."],
+        "aura_drift.marshal.10": ["Animal crossing! No licence, but plenty of rights.","Animals! No licence needed, apparently. None of them.","Animal crossing! They drive like they own the place.","Caution, animals! They have priority and they know it.","Livestock on the road! No licence, no speed limit, no fear.","Animals crossing! They have never needed a licence. Neither have I."],
+        "aura_drift.marshal.11": ["The animals were here first. The animals are always here first.","The animals were here first! They were here before the tarmac!","The animals have seniority! Years of it!","The animals were here first, and they'll be here after you.","Remember: the animals came first. The animals always come first.","The animals were here first. They're older than the whole circuit."],
+        "aura_drift.marshal.12": ["Honking doesn't help. We've tried. Repeatedly.","Honking won't help. Trust us. We tried with a trumpet.","Please don't honk. The horn is our least effective tool.","Honking! Lovely! The cows have heard it. They liked it. They didn't move.","We honked. It didn't work. We honked again. It was worse.","No honking. The animals are not impressed by horns. Or us."],
+        "aura_drift.marshal.13": ["And the winner is... you. Congratulations, I suppose.","The chequered flag is yours! Nobody expected that, including me.","First place! I'd applaud, but the paperwork comes first.","You won! I'd believe it if I hadn't seen the tape.","The winner! Shall we say the race was a gift? No, we shan't.","Victory is yours! I'd say \"well done\" if you hadn't crashed into me earlier."],
+        "aura_drift.marshal.14": ["That's a win! Genuinely! I'm going to need a moment.","First! Hold on, let me check the paperwork. Yes. Yes!","You won the race! The race that everybody entered.","Winner! The other seven drivers will need a moment.","You won! I'd say \"unbelievable\", but I saw all of it.","The winner is you! I'd offer you a snack, but you'd probably crash into it."],
+        "aura_drift.marshal.15": ["And the trophy is yours! Don't ask me who cleans it.","Victory! I'll announce it louder next time. Much louder.","You won! I have written it down. Twice. To be sure.","The champion! The name goes on a plaque that nobody reads.","You won! Would you like a speech? No? Wise.","First place! Honestly, my crane is going to be so bored now."],
+        "aura_drift.marshal.16": ["Winner! The flag is yours and so is the bill for the flag.","You won! I hope the prize is better than the crash was.","The race is yours! All of it, including the bit in the gravel.","First! I'd hug you, but the marshal's rules are strict.","You won! Enjoy the quiet. It won't last.","That's a win! I'll remember it. Long after everyone else has."]
     };
 
     /* Which voice speaks which driver. */
@@ -79,16 +94,24 @@
         "viktor": "juno",
         "rosi": "mira",
         "bruno": "juno",
-        "dolores": "mira",
-        "gustav": "juno",
         "heidi": "mira",
         "ilse": "mira",
+        "gustav": "juno",
         "kurt": "juno",
+        "dolores": "mira",
         "marshal": "juno"
     };
 
     /* The english text of a banter key, or null when the key is not a line. */
-    AD.woofLine = function (key) {
+    AD.woofLine = function (key, index) {
+        const lines = AD.WOOF_LINES[key];
+        if (!lines) return null;
+        const at = typeof index === 'number' && index >= 0 ? Math.floor(index) : 0;
+        return lines[at] || lines[0] || null;
+    };
+
+    /* Every wording of a line, or null when the key is not a line. */
+    AD.woofLines = function (key) {
         return AD.WOOF_LINES[key] || null;
     };
 
@@ -97,8 +120,16 @@
         return AD.WOOF_VOICES[driverId] || 'juno';
     };
 
-    /* Every line, in the order the prewarm pass should speak them. */
+    /* Every line and every wording, in the order the prewarm pass should speak
+     * them: the first wording of every line first, the alternatives afterwards. */
     AD.woofPrewarm = function () {
-        return Object.keys(AD.WOOF_LINES);
+        const keys = Object.keys(AD.WOOF_LINES);
+        const list = [];
+        for (const key of keys) list.push({ key: key, index: 0 });
+        for (const key of keys) {
+            const lines = AD.WOOF_LINES[key];
+            for (let i = 1; i < lines.length; i++) list.push({ key: key, index: i });
+        }
+        return list;
     };
 })();

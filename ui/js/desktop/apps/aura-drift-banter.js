@@ -2,16 +2,22 @@
  * the race and the event stream, owns its own rng and never touches the sim.
  *
  * Line keys (see plan section 2.11):
- *   aura_drift.banter.<driver>.<kind>   kinds: pass passed hit got_you wreck win
+ *   aura_drift.banter.<driver>.<kind>   kinds: pass passed hit got_you wreck win style
  *     pass     the driver just overtook the player
  *     passed   the player just overtook the driver
  *     hit      the driver was hit by the player
  *     got_you  the driver hit the player
  *     wreck    the driver mocks a player crash (landing or heavy wall hit)
  *     win      an AI driver won the race
+ *     style    the driver comments on a style chain the player banked
  *   aura_drift.marshal.1..6   after the player was put back on the road
  *   aura_drift.marshal.7..12  when animals are about to cross
+ *   aura_drift.marshal.13..16 when the player wins the race
  * The speaker id of marshal lines is 'marshal'.
+ *
+ * Every line holds several wordings, one per line of its value. The radio shows
+ * one of them and the voice speaks the english original of the very same one, so
+ * both always say the same thing and a line never sounds the same twice in a row.
  */
 (function () {
     'use strict';
@@ -23,18 +29,25 @@
     const DELAY = 0.35;       /* a beat between the event and the remark */
     const MARSHAL_RESPAWN = [1, 6];
     const MARSHAL_CROSS = [7, 12];
+    const MARSHAL_WIN = [13, 16];
+    const STYLE_POINTS = 200; /* a style chain worth a remark */
 
-    AD.BANTER_KINDS = ['pass', 'passed', 'hit', 'got_you', 'wreck', 'win'];
+    AD.BANTER_KINDS = ['pass', 'passed', 'hit', 'got_you', 'wreck', 'win', 'style'];
 
     AD.createBanter = function (opts) {
         opts = opts || {};
         const t = typeof opts.t === 'function' ? opts.t : (k => k);
+        /* The voice knows which wordings it can speak at once. A line is only worth
+         * it when the remark comes out of the speaker right now, so the wordings
+         * that are ready are the ones the radio prefers. */
+        const ready = typeof opts.ready === 'function' ? opts.ready : null;
         const rng = AD.rng(((opts.seed >>> 0) ^ 0x51ed) >>> 0);
         let clock = 0;
         let lastSpoken = -Infinity;
         let lastDriver = null;
         const lastType = Object.create(null);
         const lastKey = Object.create(null);
+        const lastVariant = Object.create(null);
         let pending = null;
         let disposed = false;
 
@@ -46,14 +59,45 @@
             return true;
         }
 
+        /* The wordings of a line: one per line of its value. */
+        function wordingsOf(key) {
+            const raw = t(key);
+            if (!raw || raw === key) return null;
+            const list = String(raw).split('\n').map(text => text.trim()).filter(Boolean);
+            return list.length ? list : null;
+        }
+
+        /* The wording of the line: one the voice can speak right now if it knows
+         * one, and never the one of the last time. */
+        function pickVariant(key, count) {
+            let pool = [];
+            if (ready) {
+                const known = ready(key);
+                if (known && known.length) for (const index of known) if (index < count) pool.push(index);
+            }
+            if (!pool.length) for (let index = 0; index < count; index++) pool.push(index);
+            const last = lastVariant[key];
+            let choice = pool[Math.floor(rng() * pool.length)];
+            if (pool.length > 1 && choice === last) {
+                const others = pool.filter(index => index !== last);
+                choice = others[Math.floor(rng() * others.length)];
+            }
+            lastVariant[key] = choice;
+            return choice;
+        }
+
         function say(type, driverId, key) {
             if (key in lastKey && clock - lastKey[key] < PER_KEY) return;
             if (!allowed(type, driverId)) return;
-            const text = t(key);
-            if (!text || text === key) return;
-            /* The key travels with the line: the voice commentary reads the english
-             * original of the same line, whatever language the radio shows. */
-            pending = { driverId: driverId, text: AD.fmt(text, {}), key: key, wait: DELAY };
+            const texts = wordingsOf(key);
+            if (!texts) return;
+            const variant = pickVariant(key, texts.length);
+            const text = texts[variant];
+            if (!text) return;
+            /* The key and the wording travel with the line: the voice commentary
+             * reads the english original of the same wording, whatever language
+             * the radio shows. */
+            pending = { driverId: driverId, text: AD.fmt(text, {}), key: key, variant: variant, wait: DELAY };
             lastSpoken = clock;
             lastDriver = driverId;
             lastType[type] = clock;
@@ -134,8 +178,18 @@
                 break;
             case 'finish': {
                 if (race && race.cars && race.cars.some(c => c.finished && c.index !== evt.car && c.finishTime <= evt.time)) break;
+                if (evt.car === 0) { say('finish', 'marshal', marshalKey(MARSHAL_WIN)); break; }
                 const d = aiDriver(race, evt.car);
                 if (d) say('finish', d.id, driverKey(d, 'win'));
+                break;
+            }
+            case 'style_bank': {
+                /* The player banked a style chain: the nearest rival has an opinion
+                 * about it. Short chains are not worth a remark. */
+                if (evt.car !== 0) break;
+                if (!(evt.points >= STYLE_POINTS)) break;
+                const d = nearestRival(race);
+                if (d) say('style', d.id, driverKey(d, 'style'));
                 break;
             }
             case 'respawn':
@@ -155,7 +209,7 @@
             if (!pending) return null;
             pending.wait -= dt;
             if (pending.wait > 0) return null;
-            const out = { driverId: pending.driverId, text: pending.text, key: pending.key };
+            const out = { driverId: pending.driverId, text: pending.text, key: pending.key, variant: pending.variant };
             pending = null;
             return out;
         }

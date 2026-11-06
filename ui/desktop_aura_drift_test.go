@@ -233,9 +233,9 @@ func TestAuraDriftLocaleKeysCoverAllLanguages(t *testing.T) {
 	ids("brand.", "", "wurstwerk", "muhmilch", "turbotoast", "sofaspeed", "gnombau", "nebelhorn", "entenbank", "plueschreifen")
 	ids("result.", "", "score", "tricks", "air_time", "animals", "smashed", "cup_total", "eliminated_at", "survived")
 	for _, driver := range drivers {
-		ids("banter."+driver+".", "", "pass", "passed", "hit", "got_you", "wreck", "win")
+		ids("banter."+driver+".", "", "pass", "passed", "hit", "got_you", "wreck", "win", "style")
 	}
-	for n := 1; n <= 12; n++ {
+	for n := 1; n <= 16; n++ {
 		required = append(required, "aura_drift.marshal."+strconv.Itoa(n))
 	}
 
@@ -293,6 +293,65 @@ func TestAuraDriftLocaleKeysCoverAllLanguages(t *testing.T) {
 		}
 		if total == 0 || differ*100 < total*60 {
 			t.Fatalf("%s translates only %d of %d banter lines (need 60 percent)", lang, differ, total)
+		}
+	}
+}
+
+func TestAuraDriftBanterLinesCarrySeveralWordings(t *testing.T) {
+	t.Parallel()
+
+	// Every spoken line holds its wordings, one per line of its value. The radio
+	// shows one of them and the voice speaks the english original of the same one,
+	// so a line never sounds the same twice in a row.
+	english := readMergedLangMap(t, "en")
+	lines := 0
+	for key, value := range english {
+		if !strings.HasPrefix(key, "aura_drift.banter.") && !strings.HasPrefix(key, "aura_drift.marshal.") {
+			continue
+		}
+		lines++
+		words := strings.Split(value, "\n")
+		if len(words) < 5 {
+			t.Fatalf("en %s has %d wordings, want at least 5", key, len(words))
+		}
+		seen := map[string]bool{}
+		for _, word := range words {
+			word = strings.TrimSpace(word)
+			if word == "" {
+				t.Fatalf("en %s has an empty wording", key)
+			}
+			if seen[word] {
+				t.Fatalf("en %s repeats the wording %q", key, word)
+			}
+			seen[word] = true
+		}
+	}
+	if lines < 70 {
+		t.Fatalf("en has %d banter lines, want at least 70", lines)
+	}
+
+	for _, lang := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
+		values := readMergedLangMap(t, lang)
+		for key, value := range english {
+			if !strings.HasPrefix(key, "aura_drift.banter.") && !strings.HasPrefix(key, "aura_drift.marshal.") {
+				continue
+			}
+			words := strings.Split(value, "\n")
+			local := strings.Split(values[key], "\n")
+			if len(local) != len(words) {
+				t.Fatalf("%s %s has %d wordings, want %d", lang, key, len(local), len(words))
+			}
+			seen := map[string]bool{}
+			for _, word := range local {
+				word = strings.TrimSpace(word)
+				if word == "" {
+					t.Fatalf("%s %s has an empty wording", lang, key)
+				}
+				if seen[word] {
+					t.Fatalf("%s %s repeats the wording %q", lang, key, word)
+				}
+				seen[word] = true
+			}
 		}
 	}
 }
