@@ -2,6 +2,7 @@ package storymaker
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io/fs"
 )
@@ -49,6 +50,9 @@ type AgentJobInfo struct {
 	DurationSeconds float64      `json:"duration_seconds,omitempty"`
 	Request         string       `json:"request,omitempty"`
 	Tokens          int          `json:"tokens,omitempty"`
+	ChangedScenes   []string     `json:"changed_scenes,omitempty"`
+	UnchangedScenes []string     `json:"unchanged_scenes,omitempty"`
+	RemovedScenes   []string     `json:"removed_scenes,omitempty"`
 }
 
 // OutcomeInput is what a finished job knows. Narration is "", narration_unavailable, narration_failed,
@@ -130,6 +134,45 @@ func StoryIsBlank(st *Story) bool {
 		}
 	}
 	return true
+}
+
+// ChangedScenes compares two versions of a story scene by scene, by id. changed holds the scenes that
+// differ or are new, and unchanged the scenes that are equal. A moved scene that is otherwise equal is
+// unchanged. removed holds the ids that only before has. changed and unchanged follow after, and removed
+// follows before. A nil story counts as having no scenes.
+func ChangedScenes(before, after *Story) (changed, unchanged, removed []string) {
+	old := map[string]string{}
+	if before != nil {
+		for i := range before.Scenes {
+			old[before.Scenes[i].ID] = sceneFingerprint(&before.Scenes[i])
+		}
+	}
+	seen := map[string]bool{}
+	if after != nil {
+		for i := range after.Scenes {
+			sc := &after.Scenes[i]
+			seen[sc.ID] = true
+			if prev, had := old[sc.ID]; had && prev == sceneFingerprint(sc) {
+				unchanged = append(unchanged, sc.ID)
+			} else {
+				changed = append(changed, sc.ID)
+			}
+		}
+	}
+	if before != nil {
+		for i := range before.Scenes {
+			if id := before.Scenes[i].ID; !seen[id] {
+				removed = append(removed, id)
+			}
+		}
+	}
+	return changed, unchanged, removed
+}
+
+// sceneFingerprint is the JSON encoding of a scene. The position of the scene in the story is not part of it.
+func sceneFingerprint(sc *Scene) string {
+	raw, _ := json.Marshal(sc)
+	return string(raw)
 }
 
 // MakeSilent rewrites a story so that it needs no voice, and returns the number of scenes it changed. In each
