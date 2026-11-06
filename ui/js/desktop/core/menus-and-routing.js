@@ -1876,6 +1876,17 @@ if (appId === 'pixel') {
                 fileOps: window.AuraDesktopFileOps
             }));
         }
+        if (appId === 'goldfish-adventure') {
+            if (!window.GoldfishAdventureApp) {
+                window.AuraDesktopModules.loadAppScript('goldfish-adventure').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            return window.GoldfishAdventureApp.render(contentEl(id), id, Object.assign({}, context || {}, {
+                esc, t, api, confirmDialog, promptDialog,
+                setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
+                isActive: () => state.activeWindowId === id
+            }));
+        }
         if (appId === 'aura-drift') {
             if (!window.AuraDriftApp) {
                 window.AuraDesktopModules.loadAppScript('aura-drift').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));

@@ -1,0 +1,256 @@
+.agfish-app {
+    --agfish-ink: #f2e5cc;
+    --agfish-muted: #b8b4a6;
+    --agfish-paper: #e8d9b9;
+    --agfish-brass: #c8a36a;
+    --agfish-dark: #182629;
+    --agfish-line: rgba(206, 179, 128, .26);
+    width: 100%;
+    height: 100%;
+    min-height: 340px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    color: var(--agfish-ink);
+    background: #142125;
+    font: 14px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color-scheme: dark;
+    isolation: isolate;
+}
+.agfish-app *, .agfish-dialog * { box-sizing: border-box; }
+.agfish-app [hidden], .agfish-dialog [hidden] { display: none !important; }
+.agfish-app h1, .agfish-app h2, .agfish-app h3, .agfish-app p, .agfish-dialog h2, .agfish-dialog p { margin: 0; }
+:where(.agfish-app, .agfish-dialog) :where(button, input, select) { font: inherit; }
+.agfish-button {
+    min-height: 38px;
+    padding: 8px 13px;
+    border: 1px solid var(--agfish-line);
+    border-radius: 7px;
+    background: #243337;
+    color: var(--agfish-ink);
+    line-height: 1.35;
+    cursor: pointer;
+    transition: background .14s, border-color .14s;
+    text-wrap: pretty;
+    overflow-wrap: anywhere;
+}
+.agfish-button:hover { background: #354144; border-color: #beaa83; }
+.agfish-button:disabled { cursor: default; opacity: .46; }
+.agfish-app :focus-visible, .agfish-dialog :focus-visible { outline: 3px solid #f2bf76; outline-offset: 3px; }
+.agfish-primary { background: #cfab73; color: #1b2b2e; border-color: #e1c18c; font-weight: 650; }
+.agfish-primary:hover { background: #e2c594; }
+.agfish-toolbar {
+    flex: 0 0 auto;
+    display: flex;
+    gap: 16px;
+    justify-content: space-between;
+    align-items: center;
+    min-height: 72px;
+    padding: 13px 20px;
+    border-bottom: 1px solid var(--agfish-line);
+    background: #1a2a2d;
+}
+.agfish-identity { display: flex; gap: 16px; align-items: center; min-width: 0; }
+.agfish-maker {
+    flex: 0 0 auto;
+    padding: 4px 8px;
+    color: #dfbd84;
+    border: 1px solid #8f7e5d;
+    border-radius: 3px;
+    font: 10px/1.4 ui-monospace, Consolas, monospace;
+    letter-spacing: .1em;
+}
+.agfish-place { min-width: 0; }
+.agfish-act { display: block; color: var(--agfish-muted); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; }
+.agfish-room { color: var(--agfish-ink); font: 500 20px/1.3 Georgia, "Times New Roman", serif; }
+.agfish-menu { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.agfish-menu .agfish-button { padding: 6px 10px; min-height: 34px; font-size: 12px; background: transparent; }
+.agfish-menu .agfish-button:hover { background: #304044; }
+.agfish-workspace { flex: 1 1 auto; display: grid; grid-template-columns: minmax(0, 1fr) 238px; overflow: hidden; min-height: 0; }
+.agfish-stage-column { min-width: 0; min-height: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #0d171c; overflow: hidden; }
+.agfish-scene { position: relative; flex: 0 0 auto; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; }
+.agfish-canvas { display: block; width: 100%; height: 100%; object-fit: contain; }
+.agfish-hotspots { position: absolute; inset: 0; }
+.agfish-hotspot {
+    position: absolute;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 6px;
+    border: 1px solid transparent;
+    border-radius: 11px;
+    background: transparent;
+    color: transparent;
+    text-shadow: none;
+    font-size: 12px;
+    cursor: pointer;
+}
+.agfish-hotspot:hover, .agfish-hotspot:focus-visible, .agfish-show-hotspots .agfish-hotspot {
+    background: rgba(12, 30, 33, .18);
+    border-color: rgba(249, 219, 163, .72);
+    color: #fff4d7;
+    text-shadow: 0 1px 3px #000, 0 0 9px #000;
+}
+.agfish-hotspot:focus-visible { background: rgba(19, 38, 39, .64); z-index: 2; }
+.agfish-exit {
+    position: absolute;
+    min-height: 34px;
+    padding: 6px 9px;
+    border: 1px solid rgba(227, 204, 161, .48);
+    border-radius: 7px;
+    background: rgba(17, 34, 38, .84);
+    color: #f5e7cb;
+    font-size: 11px;
+    line-height: 1.25;
+    white-space: normal;
+}
+.agfish-exit:hover { background: rgba(57, 77, 75, .94); }
+.agfish-locked-exit { border-style: dashed; color: #c3bdab; }
+.agfish-busy .agfish-hotspots { pointer-events: none; }
+.agfish-skip-scene { position: absolute; right: 16px; bottom: 16px; z-index: 5; background: rgba(18, 34, 38, .91); border-color: #c6aa79; font-size: 12px; }
+.agfish-in-moment .agfish-hotspots { visibility: hidden; }
+.agfish-sidebar { min-height: 0; overflow: auto; padding: 20px 17px; border-left: 1px solid var(--agfish-line); background: #1e2e31; }
+.agfish-context { display: flex; flex-direction: column; align-items: stretch; gap: 9px; min-height: 160px; padding-bottom: 22px; }
+.agfish-context h3 { padding-bottom: 5px; color: #e7c68e; font: 500 19px/1.3 Georgia, "Times New Roman", serif; }
+.agfish-context .agfish-button { text-align: left; }
+.agfish-context .agfish-button:first-of-type { background: transparent; color: #cbc4b4; }
+.agfish-inventory-section { border-top: 1px solid var(--agfish-line); padding-top: 19px; }
+.agfish-inventory-section h2 { font-size: 10px; font-weight: 650; letter-spacing: .17em; text-transform: uppercase; color: #c6b68f; margin-bottom: 12px; }
+.agfish-inventory { display: grid; grid-template-columns: minmax(0, 1fr); gap: 7px; }
+.agfish-inventory > p { grid-column: 1 / -1; }
+.agfish-item { min-width: 0; padding: 8px; display: flex; align-items: center; justify-content: flex-start; gap: 10px; min-height: 60px; font-size: 12px; text-align: left; hyphens: auto; }
+.agfish-item img { flex: 0 0 43px; width: 43px; height: 43px; object-fit: contain; }
+.agfish-item[aria-pressed="true"] { color: #fff0cf; border-color: #e6b976; background: #5a513d; }
+.agfish-selected-item { font-size: 11px; margin-bottom: 9px; color: #e7c68e; width: 100%; }
+.agfish-dialogue {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 20px;
+    padding: 17px 22px;
+    min-height: 113px;
+    border: 12px solid transparent;
+    border-image: url('/img/goldfish-adventure/interface/dialogue-frame.png') 90 fill / 12px / 0 stretch;
+    background: var(--agfish-paper);
+    color: #26363a;
+    width: 100%;
+}
+.agfish-dialogue-content { flex: 1 1 auto; min-width: 0; }
+.agfish-speaker { display: block; color: #755630; font-size: 10px; font-weight: 750; letter-spacing: .14em; text-transform: uppercase; margin-bottom: 6px; }
+.agfish-line { font: 17px/1.5 Georgia, "Times New Roman", serif; text-wrap: pretty; }
+.agfish-dialogue-controls { flex: 0 0 100px; display: flex; flex-direction: column; gap: 6px; }
+.agfish-dialogue-controls .agfish-button { border-color: #a89066; background: #cfb991; font-size: 12px; color: #253539; }
+.agfish-dialogue-controls .agfish-button + .agfish-button { background: transparent; font-size: 10px; }
+.agfish-footer { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex: 0 0 auto; min-height: 35px; padding: 5px 17px; border-top: 1px solid var(--agfish-line); background: #17272b; }
+.agfish-save-status { font-size: 11px; color: #a6b8ad; }
+.agfish-footer .agfish-button { min-height: 25px; font-size: 11px; padding: 4px 9px; }
+.agfish-warning { color: #f1bb7f !important; }
+.agfish-small { font-size: 12px; color: var(--agfish-muted); line-height: 1.6; }
+.agfish-start, .agfish-pause-overlay, .agfish-art-status {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    padding: 28px;
+    text-align: center;
+    background: rgba(13, 29, 33, .85);
+}
+.agfish-art-status { background: #18272d; z-index: 3; }
+.agfish-start { align-items: flex-start; background: linear-gradient(90deg, rgba(13, 29, 33, .97) 10%, rgba(13, 29, 33, .78) 56%, rgba(13, 29, 33, .2)); z-index: 4; text-align: left; }
+.agfish-start-content { max-width: 480px; padding: 20px; }
+.agfish-start h2 { font: 500 clamp(27px, 3.8vw, 53px)/1.1 Georgia, "Times New Roman", serif; letter-spacing: -.025em; margin: 16px 0 20px; color: #f3dfba; text-wrap: balance; }
+.agfish-eyebrow { color: #e8bb76; font-size: 9px; letter-spacing: .12em; }
+.agfish-start p { max-width: 350px; color: #d0c9b5; font-size: 14px; line-height: 1.7; }
+.agfish-start-actions { display: flex; flex-wrap: wrap; gap: 9px; margin: 23px 0; }
+.agfish-start small { display: block; max-width: 390px; font-size: 10px; color: #bbb5a5; }
+.agfish-pause-overlay { z-index: 6; background: rgba(14, 31, 35, .92); }
+.agfish-pause-overlay p { font: 28px/1.3 Georgia, "Times New Roman", serif; }
+.agfish-boot { width: 100%; height: 100%; min-height: 220px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; padding: 24px; }
+.agfish-orbit { color: #d9af72; font-size: 54px; animation: agfish-turn 3s linear infinite; }
+@keyframes agfish-turn { to { transform: rotate(360deg); } }
+.agfish-dialog {
+    --agfish-ink: #f2e5cc;
+    --agfish-muted: #b8b4a6;
+    --agfish-line: rgba(206, 179, 128, .26);
+    position: fixed;
+    max-width: min(760px, calc(100vw - 32px));
+    width: 660px;
+    max-height: min(850px, calc(100dvh - 48px));
+    margin: auto;
+    padding: 0;
+    border: 1px solid #ac946b;
+    border-radius: 12px;
+    background: #1b2c30;
+    color: #f2e5cc;
+    box-shadow: 0 24px 90px rgba(0, 0, 0, .55);
+    font: 14px/1.6 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color-scheme: dark;
+}
+.agfish-dialog::backdrop { background: rgba(3, 12, 17, .72); }
+.agfish-dialog-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; position: sticky; top: 0; padding: 18px 23px; border-bottom: 1px solid var(--agfish-line); background: #213338; z-index: 1; }
+.agfish-dialog-heading h2 { color: #edcea1; font: 500 24px/1.2 Georgia, "Times New Roman", serif; }
+.agfish-close { min-width: 36px; min-height: 36px; padding: 3px; font-size: 24px; background: transparent; border-color: transparent; }
+.agfish-dialog-body { display: flex; flex-direction: column; gap: 18px; padding: 23px; }
+.agfish-dialog-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.agfish-slot-list { display: flex; flex-direction: column; }
+.agfish-slot { display: flex; gap: 16px; justify-content: space-between; align-items: center; padding: 16px 0; border-top: 1px solid var(--agfish-line); }
+.agfish-slot-label { display: flex; flex-direction: column; gap: 4px; }
+.agfish-slot-label strong { font-size: 13px; }
+.agfish-slot .agfish-button { font-size: 11px; min-height: 32px; padding: 6px 9px; }
+.agfish-journal { display: flex; flex-direction: column; gap: 17px; padding-left: 22px; margin: 0; }
+.agfish-journal li { padding-left: 7px; }
+.agfish-hint { color: #ecd6b0; font: 19px/1.6 Georgia, "Times New Roman", serif; }
+.agfish-hint-content, .agfish-hint-picker { display: flex; flex-direction: column; gap: 14px; }
+.agfish-hint-picker select { padding: 10px; border: 1px solid #7a7b69; border-radius: 5px; background: #283a3e; color: #f3e1c5; font: inherit; }
+.agfish-setting { display: flex; gap: 12px; align-items: center; padding: 13px 0; border-top: 1px solid var(--agfish-line); }
+.agfish-setting input, .agfish-choice input { width: 19px; height: 19px; accent-color: #d8b274; flex: 0 0 auto; }
+.agfish-challenge { display: flex; flex-direction: column; gap: 16px; }
+.agfish-challenge-prompt { color: #ead6b5; font: 21px/1.5 Georgia, "Times New Roman", serif; }
+.agfish-choices { display: flex; flex-direction: column; gap: 9px; }
+.agfish-choice { display: flex; align-items: flex-start; gap: 11px; padding: 13px 15px; background: #25373a; border: 1px solid var(--agfish-line); border-radius: 7px; cursor: pointer; }
+.agfish-choice:has(input:checked) { border-color: #d4b17d; background: #3a4440; }
+.agfish-match { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; align-items: center; padding: 10px 0; }
+.agfish-match select { min-width: 0; width: 100%; padding: 10px; border: 1px solid #7a7b69; border-radius: 5px; background: #283a3e; color: #f3e1c5; }
+.agfish-order { padding-left: 23px; min-height: 36px; color: #e4c08c; }
+@media (max-width: 1040px) {
+    .agfish-workspace { grid-template-columns: minmax(0, 1fr) 205px; }
+    .agfish-toolbar { padding: 9px 12px; gap: 10px; }
+    .agfish-maker { display: none; }
+    .agfish-menu { gap: 4px; }
+    .agfish-menu .agfish-button { font-size: 11px; padding: 5px 7px; }
+    .agfish-room { font-size: 18px; }
+    .agfish-sidebar { padding: 14px 12px; }
+    .agfish-dialogue { gap: 12px; padding: 13px 16px; }
+    .agfish-line { font-size: 15px; }
+    .agfish-start-content { padding: 0; }
+}
+@container (max-width: 760px) {
+    .agfish-workspace { grid-template-columns: 1fr; overflow: auto; display: flex; flex-direction: column; }
+    .agfish-stage-column { flex: 0 0 auto; overflow: visible; }
+    .agfish-sidebar { flex: 0 0 auto; min-height: 170px; display: grid; grid-template-columns: 1fr 1fr; gap: 18px; overflow: visible; border-left: 0; border-top: 1px solid var(--agfish-line); }
+    .agfish-context { min-height: 0; padding-bottom: 0; }
+    .agfish-inventory-section { border: 0; padding-top: 0; }
+    .agfish-toolbar { align-items: flex-start; flex-direction: column; }
+    .agfish-menu { justify-content: flex-start; }
+    .agfish-start { padding: 18px; }
+    .agfish-start h2 { font-size: 29px; margin: 8px 0 10px; }
+    .agfish-start p { font-size: 12px; line-height: 1.4; }
+    .agfish-start-actions { margin: 12px 0; }
+    .agfish-start small { display: none; }
+    .agfish-dialogue-controls { flex-basis: 74px; }
+}
+.agfish-app { container-type: inline-size; }
+@media (max-width: 520px) {
+    .agfish-slot, .agfish-match { display: flex; flex-direction: column; align-items: stretch; gap: 9px; }
+    .agfish-dialog-body, .agfish-dialog-heading { padding: 16px; }
+    .agfish-dialogue { padding: 11px; gap: 8px; }
+    .agfish-start h2 { font-size: 25px; }
+    .agfish-eyebrow { display: none; }
+    .agfish-exit { font-size: 9px; padding: 3px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .agfish-app *, .agfish-dialog * { animation: none !important; transition: none !important; }
+}

@@ -27,6 +27,11 @@ New app-scoped prefixes must contain no `ad` substring; verify
 
 ## Ownership
 
+- Goldfish Adventure (`goldfish-adventure`) owns its local Canvas scene, semantic
+  controls, IndexedDB saves and `goldfish`/`goldfish-interface` locale sections.
+  Follow `js/desktop/apps/goldfish-adventure/AGENTS.md` for shared shell changes
+  too. Its images and audio stay under `img/goldfish-adventure/`.
+
 - Aura Drift (`aura-drift`, category `games`) is a first-party offline Virtual Desktop racer
   with a three.js 3D view (default) and a Canvas 2D fallback. Its three.js runtime
   (`js/vendor/aura-drift/`, three.js 0.186.1), 37 lazy-loaded app modules, stylesheet, icon and
@@ -1304,6 +1309,9 @@ New app-scoped prefixes must contain no `ad` substring; verify
 - Verify `go test ./ui -run TestDesktopFindIt -count=1`; the real-handler flow is `AURAGO_RUN_BROWSER_SMOKE=1 go test ./internal/server -run TestDesktopFindItBrowser -count=1`.
 
 ## Child DOX Index
+
+- `js/desktop/apps/goldfish-adventure/AGENTS.md` — Authored adventure content,
+  bounded browser saves, scene animation, localization and lifecycle checks.
 
 - `fonts/qr/AGENTS.md` — Fixed local QR caption/fallback fonts, source revisions,
   integrity manifests and OFL notices; runtime schema/rendering belongs to

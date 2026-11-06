@@ -21,6 +21,12 @@ Use the existing helper for each job. Check release scripts with harmless fixtur
 
 ## Verification
 
+- Goldfish Adventure: `node scripts/test-goldfish-state.mjs`,
+  `node scripts/test-goldfish-animation.mjs`, `node scripts/test-goldfish-save.mjs`,
+  `node scripts/test-goldfish-app.mjs` and `node scripts/verify-goldfish-assets.mjs`.
+  Save/app tests use a real isolated Chrome/Edge profile and local loopback;
+  state/animation/asset checks require no service or provider credentials.
+
 - Run `bash -n <path>` for each changed shell script.
 - Parse changed PowerShell with `System.Management.Automation.Language.Parser`.
 - Run `node scripts/test-easydrag.mjs` for EasyDrag UI module and pack wire-contract checks.
