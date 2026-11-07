@@ -30,6 +30,7 @@
         const locale = localeIDs.has(rawLocale) ? rawLocale : 'de';
         const root = element('section', 'agfish-app');
         root.setAttribute('aria-label', ctx.t('desktop.app_goldfish_adventure'));
+        root.setAttribute('lang', locale);
         const initial = element('div', 'agfish-boot');
         initial.append(element('span', 'agfish-orbit', '◌'), element('p', '', ctx.t('desktop.app_goldfish_adventure')));
         root.append(initial);
@@ -349,6 +350,7 @@
                 }
                 if (disposed) return;
                 selected = null;
+                refs.dialogue.hidden = true;
                 lineQueue = [];
                 refresh();
                 const firstActEntry = room().act !== previousAct && !previous.visited.some(id =>
@@ -483,8 +485,7 @@
             const scene = element('div', 'agfish-scene');
             const fitScene = () => {
                 if (disposed) return;
-                const availableHeight = Math.max(1, stageColumn.clientHeight - (refs.dialogue.hidden ? 0 : refs.dialogue.offsetHeight));
-                const width = root.clientWidth <= 760 ? '100%' : Math.min(stageColumn.clientWidth, availableHeight * 16 / 9) + 'px';
+                const width = root.clientWidth <= 760 ? '100%' : Math.min(stageColumn.clientWidth, stageColumn.clientHeight * 16 / 9) + 'px';
                 if (scene.style.width !== width) scene.style.width = width;
             };
             const scheduleFit = () => {
@@ -571,7 +572,8 @@
             refs.skip = button(t('goldfish.ui.dialogue_skip'), () => { lineQueue = []; nextLine(); }); refs.skip.hidden = true;
             lineControls.append(refs.next, refs.skip);
             refs.dialogue.append(lineContent, lineControls);
-            stageColumn.append(scene, refs.dialogue);
+            scene.append(refs.dialogue);
+            stageColumn.append(scene);
             const sidebar = element('aside', 'agfish-sidebar');
             refs.context = element('section', 'agfish-context');
             const inventorySection = element('section', 'agfish-inventory-section');
@@ -589,7 +591,6 @@
             root.append(toolbar, workspace, footer);
             stageObserver = new ResizeObserver(scheduleFit);
             stageObserver.observe(stageColumn);
-            stageObserver.observe(refs.dialogue);
             scheduleFit();
             renderer = window.GoldfishRenderer.create(refs.canvas, {
                 onStatus: artStatus,

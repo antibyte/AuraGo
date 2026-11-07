@@ -1,10 +1,20 @@
+/* Px437 IBM VGA 8x16 by VileR (int10h.org), CC BY-SA 4.0, see /fonts/Px437-LICENSE.txt. */
+@font-face {
+    font-family: "Agfish Adventure";
+    src: url('/fonts/Px437_IBM_VGA_8x16.woff') format('woff');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
 .agfish-app {
     --agfish-ink: #f2e5cc;
     --agfish-muted: #b8b4a6;
-    --agfish-paper: #e8d9b9;
     --agfish-brass: #c8a36a;
     --agfish-dark: #182629;
     --agfish-line: rgba(206, 179, 128, .26);
+    --agfish-adventure-font: "Agfish Adventure", Georgia, "Times New Roman", "Nirmala UI", "Yu Gothic", "MS Gothic", "Microsoft YaHei", "Microsoft JhengHei", serif;
+    --agfish-story-font: Georgia, "Times New Roman", "Nirmala UI", "Yu Gothic", "MS Gothic", "Microsoft YaHei", "Microsoft JhengHei", serif;
     width: 100%;
     height: 100%;
     min-height: 340px;
@@ -109,6 +119,8 @@
 .agfish-busy .agfish-hotspots { pointer-events: none; }
 .agfish-skip-scene { position: absolute; right: 16px; bottom: 16px; z-index: 5; background: rgba(18, 34, 38, .91); border-color: #c6aa79; font-size: 12px; }
 .agfish-in-moment .agfish-hotspots { visibility: hidden; }
+/* While someone talks, the scene belongs to the conversation: no stray hotspots under the text. */
+.agfish-scene:has(> .agfish-dialogue:not([hidden])) .agfish-hotspots { visibility: hidden; }
 .agfish-sidebar { min-height: 0; overflow: auto; padding: 20px 17px; border-left: 1px solid var(--agfish-line); background: #1e2e31; }
 .agfish-context { display: flex; flex-direction: column; align-items: stretch; gap: 9px; min-height: 160px; padding-bottom: 22px; }
 .agfish-context h3 { padding-bottom: 5px; color: #e7c68e; font: 500 19px/1.3 Georgia, "Times New Roman", serif; }
@@ -122,25 +134,42 @@
 .agfish-item img { flex: 0 0 43px; width: 43px; height: 43px; object-fit: contain; }
 .agfish-item[aria-pressed="true"] { color: #fff0cf; border-color: #e6b976; background: #5a513d; }
 .agfish-selected-item { font-size: 11px; margin-bottom: 9px; color: #e7c68e; width: 100%; }
+/* The dialogue is an overlay on the playfield: it never takes space away from the scene. */
 .agfish-dialogue {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 5;
     display: flex;
-    flex: 0 0 auto;
-    align-items: center;
-    gap: 20px;
-    padding: 17px 22px;
-    min-height: 113px;
-    border: 12px solid transparent;
-    border-image: url('/img/goldfish-adventure/interface/dialogue-frame.png') 90 fill / 12px / 0 stretch;
-    background: var(--agfish-paper);
-    color: #26363a;
-    width: 100%;
+    align-items: flex-end;
+    gap: 18px;
+    margin: 0;
+    padding: 15px 20px 17px;
+    border: 0;
+    border-top: 2px solid rgba(228, 196, 141, .5);
+    background: rgba(9, 17, 19, .9);
+    color: #f4e6c8;
+    width: auto;
+}
+.agfish-dialogue::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 100%;
+    height: 38px;
+    background: linear-gradient(180deg, rgba(9, 17, 19, 0), rgba(9, 17, 19, .9));
+    pointer-events: none;
 }
 .agfish-dialogue-content { flex: 1 1 auto; min-width: 0; }
-.agfish-speaker { display: block; color: #755630; font-size: 10px; font-weight: 750; letter-spacing: .14em; text-transform: uppercase; margin-bottom: 6px; }
-.agfish-line { font: 17px/1.5 Georgia, "Times New Roman", serif; text-wrap: pretty; }
-.agfish-dialogue-controls { flex: 0 0 100px; display: flex; flex-direction: column; gap: 6px; }
-.agfish-dialogue-controls .agfish-button { border-color: #a89066; background: #cfb991; font-size: 12px; color: #253539; }
+.agfish-speaker { display: block; margin-bottom: 5px; color: #f2c987; font: 400 16px/1.25 var(--agfish-adventure-font); text-transform: uppercase; }
+.agfish-line { font: 400 16px/1.5 var(--agfish-adventure-font); text-wrap: pretty; overflow-wrap: break-word; }
+.agfish-dialogue-controls { flex: 0 0 auto; display: flex; flex-direction: column; gap: 6px; width: 128px; }
+.agfish-dialogue-controls .agfish-button { font: 600 12px/1.35 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
 .agfish-dialogue-controls .agfish-button + .agfish-button { background: transparent; font-size: 10px; }
+/* Scripts the 8x16 bitmap font cannot draw keep one consistent serif line. */
+.agfish-app:is(:lang(cs), :lang(el), :lang(hi), :lang(ja), :lang(pl), :lang(zh)) { --agfish-adventure-font: var(--agfish-story-font); }
 .agfish-footer { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex: 0 0 auto; min-height: 35px; padding: 5px 17px; border-top: 1px solid var(--agfish-line); background: #17272b; }
 .agfish-save-status { font-size: 11px; color: #a6b8ad; }
 .agfish-footer .agfish-button { min-height: 25px; font-size: 11px; padding: 4px 9px; }
@@ -224,7 +253,6 @@
     .agfish-room { font-size: 18px; }
     .agfish-sidebar { padding: 14px 12px; }
     .agfish-dialogue { gap: 12px; padding: 13px 16px; }
-    .agfish-line { font-size: 15px; }
     .agfish-start-content { padding: 0; }
 }
 @container (max-width: 760px) {
@@ -240,7 +268,7 @@
     .agfish-start p { font-size: 12px; line-height: 1.4; }
     .agfish-start-actions { margin: 12px 0; }
     .agfish-start small { display: none; }
-    .agfish-dialogue-controls { flex-basis: 74px; }
+    .agfish-dialogue-controls { width: 108px; }
 }
 .agfish-app { container-type: inline-size; }
 @media (max-width: 520px) {
