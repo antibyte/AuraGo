@@ -44,6 +44,7 @@
             '<div class="ss-tour" data-tour hidden></div>'+
             '<footer class="ss-footer"><span data-save-state role="status"></span><span class="ss-footer-hint">'+esc(tr('shortcuts'))+'</span><span class="ss-midi-led" data-midi-led aria-hidden="true"></span><span data-footer-count></span><button type="button" class="ss-tour-button" data-action="tour">'+esc(tr('tour'))+'</button></footer><input type="file" data-midi-file accept=".mid,.midi,audio/midi" hidden></div>';
         const root=host.firstElementChild, find=q=>root.querySelector(q);
+        window.SynthStudioControls?.observe(root,signal);
         editor=window.SynthStudioEditor.create(find('[data-editor-host]'),{getProject:project,readonly:blocked,tr,mutate,onTrackVolume:true,onSelect:()=>{renderInspector();composer?.refresh();stage?.refresh();},onAdd:()=>insert({type:'instrument',id:selectedInstrument},'',0),onDrop:insert,onNewClip:newClip,onSeek:seek,onAudition:p=>audition(p),onNoteOn:p=>noteOn(p,.8,performance.now(),17),onNoteOff:p=>noteOff(p,performance.now(),17),onError:fail,onTrackMenu:(action,trackId)=>{if(action==='delete')deleteTrackById(trackId);else if(action==='duplicate')duplicateTrackById(trackId);}});
         workspace=window.SynthStudioWorkspace.create(root,{tr,signal,project,blocked,onTour:()=>{tourIndex=0;renderTour();}});
         strudel=window.SynthStudioStrudel.create(workspace.strudel,{tr,signal,blocked,readonly,beforePlay:()=>{generation++;composer?.stop();if(playing)stop();else{audio.stop();panic();}},confirm:()=>ctx.confirmDialog?.(tr('workspace_strudel'),tr('strudel_replace'))});
@@ -67,6 +68,7 @@
             const active=document.activeElement,attrs=['data-param','data-track-name','data-instrument','data-track-volume','data-velocity','data-master-param','data-designer-param','data-designer-name'],attr=attrs.find(a=>active?.hasAttribute(a)),value=attr?active.getAttribute(attr):'';
             editor.render();renderInspector();renderMaster();status();workspace?.refresh();composer?.refresh();stage?.refresh();strudel?.refresh();
             if(attr)root.querySelectorAll('['+attr+']').forEach(el=>{if(el.getAttribute(attr)===value)el.focus({preventScroll:true});});
+            window.SynthStudioControls?.sync(root);
         }
         function loadProject(p){stop();history=M.history(M.upgrade(p));currentProject=history.current();cursor=0;editor.select(p.tracks[0]?.id||'',p.tracks[0]?.clips[0]?.id||'');workspace.performance.scrollTop=0;refresh();}
         function mutate(fn,kind='timeline'){

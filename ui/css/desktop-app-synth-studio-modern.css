@@ -1,0 +1,72 @@
+/* Synth Studio modern layer: loaded after desktop-app-synth-studio.css.
+   Colours come from the existing --ss-* tokens, so every desktop theme and the
+   accent colour keep working. Default look = dark teal with an orange record. */
+.ss-app {
+    --ss-lift: 0 10px 24px rgb(0 0 0 / .32), 0 2px 4px rgb(0 0 0 / .3);
+    --ss-edge: inset 0 1px 0 color-mix(in srgb, var(--ss-text) 16%, transparent), inset 0 -1px 0 rgb(0 0 0 / .35);
+    --ss-glass: linear-gradient(180deg, color-mix(in srgb, var(--ss-text) 8%, transparent), color-mix(in srgb, var(--ss-text) 2%, transparent));
+    --ss-glow: color-mix(in srgb, var(--ss-accent) 65%, transparent);
+    --ss-cap-hi: color-mix(in srgb, var(--ss-text) 42%, var(--ss-panel));
+    --ss-cap-lo: color-mix(in srgb, #000 60%, var(--ss-panel));
+    --ss-hot: #ff9d4a;
+}
+
+/* ---- native range hidden, dial drawn ---- */
+.ss-app input[type=range].ss-ctl-native {
+    position: absolute; width: 1px; height: 1px; min-width: 0; margin: 0; padding: 0;
+    opacity: 0; pointer-events: none; overflow: hidden;
+}
+.ss-ctl-dial { position: relative; display: inline-block; flex: none; user-select: none; touch-action: none; }
+.ss-ctl-native:focus-visible + .ss-ctl-dial { outline: 2px solid var(--ss-accent); outline-offset: 3px; }
+.ss-ctl-native:disabled + .ss-ctl-dial { opacity: .4; pointer-events: none; }
+
+.ss-ctl-knob { width: 60px; height: 60px; cursor: ns-resize; border-radius: 50%; }
+.ss-ctl-knob svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.ss-ctl-groove { fill: none; stroke: color-mix(in srgb, #000 50%, var(--ss-panel)); stroke-width: 4; stroke-linecap: round; }
+.ss-ctl-arc { fill: none; stroke: var(--ss-accent); stroke-width: 4; stroke-linecap: round; filter: drop-shadow(0 0 3px var(--ss-glow)); }
+.ss-ctl-cap {
+    position: absolute; inset: 11px; border-radius: 50%;
+    background: radial-gradient(circle at 34% 26%, var(--ss-cap-hi), var(--ss-cap-lo) 78%);
+    box-shadow: 0 5px 9px rgb(0 0 0 / .5), inset 0 1px 1px color-mix(in srgb, #fff 45%, transparent), inset 0 -3px 5px rgb(0 0 0 / .4);
+    transform: rotate(var(--ss-a, -135deg));
+}
+.ss-ctl-cap::after {
+    content: ''; position: absolute; left: 50%; top: 4px; width: 3px; height: 10px; margin-left: -1.5px;
+    border-radius: 2px; background: var(--ss-accent); box-shadow: 0 0 6px var(--ss-glow);
+}
+.ss-ctl-knob.is-dragging .ss-ctl-cap { filter: brightness(1.12); }
+
+.ss-ctl-hfader { width: 100%; min-width: 64px; height: 24px; cursor: ew-resize; }
+.ss-ctl-groove-h {
+    position: absolute; left: 0; right: 0; top: 50%; height: 6px; margin-top: -3px; border-radius: 4px;
+    background: color-mix(in srgb, #000 50%, var(--ss-panel)); box-shadow: inset 0 1px 3px rgb(0 0 0 / .6);
+}
+.ss-ctl-fill {
+    position: absolute; left: 0; top: 50%; height: 6px; margin-top: -3px; border-radius: 4px;
+    width: calc(7px + var(--ss-f, 0) * (100% - 14px)); background: var(--ss-accent); box-shadow: 0 0 8px var(--ss-glow);
+}
+.ss-ctl-thumb {
+    position: absolute; top: 50%; width: 14px; height: 22px; margin-top: -11px; border-radius: 5px;
+    left: calc(var(--ss-f, 0) * (100% - 14px));
+    background: linear-gradient(180deg, var(--ss-cap-hi), var(--ss-cap-lo));
+    box-shadow: 0 3px 6px rgb(0 0 0 / .5), inset 0 1px 0 color-mix(in srgb, #fff 40%, transparent);
+}
+
+/* ---- parameter cells that hold a knob ---- */
+.ss-app :is(.ss-parameter, .ss-designer-field):has(.ss-ctl-knob) {
+    display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center;
+    padding: 10px 6px 8px; border-radius: 14px;
+    background: var(--ss-glass), var(--ss-card); border: 1px solid var(--ss-card-border);
+    box-shadow: var(--ss-edge);
+}
+.ss-app :is(.ss-parameter, .ss-designer-field):has(.ss-ctl-knob) > span:first-child { order: 0; font-size: 11px; color: var(--ss-muted); }
+.ss-app :is(.ss-parameter, .ss-designer-field):has(.ss-ctl-knob) .ss-ctl-dial { order: 1; }
+.ss-app :is(.ss-parameter, .ss-designer-field):has(.ss-ctl-knob) output {
+    order: 2; font: 600 12px/1 var(--vd-mat-mono-font, monospace); color: var(--ss-accent);
+}
+.ss-app .ss-parameter:has(.ss-ctl-knob) [data-reset-param] {
+    order: 3; min-height: 0; padding: 0 6px; font-size: 10px; opacity: 0; color: var(--ss-muted);
+}
+.ss-app .ss-parameter:has(.ss-ctl-knob):hover [data-reset-param],
+.ss-app .ss-parameter:has(.ss-ctl-knob):focus-within [data-reset-param] { opacity: 1; }
+.ss-app .ss-param-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 12px; }

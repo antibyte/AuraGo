@@ -19,8 +19,8 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 	html := readDesktopAssetText(t, "desktop.html")
 	html = regexp.MustCompile(`(?s)<script\b[^>]*>.*?</script>`).ReplaceAllString(html, "")
 	html = regexp.MustCompile(`\{\{[^}]*\}\}`).ReplaceAllString(html, "")
-	html = strings.Replace(html, "</head>", `<link rel="stylesheet" href="/css/desktop-app-synth-studio.css"><style>body{margin:0}.vd-shell{height:100vh}</style></head>`, 1)
-	scripts := []string{"/synth-shell.js", "/js/desktop/apps/writer-session.js", "/js/vendor/synth-studio/gm-data.js", "/js/desktop/apps/synth-studio-presets.js", "/js/desktop/apps/synth-studio-designer.js", "/js/vendor/synth-studio/tone-midi-2.0.28.bundle.js", "/js/desktop/apps/synth-studio-model.js", "/js/desktop/apps/synth-studio-fx.js", "/js/desktop/apps/synth-studio-music.js", "/js/desktop/apps/synth-studio-voices.js", "/js/desktop/apps/synth-studio-audio.js", "/js/desktop/apps/synth-studio-export.js", "/js/desktop/apps/synth-studio-midi.js", "/js/desktop/apps/synth-studio-storage.js", "/js/desktop/apps/synth-studio-editor.js", "/js/desktop/apps/synth-studio-workspace.js", "/js/desktop/apps/synth-studio-compose.js", "/js/desktop/apps/synth-studio-performance.js", "/js/desktop/apps/synth-studio-stage.js", "/js/desktop/apps/synth-studio.js", "/testdata/synth-studio-fixture.js"}
+	html = strings.Replace(html, "</head>", `<link rel="stylesheet" href="/css/desktop-app-synth-studio.css"><link rel="stylesheet" href="/css/desktop-app-synth-studio-modern.css"><style>body{margin:0}.vd-shell{height:100vh}</style></head>`, 1)
+	scripts := []string{"/synth-shell.js", "/js/desktop/apps/writer-session.js", "/js/vendor/synth-studio/gm-data.js", "/js/desktop/apps/synth-studio-presets.js", "/js/desktop/apps/synth-studio-designer.js", "/js/vendor/synth-studio/tone-midi-2.0.28.bundle.js", "/js/desktop/apps/synth-studio-model.js", "/js/desktop/apps/synth-studio-fx.js", "/js/desktop/apps/synth-studio-music.js", "/js/desktop/apps/synth-studio-voices.js", "/js/desktop/apps/synth-studio-audio.js", "/js/desktop/apps/synth-studio-export.js", "/js/desktop/apps/synth-studio-midi.js", "/js/desktop/apps/synth-studio-storage.js", "/js/desktop/apps/synth-studio-editor.js", "/js/desktop/apps/synth-studio-controls.js", "/js/desktop/apps/synth-studio-workspace.js", "/js/desktop/apps/synth-studio-compose.js", "/js/desktop/apps/synth-studio-performance.js", "/js/desktop/apps/synth-studio-stage.js", "/js/desktop/apps/synth-studio.js", "/testdata/synth-studio-fixture.js"}
 	var tags strings.Builder
 	scripts = append([]string{"/js/desktop/apps/synth-studio-strudel.js"}, scripts...)
 	for _, path := range scripts {
@@ -83,6 +83,23 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 	check("demo has audible notes", `()=>synthInstance().project().tracks.every(t=>t.clips.some(c=>c.notes.length))`)
 	page.MustElement(".ss-clip").MustClick()
 	check("clip opens notes and FX rack", `()=>document.querySelectorAll('.ss-note').length>0 && document.querySelectorAll('.ss-inspector [data-param]').length===8`)
+	check("range sliders are drawn as knobs", `()=>{const i=[...document.querySelectorAll('.ss-inspector [data-param]')];return i.length===8&&i.every(e=>e.classList.contains('ss-ctl-native')&&e.nextElementSibling?.classList.contains('ss-ctl-knob'))}`)
+	knob := page.MustElement(".ss-inspector [data-param=tone] + .ss-ctl-knob")
+	box := knob.MustShape().Box()
+	cx, cy := box.X+box.Width/2, box.Y+box.Height/2
+	toneBefore := page.MustEval(`()=>synthInstance().project().tracks[0].params.tone`).Num()
+	dy := -60.0
+	if toneBefore > 0.5 {
+		dy = 60.0
+	}
+	page.Mouse.MustMoveTo(cx, cy)
+	page.Mouse.MustDown(proto.InputMouseButtonLeft)
+	page.Mouse.MustMoveTo(cx, cy+dy)
+	page.Mouse.MustUp(proto.InputMouseButtonLeft)
+	check("dragging a knob changes the model", `()=>Math.abs(synthInstance().project().tracks[0].params.tone-`+fmt.Sprint(toneBefore)+`)>.05`)
+	check("the knob shows the new value", `()=>{const i=document.querySelector('.ss-inspector [data-param=tone]');return Math.abs(parseFloat(i.nextElementSibling.style.getPropertyValue('--ss-f'))-Number(i.value))<.02}`)
+	page.MustElement("[data-action=undo]").MustClick()
+	check("a knob drag is one undo step", `()=>Math.abs(synthInstance().project().tracks[0].params.tone-`+fmt.Sprint(toneBefore)+`)<.001`)
 	page.MustEval(`()=>{window.originalTone=synthInstance().project().tracks[0].params.tone;const e=document.querySelector('[data-param=tone]');e.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true}));for(const v of [.2,.4,.65]){e.value=v;e.dispatchEvent(new Event('input',{bubbles:true}));}window.dispatchEvent(new PointerEvent('pointerup'));}`)
 	check("parameter gesture commits", `()=>synthInstance().project().tracks[0].params.tone===.65`)
 	page.MustElement("[data-action=undo]").MustClick()

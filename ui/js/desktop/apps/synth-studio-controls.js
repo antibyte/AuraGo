@@ -42,5 +42,122 @@
         return input.matches(KNOB_SELECTOR) ? 'knob' : null;
     }
 
-    window.SynthStudioControls = { snap, fraction, angle, arcPath, dragValue, kindFor };
+    const spec = input => ({ min: Number(input.min || 0), max: Number(input.max || 100), step: Number(input.step) || 1 });
+    const dialOf = input => {
+        const next = input.nextElementSibling;
+        return next && next.classList.contains('ss-ctl-dial') ? next : null;
+    };
+
+    function paint(input, dial) {
+        const s = spec(input), f = fraction(Number(input.value), s);
+        dial.style.setProperty('--ss-f', f.toFixed(4));
+        if (dial.classList.contains('ss-ctl-knob')) {
+            dial.style.setProperty('--ss-a', angle(f).toFixed(1) + 'deg');
+            const origin = s.min < 0 && s.max > 0 ? fraction(0, s) : 0;
+            dial.querySelector('.ss-ctl-arc').setAttribute('d', arcPath(origin, f));
+        }
+    }
+
+    function bind(input, dial, kind) {
+        let drag = null, wheelTimer = 0;
+        const horizontal = kind === 'hfader';
+        const set = value => {
+            const next = snap(value, spec(input));
+            if (next === Number(input.value)) return;
+            input.value = String(next);
+            paint(input, dial);
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        };
+        const fakeDown = pointerId => input.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerId }));
+        dial.addEventListener('pointerdown', event => {
+            if (event.button !== 0 || input.disabled) return;
+            event.preventDefault();
+            try { dial.setPointerCapture(event.pointerId); } catch (_) { /* synthetic pointer ids */ }
+            input.focus({ preventScroll: true });
+            fakeDown(event.pointerId);
+            if (horizontal) {
+                const rect = dial.getBoundingClientRect(), s = spec(input);
+                const f = clamp((event.clientX - rect.left - 7) / Math.max(1, rect.width - 14), 0, 1);
+                set(s.min + f * (s.max - s.min));
+            }
+            drag = { x: event.clientX, y: event.clientY, value: Number(input.value) };
+            dial.classList.add('is-dragging');
+        });
+        dial.addEventListener('pointermove', event => {
+            if (!drag) return;
+            const delta = horizontal ? event.clientX - drag.x : drag.y - event.clientY;
+            const pixels = horizontal ? Math.max(40, dial.clientWidth - 14) : 160;
+            set(dragValue(drag.value, delta, pixels, spec(input), event.shiftKey));
+        });
+        dial.addEventListener('pointerup', () => {
+            if (!drag) return;
+            drag = null;
+            dial.classList.remove('is-dragging');
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+        dial.addEventListener('pointercancel', () => {
+            drag = null;
+            dial.classList.remove('is-dragging');
+        });
+        // The wheel only acts on the focused control, so scrolling a panel past a
+        // knob never changes a sound by accident.
+        dial.addEventListener('wheel', event => {
+            if (document.activeElement !== input || input.disabled) return;
+            event.preventDefault();
+            if (!wheelTimer) fakeDown(1);
+            const s = spec(input);
+            set(Number(input.value) + (event.deltaY < 0 ? 1 : -1) * s.step * (event.shiftKey ? 1 : 5));
+            clearTimeout(wheelTimer);
+            wheelTimer = setTimeout(() => {
+                wheelTimer = 0;
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+                window.dispatchEvent(new PointerEvent('pointerup'));
+            }, 250);
+        }, { passive: false });
+        dial.addEventListener('dblclick', () => {
+            const reset = input.closest('label')?.querySelector('[data-reset-param]');
+            if (reset && !reset.disabled) reset.click();
+        });
+    }
+
+    function upgrade(input) {
+        const kind = kindFor(input);
+        if (!kind || input.dataset.ssCtl) return null;
+        input.dataset.ssCtl = kind;
+        input.classList.add('ss-ctl-native');
+        const dial = document.createElement('span');
+        dial.className = 'ss-ctl-dial ss-ctl-' + kind;
+        dial.setAttribute('aria-hidden', 'true');
+        dial.innerHTML = kind === 'knob'
+            ? '<svg viewBox="0 0 56 56"><path class="ss-ctl-groove" d="' + arcPath(0, 1) + '"/><path class="ss-ctl-arc" d=""/></svg><span class="ss-ctl-cap"></span>'
+            : '<span class="ss-ctl-groove-h"></span><span class="ss-ctl-fill"></span><span class="ss-ctl-thumb"></span>';
+        input.after(dial);
+        paint(input, dial);
+        bind(input, dial, kind);
+        return dial;
+    }
+    function upgradeAll(root) {
+        root.querySelectorAll('input[type=range]:not([data-ss-ctl])').forEach(upgrade);
+    }
+    function sync(root) {
+        root.querySelectorAll('input[data-ss-ctl]').forEach(input => {
+            const dial = dialOf(input);
+            if (dial) paint(input, dial);
+        });
+    }
+    // The app re-renders whole panels. One observer upgrades whatever appears.
+    function observe(root, signal) {
+        upgradeAll(root);
+        let queued = false;
+        const observer = new MutationObserver(() => {
+            if (queued) return;
+            queued = true;
+            queueMicrotask(() => { queued = false; upgradeAll(root); sync(root); });
+        });
+        observer.observe(root, { childList: true, subtree: true });
+        if (signal && typeof signal.addEventListener === 'function') signal.addEventListener('abort', () => observer.disconnect(), { once: true });
+        return observer;
+    }
+
+    window.SynthStudioControls = { snap, fraction, angle, arcPath, dragValue, kindFor, upgrade, upgradeAll, sync, observe };
 })();
