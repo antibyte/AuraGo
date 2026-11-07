@@ -77,6 +77,26 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 		waitForJSBool(t, page, `()=>getComputedStyle(document.querySelector('.ss-library')).visibility==='hidden'`)
 	}
 	check("app starts without errors", `()=>fixtureErrors.length===0 && document.querySelectorAll('.ss-library-item').length===249`)
+	// Regression: a restored Mix mode used to call renderMaster() during the
+	// workspace's first render, before the app had initialised its master
+	// constants, so the window never opened.
+	reopen := func(seed string) {
+		t.Helper()
+		page.MustEval(`async(seed)=>{
+			if(seed==='')localStorage.removeItem('aurago:synth-studio:view:2');else localStorage.setItem('aurago:synth-studio:view:2',seed);
+			const id=[...SynthStudioApp.instances.keys()][0];
+			await synthTest.closeWindow(id);
+		}`, seed)
+		waitForJSBool(t, page, `()=>SynthStudioApp.instances.size===0`)
+		page.MustEval(`()=>{synthTest.openApp('synth-studio')}`)
+		waitForJSBool(t, page, `()=>{const i=synthInstance();return !!i&&!!i.storage&&!!document.querySelector('[data-master-panel]')}`)
+		page.MustEval(`async()=>{await synthInstance().storage.ready;}`)
+	}
+	reopen(`{"panel":"mix"}`)
+	check("restored Mix mode opens without errors", `()=>fixtureErrors.length===0&&!!synthInstance()`)
+	check("restored Mix mode shows the populated master panel", `()=>{const p=document.querySelector('[data-master-panel]');return !p.hidden&&p.querySelectorAll('[data-master-param]').length===14&&document.querySelector('[data-work-tab=mix]').getAttribute('aria-selected')==='true'}`)
+	reopen("")
+	check("stored mode restored for later checks", `()=>fixtureErrors.length===0&&document.querySelector('[data-master-panel]').hidden`)
 	page.MustElement("[data-template=electronic]").MustClick()
 	waitForJSBool(t, page, `()=>synthInstance().project().tracks.length===5`)
 	check("template is sixteen bars and paused", `()=>{const p=synthInstance().project();return p.loop.end===30720&&!document.querySelector('[data-action=play]').classList.contains('is-active')}`)

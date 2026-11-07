@@ -137,7 +137,9 @@
         return dial;
     }
     function upgradeAll(root) {
-        root.querySelectorAll('input[type=range]:not([data-ss-ctl])').forEach(upgrade);
+        const inputs = root.querySelectorAll('input[type=range]:not([data-ss-ctl])');
+        inputs.forEach(upgrade);
+        return inputs.length;
     }
     function sync(root) {
         root.querySelectorAll('input[data-ss-ctl]').forEach(input => {
@@ -152,7 +154,7 @@
         const observer = new MutationObserver(() => {
             if (queued) return;
             queued = true;
-            queueMicrotask(() => { queued = false; upgradeAll(root); sync(root); });
+            queueMicrotask(() => { queued = false; if (upgradeAll(root) > 0) sync(root); });
         });
         observer.observe(root, { childList: true, subtree: true });
         if (signal && typeof signal.addEventListener === 'function') signal.addEventListener('abort', () => observer.disconnect(), { once: true });

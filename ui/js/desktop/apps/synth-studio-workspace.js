@@ -64,7 +64,7 @@
             if (master) {
                 if (view.panel === 'mix') {
                     if (master.hidden) { master.hidden = false; forcedMaster = true; }
-                    if (typeof options.onMix === 'function') options.onMix();
+                    if (started && typeof options.onMix === 'function') options.onMix();
                 } else if (forcedMaster) { master.hidden = true; forcedMaster = false; }
             }
             root.querySelectorAll('[data-action="library"]').forEach(b => b.setAttribute('aria-expanded', String(view.library)));
@@ -103,7 +103,10 @@
         for (const action of ['new', 'open']) { const b = document.createElement('button'); b.dataset.action = action; b.type = 'button'; b.textContent = tr(action); welcome.append(b); }
         if (typeof options.onTour === 'function') { const b = document.createElement('button'); b.dataset.action = 'tour'; b.type = 'button'; b.textContent = tr('tour'); welcome.append(b); }
         root.querySelector('.ss-main').prepend(welcome);
+        // The app builds its mixer after this module; its own first refresh() fills the master panel.
+        let started = false;
         render();
+        started = true;
         if (typeof ResizeObserver === 'function') {
             const observer = new ResizeObserver(() => applyLayout());
             observer.observe(host);
