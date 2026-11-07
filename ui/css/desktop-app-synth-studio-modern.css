@@ -70,3 +70,52 @@
 .ss-app .ss-parameter:has(.ss-ctl-knob):hover [data-reset-param],
 .ss-app .ss-parameter:has(.ss-ctl-knob):focus-within [data-reset-param] { opacity: 1; }
 .ss-app .ss-param-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 12px; }
+
+/* ---- mode bar ---- */
+.ss-app .ss-modes {
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 16px;
+    background: var(--ss-bar); border-bottom: 1px solid var(--ss-line); box-shadow: var(--ss-bar-edge);
+}
+.ss-app .ss-modes button {
+    display: inline-flex; align-items: center; gap: 8px; min-height: 38px; padding: 8px 18px;
+    font-size: 14px; font-weight: 600; color: var(--ss-muted); border-radius: 12px;
+    border: 1px solid var(--ss-border); background: var(--ss-glass), var(--ss-card);
+    box-shadow: var(--ss-edge), 0 2px 5px rgb(0 0 0 / .25);
+    transition: color .15s, box-shadow .15s, transform .15s;
+}
+.ss-app .ss-modes button:hover { color: var(--ss-text); }
+.ss-app .ss-modes button[aria-selected=true] {
+    color: var(--ss-text); border-color: color-mix(in srgb, var(--ss-accent) 60%, transparent);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--ss-accent) 24%, transparent), color-mix(in srgb, var(--ss-accent) 8%, transparent));
+    box-shadow: var(--ss-edge), 0 0 14px var(--ss-glow);
+}
+.ss-mode-mark { width: 8px; height: 8px; border-radius: 50%; background: color-mix(in srgb, var(--ss-muted) 60%, transparent); }
+.ss-modes button[aria-selected=true] .ss-mode-mark { background: var(--ss-accent); box-shadow: 0 0 8px var(--ss-glow); }
+.ss-app .ss-workbench-tabs { display: none !important; }
+
+/* ---- layout per mode (replaces the old wide/stacked grid) ---- */
+.ss-app .ss-workspace { display: block !important; position: relative; }
+.ss-app .ss-main { width: 100%; height: 100%; grid-column: auto; }
+.ss-app .ss-editor-host { display: flex !important; flex-direction: column; min-height: 0; grid-template: none; }
+.ss-app[data-mode=arrange] .ss-arrangement { flex: 1 1 0; min-height: 140px; }
+.ss-app[data-mode=arrange] .ss-note-editor { flex: 0 0 var(--ss-workbench-height); max-height: none; }
+.ss-app:not([data-mode=arrange]) .ss-arrangement { display: none; }
+.ss-app :is(.ss-sound-workbench, .ss-performance-workbench, .ss-strudel-workbench) { flex: 1 1 0; max-height: none; min-height: 0; }
+.ss-app[data-mode=mix] .ss-workspace { display: none !important; }
+.ss-app[data-mode=mix] .ss-master-panel { flex: 1; overflow: auto; align-content: start; padding: 20px 24px; gap: 20px 28px; }
+.ss-app .ss-workbench-grip { flex: 0 0 9px; }
+
+/* ---- library drawer ---- */
+.ss-app .ss-splitter-library { display: none !important; }
+.ss-app .ss-library {
+    position: absolute; left: 0; top: 0; bottom: 0; z-index: 20; display: flex !important;
+    width: min(var(--ss-library-width, 280px), 86%); transform: translateX(-102%); visibility: hidden;
+    box-shadow: none; background: var(--ss-glass), var(--ss-side);
+    transition: transform .22s ease, visibility 0s .22s, box-shadow .22s;
+}
+.ss-app.ss-library-open .ss-library { transform: none; visibility: visible; box-shadow: var(--ss-lift); transition-delay: 0s; }
+@media (prefers-reduced-motion: reduce) { .ss-app .ss-library { transition: none; } }
+
+/* The grid and zoom controls belong to the arrangement; the drawer and sound buttons stay. */
+.ss-app:not([data-mode=arrange]) .ss-arrange-tools > :not(button) { display: none; }
+.ss-app:not([data-mode=arrange]) .ss-arrange-tools { justify-content: flex-end; }
