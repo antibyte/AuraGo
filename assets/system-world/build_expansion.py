@@ -124,6 +124,19 @@ def furnishing(g, kind):
         g.box((0,0,.7),(3,.8,.2),'bronze')
         g.box((0,.35,1.15),(3,.14,.8),'titanium')
         for x in (-1.1,1.1): g.box((x,0,.35),(.15,.6,.7),'graphite')
+    elif kind == 'quay-lantern':
+        # A low harbour lamp. The v1 kit only has the tall cantilever street
+        # lamps, so the waterline itself stayed cold after dusk. The glowing
+        # glass is its own named part, found by the renderer and the bloom pass.
+        sides = (12, 10, 8)[g.lod]
+        g.cyl((0,0,.12), .34, .24, 'bronze', n=sides)
+        g.cyl((0,0,.78), .10, 1.10, 'bronze', n=sides)
+        g.cyl((0,0,1.36), .21, .10, 'titanium', n=sides)
+        g.part = 'glow'
+        g.cyl((0,0,1.69), .23, .56, 'lantern-glow', n=sides)
+        g.part = 'structure'
+        g.cyl((0,0,2.01), .29, .08, 'bronze', n=sides)
+        g.cyl((0,0,2.12), .055, .16, 'ivory', n=(8,6,6)[g.lod])
     elif kind == 'station':
         g.box((0,0,.15),(9,4,.3),'stone')
         for x in (-4,4): g.box((x,1.5,1.9),(.15,.15,3.8),'bronze')
@@ -326,6 +339,7 @@ def navigation(asset):
         data['colliders']=[[-4.5,3.69,-2,4.5,3.91,2]]+[[x-.075,0,-1.575,x+.075,3.8,-1.425] for x in (-4,4)]
         data['surfaces']=[{'rect':[-4.5,-2,4.5,2],'height':.3}]
     elif asset=='garden': data['colliders']=[[-2,0,-2,2,3.5,2]]
+    elif asset=='quay-lantern': data['colliders']=[[-.34,0,-.34,.34,2.2,.34]]
     elif asset=='arcade': data['colliders']=[[-3.25,0,-1,-2.75,4.8,1],[2.75,0,-1,3.25,4.8,1],[-3.25,4.44,-1.2,3.25,4.925,1.2]]
     elif asset=='service-cart': data['colliders']=[[-1.5,0,-1.65,1.5,3.4,1.65]]
     elif asset in ('console','cargo','hologram','bench','charger','cooler','archive-shelf'):
@@ -344,8 +358,15 @@ def build():
     glass.node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value=(.18,.42,.4,.2)
     glass.node_tree.nodes['Principled BSDF'].inputs['Alpha'].default_value=.2
     glass.surface_render_method='DITHERED';mats['garden-glass']=glass
+    lantern=mats['warm'].copy();lantern.name='city.lantern-glow'
+    lantern.diffuse_color=(1.0,.62,.28,1)
+    lantern_bsdf=lantern.node_tree.nodes['Principled BSDF']
+    lantern_bsdf.inputs['Base Color'].default_value=(1.0,.62,.28,1)
+    lantern_bsdf.inputs['Emission Color'].default_value=(1.0,.58,.24,1)
+    lantern_bsdf.inputs['Emission Strength'].default_value=2.4
+    mats['lantern-glow']=lantern
     factories={k:(lambda g,k=k:module(g,k)) for k in ['arcade','bridge','stairs','ramp','garden','quay','floor','wall','ceiling','window','door','lift','railing']}
-    factories.update({k:(lambda g,k=k:furnishing(g,k)) for k in ['tram','station','service-cart','pad','console','hologram','charger','cargo','cooler','bench','archive-shelf']})
+    factories.update({k:(lambda g,k=k:furnishing(g,k)) for k in ['tram','station','service-cart','pad','console','hologram','charger','cargo','cooler','bench','archive-shelf','quay-lantern']})
     factories.update({'robot-'+k:None for k in ROBOT_KINDS})
     factories.update({k:(lambda g,k=k:build_living(g,k)) for k in LIVING_ASSETS})
     factories.update({k:(lambda g,k=k:build_landmark(g,k)) for k in LANDMARK_ASSETS})

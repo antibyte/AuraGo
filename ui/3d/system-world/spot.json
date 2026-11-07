@@ -1,0 +1,43 @@
+{
+  "id": "spot",
+  "license": "BSD-3-Clause",
+  "copyright": "2021, Clearpath Robotics Inc.",
+  "provenance": {
+    "dataset": "codepawl/menagerie-glb",
+    "commit": "163f2a52ebbd3746cfee2f18d7bf8fd3102cbcbf",
+    "url": "https://huggingface.co/datasets/codepawl/menagerie-glb/resolve/163f2a52ebbd3746cfee2f18d7bf8fd3102cbcbf/engine/boston_dynamics_spot-spot/boston_dynamics_spot-spot.glb",
+    "upstream": "https://github.com/google-deepmind/mujoco_menagerie/tree/main/boston_dynamics_spot",
+    "upstream_path": "boston_dynamics_spot/spot",
+    "license_url": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/main/boston_dynamics_spot/LICENSE",
+    "source_bytes": 9467964,
+    "source_sha256": "8bf571e28c279a7edbec9233bdc21e7d7ae47a33faacdf9da8d4ef79cdd4ad38"
+  },
+  "source_triangles": 127534,
+  "runtime_triangles": 64843,
+  "build": "gltfpack -cc -kn -km -si 0.55 -sa",
+  "compression": [
+    "KHR_mesh_quantization",
+    "EXT_meshopt_compression"
+  ],
+  "y_up": true,
+  "units": "metres",
+  "file": "spot.glb",
+  "bytes": 291868,
+  "sha256": "acac6315f2bbddc703c1904e52e3b73395b906c1119496be11ed0a3cf7fdad4d",
+  "joints": [
+    "body",
+    "fl_hip",
+    "fr_hip",
+    "hl_hip",
+    "hr_hip",
+    "fl_uleg",
+    "fr_uleg",
+    "hl_uleg",
+    "hr_uleg",
+    "fl_lleg",
+    "fr_lleg",
+    "hl_lleg",
+    "hr_lleg"
+  ],
+  "validator_errors": 0
+}

@@ -19,6 +19,12 @@ This folder owns `UEBERSICHT.md`, `THIRD_PARTY_NOTICES.md`, `THIRD_PARTY_LIBRARI
 
 - `UEBERSICHT.md` is the German listing. Keep it aligned with the direct `go.mod` require block, root `package.json`, `browser_automation_sidecar/package.json`, `tools/aurago-tui/Cargo.toml`, and `internal/desktopstore/catalog.go`.
 - Texts in `texts/` are verbatim upstream or SPDX texts. Do not rewrite them.
+  `texts/system-world-spot-BSD-3-Clause.txt` is the verbatim MuJoCo Menagerie
+  licence for the System World companion (BSD-3-Clause, 2021 Clearpath Robotics
+  Inc.). `scripts/build-system-world-spot.mjs` copies it byte-for-byte to
+  `ui/3d/system-world/spot-LICENSE.txt`, and `test-system-world-companion.mjs`
+  asserts both copies stay identical. Source pin and provenance live in
+  `assets/system-world/spot-source.json`; only the compact derivative ships.
 - One SPDX text covers a license family. Project copyright lines stay in the overview or in the vendor `LICENSES.md` files. The SPDX MIT text uses year and holder placeholders.
 - The source-pinned PDF parser retains its exact Go Authors notice and named
   Google non-endorsement clause in `internal/pdftext/parser/LICENSE` and

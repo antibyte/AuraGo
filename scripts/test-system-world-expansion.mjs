@@ -10,7 +10,9 @@ import {districts} from '../ui/js/desktop/apps/sysworld-scene.js';
 import {createMachinery} from '../ui/js/desktop/apps/sysworld-machinery.js';
 
 const base='ui/3d/system-world/v2',manifest=JSON.parse(await fs.readFile(base+'/manifest.json'));
-assert.equal(manifest.assets.length,41);
+assert.equal(manifest.assets.length,42);
+const lantern=manifest.assets.find(a=>a.id==='quay-lantern');
+assert.ok(lantern&&lantern.lods.length===3&&lantern.components.includes('glow'),'Quay lantern keeps its glowing glass at every LOD');
 for(const [name,hash]of Object.entries(manifest.sources))assert.equal(createHash('sha256').update(await fs.readFile('assets/system-world/'+name)).digest('hex'),hash,'Authoring provenance drift: '+name);
 let models=0,bytes=0,warnings=0;
 for(const asset of manifest.assets){

@@ -25,6 +25,11 @@ Use the existing helper for each job. Check release scripts with harmless fixtur
   license notices, source ZIP and integrity manifest from the npm lock. `--check`
   regenerates in memory and compares without writing. Resolve inputs from the
   repository root; source archives include the integration and its build inputs.
+- System World: `node scripts/build-system-world.js --check` verifies the pinned
+  Three.js 0.186.1 renderer bundle; `node scripts/build-system-world-spot.mjs --check`
+  reproduces the meshopt companion from its hash-pinned BSD-3-Clause source;
+  `node scripts/test-system-world-companion.mjs` checks its patrol, provenance,
+  licence texts and the 12 MiB model budget.
 - Goldfish Adventure: `node scripts/test-goldfish-state.mjs`,
   `node scripts/test-goldfish-animation.mjs`, `node scripts/test-goldfish-save.mjs`,
   `node scripts/test-goldfish-app.mjs` and `node scripts/verify-goldfish-assets.mjs`.

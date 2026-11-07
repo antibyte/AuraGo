@@ -4709,7 +4709,9 @@ registration lives in `internal/desktop/types.go`.
   moon, animated sea with shore foam and city-light reflections, sea mist, 500
   dust motes, the rotating spire beacon (faster while the agent is busy),
   instanced lamp cones, three night searchlights (always leaning away from the
-  island) and up to 96 blinking aviation lights on skyline roofs. The sky disc
+  island) and up to 96 blinking aviation lights on skyline roofs. The lamp cones
+  drift towards amber at dusk and breathe by at most 5 percent on the shared
+  `time` uniform, so reduced motion freezes the flicker with the rest of the layer. The sky disc
   follows its own path (behind the skyline at dusk/night); the key light keeps
   its front-lit path so glass facades never mirror a backlight into the camera.
   `sysworld-cinema.js` is the final `ShaderPass`: grade/split-tone, S-curve,
@@ -4726,7 +4728,10 @@ registration lives in `internal/desktop/types.go`.
 - `sysworld-surfaces.js` gives the UV-less kit surface detail: six generated tileable maps
   (`ui/3d/system-world/textures/v1/`, R albedo / G roughness / B height) projected triplanar
   through `onBeforeCompile` on materials matched by name (`city.road|stone|graphite|titanium|
-  bronze|ceramic|leaf` and the island ground). Static geometry uses world space; moving or
+  bronze|ceramic|leaf` and the island ground). Emissive glass and signals
+  (`city.glass|garden-glass|cyan|jade|lantern-glow`) stay deliberately untextured;
+  `test-system-world-surfaces.mjs` asserts no kit material is left unmapped.
+  Static geometry uses world space; moving or
   articulated assets (tram, robots, doors, lifts, animated installations, drone clones) use
   object space so detail never slides. Bump uses screen-space derivatives of a metre-scaled
   height and fades out between 35 and 140 m. Low = no detail and no download, medium =
@@ -4738,7 +4743,16 @@ registration lives in `internal/desktop/types.go`.
   is decorative, never telemetry. Static walls darken towards their foot and the quay wall
   carries a wet waterline (world space only). Verify `node scripts/test-system-world-surfaces.mjs`.
 - Look by time of day: bloom and exposure rise towards night; the day keeps thin fog, low
-  sea mist and restrained ambient fill for readable shadows. The skyline placements are
+  sea mist and restrained ambient fill for readable shadows. The spire reactor keeps a dim
+  idle glow between jobs (the busy pulse stays the signal; reduced motion switches both off),
+  and six emissive `quay-lantern` props warm the waterfront without extra lights or draw loops.
+- `sysworld-companion.js` owns one decorative quadruped on a bounded, deterministic
+  quay loop (x 11..29, z 67.8..71.8) beside the lanterns. Its meshopt-compressed
+  BSD-3-Clause GLB is decoded with `GLTFLoader.setMeshoptDecoder`; `companionPose`
+  and `companionGait` are pure, the gait is a diagonal trot on the named joints,
+  and the one local clock advances only while the city is animated, visible and
+  not in map or replay mode. A missing or broken asset only hides the companion.
+  It is scenery: no traffic registration, telemetry, foley voice or system action. The skyline placements are
   seeded (jitter, gaps, turned towers, taller towards the middle) plus a lower far row; they
   stay scenery outside navigation. `sysworld-atmosphere.js` also draws a faint distant
   coastline (fixed haze tint, not scene fog) behind and beside the city, open towards the
@@ -4767,8 +4781,11 @@ registration lives in `internal/desktop/types.go`.
   (16 s) into a generated convolution reverb, air with wind gusts and at most 12
   transient events (swooshes, chimes, day birds, harbour gulls and horn, night
   crickets, rain drips, a civic bell, construction hammering, evening sirens,
-  thunder). Two continuous beds follow the acoustic origin: harbour water grows near
-  the quay and a low population murmur follows the mood. Events come from fixed city
+  thunder). Three continuous beds follow the acoustic origin: harbour water grows
+  near the quay, a low population murmur follows the mood, and a very quiet warm
+  lantern hum (two low sines, slow breath, ceiling .012) opens only near the
+  waterfront after dusk; `stats().soundscape.beds.lamp` reports its level. It adds
+  no transient voice and stays well below the browser test's RMS ceiling. Events come from fixed city
   anchors (harbour, quay, tower, square) or from a ring around that origin, so the
   stereo pan always matches the direction the sound arrives from; nothing invents
   telemetry. Event/chord timers run only while audible and `quiet()` releases every
@@ -4818,8 +4835,8 @@ registration lives in `internal/desktop/types.go`.
   and observers. Context loss falls back to the usable map. Keep all models,
   local materials and licenses build-versioned; no remote textures or services.
 - System World 2 adds `sysworld-experience/exploration/weather/effects.js` to the
-  same renderer build and RAF. The v2 Blender manifest has 33 designs, three LODs,
-  articulated clips and navigation metadata. Keep the complete app payload below
+  same renderer build and RAF. The v2 Blender manifest has 42 designs, three LODs
+  each (126 GLBs), articulated clips and navigation metadata. Keep the complete app payload below
   48 MiB and first display below 12 MiB; exterior shells load with the city and
   interior furnishings load by proximity. Five original
   robots plus 19 new residents are the high-tier cap (eight total on low).
@@ -4945,7 +4962,8 @@ registration lives in `internal/desktop/types.go`.
   ingest replay data. The street compass (north is -z) redraws only after a 1.5°
   turn or a 1.5 m step. Reduced motion skips the glide, fades and caption motion.
   The city browser matrix checks label overlap, hover, compass, tour caption and
-  the photo PNG.
+  the photo PNG, and waits for the meshopt companion to decode with all 13 joints
+  from a single asset request.
 - The map is an SVG plan drawn from `NS.map`/`NS.districts`, mirrored constants of
   `sysworld-layout.js` and the scene's districts (`node
   scripts/test-system-world-layout.mjs` keeps them in step): water, quay, streets,
@@ -4959,7 +4977,9 @@ registration lives in `internal/desktop/types.go`.
   control, rail, inspector or fixed bars overlap at any tested size.
 - Verify `node scripts/test-system-world.mjs` (includes the navigation
   blockade/sidestep units and a 60-minute five-robot simulation), `node
-  scripts/build-system-world.js --check`, focused Sysworld Go tests, `go test
+  scripts/build-system-world.js --check`, `node scripts/build-system-world-spot.mjs --check`,
+  `node scripts/test-system-world-companion.mjs`, `node scripts/test-system-world-foley.mjs`,
+  `node scripts/test-system-world-expansion.mjs`, focused Sysworld Go tests, `go test
   ./internal/server -run SystemWorld`, and the real-shell browser matrix:
   `AURAGO_RUN_BROWSER_SMOKE=1 AURAGO_SYSTEM_WORLD_MATRIX=1 go test ./ui
   -run '^TestDesktopAuroraBrowser$'`. The browser run mocks the artifact feed,

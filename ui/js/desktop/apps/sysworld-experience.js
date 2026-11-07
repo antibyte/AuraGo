@@ -144,6 +144,10 @@ export function createExperience(scene,options){
       for(const s of stations)tasks.push(place('station',s.platformX,s.platformZ,surfaces.pavement,s.angle,outdoors));
       for(const r of interiors){tasks.push(loadShell(r));const d=await place('door',r.x,r.doorZ,surfaces.room,Math.PI);if(disposed)return;const a=d.play('open',true);a.paused=true;doors.set(r.id,{...d,action:a,value:0,open:false});}
       for(let x=-76;x<=76;x+=8)tasks.push(place('quay',x,77,surfaces.quay,0,outdoors));
+      // Low warm lamps punctuate the quay between the pavilions. They stand off
+      // the street grid and clear of the harbour hover dock, so their small
+      // colliders never close a resident route.
+      for(const x of[-68,-52,-28,28,52,68])tasks.push(place('quay-lantern',x,75.5,surfaces.quay,0,outdoors));
       for(const [x,z]of[[-79,68],[-79,-67],[55,2],[8,40],[55,-24]]){tasks.push(place('garden',x,z,0,0,outdoors));tasks.push(place('bench',x+3,z,0,Math.PI/2,outdoors));}
       for(const [x,z]of[[-30,23],[30,23],[-28,72]])tasks.push(place('arcade',x,z,0,0,outdoors));
       tasks.push(place('bridge',-78.5,40,2,0,outdoors,[1.75,1,1]),place('ramp',-80,49,0,Math.PI,outdoors),place('stairs',-76.8,49,0,Math.PI,outdoors),place('ramp',-78.5,31,0,0,outdoors));

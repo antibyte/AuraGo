@@ -22,7 +22,9 @@ for (const id of new Set(Object.values(KINDS).flatMap(kind => [kind.top, kind.si
 assert.ok(total < 1.5 * 1024 * 1024, 'Surface textures exceed 1.5 MiB: ' + total);
 
 // Every kit material is textured, a window, or deliberately left untextured (glass and signals).
-const untextured = new Set(['city.glass', 'city.garden-glass', 'city.cyan', 'city.jade']);
+// Emissive lamp glass stays untextured: a triplanar albedo/roughness pass would
+// dim the glow instead of adding detail.
+const untextured = new Set(['city.glass', 'city.garden-glass', 'city.cyan', 'city.jade', 'city.lantern-glow']);
 const names = new Set();
 for (const kit of ['v1', 'v2']) {
   for (const file of await fs.readdir(`ui/3d/system-world/${kit}`)) {

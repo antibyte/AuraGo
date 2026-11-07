@@ -117,6 +117,15 @@ try{
   assert.ok(ambience.stats().soundscape.beds.water>.04,'Harbour water is loud at the quay');
   ambience.setListener(0,2.4,0,0,-1,0,0);
   assert.ok(ambience.stats().soundscape.beds.water<.01,'Water fades inland');
+  // The lantern hum is a dusk/night bed at the quay, never a daytime or inland layer.
+  ambience.setMood({day:0});
+  ambience.setListener(0,2.4,76,0,-1,0,76);
+  assert.ok(ambience.stats().soundscape.beds.lamp>0,'Warm lantern bed opens at the quay at night');
+  ambience.setMood({day:1});
+  assert.equal(ambience.stats().soundscape.beds.lamp,0,'Lantern bed is silent at noon');
+  ambience.setMood({day:0});
+  ambience.setListener(0,2.4,0,0,-1,0,0);
+  assert.equal(ambience.stats().soundscape.beds.lamp,0,'Lantern bed fades inland');
   ambience.setActive(false);
   assert.equal(ambience.stats().soundscape.scheduled,false,'A hidden city schedules nothing');
   ambience.dispose();

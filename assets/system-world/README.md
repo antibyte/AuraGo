@@ -2,9 +2,9 @@
 
 ## System World 2 expansion
 
-`build_expansion.py` authors 41 additional modular designs and their articulated
+`build_expansion.py` authors 42 additional modular designs and their articulated
 animation clips in Blender. It saves `production/aurago-world-2.blend` and exports
-123 self-contained GLBs (three separately loadable LODs per design) plus a versioned
+126 self-contained GLBs (three separately loadable LODs per design) plus a versioned
 manifest (2.4.0) and MIT license to `ui/3d/system-world/v2/`. Sources are not shipped.
 
 The kit includes accessible floors, walls, ceilings, windows, sliding doors, lifts,
@@ -162,6 +162,26 @@ Blender instance. Load the script with `__file__` set to its absolute path.
 It replaces only its named kit collection and saves a compressed source library to
 `assets/system-world/production/aurago-city-kit.blend`.
 Names are canonicalised so repeated GLB exports are byte-identical.
+
+## Companion (third party, BSD-3-Clause)
+
+`spot-source.json` pins the Boston Dynamics Spot from `codepawl/menagerie-glb`
+(MuJoCo Menagerie, copyright 2021 Clearpath Robotics Inc.): URL, commit, byte size,
+SHA-256 and licence URL. Download the 9.5 MB source into ignored scratch once, then
+build the 291 KB runtime derivative:
+
+```powershell
+curl -L --fail -o disposable/system-world/boston_dynamics_spot-spot.glb "<pinned URL from spot-source.json>"
+node scripts/build-system-world-spot.mjs
+node scripts/build-system-world-spot.mjs --check
+```
+
+`gltfpack` compresses the geometry with meshopt and quantizes attributes; all 13
+named joints, both materials and the texture-free payload survive. The exact source
+is never shipped, and the verbatim BSD-3-Clause text travels in
+`ui/3d/system-world/spot-LICENSE.txt` and `licences/texts/`. The renderer decodes
+the GLB with the bundled `MeshoptDecoder`; a failed load only hides the decorative
+walker. Verify with `node scripts/test-system-world-companion.mjs`.
 
 `render_preview.py` imports the exported GLBs into a separate scene and renders
 a city arrangement plus a close view. Run it in Blender's scripting workspace or

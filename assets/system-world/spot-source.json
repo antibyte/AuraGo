@@ -1,0 +1,19 @@
+{
+  "id": "boston_dynamics_spot-spot",
+  "title": "Boston Dynamics Spot (no arm)",
+  "kind": "quadruped",
+  "url": "https://huggingface.co/datasets/codepawl/menagerie-glb/resolve/163f2a52ebbd3746cfee2f18d7bf8fd3102cbcbf/engine/boston_dynamics_spot-spot/boston_dynamics_spot-spot.glb",
+  "dataset": "codepawl/menagerie-glb",
+  "commit": "163f2a52ebbd3746cfee2f18d7bf8fd3102cbcbf",
+  "upstream": "https://github.com/google-deepmind/mujoco_menagerie/tree/main/boston_dynamics_spot",
+  "upstream_path": "boston_dynamics_spot/spot",
+  "license": "BSD-3-Clause",
+  "license_url": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/main/boston_dynamics_spot/LICENSE",
+  "copyright": "2021, Clearpath Robotics Inc.",
+  "authors": "2021, Clearpath Robotics Inc.",
+  "bytes": 9467964,
+  "sha256": "8bf571e28c279a7edbec9233bdc21e7d7ae47a33faacdf9da8d4ef79cdd4ad38",
+  "triangles": 127534,
+  "scratch_path": "disposable/system-world/boston_dynamics_spot-spot.glb",
+  "download": "curl -L --fail -o disposable/system-world/boston_dynamics_spot-spot.glb \"https://huggingface.co/datasets/codepawl/menagerie-glb/resolve/163f2a52ebbd3746cfee2f18d7bf8fd3102cbcbf/engine/boston_dynamics_spot-spot/boston_dynamics_spot-spot.glb\""
+}

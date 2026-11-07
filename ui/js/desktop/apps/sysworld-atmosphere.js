@@ -1,6 +1,10 @@
 import * as THREE from 'three';
 import { createCinema } from './sysworld-cinema.js';
 
+// Warm lamp cones drift a little towards amber at dusk. Both colours are
+// allocated once: setLighting runs on mood changes and every 30 seconds.
+const LAMP_WARM = new THREE.Color(0xffd9a0), LAMP_DUSK = new THREE.Color(0xffb877);
+
 // Scene atmosphere: sky dome with dusk, clouds, Milky Way and meteors, stars, moon, animated sea
 // with shore foam and city-light reflections, sea mist, drifting dust, the spire beacon, lamp
 // light cones, sweeping searchlights and blinking aviation lights on the skyline. Every animation is driven by one shared time uniform, so
@@ -252,6 +256,7 @@ export function createAtmosphere(scene, options = {}) {
       zenith.set(0x05091a).lerp(new THREE.Color(0x2f6fa8),daylight).lerp(new THREE.Color(0x1d2146),dusk.value*.8);
       horizon.set(0x14324c).lerp(new THREE.Color(0xa9c6d4),daylight).lerp(new THREE.Color(0xc0683e),dusk.value*.85);
       warm.set(evening>.1?0xff8a45:0x7a3d2a);
+      lampMaterial.uniforms.color.value.copy(LAMP_WARM).lerp(LAMP_DUSK,dusk.value);
       glow.set(0x4a2a18).lerp(new THREE.Color(0x6b3a22),dusk.value);
       haze.copy(scene.fog.color);stars.visible=daylight<.35;
       sea.material.uniforms.sky.value.copy(horizon).lerp(zenith,dusk.value*.65).multiplyScalar(.7);
@@ -293,6 +298,9 @@ export function createAtmosphere(scene, options = {}) {
       blades.rotation.y += step * beacon.userData.rate;
       beamMaterial.uniforms.strength.value = busy ? .85 : .45;
       crown.scale.setScalar(1 + Math.sin(time.value * (busy ? 6 : 2.2)) * .18);
+      // A barely visible warm flicker keeps the quay lamps from looking painted
+      // on. The shared time uniform freezes it under reduced motion.
+      lampMaterial.uniforms.strength.value = .3 * (1 + .035 * Math.sin(time.value * 1.6) + .015 * Math.sin(time.value * 4.1 + 1.2));
       sweep += step;
       const night = 1 - day.value;
       searchMaterial.uniforms.strength.value = night * night * .075 * (1 - dusk.value * .7) * (1 - cloud.value * .45);

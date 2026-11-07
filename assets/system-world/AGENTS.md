@@ -26,7 +26,10 @@ Own the original Blender city kit, deterministic generator and source scene.
   changes `ui/3d/robot.glb`, and exports tangents without runtime Draco.
 - Only runtime GLBs, manifest and license belong in the resource package.
 - Keep the planned cinematic city direction and street-level inspection quality.
-- `build_expansion.py` owns 41 v2 designs and `production/aurago-world-2.blend`.
+- `build_expansion.py` owns 42 v2 designs and `production/aurago-world-2.blend`.
+  The `quay-lantern` is the low warm waterfront lamp (bronze post, separate
+  emissive `glow` part, no clip); `sysworld-experience.js` places six along the
+  quay off the street grid and clear of the harbour hover dock.
   The `telescope` tube pivots at its yoke and faces glTF +Z at rest. The `sky-lift`
   cab travels `SKY_TRAVEL` (71.32 m) from the 0.88 m agent podium to the `sky-deck`
   (top at zero, placed at 72.2 m); keep both equal to `skyDeck` in
@@ -53,11 +56,28 @@ Own the original Blender city kit, deterministic generator and source scene.
   asserted at build time), so the runtime swaps LODs by name. The `hover-pack` `pack`
   node, with its `straps`, `charge` and fan children, stays one removable node that the
   runtime hides while the visitor flies. The robot rubber `city.robot-rubber` is mapped
-  in `sysworld-surfaces.js` `KINDS`. Check dock placement with
+  in   `sysworld-surfaces.js` `KINDS`. Check dock placement with
   `node scripts/test-system-world-hover.mjs`.
+- `spot-source.json` pins the third-party companion: a BSD-3-Clause Boston
+  Dynamics Spot from `codepawl/menagerie-glb` (copyright 2021, Clearpath
+  Robotics Inc.), with URL, commit, byte size, SHA-256, upstream
+  `mujoco_menagerie` path and licence URL. The 9.5 MB source stays in ignored
+  `disposable/system-world/` and is never shipped. `scripts/build-system-world-spot.mjs`
+  verifies the hash, runs `gltfpack -cc -kn -km -si 0.55 -sa`, validates with
+  the Khronos validator and writes the compact `ui/3d/system-world/spot.glb`,
+  its manifest and the verbatim licence. Meshopt compression is lossless for the
+  emitted data; only the triangle count is reduced for city scale. Keep all 13
+  named joints, both materials, no textures and no remote URIs. `--check`
+  reproduces the payload without writing. The licence text lives in
+  `licences/texts/system-world-spot-BSD-3-Clause.txt` and travels with the asset.
 
 ## Verification
 - `python assets/system-world/check_assets.py`.
+- `node scripts/build-system-world-spot.mjs --check` and
+  `node scripts/test-system-world-companion.mjs` verify the pinned source,
+  the compact derivative, its provenance, licence texts and the model budget.
+- `node scripts/test-system-world-expansion.mjs` (42 designs, 126 GLBs),
+  `node scripts/test-system-world-foley.mjs` (city beds and the lantern hum).
 - `node scripts/test-system-world-layout.mjs` checks exported tram window sight lines
   from inside and outside, including closed doors at all three LODs.
 - `python assets/system-world/build_textures.py --check` and `node scripts/test-system-world-surfaces.mjs`;

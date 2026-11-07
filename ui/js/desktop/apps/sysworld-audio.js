@@ -44,7 +44,7 @@ export function createCityAmbience(onState=()=>{}) {
   const nodes=[], sources=[], samples=new Float32Array(256), transient=new Set();
   let volume=.18,effects=null,foley=null,ambientBus=null,effectsBus=null,voiceBus=null,inside=false,weather='clear';
   let pad=[],padFilter=null,padLevel=null,airFilter=null,airGain=null,verb=null,noise=null;
-  let waterGain=null,murmurGain=null,bedWater='0.000',bedMurmur='0.000';
+  let waterGain=null,murmurGain=null,lampGain=null,bedWater='0.000',bedMurmur='0.000',bedLamp='0.000';
   let eventTimer=0,chordTimer=0,chord=0,events=0;
   const listener={x:0,y:2.4,z:0,fx:0,fz:-1,origin:{x:0,z:0}};
   const mood={busy:false,day:0,evening:0,weather:'clear'};
@@ -106,6 +106,20 @@ export function createCityAmbience(onState=()=>{}) {
     crowdDrift.frequency.value=.13;crowdDepth.gain.value=90;crowdDrift.connect(crowdDepth).connect(crowdBand.frequency);crowdDrift.start();
     murmurGain=node(context.createGain());murmurGain.gain.value=0;
     crowd.connect(crowdBand).connect(murmurGain).connect(ambientBus);crowd.start();
+    // Warm harbour lanterns: a very quiet two-tone hum with a slow breath. It
+    // is a continuous bed, only opens near the quay after dusk, and never adds
+    // a transient voice to the bounded event pool.
+    const lamp=source(context.createOscillator()),harmonic=source(context.createOscillator());
+    lamp.type='sine';lamp.frequency.value=118;harmonic.type='sine';harmonic.frequency.value=236;
+    const harmonicLevel=node(context.createGain());harmonicLevel.gain.value=.26;
+    const lampTrem=node(context.createGain());lampTrem.gain.value=.9;
+    const breath=source(context.createOscillator()),breathDepth=node(context.createGain());
+    breath.frequency.value=.19;breathDepth.gain.value=.08;breath.connect(breathDepth).connect(lampTrem.gain);breath.start();
+    const lampFilter=node(context.createBiquadFilter());lampFilter.type='lowpass';lampFilter.frequency.value=420;lampFilter.Q.value=.4;
+    lampGain=node(context.createGain());lampGain.gain.value=0;
+    lamp.connect(lampTrem);harmonic.connect(harmonicLevel).connect(lampTrem);
+    lampTrem.connect(lampFilter).connect(lampGain).connect(ambientBus);
+    lamp.start();harmonic.start();
     applyMood();
     updateBeds();
   }
@@ -304,18 +318,24 @@ export function createCityAmbience(onState=()=>{}) {
   // city's population. Values are quantized so a per-frame listener update does not
   // queue a new ramp every frame.
   function updateBeds(){
-    if(!context||!waterGain||!murmurGain)return;
+    if(!context||!waterGain||!murmurGain||!lampGain)return;
     // The harbour is a bed right at the quay and a faint wash across the city.
     const quayX=Math.max(-76,Math.min(76,listener.origin.x)),distance=Math.hypot(listener.origin.x-quayX,listener.origin.z-77);
     const near=Math.max(0,1-(distance-6)/42);
     const wash=Math.max(0,1-(distance-25)/110)*.18;
     const water=(inside?0:Math.min(1,near+wash)*.05*(weather==='rain'?1.2:1)).toFixed(3);
     const crowd=((mood.busy?.03:.012)*(.35+mood.day*.65)*(inside?.25:1)).toFixed(3);
-    if(water===bedWater&&crowd===bedMurmur)return;
-    bedWater=water;bedMurmur=crowd;
+    // The lantern hum follows the same quay proximity and fades out by noon;
+    // indoors it is completely silent. Its ceiling is far below the city bed.
+    const lampDistance=Math.hypot(listener.origin.x-quayX,listener.origin.z-75.5);
+    const lampNear=Math.max(0,1-(lampDistance-8)/46);
+    const lamp=(inside?0:Math.min(1,lampNear)*.012*(1-mood.day)*(weather==='rain'?.6:1)).toFixed(3);
+    if(water===bedWater&&crowd===bedMurmur&&lamp===bedLamp)return;
+    bedWater=water;bedMurmur=crowd;bedLamp=lamp;
     const t=context.currentTime;
     waterGain.gain.setTargetAtTime(Number(water),t,.5);
     murmurGain.gain.setTargetAtTime(Number(crowd),t,.8);
+    lampGain.gain.setTargetAtTime(Number(lamp),t,.8);
   }
   function sync(gesture=false) {
     clearTimeout(fadeTimer);
@@ -365,7 +385,7 @@ export function createCityAmbience(onState=()=>{}) {
     },
     stats() {let rms=0;if(analyser&&context.state==='running'){analyser.getFloatTimeDomainData(samples);for(const x of samples)rms+=x*x;}
       return {voice:voice?.stats(),effects:effects?.stats(),foley:foley?.stats(),channels:{...levels},enabled,active,state:context?.state||'uninitialized',volume,rms:Math.sqrt(rms/samples.length),
-        soundscape:{chord,events,transient:transient.size,scheduled:!!eventTimer,mood:{...mood},beds:{water:Number(bedWater),murmur:Number(bedMurmur)},listener:{x:listener.x,z:listener.z}}};},
+        soundscape:{chord,events,transient:transient.size,scheduled:!!eventTimer,mood:{...mood},beds:{water:Number(bedWater),murmur:Number(bedMurmur),lamp:Number(bedLamp)},listener:{x:listener.x,z:listener.z}}};},
     dispose() {if(disposed)return;disposed=true;quiet();foley?.dispose();effects?.dispose();voice?.dispose();clearTimeout(fadeTimer);sources.forEach(n=>{try{n.stop();}catch(_){}});nodes.forEach(n=>n.disconnect());if(context)void context.close().catch(()=>{});},
   };
 }

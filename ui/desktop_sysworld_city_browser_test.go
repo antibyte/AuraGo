@@ -138,6 +138,13 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
 	page.Timeout(45 * time.Second).MustWait(`()=>!!(SysWorldApp.inspect(cityId)?.life?.robots===5||SysWorldApp.inspect(cityId)?.life?.robotError)`)
 	page.MustEval(`()=>{const state=SysWorldApp.inspect(cityId);if(state.life.robots!==5)throw Error('Five original robot models missing');if(state.sound.state!=='uninitialized')throw Error('Sound started without opt-in');
         const requests=Object.entries(cityCalls).filter(([url])=>url.includes('white-robot.glb'));if(requests.length!==1||requests[0][1]!==1)throw Error('Robot asset must load once');}`)
+	// The meshopt-compressed companion must decode in a real browser, keep its
+	// named joints and load exactly once. A failed load would hide the walker.
+	page.Timeout(30 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId)?.companion?.loaded===true`)
+	page.MustEval(`()=>{const c=SysWorldApp.inspect(cityId).companion;
+        if(c.failed||c.joints!==13)throw Error('Companion model or joints missing: '+JSON.stringify(c));
+        const requests=Object.entries(cityCalls).filter(([url])=>url.includes('spot.glb'));
+        if(requests.length!==1||requests[0][1]!==1)throw Error('Companion asset must load once');}`)
 	page.Timeout(20 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId)?.artifacts?.source==='live'&&SysWorldApp.inspect(cityId)?.hologram?.artifacts===5`)
 	// Surface detail: all six generated maps on high, patched kit materials and no failed map.
 	page.Timeout(20 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId)?.surfaces?.textures===6`)
@@ -372,6 +379,10 @@ func verifySystemWorldCity(t *testing.T, page *rod.Page, dir string) {
 	// The residents answer for themselves: the foley has to build voices, not only
 	// count strides. A silent foley is invisible in the mix, so it is asserted here.
 	page.Timeout(30 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).sound.foley.played>0`)
+	// The first footfall can come from a distant resident and still be a valid
+	// voice. Wait for a nearby one to answer instead of sampling that first
+	// far step; the assertion below still requires a voice above the city bed.
+	page.Timeout(30 * time.Second).MustWait(`()=>SysWorldApp.inspect(cityId).sound.foley.peak>=.025`)
 	page.MustEval(`()=>{const f=SysWorldApp.inspect(cityId).sound.foley;if(f.played<1||f.steps<1)throw Error('Residents stay silent: '+JSON.stringify(f));if(f.peak<.025)throw Error('Robot sounds stay under the city bed: '+JSON.stringify(f));}`)
 	t.Logf("city foley: %s", page.MustEval(`()=>JSON.stringify(SysWorldApp.inspect(cityId).sound.foley)`).Str())
 	page.MustEval(`()=>{window.cityDistantVoice=SysWorldApp.inspect(cityId).sound.voice.gain;document.querySelector('[data-sw-mode="street"]').click();document.querySelector('[data-sw-district="agent"]').click();}`)

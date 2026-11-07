@@ -16,7 +16,8 @@ import { createDrones } from './sysworld-drones.js';
 import { createExperience } from './sysworld-experience.js';
 import { createWeather } from './sysworld-weather.js';
 import { interiors } from './sysworld-exploration.js';
-import { streets, towers } from './sysworld-layout.js';
+import { streets, towers, surfaces as groundLevels } from './sysworld-layout.js';
+import { createCompanion } from './sysworld-companion.js';
 import {createTraffic,fixedSteps} from './sysworld-traffic.js';
 import {installCityColliders} from './sysworld-colliders.js';
 import { createSurfaces } from './sysworld-surfaces.js';
@@ -116,7 +117,7 @@ export async function createCity(host, options) {
   let tier = quality === 'auto' ? 'high' : quality, generation = 0, flight = null;
   let frames = 0, measured = 0, sampleFrames = 0, lastQualityChange = 0, loadBytes = 0;
   let tourTime = 0, tourIndex = 0, selected = null, reduced = options.reducedMotion;
-  let width = 1, height = 1, objects = [], failed = false, observer = null, life = null;
+  let width = 1, height = 1, objects = [], failed = false, observer = null, life = null, companion = null;
   const abort = new AbortController(), requests = new Set(), cache = new Map(), materials = new Map();
   const geoSet = new Set(), matSet = new Set(), keys = new Set(), cleanup = [];
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
@@ -508,8 +509,11 @@ export async function createCity(host, options) {
       overhead?controls.target.x:camera.position.x,overhead?controls.target.z:camera.position.z);
     const busy = !!options.busy?.();
     if(weather.update(dt,elapsed,!reduced))renderer.shadowMap.needsUpdate=true;
-    reactorLight.intensity = reduced ? 0 : (busy ? 180 + Math.sin(elapsed*2)*35 : 0);
+    // A dim idle glow keeps the spire core from going pitch black between jobs;
+    // the busy pulse stays the readable signal, reduced motion keeps both off.
+    reactorLight.intensity = reduced ? 0 : (busy ? 180 + Math.sin(elapsed*2)*35 : 12);
     atmosphere.setBusy(busy); atmosphere.setCinematic(mode === 'tour'); atmosphere.update(dt, elapsed, camera, !reduced); surfaces.update(dt, !reduced);
+    companion?.update(dt, !reduced && visible && mode !== 'map' && !options.replaying?.());
     const mood = weather.mood();
     flow.update(dt,!reduced,1-(mood.day||0));
     if(!reduced){
@@ -555,12 +559,14 @@ export async function createCity(host, options) {
     if (disposed) return; disposed = true; generation++; abort.abort(); requests.forEach(c => c.abort());
     keys.clear(); if(document.pointerLockElement === canvas) document.exitPointerLock();
     options.signal?.removeEventListener('abort', dispose); cleanup.forEach(fn => fn()); observer?.disconnect(); controls.dispose();
-    life?.dispose();experience?.dispose();weather.dispose(); hologram.dispose(); drones.dispose();traffic.dispose(); atmosphere.dispose(); surfaces.dispose(); flow.dispose(); clearGroup(staticCity); clearGroup(landmarks); beacons.dispose();
+    life?.dispose();companion?.dispose();experience?.dispose();weather.dispose(); hologram.dispose(); drones.dispose();traffic.dispose(); atmosphere.dispose(); surfaces.dispose(); flow.dispose(); clearGroup(staticCity); clearGroup(landmarks); beacons.dispose();
     geoSet.forEach(g => g.dispose()); matSet.forEach(m => m.dispose());
     composer.passes.forEach(p => p.dispose?.()); composer.dispose(); environment.dispose(); sun.shadow.dispose();
     renderer.dispose(); renderer.forceContextLoss(); canvas.remove(); cache.clear(); materials.clear();
   }
   life = createCityLife(scene, districts, {traffic,society:experience.society,robotURL:options.resourceURL('/3d/system-world/white-robot.glb'), signal:options.signal, onError:options.onRobotError, active:()=>visible&&!failed&&mode!=='map'&&!options.replaying?.(), obstacles});
+  // A missing or broken companion never stops the city from loading.
+  companion = createCompanion({scene, resourceURL:options.resourceURL, signal:abort.signal, groundY:groundLevels.quay, onError:options.onCompanionError});
   hologram.setReducedMotion(!!reduced);
   try { applyTier(); await rebuild(); } catch(e) { dispose(); throw e; }
   return {
@@ -584,6 +590,6 @@ export async function createCity(host, options) {
       camera.position.copy(end).sub(homeTarget).applyAxisAngle(new THREE.Vector3(0, 1, 0), -.55).multiplyScalar(1.22).add(homeTarget); camera.position.y += 34;
       camera.lookAt(homeTarget); settleCamera(); flyTo(end, homeTarget); if (flight) flight.duration = 3.6;
     },
-    stats() { return { flying:!!flight,traffic:traffic.stats(),experience:experience.stats(),weather:weather.stats(),life:life?.stats(), hologram:hologram.stats(), atmosphere:atmosphere.stats(), surfaces:surfaces.stats(), drones:drones.stats(), flow:flow.stats(), frames, tier, mode, focusedDistrict: selected, hovered, loadedBytes:loadBytes+experience.stats().bytes+surfaces.stats().bytes, cachedModels:cache.size, calls:renderer.info.render.calls, triangles:renderer.info.render.triangles, geometries:renderer.info.memory.geometries, position:camera.position.toArray(), renderer:renderer.getContext().getParameter(renderer.getContext().getExtension('WEBGL_debug_renderer_info')?.UNMASKED_RENDERER_WEBGL || renderer.getContext().RENDERER), disposed }; },
+    stats() { return { flying:!!flight,traffic:traffic.stats(),experience:experience.stats(),weather:weather.stats(),life:life?.stats(), hologram:hologram.stats(), atmosphere:atmosphere.stats(), surfaces:surfaces.stats(), drones:drones.stats(), flow:flow.stats(), companion:companion?.stats(), frames, tier, mode, focusedDistrict: selected, hovered, loadedBytes:loadBytes+experience.stats().bytes+surfaces.stats().bytes, cachedModels:cache.size, calls:renderer.info.render.calls, triangles:renderer.info.render.triangles, geometries:renderer.info.memory.geometries, position:camera.position.toArray(), renderer:renderer.getContext().getParameter(renderer.getContext().getExtension('WEBGL_debug_renderer_info')?.UNMASKED_RENDERER_WEBGL || renderer.getContext().RENDERER), disposed }; },
   };
 }

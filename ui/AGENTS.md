@@ -443,6 +443,11 @@ New app-scoped prefixes must contain no `ad` substring; verify
   generation and playback stop on mute, hidden or inactive windows. Its responsive layout must fit the touch viewport; do not put it in
   the mobile wide-window allowlist. V2 adds a bounded 24-hour telemetry history
   and confirmed terminal actions through existing server permissions.
+  The polish round adds six emissive quay lanterns, a dusk-only lantern hum, a
+  faint lamp flicker, a dim idle reactor glow and one decorative BSD-3-Clause
+  quadruped patrolling the waterfront (`sysworld-companion.js`, meshopt-decoded
+  GLB with pinned source provenance and a shipped licence). The companion is
+  scenery with no traffic, telemetry or foley voice.
   Rendering/lifecycle and real-shell test contracts live in
   `js/desktop/apps/AGENTS.md`. The v2 expansion adds three waterfront interiors,
   street-bound trams and recorded telemetry. `sysworld-layout.js` owns the shared

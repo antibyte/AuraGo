@@ -2038,6 +2038,88 @@
       ]
     },
     {
+      "id": "quay-lantern",
+      "lods": [
+        {
+          "level": 0,
+          "file": "quay-lantern.lod0.glb",
+          "bytes": 11760,
+          "sha256": "e0b3004a96858e17bc99a59a333cd99076be9e9104df75f801c94307f5e9c97b",
+          "bounds": {
+            "min": [
+              -0.3400000035762787,
+              0.0,
+              -0.3400000035762787
+            ],
+            "max": [
+              0.3400000035762787,
+              2.1999998092651367,
+              0.3400000035762787
+            ]
+          },
+          "triangles": 248
+        },
+        {
+          "level": 1,
+          "file": "quay-lantern.lod1.glb",
+          "bytes": 10368,
+          "sha256": "d8dcb524e2f0531177eb325e70f7540a888ae94d13f59762ff939dac2f7aec7f",
+          "bounds": {
+            "min": [
+              -0.3400000035762787,
+              0.0,
+              -0.3233592212200165
+            ],
+            "max": [
+              0.3400000035762787,
+              2.1999998092651367,
+              0.3233592212200165
+            ]
+          },
+          "triangles": 200
+        },
+        {
+          "level": 2,
+          "file": "quay-lantern.lod2.glb",
+          "bytes": 9212,
+          "sha256": "927eb663476cf96e7b265ce811390c791fc5334e99dc21a99cb0bf9ed41e2f73",
+          "bounds": {
+            "min": [
+              -0.3400000035762787,
+              0.0,
+              -0.3400000035762787
+            ],
+            "max": [
+              0.3400000035762787,
+              2.1999998092651367,
+              0.3400000035762787
+            ]
+          },
+          "triangles": 160
+        }
+      ],
+      "navigation": {
+        "colliders": [
+          [
+            -0.34,
+            0,
+            -0.34,
+            0.34,
+            2.2,
+            0.34
+          ]
+        ],
+        "surfaces": [],
+        "portals": []
+      },
+      "animations": [],
+      "components": [
+        "glow",
+        "nav_colliders_0",
+        "structure"
+      ]
+    },
+    {
       "id": "robot-courier",
       "lods": [
         {
@@ -3964,10 +4046,10 @@
   "model_budget_bytes": 12582912,
   "sources": {
     "build_city.py": "9b34e63f85137ab571698ec62382ae0160110c1afd5866ca5513e150771d7a0c",
-    "build_expansion.py": "5f5e7c4d786801b1f0d84df70f5e68a5d9ea682460b260485f3c02183d086f8f",
+    "build_expansion.py": "5ed95650138e71e44e64db0238768ac489060e2483b2561ff9786b13913bd2a9",
     "living_assets.py": "21ca67e291914a3d40ec0b9179b0377dc887ffba940e2295cc409888e815057b",
     "landmark_assets.py": "4cf53ff1a292e5316751f39f8c73688c2efc8929911a4765651072eb922b0159",
-    "robot_assets.py": "fbefc791b9211e78920307c0d4f3ff4cdfbb58a5dc1e88f612d865af3f96d117",
-    "hover_assets.py": "e2ebc5dd224fedd0fccbf52e71d133e08b9319c03728c0aa8025f1f7718a84a3"
+    "robot_assets.py": "3bbffa2cd2db76b64f57298c92c743d1c6460cd1895ef40e8fa32b6e55692977",
+    "hover_assets.py": "2ac66bb4f62fad76a86d2da27abbcd6abd9dd20631b1534bc6a9ce1f031b5f18"
   }
 }

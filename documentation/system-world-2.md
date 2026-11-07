@@ -223,14 +223,24 @@ management app rather than claiming success. Rejected actions remain failures.
 
 ## Assets and lifecycle
 
-`assets/system-world/build_expansion.py` and its saved Blender scene produce 41
-designs and 123 GLBs under `ui/3d/system-world/v2/`. All LODs preserve stable pivot
+`assets/system-world/build_expansion.py` and its saved Blender scene produce 42
+designs and 126 GLBs under `ui/3d/system-world/v2/`. All LODs preserve stable pivot
 names and real articulated clips; the residents and the hover-pack dock also keep one
 material list per part at every LOD, so LODs swap by mesh name. Manifests include
 navigation, sizes and hashes. Robot motion envelopes are sampled across every exported
 clip and are narrower than before, while raised arms keep the same safe clearance as
 walking residents. Original new content is MIT; the white robot retains its existing
-provenance.
+provenance. The polish round adds the emissive `quay-lantern` (six along the waterfront),
+a dusk-only lantern hum, a faint warm lamp flicker and a dim idle glow on the spire core.
+
+One decorative quadruped walks a closed waterfront loop. Its source is the pinned
+BSD-3-Clause Boston Dynamics Spot from MuJoCo Menagerie (`assets/system-world/spot-source.json`,
+copyright 2021 Clearpath Robotics Inc.); the 9.5 MB float32 source is never shipped.
+`scripts/build-system-world-spot.mjs` verifies its SHA-256 and emits a 291 KB
+meshopt/quantized GLB that keeps all 13 named joints and both materials. The decoder
+is bundled with the isolated Three.js renderer, and the verbatim licence travels with
+the payload and in `licences/texts/`. A failed load only hides the companion. It is
+scenery: no traffic, telemetry or foley voice, and reduced motion freezes it.
 
 All System World runtime files together must remain below 48 MiB; first display
 must remain below 12 MiB. Interior furnishings and alternate LODs load on demand. Static
@@ -264,7 +274,10 @@ node scripts/test-system-world-jitter.mjs
 node scripts/test-system-world-layout.mjs
 node scripts/test-system-world-hover.mjs
 node scripts/test-system-world-voice.mjs
+node scripts/test-system-world-foley.mjs
+node scripts/test-system-world-companion.mjs
 node scripts/build-system-world.js --check
+node scripts/build-system-world-spot.mjs --check
 node scripts/build-ui-bundles.js --check
 go test ./internal/systemworld ./internal/server ./internal/tools -run 'Test(History|SystemWorld|DashboardOverview|GetSystemMetrics|DaemonSupervisor|HandleMissionRun|HandleMissionCancel)' -count=1
 go test ./ui -run 'TestDesktopSys[Ww]orld|TestDesktop.*Lifecycle|TestDesktopFruityTheme' -count=1
