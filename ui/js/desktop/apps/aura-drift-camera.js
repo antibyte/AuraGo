@@ -29,7 +29,7 @@
     /* Body height and length in metres, mirrored from the 3D manifest (a contract test compares them). Tall cars (Big Bertha,
        Softeis) would fill the middle of the screen and hide the road, so the seat rises and backs off with the height. */
     AD.CAR_VIEW = {
-        vektor: { h: 1.149, l: 4.605 }, kobalt: { h: 1.3, l: 4.82 }, lumen: { h: 1.35, l: 4.835 }, tundra: { h: 1.62, l: 3.9 },
+        vektor: { h: 1.869, l: 4.605 }, kobalt: { h: 1.89, l: 4.82 }, lumen: { h: 1.953, l: 4.835 }, tundra: { h: 1.62, l: 3.9 },
         softeis: { h: 2.4, l: 5.1 }, maehkoenig: { h: 1.5, l: 2.7 }, couch: { h: 1.62, l: 3.0 }, bertha: { h: 3.1, l: 5.3 }
     };
 

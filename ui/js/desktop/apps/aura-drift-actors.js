@@ -146,7 +146,7 @@
             const clear = a < 0.995;
             if (m.transparent !== clear) { m.transparent = clear; m.needsUpdate = true; }
             m.opacity = a;
-            m.depthWrite = !clear && !(m.name === 'glass');
+            m.depthWrite = !clear;
         }
         rig.look = function (o) {
             const key = o.soot.toFixed(2) + '|' + o.glow[0].toFixed(2) + '|' + o.glow[1].toFixed(2) + '|' + o.glow[2].toFixed(2) + '|' + o.alpha.toFixed(2);

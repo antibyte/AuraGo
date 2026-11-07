@@ -13,6 +13,32 @@ Softeis uses the reviewed NC AI reconstruction of an original Aura Drift ImageGe
 light/exhaust/weapon anchors. Its colours work with all four liveries. The roof cone and wheel
 nodes are driven by the existing game physics; no baked animation or external API is needed.
 
+The other seven vehicles and twenty selected environment objects use the same reviewed concept
+workflow. `reviewed/sources.json` records each concept/reconstruction hash and request ID;
+`reviewed/<group>.json.gz` retains texture-free mesh data. `kit/reviewed_assets.py` replaces listed
+meshes after the procedural build, preserving the native scene hierarchy and animated audience.
+Cars retain circular native wheels, livery materials and light anchors. The mower's driver/blade,
+sofa's lamp/cushion and desert windmill rotor have independent joint origins. Window shells are
+opaque because these reconstructions contain no interior. Colour boundaries are locally refined
+to preserve the artwork without textures; the whole pack still has an 18 MiB limit.
+
+Selected scenery replacements (large, frequently visible silhouettes):
+
+| Kit | Reviewed objects |
+| --- | --- |
+| shared | grandstand, gnome statue, hotdog stand, camper van |
+| alpine | chalet, cablecar pylon |
+| desert | water tower, windmill pump |
+| harbour | lighthouse, tugboat |
+| salt | UFO, rover |
+| forest | watermill, hunting hide |
+| industry | cooling tower, chemical tank |
+| glacier | research station, snowcat |
+| metro | food truck, metro entrance |
+
+The grandstand keeps its native interior seating so its animated spectators remain seated correctly.
+Run `python assets/aura-drift/reviewed/check.py` before regenerating to verify all 27 retained inputs.
+
 ## Commands
 
 ```
@@ -43,6 +69,7 @@ node scripts/test-aura-drift-assets.mjs        # AURAGO_AURA_DRIFT_ASSETS_PARTIA
 | `export.py` | `export_glb`, `render_previews`, GLB facts |
 | `manifest.py` | scans GLBs, writes `manifest.json` + `LICENSE.txt` |
 | `cars_common.py` | `CarBuilder`, `wheel_accum`: everything a car needs |
+| `reviewed_assets.py` | Offline mesh replacements, circular wheels and rigid-part pivots from `../reviewed/` |
 | `car_vektor.py` | the reference car, read it first |
 | `polish_props.py` | Six extra trackside props: `balloon_bunch` and `photo_tower` (shared, return `toy.Parts`), `trail_marker`, `sunshade`, `signal_mast` and `holo_arrow` (fill a scenery `Piece`) |
 | `weather_props.py` | Six weather props: `windsock` and `rain_shelter` (shared, return `toy.Parts`), `snow_gauge` (alpine), `anemometer` (desert), `storm_lantern` (harbour) and `snow_fence` (glacier), each filling a scenery `Piece` |
@@ -117,8 +144,8 @@ five spokes, hub cap in the car's accent colour, lug nuts. `finish()` builds the
 once and instances them for the rear axle (the GLB stores two meshes). Tweak with `car.wheel_kwargs =
 {"spokes": 6, "tread_blocks": 15}`. Wheel nodes: origin at the wheel centre, axle along Z.
 
-Budgets: at most 14000 triangles and 480 KB per car; a Vektor-class car is about 8000 placed triangles
-and 370 KB (bytes follow the *unique* triangles, roughly 50 bytes each, so reuse wheels, keep boxes plain).
+Budgets: at most 30000 triangles and 1.25 MiB per car. Reviewed cars retain extra geometry at painted
+colour boundaries; reuse wheel meshes and keep small hidden details simple.
 
 ### Writing a new car
 

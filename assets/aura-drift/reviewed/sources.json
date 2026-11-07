@@ -1,0 +1,250 @@
+{
+  "provider": "NC AI VARCO Image-to-3D",
+  "concept": "Original Aura Drift models reinterpreted with ImageGen",
+  "seed": 42,
+  "assets": [
+    {
+      "id": "car-vektor",
+      "group": "car-vektor",
+      "node": "body",
+      "request_id": "fa67f7773d651959cd906b0be3e13e1d",
+      "image_sha256": "be8454b82002f09b7f0f82d1de8819fc741c4e97cda6776750b8df0f9d24bfdf",
+      "model_sha256": "a3c98cd7321d214cbe8d77ea5109c4b7aaa1b2c11b9ca8761f44817caee70f24",
+      "target_faces": 11000
+    },
+    {
+      "id": "car-kobalt",
+      "group": "car-kobalt",
+      "node": "body",
+      "request_id": "3be85f7a09917c321cf5f657dbeb5a4a",
+      "image_sha256": "0044fd7b57478df7dc398c50a21b02e58691ab8429cdf39f3b31068cc07d3f8e",
+      "model_sha256": "6a7f3efd0f4ef1d7be14dd2f6ca7bd37ec1d3b1f2ae61f717dde35fe5d97647c",
+      "target_faces": 11000
+    },
+    {
+      "id": "car-lumen",
+      "group": "car-lumen",
+      "node": "body",
+      "request_id": "64f0a20be277a107903d8c6c0aeb600b",
+      "image_sha256": "9c64e651b6991df3f8e654a488e025d91bbd38bb79a70440df56493f382aa84f",
+      "model_sha256": "d4fb91bd6f0809b72b75b64deec0fa86ce63b5f3dded8612bb197b5e2315712f",
+      "target_faces": 11000
+    },
+    {
+      "id": "car-tundra",
+      "group": "car-tundra",
+      "node": "body",
+      "request_id": "d408c0289e176521c9a31714b547ea5b",
+      "image_sha256": "16486a30fafb1bd8bb2da24bef7e810088161dac219933b64e62eab19547fdc0",
+      "model_sha256": "a3e933737fd6b8eb6fc68e6c829530fa9b148ba59fb7687872bfe367c3c8aa58",
+      "target_faces": 11000
+    },
+    {
+      "id": "car-maehkoenig",
+      "group": "car-maehkoenig",
+      "node": "body",
+      "request_id": "2e7f6b6e54b0c2424aa51068bc4ea34c",
+      "image_sha256": "16cd2697472b05e2492a47fe5337671377a90aefacd1441ec2b2f4c219019da0",
+      "model_sha256": "a81b289be8ae148b2374658f96bab1da830896a0dd8278d9043d060c11c59050",
+      "target_faces": 11000
+    },
+    {
+      "id": "car-couch",
+      "group": "car-couch",
+      "node": "body",
+      "request_id": "c5c5ee75acdb1409078c8a06ed413a19",
+      "image_sha256": "a89dab20091b1362698e58f0110f347d0f9f8668d8fb4d954682d9ba8376116b",
+      "model_sha256": "5840998d7783ccce136a922c06cca7c4081bddb5abdc7967918c3256525ea4ff",
+      "target_faces": 11000
+    },
+    {
+      "id": "car-bertha",
+      "group": "car-bertha",
+      "node": "body",
+      "request_id": "1487437f1ad09e498f54d17dfc7b640b",
+      "image_sha256": "22151d4c3567fc8c6cc0412ab409e5c69b1ecfb6e36c3bc6dea7f482998224cc",
+      "model_sha256": "356e23a0802c7457a5ff8a9af6ee703bb3049c99308e73690896ea55bb8b79d4",
+      "target_faces": 11000
+    },
+    {
+      "id": "grandstand",
+      "group": "shared",
+      "node": "grandstand|frame",
+      "request_id": "6d24195de9928e185b6b6559de214a71",
+      "image_sha256": "ffb5c2210a614e70d091642e2018fc56d1fd6c5964c96b17dddf3fb80c59ba63",
+      "model_sha256": "fcb694e49690a9d730f17879b1ed3977b19093dd2a3f5e6de4b377131ceb78fe",
+      "target_faces": 2800
+    },
+    {
+      "id": "gnome_statue",
+      "group": "shared",
+      "node": "prop-gnome_statue",
+      "request_id": "844fa74f60de7c6f0fc91c2ea6cead29",
+      "image_sha256": "a8dd335f1de48baa62573ea1e26ec13205c5189c1e057978a9f42305fdc7dfcf",
+      "model_sha256": "05f498b1644a8718465ec91a0c238012b615630132ff3dfaec83af2b9b1103b5",
+      "target_faces": 2200
+    },
+    {
+      "id": "hotdog_stand",
+      "group": "shared",
+      "node": "hotdog_stand|frame",
+      "request_id": "b2a24f0ae85f0d26baf16f1bcbb31237",
+      "image_sha256": "fea03e035db95a1c41efee58f1b955bd5b6ea00e94cef70b29759845a4e09f75",
+      "model_sha256": "051c9840104ca91f928b1dcd79c93bd39c03db1848d0fece74c2f8e04b3c83de",
+      "target_faces": 2400
+    },
+    {
+      "id": "camper_van",
+      "group": "shared",
+      "node": "camper_van|frame",
+      "request_id": "d8d0302f5a639532bde97d1a5e38b824",
+      "image_sha256": "c8540038057e0732e6dd7aeb8ea80d8ce7376e3a67f75c87c95951b460f4c187",
+      "model_sha256": "67112e945f68371ef97ce4ce0440428ca1dab5161d6aa456698519a7b9554b15",
+      "target_faces": 2400
+    },
+    {
+      "id": "chalet",
+      "group": "scenery-alpine",
+      "node": "prop-chalet",
+      "request_id": "ff45345973ad690ea1152b3a17575d47",
+      "image_sha256": "307eda77b6c4ee91027907c1157809e2ec44418ff864601f6a13313f87d71a28",
+      "model_sha256": "c43be406a94490069dd4dbdb187b33486a44892d2cf08a0d95a282e53facba54",
+      "target_faces": 3000
+    },
+    {
+      "id": "cablecar_pylon",
+      "group": "scenery-alpine",
+      "node": "prop-cablecar_pylon",
+      "request_id": "d4d02902249040562886f619d9bd5669",
+      "image_sha256": "b695173790f2b211a238df2e48882c915dcaaddb4a6cea5021ede613ffccdc9e",
+      "model_sha256": "a6ee8d47cf8e193a4c7f682d615240b0f7a963da22a417857b94cb1fd0b68d9f",
+      "target_faces": 1000
+    },
+    {
+      "id": "water_tower",
+      "group": "scenery-desert",
+      "node": "prop-water_tower",
+      "request_id": "66fa7308c91fd87649b2c65aea8de61d",
+      "image_sha256": "bc69fe61bd140fa52304621935442899575ec65afba24762b672472f38a5f00e",
+      "model_sha256": "b46921aa037d9f07c0ad597007132a365c9d903c1c156128676a8c587e068f53",
+      "target_faces": 2800
+    },
+    {
+      "id": "windmill_pump",
+      "group": "scenery-desert",
+      "node": "prop-windmill_pump",
+      "request_id": "63f6be7cb1e02e59cafb401df3702215",
+      "image_sha256": "7991509308fb895370e46f2cdfe4d5264f58167a708dd0c777da53fdeeed7140",
+      "model_sha256": "091b61a03e67ecb06a495df0cfa2ee89cc247beac934830de1651e1e51d533e9",
+      "target_faces": 3000
+    },
+    {
+      "id": "lighthouse",
+      "group": "scenery-harbour",
+      "node": "prop-lighthouse",
+      "request_id": "e76a650d410dda757affcd39004a0b6a",
+      "image_sha256": "6d21a8314b6aa6bed36f66cd8ac02d2be7c6ad8e03266293c213259a4dd584d9",
+      "model_sha256": "f3a519722086bc9c424bbe50b816ca0a44e5f807db369112f9e71d9de3ace1a7",
+      "target_faces": 2800
+    },
+    {
+      "id": "tugboat",
+      "group": "scenery-harbour",
+      "node": "prop-tugboat",
+      "request_id": "4d25c8475aa4a837a97447140a398c63",
+      "image_sha256": "d13101a19e3222db7fbb2414b3955665cfd70be8663e37a907d49a91db51c90d",
+      "model_sha256": "81a7d71951e85253deb8579e4a576a3a8c8c0aea464802563f9d7361010bc3ed",
+      "target_faces": 3000
+    },
+    {
+      "id": "ufo",
+      "group": "scenery-salt",
+      "node": "prop-ufo",
+      "request_id": "6ee2ca366436967570da5b7e8df52b5b",
+      "image_sha256": "f07cda0871032b5cb6fc8f7413ce2c0f19f041bc3d6f7b5c741cc6557b175a1a",
+      "model_sha256": "e2837e288225b6a2031cece3f4ec72181d3a036e168a12bea4a721f1e78e0e9f",
+      "target_faces": 2600
+    },
+    {
+      "id": "rover",
+      "group": "scenery-salt",
+      "node": "prop-rover",
+      "request_id": "6c66100f3308e9616db5d75a7aed4053",
+      "image_sha256": "e242778d9c05ccd2465d826c04fb24428949266e496095ba230353041d496109",
+      "model_sha256": "888bba40e59759d7ae6f8b57dcc58dcdd17a2c05f4f924fdbca6ad6a68532a76",
+      "target_faces": 1000
+    },
+    {
+      "id": "watermill",
+      "group": "scenery-forest",
+      "node": "prop-watermill",
+      "request_id": "979bf878633d3133fb2d30798b493954",
+      "image_sha256": "ec18c30215546af8882a026aa34cb70e00412b0006ad581cca33663deeeca25c",
+      "model_sha256": "4aa83a569ba98fa6b169a48ace764853960b04a893d09fcaa102b71dda84af3a",
+      "target_faces": 3200
+    },
+    {
+      "id": "hunting_hide",
+      "group": "scenery-forest",
+      "node": "prop-hunting_hide",
+      "request_id": "e38ae071cee64a051cef93374a99b545",
+      "image_sha256": "74b3632e24a496bd67cc5d1cafbb9d07cb7d74b67d4a876e2a4a1b82735c9e16",
+      "model_sha256": "d612cb2553eb4d5b76c36e5ec5643b6a70c65caae4aa1b34186bad1b09d8ea9a",
+      "target_faces": 1000
+    },
+    {
+      "id": "cooling_tower",
+      "group": "scenery-industry",
+      "node": "prop-cooling_tower",
+      "request_id": "ef842438b9e32521001f080a46d78c29",
+      "image_sha256": "586988b483b090d6ead402ffd4cc87ffcbe8741a4ebc0d3d1a11bafb8390324f",
+      "model_sha256": "b4963be4b5b9676218f852667b76acf76d22bdc1870c6470c602f4716bd7c636",
+      "target_faces": 2500
+    },
+    {
+      "id": "chem_tank",
+      "group": "scenery-industry",
+      "node": "prop-chem_tank",
+      "request_id": "b5c0120d0342ea788e55581285e9e27e",
+      "image_sha256": "053edf466d1a0d34760f6a8050b5e40f76347609832009b64c6831aa3d37d657",
+      "model_sha256": "a29597201330dfa1d67e3a3df9f7778fe57311be60ec29bcc21d4c7f3769436a",
+      "target_faces": 2500
+    },
+    {
+      "id": "research_station",
+      "group": "scenery-glacier",
+      "node": "prop-research_station",
+      "request_id": "e0288172bebfe05c78f3636a4cdce23e",
+      "image_sha256": "67d16eaa7465edfa46cc33b9d56c1835bec4303963650f4c74ed003e7d97d8f7",
+      "model_sha256": "1e29c20bb6b73843636c9e936a31d8193e77062149b70b01959b4b00f8142fb4",
+      "target_faces": 2800
+    },
+    {
+      "id": "snow_cat",
+      "group": "scenery-glacier",
+      "node": "prop-snow_cat",
+      "request_id": "24025633c339774b420de672a1a00f77",
+      "image_sha256": "1bbc558843f75f6ffcceed92df96fabe15c5c3ee925c73730cf98ac05a3db1c8",
+      "model_sha256": "104c1504ba53ad3ab59191ad6227b57f92eefd4d2dcf3d483bd63ae81aaddf15",
+      "target_faces": 2800
+    },
+    {
+      "id": "food_truck",
+      "group": "scenery-metro",
+      "node": "prop-food_truck",
+      "request_id": "4746a46024f4f60878627d3c102fce61",
+      "image_sha256": "97ed3e0e76191dfe4cc294b4cb5a24b3c991ea1c11b0bce4910212226e08bb4d",
+      "model_sha256": "defdc2c64c7e5eb534fa88d5c4fba3ee8d45c49ed69a9adf9ab71399138ea748",
+      "target_faces": 2800
+    },
+    {
+      "id": "metro_entrance",
+      "group": "scenery-metro",
+      "node": "prop-metro_entrance",
+      "request_id": "a51a5a7e86b1e92d41fa395a8d56421f",
+      "image_sha256": "05f2c6f91679639d977b9840303c32cf613ffd0e7190f3d98ef4a96cf08a413a",
+      "model_sha256": "5af3457ef870dfdaeb1bfadda9d3e6129b59f75eefc180060c1e81db35bbf109",
+      "target_faces": 1000
+    }
+  ]
+}

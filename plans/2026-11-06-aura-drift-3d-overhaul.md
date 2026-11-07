@@ -840,7 +840,7 @@ The other 14 languages are properly translated, including jokes, and are not mac
 
 | File | Content | Tri budget | Byte target |
 | --- | --- | --- | --- |
-| `car-vektor.glb` ... `car-bertha.glb` (`car-<id>.glb`, 8) | One car | ≤ 14000 each | ≤ 480 KB each |
+| `car-vektor.glb` ... `car-bertha.glb` (`car-<id>.glb`, 8) | One car, including reviewed vertex-colour reconstruction | ≤ 30000 each | ≤ 1.25 MiB each |
 | `items.glb` | `item-crate`, `item-gnome_mine`, `item-rubber_duck`, `item-rocket`, `item-bratwurst`, `item-boxing_glove`, `item-disco_ball`, `item-harpoon`, `item-air_horn`, `item-frost_grenade` | ≤ 12000 total | ≤ 450 KB |
 | `track.glb` | `track-ramp`, `track-boost_pad`, `track-cone`, `track-hay_bale`, `track-barrel`, `track-tyre_stack`, `track-barrier_segment`, `track-gantry` (children `light_1`..`light_5`), `track-rumble_bars` | ≤ 12000 | ≤ 450 KB |
 | `animals.glb` | `animal-cow`, `animal-sheep`, `animal-penguin`, `animal-crab`, `animal-llama` | ≤ 1800 each | ≤ 320 KB |

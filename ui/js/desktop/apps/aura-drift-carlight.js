@@ -45,7 +45,7 @@
     };
 
     const SHARED_TUNE = {
-        glass: m => { m.envMapIntensity = 1.8; m.depthWrite = false; m.roughness = 0.05; },
+        glass: m => { m.envMapIntensity = 1.8; m.transparent = m.opacity < 0.995; m.depthWrite = !m.transparent; m.roughness = 0.05; },
         chrome: m => { m.metalness = 1; m.roughness = 0.1; m.envMapIntensity = 1.5; },
         tyre: m => { m.envMapIntensity = 0.35; },
         trim: m => { m.envMapIntensity = 0.7; }

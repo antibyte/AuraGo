@@ -17,7 +17,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
-from kit import core, materials  # noqa: E402
+from kit import core, materials, reviewed_assets  # noqa: E402
 from kit.export import export_glb, render_previews  # noqa: E402
 
 CAR_IDS = ["vektor", "kobalt", "lumen", "tundra", "softeis", "maehkoenig", "couch", "bertha"]
@@ -100,6 +100,7 @@ def main():
         materials.build_all()
         module = importlib.import_module(module_name)
         model = module.build()
+        reviewed_assets.apply(model)
         path = os.path.join(out_dir, stem + ".glb")
         export_glb(model, path)
         built.append(model)

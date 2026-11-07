@@ -2,7 +2,7 @@
   "version": 1,
   "blender": "5.2.2",
   "generator": "assets/aura-drift/generate.py",
-  "totalBytes": 9171536,
+  "totalBytes": 13504184,
   "files": [
     {
       "name": "animals.glb",
@@ -13,37 +13,37 @@
     },
     {
       "name": "car-bertha.glb",
-      "bytes": 489960,
-      "sha256": "698d48a9f312a5677586bcde5026f930cc00c683b8f76d7042ce50556e126573",
-      "triangles": 10652,
+      "bytes": 897216,
+      "sha256": "018ad8baaf2cd06717dff5e2157e0ecb1018142e3fba414a4a7c7c6cb3d61d7c",
+      "triangles": 18976,
       "kind": "car"
     },
     {
       "name": "car-couch.glb",
-      "bytes": 419068,
-      "sha256": "6b6d73ea22b70267fc6ef66c07c4d0257b3804321c2a4c946d77c35ec207b0b7",
-      "triangles": 8644,
+      "bytes": 909668,
+      "sha256": "5fc0f01cf278cebcbb5fbcf1ccbe75eba2d8fc901232605655e93aa40a1fd337",
+      "triangles": 21336,
       "kind": "car"
     },
     {
       "name": "car-kobalt.glb",
-      "bytes": 381996,
-      "sha256": "45c60110048059a768c575e84c306be6b4304989a5940839c279c178e207b4e1",
-      "triangles": 8672,
+      "bytes": 781816,
+      "sha256": "82d530b55522e05e054a062b1555d73835253d51cdb0ac759a4e577668eb1e82",
+      "triangles": 19598,
       "kind": "car"
     },
     {
       "name": "car-lumen.glb",
-      "bytes": 423688,
-      "sha256": "bf7581b78db034537eb1beec1e5d1d8ea7ba8081ee11f6c308c9f630651f9d8c",
-      "triangles": 9072,
+      "bytes": 1002064,
+      "sha256": "f8aaaa541bdb03243f5dd92c944adc8c0971822bcef66beff4f9f81934fde406",
+      "triangles": 22422,
       "kind": "car"
     },
     {
       "name": "car-maehkoenig.glb",
-      "bytes": 375360,
-      "sha256": "4fdb19da5bdf2fb957bcbce0513ca2fae066796452ecc9115856b5fdcb9924f6",
-      "triangles": 8126,
+      "bytes": 1051456,
+      "sha256": "e953997f2a315954287064ed4cebe3e00b91266a24413e7778bafa88883434b3",
+      "triangles": 23190,
       "kind": "car"
     },
     {
@@ -55,16 +55,16 @@
     },
     {
       "name": "car-tundra.glb",
-      "bytes": 393980,
-      "sha256": "3f28afef6980d38d6fd87fcc98a1a8dae97e60b41b9ad7153a59ccdea9521183",
-      "triangles": 8652,
+      "bytes": 1306724,
+      "sha256": "4a6844c16039f49df115cc857c9b9f05885aa668f92ebc9c5428b008267b5a4c",
+      "triangles": 27293,
       "kind": "car"
     },
     {
       "name": "car-vektor.glb",
-      "bytes": 394556,
-      "sha256": "5982b14bf49d03648a6e7105a8edaba50818b986d367171eaabc5ee316a3ee3d",
-      "triangles": 8356,
+      "bytes": 1073268,
+      "sha256": "eba336a88d916bd0ace67591af84e0a8f90b8152203cb1dd25e3d4ffd9706171",
+      "triangles": 23616,
       "kind": "car"
     },
     {
@@ -76,65 +76,65 @@
     },
     {
       "name": "scenery-alpine.glb",
-      "bytes": 336768,
-      "sha256": "74b063aac2f2513fbd70a30ee5f8dc580d65d3a725c2aac8f6eadd542d209f6b",
-      "triangles": 4566,
+      "bytes": 317088,
+      "sha256": "22ad4a8e588df6073dea5c853ab5af0eb4ed90783c9af78b20cc83792babddc2",
+      "triangles": 5971,
       "kind": "scenery"
     },
     {
       "name": "scenery-desert.glb",
-      "bytes": 405460,
-      "sha256": "c446dfb37e74c0b341cca3c9fa39469e26217889938ef435916defe482c2b2e8",
-      "triangles": 5446,
+      "bytes": 500076,
+      "sha256": "032c62d9879cc7530e886e6b1992fdf9a289a4ce48f4a92e8681f11422ad3c71",
+      "triangles": 9064,
       "kind": "scenery"
     },
     {
       "name": "scenery-forest.glb",
-      "bytes": 336176,
-      "sha256": "e9294f8edd80522d5464895d55af003a466ee835e6e691ccebb3ad5672dd8add",
-      "triangles": 4528,
+      "bytes": 390312,
+      "sha256": "d7698d8d083f4cea553fde428596e4bf5fb519d0a272b0177a97529cf48d028b",
+      "triangles": 7097,
       "kind": "scenery"
     },
     {
       "name": "scenery-glacier.glb",
-      "bytes": 298968,
-      "sha256": "04f710d26e1d99320c0ee7ae444f71512b859d2e0082ab44972d1f55492dacd0",
-      "triangles": 4016,
+      "bytes": 316476,
+      "sha256": "76a264615f18f4f9a57285886d96adca94359f35ebddde3486c443350e530a97",
+      "triangles": 6971,
       "kind": "scenery"
     },
     {
       "name": "scenery-harbour.glb",
-      "bytes": 633316,
-      "sha256": "823b641d6501d12535357ea2328c60c5ae3ce3065881af3f43125a5c4c717bfd",
-      "triangles": 8770,
+      "bytes": 652872,
+      "sha256": "40151b87a5ddb6679f7fd5eac3067ff5c43c01e9653e7b3c7aeebf8538cbdb74",
+      "triangles": 12188,
       "kind": "scenery"
     },
     {
       "name": "scenery-industry.glb",
-      "bytes": 387588,
-      "sha256": "539c1e811c928aea8f56f651ee11ba072c9482ff96c8e60150a05c37f67f3c18",
-      "triangles": 5396,
+      "bytes": 446240,
+      "sha256": "f5e71d04de49d38f10cfaa027207e4f7b8583a430fb4041d279b155e635361bc",
+      "triangles": 9224,
       "kind": "scenery"
     },
     {
       "name": "scenery-metro.glb",
-      "bytes": 525352,
-      "sha256": "6a7f1e366930a0caf88a59bc677ff59186873736cc0d6478715ab5322d0fbac6",
-      "triangles": 7036,
+      "bytes": 502692,
+      "sha256": "a8a719c4e2452b6b61aa8c82a1bc99cbe37b45680fa05a23415e050656d0b56b",
+      "triangles": 7419,
       "kind": "scenery"
     },
     {
       "name": "scenery-salt.glb",
-      "bytes": 240976,
-      "sha256": "57579c48c50f4b6693133787026968883777bdf5ca8b01bb4f66b4a53187fb3a",
-      "triangles": 3276,
+      "bytes": 225664,
+      "sha256": "1159e455febcc2701f62295ce1232cffd7f4367b8c4d31e1c9d2d64f64ec2647",
+      "triangles": 4938,
       "kind": "scenery"
     },
     {
       "name": "shared.glb",
-      "bytes": 1651088,
-      "sha256": "3908281c198c9a0819fffa8bd2681836c1c61148e2adbb6280ee3f852317a4ab",
-      "triangles": 25076,
+      "bytes": 1653316,
+      "sha256": "891030cbd8da118371390c1dcec888806f61b536b8c6b33e31000c73e35286a7",
+      "triangles": 27354,
       "kind": "shared"
     },
     {
@@ -151,40 +151,40 @@
       "length": 5.3,
       "width": 3.0,
       "height": 3.1,
-      "wheelRadius": 0.959,
-      "wheelbase": 3.0
+      "wheelRadius": 1.337,
+      "wheelbase": 3.175
     },
     "couch": {
       "file": "car-couch.glb",
       "length": 3.0,
       "width": 1.8,
       "height": 1.62,
-      "wheelRadius": 0.343,
-      "wheelbase": 2.0
+      "wheelRadius": 0.452,
+      "wheelbase": 2.149
     },
     "kobalt": {
       "file": "car-kobalt.glb",
       "length": 4.82,
-      "width": 1.868,
-      "height": 1.3,
-      "wheelRadius": 0.385,
-      "wheelbase": 2.8
+      "width": 2.476,
+      "height": 1.89,
+      "wheelRadius": 0.52,
+      "wheelbase": 2.844
     },
     "lumen": {
       "file": "car-lumen.glb",
       "length": 4.835,
-      "width": 2.16,
-      "height": 1.35,
-      "wheelRadius": 0.405,
-      "wheelbase": 2.8
+      "width": 2.401,
+      "height": 1.953,
+      "wheelRadius": 0.545,
+      "wheelbase": 2.853
     },
     "maehkoenig": {
       "file": "car-maehkoenig.glb",
       "length": 2.7,
       "width": 1.3,
       "height": 1.5,
-      "wheelRadius": 0.313,
-      "wheelbase": 1.2
+      "wheelRadius": 0.377,
+      "wheelbase": 1.418
     },
     "softeis": {
       "file": "car-softeis.glb",
@@ -199,16 +199,16 @@
       "length": 3.9,
       "width": 2.0,
       "height": 1.62,
-      "wheelRadius": 0.424,
-      "wheelbase": 2.5
+      "wheelRadius": 0.515,
+      "wheelbase": 2.466
     },
     "vektor": {
       "file": "car-vektor.glb",
       "length": 4.605,
-      "width": 1.908,
-      "height": 1.149,
-      "wheelRadius": 0.385,
-      "wheelbase": 2.7
+      "width": 2.211,
+      "height": 1.869,
+      "wheelRadius": 0.5,
+      "wheelbase": 2.634
     }
   },
   "items": {
@@ -399,7 +399,7 @@
         "tags": [
           "tall"
         ],
-        "triangles": 1000
+        "triangles": 932
       },
       "chalet": {
         "file": "scenery-alpine.glb",
@@ -409,7 +409,7 @@
         "tags": [
           "hero"
         ],
-        "triangles": 1338
+        "triangles": 2811
       },
       "flower_meadow": {
         "file": "scenery-alpine.glb",
@@ -577,7 +577,7 @@
           "hero",
           "tall"
         ],
-        "triangles": 900
+        "triangles": 2748
       },
       "windmill_pump": {
         "file": "scenery-desert.glb",
@@ -588,7 +588,7 @@
           "hero",
           "tall"
         ],
-        "triangles": 1212
+        "triangles": 2982
       }
     },
     "forest": {
@@ -618,7 +618,7 @@
         "radius": 4.455,
         "height": 8.38,
         "tags": [],
-        "triangles": 822
+        "triangles": 961
       },
       "log_pile": {
         "file": "scenery-forest.glb",
@@ -657,7 +657,7 @@
           "hero",
           "tall"
         ],
-        "triangles": 594
+        "triangles": 3024
       }
     },
     "glacier": {
@@ -706,7 +706,7 @@
         "tags": [
           "hero"
         ],
-        "triangles": 1832
+        "triangles": 2644
       },
       "snow_cat": {
         "file": "scenery-glacier.glb",
@@ -716,7 +716,7 @@
         "tags": [
           "hero"
         ],
-        "triangles": 564
+        "triangles": 2707
       },
       "snow_fence": {
         "file": "scenery-glacier.glb",
@@ -791,7 +791,7 @@
           "tall",
           "far"
         ],
-        "triangles": 1246
+        "triangles": 2798
       },
       "neon_sign": {
         "file": "scenery-harbour.glb",
@@ -831,7 +831,7 @@
         "tags": [
           "hero"
         ],
-        "triangles": 1046
+        "triangles": 2912
       }
     },
     "industry": {
@@ -843,7 +843,7 @@
         "tags": [
           "hero"
         ],
-        "triangles": 440
+        "triangles": 2352
       },
       "cooling_tower": {
         "file": "scenery-industry.glb",
@@ -855,7 +855,7 @@
           "tall",
           "far"
         ],
-        "triangles": 500
+        "triangles": 2416
       },
       "forklift": {
         "file": "scenery-industry.glb",
@@ -935,7 +935,7 @@
         "radius": 3.331,
         "height": 4.95,
         "tags": [],
-        "triangles": 1006
+        "triangles": 1105
       },
       "holo_arrow": {
         "file": "scenery-metro.glb",
@@ -955,7 +955,7 @@
         "tags": [
           "hero"
         ],
-        "triangles": 674
+        "triangles": 958
       },
       "skyscraper_a": {
         "file": "scenery-metro.glb",
@@ -1046,7 +1046,7 @@
         "radius": 2.358,
         "height": 4.2,
         "tags": [],
-        "triangles": 840
+        "triangles": 988
       },
       "salt_crystal": {
         "file": "scenery-salt.glb",
@@ -1066,7 +1066,7 @@
         "tags": [
           "hero"
         ],
-        "triangles": 936
+        "triangles": 2450
       }
     },
     "shared": {
@@ -1089,7 +1089,7 @@
         "tags": [
           "hero"
         ],
-        "triangles": 2164
+        "triangles": 2775
       },
       "fan_camp": {
         "file": "shared.glb",
@@ -1111,7 +1111,7 @@
           "hero",
           "tall"
         ],
-        "triangles": 1524
+        "triangles": 2026
       },
       "grandstand": {
         "file": "shared.glb",
@@ -1122,7 +1122,7 @@
           "hero",
           "crowd"
         ],
-        "triangles": 12864
+        "triangles": 12789
       },
       "hoarding": {
         "file": "shared.glb",
@@ -1142,7 +1142,7 @@
         "tags": [
           "hero"
         ],
-        "triangles": 1586
+        "triangles": 2850
       },
       "inflatable_arch": {
         "file": "shared.glb",
@@ -1201,7 +1201,7 @@
         "tags": [
           "tall"
         ],
-        "triangles": 468
+        "triangles": 444
       }
     }
   }

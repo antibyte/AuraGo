@@ -198,7 +198,7 @@ weather motion are removed by reduced motion.
 
 - Runtime: `ui/js/vendor/aura-drift/three-runtime.js`, a three.js **0.186.1 (r186)** IIFE bundle
   (908 369 bytes, manifest and licence beside it in `ui/js/vendor/aura-drift/`).
-- Models: 20 GLB files, 9 171 536 bytes (8.75 MiB) in total, under `ui/3d/aura-drift/v1`: eight cars, `items`,
+- Models: 20 GLB files, 13 504 184 bytes (12.88 MiB) in total, under `ui/3d/aura-drift/v1`: eight cars, `items`,
   `track`, `animals`, `shared` props and eight biome scenery kits. `manifest.json` records
   per-file size, hash and car measurements; `LICENSE.txt` lists the licence. The models are made
   by `assets/aura-drift/generate.py` (Blender 5.2, deterministic output) and are untextured:
@@ -210,6 +210,13 @@ weather motion are removed by reduced motion.
   plus an alpine snow gauge, a desert anemometer, a harbour storm lantern and a glacier drift
   fence in their biomes. All twelve new props are placed through `AD.SCATTER` bands or
   `AD.furnitureProps`, so they are visible rather than merely exported.
+- Reviewed models: all eight vehicles use original ImageGen concepts reconstructed through the
+  NC AI VARCO API. Softeis retains its earlier reviewed source; the other seven cars and twenty
+  prominent scenery/shared objects are retained under `assets/aura-drift/reviewed/` with hashes
+  and request IDs. The Blender build is offline and preserves native wheel steering/spin,
+  rigid accessory joints, audience animation and placement bounds. Colours are baked into
+  vertices; car budgets are 30000 triangles/1.25 MiB each, within the unchanged 18 MiB pack cap.
+  The complete selection and reproduction checks are in `assets/aura-drift/README.md`.
 - Look: golden-hour diorama lighting, hemisphere and sun, a sky shader with the biome palette,
   shadow maps by tier, weather (rain, snow, fog, haze) drawn in the sky, terrain and props,
   instanced car lamps, reverse lights, softeis roof beacon, road underglow pools, exhaust

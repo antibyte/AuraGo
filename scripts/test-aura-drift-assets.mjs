@@ -31,7 +31,7 @@ const LEGS = ['leg_fl', 'leg_fr', 'leg_rl', 'leg_rr'];
 // name -> {kind, nodes: required top-level nodes, children: {node: [children]}, maxTriangles, maxBytes}
 const FILES = {};
 for (const id of CAR_IDS) {
-  FILES[`car-${id}.glb`] = { kind: 'car', id, maxTriangles: 14000, maxBytes: 480 * KB };
+  FILES[`car-${id}.glb`] = { kind: 'car', id, maxTriangles: 30000, maxBytes: 1.25 * MIB };
 }
 FILES['items.glb'] = {
   kind: 'items',

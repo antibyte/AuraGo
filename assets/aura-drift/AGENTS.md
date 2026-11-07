@@ -11,7 +11,7 @@ Own the Blender 5.2 generator of the Aura Drift model pack and its pure-Python k
   alpine snow gauge, desert anemometer, harbour storm lantern, glacier drift fence). The shared
   builders return `toy.Parts`, the scenery builders fill a `Piece`.
   `runtime-entry.mjs` belongs to the three.js vendor bundle, not to the kit.
-- Runtime payload: `ui/3d/aura-drift/v1/` (20 GLBs, 9 171 536 bytes, `manifest.json`, `LICENSE.txt`).
+- Runtime payload: `ui/3d/aura-drift/v1/` (20 GLBs, 13 504 184 bytes, `manifest.json`, `LICENSE.txt`).
   Written only by `generate.py`, the manifest only by `--only manifest` (a partial `--only` run
   emits a partial manifest, so regenerate the whole pack before shipping). Adding a prop means adding
   its node to `scripts/test-aura-drift-assets.mjs`, its tags to `kit/meta_*.py`, and its placement
@@ -30,6 +30,10 @@ Own the Blender 5.2 generator of the Aura Drift model pack and its pure-Python k
   `kit/car_softeis.py` rebuilds it offline through `core.Model`; wheels use `cars_common.wheel_accum`
   so the shared wheel instancer and procedural steering remain unchanged. The `cone` child pivots
   at its roof joint. Textures are baked into vertex colours; no API or image files are build inputs.
+- The other seven cars and twenty selected scenery/shared props retain reviewed reconstructions
+  in `reviewed/`; `kit/reviewed_assets.py` applies them after each procedural builder. Preserve
+  native node names, hierarchy, livery/light materials, audience children and placement bounds.
+  Window shells use opaque glazing because the reconstructions contain no separate interior.
 - Preview renders and scratch builds go outside the repository (`D:\tmp\agdrift-shots`, `D:\tmp\agdrift-build`).
 - Generated scratch folders under `assets/aura-drift/build/` are git-ignored.
 
@@ -45,7 +49,7 @@ Own the Blender 5.2 generator of the Aura Drift model pack and its pure-Python k
   wheels use `tyre`.
 - The retained Softeis geometry welds UV seams and uses angle-limited smoothing; its seven body
   materials and neutral part transforms retain the ordinary livery, lights and animation contract.
-- Budgets live in the validator (cars 14000 triangles and 480 KB, shared.glb 1.75 MiB, scenery
+- Budgets live in the validator (cars 30000 triangles and 1.25 MiB, shared.glb 1.75 MiB, scenery
   kits 1.1 MiB each, pack 18 MiB; per-prop 450/1200/4500/14000 triangles by tag). Check after each build.
 
 ## Verification
@@ -56,4 +60,6 @@ Own the Blender 5.2 generator of the Aura Drift model pack and its pure-Python k
 - Model and sound changes are followed by a regenerate and a commit of the pack together with the kit.
 
 ## Child DOX Index
-None.
+| Area | Guide | Scope |
+| --- | --- | --- |
+| Reviewed reconstructions | `reviewed/AGENTS.md` | Retained geometry, provenance, rigid-part preparation and offline replacements. |
