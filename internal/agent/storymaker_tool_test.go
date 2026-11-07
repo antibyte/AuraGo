@@ -143,3 +143,20 @@ func TestStorymakerChatToolDispatchesAndOpens(t *testing.T) {
 		t.Fatalf("no facade = %v", off)
 	}
 }
+
+func TestStorymakerChatJobsNeedARuleWhenUnattended(t *testing.T) {
+	unattended := &DispatchContext{MissionID: "mission-1"}
+	for _, op := range []string{"create", "revise", "render"} {
+		if a := DescribeAction(ToolCall{Action: "storymaker", Operation: op}, unattended); !a.HighRisk {
+			t.Errorf("unattended storymaker %s is not high-risk: %+v", op, a)
+		}
+	}
+	for _, op := range []string{"status", "list", "open"} {
+		if a := DescribeAction(ToolCall{Action: "storymaker", Operation: op}, unattended); a.HighRisk {
+			t.Errorf("unattended storymaker %s is high-risk: %+v", op, a)
+		}
+	}
+	if a := DescribeAction(ToolCall{Action: "storymaker", Operation: "create"}, &DispatchContext{}); a.HighRisk {
+		t.Errorf("interactive storymaker create is high-risk: %+v", a)
+	}
+}

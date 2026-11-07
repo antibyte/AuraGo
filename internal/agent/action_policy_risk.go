@@ -69,13 +69,15 @@ var externalReachOperations = map[string]map[string]struct{}{
 	"evomap":                   policyNameSet("submit_report", "kg_ingest"),
 }
 
-// unattendedReachOperations are operations that run code on an external machine. A
-// user who watches the chat sees them and the workspace; an unattended run has the
-// workspace's network profile (internet and LAN by default) and nobody to look, so
-// there they need a rule like any other high-risk action.
+// unattendedReachOperations are operations that run code on an external machine or
+// spend money on the owner's account. A user who watches the chat sees them and the
+// workspace; an unattended run has the workspace's network profile (internet and LAN
+// by default) and nobody to look, so there they need a rule like any other
+// high-risk action.
 var unattendedReachOperations = map[string]map[string]struct{}{
 	"virtual_workspace": policyNameSet("exec", "start_job", "job_input"),
 	"virtual_computers": policyNameSet("exec"),
+	"storymaker":        policyNameSet("create", "revise", "render"), // A job spends model tokens and voice budget.
 }
 
 // Home Assistant domains whose services open, unlock, disarm, run user-defined

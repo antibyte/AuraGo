@@ -519,6 +519,9 @@ var externalReachOrdinary = []struct {
 		"virtual_computers": {"launch", "extend", "fork", "create_volume", "save_machine"},
 		"virtual_workspace": {"open", "write_file", "checkpoint"},
 	}},
+	{"only shows the project in the desktop; the jobs that spend money are create, revise and render in unattendedReachOperations", map[string][]string{
+		"storymaker": {"open"},
+	}},
 }
 
 func TestExternalReachOperationsAreClassified(t *testing.T) {
