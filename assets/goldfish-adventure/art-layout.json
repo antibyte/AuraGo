@@ -1868,10 +1868,6 @@
       "runtime": "icon.png"
     },
     {
-      "file": "interface/dialogue-frame.png",
-      "runtime": "interface/dialogue-frame.png"
-    },
-    {
       "file": "scenes/R01-open.png",
       "runtime": "scenes/R01-open.png"
     }
