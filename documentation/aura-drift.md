@@ -9,10 +9,12 @@ the earlier top-down plan `plans/2026-11-04-aura-drift-racing-plan.md`, which is
 
 ## Status (read first)
 
-- **Nobody has play-tested the game or listened to the sound yet.** Driving feel, balance,
-  sound mix and visual taste are unverified by a person. The tests below check contracts and
-  numbers, not enjoyment. The next step is the owner playing on a real screen; tuning beyond
-  the budgets and listening passes wait for that feedback.
+- **The first human play-test happened:** the owner reported that every opponent was slower
+  than the player, which made races dull. `aura-drift-ai.js` now shares the player's
+  full-throttle ceiling and brakes against the track radius; `scripts/test-aura-drift-balance.mjs`
+  pins that parity. Sound mix, visual taste and the rest of the driving feel are still
+  unverified by a person, and nobody has listened to the pack yet. The tests below check
+  contracts and numbers, not enjoyment; further tuning waits for more play feedback.
 - **Frame cost is measured on one GPU only:** an Intel Arc B580 at the High tier, 1536×1152,
   during the countdown only: about 13 ms median per frame (about 4 ms JavaScript, 9 ms GPU).
   Nothing has been measured on an integrated GPU, and nothing during a full race.
@@ -285,10 +287,17 @@ so the heading points up the screen (`screenRotation`). Two guards exist:
   link inside a 1.5 s window, grow a multiplier up to ×8 and bank only when they end. Loose
   surfaces and drift zones pay more; near misses (a rival inside 2.7 m at closing speed) pay a
   bonus. The HUD shows pending points, the multiplier and the link timer.
-- **AI and balance:** opponents use the identical solver with look-ahead pure pursuit,
-  grip-aware corner speeds, an overtaking line, bounded catch-up (at most 6 % target speed, never
-  grip, disclosed in all languages), nitro only on clean straights and a two-stage recovery
-  (brief reverse, then a deterministic marshal respawn).
+- **AI and balance:** opponents use the identical solver, so their straight-line ceiling is
+  the car's full-throttle force-balance speed (`AD.aiTerminalSpeed`), exactly what a player in
+  the same car reaches; weather, surface rolling resistance, damage, toast, hot-potato thrust
+  and nitro are included. A short fixed-window pure-pursuit aim keeps them on the racing line,
+  and a braking envelope over the track radius (rad/m) at fixed metre distances sets corner
+  speeds from grip, car handling and driver skill. Grip never reduces straight-line speed.
+  Catch-up stays bounded and disclosed (at most 6 % target speed, never grip, in all sixteen
+  languages), nitro is spent only on clean straights, and a two-stage recovery (brief reverse,
+  then a deterministic marshal respawn) clears pinned cars.
+  `scripts/test-aura-drift-balance.mjs` checks the ceiling against the solver for all eight
+  cars and the field against a full-throttle reference car.
 - **Replays:** the player's input is recorded as a compact integer tape. Time trial re-simulates
   that tape for the ghost; the same tape is stored with the personal best in local storage.
 
@@ -405,8 +414,8 @@ Canvas 2D. `TestDesktopAuraDriftStaleLoaderBrowser` covers both cases.
 convincing, not an engineering-grade vehicle simulation. There is no multiplayer, backend,
 agent tool, config switch, external API, online leaderboard or deployment.
 
-Still open: a human play-test on a real screen; listening passes on the sound pack; frame cost on
-integrated GPUs and during full races; 30-minute soak runs; acceptance on recorded reference
+Still open: listening passes on the sound pack; another play-test of the new opponent pace; frame
+cost on integrated GPUs and during full races; 30-minute soak runs; acceptance on recorded reference
 hardware; engineering-grade tyre data; CC0 recordings for the groups that are still synthesis (crowd aww, penguin, llama, big
 explosion, tyre stack, wind, city and snow ambience); a
 track editor; branch shortcuts; and the browser steering test above.
@@ -446,9 +455,11 @@ What each group checks:
   round-tripping.
 - **Tracks** validates the eight authored layouts and twenty generated daily routes: distinct
   shapes, spline round-trips, surface zones, drift zones and sector splits.
-- **Balance** runs seeded AI-only laps on all eight tracks. AI laps stay within 89 to 117 s, with
-  bounded wall contacts (low hundreds over a four-car race), weapon use, catch-up bounds and weather
-  determinism.
+- **Balance** runs seeded AI-only laps on all eight tracks. It bounds lap times, wall contacts,
+  weapon use, catch-up and weather determinism, verifies car parity and the drift reference bot,
+  and pins opponent pace: the AI straight-line ceiling equals the physics solver's top speed for
+  every car, and the field stays within 20 % of a full-throttle reference car's mean speed while
+  reaching its peak speed.
 - **Tricks, features, weapons, modes, world, props and banter** check the rule tables, the
   animal and crossing logic, weapon roulette and firing, mode rules (medals, sweeper, elimination,
   hot potato), world generation, prop placement and the banter lines.

@@ -7,6 +7,27 @@
        beyond this slip ratio (vy/speed), so a slide never turns into a spin. */
     const HB_SLIP = 0.16;
 
+    /* Pace model. The solver's own force balance gives every driver the same
+       full-throttle ceiling as a player in the same car; corners are limited
+       by the radius in rad/m and the brakes. All distances are metres. */
+    const CORNER_G = 1.4;          /* arcade lateral allowance over mu*g */
+    const BRAKE_A = 5.5;           /* conservative deceleration, below BRAKE_FORCE/M: brake early, stay clean */
+    const BRAKE_POINTS = [0, 16, 32, 52, 76, 104, 138, 178, 220];
+
+    /* Full-throttle equilibrium speed of the car on this surface: solve
+       9500*power*driveMul*(1-0.55*v/75) = 0.85*dragK*v^2 + roll*M*mass*g.
+       Damage, toast, Hot Potato driveK and nitro thrust are included, so the
+       AI never sets itself a slower ceiling than the identical player car. */
+    AD.aiTerminalSpeed = function (v, surface, driveMul) {
+        const c = v.car;
+        const power = c.power * (1 - 0.32 * clamp(v.damage / 100, 0, 1)) *
+            (v.toast > 0 ? 0.6 : 1) * (driveMul || 1);
+        const a = 0.85 * c.dragK;
+        const b = 9500 * power * 0.55 / 75;
+        const c0 = surface.roll * 1250 * c.mass * 9.81 - 9500 * power;
+        return clamp((-b + Math.sqrt(Math.max(0, b * b - 4 * a * c0))) / (2 * a), 10, 95);
+    };
+
     /* Marshal: puts a pinned or wrecked car back on the racing line. */
     AD.respawnCar = function (race, car) {
         const v = car.v;
@@ -30,7 +51,12 @@
         const v = car.v, track = race.track;
         const sample = AD.sampleTrack(track, v.x, v.y);
         const speed = Math.max(0, v.vx);
-        const ahead = AD.pointAt(track, sample.s + 26 + speed * 0.85);
+        /* Pure pursuit aims at a fixed window, not one that grows to 85 m at
+           top speed: a long aim point cuts tight corners and scrapes the wall.
+           The smaller window also keeps `curvature` a local reading for lane,
+           handbrake and nitro decisions. Corner speeds use the track radius
+           below, so they no longer depend on this look-ahead at all. */
+        const ahead = AD.pointAt(track, sample.s + 12 + speed * 0.5);
         const curvature = Math.abs(ahead.tx * sample.ty - ahead.ty * sample.tx);
         let lane = car.ai.lane * (1 - clamp(curvature * 4, 0, 0.8));
         /* Overtaking line: a rival just ahead is worth moving around, but
@@ -54,13 +80,16 @@
         const input = car.input;
         input.steer = clamp(error * 2.4 - v.r * 0.22, -1, 1);
 
-        /* Surface grip and corridor position cap the achievable corner speed.
-           Without this the narrow, muddy rally stage becomes a wall-scraping
-           convoy instead of a race. */
+        /* Grip and corridor position cap the achievable corner speed, not the
+           straight: the solver scales lateral tyre force with grip only, so a
+           player at full throttle reaches the same terminal speed on mud as on
+           asphalt. The old single target multiplied that ceiling by both grip
+           and a speed-scaled look-ahead angle, which kept every rival near
+           58 m/s while the player reached about 71. */
         const surface = AD.surfaceAt(track, sample.s, sample.offset, sample);
         /* Weather bites since D1 was fixed: drivers read it like a surface. */
         const weatherGrip = race.conditions ? race.conditions.state.grip : 1;
-        const gripFactor = 0.58 + 0.42 * clamp(surface.grip * weatherGrip, 0.2, 1.2);
+        const grip = clamp(surface.grip * weatherGrip, 0.12, 1.3);
         const corridor = Math.abs(sample.offset) / Math.max(1, sample.halfWidth);
         const corridorFactor = 1 - 0.4 * clamp((corridor - 0.55) / 0.45, 0, 1);
         let leader = car.progress;
@@ -72,12 +101,37 @@
         car.ai.catchupFactor = catchup;
 
         /* Drivers know their car: tyre grip and steering bite set how hard it
-           can be thrown at a corner (square root: speed grows with sqrt(mu)). */
+           can be thrown at a corner; skill separates the personalities. */
         const cd = v.car;
         const handling = Math.sqrt(Math.pow(clamp(cd.grip, 0.6, 1.4), 0.7) * Math.pow(clamp(cd.steerK, 0.6, 1.4), 0.3));
-        const cornerLimit = (18 + 62 * car.ai.aggression * (car.ai.skill || 1) /
-            Math.max(0.35, 1 + curvature * 14 + Math.abs(sample.offset) / 40)) * handling;
-        const target = clamp(cornerLimit * gripFactor * corridorFactor * catchup, 10, 74);
+        const pace = clamp(car.ai.aggression * (car.ai.skill || 1), 0.7, 1.25);
+        const lateral = 9.81 * grip * CORNER_G * handling * pace;
+        /* Nitro is a shared resource: rivals spend it exactly like the player,
+           and their straight-line ceiling accounts for the extra thrust. */
+        const boost = (v.nitro > 0.55 && curvature < 0.02 && speed > 46) ? 1 : 0;
+        const driveK = (v.hasBomb && race.rules && race.rules.driveK) || 1;
+        const straight = AD.aiTerminalSpeed(v, surface, driveK * (boost ? 1.55 : 1)) * catchup;
+        /* Braking envelope: at each fixed distance ahead, the speed the local
+           radius allows plus what the brakes can shed on the way there. Fixed
+           metres, not a speed-scaled tangent sweep, keep the braking point
+           honest on fast straights; the envelope only ever slows a car down. */
+        const kappas = track.curvature;
+        const n = kappas.length;
+        const spacing = track.length / n;
+        let target = straight;
+        for (let i = 0; i < BRAKE_POINTS.length; i++) {
+            const d = BRAKE_POINTS[i];
+            const index = (sample.index + Math.round(d / spacing)) % n;
+            const kappa = Math.max(kappas[index] || 0,
+                kappas[(index + 1) % n] || 0,
+                kappas[(index - 1 + n) % n] || 0);
+            const corner = Math.sqrt(lateral / Math.max(kappa, 0.0003)) * corridorFactor * catchup;
+            const allowed = Math.sqrt(corner * corner + 2 * BRAKE_A * d);
+            if (allowed < target) target = allowed;
+        }
+        target = clamp(target, 10, 95);
+        car.ai.targetSpeed = target;
+        car.ai.straightSpeed = straight;
         input.throttle = speed < target ? 1 : 0;
         input.brake = speed > target + 5 ? clamp((speed - target) / 14, 0, 1) : 0;
         /* Rivals throw the car into the corner: the handbrake makes them
@@ -86,7 +140,7 @@
            wall-scraping convoy. */
         input.handbrake = (curvature > 0.22 && speed > 24 && surface.grip > 0.6 && Math.abs(v.vy) < speed * HB_SLIP) ? 1 : 0;
         /* Same nitro resource as the player: burn it on clean straights only. */
-        input.boost = (v.nitro > 0.55 && curvature < 0.02 && speed > 46) ? 1 : 0;
+        input.boost = boost;
         input.fire = 0;
 
         if (corridor > 0.5) {

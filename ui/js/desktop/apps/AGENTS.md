@@ -3618,11 +3618,18 @@ buttons and menu popovers remain excluded from those gestures.
   spends it, and the AI only spends it on clean straights.
 - Tracks are closed Catmull-Rom splines with a 64 m spatial grid and 320 m chunk canvases
   (2D) or chunk geometry (3D) capped per quality tier.
-- AI uses grip- and corridor-aware corner speeds, a bounded and disclosed 6% catch-up, an
-  overtaking line, handbrake slides where grip allows, reverse recovery and a deterministic
-  marshal respawn. `aura-drift-style.js` scores drift chains (multiplied up to x8, banked on
-  exit), near misses and drift zones; `aura-drift-conditions.js` runs the seeded weather
-  schedule, which changes grip for every driver equally.
+- AI pace matches the player: `AD.aiTerminalSpeed` solves the solver's own drive, drag and
+  rolling force balance for each car, surface and state, so rivals reach the same full-throttle
+  speed as an identical player car. Corner speeds come from a braking envelope over
+  `track.curvature` (rad/m) at fixed metre distances, scaled by grip, handling and driver
+  skill; grip never cuts straight-line speed. A short pure-pursuit aim (`12 + 0.5 * speed`)
+  replaces the speed-growing look-ahead that cut corners and scraped walls. The bounded,
+  disclosed 6% catch-up, overtaking line, handbrake slides where grip allows, reverse recovery
+  and deterministic marshal respawn are unchanged; `scripts/test-aura-drift-balance.mjs` pins
+  the ceiling against the physics solver and the field against a full-throttle reference car.
+  `aura-drift-style.js` scores drift chains (multiplied up to x8, banked on exit), near misses
+  and drift zones; `aura-drift-conditions.js` runs the seeded weather schedule, which changes
+  grip for every driver equally.
 - Modes live in `aura-drift-modes.js`: quick, cup and daily run a 45 s sweeper after the first
   finisher; elimination removes the last place at 45 s, then every 30 s; hot potato passes a
   bomb by contact (5 s start, 3 s gap, fuse 15 s shrinking to 10 s, 16 m blast). Drift Attack

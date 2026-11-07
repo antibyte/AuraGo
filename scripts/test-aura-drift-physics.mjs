@@ -149,7 +149,10 @@ check('input tape round-trips steering sign', unpacked.steer < -0.45 && unpacked
         compared++;
         worst = Math.max(worst, Math.abs(g.x - positions[i][0]), Math.abs(g.y - positions[i][1]));
     }
-    check('ghost matches the recorded player within 1e-6', compared > 10000 && worst < 1e-6, compared + ' steps, worst=' + worst);
+    /* Guard against a replay that never ran, not against a faster lap: the
+       opponent pace tuning shortened the scripted lap below the old 10000-step
+       threshold. The contract is that the whole tape replays bit-identically. */
+    check('ghost matches the recorded player within 1e-6', compared >= tape.length - 2 && worst < 1e-6, compared + ' steps, worst=' + worst);
 }
 
 {
