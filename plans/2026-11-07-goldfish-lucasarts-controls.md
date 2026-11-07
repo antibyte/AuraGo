@@ -1,7 +1,9 @@
 # Goldfish Adventure: LucasArts controls
 
 Date: 2026-11-07. App `goldfish-adventure` (**Bitte nicht das Universum füttern**).
-Status: approved design, implementation in progress. Supersedes the interaction
+Status: implemented locally and verified with the Goldfish node suites, the Go browser
+tests and real-Chrome smoke runs (2026-11-07); not pushed or deployed. Real-hardware
+touch, audio and a human playtest of the new controls remain open. Supersedes the interaction
 bullets of `plans/2026-11-06-goldfish-adventure.md` ("Click or keyboard-focus a
 hotspot, then choose its action"; "Only explicit Next/Close acknowledges a line").
 

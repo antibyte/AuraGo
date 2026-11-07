@@ -247,12 +247,12 @@
             schedule();
         }
 
-        function walk(point) {
+        function walk(point, walkOptions = {}) {
             cancelMotion();
             const x = Math.max(0.08, Math.min(0.92, point[0]));
             const y = Math.max(scene?.walkMinY || 0.65, Math.min(scene?.walkMaxY || 0.9, point[1]));
             facing = x < actorPosition.x ? 'left' : 'right';
-            if (reduced()) { actorPosition = { x, y }; options.onPosition?.({ ...actorPosition }); draw(); return Promise.resolve(true); }
+            if (reduced() || walkOptions.instant) { actorPosition = { x, y }; options.onPosition?.({ ...actorPosition }); draw(); return Promise.resolve(true); }
             return new Promise(resolve => {
                 walking = { from: { ...actorPosition }, to: { x, y }, elapsed: 0,
                     duration: Math.max(180, Math.hypot(x - actorPosition.x, y - actorPosition.y) * 2800), resolve };
@@ -356,6 +356,25 @@
             if (performance) { performance.resolve(false); performance = null; }
         }
 
+        // Normalised head position of the player or of the scene actor a speaker maps to; null if unknown.
+        function anchor(speaker) {
+            if (disposed || !manifest || !scene) return null;
+            const player = speaker === 'r0st';
+            const actor = player ? { id: 'r0st' } : (scene.actors || []).find(value =>
+                allowed(value) && (value.id === speaker || (value.speakers || []).includes(speaker)));
+            const sprite = actor && manifest.sprites[actor.sprite || actor.id];
+            if (!actor || !sprite) return null;
+            const staged = moment?.actors.get(actor.id)?.position;
+            const position = staged || (player ? actorPosition : { x: actor.position[0], y: actor.position[1] });
+            const height = (actor.height || sprite.height || 0.29) * (actor.scale || 1);
+            const pivot = sprite.pivot || [0.5, 1];
+            const head = { x: position.x, y: position.y - height * pivot[1] };
+            return {
+                x: Math.max(0, Math.min(1, (head.x - camera.x) * camera.zoom + 0.5)),
+                y: Math.max(0, Math.min(1, (head.y - camera.y) * camera.zoom + 0.5))
+            };
+        }
+
         function setPaused(value) {
             paused = value;
             previous = 0;
@@ -376,7 +395,7 @@
         resize();
 
         return {
-            init, load, walk, act, setPaused, cancelMotion,
+            init, load, walk, act, anchor, setPaused, cancelMotion,
             skipMoment: () => finishMoment(true),
             speak: value => { speaking = value; draw(); },
             update: value => { state = value; if (!value.settings.sound) stopEffects(); draw(); syncAudio(); },

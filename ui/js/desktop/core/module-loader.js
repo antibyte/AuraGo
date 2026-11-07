@@ -49,7 +49,10 @@
                 '/js/desktop/apps/goldfish-adventure/state.js',
                 '/js/desktop/apps/goldfish-adventure/save.js',
                 '/js/desktop/apps/goldfish-adventure/renderer.js',
+                '/js/desktop/apps/goldfish-adventure/commands.js',
                 '/js/desktop/apps/goldfish-adventure/interactions.js',
+                '/js/desktop/apps/goldfish-adventure/speech.js',
+                '/js/desktop/apps/goldfish-adventure/panel.js',
                 '/js/desktop/apps/goldfish-adventure/app.js'
             ]
         },

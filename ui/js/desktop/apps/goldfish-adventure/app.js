@@ -19,12 +19,12 @@
     function render(host, windowId, ctx) {
         dispose(windowId);
         let disposed = false, generation = 0, controller = new AbortController();
-        let state, store = null, renderer = null, interactions = null, texts = {};
+        let state, store = null, renderer = null, interactions = null, speech = null, panel = null, texts = {};
         let started = false, userPaused = false, authEnded = false, busy = false, dirty = false;
         let storageBlocked = false, memoryConsent = false, assetStatus = 'loading_art';
-        let selected = null, selectedItem = null, lineQueue = [], lineIndex = -1, allSeen = false, resultDialogue = false;
+        let queueResult = false, flow = null, menuLive = null, saveStatus = { text: '', warning: false };
         let panelCount = 0, visibilityObserver = null, stageObserver = null, stageFrame = 0, currentSave = Promise.resolve(true), stateRevision = 0;
-        const dialogs = new Set(), revisions = new Map(), hintLevels = new Map();
+        const dialogs = new Set(), revisions = new Map(), hintLevels = new Map(), refusals = { take: 0, use: 0, talk: 0, item: 0 };
         const win = host.closest('.vd-window');
         const rawLocale = String(ctx.lang || window.SYSTEM_LANG || document.documentElement.lang || 'de').slice(0, 2).toLowerCase();
         const locale = localeIDs.has(rawLocale) ? rawLocale : 'de';
@@ -40,6 +40,7 @@
             const value = texts[key] || key;
             return value.replace(/\{([a-zA-Z_]+)\}/g, (match, name) => Object.hasOwn(parameters, name) ? String(parameters[name]) : match);
         };
+        const commands = window.GoldfishCommands;
         let refs = {};
 
         function changed() { stateRevision++; dirty = true; }
@@ -58,10 +59,20 @@
         function updatePause() {
             const paused = !started || userPaused || panelCount > 0 || !visible();
             renderer?.setPaused(paused);
+            speech?.setPaused(paused);
+            panel?.setLocked(!started);
+            if (refs.hotspots) refs.hotspots.inert = !started;
             root.classList.toggle('agfish-is-paused', userPaused || authEnded);
-            if (refs.pause) refs.pause.textContent = t(userPaused ? 'goldfish.ui.resume' : 'goldfish.ui.pause');
+            root.classList.toggle('agfish-started', started);
             if (refs.pauseOverlay) refs.pauseOverlay.hidden = !(userPaused || authEnded);
             if (refs.pauseText) refs.pauseText.textContent = t(authEnded ? 'goldfish.ui.auth_ended' : 'goldfish.ui.paused');
+        }
+
+        // Keys reach the game while focus is inside it; give focus back after the start screen or a dialog goes away.
+        function reclaimFocus() {
+            const active = document.activeElement;
+            if (disposed || !started || (active && active !== document.body && root.contains(active))) return;
+            if (!active || active === document.body) root.focus({ preventScroll: true });
         }
 
         function dialog(title) {
@@ -69,14 +80,8 @@
             const heading = element('header', 'agfish-dialog-heading');
             heading.append(element('h2', '', title));
             const body = element('div', 'agfish-dialog-body');
-            const close = () => { if (node.open) node.close(); else node.remove(); };
-            heading.append(button('×', close, 'agfish-close'));
-            heading.lastChild.setAttribute('aria-label', t('goldfish.ui.close'));
-            node.append(heading, body);
-            root.append(node);
-            panelCount++;
-            dialogs.add(node);
             let closed = false;
+            // The DOM and the pause counter change together, whether closed by button, Esc or code.
             const tidy = () => {
                 if (closed) return;
                 closed = true;
@@ -84,7 +89,15 @@
                 node.remove();
                 panelCount--;
                 updatePause();
+                reclaimFocus();
             };
+            const close = () => { if (node.open) node.close(); tidy(); };
+            heading.append(button('×', close, 'agfish-close'));
+            heading.lastChild.setAttribute('aria-label', t('goldfish.ui.close'));
+            node.append(heading, body);
+            root.append(node);
+            panelCount++;
+            dialogs.add(node);
             node.addEventListener('close', tidy, { once: true });
             node.showModal();
             updatePause();
@@ -105,12 +118,24 @@
             });
         }
 
-        function status(key, warning = false) {
-            if (disposed || !refs.status) return;
-            refs.status.textContent = t('goldfish.ui.' + key);
-            refs.status.classList.toggle('agfish-warning', warning);
-            refs.export.hidden = !warning;
+        function syncMenuStatus() {
+            if (!menuLive) return;
+            menuLive.line.textContent = saveStatus.text;
+            menuLive.line.classList.toggle('agfish-warning', saveStatus.warning);
+            menuLive.export.hidden = !saveStatus.warning;
+            menuLive.settings.disabled = busy;
         }
+
+        function applyStatus(text, warning) {
+            saveStatus = { text, warning };
+            if (disposed || !refs.status) return;
+            refs.status.textContent = text;
+            refs.status.classList.toggle('agfish-warning', warning);
+            panel?.menuButton.classList.toggle('agfish-warning', warning);
+            syncMenuStatus();
+        }
+
+        function status(key, warning = false) { applyStatus(t('goldfish.ui.' + key), warning); }
 
         async function persist(slot = 'auto', options = {}) {
             if (disposed) return false;
@@ -154,151 +179,221 @@
         }
 
         function room() { return window.GoldfishContent.rooms.find(value => value.id === state.room); }
+        const itemRecord = id => window.GoldfishContent.items.find(value => value.id === id);
+        const blocked = () => busy || !started || userPaused || authEnded || !!speech?.story();
 
         function refresh() {
             if (disposed || !state) return;
             root.dataset.room = state.room;
-            refs.act.textContent = t('goldfish.ui.chapter', { act: room().act });
-            refs.room.textContent = t(room().title);
             refs.canvas.setAttribute('aria-label', t('goldfish.ui.scene_description', { room: t(room().title) }));
             root.classList.toggle('agfish-show-hotspots', state.settings.hotspots);
+            root.classList.toggle('agfish-calm', state.settings.reducedMotion);
             root.classList.toggle('agfish-busy', busy);
-            if (refs.settings) refs.settings.disabled = busy;
-            refs.inventory.replaceChildren();
-            if (!state.inventory.length) refs.inventory.append(element('p', 'agfish-small', t('goldfish.ui.inventory_empty')));
-            for (const id of state.inventory) {
-                const item = window.GoldfishContent.items.find(value => value.id === id);
-                const pick = button('', () => {
-                    if (busy || !started) return;
-                    selectedItem = selectedItem === id ? null : id;
-                    say([{ speaker: 'r0st', text: item.description }]);
-                    refresh();
-                }, 'agfish-item');
-                pick.dataset.agfishItem = id;
-                pick.setAttribute('aria-pressed', String(selectedItem === id));
-                pick.setAttribute('title', t(item.description));
-                if (item.icon) {
-                    const image = document.createElement('img'); image.src = item.icon; image.alt = ''; image.loading = 'lazy';
-                    image.addEventListener('error', () => image.remove(), { once: true });
-                    pick.append(image);
-                }
-                pick.append(element('span', '', t(item.name)));
-                refs.inventory.append(pick);
-            }
-            if (selectedItem && !state.inventory.includes(selectedItem)) selectedItem = null;
-            refs.selectedItem.hidden = !selectedItem;
-            refs.selectedItem.textContent = selectedItem ? t('goldfish.ui.selected_item', {
-                item: t(window.GoldfishContent.items.find(value => value.id === selectedItem).name)
-            }) : '';
-            renderContext();
+            panel.setIdle(t(room().title));
+            panel.render(state);
+            syncMenuStatus();
             renderer?.update(state);
         }
 
-        function renderContext() {
-            refs.context.replaceChildren();
-            if (!selected) {
-                refs.context.append(element('p', 'agfish-small', t('goldfish.ui.select_object')));
-                return;
-            }
-            const hotspot = room().hotspots.find(value => value.id === selected);
-            if (!hotspot) { selected = null; return; }
-            refs.context.append(element('h3', '', t(hotspot.label)));
-            refs.context.append(button(t('goldfish.ui.inspect'), () => say(window.GoldfishState.lines(state, hotspot.look))));
-            const actions = hotspot.actions.map(id => window.GoldfishContent.actions.find(value => value.id === id))
-                .filter(value => window.GoldfishState.available(state, value));
-            for (const record of actions) {
-                const actionButton = button(t(record.label), () => chooseAction(record));
-                actionButton.dataset.agfishAction = record.id;
-                actionButton.disabled = busy;
-                if (record.item && selectedItem !== record.item) actionButton.title = t('goldfish.ui.item_needed');
-                refs.context.append(actionButton);
-            }
-            if (!actions.length) refs.context.append(element('p', 'agfish-small', t('goldfish.ui.no_action')));
+        // ---- Speech -------------------------------------------------------------------------------------------
+
+        // Lines play above the speaker's head. Story queues block the scene; ambient ones yield to any click.
+        function say(lines, { story = false, result = false } = {}) {
+            if (disposed || !speech) return;
+            const list = lines || [];
+            const allSeen = list.length > 0 && list.every(line => state.seenLines.includes(line.text));
+            speech.play(list, { story, allSeen });
+            queueResult = result;
         }
 
-        function renderHotspots() {
-            refs.hotspots.replaceChildren();
-            for (const hotspot of room().hotspots) {
-                if (!window.GoldfishState.conditions(state, hotspot)) continue;
-                const pick = button(t(hotspot.label), async () => {
-                    if (busy || !started || userPaused || authEnded) return;
-                    selected = hotspot.id;
-                    renderContext();
-                    say(window.GoldfishState.lines(state, hotspot.look));
-                    await renderer.walk(hotspot.walk || [hotspot.rect[0] + hotspot.rect[2] / 2, 0.83]);
-                }, 'agfish-hotspot');
-                pick.dataset.agfishHotspot = hotspot.id;
-                const [x, y, width, height] = hotspot.rect;
-                Object.assign(pick.style, { left: x * 100 + '%', top: y * 100 + '%', width: width * 100 + '%', height: height * 100 + '%' });
-                refs.hotspots.append(pick);
-            }
-            for (const exit of room().exits) {
-                const pick = button('↝ ' + t(exit.label), () => travel(exit.to), 'agfish-exit');
-                pick.dataset.agfishExit = exit.to;
-                if (!window.GoldfishState.conditions(state, exit)) pick.classList.add('agfish-locked-exit');
-                const [x, y, width, height] = exit.rect;
-                Object.assign(pick.style, { left: x * 100 + '%', top: y * 100 + '%', width: width * 100 + '%', minHeight: height * 100 + '%' });
-                refs.hotspots.append(pick);
-            }
+        const sayUi = (key, speaker = 'r0st') => say([{ speaker, text: 'goldfish.ui.' + key }]);
+
+        function refuse(kind) {
+            refusals[kind]++;
+            say([{ speaker: 'r0st', text: commands.refusalKey(kind, refusals[kind]) }]);
         }
 
-        function say(lines, result = false) {
-            if (disposed) return;
-            lineQueue = lines || [];
-            lineIndex = -1;
-            resultDialogue = result;
-            allSeen = lineQueue.length > 0 && lineQueue.every(line => state.seenLines.includes(line.text));
-            nextLine();
+        // A line counts as read once shown long enough or skipped. Interface refusals are never recorded.
+        function lineRead(line) {
+            if (disposed || line.text.startsWith('goldfish.ui.') || state.seenLines.includes(line.text)) return;
+            state.seenLines.push(line.text);
+            if (queueResult) { changed(); persist(); }
         }
 
-        function nextLine() {
-            if (disposed) return;
-            const acknowledged = lineQueue[lineIndex];
-            if (acknowledged && !state.seenLines.includes(acknowledged.text)) {
-                state.seenLines.push(acknowledged.text);
-                if (resultDialogue) { changed(); persist(); }
-            }
-            lineIndex++;
-            const line = lineQueue[lineIndex];
-            if (!line) {
-                refs.dialogue.hidden = true;
-                lineQueue = [];
-                renderer?.speak(null);
-                return;
-            }
-            refs.dialogue.hidden = false;
-            refs.speaker.textContent = t('goldfish.ui.speaker_' + line.speaker);
-            refs.dialogue.dataset.speaker = line.speaker;
-            refs.line.textContent = t(line.text);
-            refs.skip.hidden = !allSeen;
-            refs.next.textContent = t(lineIndex === lineQueue.length - 1 ? 'goldfish.ui.close' : 'goldfish.ui.dialogue_next');
+        function speechLine(line) {
+            if (disposed || !line) return;
             renderer?.speak(line.speaker);
+            panel?.setDim(speech.story());
+        }
+
+        function speechEnded() {
+            if (disposed) return;
+            renderer?.speak(null);
+            panel?.setDim(false);
         }
 
         function resumeDialogue() {
             const pending = window.GoldfishState.pendingResults(state);
             const entry = window.GoldfishState.enter(state).filter(line => !state.seenLines.includes(line.text));
-            say(pending.concat(entry), pending.length > 0);
+            say(pending.concat(entry), { story: true, result: pending.length > 0 });
         }
 
-        async function chooseAction(record) {
-            if (busy || !started || userPaused || authEnded) return;
-            if (record.item && selectedItem !== record.item) { status('item_needed', true); return; }
-            if (record.challenge) interactions.challenge(record, answer => perform(record, answer));
-            else perform(record);
+        // ---- Hotspots, verbs and walking ----------------------------------------------------------------------
+
+        function sentenceFor(hotspot) {
+            const item = panel.armedItem(), verb = panel.armedVerb();
+            let shown = verb;
+            if (!item && !verb) {
+                const choice = commands.defaultAction(state, hotspot);
+                shown = choice.kind === 'one' ? commands.ownVerb(choice.action) : choice.kind === 'look' ? 'look' : 'walk';
+            }
+            return commands.sentence(t, { verb: shown, hotspot, item: item && itemRecord(item) });
         }
 
-        async function perform(record, answer) {
-            if (busy || disposed || authEnded || !visible()) return;
+        // Walks to a target; a second click on the same target while walking finishes the walk at once.
+        async function approach(key, point) {
+            if (flow && flow.key === key && flow.walking) {
+                flow.instant = true;
+                renderer.walk(point, { instant: true });
+                return false;
+            }
+            const mine = flow = { key, walking: true, instant: false };
+            const arrived = await renderer.walk(point);
+            if (flow !== mine || disposed) return false;
+            mine.walking = false;
+            if (!arrived && !mine.instant) { flow = null; return false; }
+            return true;
+        }
+
+        function lookAt(hotspot) {
+            if (blocked()) return;
+            panel.disarm();
+            panel.closeMenu();
+            say(window.GoldfishState.lines(state, hotspot.look));
+        }
+
+        function chooseAmong(hotspot, list, item) {
+            if (list.length === 1) { chooseAction(list[0], item); return; }
+            panel.menu({
+                title: t(hotspot.label),
+                lines: list.map(record => ({ id: record.id, action: record.id, label: t(record.label) })),
+                onPick: line => { panel.closeMenu(); chooseAction(list.find(record => record.id === line.id), item); },
+                onCancel: () => panel.closeMenu()
+            });
+        }
+
+        function runAt(hotspot, verb, item) {
+            if (blocked()) return;
+            if (item) {
+                const list = commands.actionsFor(state, hotspot, { item });
+                if (list.length) chooseAmong(hotspot, list, item); else refuse('item');
+            } else if (verb) {
+                const list = commands.actionsFor(state, hotspot, { verb });
+                if (list.length) chooseAmong(hotspot, list, null);
+                else if (commands.needsItem(state, hotspot, verb).length) sayUi('item_needed');
+                else refuse(verb);
+            } else {
+                const choice = commands.defaultAction(state, hotspot);
+                if (choice.kind === 'one') chooseAction(choice.action, null);
+                else if (choice.kind === 'many') chooseAmong(hotspot, choice.actions, null);
+                else if (choice.kind === 'item') sayUi('item_needed');
+                else say(window.GoldfishState.lines(state, hotspot.look));
+            }
+        }
+
+        async function clickHotspot(hotspot) {
+            if (blocked()) return;
+            const verb = panel.armedVerb(), item = panel.armedItem();
+            panel.disarm();
+            panel.closeMenu();
+            if (verb === 'look' && !item) { lookAt(hotspot); return; }
+            speech.cancel();
+            const point = hotspot.walk || [hotspot.rect[0] + hotspot.rect[2] / 2, 0.83];
+            if (await approach('h:' + hotspot.id, point)) runAt(hotspot, verb, item);
+        }
+
+        function clickExit(exit) {
+            if (blocked()) return;
+            panel.disarm();
+            panel.closeMenu();
+            travel(exit.to);
+        }
+
+        function lookExit(exit) {
+            if (blocked() || window.GoldfishState.conditions(state, exit)) return;
+            panel.disarm();
+            say(window.GoldfishState.lines(state, exit.blocked));
+        }
+
+        function renderHotspots() {
+            // Rebuilding the buttons would drop keyboard focus onto <body>; remember it and put it back.
+            const focused = refs.hotspots.contains(document.activeElement) ? document.activeElement : null;
+            const focusKey = focused && { hotspot: focused.dataset.agfishHotspot, exit: focused.dataset.agfishExit };
+            refs.hotspots.replaceChildren();
+            panel?.setSentence('');
+            for (const hotspot of room().hotspots) {
+                if (!window.GoldfishState.conditions(state, hotspot)) continue;
+                const pick = element('button', 'agfish-hotspot', t(hotspot.label));
+                pick.type = 'button';
+                pick.dataset.agfishHotspot = hotspot.id;
+                const [x, y, width, height] = hotspot.rect;
+                Object.assign(pick.style, { left: x * 100 + '%', top: y * 100 + '%', width: width * 100 + '%', height: height * 100 + '%' });
+                panel.bind(pick, {
+                    click: () => clickHotspot(hotspot), look: () => lookAt(hotspot),
+                    hover: () => { if (started && !userPaused) panel.setSentence(sentenceFor(hotspot)); },
+                    leave: () => panel.setSentence('')
+                });
+                refs.hotspots.append(pick);
+            }
+            for (const exit of room().exits) {
+                const pick = element('button', 'agfish-exit', t(exit.label));
+                pick.type = 'button';
+                pick.dataset.agfishExit = exit.to;
+                if (!window.GoldfishState.conditions(state, exit)) pick.classList.add('agfish-locked-exit');
+                const [x, y, width, height] = exit.rect;
+                Object.assign(pick.style, { left: x * 100 + '%', top: y * 100 + '%', width: width * 100 + '%', height: height * 100 + '%' });
+                panel.bind(pick, {
+                    click: () => clickExit(exit), look: () => lookExit(exit),
+                    hover: () => { if (started && !userPaused) panel.setSentence(commands.sentence(t, { exit })); },
+                    leave: () => panel.setSentence('')
+                });
+                refs.hotspots.append(pick);
+            }
+            if (focusKey) {
+                const again = [...refs.hotspots.children].find(node => (focusKey.hotspot && node.dataset.agfishHotspot === focusKey.hotspot) ||
+                    (focusKey.exit && node.dataset.agfishExit === focusKey.exit));
+                (again || root).focus({ preventScroll: true });
+            }
+        }
+
+        // ---- Actions ------------------------------------------------------------------------------------------
+
+        function chooseAction(record, item) {
+            if (blocked()) return;
+            if (record.item && record.item !== item) { sayUi('item_needed'); return; }
+            if (record.challenge) interactions.challenge(record, answer => perform(record, answer, item));
+            else perform(record, undefined, item);
+        }
+
+        // A wrong answer speaks the record's wrongLines and offers the same menu again.
+        async function perform(record, answer, item = null) {
+            if (await run(record, answer, item) === 'wrong' && !disposed) chooseAction(record, item);
+        }
+
+        async function run(record, answer, item) {
+            if (busy || disposed || authEnded || !visible()) return null;
             busy = true;
+            flow = null;
+            speech.cancel();
+            panel.closeMenu();
             refresh();
             const ticket = generation;
             try {
-                const result = window.GoldfishState.apply(state, record.id, { item: selectedItem, answer });
+                const result = window.GoldfishState.apply(state, record.id, { item, answer });
                 if (result.error) {
-                    status(result.error, true);
-                    if (result.lines.length) say(result.lines);
-                    return;
+                    if (result.error !== 'wrong') { sayUi(result.error); return null; }
+                    say(result.lines);
+                    return generation === ticket ? 'wrong' : null;
                 }
                 const checkpointID = { 'pre-customs': 'branch-customs', 'pre-garden': 'branch-garden', 'pre-hall': 'branch-hall' }[record.checkpoint];
                 if (checkpointID && !await checkpoint(checkpointID)) return;
@@ -317,25 +412,26 @@
                 if (disposed || generation !== ticket) return;
                 refresh();
                 renderHotspots();
-                refs.dialogue.hidden = true;
-                lineQueue = [];
-                renderer.speak(null);
+                speech.cancel();
                 await renderer.act(record.id, record.animation || (record.effects?.puzzle ? 'celebrate' : record.verb === 'talk' ? 'talk' : 'use'));
                 if (disposed || generation !== ticket) return;
-                say(result.lines, true);
+                say(result.lines, { story: true, result: true });
             } finally {
                 busy = false;
                 if (!disposed) refresh();
             }
+            return null;
         }
 
         async function travel(target) {
-            if (busy || !started || userPaused || authEnded) return;
+            if (blocked()) return;
             const previousAct = room().act;
             const result = window.GoldfishState.move(state, target);
             if (result.error) { say(result.lines); return; }
+            speech.cancel();
             const previous = state, wasDirty = dirty;
             busy = true;
+            flow = null;
             refresh();
             renderer.cancelMotion();
             generation++;
@@ -349,14 +445,11 @@
                     return;
                 }
                 if (disposed) return;
-                selected = null;
-                refs.dialogue.hidden = true;
-                lineQueue = [];
                 refresh();
                 const firstActEntry = room().act !== previousAct && !previous.visited.some(id =>
                     window.GoldfishContent.rooms.find(value => value.id === id).act === room().act);
                 if (firstActEntry) await checkpoint('chapter-' + room().act, durable);
-                if (await loadRoom()) say(result.lines);
+                if (await loadRoom()) say(result.lines, { story: true });
             } finally { busy = false; if (!disposed) refresh(); }
         }
 
@@ -393,10 +486,11 @@
                 if (source.id !== 'auto' || source.prior === false) revisions.set(source.id, source.revision);
                 if (source.id === 'auto' && source.prior === false) { storageBlocked = false; dirty = false; }
             }
-            selected = selectedItem = null;
-            lineQueue = [];
+            flow = null;
+            panel.disarm();
+            panel.closeMenu();
+            speech.cancel();
             refs.start.hidden = true;
-            refs.dialogue.hidden = true;
             renderer.cancelMotion();
             if (!await loadRoom()) return false;
             refresh();
@@ -404,6 +498,8 @@
             resumeDialogue();
             return true;
         }
+
+        // ---- Dialogs ------------------------------------------------------------------------------------------
 
         function journal() {
             const pane = dialog(t('goldfish.ui.journal'));
@@ -463,30 +559,86 @@
                 wrapper.append(input, element('span', '', t('goldfish.ui.' + label)));
                 pane.body.append(wrapper);
             }
+            // Reading preferences live in this browser only, never in the save.
+            const prefs = speech.prefs();
+            const auto = element('label', 'agfish-setting');
+            const toggle = document.createElement('input'); toggle.type = 'checkbox'; toggle.checked = prefs.autoAdvance;
+            toggle.addEventListener('change', () => speech.setPrefs({ autoAdvance: toggle.checked }));
+            auto.append(toggle, element('span', '', t('goldfish.ui.auto_advance')));
+            const pace = element('label', 'agfish-setting');
+            const speed = document.createElement('select');
+            for (const name of ['slow', 'normal', 'fast']) {
+                const option = element('option', '', t('goldfish.ui.read_speed_' + name)); option.value = name; speed.append(option);
+            }
+            speed.value = prefs.readSpeed;
+            speed.addEventListener('change', () => speech.setPrefs({ readSpeed: speed.value }));
+            pace.append(element('span', '', t('goldfish.ui.read_speed')), speed);
+            pane.body.append(auto, pace);
             pane.node.addEventListener('close', () => { if (!disposed) persist(); }, { once: true });
         }
 
+        function speechLog() {
+            const pane = dialog(t('goldfish.ui.speech_log'));
+            const entries = speech.log();
+            if (!entries.length) { pane.body.append(element('p', '', t('goldfish.ui.speech_log_empty'))); return; }
+            const list = element('ol', 'agfish-speech-log');
+            for (const entry of entries) {
+                const row = element('li', '');
+                row.dataset.speaker = entry.speaker;
+                row.append(element('strong', '', entry.name + ': '), document.createTextNode(entry.text));
+                list.append(row);
+            }
+            pane.body.append(list);
+        }
+
+        function gameMenu() {
+            if (disposed || !state) return;
+            const pane = dialog(t('goldfish.ui.menu'));
+            pane.body.append(element('p', 'agfish-small', [t('goldfish.ui.chapter', { act: room().act }), t(room().title),
+                t('goldfish.ui.playtime', { minutes: Math.floor(state.elapsedMs / 60000) })].join(' · ')));
+            const list = element('nav', 'agfish-menu');
+            list.setAttribute('aria-label', t('goldfish.ui.title'));
+            const entry = (label, callback) => {
+                const pick = button(label, () => { pane.close(); callback(); });
+                list.append(pick);
+                return pick;
+            };
+            entry(t('goldfish.ui.journal'), journal);
+            entry(t('goldfish.ui.hint'), hint);
+            entry(t('goldfish.ui.saves'), () => interactions.saves());
+            entry(t('goldfish.ui.speech_log'), speechLog);
+            const preferences = entry(t('goldfish.ui.settings'), settings);
+            if (started) entry(t(userPaused ? 'goldfish.ui.resume' : 'goldfish.ui.pause'), () => { userPaused = !userPaused; updatePause(); });
+            const line = element('p', 'agfish-menu-status');
+            line.setAttribute('role', 'status');
+            const exporter = button(t('goldfish.ui.export'), () => interactions.exportState());
+            pane.body.append(list, line, exporter);
+            const mine = menuLive = { line, export: exporter, settings: preferences };
+            pane.node.addEventListener('close', () => { if (menuLive === mine) menuLive = null; }, { once: true });
+            syncMenuStatus();
+        }
+
+        // ---- Layout and lifecycle -----------------------------------------------------------------------------
+
         function build() {
             root.replaceChildren();
-            const toolbar = element('header', 'agfish-toolbar');
-            const identity = element('div', 'agfish-identity');
-            identity.append(element('span', 'agfish-maker', 'R0ST / 07'));
-            refs.act = element('span', 'agfish-act'); refs.room = element('h1', 'agfish-room');
-            const place = element('div', 'agfish-place'); place.append(refs.act, refs.room); identity.append(place);
-            const menu = element('nav', 'agfish-menu');
-            menu.setAttribute('aria-label', t('goldfish.ui.title'));
-            refs.pause = button(t('goldfish.ui.pause'), () => { if (started) { userPaused = !userPaused; updatePause(); } });
-            refs.settings = button(t('goldfish.ui.settings'), settings);
-            menu.append(button(t('goldfish.ui.journal'), journal), button(t('goldfish.ui.hint'), hint),
-                button(t('goldfish.ui.saves'), () => interactions.saves()), refs.settings, refs.pause);
-            toolbar.append(identity, menu);
-            const workspace = element('div', 'agfish-workspace');
-            const stageColumn = element('div', 'agfish-stage-column');
+            const play = element('div', 'agfish-play');
+            const stage = element('div', 'agfish-stage');
             const scene = element('div', 'agfish-scene');
+            // The bar switches to its compact layout in narrow windows and when a short window would shrink the scene
+            // (and with it the wide bar) too far. The decision uses a fixed wide-bar height, never the measured one, so
+            // toggling the layout cannot feed back into the decision.
+            const WIDE_BAR = 172, MIN_SCENE = 280;
             const fitScene = () => {
                 if (disposed) return;
-                const width = root.clientWidth <= 760 ? '100%' : Math.min(stageColumn.clientWidth, stageColumn.clientHeight * 16 / 9) + 'px';
-                if (scene.style.width !== width) scene.style.width = width;
+                const availableW = play.clientWidth, availableH = play.clientHeight;
+                const narrow = root.clientWidth <= 760 || Math.min(availableW, (availableH - WIDE_BAR) * 16 / 9) < 560;
+                const flipped = root.classList.contains('agfish-narrow') !== narrow;
+                if (flipped) root.classList.toggle('agfish-narrow', narrow);
+                const fitted = Math.min(availableW, (availableH - (panel?.el.offsetHeight || 0)) * 16 / 9);
+                const width = Math.max(0, Math.max(Math.min(availableW, MIN_SCENE), fitted)) + 'px';
+                if (root.style.getPropertyValue('--agfish-scene-w') !== width) root.style.setProperty('--agfish-scene-w', width);
+                if (flipped) scheduleFit();
             };
             const scheduleFit = () => {
                 if (disposed || stageFrame) return;
@@ -509,24 +661,23 @@
                 element('h2', '', t('goldfish.ui.title')), element('p', '', t('goldfish.ui.subtitle')));
             refs.continue = button(t('goldfish.ui.continue'), async () => {
                 started = true; refs.start.hidden = true; renderer.unlock(); updatePause();
+                root.focus({ preventScroll: true });
                 resumeDialogue();
             }, 'agfish-primary');
             refs.continue.hidden = true;
             const startNew = button(t('goldfish.ui.start'), async () => {
                 if (busy || disposed) return;
                 if (dirty && !await confirm(t('goldfish.ui.new_title'), t('goldfish.ui.new_body'))) return;
-                const previous = { state, started, dirty, userPaused, memoryConsent, selected, selectedItem,
-                    lineQueue, lineIndex, allSeen, resultDialogue, startHidden: refs.start.hidden,
-                    dialogueHidden: refs.dialogue.hidden, status: refs.status.textContent,
-                    warning: refs.status.classList.contains('agfish-warning'), exportHidden: refs.export.hidden };
+                const previous = { state, started, dirty, userPaused, memoryConsent, startHidden: refs.start.hidden, saveStatus };
                 busy = true;
                 startNew.disabled = true;
                 try {
                     state = window.GoldfishState.create();
                     changed(); started = true; userPaused = false; memoryConsent = false;
-                    selected = selectedItem = null; lineQueue = []; resultDialogue = false;
-                    refs.start.hidden = true; refs.dialogue.hidden = true;
+                    flow = null; panel.disarm(); panel.closeMenu(); speech.cancel();
+                    refs.start.hidden = true;
                     renderer.unlock();
+                    root.focus({ preventScroll: true });
                     if (!await loadRoom()) return;
                     const ticket = generation;
                     const accepted = await checkpoint('chapter-1');
@@ -534,18 +685,13 @@
                     if (!accepted) {
                         state = previous.state; started = previous.started; dirty = previous.dirty;
                         userPaused = previous.userPaused; memoryConsent = previous.memoryConsent;
-                        selected = previous.selected; selectedItem = previous.selectedItem;
-                        lineQueue = previous.lineQueue; lineIndex = previous.lineIndex;
-                        allSeen = previous.allSeen; resultDialogue = previous.resultDialogue;
-                        refs.start.hidden = previous.startHidden; refs.dialogue.hidden = previous.dialogueHidden;
-                        refs.status.textContent = previous.status;
-                        refs.status.classList.toggle('agfish-warning', previous.warning);
-                        refs.export.hidden = previous.exportHidden;
+                        refs.start.hidden = previous.startHidden;
+                        applyStatus(previous.saveStatus.text, previous.saveStatus.warning);
                         stateRevision++;
                         await loadRoom();
                         return;
                     }
-                    say(window.GoldfishState.enter(state));
+                    say(window.GoldfishState.enter(state), { story: true });
                 } finally {
                     busy = false;
                     startNew.disabled = false;
@@ -557,40 +703,43 @@
             startContent.append(startActions, element('small', '', t('goldfish.ui.pause_hint')));
             refs.start.append(startContent);
             scene.append(refs.canvas, refs.hotspots, refs.artStatus, refs.start, refs.pauseOverlay, refs.skipScene);
+            // While a story queue runs the scene only skips lines: hotspots and the floor wait.
             scene.addEventListener('click', event => {
                 renderer.unlock();
-                if (event.target !== refs.hotspots || busy || !started || userPaused || authEnded) return;
+                if (!started || userPaused || authEnded || !event.target.closest('.agfish-hotspots, .agfish-canvas')) return;
+                if (speech.story()) { event.stopPropagation(); event.preventDefault(); speech.skipLine(); return; }
+                if (event.target !== refs.hotspots) return;
+                if (blocked()) return;
+                panel.disarm();
+                panel.closeMenu();
+                speech.cancel();
                 const bounds = scene.getBoundingClientRect();
-                renderer.walk([(event.clientX - bounds.left) / bounds.width, 0.83]);
+                const x = (event.clientX - bounds.left) / bounds.width;
+                approach('floor:' + Math.round(x * 25), [x, 0.83]);
+            }, true);
+            scene.addEventListener('contextmenu', event => {
+                if (!event.target.closest('.agfish-hotspots, .agfish-canvas')) return;
+                event.preventDefault();
+                if (started && !userPaused) panel.disarm();
             });
-            refs.dialogue = element('section', 'agfish-dialogue'); refs.dialogue.hidden = true;
-            refs.dialogue.setAttribute('aria-live', 'polite'); refs.dialogue.setAttribute('aria-atomic', 'true');
-            refs.speaker = element('strong', 'agfish-speaker'); refs.line = element('p', 'agfish-line');
-            const lineContent = element('div', 'agfish-dialogue-content'); lineContent.append(refs.speaker, refs.line);
-            const lineControls = element('div', 'agfish-dialogue-controls');
-            refs.next = button(t('goldfish.ui.dialogue_next'), nextLine, 'agfish-primary');
-            refs.skip = button(t('goldfish.ui.dialogue_skip'), () => { lineQueue = []; nextLine(); }); refs.skip.hidden = true;
-            lineControls.append(refs.next, refs.skip);
-            refs.dialogue.append(lineContent, lineControls);
-            scene.append(refs.dialogue);
-            stageColumn.append(scene);
-            const sidebar = element('aside', 'agfish-sidebar');
-            refs.context = element('section', 'agfish-context');
-            const inventorySection = element('section', 'agfish-inventory-section');
-            inventorySection.append(element('h2', '', t('goldfish.ui.inventory')));
-            refs.selectedItem = button('', () => { selectedItem = null; refresh(); }, 'agfish-selected-item');
-            refs.selectedItem.setAttribute('aria-label', t('goldfish.ui.deselect'));
-            refs.inventory = element('div', 'agfish-inventory');
-            inventorySection.append(refs.selectedItem, refs.inventory);
-            sidebar.append(refs.context, inventorySection);
-            workspace.append(stageColumn, sidebar);
-            const footer = element('footer', 'agfish-footer');
+            stage.append(scene);
+            panel = window.GoldfishPanel.create({ root, t, button, element,
+                onArm: () => { if (!speech.story()) speech.cancel(); },
+                onItemLook: id => {
+                    if (blocked()) return;
+                    panel.closeMenu();
+                    say([{ speaker: 'r0st', text: itemRecord(id).description }]);
+                }
+            });
+            panel.menuButton.addEventListener('click', gameMenu);
+            play.append(stage, panel.el);
             refs.status = element('p', 'agfish-save-status'); refs.status.setAttribute('role', 'status');
-            refs.export = button(t('goldfish.ui.export'), () => interactions.exportState()); refs.export.hidden = true;
-            footer.append(refs.status, refs.export);
-            root.append(toolbar, workspace, footer);
+            refs.live = element('div', 'agfish-speech-live');
+            refs.live.setAttribute('aria-live', 'polite'); refs.live.setAttribute('aria-atomic', 'true');
+            root.append(play, refs.status, refs.live);
             stageObserver = new ResizeObserver(scheduleFit);
-            stageObserver.observe(stageColumn);
+            stageObserver.observe(play);
+            stageObserver.observe(panel.el);
             scheduleFit();
             renderer = window.GoldfishRenderer.create(refs.canvas, {
                 onStatus: artStatus,
@@ -601,12 +750,15 @@
                 onPosition: position => { if (!disposed) state.position = position; },
                 onTick: delta => { if (state && !disposed) state.elapsedMs += Math.round(delta); }
             });
-            interactions = window.GoldfishInteractions.create({ root, t, element, button, dialog, confirm, locale,
+            speech = window.GoldfishSpeech.create({ scene, t, live: refs.live, onRead: lineRead, onLine: speechLine, onEnd: speechEnded,
+                anchor: speaker => renderer?.anchor?.(speaker) ?? null });
+            interactions = window.GoldfishInteractions.create({ root, t, element, button, dialog, confirm, locale, panel,
                 getState: () => state, getStore: () => store, persist, adopt, status,
                 flushSaves,
                 adoptRevisions: slots => { for (const slot of slots) if (!revisions.has(slot.id)) revisions.set(slot.id, slot.revision); }
             });
             refresh();
+            updatePause();
             status(store ? 'unsaved' : 'storage_failed', !store);
         }
 
@@ -667,18 +819,30 @@
             }
         }
 
+        // Space/Esc: speech first (skip a line / skip the queue), then armed state, then the game menu.
+        let swallowSpace = false;
+        // Keys count when focus is inside the game, or when nothing is focused and this window is the active one.
+        const mine = event => root.contains(event.target) ||
+            ((event.target === document.body || event.target === document.documentElement) && (typeof ctx.isActive !== 'function' || ctx.isActive()));
         const keydown = event => {
-            if (!root.contains(document.activeElement) && !win?.classList.contains('vd-window-active')) return;
-            if (panelCount || /^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName)) return;
-            if (event.code === 'Space' && started && event.target.tagName !== 'BUTTON') {
-                event.preventDefault(); userPaused = !userPaused; updatePause();
-            } else if (event.key === 'Escape') {
-                if (renderer?.skipMoment()) { event.preventDefault(); return; }
-                selectedItem = selected = null; refs.dialogue.hidden = true; lineQueue = []; if (state) refresh();
+            if (!mine(event)) return;
+            if (panelCount || /^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName) || !started || authEnded) return;
+            if (event.code === 'Space') {
+                if (!userPaused && speech.active()) { event.preventDefault(); swallowSpace = true; speech.skipLine(); }
+                else if (event.target.tagName !== 'BUTTON') { event.preventDefault(); userPaused = !userPaused; updatePause(); }
+            } else if (event.key === 'Escape' && !userPaused) {
+                event.preventDefault();
+                if (renderer?.skipMoment()) return;
+                if (speech.active()) speech.skipAll();
+                else if (!panel.cancel()) gameMenu();
             }
         };
+        const keyup = event => {
+            if (event.code === 'Space' && swallowSpace && mine(event)) { swallowSpace = false; event.preventDefault(); }
+        };
         root.tabIndex = -1;
-        root.addEventListener('keydown', keydown);
+        document.addEventListener('keydown', keydown);
+        document.addEventListener('keyup', keyup);
         const auth = () => { authEnded = true; updatePause(); };
         window.addEventListener('aurago:auth-ended', auth);
         document.addEventListener('visibilitychange', updatePause);
@@ -701,7 +865,8 @@
             disposed = true;
             generation++;
             controller.abort();
-            root.removeEventListener('keydown', keydown);
+            document.removeEventListener('keydown', keydown);
+            document.removeEventListener('keyup', keyup);
             window.removeEventListener('aurago:auth-ended', auth);
             document.removeEventListener('visibilitychange', updatePause);
             visibilityObserver?.disconnect();
@@ -710,6 +875,8 @@
             stageFrame = 0;
             for (const node of dialogs) node.close();
             dialogs.clear();
+            speech?.dispose();
+            panel?.dispose();
             interactions?.dispose();
             renderer?.dispose();
             currentSave.finally(() => store?.close());

@@ -33,7 +33,7 @@ func TestGoldfishAppRegistration(t *testing.T) {
 	if previous < 0 {
 		t.Fatal("game lazy loader missing")
 	}
-	for _, name := range []string{"content", "content-act1", "content-act2", "content-act3", "content-act4", "state", "save", "renderer", "interactions", "app"} {
+	for _, name := range []string{"content", "content-act1", "content-act2", "content-act3", "content-act4", "state", "save", "renderer", "commands", "interactions", "speech", "panel", "app"} {
 		path := "/js/desktop/apps/goldfish-adventure/" + name + ".js"
 		index := strings.Index(loader, path)
 		if index <= previous {
@@ -55,24 +55,54 @@ func TestGoldfishAppRegistration(t *testing.T) {
 	}
 }
 
+// goldfishManualReading keeps spoken lines on the screen until the test advances them, so no timer reads a line by accident.
+func goldfishManualReading(page *rod.Page) {
+	page.MustEval(`() => localStorage.setItem('aurago.goldfish.speech', JSON.stringify({autoAdvance: false, readSpeed: 'normal'}))`)
+}
+
+// goldfishDismissDialogue reads a spoken queue to its end the way a player does: Space skips (and reads) each line.
 func goldfishDismissDialogue(page *rod.Page) {
 	page.MustEval(`() => {
-        for (let n = 0; n < 100 && !document.querySelector('.agfish-dialogue').hidden; n++)
-            document.querySelector('.agfish-dialogue .agfish-primary').click();
+        const app = document.querySelector('.agfish-app');
+        for (let n = 0; n < 100 && !document.querySelector('.agfish-speech').hidden; n++)
+            app.dispatchEvent(new KeyboardEvent('keydown', {key: ' ', code: 'Space', bubbles: true}));
     }`)
 }
 
+// goldfishUse clicks a hotspot. R0ST walks over, then a single action runs at once, several actions open a list in
+// the bar and a puzzle opens its menu there. It returns once the result is being spoken or the puzzle menu is waiting.
 func goldfishUse(page *rod.Page, hotspot, action string) {
 	page.MustEval(`(hotspot) => document.querySelector('[data-agfish-hotspot="' + hotspot + '"]').click()`, hotspot)
+	page.MustWait(`(action) => !!document.querySelector('[data-agfish-action="' + action + '"], [data-agfish-option]') || !document.querySelector('.agfish-speech').hidden`, action)
+	page.MustEval(`(action) => document.querySelector('[data-agfish-action="' + action + '"]')?.click()`, action)
 	page.MustWait(`() => !document.querySelector('.agfish-app').classList.contains('agfish-busy')`)
-	page.MustEval(`(action) => document.querySelector('[data-agfish-action="' + action + '"]').click()`, action)
-	page.MustWait(`() => !document.querySelector('.agfish-app').classList.contains('agfish-busy')`)
+}
+
+// goldfishAssertBarReadable checks the WCAG contrast (4.5:1) of the bar's own texts against what they sit on.
+func goldfishAssertBarReadable(t *testing.T, page *rod.Page, theme string) {
+	t.Helper()
+	for _, entry := range page.MustEval(`() => {
+        const parse = value => value.match(/[\d.]+/g).map(Number);
+        const channel = c => { c /= 255; return c <= .03928 ? c / 12.92 : ((c + .055) / 1.055) ** 2.4; };
+        const luminance = ([r, g, b]) => .2126 * channel(r) + .7152 * channel(g) + .0722 * channel(b);
+        const backdrop = node => {
+            for (let n = node; n; n = n.parentElement) { const c = parse(getComputedStyle(n).backgroundColor); if (c.length < 4 || c[3] > .5) return c.slice(0, 3); }
+            return [0, 0, 0];
+        };
+        const ratio = node => { const a = luminance(parse(getComputedStyle(node).color)), b = luminance(backdrop(node)); return (Math.max(a, b) + .05) / (Math.min(a, b) + .05); };
+        return [...document.querySelectorAll('.agfish-sentence, .agfish-verb, .agfish-menu-button, .agfish-item-name')].map(node => ({name: node.className, ratio: ratio(node)}));
+    }`).Arr() {
+		if entry.Get("ratio").Num() < 4.5 {
+			t.Fatalf("%s theme: bar text %s has contrast %.2f, want at least 4.5", theme, entry.Get("name").Str(), entry.Get("ratio").Num())
+		}
+	}
 }
 
 func TestGoldfishAdventureOpeningBrowser(t *testing.T) {
 	page := auraDriftFixture(t)
 	page = page.Timeout(45 * time.Second)
 	page.MustSetViewport(1440, 1000, 1, false)
+	goldfishManualReading(page)
 	page.MustEval(`async () => { await fixtureOpen('goldfish-adventure'); }`)
 	page.MustWait(`() => !!document.querySelector('.agfish-start .agfish-primary') && !document.querySelector('.agfish-app').classList.contains('agfish-art-loading')`)
 	if base := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); base != "" {
@@ -82,44 +112,49 @@ func TestGoldfishAdventureOpeningBrowser(t *testing.T) {
 		page.MustScreenshot(filepath.Join(base, "goldfish-before-start.png"))
 	}
 	page.MustElement(".agfish-start .agfish-primary:not([hidden])").MustClick()
-	page.MustWait(`() => !document.querySelector('.agfish-app').classList.contains('agfish-art-loading')`)
+	page.MustWait(`() => !document.querySelector('.agfish-app').classList.contains('agfish-art-loading') && !document.querySelector('.agfish-speech').hidden`)
+	// The bar replaces the toolbar, sidebar, status footer and dialogue band; the opening queue is a story queue.
+	if !page.MustEval(`() => !document.querySelector('.agfish-toolbar, .agfish-sidebar, .agfish-footer, .agfish-dialogue, .agfish-challenge') &&
+        document.querySelectorAll('.agfish-panel .agfish-verb').length === 4 && !!document.querySelector('.agfish-panel .agfish-sentence') &&
+        !!document.querySelector('.agfish-menu-button') && document.querySelector('.agfish-panel').classList.contains('agfish-dim')`).Bool() {
+		t.Fatal("the SCUMM-style bar is missing or old chrome is still present")
+	}
 	goldfishDismissDialogue(page)
 	goldfishUse(page, "conveyor", "r01_stop")
-	page.MustWait(`() => !document.querySelector('[data-agfish-action="r01_stop"]')`)
 	goldfishDismissDialogue(page)
 	goldfishUse(page, "grabber", "r01_clamp")
 	page.MustWait(`() => !!document.querySelector('[data-agfish-item="tool_clamp"]')`)
 	goldfishDismissDialogue(page)
 	goldfishUse(page, "magnet", "r01_brake")
-	page.MustWait(`() => !!document.querySelector('.agfish-challenge')`)
+	page.MustWait(`() => document.querySelectorAll('.agfish-choice-line[data-agfish-option]').length === 3`)
 	page.MustEval(`() => {
         const record = GoldfishContent.actions.find(a => a.id === 'r01_brake');
-        for (const id of record.challenge.answer) {
-            const label = GoldfishContent.texts[record.challenge.options.find(o => o.id === id).label];
-            [...document.querySelectorAll('.agfish-choices button')].find(b => b.textContent === label).click();
-        }
-        document.querySelector('.agfish-challenge .agfish-primary').click();
+        for (const id of record.challenge.answer) document.querySelector('.agfish-choice-line[data-agfish-option="' + id + '"]').click();
     }`)
-	page.MustWait(`() => !document.querySelector('.agfish-app').classList.contains('agfish-busy')`)
+	page.MustWait(`() => !document.querySelector('.agfish-app').classList.contains('agfish-busy') && !document.querySelector('[data-agfish-option]') && !document.querySelector('.agfish-speech').hidden`)
 	goldfishDismissDialogue(page)
 	goldfishUse(page, "gate", "r01_open")
-	page.MustWait(`() => !document.querySelector('[data-agfish-action="r01_open"]')`)
 	goldfishDismissDialogue(page)
 	page.MustElement("[data-agfish-exit=R02]").MustClick()
-	page.MustWait(`() => document.querySelector('.agfish-app').dataset.room === 'R02' && !document.querySelector('.agfish-app').classList.contains('agfish-art-loading')`)
-	goldfishDismissDialogue(page)
-	if messages := page.MustEval(`() => fixtureErrors.join('\n')`).Str(); messages != "" {
-		t.Fatal(messages)
-	}
+	page.MustWait(`() => document.querySelector('.agfish-app').dataset.room === 'R02' && !document.querySelector('.agfish-app').classList.contains('agfish-art-loading') && !document.querySelector('.agfish-speech').hidden`)
 	base := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR")
 	if base != "" {
 		if err := os.MkdirAll(base, 0755); err != nil {
 			t.Fatal(err)
 		}
+		page.MustScreenshot(filepath.Join(base, "goldfish-speech.png"))
+	}
+	goldfishDismissDialogue(page)
+	if messages := page.MustEval(`() => fixtureErrors.join('\n')`).Str(); messages != "" {
+		t.Fatal(messages)
+	}
+	goldfishAssertBarReadable(t, page, "standard")
+	if base != "" {
 		page.MustScreenshot(filepath.Join(base, "goldfish-standard.png"))
 	}
 	page.MustEval(`() => fixtureTheme('fruity-light')`)
 	page.MustWait(`() => document.querySelector('.agfish-canvas').width > 0`)
+	goldfishAssertBarReadable(t, page, "fruity-light")
 	if base != "" {
 		page.MustScreenshot(filepath.Join(base, "goldfish-fruity.png"))
 	}
@@ -127,7 +162,7 @@ func TestGoldfishAdventureOpeningBrowser(t *testing.T) {
 	page.MustWait(`() => !document.querySelector('.agfish-app')`)
 	page.MustEval(`async () => { await fixtureOpen('goldfish-adventure'); }`)
 	page.MustWait(`() => document.querySelector('.agfish-app')?.dataset.room === 'R02'`)
-	if page.MustEval(`() => !document.querySelector('.agfish-start') || document.querySelector('.agfish-start').hidden`).Bool() {
+	if page.MustEval(`() => !document.querySelector('.agfish-start') || document.querySelector('.agfish-start').hidden || !document.querySelector('.agfish-speech').hidden`).Bool() {
 		t.Fatal("reopening must show the start/continue screen without advancing the game")
 	}
 }
@@ -138,6 +173,7 @@ func TestGoldfishAdventureScenesBrowser(t *testing.T) {
 		t.Fatal(err)
 	}
 	page.MustSetViewport(1440, 1000, 1, false)
+	goldfishManualReading(page)
 	page.MustEval(`async () => { await fixtureOpen('goldfish-adventure'); }`)
 	page.MustWait(`() => !!window.GoldfishRenderer && !!document.querySelector('.agfish-start')`)
 	page.MustEval(`() => {
@@ -242,6 +278,7 @@ func TestGoldfishAdventureScenesBrowser(t *testing.T) {
 func TestGoldfishAdventureLocaleLayoutBrowser(t *testing.T) {
 	page := auraDriftFixture(t).Timeout(180 * time.Second)
 	page.MustSetViewport(1280, 900, 1, false)
+	goldfishManualReading(page)
 	for _, locale := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
 		var story, controls map[string]string
 		if err := json.Unmarshal([]byte(readDesktopAssetText(t, "lang/goldfish/"+locale+".json")), &story); err != nil {
@@ -252,24 +289,42 @@ func TestGoldfishAdventureLocaleLayoutBrowser(t *testing.T) {
 		}
 		page.MustEval(`async locale => { window.SYSTEM_LANG = locale; document.documentElement.lang = locale; await fixtureOpen('goldfish-adventure'); }`, locale)
 		page.MustWait(`() => !!document.querySelector('.agfish-start') && !document.querySelector('.agfish-app').classList.contains('agfish-art-loading')`)
-		if !page.MustEval(`(title, settings) => GoldfishContent.texts['goldfish.R01.title'] === title && [...document.querySelectorAll('.agfish-menu button')].some(button => button.textContent === settings)`, story["goldfish.R01.title"], controls["goldfish.ui.settings"]).Bool() {
+		if !page.MustEval(`(title, look, menu) => GoldfishContent.texts['goldfish.R01.title'] === title &&
+            document.querySelector('.agfish-verb[data-agfish-verb="look"]').textContent === look && document.querySelector('.agfish-menu-button').getAttribute('aria-label') === menu`,
+			story["goldfish.R01.title"], controls["goldfish.ui.verb_look"], controls["goldfish.ui.menu"]).Bool() {
 			t.Fatalf("%s story/interface locale was not selected", locale)
 		}
 		page.MustElement(".agfish-start .agfish-primary:not([hidden])").MustClick()
-		page.MustWait(`() => !document.querySelector('.agfish-busy')`)
-		page.MustEval(`() => {
-            const root = document.querySelector('.agfish-app'), win = root.closest('.vd-window');
+		page.MustWait(`() => !document.querySelector('.agfish-busy') && !document.querySelector('.agfish-speech').hidden`)
+		// The longest story line is spoken through the real speech component at every anchor position, in the narrow layout.
+		result := page.MustEval(`async controls => {
+            const root = document.querySelector('.agfish-app'), win = root.closest('.vd-window'), scene = root.querySelector('.agfish-scene');
             win.style.width = '700px'; win.style.height = '660px';
-            const longest = Object.entries(GoldfishContent.texts).filter(([key]) => /\.(line|look|entry)\./.test(key)).sort((a,b) => b[1].length-a[1].length)[0][1];
-            document.querySelector('.agfish-line').textContent = longest;
-            document.querySelector('.agfish-dialogue').hidden = false;
-        }`)
-		page.MustEval(`async () => { await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); }`)
-		if result := page.MustEval(`() => {
-            const root = document.querySelector('.agfish-app'), line = root.querySelector('.agfish-line');
-            return {root: root.scrollWidth-root.clientWidth, line:line.scrollWidth-line.clientWidth, text:line.textContent};
-        }`); result.Get("root").Int() > 1 || result.Get("line").Int() > 1 || result.Get("text").Str() == "" {
+            const frames = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+            await frames();
+            const longest = Object.entries(GoldfishContent.texts).filter(([key]) => /\.(line|look|entry)\./.test(key)).sort((a, b) => b[1].length - a[1].length)[0];
+            const t = key => GoldfishContent.texts[key] ?? controls[key] ?? key;
+            const fits = [];
+            for (const anchor of [null, {x: .02, y: .45}, {x: .98, y: .45}, {x: .5, y: .06}]) {
+                const speech = GoldfishSpeech.create({scene, t, anchor: () => anchor});
+                speech.play([{speaker: 'narrator', text: longest[0]}]);
+                await frames();
+                const box = [...scene.querySelectorAll('.agfish-speech')].at(-1), line = box.querySelector('.agfish-line');
+                const area = scene.getBoundingClientRect(), rect = box.getBoundingClientRect();
+                fits.push({anchored: !!anchor, text: line.textContent.length, line: line.scrollWidth - line.clientWidth,
+                    inside: rect.left >= area.left - 1 && rect.right <= area.right + 1 && rect.top >= area.top - 1 && rect.bottom <= area.bottom + 1});
+                speech.dispose();
+            }
+            const bar = [...root.querySelectorAll('.agfish-verb, .agfish-menu-button')].map(node => node.scrollWidth - node.clientWidth);
+            return {root: root.scrollWidth - root.clientWidth, bar: Math.max(...bar), key: longest[0], fits};
+        }`, controls)
+		if result.Get("root").Int() > 1 || result.Get("bar").Int() > 1 {
 			t.Fatalf("%s layout overflow: %s", locale, result.JSON("", ""))
+		}
+		for _, fit := range result.Get("fits").Arr() {
+			if fit.Get("text").Int() == 0 || fit.Get("line").Int() > 1 || !fit.Get("inside").Bool() {
+				t.Fatalf("%s longest line does not fit the scene: %s", locale, result.JSON("", ""))
+			}
 		}
 		if base := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); base != "" {
 			if err := os.MkdirAll(base, 0755); err != nil {

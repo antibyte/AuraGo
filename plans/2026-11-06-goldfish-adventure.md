@@ -31,6 +31,11 @@ Human duration, replay, editorial, listening and hardware acceptance remain open
   item before using it. Tab/Enter operate native controls. Space pauses when focus
   is outside a button/input; Escape skips a cinematic or dismisses the selection.
   The journal, optional hotspot labels and three-stage hints are available in-game.
+  **Superseded by `plans/2026-11-07-goldfish-lucasarts-controls.md`:** the SCUMM-style
+  bar (left click = default action, right click = look, verbs, inventory) replaces
+  the sidebar/action buttons; Space skips an active line, Escape skips speech, then
+  cancels an armed verb/item or choice menu, then opens the game menu; journal,
+  hints, saves and settings live in that menu.
 
 The final room captures and every authored moment render in real Chrome. Both
 Desktop themes, the opening puzzle, close/reopen persistence, all route reducers,
@@ -173,6 +178,12 @@ just replace a line of dialogue. No additional base room is required.
 | Refusal was deliberately disconnected | Cancelled cancellation requests, Bruno's dated contract, identical-choice interfaces and an altered wiring diagram. | Restore a physical safeguard; do not defeat ALLGUT through a magic paradox or persuade it into goodness. |
 
 ## Interaction and fair puzzle design
+
+> **Superseded in part by `plans/2026-11-07-goldfish-lucasarts-controls.md`.** The
+> first four bullets below (action buttons, explicit Inspect, touch action buttons)
+> are replaced: left click runs the default action, right click / long press /
+> Shift+Enter is "Ansehen", verbs and the inventory live in the bar under the scene,
+> and puzzle prompts are conversation menus. The fair-puzzle rules stay in force.
 
 - Left click moves or performs the clearly labelled contextual action; Inspect
   remains explicit. Right click is an optional shortcut, never required.

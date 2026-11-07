@@ -116,68 +116,53 @@
             }
         }
 
+        // Puzzle prompts are conversation menus in the bar. The menu only collects answers; the state decides.
         function challenge(record, complete) {
-            const spec = record.challenge;
-            const pane = dialog(t(record.label));
-            pane.body.append(element('p', 'agfish-challenge-prompt', t(spec.prompt)));
-            const form = element('form', 'agfish-challenge');
-            form.addEventListener('submit', event => event.preventDefault());
-            let answer = spec.type === 'choice' ? null : [];
-            const choices = element('div', 'agfish-choices');
+            const spec = record.challenge, panel = options.panel;
+            const heading = t(spec.prompt);
+            const cancel = () => panel.closeMenu();
+            const finish = answer => { panel.closeMenu(); complete(answer); };
             if (spec.type === 'choice') {
-                const group = 'agfish-choice-' + record.id;
-                for (const option of spec.options) {
-                    const label = element('label', 'agfish-choice');
-                    const input = document.createElement('input');
-                    input.type = 'radio'; input.name = group; input.value = option.id;
-                    input.addEventListener('change', () => { answer = option.id; check.disabled = false; });
-                    label.append(input, element('span', '', t(option.label)));
-                    choices.append(label);
-                }
-            } else if (spec.type === 'sequence') {
-                form.append(element('p', 'agfish-small', t('goldfish.ui.sequence')));
-                const order = element('ol', 'agfish-order');
-                order.setAttribute('aria-live', 'polite');
-                const optionButtons = [];
-                for (const option of [...spec.options].reverse()) {
-                    const pick = button(t(option.label), () => {
-                        answer.push(option.id);
-                        pick.disabled = true;
-                        order.append(element('li', '', t(option.label)));
-                        check.disabled = answer.length !== spec.answer.length;
-                    });
-                    optionButtons.push(pick);
-                    choices.append(pick);
-                }
-                form.append(order);
-                form.append(button(t('goldfish.ui.reset'), () => {
-                    answer = []; order.replaceChildren(); optionButtons.forEach(value => { value.disabled = false; }); check.disabled = true;
-                }));
-            } else if (spec.type === 'match') {
-                form.append(element('p', 'agfish-small', t('goldfish.ui.match')));
-                const pairs = spec.pairs || [];
-                const optionsList = spec.options?.length ? spec.options : pairs.map(value => ({ id: value.id, label: value.right }));
-                answer = pairs.map(() => '');
-                pairs.forEach((pair, index) => {
-                    const label = element('label', 'agfish-match');
-                    label.append(element('span', '', t(pair.left)));
-                    const select = document.createElement('select');
-                    const empty = element('option', '', t('goldfish.ui.choose')); empty.value = ''; select.append(empty);
-                    for (const option of [...optionsList].reverse()) {
-                        const value = element('option', '', t(option.label)); value.value = option.id; select.append(value);
-                    }
-                    select.addEventListener('change', () => {
-                        answer[index] = select.value;
-                        check.disabled = answer.some(value => !value);
-                    });
-                    label.append(select); choices.append(label);
+                panel.menu({
+                    title: heading, onCancel: cancel,
+                    lines: spec.options.map(option => ({ id: option.id, option: option.id, label: t(option.label) })),
+                    onPick: line => finish(line.id)
                 });
+                return;
             }
-            form.append(choices);
-            const check = button(t('goldfish.ui.check'), () => { pane.close(); complete(answer); }, 'agfish-primary');
-            check.disabled = true;
-            form.append(check);
-            pane.body.append(form);
+            const answer = [];
+            if (spec.type === 'sequence') {
+                const label = id => t(spec.options.find(option => option.id === id).label);
+                const show = () => panel.menu({
+                    title: heading, onCancel: cancel,
+                    sentence: answer.length ? answer.map(label).join(' → ') + ' → …' : '',
+                    // Authored order lists the solution first; offer the steps reversed.
+                    lines: [...spec.options].reverse().filter(option => !answer.includes(option.id))
+                        .map(option => ({ id: option.id, option: option.id, label: t(option.label) })),
+                    onBack: answer.length ? () => { answer.pop(); show(); } : null,
+                    onPick: line => {
+                        answer.push(line.id);
+                        if (answer.length >= spec.answer.length) finish(answer.slice()); else show();
+                    }
+                });
+                show();
+                return;
+            }
+            const pairs = spec.pairs || [];
+            const choices = spec.options?.length ? spec.options : pairs.map(value => ({ id: value.id, label: value.right }));
+            const label = id => t(choices.find(option => option.id === id).label);
+            const show = () => panel.menu({
+                title: heading, onCancel: cancel,
+                subtitle: t('goldfish.ui.match_pick', { left: t(pairs[answer.length].left) }),
+                sentence: answer.map((id, index) => t(pairs[index].left) + ' → ' + label(id)).join(' · '),
+                lines: [...choices].reverse().map(option => ({ id: option.id, option: option.id, label: t(option.label) })),
+                onBack: answer.length ? () => { answer.pop(); show(); } : null,
+                onPick: line => {
+                    answer.push(line.id);
+                    if (answer.length >= pairs.length) finish(answer.slice()); else show();
+                }
+            });
+            show();
         }
 
         return { saves, challenge, exportState, importState,
