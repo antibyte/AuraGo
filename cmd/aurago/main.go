@@ -801,6 +801,10 @@ func main() {
 	}
 	cancelPublicationRecovery()
 	defer func() {
+		// KG indexing shares the embedding runtime owned by longTermMem.
+		if err := kg.Close(); err != nil {
+			appLog.Warn("Failed to close Knowledge Graph", "error", err)
+		}
 		if err := longTermMem.Close(); err != nil {
 			appLog.Warn("Failed to close Long-Term memory (VectorDB)", "error", err)
 		}

@@ -22,6 +22,16 @@ Memory retrieval, hygiene, indexing, and maintenance.
   `TestDocumentCorpusUnreadableFileChunksKeepTracking` and
   `TestIndexDirectoryAcceptsShippedDocumentation`.
 
+### Shutdown
+
+- Knowledge-graph semantic initialization and startup reindexing belong to the
+  graph's worker context. `Close` cancels and joins them before closing SQLite;
+  serialize worker admission with cancellation and reject late index publication.
+  Interrupted rows remain dirty for the next startup.
+- Close the knowledge graph before the shared long-term embedding runtime.
+  Verify `TestKGCloseCancelsSemanticStartup`, including validation, active
+  embedding cancellation, reopen and post-close admission.
+
 ### Personality evidence
 
 - Only ingress-owned `HumanInput` supplies current human evidence. Missing or

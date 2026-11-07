@@ -82,7 +82,8 @@ type KnowledgeGraph struct {
 	logger                   *slog.Logger
 	accessQueue              chan knowledgeGraphAccessHit
 	flushAccessHits          chan chan struct{}
-	doneChan                 chan struct{}
+	workerCtx                context.Context
+	cancelWorkers            context.CancelFunc
 	closeOnce                sync.Once
 	wg                       sync.WaitGroup
 	ftsMu                    sync.Mutex
@@ -175,7 +176,6 @@ func NewKnowledgeGraph(dbPath string, jsonMigratePath string, logger *slog.Logge
 		logger:                  logger,
 		accessQueue:             make(chan knowledgeGraphAccessHit, knowledgeGraphAccessQueueSize),
 		flushAccessHits:         make(chan chan struct{}),
-		doneChan:                make(chan struct{}),
 		excludedNodeTypes:       map[string]bool{"activity_entity": true, "unknown": true},
 		qualityPolicyValue:      kgquality.DefaultPolicy(),
 		semanticReindexInterval: 5 * time.Minute,
@@ -215,6 +215,7 @@ func NewKnowledgeGraph(dbPath string, jsonMigratePath string, logger *slog.Logge
 	if jsonMigratePath != "" {
 		kg.migrateFromJSON(jsonMigratePath)
 	}
+	kg.workerCtx, kg.cancelWorkers = context.WithCancel(context.Background())
 	kg.wg.Add(1)
 	go kg.accessCountWorker()
 
@@ -243,7 +244,10 @@ func (kg *KnowledgeGraph) qualityPolicy() kgquality.Policy {
 func (kg *KnowledgeGraph) Close() error {
 	var err error
 	kg.closeOnce.Do(func() {
-		close(kg.doneChan)
+		// Serialize cancellation with semantic startup admission before waiting.
+		kg.semanticMu.Lock()
+		kg.cancelWorkers()
+		kg.semanticMu.Unlock()
 		kg.wg.Wait()
 		kg.drainAccessQueue()
 		kg.semanticMu.Lock()
@@ -381,7 +385,7 @@ func (kg *KnowledgeGraph) accessCountWorker() {
 
 	for {
 		select {
-		case <-kg.doneChan:
+		case <-kg.workerCtx.Done():
 			flush()
 			return
 		case hit, ok := <-kg.accessQueue:

@@ -82,6 +82,14 @@ func (kg *KnowledgeGraph) enableSemanticSearchWithCollection(db *chromem.DB, emb
 	if embeddingFunc == nil {
 		return fmt.Errorf("embedding func is required")
 	}
+	kg.semanticMu.Lock()
+	if err := kg.workerCtx.Err(); err != nil {
+		kg.semanticMu.Unlock()
+		return err
+	}
+	kg.wg.Add(1)
+	kg.semanticMu.Unlock()
+	defer kg.wg.Done()
 
 	collection, err := db.GetOrCreateCollection(kgsemantic.CollectionName, nil, embeddingFunc)
 	if err != nil {
@@ -108,6 +116,11 @@ func (kg *KnowledgeGraph) enableSemanticSearchWithCollection(db *chromem.DB, emb
 		return err
 	}
 	kg.semanticMu.Lock()
+	if err := kg.workerCtx.Err(); err != nil {
+		kg.semanticMu.Unlock()
+		index.Close()
+		return err
+	}
 	oldIndex := kg.semantic
 	kg.semantic = index
 	kg.semanticMu.Unlock()
@@ -119,7 +132,7 @@ func (kg *KnowledgeGraph) enableSemanticSearchWithCollection(db *chromem.DB, emb
 }
 
 func (kg *KnowledgeGraph) validateSemanticIndex(index *kgsemantic.Index) error {
-	err := kg.retrySemanticEmbedding("validate", func(ctx context.Context) error {
+	err := kg.retrySemanticEmbeddingContext(kg.workerCtx, "validate", func(ctx context.Context) error {
 		_, err := index.EmbeddingFunc(ctx, "knowledge graph semantic validation")
 		return err
 	})
@@ -130,20 +143,23 @@ func (kg *KnowledgeGraph) validateSemanticIndex(index *kgsemantic.Index) error {
 }
 
 func (kg *KnowledgeGraph) startSemanticReindexBacklogDrain() {
-	idx := kg.semanticIndex()
-	if idx == nil {
+	kg.semanticMu.Lock()
+	idx := kg.semantic
+	if idx == nil || kg.workerCtx.Err() != nil {
+		kg.semanticMu.Unlock()
 		return
 	}
+	kg.wg.Add(1)
+	kg.semanticMu.Unlock()
 	logger := idx.Logger
 	if logger != nil {
 		logger.Debug("KG semantic reindex backlog drain scheduled")
 	}
-	kg.wg.Add(1)
 	go func() {
 		defer kg.wg.Done()
-		attempted, err := kg.RunSemanticReindexIfDue()
+		attempted, err := kg.RunSemanticReindexIfDueContext(kg.workerCtx)
 		if err != nil {
-			if logger != nil {
+			if logger != nil && kg.workerCtx.Err() == nil {
 				logger.Warn("KG semantic reindex backlog drain failed", "error", err)
 			}
 			return
