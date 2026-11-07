@@ -284,6 +284,21 @@
         Object.keys(state.patch).forEach(key => delete state.patch[key]);
         Object.assign(state.patch, patch);
 
+        // A section is open when it shapes the sound; neutral ones start closed.
+        // What the user opens or closes wins for as long as this editor lives.
+        const userOpen = new Map();
+        const ACTIVE = {
+            grp_sub_noise: p => Number(p.sub) > 0 || Number(p.noise) > 0,
+            grp_fm: p => !!p.mod,
+            grp_pitch: p => Math.abs(Number(p.pitchEnv) - 1) > 0.001,
+            grp_lfo: p => Number(p.lfo && p.lfo.depth) > 0
+        };
+        function groupOpen(group) {
+            if (userOpen.has(group.labelKey)) return userOpen.get(group.labelKey);
+            const test = ACTIVE[group.labelKey];
+            return test ? test(state.patch) : true;
+        }
+
         function fieldMarkup(field) {
             const value = readField(state.patch, field.key);
             const label = esc(tr(field.labelKey));
@@ -301,7 +316,7 @@
         }
         function render() {
             const disabled = options.blocked && options.blocked();
-            const groups = FIELD_GROUPS.map(group => `<section class="ss-designer-group"><h4>${esc(tr(group.labelKey))}</h4><div class="ss-param-grid">${group.fields.map(fieldMarkup).join("")}</div></section>`).join("");
+            const groups = FIELD_GROUPS.map(group => `<details class="ss-designer-group" data-group="${esc(group.labelKey)}"${groupOpen(group) ? " open" : ""}><summary><h4>${esc(tr(group.labelKey))}</h4><span class="ss-group-chevron" aria-hidden="true"></span></summary><div class="ss-param-grid">${group.fields.map(fieldMarkup).join("")}</div></details>`).join("");
             const keys = [60, 62, 64, 65, 67, 69, 71, 72];
             host.innerHTML = `<section class="ss-designer" data-designer>` +
                 `<header class="ss-designer-head"><h3>${esc(tr("designer"))}</h3>` +
@@ -359,6 +374,13 @@
             }
             const note = event.target.closest("[data-designer-note]");
             if (note && typeof options.onPreview === "function") options.onPreview(Number(note.dataset.designerNote));
+        });
+        listen(host, "click", event => {
+            const summary = event.target.closest("summary");
+            if (!summary) return;
+            const details = summary.parentElement;
+            // The browser toggles `open` after the click handlers ran.
+            setTimeout(() => userOpen.set(details.dataset.group, details.open), 0);
         });
         return {
             refresh() { render(); },
