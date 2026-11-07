@@ -534,10 +534,6 @@
     pointer-events: none;
 }
 
-.pw-page.pw-entry-page[data-entry-page="login"] .login-card-wrap.is-native-capture .login-flame-source {
-    display: block;
-}
-
 .pw-page.pw-entry-page[data-entry-page="login"] .login-flame-output {
     position: absolute;
     z-index: 0;

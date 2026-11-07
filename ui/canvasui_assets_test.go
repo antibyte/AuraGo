@@ -152,9 +152,8 @@ func TestLoginFlameWrapUsesLocalCanvasUI(t *testing.T) {
 	for _, want := range []string{
 		`from "/js/vendor/canvasui/flame-wrap.js"`,
 		"createFlameWrap",
-		"supportsHtmlInCanvas",
 		"login-flame:webgl2-unavailable",
-		"login-flame:html-in-canvas-fallback",
+		"login-flame:dom-overlay",
 		"login-flame:theme-update",
 		"login-flame:destroy",
 		"login-flame:reduced-motion-skip",
@@ -226,7 +225,6 @@ func TestLoginFlameCSSIsScopedAndDecorative(t *testing.T) {
 		prefix + ` .login-flame-source`,
 		prefix + ` .login-flame-output`,
 		`pointer-events: none`,
-		`is-native-capture`,
 		`@media (prefers-reduced-motion: reduce)`,
 		`.login-flame-output`,
 	} {

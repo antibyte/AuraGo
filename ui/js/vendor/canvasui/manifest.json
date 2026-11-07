@@ -25,11 +25,11 @@
     "html-in-canvas.ts": "8fd3adf59ba3b54a32c8552f614321e123047e107f94e6272c64658e71501e9a",
     "rect-cache.ts": "4f743f99a3cf0830f567d01143bd820776589dea1172f2eb0ccfa002d0a08382"
   },
-  "adaptation_notes": "Retains AuraGo bitmap-priority rain and opaque-wallpaper fallback; ports upstream viewport, geometry and rect-cache updates.",
+  "adaptation_notes": "Retains AuraGo bitmap-priority rain and opaque-wallpaper fallback; ports upstream viewport, geometry and rect-cache updates. Flame Wrap captures only content nested inside its source canvas, preserving sibling login controls as live HTML.",
   "files": {
     "canvas-support.js": "a038bf0f3bd3198da0215797af345f36819c678c20ad9a5c89116c9267aef62d",
     "droplets.js": "1f1b1cecc6945b322756e52696dc931ce4f491fb83b5f61b907b8a3dda62a4bf",
-    "flame-wrap.js": "9426b03d328b28f4b623566a51f9545f1a140010fdcb919a2db332c942f47ea3",
+    "flame-wrap.js": "6076527f20ba43bd72874b46086c8b47a7578031c9fc2a481accd58dc548573f",
     "LICENSE.txt": "2a9a221a47f581d7984ca3a568e38fb17d5b6e43164db3f3482b4767c8e8e5b3"
   }
 }

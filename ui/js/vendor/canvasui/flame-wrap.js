@@ -13,6 +13,7 @@ import { getCanvasPixelRatio, createCanvasResizeObserver, prepareHtmlInCanvas, d
  * - Kept createFlameWrap, shaders, option defaults, resize/visibility
  *   handling, and GPU cleanup substantially intact for upstream comparison
  * - No remote runtime imports; no React dependency
+ * - Capture only canvas children; sibling form controls remain live HTML
  */
 
 const DEFAULTS = {
@@ -389,7 +390,7 @@ export function createFlameWrap(elements, options = {}) {
   const sourceCtx = source.getContext("2d");
   const paintable = source;
   const htmlInCanvas = Boolean(
-    sourceCtx &&
+    source.contains(content) && sourceCtx &&
     typeof sourceCtx.drawElementImage === "function" &&
     typeof paintable.requestPaint === "function",
   );

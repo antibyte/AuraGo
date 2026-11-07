@@ -2,7 +2,7 @@
  * Login-card CanvasUI Flame Wrap.
  * Decorative border fire around the login modal; fails closed without blocking auth.
  */
-import { createFlameWrap, supportsHtmlInCanvas } from "/js/vendor/canvasui/flame-wrap.js";
+import { createFlameWrap } from "/js/vendor/canvasui/flame-wrap.js";
 
 const WRAP_ID = "login-card-wrap";
 const CARD_ID = "main-content";
@@ -12,7 +12,7 @@ const OUTPUT_ID = "flame-output";
 /** Markers consumed by static UI contract tests. */
 export const LOGIN_FLAME_MARKERS = Object.freeze({
   gracefulWebGL2Failure: "login-flame:webgl2-unavailable",
-  supportsHtmlInCanvasFallback: "login-flame:html-in-canvas-fallback",
+  domOverlay: "login-flame:dom-overlay",
   themeUpdates: "login-flame:theme-update",
   destroyCleanup: "login-flame:destroy",
   reducedMotionSkip: "login-flame:reduced-motion-skip",
@@ -125,33 +125,6 @@ function applyOutputGeometry(wrap, card, output) {
   output.height = Math.max(1, Math.round((cardHeight + reach + glow) * dpr));
 }
 
-function placeContentForCapture(wrap, source, card, nativeCapture) {
-  if (!nativeCapture) {
-    if (card.parentElement !== wrap) {
-      wrap.insertBefore(card, source.nextSibling || null);
-    }
-    wrap.classList.remove("is-native-capture");
-    source.removeAttribute("layoutsubtree");
-    return;
-  }
-  source.setAttribute("layoutsubtree", "true");
-  if (card.parentElement !== source) {
-    source.appendChild(card);
-  }
-  wrap.classList.add("is-native-capture");
-}
-
-function restoreContent(wrap, source, card) {
-  if (!wrap || !card) return;
-  if (card.parentElement !== wrap) {
-    const anchor = source && source.parentElement === wrap ? source.nextSibling : wrap.firstChild;
-    if (anchor) wrap.insertBefore(card, anchor);
-    else wrap.appendChild(card);
-  }
-  wrap.classList.remove("is-native-capture");
-  if (source) source.removeAttribute("layoutsubtree");
-}
-
 function loginFlameOptions(theme, card) {
   return {
     color: colorForTheme(theme),
@@ -200,13 +173,7 @@ function initLoginFlameWrap() {
     return null;
   }
 
-  const nativeCapture = supportsHtmlInCanvas();
-  if (!nativeCapture) {
-    wrap.dataset.flameState = LOGIN_FLAME_MARKERS.supportsHtmlInCanvasFallback;
-  }
-
-  placeContentForCapture(wrap, source, card, nativeCapture);
-
+  // Keep authentication controls in the DOM, outside the decorative canvases.
   // Must be measurable before createFlameWrap — display:none yields a 1x1 burn rect.
   output.classList.remove("is-hidden");
   output.classList.add("is-active");
@@ -223,7 +190,6 @@ function initLoginFlameWrap() {
   }
 
   if (!instance) {
-    restoreContent(wrap, source, card);
     wrap.dataset.flameState = LOGIN_FLAME_MARKERS.gracefulWebGL2Failure;
     output.classList.add("is-hidden");
     output.classList.remove("is-active");
@@ -243,11 +209,7 @@ function initLoginFlameWrap() {
   syncSize();
   requestAnimationFrame(syncSize);
 
-  if (!wrap.dataset.flameState) {
-    wrap.dataset.flameState = nativeCapture
-      ? "login-flame:native-capture"
-      : LOGIN_FLAME_MARKERS.supportsHtmlInCanvasFallback;
-  }
+  wrap.dataset.flameState = LOGIN_FLAME_MARKERS.domOverlay;
 
   const onThemeChange = (event) => {
     const theme = (event && event.detail && event.detail.theme) || currentTheme();
@@ -278,7 +240,6 @@ function initLoginFlameWrap() {
     } catch {
       /* ignore */
     }
-    restoreContent(wrap, source, card);
     output.classList.add("is-hidden");
     output.classList.remove("is-active");
   };

@@ -883,7 +883,12 @@ New app-scoped prefixes must contain no `ad` substring; verify
   flame-wrap.js). Login uses Flame Wrap on the
   auth card. The login shell stays viewport-locked and centered; Flame Wrap
   must paint outside the card without expanding document scroll or uncentering
-  the form. Droplets are desktop-only for the `city_rain` wallpaper via
+  the form. Login controls remain ordinary HTML siblings of the decorative
+  canvases, never captured or reparented even when HTML-in-Canvas is available.
+  Flame Wrap captures content only when it is already a child of its source
+  canvas. Verify `TestLoginFlameKeepsFormInteractiveBrowser` with browser smoke
+  enabled, including capture-capable browsers, WebGL failure and reduced motion.
+  Droplets are desktop-only for the `city_rain` wallpaper via
   `ui/js/desktop/city-rain-droplets.js`, painted on `#vd-wallpaper-fx`
   (`z-index: -1`) behind icons/widgets/windows, with graceful WebGL2 /
   reduced-motion fallbacks and no HTML capture of foreground UI.
