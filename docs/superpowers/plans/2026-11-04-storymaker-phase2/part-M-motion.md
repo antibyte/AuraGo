@@ -1,3 +1,4 @@
+{% raw %}
 # Part M: Motion craft
 
 Batch 2A. Run the tasks in order. `outline.md` holds the batch rules, the test matrices and the execution rules ("outline section N"). `interfaces.md` holds the frozen interfaces ("frozen section N"), and its section 10 and `reconcile.md` win over them. A group id such as `G-A-5` names a block of tasks inside a part; the index lists them.
@@ -4770,3 +4771,4 @@ git add documentation/storymaker.md
 git commit -m "docs(storymaker): contract slice, child docs and lint rates for batch 2A" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
 
+{% endraw %}

@@ -622,6 +622,7 @@ func TestDesktopAppMaterialsChecker(t *testing.T) {
 // the design spec). Add a stylesheet here only when it is not a themed surface; an entry that reads the tokens or is
 // no longer loaded by an app fails the test, so the list cannot go stale.
 var desktopAppMaterialsExempt = map[string]string{
+	"/css/desktop-app-goldfish-adventure.css": "theme-independent skin: the Goldfish Adventure scene and adventure controls",
 	"/css/xterm.css":                   "vendor: the xterm.js terminal emulator stylesheet",
 	"/css/cm-chessboard.css":           "vendor: the cm-chessboard board widget stylesheet",
 	"/css/hljs-github.min.css":         "vendor: highlight.js light syntax theme",

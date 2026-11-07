@@ -1,3 +1,4 @@
+{% raw %}
 # Part C
 
 Tasks of batch C. Rules, commands and the order are in the plan index.
@@ -4101,3 +4102,4 @@ Expected: subtests `cancel` and `timeout` pass and the command ends with `ok` fo
 
 - [ ] **Step 3: Commit.** Stage `internal/server/storymaker_agent_script_test.go`. Message: `test(storymaker): keep valid scenes after agent cancel and timeout`.
 
+{% endraw %}

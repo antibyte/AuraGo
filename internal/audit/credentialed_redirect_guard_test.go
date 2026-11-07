@@ -23,7 +23,6 @@ const (
 // then delete its entry. New files are never added here.
 var credentialedRedirectPending = map[string]string{
 	"internal/a2a/client.go":                          credentialedRedirectPendingReason,
-	"internal/agentmail/client.go":                    credentialedRedirectPendingReason,
 	"internal/discord/connection.go":                  credentialedRedirectVendorReason,
 	"internal/embeddings/llama_docker.go":             credentialedRedirectPendingReason,
 	"internal/embeddings/llama_embedder.go":           credentialedRedirectPendingReason,

@@ -1,3 +1,4 @@
+{% raw %}
 # Part A
 
 Tasks of batch A. Rules, commands and the order are in the plan index.
@@ -4557,3 +4558,4 @@ Expected: `ok  	aurago/internal/storymaker` with `[no tests to run]`.
 
 - [ ] **Step 3: Commit.** Stage `internal/storymaker/studio_packet.go`. Message: `feat(storymaker): build the agent context packets`.
 
+{% endraw %}

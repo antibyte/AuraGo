@@ -106,6 +106,9 @@ func TestGalaxyBrowserSmoke(t *testing.T) {
 	// The shared privacy policy strips Referer. Fault injection is explicit in
 	// test-only asset URLs rather than depending on browser referrer behavior.
 	scene = strings.Replace(scene, "'?v=' +", "'?mode=' + encodeURIComponent(location.search.slice(1)) + '&v=' +", 1)
+	// Shared theme optics has an independent loop; observe only Galaxy's scheduler.
+	scene = strings.ReplaceAll(scene, "requestAnimationFrame(", "window.__galaxyRequestFrame(")
+	scene = strings.ReplaceAll(scene, "cancelAnimationFrame(", "window.__galaxyCancelFrame(")
 	html := regexp.MustCompile(`(?s)<script\b[^>]*>.*?</script>`).ReplaceAllString(readDesktopAssetText(t, "index.html"), "")
 	html = regexp.MustCompile(`\{\{[^}]*\}\}`).ReplaceAllString(html, "")
 	fixture := `<script>
@@ -113,8 +116,8 @@ document.documentElement.lang='de';window.BUILD_VERSION='galaxy-browser-test';wi
 window.__errors=[];addEventListener('error',e=>__errors.push(e.message));
 const error=console.error;console.error=(...a)=>{__errors.push(a.join(' '));error(...a)};
 window.__pending=new Set();const nativeRAF=requestAnimationFrame.bind(window),nativeCancel=cancelAnimationFrame.bind(window);
-window.requestAnimationFrame=fn=>{const id=nativeRAF(t=>{__pending.delete(id);fn(t)});__pending.add(id);return id};
-window.cancelAnimationFrame=id=>{__pending.delete(id);nativeCancel(id)};
+window.__galaxyRequestFrame=fn=>{const id=nativeRAF(t=>{__pending.delete(id);fn(t)});__pending.add(id);return id};
+window.__galaxyCancelFrame=id=>{__pending.delete(id);nativeCancel(id)};
 if(location.search.includes('no-webgl')){const get=HTMLCanvasElement.prototype.getContext;HTMLCanvasElement.prototype.getContext=function(kind,...args){return /webgl/.test(kind)?null:get.call(this,kind,...args)}}
 </script>
 <script src="/js/shared/prepaint-theme.js?v=galaxy-browser-test"></script>

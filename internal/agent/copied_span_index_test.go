@@ -225,7 +225,13 @@ func TestUnattendedFetchCopyingIsolatedTextNeedsARule(t *testing.T) {
 		call := exfil
 		before := *calls
 		result := DispatchToolCallResult(context.Background(), &call, dc, "fixture")
-		if result.Status != ToolResultDenied || !strings.Contains(result.Output, "action_rule_required") || !strings.Contains(result.Output, "copied from earlier isolated tool output") || *calls != before {
+		code := "action_rule_required"
+		if source == "mqtt" {
+			code = "mqtt_relay_grant_required"
+		} else if !strings.Contains(result.Output, "copied from earlier isolated tool output") {
+			t.Errorf("%s: missing copied-output refusal: %+v", source, result)
+		}
+		if result.Status != ToolResultDenied || !strings.Contains(result.Output, code) || *calls != before {
 			t.Fatalf("%s: copy in the query = %+v calls=%d", source, result, *calls)
 		}
 	}

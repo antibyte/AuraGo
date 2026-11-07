@@ -1,3 +1,4 @@
+{% raw %}
 # Part A: SFX, mixer, music and encode
 
 Batch 2C. Run the tasks in order. `outline.md` holds the batch rules, the test matrices and the execution rules ("outline section N"). `interfaces.md` holds the frozen interfaces ("frozen section N"), and its section 10 and `reconcile.md` win over them. A group id such as `G-A-5` names a block of tasks inside a part; the index lists them.
@@ -13629,3 +13630,4 @@ git add internal/server/storymaker_parity_browser_test.go internal/server/storym
 git commit -m "test(storymaker): prove parity and an audible export with seeded audio" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
 
+{% endraw %}

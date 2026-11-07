@@ -1,3 +1,4 @@
+{% raw %}
 # ECalc Phase 3 (Tables and Codes) Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
@@ -25390,3 +25391,4 @@ bands hold 3. Data (colours, letters, voltage codes, class tables) comes from th
 `P3\part-<x>.md` in the phase 2 style: "Contract deviations" first, tasks `<X>1 …` with Files, TDD steps and COMPLETE
 code/data generated from the verified worktree files, a verification section with the exact commands and results. Report
 ≤ 300 words.
+{% endraw %}

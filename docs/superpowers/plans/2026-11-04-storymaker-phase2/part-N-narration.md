@@ -1,3 +1,4 @@
+{% raw %}
 # Part N: Narration, voices and jobs
 
 Batch 2B. Run the tasks in order. `outline.md` holds the batch rules, the test matrices and the execution rules ("outline section N"). `interfaces.md` holds the frozen interfaces ("frozen section N"), and its section 10 and `reconcile.md` win over them. A group id such as `G-A-5` names a block of tasks inside a part; the index lists them.
@@ -11362,3 +11363,4 @@ git add internal/storymaker/render/report.go internal/storymaker/render/render.g
 git commit -m "feat(storymaker): validate film length, audio events and captions of the report against the plan" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
 
+{% endraw %}

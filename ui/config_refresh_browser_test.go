@@ -78,7 +78,8 @@ func TestConfigRefreshPopulatedBrowser(t *testing.T) {
 			if strings.Contains("|server|adguard|space_agent|local_llm|", "|"+key+"|") {
 				if !page.MustEval(`() => {
 				 const cards=[...document.querySelectorAll('#content .cfg-topic')].filter(el=>!el.parentElement.closest('.cfg-topic'));
-				 return cards.length>=3 && cards.every(el=>getComputedStyle(el).borderRadius==='16px' && !!el.querySelector('.pw-panel-heading, .cfg-topic-heading')) &&
+				 const radius=getComputedStyle(document.body).getPropertyValue('--pw-radius-lg').trim();
+				 return cards.length>=3 && radius && cards.every(el=>getComputedStyle(el).borderRadius===radius && !!el.querySelector('.pw-panel-heading, .cfg-topic-heading')) &&
 				 [...document.querySelectorAll('#content .field-group > .field-label')].every(el=>getComputedStyle(el).fontSize==='16px');
 				}`).Bool() {
 					t.Error("reference does not share the named topic and field contract")

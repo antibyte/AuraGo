@@ -713,7 +713,7 @@ New app-scoped prefixes must contain no `ad` substring; verify
   Card headings use 18px text, fields 16px, help 14px, with 24px spacing (16px
   compact/mobile). Switches sit beside their label and help. Keep the shared
   blue/slate surfaces, softly tinted blue/cyan card heads and subtle blue-tinted shadows.
-  Use 16px card corners, the `--cfg-card-heading` tint and `--surface-shadow`
+  Use the shared `--pw-radius-lg` card corners, the `--cfg-card-heading` tint and `--surface-shadow`
   (0 6px 20px, 16% dark / 7% light); dialogs use `--surface-shadow-strong`.
   Interactive entry cards may lift at most 2px; switches/disclosures use 140–180ms
   feedback and save success may animate once. Reduced motion disables these effects.
@@ -1223,6 +1223,8 @@ New app-scoped prefixes must contain no `ad` substring; verify
   fixtures, every section at five widths in both themes/densities, plus draft,
   failure, search, disclosure and dialog interactions. Run an individual matrix
   section with `-run 'TestConfigRefreshRealSectionsBrowser/matrix/server$'`.
+- Static spacing matrices finish finite running animations before geometry checks;
+  bound each asynchronous layout evaluation rather than awaiting paused animation promises.
 - Full UI: `go test -count=1 ./ui/...`.
 - Generated bundles: `npm run build:ui -- --check`.
 - UI delivery regressions: `npm run test:ui-regressions`.
@@ -1239,6 +1241,7 @@ New app-scoped prefixes must contain no `ad` substring; verify
 - Galaxy picker, real rendering, responsive controls, drawers, dialogs,
   disposal and failure modes:
   `$env:AURAGO_RUN_BROWSER_SMOKE='1'; go test -count=1 ./ui -run GalaxyBrowserSmoke`.
+  Scheduler assertions observe Galaxy callbacks only; shared theme optics remains active.
   Add `AURAGO_GALAXY_BENCHMARK=1` for the two-minute native-RAF benchmark and
   `AURAGO_BROWSER_ARTIFACT_DIR` for screenshots and measured GPU/FPS data.
 - Dashboard knowledge-graph visual (3D constellation, 2D fallback, view switch,

@@ -3,8 +3,25 @@ package testutil
 import (
 	"crypto/x509"
 	"net/http"
+	"os"
 	"testing"
 )
+
+func TestTLSFixtureSubprocessFiltersSensitiveEnvironment(t *testing.T) {
+	const sentinel = "tls-fixture-only-secret"
+	if os.Getenv(tlsFixtureEnv) != t.Name() {
+		t.Setenv("AURAGO_MASTER_KEY", sentinel)
+	}
+	if RunTLSFixtureSubprocess(t) {
+		if os.Getenv("AURAGO_MASTER_KEY") != sentinel {
+			t.Fatal("child fixture changed the parent environment")
+		}
+		return
+	}
+	if os.Getenv("AURAGO_MASTER_KEY") != "" {
+		t.Fatal("child fixture inherited the parent secret")
+	}
+}
 
 func TestTLSFixtureTrustStaysInSubprocess(t *testing.T) {
 	server := NewHTTPSServer(t, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))

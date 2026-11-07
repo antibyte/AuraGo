@@ -797,9 +797,7 @@
             }
         }
 
-        // watchParked asks for the stored state of the parked live run every PARK_POLL_MS. Nothing else learns that
-        // it ended (its stream is closed). Once final it is released (hasParked drives the run view's Test again and
-        // the run-going note), becomes the last run, and the header repaints through the run event.
+        // Parked runs have no stream, so poll until they finish or disappear.
         function watchParked() {
             clearTimeout(parkTimer);
             if (!parked || disposed) return;
@@ -822,8 +820,7 @@
             }, PARK_POLL_MS);
         }
 
-        // followStop asks for a stopped run's stored state after STOP_POLL_MS[attempt] and refreshes
-        // the drawer and the run view once it ended, while they still show it as not ended.
+        // A stopped run may finish without a stream reaching this window.
         function followStop(runId, attempt) {
             const timer = setTimeout(async () => {
                 stopPolls.delete(timer);
@@ -840,7 +837,6 @@
             stopPolls.add(timer);
         }
 
-        // showsActive: the drawer or the run view shows runId as not ended.
         function showsActive(runId) {
             const listed = drawer && listedRuns.get(runId);
             const viewed = ed.runView && ed.runView.run;
@@ -856,17 +852,13 @@
             return answer === 'stop';
         }
 
-        // runFinished answers flows_changed "run_finished" (a live run ended, also one stopped here):
-        // the last run, the drawer and a run view follow. A burst of ends refreshes once, 250 ms
-        // after the last one, and a steady stream of ends still refreshes once a second.
+        // Coalesce bursts without starving refresh during a steady stream of completions.
         const runFinished = core.debounce(() => {
             if (disposed) return;
             if (!isRunning()) loadLast();
             refreshShown();
         }, 250, 1000);
 
-        // refreshShown brings the drawer's list, and the run view of a run that had not ended, up
-        // to date: after a stop (at once), and when a live run ended (runFinished).
         function refreshShown() {
             if (disposed) return;
             if (drawer) loadRuns(true);
@@ -874,9 +866,7 @@
             if (shown && isActive(shown.status)) refreshView(shown.id);
         }
 
-        // refreshView shows the stored state of the viewed run again (status, steps, banner), unless
-        // another run view replaced it or a newer refresh was asked meanwhile. An answer never takes
-        // back the end of a run the view shows already.
+        // Late replies cannot replace a newer view or undo a terminal state.
         let viewRefreshSeq = 0;
         async function refreshView(runId) {
             const mine = viewSeq;
@@ -1034,8 +1024,7 @@
             if (first) first.focus();
         }
 
-        // openRunView fetches a stored run for the run view: a second click on the same run while
-        // it loads does nothing, and only the run clicked last is shown.
+        // Ignore duplicate opens and retain only the latest requested view.
         async function openRunView(runId, gateId) {
             if (disposed || viewing === runId) return;
             if (ed.runView && ed.runView.run.id !== runId && ED.approvals) ED.approvals.closeRunReview(ed);
@@ -1065,9 +1054,7 @@
             return { id: record.id, status: record.status, mode: record.mode, steps: map, changes: [], record, durableStatus: observed, durableKnown: !!observed, durableStatusError: statusError === 'storage_unavailable', durableUnknown: statusError === 'storage_unavailable', durableStopping: durableStopping.has(record.id) };
         }
 
-        // applyRunView shows a stored run in the run view, with its own data in the input tree
-        // (ed.runView.data). A live run that is still going is parked: its stream closes, and
-        // clearRun() (leaving the run view) attaches it again.
+        // Keep an active run parked until clearRun restores its stream.
         function applyRunView(detail) {
             if (ed.run && !ed.run.view && !isFinal(ed.run.status) && !ed.run.stale) { parked = { id: ed.run.id, mode: ed.run.mode }; watchParked(); }
             closeStream();

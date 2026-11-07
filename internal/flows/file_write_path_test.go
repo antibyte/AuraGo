@@ -21,7 +21,8 @@ func TestFileWriteBoundsUntrustedPathsBeforeAnyToolCall(t *testing.T) {
 			{"parent name", "notes/{{trigger.data.name}}", "..", false, false},
 			{"tainted through set", "notes/{{prep.name}}", "../other.txt", true, false},
 			{"safe file name", "notes/{{trigger.data.name}}.txt", "report", false, true},
-			{"native Windows folder", `notes\{{trigger.data.name}}.txt`, "report", false, filepath.Separator == '\\'},
+			{"native Windows folder", `notes\report-{{trigger.data.name}}.txt`, "report", false, filepath.Separator == '\\'},
+			{"escaped literal", `notes\{{trigger.data.name}}.txt`, "../ignored", false, true},
 			{"safe name through set", "notes/{{prep.name}}.txt", "report", true, true},
 			{"static target", "notes/report.txt", "../ignored", false, true},
 		} {

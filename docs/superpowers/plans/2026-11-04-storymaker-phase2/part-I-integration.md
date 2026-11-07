@@ -1,3 +1,4 @@
+{% raw %}
 # Part I: Integration and close
 
 Batch 2D. Run the tasks in order. `outline.md` holds the batch rules, the test matrices and the execution rules ("outline section N"). `interfaces.md` holds the frozen interfaces ("frozen section N"), and its section 10 and `reconcile.md` win over them. A group id such as `G-A-5` names a block of tasks inside a part; the index lists them.
@@ -2639,3 +2640,4 @@ There is no commit in this step. The batch report names:
 - each failure confirmed on clean main
 - what stays open for the user: aurago-test acceptance (B13), listening notes and rhythm factors, the taste of the SFX set, prosody with per-sentence synthesis, and agent voice discovery (`storymaker_catalog kind=voice`, phase 3)
 
+{% endraw %}

@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"aurago/internal/sandbox"
 )
 
 const tlsFixtureEnv = "AURAGO_TEST_TLS_FIXTURE"
@@ -34,7 +36,7 @@ func RunTLSFixtureSubprocess(t *testing.T) bool {
 		parts[i] = "^" + regexp.QuoteMeta(part) + "$"
 	}
 	cmd := exec.CommandContext(ctx, os.Args[0], "-test.run="+strings.Join(parts, "/"), "-test.count=1", "-test.v")
-	cmd.Env = append(os.Environ(), tlsFixtureEnv+"="+t.Name())
+	cmd.Env = append(sandbox.FilterEnv(os.Environ()), tlsFixtureEnv+"="+t.Name())
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("isolated TLS fixture failed: %v\n%s", err, out)

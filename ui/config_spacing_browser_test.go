@@ -31,11 +31,12 @@ func TestConfigSpacingBrowser(t *testing.T) {
 				page.MustSetViewport(width, 1000, 1, width == 390)
 				for _, theme := range []string{"dark", "light"} {
 					for _, density := range []string{"comfortable", "compact"} {
-						page.MustEval(`async (theme,density,target) => {
+						// Finite transitions can be paused offscreen; settle layout without awaiting them indefinitely.
+						page.Timeout(15*time.Second).MustEval(`async (theme,density,target) => {
 						 document.documentElement.dataset.theme=theme; document.body.dataset.theme=theme; AuraPrecisionWorkspace.setDensity(density);
 						 document.querySelector(target).closest('.cfg-topic').scrollIntoView({block:'start',behavior:'instant'});
+						 document.getAnimations().filter(a=>a.playState==='running' && Number.isFinite(a.effect?.getComputedTiming().endTime)).forEach(a=>a.finish());
 						 await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
-						 await Promise.all(document.getAnimations().filter(a=>a.effect?.getTiming().iterations!==Infinity).map(a=>a.finished.catch(()=>{})));
 						}`, theme, density, example.target)
 						if dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); dir != "" {
 							if err := os.MkdirAll(dir, 0o755); err != nil {

@@ -1,3 +1,4 @@
+{% raw %}
 # Part B
 
 Tasks of batch B. Rules, commands and the order are in the plan index.
@@ -1107,3 +1108,4 @@ Expected: `ok  	aurago/internal/security`.
 
 Stage `internal/security/tool_output_trust.go` and `internal/security/tool_output_trust_storymaker_test.go`; message `feat(storymaker): fence job tool output as copyable source data`.
 
+{% endraw %}

@@ -18,6 +18,7 @@ This package owns local HTTP/TLS servers, test asset packaging and storage fixtu
   joins the child and reports its output/errors within the test deadline.
 - Child trust covers httptest's built-in certificate only. Inject RootCAs for
   custom certificates. Network grants remain explicit in each test.
+- Fixture subprocesses use `sandbox.FilterEnv`; parent credentials must not be inherited.
 - Fixtures use synthetic data and never contact live providers or mutate accounts.
 
 ## Work Guidance

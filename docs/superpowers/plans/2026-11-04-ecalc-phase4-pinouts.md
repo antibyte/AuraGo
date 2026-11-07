@@ -1,3 +1,4 @@
+{% raw %}
 # ECalc Phase 4 (Pinouts) Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
@@ -15865,3 +15866,4 @@ The research agents write the catalog items directly, in the exact form of §1, 
 ### 11. Plan part format
 
 `P4\part-<x>.md` in the phase 3 style: "Contract deviations" first, tasks `<X>1 …` with Files, TDD steps and COMPLETE code/data generated from the verified worktree files, a verification section with the exact commands and results. Report ≤ 300 words, including the DOX additions you want in the two AGENTS.md files as exact sentences.
+{% endraw %}

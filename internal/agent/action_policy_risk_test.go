@@ -632,12 +632,16 @@ func TestFollowUpAndWaitForEventNeedARuleWhenUnattended(t *testing.T) {
 
 	for _, source := range []string{"follow_up", "mqtt", "heartbeat", "background"} {
 		dc.MessageSource = source
+		code := "action_rule_required"
+		if source == "mqtt" {
+			code = "mqtt_relay_grant_required"
+		}
 		for _, call := range []ToolCall{followUp(), waitFor()} {
 			if a := DescribeAction(call, dc); !a.HighRisk || !a.Mutating || a.Operation != "schedule" {
 				t.Fatalf("%s %s: unattended scheduling must be a high-risk schedule: %+v", source, call.Action, a)
 			}
 			before := calls
-			if result := DispatchToolCallResult(context.Background(), &call, dc, "fixture"); result.Status != ToolResultDenied || !strings.Contains(result.Output, "action_rule_required") || calls != before {
+			if result := DispatchToolCallResult(context.Background(), &call, dc, "fixture"); result.Status != ToolResultDenied || !strings.Contains(result.Output, code) || calls != before {
 				t.Fatalf("%s %s = %+v calls=%d", source, call.Action, result, calls)
 			}
 		}
