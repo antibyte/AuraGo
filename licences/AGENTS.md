@@ -10,6 +10,11 @@ This folder owns `UEBERSICHT.md`, `THIRD_PARTY_NOTICES.md`, `THIRD_PARTY_LIBRARI
 
 ## Local Contracts
 
+- Synth Studio's Strudel browser runtime/integration is AGPL-3.0-or-later;
+  independent MIT source retains its license. Ship the full upstream notices
+  and package/integration sources at `ui/js/vendor/strudel/{LICENSES.md,sources.zip}`
+  and expose the source download in the workbench. It is a browser dependency,
+  not a Go-linked module; the linked-module license allowlist stays unchanged.
 - The English inventories live here in source checkouts. Release packagers and the main Dockerfile copy `licences/THIRD_PARTY_NOTICES.md` to the existing top-level `THIRD_PARTY_NOTICES.md` artifact/install path; preserve that basename for installers and legal checks. Markdown links in source notices are relative to this folder.
 
 - `UEBERSICHT.md` is the German listing. Keep it aligned with the direct `go.mod` require block, root `package.json`, `browser_automation_sidecar/package.json`, `tools/aurago-tui/Cargo.toml`, and `internal/desktopstore/catalog.go`.

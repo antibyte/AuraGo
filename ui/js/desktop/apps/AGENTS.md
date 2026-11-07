@@ -612,6 +612,22 @@ after the built-in installers and before the markup exists. DOM work belongs in 
 
 ## Synth Studio
 
+- `synth-studio-strudel.js` owns the Strudel workbench, a 64 KiB browser-local
+  scratch draft (`aurago:synth-studio:strudel:1`), explicit `.strudel` import/download
+  and three sample-free examples. `bd`, `sd`, `cp` and `hh` use local Strudel
+  synthesis so the introductory tutorial works without sample downloads.
+  Strudel 1.3.0 is bundled locally by
+  `scripts/build-strudel-vendor.mjs`; its sources and notices ship alongside it.
+  Code evaluates only in the opaque-origin frame at
+  `/api/desktop/synth-studio/strudel`, never in the Desktop realm. The bridge
+  accepts only its current frame, opaque origin and current request. No filesystem
+  or network bridge is provided. Update preserves the running frame; Stop, tab
+  hiding, policy revocation and disposal remove it, cancelling pending evaluations.
+  Native transport start stops Strudel; Strudel start stops native transport.
+  Its scratchpad is separate from `.aurasynth`, WAV, MIDI and stems. Never imply
+  that external sample banks or offline arrangement exports include Strudel.
+  Verify `TestSynthStudioStrudel*`, the existing Synth Studio browser tests,
+  registration/recording checks and `node scripts/build-strudel-vendor.mjs --check`.
 - `synth-studio` is a native Creative app with the `synthStudio.*` locale prefix.
   Keep its 120 factory presets (five banks of twenty-four), 128 synthesized GM
   programs and percussion bank local. See `documentation/synth-studio.md` for

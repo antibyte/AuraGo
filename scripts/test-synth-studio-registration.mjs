@@ -40,7 +40,7 @@ assert.deepEqual(Array.from(assets.scripts), [
     '/js/desktop/apps/synth-studio-storage.js',
     '/js/desktop/apps/synth-studio-editor.js',
     '/js/desktop/apps/synth-studio-workspace.js', '/js/desktop/apps/synth-studio-compose.js', '/js/desktop/apps/synth-studio-performance.js', '/js/desktop/apps/synth-studio-stage.js',
-    '/js/desktop/apps/synth-studio.js'
+    '/js/desktop/apps/synth-studio-strudel.js', '/js/desktop/apps/synth-studio.js'
 ]);
 for (const url of assets.scripts) {
     assert.ok(existsSync('ui' + url), 'registered app script exists: ' + url);

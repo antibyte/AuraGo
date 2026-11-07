@@ -85,7 +85,7 @@ function harness(initial) {
     };
     const state = {
         M, BAR, PPQ, MAX_TICK, MAX_EVENTS, MAX_CLIPS, MAX_PROJECT_BYTES, RECORDING_TICKS, TextEncoder,
-        currentProject: project, recording: null, playing: false, cursor: 0, disposed: false, generation: 0,
+        currentProject: project, recording: null, playing: false, cursor: 0, disposed: false, generation: 0, strudel: null,
         ready: true, busy: false, selectedInstrument: 'gm-0', countIn: false, quantize: 120, latency: 0, metronome: false,
         composer: null, stage: null, notice(){}, storageState: {}, live: new Map(), errors: [], playCalls: 0,
         performance: globalThis.performance,

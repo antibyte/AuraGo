@@ -138,7 +138,7 @@ AuraGo-eigene Oberflächen ohne Fremdcode stehen hier nicht.
 | Live Speech | ONNX Runtime Web 1.30.0, Silero VAD 6.2.1 | MIT |
 | TeeVee | hls.js 1.7.3, Bootstrap Icons | Apache-2.0, MIT (`ui/img/teevee/ICONS-LICENSE.txt`) |
 | CYD-Flasher | esp-web-tools 10.4.0, esptool-js | Apache-2.0 |
-| Synth Studio | `@tonejs/midi` 2.0.28, Tabellen aus webaudio-tinysynth 1.1.4 | MIT, Apache-2.0 |
+| Synth Studio | `@tonejs/midi` 2.0.28, Tabellen aus webaudio-tinysynth 1.1.4; Strudel `@strudel/web` 1.3.0 | MIT, Apache-2.0; Strudel-Browserkombination AGPL-3.0-or-later, vollständige Paket-/Integrationsquellen und Lizenztexte unter `ui/js/vendor/strudel/` und Download im Arbeitsbereich |
 | RuView | ruview, Copyright 2024 rUv | MIT |
 | Login und City-Rain | CanvasUI | MIT plus Commons Clause |
 | Galaxy-Bedienelemente | Lucide | ISC |

@@ -26,6 +26,13 @@ the consuming library or reintroduces a vulnerability.
 
 ## Compatibility bounds
 
+Synth Studio pins `@strudel/web` 1.3.0. `scripts/build-strudel-vendor.mjs`
+bundles the actual locked dependencies with esbuild and emits the runtime,
+full package/integration sources, licenses and SHA-256 manifest under
+`ui/js/vendor/strudel/`. Run its `--check` after updates. The evaluator disables
+shared-worker synchronization and external sample/network access; its browser
+test checks actual Web Audio output under the production sandbox CSP.
+
 PDF text extraction uses the source-pinned BSD-3-Clause ledongthuc/pdf revision
 `6c8c28e0e8a0` in `internal/pdftext/parser`, shared by the indexer, PDF tool and
 export verification. Local changes add context/deadline checks, checked xref,

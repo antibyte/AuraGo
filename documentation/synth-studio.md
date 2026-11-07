@@ -9,6 +9,38 @@ Planned expansions — new sounds, a rebuilt demo, a parameterised effect chain 
 a UI refresh — were tracked in `documentation/synth-studio-plan.md` and are now
 implemented. That plan remains the record of the intended scope.
 
+## Strudel live coding
+
+Open the **Strudel** workbench tab to write and run patterns with the local
+Strudel 1.3.0 engine. **Run / Update** or Ctrl+Enter evaluates the current code;
+updates preserve the running clock. Its Stop button and the main transport's
+Stop/Pause stop it immediately. Starting the arrangement stops Strudel, and
+starting Strudel stops the arrangement. Closing the window, hiding the browser
+tab or revoking Desktop write access also stops its evaluator.
+
+The Melody, Groove and Ambient examples use built-in synthesizers. Tutorial
+patterns such as `s("bd sd cp hh")` work with local synthesized kick, snare,
+clap and hi-hat counterparts, rather than the online REPL's samples. No network
+or sample download is needed. External sample banks (`samples(...)`), MIDI and
+microphone access are blocked in the evaluator; other sampled instruments and
+drum-machine banks from the online REPL are not bundled.
+
+The scratch draft (maximum 64 KiB) is retained in this browser. Open imports a
+`.strudel` text file after confirmation; **Download code** saves a portable copy.
+This code is separate from the arrangement's `.aurasynth` file, undo history and
+WAV/MIDI/stem exports. Export the code before clearing browser storage.
+
+If autoplay is blocked, click the sound button shown in the workbench. Errors
+appear above the editor and stop the evaluator; fixing the code and running it
+starts a fresh instance. The evaluator has an opaque sandbox origin and cannot
+read the Desktop's DOM, storage, credentials or API responses.
+
+Strudel and its integration are AGPL-3.0-or-later. **Strudel source** downloads
+the package and integration sources; notices and version/hash records are in
+`ui/js/vendor/strudel/`. Rebuild with `npm run build:strudel-vendor` after `npm ci`,
+and verify with `npm run check:strudel-vendor`. The browser tests use the real
+engine and check signal output, updates, isolation, errors and cancellation.
+
 ## Compose
 
 - Choose an instrument or drag an editable pattern onto the arrangement.

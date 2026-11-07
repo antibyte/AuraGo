@@ -657,6 +657,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	registerMailerRoutes(mux, s)
 	registerLocalWikipediaDesktopRoutes(mux, s)
 	registerRetroGamesRoutes(mux, s)
+	mux.HandleFunc(synthStudioStrudelPath, s.handleSynthStudioStrudel)
 	registerFlowsRoutes(mux, s)
 	registerCYDCreatorRoutes(mux, s)
 	mux.HandleFunc("/api/desktop/personal-radio/", s.handlePersonalRadio)

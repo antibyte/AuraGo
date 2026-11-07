@@ -362,6 +362,19 @@
 .ss-wide .ss-splitter-panel {grid-area:4/2/5/3}
 .ss-wide .ss-sound-workbench {grid-area:4/3/5/4;width:auto;border-left:1px solid var(--ss-line);border-top:0;max-height:none}
 .ss-wide .ss-workbench-tabs [data-work-tab=sound] {display:none}
+.ss-strudel-workbench {flex:0 1 var(--ss-workbench-height);min-height:100px;overflow:auto;padding:10px;display:flex;flex-direction:column;gap:8px}
+.ss-wide .ss-strudel-workbench {grid-area:4/1/5/2;min-width:0;max-height:none}
+.ss-strudel-tools {display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+.ss-strudel-tools select {width:auto;flex:0 1 180px}
+.ss-strudel-tools button {border-color:var(--ss-border);background:var(--ss-field)}
+.ss-strudel-tools a {color:var(--ss-accent);font-size:12px}
+.ss-strudel-tools [data-strudel-run] {color:var(--ss-accent)}
+.ss-strudel-workbench p {margin:0;color:var(--ss-muted);font-size:12px}
+.ss-strudel-workbench textarea {flex:1;min-height:100px;resize:vertical;width:100%;padding:10px;background:var(--ss-well-color);color:var(--ss-text);border:1px solid var(--ss-border);border-radius:5px;font:13px/1.5 monospace;tab-size:2}
+.ss-strudel-workbench textarea:focus-visible {outline:2px solid var(--ss-accent);outline-offset:1px}
+.ss-strudel-workbench output {white-space:pre-wrap;overflow-wrap:anywhere}
+.ss-strudel-workbench [data-strudel-state=error] {color:var(--ss-danger)}
+.ss-strudel-workbench iframe {width:100%;height:40px;flex:none;border:0}
 /* Master strip: the project wide mix controls live in the transport area, so
    they can be reached without opening the sound panel. */
 .ss-master-toggle {flex-shrink:0;border:1px solid var(--ss-border);font-size:11px;padding:4px 12px;color:var(--ss-muted);white-space:nowrap}

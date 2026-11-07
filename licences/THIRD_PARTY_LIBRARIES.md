@@ -1,5 +1,12 @@
 # Third-Party Libraries and Assets
 
+Synth Studio bundles Strudel 1.3.0 (`@strudel/web`, AGPL-3.0-or-later) locally.
+The engine and its integration run in a network-disabled sandbox document.
+Full upstream/package notices, package/integration source download and pinned
+hashes ship in `ui/js/vendor/strudel/`; the workbench links the source ZIP.
+The browser combination containing Strudel follows AGPL terms; independent MIT
+source retains its license, and this JavaScript dependency is not linked into Go.
+
 Optional Horizon Labs `prompt-injection-guard-small` (Apache-2.0), revision
 `0e3774536debbcd71dbb8534ef71451b583853b8`: unchanged official quantized ONNX model
 and tokenizer, administrator-initiated download, size/SHA-256 pins in

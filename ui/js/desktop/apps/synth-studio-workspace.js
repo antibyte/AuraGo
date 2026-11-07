@@ -12,10 +12,10 @@
         view.height = Math.max(0, Math.min(LIMITS.height[1], Math.round(Number(view.height) || 0)));
         view.libraryWidth = clamp(view.libraryWidth, LIMITS.libraryWidth[0], LIMITS.libraryWidth[1]);
         view.panelWidth = clamp(view.panelWidth, LIMITS.panelWidth[0], LIMITS.panelWidth[1]);
-        if (!['notes','sound','performance'].includes(view.panel)) view.panel = 'notes';
+        if (!['notes','sound','performance','strudel'].includes(view.panel)) view.panel = 'notes';
         const host = root.querySelector('[data-editor-host]'), note = host.querySelector('[data-note-editor]');
         const tabs = document.createElement('div'); tabs.className = 'ss-workbench-tabs'; tabs.setAttribute('role','tablist');
-        for (const name of ['notes','sound','performance']) {
+        for (const name of ['notes','sound','performance','strudel']) {
             const button = document.createElement('button'); button.type = 'button'; button.dataset.workTab = name;
             button.textContent = tr('workspace_' + name); button.setAttribute('role','tab'); tabs.append(button);
         }
@@ -27,6 +27,7 @@
         const sound = document.createElement('section'); sound.className = 'ss-sound-workbench'; sound.dataset.workPanel = 'sound';
         sound.append(root.querySelector('[data-inspector]')); host.append(sound);
         const performance = document.createElement('section'); performance.className = 'ss-performance-workbench'; performance.dataset.workPanel = 'performance'; host.append(performance);
+        const strudel = document.createElement('section'); strudel.dataset.workPanel = 'strudel'; host.append(strudel);
         // Two draggable separators: the library rail on the left and the sound
         // column on the right. Both remember their size and can be keyboard
         // driven or reset with a double click.
@@ -73,7 +74,7 @@
             root.classList.toggle('ss-wide',isWide);
             applyLayout();
             tabs.querySelectorAll('button').forEach(b => { b.setAttribute('aria-selected',String(b.dataset.workTab===active)); b.tabIndex=b.dataset.workTab===active?0:-1; });
-            const visible=name=>isWide?(name==='sound'?true:name==='notes'?view.panel!=='performance':view.panel==='performance'):name===view.panel;
+            const visible=name=>isWide?(name==='sound'||name===(view.panel==='sound'?'notes':view.panel)):name===view.panel;
             host.querySelectorAll('[data-work-panel]').forEach(p=>{p.hidden=!visible(p.dataset.workPanel);p.setAttribute('role','tabpanel');});
             root.querySelectorAll('[data-action="library"]').forEach(b=>b.setAttribute('aria-expanded',String(root.clientWidth<=540?!!view.compactLibrary:!!view.library)));
         }
@@ -82,7 +83,7 @@
         tabs.addEventListener('keydown',e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();
             // The wide workbench hides the sound tab, so it must not stay in the
             // rotation: focusing a hidden button would leave the focus behind.
-            const names=wide()?['notes','performance']:['notes','sound','performance'];
+            const names=wide()?['notes','performance','strudel']:['notes','sound','performance','strudel'];
             let i=names.indexOf(view.panel);if(i<0)i=0;
             i=e.key==='Home'?0:e.key==='End'?names.length-1:(i+(e.key==='ArrowRight'?1:names.length-1))%names.length;
             panel(names[i]);tabs.querySelector('[data-work-tab="'+names[i]+'"]').focus();},{signal});
@@ -132,7 +133,7 @@
             observer.observe(host);
             if(signal&&typeof signal.addEventListener==='function')signal.addEventListener('abort',()=>observer.disconnect(),{once:true});
         }
-        return { panel, performance, sound, welcome, toggleLibrary(){if(root.clientWidth<=540)view.compactLibrary=!view.compactLibrary;else view.library=!view.library;render();save();}, refresh(){welcome.hidden=options.project().tracks.length>0;welcome.querySelectorAll('[data-template]').forEach(b=>b.disabled=options.blocked());} };
+        return { panel, performance, sound, strudel, welcome, toggleLibrary(){if(root.clientWidth<=540)view.compactLibrary=!view.compactLibrary;else view.library=!view.library;render();save();}, refresh(){welcome.hidden=options.project().tracks.length>0;welcome.querySelectorAll('[data-template]').forEach(b=>b.disabled=options.blocked());} };
     }
     window.SynthStudioWorkspace={create};
 })();

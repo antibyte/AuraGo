@@ -21,6 +21,10 @@ Use the existing helper for each job. Check release scripts with harmless fixtur
 
 ## Verification
 
+- Strudel: `node scripts/build-strudel-vendor.mjs` rebuilds the pinned runtime,
+  license notices, source ZIP and integrity manifest from the npm lock. `--check`
+  regenerates in memory and compares without writing. Resolve inputs from the
+  repository root; source archives include the integration and its build inputs.
 - Goldfish Adventure: `node scripts/test-goldfish-state.mjs`,
   `node scripts/test-goldfish-animation.mjs`, `node scripts/test-goldfish-save.mjs`,
   `node scripts/test-goldfish-app.mjs` and `node scripts/verify-goldfish-assets.mjs`.

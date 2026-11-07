@@ -81,6 +81,12 @@ Server-owned HTTP and cross-component integration contracts.
 
 ## Local Contracts
 
+- `GET|HEAD /api/desktop/synth-studio/strudel` requires Desktop read access and
+  an enabled Desktop. It serves the local Strudel evaluator with an opaque
+  `sandbox allow-scripts` origin, no network access, no hardware grants and only
+  its two local scripts plus blob worklets. Runtime JavaScript evaluation is
+  allowed on this document only; the global Desktop CSP stays unchanged. The
+  parent never forwards APIs or credentials. Verify `TestSynthStudioStrudel*`.
 - The public `/api/openrouter/models` setup route shares one bounded cache:
   15-minute successful JSON, 30-second failure, one concurrent refresh, 8 MiB
   response and 15-second fetch deadline. Server shutdown cancels refreshes;

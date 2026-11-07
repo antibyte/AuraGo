@@ -23,7 +23,7 @@
         const FX_LABELS={chorus:'chorus',phaser:'phaser',delay:'delay',reverb:'reverb',gate:'gate',tremolo:'fx_tremolo',flanger:'fx_flanger',rotary:'fx_rotary',bitcrush:'fx_bitcrush',softclip:'fx_softclip',eq3:'fx_eq3',width:'fx_width',cabinet:'fx_cabinet',tape:'fx_tape',autopan:'fx_autopan',ringmod:'fx_ringmod'};
         const FX_PARAM_LABELS={mix:'fx_mix',rate:'fx_rate',depth:'fx_depth',feedback:'fx_feedback',amount:'fx_amount',freq:'fx_freq',low:'fx_low',mid:'fx_mid',high:'fx_high',bits:'fx_bits',time:'fx_time',size:'fx_size',decay:'fx_decay',model:'fx_model',tone:'tone'};
         const TOUR_STEPS=[{panel:'notes',key:'tour_arrange'},{panel:'sound',key:'tour_sound'},{panel:'performance',key:'tour_performance'},{key:'tour_record'},{key:'tour_export'}];
-        let workspace, composer, stage, parameterGesture=null;
+        let workspace, composer, stage, strudel, parameterGesture=null;
         let live=new Map(), storageState={}, midiState={}, generation=0, ready=false;
         const timers=new Set(), later=(fn,delay)=>{const timer=setTimeout(()=>{timers.delete(timer);fn();},delay);timers.add(timer);};
         const eventCount=p=>p.tracks.reduce((total,t)=>total+(t.automation?.length||0)+t.clips.reduce((clipTotal,c)=>clipTotal+c.notes.length+c.controllers.length,0),0);
@@ -46,6 +46,7 @@
         const root=host.firstElementChild, find=q=>root.querySelector(q);
         editor=window.SynthStudioEditor.create(find('[data-editor-host]'),{getProject:project,readonly:blocked,tr,mutate,onTrackVolume:true,onSelect:()=>{renderInspector();composer?.refresh();stage?.refresh();},onAdd:()=>insert({type:'instrument',id:selectedInstrument},'',0),onDrop:insert,onNewClip:newClip,onSeek:seek,onAudition:p=>audition(p),onNoteOn:p=>noteOn(p,.8,performance.now(),17),onNoteOff:p=>noteOff(p,performance.now(),17),onError:fail,onTrackMenu:(action,trackId)=>{if(action==='delete')deleteTrackById(trackId);else if(action==='duplicate')duplicateTrackById(trackId);}});
         workspace=window.SynthStudioWorkspace.create(root,{tr,signal,project,blocked,onTour:()=>{tourIndex=0;renderTour();}});
+        strudel=window.SynthStudioStrudel.create(workspace.strudel,{tr,signal,blocked,readonly,beforePlay:()=>{generation++;composer?.stop();if(playing)stop();else{audio.stop();panic();}},confirm:()=>ctx.confirmDialog?.(tr('workspace_strudel'),tr('strudel_replace'))});
         composer=window.SynthStudioCompose.create(workspace.performance,{tr,esc,signal,project,selection:()=>editor.selection(),cursor:()=>cursor,blocked,mutate,audio,fail,stopTransport:()=>stop(false,true),showNotes:()=>workspace.panel('notes'),onArpNote:captureArp});
         const midi=window.SynthStudioMIDI.create({onNoteOn:e=>noteOn(e.pitch,e.velocity,e.time,e.channel),onNoteOff:e=>noteOff(e.pitch,e.time,e.channel),onController:e=>controller(e),onState:s=>{midiState=s;if(s.status!=='connected'){if(recording)stop();else panic();}renderMIDI();}});
         stage=window.SynthStudioStage.create(workspace.performance,{tr,esc,signal,audio,project,track,mutate,playing:()=>playing,cursor:()=>cursor,editable:()=>!disposed&&ready&&!readonly()&&!busy&&!storageState.loading&&!recording,canPlay:()=>!disposed&&ready&&!busy&&!storageState.loading,play,stop,refresh,fail,prompt:(title,value)=>ctx.promptDialog?.(title,value),confirm:(title,message)=>ctx.confirmDialog?.(title,message),adopt:p=>storage.newDocument(p,{dirty:true}),transport:find('.ss-transport'),whenReady:()=>storage.ready,sessionKey:ctx.sessionKey||ctx.state?.windows?.get(id)?.sessionKey||id});
@@ -64,7 +65,7 @@
         }
         function refresh(){
             const active=document.activeElement,attrs=['data-param','data-track-name','data-instrument','data-track-volume','data-velocity','data-master-param','data-designer-param','data-designer-name'],attr=attrs.find(a=>active?.hasAttribute(a)),value=attr?active.getAttribute(attr):'';
-            editor.render();renderInspector();renderMaster();status();workspace?.refresh();composer?.refresh();stage?.refresh();
+            editor.render();renderInspector();renderMaster();status();workspace?.refresh();composer?.refresh();stage?.refresh();strudel?.refresh();
             if(attr)root.querySelectorAll('['+attr+']').forEach(el=>{if(el.getAttribute(attr)===value)el.focus({preventScroll:true});});
         }
         function loadProject(p){stop();history=M.history(M.upgrade(p));currentProject=history.current();cursor=0;editor.select(p.tracks[0]?.id||'',p.tracks[0]?.clips[0]?.id||'');workspace.performance.scrollTop=0;refresh();}
@@ -254,10 +255,11 @@
         }
         function position(tick,meta){if(meta)stage?.onTick(tick,meta);if(recording?.phase==='record'&&tick>=recording.start+recording.maxLength){const limited=recording.timelineLimited;stop();if(limited)fail({code:'E_PROJECT_LIMIT'});return;}cursor=Math.max(0,tick);editor.setPlayhead(cursor);find('[data-position]').textContent=String(Math.floor(cursor/BAR)+1).padStart(2,'0')+' : '+String(Math.floor(cursor%BAR/PPQ)+1).padStart(2,'0');}
         async function play(at=cursor,override,onStarted){
+            strudel?.stop();
             if(disposed||busy)return;composer?.stop();const epoch=++generation;try{await audio.unlock();if(disposed||epoch!==generation)return;playing=true;status();const running=audio.play({...(override||stage.runtime(project())),metronome},at,position,()=>{if(epoch===generation){if(recording)finishRecording();stage?.stop();playing=false;refresh();}});await Promise.resolve();if(epoch===generation&&audio.running())onStarted?.();await running;}catch(error){stage?.stop();playing=false;fail(error);refresh();}
         }
         function panic(){for(const [key,n] of [...live.entries()])noteOff(Number(key.split(':')[1]),performance.now(),n.channel);audio.panic?.();}
-        function stop(reset=false,keepPreview=false){generation++;if(!keepPreview)composer?.stop();stage?.stop();const tick=audio.stop();notice('');if(recording)finishRecording();panic();playing=false;position(reset?0:tick||cursor);refresh();}
+        function stop(reset=false,keepPreview=false){strudel?.stop();generation++;if(!keepPreview)composer?.stop();stage?.stop();const tick=audio.stop();notice('');if(recording)finishRecording();panic();playing=false;position(reset?0:tick||cursor);refresh();}
         function seek(tick){const resume=playing;stop();position(tick);if(resume)play(tick);}
         async function audition(pitch=60,instrument){
             if(stage?.active())return;const epoch=generation;try{await audio.unlock();if(disposed||epoch!==generation)return;const targetInst=instrument||selectedInstrument,presetParams=M.defaultParamsFor?.(targetInst)||{tone:.5,resonance:0,drive:0,attack:.01,release:.3,reverb:.1,delay:0},presetInserts=M.defaultInsertsFor?.(targetInst)||[];const t=track()||{id:'audition',instrument:targetInst,volume:.65,pan:0,params:presetParams,fx:{inserts:presetInserts}};const release=audio.noteOn(instrument?{...t,id:'audition-'+instrument,instrument,params:presetParams,fx:{inserts:presetInserts}}:t,pitch,.7);later(()=>release?.(),300);}catch(error){fail(error);}

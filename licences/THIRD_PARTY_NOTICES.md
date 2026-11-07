@@ -1,5 +1,19 @@
 # Third-party notices
 
+## Synth Studio — Strudel
+
+The local Strudel 1.3.0 browser engine (`@strudel/web`, core/mini/tonal/transpiler/
+webaudio, superdough, supradough and Kabelsalat) is AGPL-3.0-or-later, Copyright
+Strudel contributors, including Alex McLean and Felix Roos. AuraGo's Strudel
+integration was added 2026-11-07 under AGPL-3.0-or-later. Independent MIT sources
+retain their license. The browser combination containing Strudel is distributed
+under the applicable AGPL terms; this adds no AGPL module to the Go binaries.
+
+The workbench exposes its source download. Full notices, readable package and
+integration sources, build inputs and version/hash records ship in
+`ui/js/vendor/strudel/LICENSES.md`, `sources.zip` and `manifest.json`.
+Upstream: https://codeberg.org/uzu/strudel. No external sample banks are bundled.
+
 ## Bounded PDF parser
 
 `internal/pdftext/parser` derives from ledongthuc/pdf revision `6c8c28e0e8a0`,

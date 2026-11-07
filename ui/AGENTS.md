@@ -27,6 +27,10 @@ New app-scoped prefixes must contain no `ad` substring; verify
 
 ## Ownership
 
+- Synth Studio's optional Strudel workbench uses a locally bundled runtime and
+  downloadable source archive under `js/vendor/strudel/`. Its evaluator runs in
+  the server-owned sandbox document, with no external assets or API bridge.
+  Follow `js/desktop/apps/AGENTS.md` for scratchpad, transport and lifecycle rules.
 - Goldfish Adventure (`goldfish-adventure`) owns its local Canvas scene, semantic
   controls, IndexedDB saves and `goldfish`/`goldfish-interface` locale sections.
   Follow `js/desktop/apps/goldfish-adventure/AGENTS.md` for shared shell changes

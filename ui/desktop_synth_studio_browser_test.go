@@ -22,6 +22,7 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 	html = strings.Replace(html, "</head>", `<link rel="stylesheet" href="/css/desktop-app-synth-studio.css"><style>body{margin:0}.vd-shell{height:100vh}</style></head>`, 1)
 	scripts := []string{"/synth-shell.js", "/js/desktop/apps/writer-session.js", "/js/vendor/synth-studio/gm-data.js", "/js/desktop/apps/synth-studio-presets.js", "/js/desktop/apps/synth-studio-designer.js", "/js/vendor/synth-studio/tone-midi-2.0.28.bundle.js", "/js/desktop/apps/synth-studio-model.js", "/js/desktop/apps/synth-studio-fx.js", "/js/desktop/apps/synth-studio-music.js", "/js/desktop/apps/synth-studio-voices.js", "/js/desktop/apps/synth-studio-audio.js", "/js/desktop/apps/synth-studio-export.js", "/js/desktop/apps/synth-studio-midi.js", "/js/desktop/apps/synth-studio-storage.js", "/js/desktop/apps/synth-studio-editor.js", "/js/desktop/apps/synth-studio-workspace.js", "/js/desktop/apps/synth-studio-compose.js", "/js/desktop/apps/synth-studio-performance.js", "/js/desktop/apps/synth-studio-stage.js", "/js/desktop/apps/synth-studio.js", "/testdata/synth-studio-fixture.js"}
 	var tags strings.Builder
+	scripts = append([]string{"/js/desktop/apps/synth-studio-strudel.js"}, scripts...)
 	for _, path := range scripts {
 		fmt.Fprintf(&tags, `<script src="%s"></script>`, path)
 	}
@@ -294,6 +295,14 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 				}
 				check("responsive bounds", `()=>{const a=document.querySelector('.ss-app'),r=a.getBoundingClientRect(),f=document.querySelector('.ss-footer').getBoundingClientRect();return a.scrollWidth<=a.clientWidth+1 && f.bottom<=r.bottom+1 && document.querySelector('.ss-arrangement').clientHeight>=100;}`)
 				check("performance pads have touch targets", `()=>[...document.querySelectorAll('.ss-scene-pads button,.ss-chord-pads button')].every(e=>{const r=e.getBoundingClientRect();return r.width>=44&&r.height>=44})`)
+				page.MustElement("[data-work-tab=strudel]").MustClick()
+				check("Strudel editor stays inside the workbench", `()=>{const el=document.querySelector('[data-strudel-code]'),p=el.closest('section'),r=p.getBoundingClientRect();return !p.hidden&&el.clientWidth>120&&r.right<=document.querySelector('.ss-app').getBoundingClientRect().right+1&&p.scrollWidth<=p.clientWidth+1;}`)
+				if dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); dir != "" {
+					if err := os.WriteFile(filepath.Join(dir, fmt.Sprintf("synth-strudel-%s-%s-%d.png", theme, mode, width)), page.MustScreenshot(), 0644); err != nil {
+						t.Fatal(err)
+					}
+				}
+				page.MustElement("[data-work-tab=performance]").MustClick()
 			}
 		}
 	}
