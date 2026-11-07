@@ -87,35 +87,48 @@ hat pulse to four-on-the-floor with fills, and section velocities plus a lead
 tone curve and a break reverb swell shape the arrangement. The phrases stay
 demo-local, so the pattern library keeps its concise factory vocabulary.
 
-## Instrument workspace
+## Modes and controls
 
-The transport stays visible while Notes, Sound and Performance share a resizable workbench.
-Panel height, the selected workbench, library visibility and the panel sizes are
-local view preferences. Dark and light
-desktop schemes use graphite and aluminium surfaces respectively. On a window of at least
-1400 pixels the arrangement keeps the full width of the workbench and the notes panel
-and the sound workbench sit side by side below it, so the timeline stays readable
-while the instrument and its effect chain stay in view. The lower band always keeps
-the height the user gave it: the sound panel scrolls inside its own column instead
-of being squeezed into an unreadable strip. A guided tour in the footer
-walks through the five workbench areas and can be skipped at any point. Electronic,
-Chill and Retro templates start paused; each is a distinct sixteen-bar
-composition with its own instruments, groove, harmony and mix.
+The transport stays visible above a mode bar with five modes; only the active mode
+is shown:
 
-Three draggable separators size the studio: the library rail on the left, the sound
-column on the right and the workbench band under the arrangement. Every separator is
-a real `separator` role: the arrow keys move it in steps, Shift multiplies the step
-and a double click restores the default size. The sizes are stored per browser and
-applied again on the next start.
+- **Arrange** - the arrangement with tracks and clips. The note editor (piano roll
+  or percussion grid) appears under the arrangement only while a clip is selected.
+- **Sound design** - the sound panel of the selected track, including the
+  programmable synthesizer and the effect chain.
+- **Perform** - chord pads, scale assistance, arpeggiator, variations, scenes and
+  the momentary Live FX.
+- **Strudel** - the live-coding editor (see "Strudel live coding").
+- **Mixer** - the master strip with the effect inserts.
+
+The sound library is a drawer that slides in from the side. It is closed by
+default; open and close it with the library button in the header. The active mode
+and the drawer state are remembered in this browser.
+
+Range sliders are drawn as 3D knobs, and the track volume as a horizontal fader.
+Drag a knob up or down to change it; hold Shift for fine steps. While a knob has
+keyboard focus the mouse wheel changes it and the arrow keys move it in steps.
+A double click triggers the row's Reset button where the row has one. Values are
+displayed and, as before, dragging a sound or volume control previews it
+immediately and commits one undo step; Escape or pointer cancellation restores the
+previous sound.
+
+The sections of the sound design (oscillators, filter, envelope and so on) are
+collapsible. Sections that are not active for the selected sound start closed.
+Open and closed states are kept only while that editor stays open.
+
+Dark and light desktop schemes use graphite and aluminium surfaces respectively.
+A guided tour in the footer walks through the main areas and can be skipped at any
+point. The workbench height can be changed with the keyboard-operable separator
+above the note editor. Electronic, Chill and Retro templates start paused; each is
+a distinct sixteen-bar composition with its own instruments, groove, harmony and mix.
 
 The library separates selection, preview and insertion and searches all banks
 until a category is selected. Search matches names and tags; the tag chips
 filter the list, and favourites plus a recent list are kept per browser. The
 note editor offers draw/select tools, rectangle
 selection, copy/paste, per-selected-note velocity and draggable bar-loop handles.
-Keyboard arrows move loop handles by one bar. Control values are displayed and can
-be reset. Dragging a sound or volume control previews it immediately and commits
-one undo step; Escape or pointer cancellation restores the previous sound.
+Keyboard arrows move loop handles by one bar.
 
 ## The programmable synthesizer
 
@@ -158,7 +171,7 @@ is mixed with the current text colour, so one token set stays legible on the dar
 and on the light desktop scheme. The spectrum is applied consistently rather than
 decoratively: track colours and the matching clip headers, the arrangement track
 names, the piano-roll spine, library category and tag chips, the eight scene and
-chord pads, the workbench tab underline, the effect-insert markers and the master
+chord pads, the effect-insert markers and the master
 strip group headings each take one hue from it.
 
 Piano-roll notes carry their own pitch hue, so a chord reads as a colour block and
@@ -206,7 +219,7 @@ notice explains that sound automation remains in WAV.
 
 ## Musical tools
 
-The Performance workbench provides eight diatonic chord pads, major/natural-minor
+The Perform mode provides eight diatonic chord pads, major/natural-minor
 scale assistance, a live/printable arpeggiator, seeded melodic/rhythmic variations
 and a Euclidean drum generator. Hold pads or use the screen/typing/MIDI keyboard
 for live arpeggios; the latch switch keeps the last chord running after release
@@ -295,7 +308,7 @@ type-specific values — instead of a single fixed sound. The chain runs after t
 track pan, so stereo effects work on a real stereo signal, and the reverb and
 delay sends leave the fader, so the track volume also controls its own tails.
 
-The Performance workbench also carries two momentary Live FX after the master
+The Perform mode also carries two momentary Live FX after the master
 strip: Filter drop sweeps the master low-pass down and back over 1.5 beats, and
 Stutter gates the mix sixteen times over one bar. They follow the current tempo,
 are performance-only, and never enter the project, WAV mixdown or stem export.

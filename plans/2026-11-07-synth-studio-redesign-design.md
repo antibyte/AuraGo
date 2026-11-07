@@ -20,7 +20,7 @@ knobs, raised faders, glass panels) that hides what is not needed.
 
 ## Scope
 
-In: new shell, four modes, drawers, control components (knob, fader, toggle),
+In: new shell, five modes, drawers, control components (knob, fader, toggle),
 token/CSS rework, migration of the sound-design (designer) and arrangement
 surfaces, Strudel and Mixer/Export placement, tests, docs, 16 locales.
 Out: audio engine, project model/format (`.aurasynth`), storage, Strudel engine,
@@ -29,13 +29,13 @@ MIDI/export logic. These keep their current behaviour and APIs.
 ## 1. Shell and modes
 
 - Top bar: transport (play/stop/record/loop), BPM, time signature, master knob,
-  level meter. Project/File/Export collapse into one menu; tour and rarely used
+  level meter. The file actions stay compact icon buttons (no header menu); the tour and rarely used
   options go into a "More" menu.
-- Mode switcher: **Arrange · Sound Design · Strudel · Mixer & Export**.
+- Mode switcher: **Arrange · Sound Design · Perform · Strudel · Mixer** (Export stays in the header).
   Each mode uses the full area. Only that mode's content is mounted visible.
 - Library is a slide-out drawer (default closed) in Arrange and Sound Design.
 - Persisted per browser (localStorage, try/catch, UI works without it): active
-  mode, drawer states, lane height, collapsed sections.
+  mode, drawer states, lane height. Collapsed sections are kept only while the editor stays open, not in localStorage (key `aurago:synth-studio:view:2`).
 - Replaces `synth-studio-workspace.js` layout/splitter logic; `render()` in
   `synth-studio.js` mounts modes instead of fixed columns.
 
