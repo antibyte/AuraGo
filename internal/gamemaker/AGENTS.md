@@ -48,6 +48,19 @@ revision publication and standalone export for Phaser and Three.js games.
 
 ### Shared game lifecycle
 
+- `validateForPublication` parks a job in `waiting_preview` only when
+  `waitForPreview` reports the exact absent-preview timeout. It is bounded by
+  `previewHostWait` and the job deadline, resumes on a visible canvas for the
+  same validation ID, then re-validates from scratch. Every other unavailable,
+  failed or cancelled result keeps failing immediately; the agent-facing
+  `ValidateJobScope` keeps its 12 s window. `preview_wait_test.go` covers resume,
+  timeout, newer builds and deadlines.
+- `updateJobPhase` events carry `from_phase` and an absolute `at` timestamp, so
+  offline reports can reconstruct phase durations from the persisted event log.
+- `CompactRuntimeReference` selects whole lines by importance, not by position:
+  Checks, feedback, counters and hooks survive the 2 KB budget. The 2D counter
+  list names `pickup_events`, and `feedback('pickup', item)` is its one
+  documented counter-changing feedback call.
 - Terminal job states become observable only after working-copy cleanup, with the
   writer released under the same lock. Immediate retries and revision restores
   must not race a job that has already reported completion.
@@ -77,8 +90,10 @@ revision publication and standalone export for Phaser and Three.js games.
   planning workflow says so, and every file read/search answer carries a
   next_action to submit set_design instead of exploring. In bound runs a
   `game_maker_file` call with a line range and no content is a read.
-- Feedback never changes gameplay counters, health or outcomes. Real contacts and
-  game rules own those changes. Missing observations remain unverified.
+- Cosmetic feedback never changes gameplay counters, health or outcomes. The one
+  documented exception is `feedback('pickup', item)`, which the 2D validator
+  counts as `pickup_events`; real contacts, built-in role behaviour and game
+  rules own every other change. Missing observations remain unverified.
 - Non-scene Three.js helpers count real item/cargo/flight-goal collections in
   `pickup_events` and clear that counter on reset. Keep combat hits and cosmetic
   feedback separate; scene-builder pickup counters retain their own ownership.
@@ -489,6 +504,12 @@ Do not patch a published game merely because a new starter changed.
 
 ## Verification
 
+- `TestMissingPreviewHostOnlyMatchesAbsentHost`, `TestAwaitPreviewHost*`,
+  `TestCompactRuntimeReference*` and the UI regression
+  `Game Maker waiting_preview keeps the job active and replays a missed preview reload`
+  guard the bounded preview wait, the priority-based compact reference and the
+  Studio status mapping. `scripts/game-maker-forensics.mjs` aggregates benchmark
+  reports and warns when no human `playable` judgement exists.
 - `TestCustomScenarioCoverage*` and `TestGameScenarios*` cover additive baseline
   assertions and driven transition coverage. `TestValidationRequestErrors*`
   covers request correction without preview, budget or round changes;

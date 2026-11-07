@@ -9,7 +9,7 @@
         'diagnostic', 'revision', 'validation_reset', 'validation_result', 'visual_result', 'visual_observation', 'visual_progress',
         'plan_summary', 'stream_ready'
     ];
-    const activeStatuses = new Set(['queued', 'planning', 'building', 'validating', 'polishing', 'cancelling']);
+    const activeStatuses = new Set(['queued', 'planning', 'building', 'validating', 'waiting_preview', 'polishing', 'cancelling']);
     const terminalStatuses = new Set(['ready', 'failed', 'cancelled']);
     const phases = ['planning', 'building', 'validating', 'polishing', 'ready'];
 
@@ -467,7 +467,7 @@
     }
 
     function statusLabel(state, status) {
-        const raw = String(status || 'draft');
+        const raw = status === 'waiting_preview' ? 'validating' : String(status || 'draft');
         const key = 'game_maker.status_' + raw.replaceAll('-', '_');
         const label = state.context.t(key);
         return label && label !== key ? label : raw;
@@ -632,6 +632,7 @@
         if (!state.project || typeof EventSource !== 'function') return;
         state.eventCatchup = true;
         state.backlogControl = null;
+        state.backlogPreviewReload = null;
         const source = new EventSource(state.api.eventURL(state.project.id, state.lastEventID));
         state.eventSource = source;
         source.onopen = () => {
@@ -662,6 +663,10 @@
                     state.backlogControl = body;
                 } else if (body.type === 'phase') {
                     state.backlogControl = body;
+                } else if (body.type === 'preview_reload') {
+                    // A reload that arrived while the Studio was closed must
+                    // still load the pending validation preview.
+                    state.backlogPreviewReload = body;
                 }
                 return;
             }
@@ -696,8 +701,11 @@
         if (!state.eventCatchup) return;
         state.eventCatchup = false;
         const control = state.backlogControl;
+        const reload = state.backlogPreviewReload;
         state.backlogControl = null;
+        state.backlogPreviewReload = null;
         if (control) handleEvent(state, control);
+        if (reload) handleEvent(state, reload);
         renderPlanCard(state);
     }
 
@@ -721,15 +729,18 @@
             renderPlanCard(state);
             break;
         case 'phase': {
+            // waiting_preview stays on the validating step: the job is parked,
+            // not finished, and needs no extra locale keys.
+            const step = payload.phase === 'waiting_preview' ? 'validating' : payload.phase;
             if (state.lastPhase === 'validating' && payload.phase === 'building') state.repairCount += 1;
-            if (payload.phase !== 'validating') state.validationPreviewDismissed = false;
-            const showValidationPreview = payload.phase === 'validating' && state.lastPhase !== 'validating' && !state.validationPreviewDismissed;
-            state.lastPhase = payload.phase;
+            if (step !== 'validating') state.validationPreviewDismissed = false;
+            const showValidationPreview = step === 'validating' && state.lastPhase !== 'validating' && !state.validationPreviewDismissed;
+            state.lastPhase = step;
             if (!state.job) state.job = { id: event.job_id };
             state.job.phase = payload.phase;
             state.job.status = payload.phase;
             if (!state.jobStartedAt) state.jobStartedAt = jobStartMillis(state.job) || Date.now();
-            state.container.querySelector('[data-gm-phases]').innerHTML = phaseMarkup(state, payload.phase);
+            state.container.querySelector('[data-gm-phases]').innerHTML = phaseMarkup(state, step);
             syncJobControls(state);
             if (showValidationPreview) setStudioStep(state, 'preview');
             break;
@@ -1952,15 +1963,17 @@
         }
         startElapsed(state);
         const phase = (state.job && (state.job.phase || state.job.status)) || '';
-        let label = state.context.t('game_maker.phase_' + phase);
+        const labelPhase = phase === 'waiting_preview' ? 'validating' : phase;
+        let label = state.context.t('game_maker.phase_' + labelPhase);
         if (state.repairCount > 0 && phase === 'building') {
             label = state.context.t('game_maker.repair_attempt', { n: state.repairCount });
         }
         banner.querySelector('[data-gm-job-phase]').textContent = label;
         const validating = banner.querySelector('[data-gm-validating-hint]');
         if (validating) {
-            validating.hidden = phase !== 'validating';
-            if (phase === 'validating') validating.textContent = state.context.t('game_maker.validating_preview_hint');
+            const needsPreview = phase === 'validating' || phase === 'waiting_preview';
+            validating.hidden = !needsPreview;
+            if (needsPreview) validating.textContent = state.context.t('game_maker.validating_preview_hint');
         }
         const cancelling = Boolean(state.job && state.job.status === 'cancelling');
         state.container.querySelectorAll('[data-gm-action="stop"]').forEach(stop => {
@@ -2006,8 +2019,9 @@
     function updateStatus(state, status) {
         const node = state.container.querySelector('[data-gm-status]');
         if (!node) return;
-        const key = 'game_maker.status_' + String(status || 'ready').replaceAll('-', '_');
-        node.className = 'gm-status is-' + String(status || 'ready');
+        const shown = status === 'waiting_preview' ? 'validating' : status;
+        const key = 'game_maker.status_' + String(shown || 'ready').replaceAll('-', '_');
+        node.className = 'gm-status is-' + String(shown || 'ready');
         node.textContent = state.context.t(key);
     }
 

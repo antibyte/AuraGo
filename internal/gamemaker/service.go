@@ -901,6 +901,7 @@ func (s *Service) updateJobPhase(ctx context.Context, job *Job, phase string) er
 		return err
 	}
 	now := time.Now().UTC()
+	previous := job.Phase
 	job.Status = phase
 	job.Phase = phase
 	if job.StartedAt == nil {
@@ -910,7 +911,11 @@ func (s *Service) updateJobPhase(ctx context.Context, job *Job, phase string) er
 		phase, phase, now, job.ID); err != nil {
 		return fmt.Errorf("update game maker job phase: %w", err)
 	}
-	_, _ = s.emit(ctx, job.ProjectID, job.ID, "phase", map[string]any{"phase": phase})
+	// Persisted phase events carry an absolute timestamp and the previous phase,
+	// so an offline report can reconstruct phase durations without new state.
+	_, _ = s.emit(ctx, job.ProjectID, job.ID, "phase", map[string]any{
+		"phase": phase, "from_phase": previous, "at": now.Format(time.RFC3339Nano),
+	})
 	return nil
 }
 

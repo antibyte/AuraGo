@@ -183,7 +183,7 @@ func (s *Service) waitForPreview(ctx context.Context, check *previewCheck, timeo
 		case <-ctx.Done():
 			return previewUnavailable(ctx.Err().Error())
 		case <-timer.C:
-			return previewUnavailable("Browser startup could not be verified. Keep this project's Game Maker Studio preview open and retry; no revision was published")
+			return previewUnavailable(previewHostAbsentMessage)
 		case <-tick.C:
 		}
 	}
@@ -192,3 +192,9 @@ func (s *Service) waitForPreview(ctx context.Context, check *previewCheck, timeo
 func previewUnavailable(message string) BuildResult {
 	return BuildResult{RuntimeStatus: "unavailable", Diagnostics: []Diagnostic{{Level: "error", Message: message}}}
 }
+
+// previewHostAbsentMessage marks the one unavailable result that means "no
+// visible Studio preview" rather than a broken game. validateForPublication
+// compares it exactly so a runtime error, a changed build or a cancelled job
+// never enters the bounded wait.
+const previewHostAbsentMessage = "Browser startup could not be verified. Keep this project's Game Maker Studio preview open and retry; no revision was published"

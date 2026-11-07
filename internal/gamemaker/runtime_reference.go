@@ -58,7 +58,7 @@ Hooks (override these; never override preload, create or update):
 - paintHUD(): compact live status only, via this.hud.setText(...).
 Fields:
 - this.player: the controlled object; the validator binds to it, so assign it in setup().
-- this.state: counters the validator reads: score, actions, hits, spawns, turns, ticks, lives, health, goal_remaining, outcome (0 playing, 1 won, 2 lost), ended. Change them only when the real event happens.
+- this.state: counters the validator reads: score, actions, hits, spawns, turns, ticks, pickup_events, lives, health, goal_remaining, outcome (0 playing, 1 won, 2 lost), ended. Change them only when the real event happens.
 - this.elapsed: MILLISECONDS since the stage started; it resets on restart. Compare cooldowns in milliseconds.
 - this.levelIndex: current stage (0-based); choose the layout from it in setup().
 - this.inputKeys: down(...names) held, pressed(name) newly pressed, vector() gives {x,y} in -1..1 from arrows and WASD. Keys: LEFT RIGHT UP DOWN W A S D SPACE R P ESC ENTER. R restarts, P pauses and ESC ends the game. Other keys are not registered: use this.input.keyboard.addKey('F') for them.
@@ -94,9 +94,23 @@ Counters: score, hits and pickup_events change only through the built-in role be
 Movement is camera-relative: D/RIGHT moves toward screen right and W/UP away from the camera.`
 
 // CompactRuntimeReference bounds a complete runtime reference for small-model
-// runs. Complete lines are kept, so documented members stay usable; the tail
-// names the omission instead of cutting a sentence in half.
+// runs. Only whole lines are kept. Cutting from the tail used to drop the
+// Checks, counters and feedback lines that weak models need most, so selection
+// now follows importance while the emitted lines keep their original order.
 const compactRuntimeReferenceTail = "\n- Cheat sheet only: read bounded src/common.ts ranges for the remaining members."
+
+var compactReferencePriorities = []string{
+	"Checks:",
+	"feedback(",
+	"Counters:",
+	"this.state:",
+	"this.player:",
+	"step(dt)",
+	"action()",
+	"body(",
+	"Entry:",
+	"Hooks (",
+}
 
 func CompactRuntimeReference(reference string, maxBytes int) string {
 	reference = strings.TrimSpace(reference)
@@ -110,14 +124,38 @@ func CompactRuntimeReference(reference string, maxBytes int) string {
 	if budget < 0 {
 		budget = 0
 	}
-	var sheet strings.Builder
-	for _, line := range strings.Split(reference, "\n") {
-		next := len(line)
-		if sheet.Len() > 0 {
+	lines := strings.Split(reference, "\n")
+	selected := make([]bool, len(lines))
+	used := 0
+	take := func(index int) bool {
+		if selected[index] {
+			return true
+		}
+		next := len(lines[index])
+		if used > 0 {
 			next++
 		}
-		if sheet.Len()+next > budget {
-			break
+		if used+next > budget {
+			return false
+		}
+		selected[index] = true
+		used += next
+		return true
+	}
+	for _, keyword := range compactReferencePriorities {
+		for index, line := range lines {
+			if strings.Contains(line, keyword) {
+				_ = take(index)
+			}
+		}
+	}
+	for index := range lines {
+		_ = take(index)
+	}
+	var sheet strings.Builder
+	for index, line := range lines {
+		if !selected[index] {
+			continue
 		}
 		if sheet.Len() > 0 {
 			sheet.WriteByte('\n')

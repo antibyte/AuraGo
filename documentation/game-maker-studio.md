@@ -533,6 +533,17 @@ runtime/resource errors. Engine console errors are included. Game-authored
 readiness alone does not prove a visible canvas. Those errors
 are returned to the agent and the existing repair loop (at most three passes).
 Missing browser feedback blocks publication instead of claiming playability.
+That 12-second window belongs to the agent-facing `game_maker_validate` tool.
+The automatic publication check behaves differently: if its only finding is the
+absent-preview timeout, the job enters `waiting_preview` for at most 15 minutes
+(always bounded by the job's own deadline), stays active in the Studio and emits
+a status event. When a parent Studio reports a visible canvas for that same
+validation ID, the job returns to `validating` and runs a fresh complete
+validation; publication still requires observed browser evidence. A timeout, a
+cancelled job, a newer build or a real runtime error keeps the previous failure
+instead of waiting. The Studio shows the parked job on the validating step with
+the existing "keep the preview visible" hint, and replays a `preview_reload`
+event that arrived while its event stream was catching up.
 This compatibility mode is a startup check, not a full gameplay check.
 `scope: gameplay` or `full` additionally runs server-owned template scenarios plus
 0–8 optional plan scenarios. On schema 4 starters, a driven custom scenario can

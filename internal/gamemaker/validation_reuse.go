@@ -139,10 +139,83 @@ func (s *Service) reusableValidationCandidateLocked(jobID, scope string) bool {
 	return true
 }
 
+// previewHostWait bounds how long a publication validation parks a job while
+// no visible Studio preview exists. The job context stays the hard limit, so a
+// wait can never push a job past its configured budget.
+const previewHostWait = 15 * time.Minute
+
+// missingPreviewHost is true only for the timeout produced by waitForPreview
+// when no parent Studio reported a visible canvas. Every other unavailable
+// result (cancellation, stale build, invalid request) keeps failing normally.
+func missingPreviewHost(result BuildResult) bool {
+	return result.RuntimeStatus == "unavailable" && result.check != nil &&
+		len(result.Diagnostics) == 1 && result.Diagnostics[0].Message == previewHostAbsentMessage
+}
+
+// awaitPreviewHost parks the job in waiting_preview until a parent Studio
+// reports a visible canvas for the same validation ID. It returns true only
+// then; a timeout, cancellation or a newer build leaves the original
+// unavailable result in place. Publication still requires a fresh validation.
+func (s *Service) awaitPreviewHost(ctx context.Context, job Job, check *previewCheck, limit time.Duration) bool {
+	if deadline, ok := ctx.Deadline(); ok {
+		limit = min(limit, time.Until(deadline))
+	}
+	if limit <= 0 || ctx.Err() != nil {
+		return false
+	}
+	if err := s.updateJobPhase(ctx, &job, "waiting_preview"); err != nil {
+		return false
+	}
+	defer func() {
+		if ctx.Err() != nil {
+			return
+		}
+		restored := job
+		_ = s.updateJobPhase(context.Background(), &restored, "validating")
+	}()
+	_, _ = s.emit(ctx, job.ProjectID, job.ID, "job_status", map[string]any{
+		"status":  "waiting_preview",
+		"message": "Open this project's Game Maker Studio preview to finish validation.",
+	})
+	timer := time.NewTimer(limit)
+	defer timer.Stop()
+	tick := time.NewTicker(100 * time.Millisecond)
+	defer tick.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return false
+		case <-timer.C:
+			return false
+		case <-tick.C:
+			s.mu.RLock()
+			current := s.previewCheck == check
+			ready := current && !check.ReadyAt.IsZero()
+			s.mu.RUnlock()
+			if !current {
+				return false
+			}
+			if ready {
+				return true
+			}
+		}
+	}
+}
+
 // Explicit tool validation always runs afresh. Only the orchestrator can reuse
 // the complete current result when the agent just ran the same required scope.
+// A publication run without a visible preview waits for one instead of failing:
+// the agent-facing game_maker_validate tool keeps its short 12 s window.
 func (s *Service) validateForPublication(ctx context.Context, jobID, scope string) BuildResult {
 	if result, ok := s.reusableValidation(ctx, jobID, scope); ok {
+		return result
+	}
+	result := s.ValidateJobScope(ctx, jobID, scope)
+	if !missingPreviewHost(result) {
+		return result
+	}
+	job, err := s.GetJob(ctx, jobID)
+	if err != nil || !s.awaitPreviewHost(ctx, job, result.check, previewHostWait) {
 		return result
 	}
 	return s.ValidateJobScope(ctx, jobID, scope)

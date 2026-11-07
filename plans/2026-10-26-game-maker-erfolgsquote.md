@@ -11,6 +11,29 @@ Code-Ursachen mit Datei:Zeile) plus Rohdaten und Skripte im selben Ordner.
 **Welle 1 (M1, P1–P8) gelandet auf `main` 476bad439 (2026-10-27), nach origin gepusht, auf aurago-test per update.sh
 deployt (Build `ea5d6a138`, 2026-10-27 16:24).**
 
+**Nachtrag 2026-11-07 (Arbeitsbaum, nicht committet):** P11 ist als begrenzter
+`waiting_preview`-Zustand in `validateForPublication` umgesetzt (max. 15 min,
+zusätzlich durch die Job-Deadline begrenzt, Wecken durch ein sichtbares Canvas
+für dieselbe `validation_id`, danach vollständige Neuvalidierung). Nur die
+automatische Publikationsprüfung wartet; `game_maker_validate` behält seine 12 s.
+Die Studio-UI bleibt ohne neue Locale-Keys auf dem Prüf-Schritt, hält den Job
+aktiv und holt ein während des SSE-Catchups verpasstes `preview_reload` nach.
+P14 ist umgesetzt: `CompactRuntimeReference` wählt ganze Zeilen nach Priorität,
+`pickup_events` steht in der 2D-Zählerliste, der Widerspruch zu
+`feedback('pickup')` im Guide ist aufgelöst. Additiv: `phase`-Events tragen
+`from_phase`/`at`, `scripts/game-maker-forensics.mjs` verdichtet Benchmark-JSONs
+und warnt bei fehlenden menschlichen `playable`-Urteilen. Prüfungen: gezielte
+`go test ./internal/gamemaker`, `node scripts/test-ui-regressions.mjs`,
+`node --check` auf allen geänderten JS-Dateien, Forensik-Fixture.
+
+**Weiterhin offen und bewusst nicht in diesem Durchgang:** M2/M3 (Messung —
+`reports/game-maker-benchmark/` ist weiterhin leer, die letzte Live-Messung hat
+n=1), H1 (Headless-Chrome, Security-Review), P9 (Textmodus-Profil), P12/P13/P15,
+C1/C2, S1–S3 (Ready-Ehrlichkeit und Feedback-Chips benötigen 16 Lokalisierungen
+und Browser-Akzeptanz), P16 sowie die Windows-`Access is denied`-Diagnose aus
+`reports/gamemaker-planning-20261103/verification.json`. Ohne M3 bleibt jede
+weitere Aussage zur Erfolgsquote unbelegt — zuerst messen, dann schrauben.
+
 Erste Messung (2026-10-27, `reports/game-maker-forensics-2026-10-27/auswertung.md`):
 - Nur 1 Job: agnes-3.0-flash, nativ.
 - Planung im ersten Versuch angenommen.

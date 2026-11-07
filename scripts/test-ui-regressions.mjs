@@ -5600,6 +5600,18 @@ function testDetectiveTokenCounts() {
   assert.match(app, /v\.autoStatus\(c\.auto_update, tr, c\.run\?\.usage\)/, 'the automatic panel shows the last run usage');
 }
 
+function testGameMakerWaitingPreviewKeepsJobAliveAndCatchesUpReload() {
+  const app = read('ui/js/desktop/apps/game-maker-studio.js');
+  assert.match(app, /'waiting_preview', 'polishing'/);
+  assert.match(app, /state\.backlogPreviewReload = null/);
+  assert.match(app, /state\.backlogPreviewReload = body/);
+  assert.match(app, /if \(reload\) handleEvent\(state, reload\)/);
+  assert.match(app, /const shown = status === 'waiting_preview' \? 'validating' : status/);
+  assert.match(app, /const step = payload\.phase === 'waiting_preview' \? 'validating' : payload\.phase/);
+  assert.match(app, /phase === 'waiting_preview'/);
+  assert.doesNotMatch(app, /game_maker\.status_waiting_preview|game_maker\.phase_waiting_preview/);
+}
+
 const tests = [
   ['Quick Connect SFTP mutations bind the authorized device', testQuickConnectSFTPMutationsBindDevice],
   ['Desktop recent files exclude directory contexts', testDesktopRecentFilesExcludeDirectoryContexts],
@@ -5696,7 +5708,8 @@ const tests = [
   ['Voxel World: sky model, island generator and mesher', testVoxelWorldIsland],
   ['Orbit: choreography, schedules and particle system', testOrbitChoreoAndParticles],
   ['Chat defers the optional PromptSec advisory until the conversation is under way', testChatOptionalAdvisoryWaitsForConversation],
-  ['Setup wizard batch 4: badges, advanced step 0, passwords, personalities, local Ollama plan', testSetupWizardBatch4]
+  ['Setup wizard batch 4: badges, advanced step 0, passwords, personalities, local Ollama plan', testSetupWizardBatch4],
+  ['Game Maker waiting_preview keeps the job active and replays a missed preview reload', testGameMakerWaitingPreviewKeepsJobAliveAndCatchesUpReload]
 ];
 
 let failures = 0;
