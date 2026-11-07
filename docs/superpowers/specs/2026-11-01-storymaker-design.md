@@ -1043,3 +1043,59 @@ Phase-1 drafting resolved or narrowed the items below. Each carries its result.
 - When the pending write fails after a paid call, the runtime remembers the result for the next click. A restart in between loses it.
 - The music key holds the mood's name and not the template text, so editing a template keeps stored tracks.
 - The preview's duck reaches -6 dB 50 ms before speech and the export reaches it at speech start. The preview has no carve, voice match or impact dips, as the plan's E2 text says.
+
+## Changes from the agent core plan
+
+The agent core is the first slice of the Agent section, ahead of the rest of phase 3. Its plan is `docs/superpowers/plans/2026-11-06-storymaker-agent-core/`.
+
+**Left out of this slice:** `storymaker_code`, `storymaker_asset`, stills and review sheets, `checks.js`, three directions, the rhythm plan, the message-shape table, provenance, filmprints, the cold reviewer, typed parameters, point-to-edit comments and the Assets panel.
+
+**Scope corrections**
+
+| # | Correction | Reason |
+| --- | --- | --- |
+| C1 | A compile check in Chrome, `render.Runner.CompileCheck` | It is the only source of real scene lengths and motion lint. It stops after the report, needs no FFmpeg, is bounded to 60 s and never downloads Chromium. |
+| C2 | A Go job lint with `scene_unfilled` | A scene with only an id and narration passes `Validate`, so a weak model could stop after the outline with a "valid" film of empty stages. |
+| C3 | `POST /projects/{id}/make-silent` | Ticking `silent` by hand breaks the film: the scene falls to its minimum length, captions vanish and cues never start. |
+| C4 | No `agent.max_concurrent_jobs` | `render.Manager` allows 0 or 1 workers. The limit is fixed at 1 running and 8 queued. |
+| C5 | No `music` in `create` or `set_meta` | Generation stays the user's click. A story with generated music and no file would be refused at export. |
+| C6 | Narration runs after the outcome is known, not during check rounds | The audio key contains the text, so each patch during fixes would bill cloud characters again. |
+| C7 | Job tools stay out of the normal catalog and go through `ExecutionHooks.HandleTool` | They have no feature flag, category, search term, manual or dispatch case. |
+| C8 | No voice is not a failure | The story keeps `voice: null`, and the job reports `narration_unavailable` as an open check. |
+
+**Corrections found in review**
+
+| # | Correction |
+| --- | --- |
+| R1 | The render and narrate refusals became functions without an `http.ResponseWriter`, so the job uses the same refusal order as the routes. |
+| R2 | Chat `render` takes `silent: true`, runs the `MakeSilent` path and says that speech was removed. The `narration_incomplete` answer names this option. |
+| R3 | After the final compile, when model-fixable issues remain and rounds are left, one more check loop runs and narration runs again. Only changed scenes are billed. |
+| R4 | Render and agent exclude each other: a render answers 409 `agent_job_active`, and an agent start or revise answers 409 `busy` while a render, narrate or music job of the project is queued or running. |
+| R5 | The runner does not set `cfg.LLM.UseNativeFunctions`. It reads the mode from the tooling policy and sets `req.ToolChoice` on native routes only. |
+| R6 | The check and revise packets carry the same `cast` and `environments` blocks as the compact fill packet. |
+| R7 | A loop is restarted at most once after a model error or an empty end. The tool-call limit counts tool calls, so a third outline call fits inside the limit of 6. |
+| R8 | `max_daily_jobs` counts every create and revise, from the app and from chat, plus chat `render`. The counter is `<data>/storymaker/agent/usage.json` and fails closed. App routes answer 429 `daily_limit_reached`. |
+| R9 | Each batch compares its failures with a baseline recorded on main. |
+| R10 | `make-silent` first writes `story.before-silent.json`. `POST /projects/{id}/restore-speech` puts it back. Project reads carry `silent_backup: true` while the file exists. |
+
+**Plan sections 7, 9 and 10.** Section 7 of the plan is the list R1 to R10 above. Section 9 adds the word check (`words_tell`: a dash or a stock phrase in narration or on-screen text gets one optional fix round as advice, and never blocks) and the revise lists (`changed_scenes`, `unchanged_scenes` and `removed_scenes`, in the job and in the chat status). Section 10 settles the seams between the code parts: one routing table for Studio operations, `over_export_limit` for a film longer than the export allows, and the bundle path `ui/js/desktop/bundles/main.bundle.js`.
+
+**Plan section 11.** The review of the applied code added corrections V1 to V9, and an agent job has no token ceiling of its own: its spend is bounded by the job timeout, the tool-call limits per step and `max_daily_jobs`.
+
+**Changed lines of this spec**
+- Line 613: one running and eight queued agent jobs are fixed, and one job per project is enforced with `Coalesce` on a third `render.Manager`.
+- Line 614: "no silent switch" holds for a pinned provider or model. Without a pin the job uses the main route with its configured failover, because turning that off would make jobs fail for no gain.
+- Line 617: the compact profile hides `kind=voice` in cast. The first job step resolves the voice and writes it into the story.
+- Line 619: compile runs in the check step. Narration runs after it, as C6 says.
+- Line 622: a scene has a hard ceiling of 8 writes (`StudioSceneWriteLimit`). Tool calls per loop are outline 6, cast 12, fill 10, check 20 and revise 30. A failed or exhausted scene keeps its outline text, is recorded as `scene_unfilled`, and the job moves on.
+- Line 628: `canonicalizeStorymakerOperationCall` only routes a call to its owner. Studio wraps flat fields into `data`. The recovery nudge lives in `internal/agent/game_maker_recovery_nudge.go` and `RunConfig.RecoveryNudge`.
+- Lines 635-638: this slice never emits `ready`, because layout is not verified. `failed` means no outline was saved. `incomplete` means a timeout, a model error, or any unfilled scene, model-fixable issue or `compile_failed` left. `over_target` and environment items are listed and never downgrade. The job status is `failed` only for outcome `failed`.
+- Line 640: `length_seconds` is clamped, not refused, so a chat call does not fail.
+- Line 654: `action_policy.go:314` is now `:321`, `agent_dispatch_exec.go:226-234` is `:228-234`, and `dispatch_platform.go:312-313` is `:307-308`. The dispatch-switch edit is dropped, as C7 says.
+- Line 662: `set_meta` has no `music`, as C5 says.
+- Line 671: `ProjectStore.SetAgentMeta` writes `target_seconds`, `audience` and `template`.
+- Line 681: the server narrates after the check, waits at most `min(300 s, time left)`, and reports the result as an open check. It never blocks the outcome.
+
+**User edits during a job:** nothing merges. The editor is locked, and `PUT story`, `PUT code` and `POST narrate` answer 409 `agent_job_active`. Unsaved local text stays, and the existing conflict banner offers reload or overwrite after the job.
+
+**Still open:** the real-model acceptance on aurago-test (task F4), real text-mode replies on nested `data`, whether weak models can write `{n}` markers, and the visual quality of films, because layout stays unchecked until `checks.js`.

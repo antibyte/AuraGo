@@ -562,6 +562,7 @@ func ApplyCaptionOverride(s *Story, burnIn *bool)
 type StorymakerConfig struct {
     Enabled bool                   `yaml:"enabled" json:"enabled"`        // loader default true (config.go:577)
     Render  StorymakerRenderConfig `yaml:"render" json:"render"`
+    Agent   StorymakerAgentConfig  `yaml:"agent" json:"agent"`
     Narration StorymakerNarrationConfig `yaml:"narration" json:"narration"`
 }
 type StorymakerRenderConfig struct {
@@ -575,10 +576,34 @@ type StorymakerNarrationConfig struct {
     MaxJobChars   int `yaml:"max_job_chars" json:"max_job_chars"`     // default 20000, 100..10000000
 }
 
+type StorymakerAgentConfig struct {
+    Enabled           bool   `yaml:"enabled" json:"enabled"`                         // loader default true
+    Provider          string `yaml:"provider" json:"provider"`                       // "" = main route
+    Model             string `yaml:"model" json:"model"`                             // "" = the provider's model
+    JobTimeoutSeconds int    `yaml:"job_timeout_seconds" json:"job_timeout_seconds"` // default 1800, 120..7200
+    MaxLengthSeconds  int    `yaml:"max_length_seconds" json:"max_length_seconds"`   // default 180, 15..3600
+    MaxDailyJobs      int    `yaml:"max_daily_jobs" json:"max_daily_jobs"`           // default 10, 1..1000
+}
+
 func NormalizeStorymakerConfig(c *StorymakerConfig) error   // defaults, ranges, path and transport; does not change Enabled
 ```
 
 The loader calls `NormalizeStorymakerConfig` (`config.go:1091`). The configuration patch path (`config_patch.go:106`) and the configuration PUT validation (`config_handlers_main.go:693`) call it too, so an invalid value is refused before the file is written. `timeout_seconds` is the minimum render timeout; the render raises it for long videos (section 7).
+
+### Agent core
+
+- Tools: `storymaker_story`, `storymaker_catalog` and `storymaker_check` (`ToolStory`, `ToolCatalog`, `ToolCheck`). They run only inside a job, through `ExecutionHooks.HandleTool`, and bind project and job on the server.
+- Phases: `outline`, `cast`, `fill`, `check`, `revise`. `PhaseTools(phase)` and `PhaseOperations(phase, tool)` hold the table. An operation outside the phase answers `operation_not_in_phase`.
+- Budget constants: `StudioSceneChargedLimit` 3, `StudioSceneWriteLimit` 8, `StudioDryRunsPerScene` 2, `StudioDryRunsPerJob` 20, `StudioCheckRounds` 6.
+- Session: `NewStudio(deps StudioDeps, job StudioJob) (*Studio, error)`, with `SetPhase`, `Call`, `PhaseDone`, `Progress`, `Check`, `Packet` and `DropDrafts`.
+- Story helpers: `DecodeScene`, `LintForJob`, `StoryIsBlank`, `MakeSilent` and `ProjectStore.SetAgentMeta`.
+- Outcome: `DecideOutcome(OutcomeInput) (string, []AgentCheck)`. The values are `ready_unverified`, `incomplete` and `failed`. `ready` is reserved until layout is verified.
+- Chat seam: `AgentFacade`, `SetAgentFacade` and `CurrentAgentFacade`. The server implements the facade, and the chat tool `storymaker` calls it. Its failures are `*AgentError{Code, Message, NextAction}`.
+- Render: `KindAgent`, `CodeModelError`, `Handle.SetAgent` and `Runner.CompileCheck`. `prepareStory` is split into `prepareCore` and `checkAudioGates`.
+- Agent: `StorymakerPhaseToolSchemas`, `canonicalizeStorymakerOperationCall` and `RunConfig.RecoveryNudge`.
+- Files under `<data>/storymaker/agent/`: `jobs.json`, `usage.json` (fails closed) and `events/<job id>.jsonl` (at most 500 lines per job, newest 200 files kept, no arguments and no model text).
+- Issue codes for the job only: `scene_unfilled`, `over_target`, `over_budget`, `compile_failed`, `over_export_limit`, `words_tell`. Tool refusals: `operation_not_in_phase`, `outline_locked`, `corrections_exhausted`, `dry_runs_exhausted`, `check_rounds_exhausted`, `rev_mismatch`, `scene_not_found`, `invalid_data`.
+- Open checks: `layout_unverified` (always), `compile_unverified`, `narration_unavailable`, `narration_failed`, `narration_budget`, `narration_pending`, `corrections_exhausted`, `model_error`.
 
 ---
 
@@ -630,6 +655,17 @@ Flat, as in the rest of the desktop API:
 | `POST /projects/{id}/narrate` (empty body) | write | 202 `{job}` new; 200 `{job}` existing queued or running job of this project; 200 `{job:null}` nothing missing. Coalesced per project and kind. | 404 `project_not_found`, 422 `invalid_story`, 409 `voice_required` (any block without a voice, message names the first), 409 `narration_unavailable` (provider not ready or not offered, message names it), 409 `voice_unknown` with `alternatives` (at most 5; a voice off the provider's list, or a Phonon voice that is not installed), 409 `budget_exceeded` with `{limit, missing}`, 429 `busy`, 403 `desktop_readonly` |
 | `GET,HEAD /projects/{id}/audio/narration/{hash}.{ext}` | read | 200 or 206 through `http.ServeContent`, Range honoured. Works read-only. | 404 `audio_not_found`, 405 |
 | `GET,HEAD /projects/{id}/audio/music/{key}.{ext}` | read | 200 or 206, Range honoured. Works read-only. | 404 `audio_not_found`, 405 |
+| `POST /agent/jobs` `{topic, audience?, length_seconds?, aspect?, language?, voice?, project_id?}` | write | 202 `{project_id, job}` | 400 `invalid_topic`; 403 `agent_disabled`, `storymaker_disabled`, `desktop_readonly`; 404 `project_not_found`; 409 `busy` (with `job_id`), `story_not_empty`, `llm_unavailable`; 422 `model_too_small`; 429 `busy`, `daily_limit_reached` |
+| `POST /projects/{id}/agent/revise` `{instruction}` | write | 202 `{job}` | 400 `invalid_instruction`; 403 `agent_disabled`, `storymaker_disabled`, `desktop_readonly`; 404 `project_not_found`; 409 `busy`; 422 `invalid_story`; 429 `daily_limit_reached` |
+| `POST /projects/{id}/make-silent` | write, `If-Match` | 200 `{etag, issues, story, changed}` | 428, 412, 409 `agent_job_active` |
+| `POST /projects/{id}/restore-speech` | write, `If-Match` | 200 `{etag, issues, story}` | 428, 412, 404 `no_silent_backup`, 409 `agent_job_active` |
+
+Agent rules:
+
+- `GET /jobs/{id}`, `POST /jobs/{id}/cancel`, `GET /projects/{id}/jobs` and the event stream also cover the agent queue, so these routes read across three queues.
+- `PUT .../story`, `PUT .../scenes/{s}/code`, `POST .../narrate` and `POST .../render` answer 409 `agent_job_active` while an agent job of the project is queued or running. An agent start or revise answers 409 `busy` while a render, narrate or music job of the project is queued or running. The check and the enqueue of an agent start, a render and a narrate are one step under a runtime mutex, and make-silent's read, backup and save are one step under the same mutex, so a lost race cannot delete the speech backup.
+- Project reads carry `silent_backup: true` while `story.before-silent.json` exists.
+- A job's status is `failed` only for outcome `failed`. A timeout and `incomplete` are `succeeded` with `agent.outcome`. A cancel stays `cancelled`.
 
 Render details:
 
@@ -679,16 +715,20 @@ Narration answer:
 | `transport` | string | the transport in use (`png` by default) |
 | `catalog_version` | string | the catalog version, for example `ab33e88a6b77` |
 | `music_configured` | bool | `cfg.MusicConfigured()`: music generation can run. The music panel offers mode `generated` only then. |
+| `agent` | object | `enabled`, `available`, `provider`, `model`, `compact`, `text_mode`, `max_length_seconds`, `max_daily_jobs` |
 
 When Storymaker or the desktop is disabled the answer has only `enabled`, `read_only` and `desktop_enabled`. Export is possible when `ffmpeg.ready` and (`browser.ready` or `browser.can_download`). The first status call can take a few seconds, because it probes the browser.
 
 ### Job object
 
 ```
-Job {id, project_id, kind:"render"|"narrate"|"music", status, progress:0..1, phase?, frames_done, frames_total,
+Job {id, project_id, kind:"render"|"narrate"|"music"|"agent", status, progress:0..1, phase?, frames_done, frames_total,
      pieces_done?, pieces_total?,
      output?:{path, size, stems?:{narration?, music?, sfx?}, srt?, vtt?, library?},
-     warnings?:[{code, message}], error?:{code, message}, created_at, updated_at, started_at?, finished_at?}
+     warnings?:[{code, message}], error?:{code, message}, agent?:AgentJobInfo, created_at, updated_at, started_at?, finished_at?}
+AgentJobInfo {kind:"create"|"revise", outcome?, phase?:"outline"|"cast"|"fill"|"check"|"revise"|"narrating", scene_id?,
+     scenes_done, scenes_total, story_etag?, open_checks?:[{code, scene_id?}], summary?, provider?, model?, compact?, text_mode?,
+     target_seconds?, duration_seconds?, request?, tokens?, changed_scenes?, unchanged_scenes?, removed_scenes?}
 status  queued | running | succeeded | failed | cancelled | interrupted
 phase   starting | compiling | mixing | rendering | encoding | writing | synthesizing | generating
 ```
@@ -698,7 +738,7 @@ phase   starting | compiling | mixing | rendering | encoding | writing | synthes
 - A job that was running when AuraGo stopped is `interrupted` with the error code `interrupted`.
 - A narrate job has no `output` key. `pieces_done` and `pieces_total` show its progress.
 
-Job error codes: `invalid_story`, `code_error`, `browser_unavailable`, `ffmpeg_unavailable`, `render_failed`, `render_timeout`, `cancelled`, `interrupted`, `storymaker_disabled`, `narration_failed`, `narration_unavailable`, `voice_required`, `budget_exceeded`, `narration_incomplete`, `music_failed`, `music_incomplete`.
+Job error codes: `invalid_story`, `code_error`, `browser_unavailable`, `ffmpeg_unavailable`, `render_failed`, `render_timeout`, `cancelled`, `interrupted`, `storymaker_disabled`, `narration_failed`, `narration_unavailable`, `voice_required`, `budget_exceeded`, `narration_incomplete`, `music_failed`, `music_incomplete`, `model_error`.
 
 Export files, written by the server into the desktop workspace through the desktop service (the MP4 as a conditional stream write, the record as a plain write):
 
@@ -715,6 +755,7 @@ The library copy is `Videos/Storymaker/<slug>.mp4`, with `-2`, `-3` on collision
 2. Every unfinished job across both queues and the latest five jobs across both queues, oldest first, as `event: job` with `data: {"job": {...}}`. A window opened during a render sees its progress at once.
 3. Every later state or progress change as `event: job`. Progress notices come at most every 150 ms.
 4. A comment `: ping` every 15 seconds.
+5. `event: agent` with `data: {job_id, seq, at, type, ...}`. On connect the events of the unfinished job, or else of the latest agent job, are replayed (at most 500), and the panel dedupes by `seq`. The types are `phase` (`phase`, `scene_id?`, `attempt`), `tool` (`tool`, `operation`, `scene_id?`, `status`: `ok`, `draft`, `refused`, `error`), `model` (`status`: `waiting`, `receiving`, `retrying`, `recovering`), `usage` (`prompt_tokens`, `completion_tokens`, `total_tokens`, `estimated`), `check` (`issues`, `advice`, `rounds_left`, `compile`) and `outcome` (`outcome`).
 
 The stream is excluded from gzip and has no write deadline.
 
@@ -1117,7 +1158,7 @@ Name: Storymaker. Global name `StorymakerApp`.
 
 - Manifest in `internal/desktop/types.go`: entry `builtin://storymaker`, category `creative`, `Requires: ["storymaker"]`, icon `storymaker`, metadata `logo_path` `/img/desktop-icons/storymaker.svg` and `open_maximized` `true`. Permissions: `files:read`, `files:write`, `notifications`. The manifest test is `internal/desktop/storymaker_app_test.go`.
 - Capability `storymaker` in `internal/server/bluetooth_live.go` (`storymakerAvailable`).
-- Module loader (`ui/js/desktop/core/module-loader.js`): the style `desktop-app-storymaker.css` and sixteen scripts in order: `storymaker-core.js`, `storymaker-model.js`, `storymaker-api.js`, `storymaker-assets.js`, `storymaker-player.js`, `storymaker-projects.js`, `storymaker-strip.js`, `storymaker-inspector.js`, `storymaker-code.js`, `storymaker-export.js`, `storymaker-audio.js`, `storymaker-voice.js`, `storymaker-music.js`, `storymaker-dialog.js`, `storymaker-handoff.js`, `storymaker.js`. Each file is under 1100 lines.
+- Module loader (`ui/js/desktop/core/module-loader.js`): the style `desktop-app-storymaker.css` and seventeen scripts in order: `storymaker-core.js`, `storymaker-model.js`, `storymaker-api.js`, `storymaker-assets.js`, `storymaker-player.js`, `storymaker-projects.js`, `storymaker-strip.js`, `storymaker-inspector.js`, `storymaker-code.js`, `storymaker-export.js`, `storymaker-audio.js`, `storymaker-voice.js`, `storymaker-music.js`, `storymaker-agent.js`, `storymaker-dialog.js`, `storymaker-handoff.js`, `storymaker.js`. Each file is under 1100 lines.
 - Window size: default 1320×840; minimum 640×480 (`window-shell-runtime.js`).
 - Dispatch: `ui/js/desktop/core/menus-and-routing.js` loads the scripts and renders through `window.StorymakerApp.render(...)`.
 - Icon: `ui/img/desktop-icons/storymaker.svg`.
@@ -1131,7 +1172,7 @@ Name: Storymaker. Global name `StorymakerApp`.
 
 ### Configuration block
 
-`ui/cfg/virtual_desktop.js` (`vdCfgStorymaker`): the toggle for `storymaker.enabled`; `storymaker.render.timeout_seconds` (60 to 14400), `storymaker.render.max_duration_seconds` (10 to 3600), `storymaker.render.browser_path`, `storymaker.render.transport` (automatic, png, webp, raw, screenshot), `storymaker.narration.max_daily_chars` (1000 to 100000000), and `storymaker.narration.max_job_chars` (100 to 10000000). The "Check export setup" action reads `GET /api/desktop/storymaker/status` for the saved settings only.
+`ui/cfg/virtual_desktop.js` (`vdCfgStorymaker`): the toggle for `storymaker.enabled`; `storymaker.render.timeout_seconds` (60 to 14400), `storymaker.render.max_duration_seconds` (10 to 3600), `storymaker.render.browser_path`, `storymaker.render.transport` (automatic, png, webp, raw, screenshot), `storymaker.narration.max_daily_chars` (1000 to 100000000), and `storymaker.narration.max_job_chars` (100 to 10000000). The "Check export setup" action reads `GET /api/desktop/storymaker/status` for the saved settings only. The agent block has the toggle for `storymaker.agent.enabled`, the provider dropdown `storymaker.agent.provider` (empty label through `lang/meta.json`), `storymaker.agent.model`, `storymaker.agent.job_timeout_seconds` (120 to 7200), `storymaker.agent.max_length_seconds` (15 to 3600) and `storymaker.agent.max_daily_jobs` (1 to 1000).
 
 ### Phase 1 screens
 
@@ -1152,6 +1193,13 @@ Not in phase 1: project rename, scene duplicate, undo and redo, drag and drop, t
 - Scrubber waveform: a `.stm-scrub-wave` canvas inside `.stm-scrub`, painted from `S.audioModel.waveform`, `pointer-events:none`.
 - Export dialog: a native `<dialog>` in `storymaker-dialog.js` with quality, burn-in captions (preset from `style.captions`), SRT, VTT, stems and Open in Video Studio. Blockers gain `narration` and `music`.
 - Finished-job handoff: `storymaker-export.js` shows stems, SRT, VTT and library paths when present and each warning as text. `storymaker-handoff.js` offers the handoff on any finished job with stems (`S.handoff.canOffer`). The export panel reads the project's job list once when the editor opens and follows the `job` events, and its start view offers the newest finished render behind `data-stm="export-last"`, so a render that ended while no window tracked it keeps its result and its handoff. It never replaces the start view by itself.
+
+### Agent screens
+
+- `S.createAgentPanel(inst)` returns `{el, paint, dispose}`: prompt, length, language, Start or Revise, a progress list, Cancel, the outcome card, "Export without voice" and "Restore speech". The project list has a start form of its own.
+- `api.events(projectId, onJob, onState, onAgent)` and the bus event `agent`. The panel reloads when `Job.agent.story_etag` differs from `inst.etag`, throttled to once per 2 s, and once more at the end.
+- While an agent job of the project is active, `inst.agentLocked` makes `inst.readonly` true and a banner shows. `handleSaveError` treats `agent_job_active` as a conflict, so unsaved text stays.
+- Launch: `render` reads `ctx.projectId`, and `window.StorymakerApp.open(windowId, projectId)` serves an open window. `sdk-events-bootstrap.js` passes `event.payload.project_id` only if it matches the UUID pattern of `ValidProjectID`, and only for `storymaker`.
 
 ### Tests
 
@@ -1177,4 +1225,4 @@ Drafting-only; omitted.
 
 ## 12. Deviations from the spec
 
-Phase 1 deviations from the spec are recorded in the spec's decisions and deviations, and are folded into `docs/superpowers/specs/2026-11-01-storymaker-design.md` when the plan is committed.
+Phase 1 deviations from the spec are recorded in the spec's decisions and deviations, and are folded into `docs/superpowers/specs/2026-11-01-storymaker-design.md` when the plan is committed. The agent core's changes are in that file's section "Changes from the agent core plan".

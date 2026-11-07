@@ -94,7 +94,21 @@ JavaScript (`ui/js/storymaker/`); Go never recomputes the timeline.
 
 - Phase 2 (sound and export) landed in batches 2A to 2D. The contract is the reference, and the design spec section "Changes from the phase 2 plan" records every change to the original text.
 - `testdata/stories/speech.json` (CJK, RTL, Greek, Hindi, bubbles) is shared with the player tests and the render smoke tests, so an edit there reaches both.
-- Still open for the user's ears or hands: voice notes and rhythm factors, sentence pause and trim margins, the taste of the SFX set, prosody with per-sentence synthesis, and the aurago-test acceptance. Agent voice discovery (`storymaker_catalog kind=voice`) is phase 3.
+- Still open for the user's ears or hands: voice notes and rhythm factors, sentence pause and trim margins, the taste of the SFX set, prosody with per-sentence synthesis, and the aurago-test acceptance. Agent voice discovery is `storymaker_catalog kind=voice` (section Agent core).
+
+## Agent core
+
+- `studio*.go` hold the job tools and call no LLM: `studio.go` (phase table, session, budget, routing, read-only gate), `studio_args.go` (flat fields, JSON-string `data`, aliases), `studio_story.go` (operations and drafts), `studio_story_scenes.go` (scene writes and `DropDrafts`), `studio_catalog.go` (search, describe, voices), `studio_check.go` (`LintForJob`, `Check`, compile cache by etag), `studio_words.go` (`LintWords`, the word check), `studio_packet.go` (context packets). `agentjob.go` holds `AgentJobInfo`, `DecideOutcome`, `StoryIsBlank`, `MakeSilent`, the backup methods and `ChangedScenes`. `agentfacade.go` holds the chat facade types.
+- The tools reach a job through a closure over its `*Studio` (`ExecutionHooks.HandleTool`), so a model cannot pick a project or a job. Schemas never carry an id the server binds. The tools stay out of the normal catalog: no feature flag, category, search term, manual or dispatch case. The chat tool `storymaker` is separate and calls `CurrentAgentFacade()`.
+- A loop per phase, and a loop per scene in fill. The story is the checkpoint, so a job is never resumed: a later revise finishes it. An invalid write stays a per-scene draft and is dropped at the end. A failed or exhausted scene keeps its outline text and is recorded as `scene_unfilled`.
+- Charging: a drop in the issue count, a first write and a new scene are free. Limits are `StudioSceneChargedLimit`, `StudioSceneWriteLimit`, `StudioDryRunsPerScene`, `StudioDryRunsPerJob` and `StudioCheckRounds`. `IssueAdvisory` lists the four codes and `words_tell` that get one optional fix loop and never block.
+- `DecideOutcome` is the one rule for outcomes. This slice never emits `ready`, and `open_checks` always holds `layout_unverified`. `over_target` and environment items never downgrade.
+- The backup methods of `ProjectStore` (`SaveSilentBackup`, `LoadSilentBackup`, `HasSilentBackup`, `RemoveSilentBackup`) keep `story.before-silent.json`. `MakeSilent` is pure: it sets `silent: true` and `duration = max(1, WordCount / 2.3 + 0.4)`, removes `cue`, and turns each `say` with text into a `show`. Without the duration the film collapses to about 1 s per scene. Ticking `silent` by hand has no such repair.
+- `render.Runner.CompileCheck` reuses `snapshot`, the listener, the strict proxy and the page, captures the report and answers it with an error, so the page stops. It needs no FFmpeg, is bounded to 60 s and never downloads Chromium. Without a browser the job reports `compile_unverified` and still finishes.
+- Narration runs after the check, because the audio key contains the text. No voice is not a failure: the story keeps `voice: null` and reports `narration_unavailable`.
+- The `storymaker_*` job tools stay out of the strict schema projection. `null` in `patch_scene` removes a field, so a required-and-nullable schema would delete fields.
+- A job cancels only a narration it started itself, never one it joined by coalescing.
+- Verify: `go test ./internal/storymaker/... -count=1` and `go test ./internal/server -run Storymaker -count=1`. `TestStorymakerAgentScriptedJobNative` and `TestStorymakerAgentScriptedJobTextMode` run the whole job with a scripted model, and no test calls a real model or voice.
 
 ## Child DOX Index
 

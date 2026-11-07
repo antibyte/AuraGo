@@ -3,7 +3,7 @@
 Storymaker is the Virtual Desktop app for short explainer videos. You stage scenes with cartoon people, props and
 environments from a built-in catalog, write the narration, pick a voice and music, watch a live preview and export an MP4 with
 sound, captions, subtitle files and separate audio tracks. A finished export can continue in Video Studio. This page describes
-phases 1 and 2. The agent panel, the chat tool and the asset generator come in later phases.
+phases 1 and 2 and the agent core. The asset generator comes in a later phase.
 
 ## Switch it on
 
@@ -18,9 +18,43 @@ Storymaker is on by default. **Configuration → Virtual Desktop → Storymaker*
 | `storymaker.render.transport` | empty | How frames reach FFmpeg (`png`, `webp`, `raw`, `screenshot`). Empty is the measured default; change it only on advice. |
 | `storymaker.narration.max_daily_chars` | `100000` | Characters that cloud voices may speak per local day (1000 to 100000000). |
 | `storymaker.narration.max_job_chars` | `20000` | Characters that cloud voices may speak in one narration job (100 to 10000000). |
+| `storymaker.agent.enabled` | `true` | Allows agent jobs from the app and from chat. |
+| `storymaker.agent.provider` | empty | LLM provider for agent jobs. Empty: the main route with its configured failover. A chosen provider is pinned to the job without failover. |
+| `storymaker.agent.model` | empty | Model for agent jobs. Empty: the model of the provider. |
+| `storymaker.agent.job_timeout_seconds` | `1800` | A job that runs longer stops, and its valid scenes stay (120 to 7200). |
+| `storymaker.agent.max_length_seconds` | `180` | A longer request is shortened to this length (15 to 3600). `max_duration_seconds` also applies. |
+| `storymaker.agent.max_daily_jobs` | `10` | New films and revisions from the app and chat, plus exports from chat, per day (1 to 1000). |
 
 The **Check export setup** button asks the running server whether FFmpeg and a browser are ready. The app is read-only while
 `virtual_desktop.readonly` is on: you can watch the preview, but nothing is edited, saved or exported.
+
+## The agent
+
+The agent writes a film from a topic: first the outline, then the cast, then one scene at a time, then a check with fixes, and at the end the narration. It runs as an isolated job on one project. It can use only the Storymaker tools of its current step.
+
+- **In the app.** The project list has a start form. Inside a project the agent panel has the prompt, length, language, Start or Revise, a progress list and Cancel.
+- **From chat.** The `storymaker` tool can create a film, report its status, revise it, export it, open it in the app and list projects. "Mach mir ein Erklärvideo über Backups" is enough to start.
+- **Unattended runs.** With `agent.action_policy` switched on, missions, flows, scheduled runs and co-agents need an administrator rule to call `create`, `revise` or `render`. Chats you take part in need no rule. The policy is off by default. A run that is not watched is then limited only by `storymaker.agent.max_daily_jobs` and the character limits of the voices.
+- **While a job runs.** The editor is locked and shows a banner. Saving, narration and export are refused for that project. A job cannot start while a render, narration or music job of the project runs. One job runs at a time, and eight can wait.
+- **Language.** The request can name a language. Otherwise the job uses the language of the interface. Narration, title and on-screen text are written in that language.
+- **Writing check.** Narration and on-screen text are checked for dashes everywhere, and for stock phrases in English and German. A hit gets one optional fix round and never blocks the outcome or appears among the open checks.
+- **Revise.** The outcome card lists the scenes that changed, the scenes that stayed as they were and the scenes that were removed. The chat `status` answer gives the same three lists.
+
+| Outcome | What it means |
+| --- | --- |
+| Your story is ready. Please watch it once. | Scenes, assets and timing were checked. Overlaps and text fit were not checked automatically. |
+| Your story is partly done. | Some scenes still need work, and valid scenes are saved. The revise field is prefilled to finish them. A timeout or a model error ends here too. |
+| The agent could not write this story. | No outline was saved. The card gives the reason. |
+
+Watch every film once: nothing checks yet whether a prop covers a face or a text overflows. A film may run a little longer than asked, which is listed and is not a failure. Without a browser the compile check is skipped and reported as `compile_unverified`. The job still finishes.
+
+**No voice.** A job on a box with no ready voice still finishes. The narration text stays in the story, and each scene gets a short on-screen text. To export, either install a voice and press **Generate narration**, or press **Export without voice**. That button marks the scenes silent, gives each a reading time and turns speech bubbles into on-screen text. **Restore speech** undoes it while its copy, `story.before-silent.json`, exists. From chat, `render` with `silent: true` does the same and says that speech was removed.
+
+**Narration and cost.** A job narrates by itself at its end, under the character limits above, so a finished job can export. Cloud voices can cost money. **Music** is not part of the agent: a request for music gets an answer that it cannot do this, and the Music tab stays with you.
+
+An agent job has no token limit of its own. Its cost is bounded by the job timeout (1800 seconds by default), the fixed tool-call limits per step and `storymaker.agent.max_daily_jobs`.
+
+Job records are in `data/storymaker/agent/`: `jobs.json`, `usage.json` and `events/<job id>.jsonl`. The event files hold tool names, scene ids, token counts and statuses, but no tool arguments and no model text. `jobs.json` also keeps the request, its first 200 characters, and for a ready film the summary.
 
 ## Projects
 
@@ -155,7 +189,7 @@ when free memory is short. A machine with 8 logical CPUs uses 2 workers. The fra
 
 ## Not yet in Storymaker
 
-The agent panel and chat tool, the asset generator, charts and diagrams, most other transitions (cut, fade, slide-left and wipe
+The asset generator, the agent's layout checks and still review, charts and diagrams, most other transitions (cut, fade, slide-left and wipe
 exist) and drag and drop staging. The story format already accepts the fields of later phases; the editor shows them as "not
 supported yet" and the player ignores them. Nobody has listened to the voices yet, so every provider and language shows a
 `not tested` mark.
@@ -171,5 +205,6 @@ supported yet" and the player ignores them. Nobody has listened to the voices ye
   `AURAGO_RUN_BROWSER_SMOKE=1 go test ./internal/server -run '^TestStorymakerAppRealServerBrowser$' -count=1 -timeout 15m`.
 - App player against render page: `AURAGO_RUN_BROWSER_SMOKE=1 go test ./internal/server -run '^TestStorymakerParityAppPlayerAndRenderPage$' -count=1 -timeout 15m`.
 - Parallel workers: `AURAGO_RUN_BROWSER_SMOKE=1 go test ./internal/storymaker/render -run '^TestParallelParityBrowser$' -count=1 -timeout 20m`.
+- The agent with a scripted model, in native and text mode: `go test ./internal/server -run '^TestStorymakerAgentScripted' -count=1`.
 
 FFmpeg and Chrome must be installed for the browser lines.
