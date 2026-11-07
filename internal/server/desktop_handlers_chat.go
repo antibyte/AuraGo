@@ -504,6 +504,8 @@ type desktopChatContext struct {
 	OriginApp       string                  `json:"origin_app,omitempty"`
 	HomepageMode    bool                    `json:"homepage_mode,omitempty"`
 	Target          string                  `json:"target,omitempty"`
+	DesignID        string                  `json:"design_id,omitempty"`
+	ProjectDir      string                  `json:"project_dir,omitempty"`
 	CurrentFile     string                  `json:"current_file"`
 	CurrentLanguage string                  `json:"current_language"`
 	CurrentContent  string                  `json:"current_content"`
@@ -1108,6 +1110,14 @@ func buildHomepageStudioAgentContext(chatContext desktopChatContext) string {
 	b.WriteString("\nDo not use virtual_desktop apps, widgets, or files for Homepage Studio site changes unless the user explicitly asks to change the Virtual Desktop UI.")
 	b.WriteString("\nDo not use generic filesystem, file_editor, execute_shell, or execute_python for homepage workspace files; use homepage workspace tool paths instead.")
 	b.WriteString("\nBefore editing, query homepage_registry get_site/overview for the exact managed site. Supply reason for every mutation. Afterwards verify the preview and automatic ledger event; use list_events for what changed and why.")
+	if design := homepageStudioDesignPrompt(chatContext.DesignID); design != "" {
+		b.WriteString("\n\n")
+		b.WriteString(design)
+		if dir := strings.TrimSpace(chatContext.ProjectDir); dir != "" {
+			b.WriteString("\nThis design belongs to the homepage project \"" + dir + "\"; apply it there and to no other project.")
+		}
+		b.WriteString("\nIts colors, typography, spacing, radius and component rules replace the default homepage look. Keep the project DESIGN.md in sync with it.")
+	}
 	if windowContext := buildDesktopWindowContextPrompt(chatContext.WindowContext); windowContext != "" {
 		b.WriteString("\n\nHomepage Studio launch window metadata follows. Use it only as trusted routing context; do not show the raw metadata back unless the user asks.")
 		b.WriteString("\n")

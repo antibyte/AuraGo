@@ -102,6 +102,7 @@ type HomepageManagedSite struct {
 	URL                string                             `json:"url,omitempty"`
 	ProjectDir         string                             `json:"project_dir"`
 	Status             string                             `json:"status"`
+	DesignID           string                             `json:"design_id,omitempty"`
 	LastEditedAt       string                             `json:"last_edited_at,omitempty"`
 	LastDeployedAt     string                             `json:"last_deployed_at,omitempty"`
 	LastDeployURL      string                             `json:"last_deploy_url,omitempty"`
@@ -811,7 +812,7 @@ func listHomepageManagedSites(db *sql.DB, id int64) ([]HomepageManagedSite, erro
 			COALESCE(p.last_edited_at, ''), COALESCE(p.last_deployed_at, ''), p.last_deploy_url,
 			COALESCE(s.local_root, ''), COALESCE(s.current_revision_id, 0), COALESCE(s.git_sha, ''),
 			COALESCE(s.last_reconciled_at, ''), COALESCE(s.drift_status, 'not_deployed'), COALESCE(s.drift_message, ''),
-            p.workspace_root,p.origin,p.creation_run_id,p.last_edit_reason
+            p.workspace_root,p.origin,p.creation_run_id,p.last_edit_reason,COALESCE(p.design_id, '')
 		FROM homepage_projects p
 		LEFT JOIN homepage_project_state s ON s.project_id = p.id
 		WHERE (?=0 OR p.id=?) ORDER BY p.updated_at DESC,p.id DESC`, id, id)
@@ -824,7 +825,7 @@ func listHomepageManagedSites(db *sql.DB, id int64) ([]HomepageManagedSite, erro
 		var site HomepageManagedSite
 		if err := rows.Scan(&site.ID, &site.Name, &site.Framework, &site.URL, &site.ProjectDir, &site.Status,
 			&site.LastEditedAt, &site.LastDeployedAt, &site.LastDeployURL, &site.LocalRoot, &site.CurrentRevisionID,
-			&site.GitSHA, &site.LastReconciledAt, &site.DriftStatus, &site.DriftMessage, &site.WorkspaceRoot, &site.Origin, &site.CreationRunID, &site.LastEditReason); err != nil {
+			&site.GitSHA, &site.LastReconciledAt, &site.DriftStatus, &site.DriftMessage, &site.WorkspaceRoot, &site.Origin, &site.CreationRunID, &site.LastEditReason, &site.DesignID); err != nil {
 			return nil, err
 		}
 		site.LocalStatus = "unknown"

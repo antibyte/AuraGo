@@ -27,6 +27,18 @@ When the task is to create, recreate, delete, rebuild, redesign, publish, or dep
 
 The default visual target is Atmospheric Glass. Unless the user supplied a different brand or project `DESIGN.md`, the resulting page should visibly use the Atmospheric Glass system: translucent glass surfaces, luminous layered gradients, soft borders, blur/backdrop-filter depth, restrained white/silver/blue accents, Inter-based type hierarchy, and readable contrast. When implementing, strictly enforce WCAG AA text contrast. Pair `backdrop-filter: blur(...)` with a fallback `background-color` (for reduced-transparency) and a subtle semi-transparent inner border (e.g., `border: 1px solid rgba(255,255,255,0.1)`) to define physical edges. A generic dark purple/blue card UI without glass physics does not satisfy the default design system.
 
+## Design Templates
+
+The Homepage Studio offers a catalog of 25 DESIGN.md templates (the most-liked selection from designmd.ai, embedded offline). The user picks one per website; the selected template is written into that project as `DESIGN.md` and is then the authoritative design system for the project.
+
+A project `DESIGN.md` takes precedence over the Atmospheric Glass default. Before choosing colors, layout, cards, spacing, typography, or visual effects, read the project's `DESIGN.md` and follow it. When a project has no `DESIGN.md`, keep the Atmospheric Glass default.
+
+Valid catalog ids: `genesis`, `flip7-card-game`, `rawblock`, `verdana-health`, `wattvision`, `voicebox`, `nomadkit`, `command-center`, `thoughtstream`, `studioblank`, `questui`, `ember-studio`, `devlog`, `docuforge`, `longcipher`, `typegallery`, `shopvibe`, `resortlux`, `skylearn`, `cafeblend`, `localguide`, `aether`, `marketnest`, `crypto-blue`, `green-deck`.
+
+- When the user names a design for a new project, pass its id as `design` to `homepage_project` `init_project`. The tool writes the matching `DESIGN.md` into the new project.
+- For an existing project, the `DESIGN.md` is already in place; read it instead of passing `design` again.
+- Never invent a design id. If the user names a design that is not in the list above, use the Atmospheric Glass default and say so.
+
 Keep homepage paths relative to the homepage workspace. Use project-prefixed paths such as `my-site/src/App.tsx`, and use `project_dir` values such as `my-site`, never `/workspace/my-site`.
 
 ## Local Asset References

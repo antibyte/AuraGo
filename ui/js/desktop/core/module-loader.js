@@ -623,6 +623,7 @@
                 '/js/desktop/apps/homepage-studio-preview.js',
                 '/js/desktop/apps/homepage-studio-sites.js',
                 '/js/desktop/apps/homepage-studio-history.js',
+                '/js/desktop/apps/homepage-studio-designs.js',
                 '/js/desktop/apps/homepage-studio-annotate.js',
                 '/js/desktop/apps/homepage-studio.js'
             ]

@@ -80,6 +80,7 @@ type homepageArgs struct {
 	Framework     string
 	Name          string
 	Template      string
+	Design        string
 	ProjectDir    string
 	AutoFix       bool
 	Force         bool
@@ -392,6 +393,10 @@ func decodeHomepageArgs(tc ToolCall) homepageArgs {
 		Framework:     firstNonEmptyToolString(tc.Framework, toolArgString(tc.Params, "framework")),
 		Name:          firstNonEmptyToolString(tc.Name, toolArgString(tc.Params, "name")),
 		Template:      firstNonEmptyToolString(tc.Template, toolArgString(tc.Params, "template")),
+		// The design id is only read from the raw argument bag: the top level
+		// key "design" is already an object for game_maker_project set_design,
+		// so it must not become a typed string field.
+		Design:        toolArgString(tc.Params, "design"),
 		ProjectDir:    firstNonEmptyToolString(tc.ProjectDir, toolArgString(tc.Params, "project_dir")),
 		AutoFix:       tc.AutoFix,
 		Force:         tc.Force,

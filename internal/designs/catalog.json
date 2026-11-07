@@ -1,0 +1,616 @@
+[
+  {
+    "id": "genesis",
+    "name": "Genesis",
+    "author": "chef",
+    "likes": 41,
+    "description": "An editorial precision interface for a community platform where developers discover, share, and download design system files. The aesthetic is quietly confident — bold display typography, generous spacing, and gallery-frame card surfaces. The mood is professional and modern without being sterile. High information density balanced by breathing room.",
+    "license": "MIT",
+    "source_url": "https://designmd.ai/chef/genesis",
+    "tags": [
+      "accessible",
+      "blue",
+      "clean",
+      "saas"
+    ],
+    "palette": [
+      "#6366F1",
+      "#4F46E5",
+      "#20970B",
+      "#9C9C9C",
+      "#FAFAFA",
+      "#FFFFFF"
+    ],
+    "rank": 1
+  },
+  {
+    "id": "flip7-card-game",
+    "name": "Flip7 Card Game",
+    "author": "yiujc",
+    "likes": 29,
+    "description": "Retro-playful teal-coral-gold design system for the Flip7 card game scoring mini-program. Features packaging-inspired logo with fan cards and parallelogram, folded ribbon banners, colored glow shadows, and tiered victory rankings.",
+    "license": "MIT",
+    "source_url": "https://designmd.ai/yiujc/flip7-card-game",
+    "tags": [
+      "bold",
+      "gaming",
+      "mobile-app",
+      "playful",
+      "warm"
+    ],
+    "palette": [
+      "#2BA8A2",
+      "#3CC4BD",
+      "#1E8C86",
+      "#E8F6F5",
+      "#FFD23F",
+      "#FFE47A"
+    ],
+    "rank": 2
+  },
+  {
+    "id": "rawblock",
+    "name": "RawBlock",
+    "author": "chef",
+    "likes": 27,
+    "description": "RawBlock is an unapologetic, anti-design system that strips interfaces down to their structural bones. Built for experimental portfolios and avant-garde art sites, it embraces thick borders, system-level aesthetics, and the raw power of black-on-white. This is brutalism as a design language.",
+    "license": "MIT",
+    "source_url": "https://designmd.ai/chef/rawblock",
+    "tags": [
+      "bold",
+      "brutalist",
+      "experimental",
+      "minimal",
+      "portfolio"
+    ],
+    "palette": [
+      "#000000",
+      "#FFFFFF",
+      "#0000FF",
+      "#008000",
+      "#FFA500",
+      "#FF0000"
+    ],
+    "rank": 3
+  },
+  {
+    "id": "verdana-health",
+    "name": "Verdana Health Design System",
+    "author": "chef",
+    "likes": 21,
+    "description": "Verdana Health is a calm, trustworthy design system built for digital health platforms, telehealth dashboards, and patient-facing wellness applications. Its foundation of deep navy and soft sage greens evokes clinical precision tempered by warmth. The system prioritizes readability, accessibility, and a sense of reassurance across every touchpoint.",
+    "license": "MIT",
+    "source_url": "https://designmd.ai/chef/verdana-health-design-system",
+    "tags": [
+      "accessible",
+      "digital-health",
+      "elegant",
+      "saas"
+    ],
+    "palette": [
+      "#0F172A",
+      "#64748B",
+      "#059669",
+      "#F8FAFC",
+      "#FFFFFF",
+      "#22C55E"
+    ],
+    "rank": 4
+  },
+  {
+    "id": "wattvision",
+    "name": "WattVision - Sistema de Monitoreo Eléctrico",
+    "author": "groquispe100inf-max",
+    "likes": 20,
+    "description": "El diseño debe transmitir confiabilidad técnica y control. No debe sentirse como una red social o una app de juegos. La interfaz está pensada para ser vista en una laptop o tablet en un entorno doméstico o de pequeño negocio en Bolivia. El ambiente es \"Power BI Dashboard\" pero simplificado para el usuario final.",
+    "license": "MIT",
+    "source_url": "https://designmd.ai/groquispe100inf-max/design-md-sistema-de-monitoreo-el-ctrico-wattvision",
+    "tags": [
+      "bold",
+      "dark",
+      "dashboard",
+      "devtools",
+      "mobile-app"
+    ],
+    "palette": [
+      "#121212",
+      "#1E1E1E",
+      "#00E5FF",
+      "#FF453A",
+      "#32D74B",
+      "#FFFFFF"
+    ],
+    "rank": 5
+  },
+  {
+    "id": "voicebox",
+    "name": "VoiceBox",
+    "author": "chef",
+    "likes": 18,
+    "description": "Bold, opinionated, magazine-style.",
+    "license": "MIT",
+    "source_url": "https://designmd.ai/chef/voicebox",
+    "tags": [
+      "blog",
+      "bold",
+      "dark",
+      "devtools",
+      "mobile-app"
+    ],
+    "palette": [
+      "#0A0A0A",
+      "#EF4444",
+      "#FAFAFA",
+      "#F5F5F5",
+      "#E5E5E5",
+      "#525252"
+    ],
+    "rank": 6
+  },
+  {
+    "id": "nomadkit",
+    "name": "NomadKit",
+    "author": "chef",
+    "likes": 17,
+    "description": "NomadKit is a free-spirited, light-packed design system for digital nomad tools and backpacker community platforms. Warm sand tones balanced by ocean and forest accents evoke the spirit of global exploration. Minimalism and portability.",
+    "license": "MIT",
+    "source_url": "https://designmd.ai/chef/nomadkit",
+    "tags": [
+      "minimal",
+      "mobile-app",
+      "organic",
+      "travel",
+      "warm"
+    ],
+    "palette": [
+      "#D4A373",
+      "#0891B2",
+      "#166534",
+      "#FFFDF7",
+      "#FFFFFF",
+      "#CA8A04"
+    ],
+    "rank": 7
+  },
+  {
+    "id": "command-center",
+    "name": "Command Center",
+    "author": "frknaykc",
+    "likes": 16,
+    "description": "version: alpha name: Evreghen Command Center description: \"Warm off-white security workspace with a dark frosted application shell and orange telemetry accents.\" colors: background: \"#fcfaf7\" on-background: \"#423d38\" surface: \"#f3f4f6\" surface-soft: \"#edebe9\" surface-elevated: \"#ffffff\" on-surface: \"#423d38\" on-surface-muted: \"#797067\" outline: \"#e3e0dd\" outline-strong: \"#d1d5dc\" primary: \"#fe6e00\" primary-strong: \"#ff6b00\" primary-warm: \"#ffb74d\" primary-focus: \"#f97015\" on-primary: \"#ffffff\" s",
+    "license": "MIT",
+    "source_url": "https://designmd.ai/frknaykc/command-center",
+    "tags": [
+      "dark",
+      "dashboard",
+      "saas",
+      "security"
+    ],
+    "palette": [
+      "#FCFAF7",
+      "#F3F4F6",
+      "#EDEBE9",
+      "#423D38",
+      "#797067",
+      "#FE6E00"
+    ],
+    "rank": 8
+  },
+  {
+    "id": "thoughtstream",
+    "name": "ThoughtStream",
+    "author": "chef",
+    "likes": 15,
+    "description": "Minimal, zen, distraction-free.",
+    "license": "MIT",
+    "source_url": "https://designmd.ai/chef/thoughtstream",
+    "tags": [
+      "design-tokens",
+      "minimal",
+      "personal-blog",
+      "saas"
+    ],
+    "palette": [
+      "#78716C",
+      "#A8A29E",
+      "#1C1917",
+      "#FAFAF9",
+      "#F5F5F4",
+      "#EFEDEB"
+    ],
+    "rank": 9
+  },
+  {
+    "id": "studioblank",
+    "name": "StudioBlank",
+    "author": "chef",
+    "likes": 11,
+    "description": "Ultra-minimal design system where whitespace is the primary design feature. Built for photographer and visual artist portfolios, every UI element recedes so the work itself commands attention. No shadows, no border radius, monochromatic palette with weight contrast in a single type family.",
+    "license": "MIT",
+    "source_url": "https://designmd.ai/chef/studioblank",
+    "tags": [
+      "creative",
+      "minimal",
+      "portfolio"
+    ],
+    "palette": [
+      "#0A0A0A",
+      "#FAFAFA",
+      "#D4D4D8",
+      "#16A34A",
+      "#CA8A04",
+      "#DC2626"
+    ],
+    "rank": 10
+  },
+  {
+    "id": "questui",
+    "name": "Journey UI",
+    "author": "chef",
+    "likes": 11,
+    "description": "Journey UI is a fantasy-inspired, ornate, RPG-styled design system built for RPG game interfaces and fantasy gaming platforms. Rich golds, deep reds, and royal purples evoke the grandeur of medieval kingdoms and enchanted realms. Every element carries weight and craftsmanship.",
+    "license": "MIT",
+    "source_url": "https://designmd.ai/chef/questui",
+    "tags": [
+      "bold",
+      "dark",
+      "gaming",
+      "playful",
+      "premium"
+    ],
+    "palette": [
+      "#CA8A04",
+      "#991B1B",
+      "#581C87",
+      "#1A0F0A",
+      "#2C1A10",
+      "#22C55E"
+    ],
+    "rank": 11
+  },
+  {
+    "id": "ember-studio",
+    "name": "Ember Studio",
+    "author": "chef",
+    "likes": 11,
+    "description": "A warm, craft-focused design system for creative project management tools. Terracotta warmth meets modern minimalism.",
+    "license": "MIT",
+    "source_url": "https://designmd.ai/chef/ember-studio",
+    "tags": [
+      "clean",
+      "dashboard",
+      "premium",
+      "saas",
+      "warm"
+    ],
+    "palette": [
+      "#C2410C",
+      "#9A3412",
+      "#F59E0B",
+      "#78716C",
+      "#FAFAF9",
+      "#F5F5F4"
+    ],
+    "rank": 12
+  },
+  {
+    "id": "devlog",
+    "name": "DevLog",
+    "author": "chef",
+    "likes": 10,
+    "description": "Technical, monospaced, terminal-inspired.",
+    "license": "MIT",
+    "source_url": "https://designmd.ai/chef/devlog",
+    "tags": [
+      "blog",
+      "dark",
+      "landing-page",
+      "mobile-app",
+      "saas"
+    ],
+    "palette": [
+      "#4ADE80",
+      "#FBBF24",
+      "#22D3EE",
+      "#0F172A",
+      "#1E293B",
+      "#334155"
+    ],
+    "rank": 13
+  },
+  {
+    "id": "docuforge",
+    "name": "DocuForge",
+    "author": "chef",
+    "likes": 10,
+    "description": "DocuForge is a clean, readable, and navigation-rich design system tailored for API documentation and developer docs sites. It pairs generous whitespace with structured sidebar navigation, optimized for scanning long reference pages and code examples.",
+    "license": "MIT",
+    "source_url": "https://designmd.ai/chef/docuforge",
+    "tags": [
+      "clean",
+      "dashboard",
+      "devtools",
+      "light",
+      "saas"
+    ],
+    "palette": [
+      "#2563EB",
+      "#7C3AED",
+      "#6B7280",
+      "#FAFAFA",
+      "#FFFFFF",
+      "#16A34A"
+    ],
+    "rank": 14
+  },
+  {
+    "id": "longcipher",
+    "name": "LongCipher Design",
+    "author": "Akagi201",
+    "likes": 10,
+    "description": "Vercel's website is the visual thesis of developer infrastructure made invisible — a design system so restrained it borders on philosophical. The page is overwhelmingly white (`#ffffff`) with near-black (`#171717`) text, creating a gallery-like emptiness where every element earns its pixel. This isn't minimalism as decoration; it's minimalism as engineering principle.",
+    "license": "CC0",
+    "source_url": "https://designmd.ai/Akagi201/longcipher-design",
+    "tags": [
+      "component-library",
+      "dark",
+      "design-tokens",
+      "minimal",
+      "saas"
+    ],
+    "palette": [
+      "#FFFFFF",
+      "#171717",
+      "#FF5B4F",
+      "#DE1D8D",
+      "#0A72EF",
+      "#0070F3"
+    ],
+    "rank": 15
+  },
+  {
+    "id": "typegallery",
+    "name": "TypeGallery Design System",
+    "author": "chef",
+    "likes": 9,
+    "description": "TypeGallery is a typography-forward, editorial, and refined design system built for graphic designer and typographer portfolios. Type hierarchy is the primary design element -- every layout decision serves the letterforms. Warm cream surfaces, deep brown and rust tones, and flat shadowless surfaces.",
+    "license": "MIT",
+    "source_url": "https://designmd.ai/chef/typegallery-design-system",
+    "tags": [
+      "creative",
+      "elegant",
+      "minimal",
+      "portfolio",
+      "warm"
+    ],
+    "palette": [
+      "#3C1518",
+      "#F5F0E8",
+      "#A44A3F",
+      "#3D7A4A",
+      "#B45309",
+      "#8B7E74"
+    ],
+    "rank": 16
+  },
+  {
+    "id": "shopvibe",
+    "name": "ShopVibe",
+    "author": "chef",
+    "likes": 9,
+    "description": "ShopVibe is a design system crafted for fashion and lifestyle e-commerce storefronts that demand visual punch and effortless conversion. Spacious layout ensures products have breathing room to shine, with generous whitespace framing hero imagery. Bold fuchsia primary drives urgency on CTAs.",
+    "license": "MIT",
+    "source_url": "https://designmd.ai/chef/shopvibe",
+    "tags": [
+      "bold",
+      "ecommerce",
+      "fashion",
+      "landing-page",
+      "light"
+    ],
+    "palette": [
+      "#D946EF",
+      "#22D3EE",
+      "#FACC15",
+      "#FAFAFA",
+      "#FFFFFF",
+      "#22C55E"
+    ],
+    "rank": 17
+  },
+  {
+    "id": "resortlux",
+    "name": "ResortLux",
+    "author": "chef",
+    "likes": 9,
+    "description": "ResortLux is a premium, serene design system centered on full-bleed imagery for luxury resort and boutique hotel websites. Gold, navy, and ivory palette channels high-end hospitality. Generous spacing and serif typography create calm sophistication.",
+    "license": "MIT",
+    "source_url": "https://designmd.ai/chef/resortlux",
+    "tags": [
+      "elegant",
+      "landing-page",
+      "light",
+      "premium",
+      "travel"
+    ],
+    "palette": [
+      "#B8860B",
+      "#0F172A",
+      "#FFFFF0",
+      "#FFFFFF",
+      "#15803D",
+      "#CA8A04"
+    ],
+    "rank": 18
+  },
+  {
+    "id": "skylearn",
+    "name": "Skylearn",
+    "author": "duanhdan",
+    "likes": 9,
+    "description": "A bright, accessible design system for kids' edtech platforms, K-8 learning apps, and family-friendly tutoring products. Skylearn pairs a friendly sky blue with sun yellow and leaf green against generous white surfaces, with rounded shapes, large legible type, and an iconography vocabulary that feels hand-drawn without being childish. WCAG-AAA contrast targets, dyslexia-friendly fonts, and tap targets sized for small hands.",
+    "license": "MIT",
+    "source_url": "https://designmd.ai/duanhdan/skylearn",
+    "tags": [
+      "accessible",
+      "education",
+      "light",
+      "mobile-app",
+      "playful"
+    ],
+    "palette": [
+      "#3B82F6",
+      "#60A5FA",
+      "#1D4ED8",
+      "#DBEAFE",
+      "#FBBF24",
+      "#FCD34D"
+    ],
+    "rank": 19
+  },
+  {
+    "id": "cafeblend",
+    "name": "CafeBlend",
+    "author": "chef",
+    "likes": 8,
+    "description": "CafeBlend is a cozy, coffee-toned design system for coffee shop and small cafe websites. Neumorphism-inspired elevation and warm browns create a tactile, inviting atmosphere that mirrors the comfort of a neighborhood cafe.",
+    "license": "MIT",
+    "source_url": "https://designmd.ai/chef/cafeblend",
+    "tags": [
+      "food",
+      "landing-page",
+      "organic",
+      "premium",
+      "warm"
+    ],
+    "palette": [
+      "#8B5E3C",
+      "#C4956A",
+      "#FDF6EC",
+      "#FFFFFF",
+      "#F0E6D6",
+      "#059669"
+    ],
+    "rank": 20
+  },
+  {
+    "id": "localguide",
+    "name": "LocalGuide",
+    "author": "chef",
+    "likes": 8,
+    "description": "LocalGuide is an authentic, map-forward design system for city guide and experience platforms. Bold red-orange anchors the hierarchy while teal and yellow accent supporting elements. Prioritizes scannability and quick access to location-based content.",
+    "license": "MIT",
+    "source_url": "https://designmd.ai/chef/localguide",
+    "tags": [
+      "bold",
+      "clean",
+      "light",
+      "mobile-app",
+      "travel"
+    ],
+    "palette": [
+      "#EA580C",
+      "#0D9488",
+      "#EAB308",
+      "#FFFFFF",
+      "#16A34A",
+      "#DC2626"
+    ],
+    "rank": 21
+  },
+  {
+    "id": "aether",
+    "name": "Aether - The New Frontier",
+    "author": "brunopetrovic",
+    "likes": 8,
+    "description": "version: \"neuform-top-creators-featured\" name: \"Aether - The New Frontier\" description: \"Aether New Feature Section is designed for highlighting product capabilities and value points. Key features include reusable structure, responsive behavior, and production-ready presentation. It is suitable for component libraries and responsive product interfaces.\" colors: primary: \"#FFFFFF\" secondary: \"#111111\" accent: \"#FFFFFF\" background: \"#050505\" surface: \"#F4F4F4\" text-primary: \"#FFFFFF\" text-secondar",
+    "license": "MIT",
+    "source_url": "https://designmd.ai/brunopetrovic/aether-the-new-frontier",
+    "tags": [
+      "component-library",
+      "neuform",
+      "responsive",
+      "saas"
+    ],
+    "palette": [
+      "#FFFFFF",
+      "#111111",
+      "#050505",
+      "#F4F4F4"
+    ],
+    "rank": 22
+  },
+  {
+    "id": "marketnest",
+    "name": "MarketNest",
+    "author": "chef",
+    "likes": 7,
+    "description": "MarketNest is a design system for handmade goods and artisan marketplaces where every product tells a story. Warm terracotta, earthy sand, and forest green evoke natural materials and handcrafted authenticity. A flat, border-driven visual style embraces warmth and imperfection.",
+    "license": "MIT",
+    "source_url": "https://designmd.ai/chef/marketnest",
+    "tags": [
+      "clean",
+      "ecommerce",
+      "landing-page",
+      "organic",
+      "warm"
+    ],
+    "palette": [
+      "#C2410C",
+      "#D4A373",
+      "#365314",
+      "#FFFBF5",
+      "#FFFFFF",
+      "#22C55E"
+    ],
+    "rank": 23
+  },
+  {
+    "id": "crypto-blue",
+    "name": "Crypto Blue",
+    "author": "chef",
+    "likes": 7,
+    "description": "Crypto Blue is a fintech-grade design system built for the digital asset era. It pairs a bold, trustworthy blue with dark and light neutrals to convey security and modernity. The aesthetic is minimal, data-rich, and engineered for clarity in financial interfaces where every pixel of information matters.",
+    "license": "MIT",
+    "source_url": "https://designmd.ai/chef/crypto-blue",
+    "tags": [
+      "clean",
+      "data-rich",
+      "fintech",
+      "modern"
+    ],
+    "palette": [
+      "#0052FF",
+      "#003ECB",
+      "#5B616E",
+      "#8A919E",
+      "#F9FAFB",
+      "#FFFFFF"
+    ],
+    "rank": 24
+  },
+  {
+    "id": "green-deck",
+    "name": "Green Deck",
+    "author": "chef",
+    "likes": 7,
+    "description": "A bold, dark-first design system built for immersive audio experiences. Green Deck uses a high-energy green accent against deep black and charcoal surfaces to create an atmosphere that feels like a late-night concert venue — electric, focused, and alive. The aesthetic is minimal yet punchy, designed to keep content front and center while the UI recedes into darkness.",
+    "license": "MIT",
+    "source_url": "https://designmd.ai/chef/green-deck",
+    "tags": [
+      "bold",
+      "dark",
+      "entertainment",
+      "modern"
+    ],
+    "palette": [
+      "#1DB954",
+      "#1ED760",
+      "#535353",
+      "#B3B3B3",
+      "#121212",
+      "#181818"
+    ],
+    "rank": 25
+  }
+]

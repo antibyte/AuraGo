@@ -188,6 +188,9 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.HandleFunc("/api/homepage/history", handleHomepageHistory(s))
 	mux.HandleFunc("/api/homepage/sites", handleHomepageSites(s))
 	mux.HandleFunc("/api/homepage/sites/", handleHomepageSiteByID(s))
+	mux.HandleFunc("/api/homepage/designs", handleHomepageDesigns(s))
+	mux.HandleFunc("/api/homepage/designs/select", handleHomepageDesignSelect(s))
+	mux.HandleFunc("/api/homepage/designs/", handleHomepageDesignByID(s))
 	mux.HandleFunc("/api/homepage/annotation-snapshot", handleHomepageAnnotationSnapshot(s))
 
 	// Cloudflare Tunnel endpoints

@@ -11,7 +11,7 @@ import (
 	"os"
 )
 
-const homepageSchemaVersion = 2
+const homepageSchemaVersion = 3
 
 // homepageRegistryV1Statements are the schema v1 DDL statements. They run for
 // every registry that is still on schema v0.
@@ -47,6 +47,45 @@ var homepageRegistryV1Statements = []string{
 // rows) are not a project and must not collide.
 var homepageRegistryV2Statements = []string{
 	"CREATE UNIQUE INDEX IF NOT EXISTS idx_hp_project_dir_unique ON homepage_projects(project_dir) WHERE project_dir <> ''",
+}
+
+// applyHomepageRegistryV3 adds the per-project design template binding.
+// The selected design is stored per project directory, not globally.
+// The column is added only when missing so a migration that was interrupted
+// after the ALTER but before the version bump can be replayed safely.
+func applyHomepageRegistryV3(tx *sql.Tx) error {
+	rows, err := tx.Query("PRAGMA table_info(homepage_projects)")
+	if err != nil {
+		return err
+	}
+	hasDesignID := false
+	for rows.Next() {
+		var (
+			cid        int
+			name       string
+			columnType string
+			notNull    int
+			defaultVal sql.NullString
+			primaryKey int
+		)
+		if err := rows.Scan(&cid, &name, &columnType, &notNull, &defaultVal, &primaryKey); err != nil {
+			rows.Close()
+			return err
+		}
+		if name == "design_id" {
+			hasDesignID = true
+		}
+	}
+	rowErr := rows.Err()
+	rows.Close()
+	if rowErr != nil {
+		return rowErr
+	}
+	if hasDesignID {
+		return nil
+	}
+	_, err = tx.Exec("ALTER TABLE homepage_projects ADD COLUMN design_id TEXT NOT NULL DEFAULT ''")
+	return err
 }
 
 // Back up the old schema before any DDL, including CREATE IF NOT EXISTS.
@@ -128,6 +167,9 @@ func migrateHomepageRegistry(db *sql.DB) error {
 		if _, err := tx.Exec(statement); err != nil {
 			return fmt.Errorf("migrate homepage registry: %w", err)
 		}
+	}
+	if err := applyHomepageRegistryV3(tx); err != nil {
+		return fmt.Errorf("migrate homepage registry: %w", err)
 	}
 	if _, err := tx.Exec(fmt.Sprintf("PRAGMA user_version=%d", homepageSchemaVersion)); err != nil {
 		return fmt.Errorf("migrate homepage registry: %w", err)

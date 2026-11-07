@@ -33,6 +33,7 @@ type HomepageProject struct {
 	KnownProblems    string   `json:"known_problems,omitempty"`
 	LighthouseScore  string   `json:"lighthouse_score,omitempty"` // JSON string
 	Notes            string   `json:"notes,omitempty"`
+	DesignID         string   `json:"design_id,omitempty"` // selected design template for this project
 }
 
 // HomepageRevision represents a saved revision of a homepage project.
@@ -317,10 +318,10 @@ func RegisterProject(db *sql.DB, p HomepageProject) (int64, bool, error) {
 
 	res, err := db.Exec(`INSERT INTO homepage_projects
 		(name, description, framework, framework_version, url, netlify_site_id, deploy_host,
-		 project_dir, status, tags, notes)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		 project_dir, status, tags, notes, design_id)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		p.Name, p.Description, p.Framework, p.FrameworkVersion, p.URL, p.NetlifySiteID,
-		p.DeployHost, p.ProjectDir, p.Status, string(tagsJSON), p.Notes,
+		p.DeployHost, p.ProjectDir, p.Status, string(tagsJSON), p.Notes, p.DesignID,
 	)
 	if err != nil {
 		// A concurrent registration may have claimed the project directory in
@@ -360,7 +361,7 @@ func scanProject(row interface {
 	err := row.Scan(&p.ID, &p.CreatedAt, &p.UpdatedAt, &p.Name, &p.Description, &p.Framework,
 		&p.FrameworkVersion, &p.URL, &p.NetlifySiteID, &p.DeployHost, &p.ProjectDir,
 		&p.Status, &tagsStr, &lastEdited, &p.LastEditReason, &lastDeployed, &p.LastDeployURL,
-		&p.KnownProblems, &p.LighthouseScore, &p.Notes)
+		&p.KnownProblems, &p.LighthouseScore, &p.Notes, &p.DesignID)
 	if err != nil {
 		return nil, err
 	}
@@ -379,7 +380,7 @@ func scanProject(row interface {
 	return &p, nil
 }
 
-const hpSelectCols = "id, created_at, updated_at, name, description, framework, framework_version, url, netlify_site_id, deploy_host, project_dir, status, tags, last_edited_at, last_edit_reason, last_deployed_at, last_deploy_url, known_problems, lighthouse_score, notes"
+const hpSelectCols = "id, created_at, updated_at, name, description, framework, framework_version, url, netlify_site_id, deploy_host, project_dir, status, tags, last_edited_at, last_edit_reason, last_deployed_at, last_deploy_url, known_problems, lighthouse_score, notes, design_id"
 
 // GetProject retrieves a project by ID.
 func GetProject(db *sql.DB, id int64) (*HomepageProject, error) {
@@ -499,7 +500,7 @@ func UpdateProject(db *sql.DB, id int64, fields map[string]interface{}) error {
 	allowed := map[string]bool{
 		"name": true, "description": true, "framework": true, "framework_version": true,
 		"url": true, "netlify_site_id": true, "deploy_host": true, "project_dir": true,
-		"status": true, "tags": true, "notes": true,
+		"status": true, "tags": true, "notes": true, "design_id": true,
 	}
 
 	var setClauses []string

@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -80,6 +82,51 @@ func TestDispatchHomepageInitProjectRegistersProjectDir(t *testing.T) {
 	}
 	if proj.Name != "site-a" {
 		t.Fatalf("registered project name = %q, want site-a", proj.Name)
+	}
+}
+
+func TestDispatchHomepageInitProjectAppliesSelectedDesign(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Homepage.Enabled = true
+	cfg.Homepage.AllowContainerManagement = true
+	cfg.Docker.Host = "tcp://127.0.0.1:1"
+	workspace := t.TempDir()
+	cfg.Homepage.WorkspacePath = workspace
+	db, err := tools.InitHomepageRegistryDB(t.TempDir() + "/homepage.db")
+	if err != nil {
+		t.Fatalf("InitHomepageRegistryDB failed: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+
+	output, ok := dispatchServices(context.Background(), ToolCall{
+		Reason:    "Homepage design regression fixture",
+		Action:    "homepage",
+		Operation: "init_project",
+		Framework: "html",
+		Name:      "site-design",
+		Params:    map[string]interface{}{"design": "genesis"},
+	}, &DispatchContext{Cfg: cfg, Logger: testLogger, HomepageRegistryDB: db})
+	if !ok {
+		t.Fatal("expected homepage operation to be handled")
+	}
+	if !strings.Contains(output, `"design_applied":true`) {
+		t.Fatalf("expected the design to be applied, got %s", output)
+	}
+
+	data, err := os.ReadFile(filepath.Join(workspace, "site-design", "DESIGN.md"))
+	if err != nil {
+		t.Fatalf("the project must carry its DESIGN.md: %v", err)
+	}
+	if !strings.Contains(string(data), "## Colors") {
+		t.Fatalf("DESIGN.md does not carry the template:\n%s", data)
+	}
+
+	stored, err := tools.GetHomepageProjectDesign(db, "site-design")
+	if err != nil {
+		t.Fatalf("read the project design: %v", err)
+	}
+	if stored != "genesis" {
+		t.Fatalf("stored design = %q, want genesis", stored)
 	}
 }
 
@@ -513,5 +560,30 @@ func TestHomepageLedgerFailureAfterDeployForbidsBlindRetry(t *testing.T) {
 		if !strings.Contains(raw, field) {
 			t.Fatal(raw)
 		}
+	}
+}
+
+// The design id reaches init_project through the raw argument bag: the top
+// level key "design" carries an object for game_maker_project set_design, so
+// it must never become a typed string field of the tool call.
+func TestHomepageDesignArgumentKeepsGameMakerDesignObjectIntact(t *testing.T) {
+	homepageCall := ParseToolCall(`{"action":"homepage","operation":"init_project","name":"site-a","framework":"html","design":"genesis"}`)
+	if homepageCall.Action != "homepage" || homepageCall.Operation != "init_project" {
+		t.Fatalf("homepage call was not parsed: %+v", homepageCall)
+	}
+	if got := decodeHomepageArgs(homepageCall).Design; got != "genesis" {
+		t.Fatalf("homepage design = %q, want genesis", got)
+	}
+
+	gameMakerCall := ParseToolCall(`{"action":"game_maker_project","operation":"set_design","design":{"base":"shooter"}}`)
+	if gameMakerCall.Action != "game_maker_project" || gameMakerCall.Operation != "set_design" {
+		t.Fatalf("game maker call was not parsed: %+v", gameMakerCall)
+	}
+	design, _ := gameMakerCall.Params["design"].(map[string]interface{})
+	if design["base"] != "shooter" {
+		t.Fatalf("game maker design = %#v, want the raw object", gameMakerCall.Params["design"])
+	}
+	if got := decodeHomepageArgs(gameMakerCall).Design; got != "" {
+		t.Fatalf("a design object must not become a design id, got %q", got)
 	}
 }

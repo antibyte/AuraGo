@@ -53,7 +53,7 @@
             selectedSiteId: 0, selectedSiteName: '', busyStart: 0,
             busyTimer: null, persistTimer: null, refreshTimer: null,
             listeners: [],
-            modules: { preview: null, sites: null, history: null, annotate: null }
+            modules: { preview: null, sites: null, history: null, annotate: null, designs: null }
         };        instances.set(windowId, state);
 
         const suggestions = [
@@ -187,6 +187,7 @@
                                 <button type="button" class="vd-hp-preview-tab" id="hp-tab-history-${windowId}" role="tab" aria-selected="false" aria-controls="hp-panel-history-${windowId}" tabindex="-1">
                                     ${esc(t('homepage_studio.history_tab'))}
                                 </button>
+                                ${window.HomepageStudioDesigns ? window.HomepageStudioDesigns.tabMarkup(windowId, esc, tr) : ''}
                             </div>
                             <button type="button" class="vd-hp-icon-btn" id="hp-collapse-inspector-${windowId}" title="${esc(t('homepage_studio.collapse_panel'))}" aria-label="${esc(t('homepage_studio.collapse_panel'))}">
                                 ${iconMarkup('chevron-right', '›', 'vd-hp-btn-icon', 14)}
@@ -212,6 +213,7 @@
                                     <div class="vd-hp-history-empty">${esc(t('homepage_studio.history_loading'))}</div>
                                 </div>
                             </div>
+                            ${window.HomepageStudioDesigns ? window.HomepageStudioDesigns.panelMarkup(windowId) : ''}
                         </div>
                     </aside>
                 </div>
@@ -240,10 +242,10 @@
         const toggleInspectorBtn = $(`hp-toggle-inspector-${windowId}`);
         const collapseChatBtn = $(`hp-collapse-chat-${windowId}`);
         const collapseInspectorBtn = $(`hp-collapse-inspector-${windowId}`);
-        const sitesTab = $(`hp-tab-sites-${windowId}`);
-        const historyTab = $(`hp-tab-history-${windowId}`);
-        const sitesPanel = $(`hp-panel-sites-${windowId}`);
-        const historyPanel = $(`hp-panel-history-${windowId}`);
+        /* The inspector tabs share one switch: every panel registers its key. */
+        const inspectorTabs = [
+            { key: 'sites', tab: $(`hp-tab-sites-${windowId}`), panel: $(`hp-panel-sites-${windowId}`) },
+            { key: 'history', tab: $(`hp-tab-history-${windowId}`), panel: $(`hp-panel-history-${windowId}`), load: loadHistoryPanel }];
         const sitePill = $(`hp-site-pill-${windowId}`);
         const agentPill = $(`hp-agent-pill-${windowId}`);
         const agentElapsed = $(`hp-agent-elapsed-${windowId}`);
@@ -323,6 +325,9 @@
                 onSiteSelected: (siteId, detail) => {
                     state.selectedSiteId = siteId || 0;
                     state.selectedSiteName = detail ? (detail.name || detail.project_dir || '') : '';
+                    /* The design belongs to one site: a site without a design must not
+                       inherit the design of the site that was selected before. */
+                    if (state.modules.designs) state.modules.designs.setSite(detail);
                     updateSitePill(detail);
                     if (state.modules.history) state.modules.history.setProjectId(state.selectedSiteId);
                     if (state.lastStatus) refreshHomepageTargets(state.lastStatus);
@@ -359,6 +364,10 @@
             });
         }
 
+        /* Design templates: the catalog ships with AuraGo, the selection binds to one site. */
+        state.modules.designs = window.HomepageStudioDesigns ? window.HomepageStudioDesigns.create({ api, esc, t, notify, readonly, container: $(`hp-designs-list-${windowId}`), isDisposed: () => state.disposed, onDesignChange: () => schedulePersist() }) : null;
+        if (state.modules.designs) inspectorTabs.push({ key: 'designs', tab: $(`hp-tab-designs-${windowId}`), panel: $(`hp-panel-designs-${windowId}`), load: () => state.modules.designs.load() });
+
         function updateSitePill(detail) {
             const liveFrame = previewFrame ? previewFrame.querySelector('.vd-hp-preview-iframe') : null;
             if (liveFrame) liveFrame.title = previewFrameTitle();
@@ -384,9 +393,9 @@
                 state.selectedSiteId = Number(draft.selectedSiteId) || 0;
             }
             if (state.modules.history) state.modules.history.syncFilters(draft.historyQuery, draft.historyFilter);
-            const restoredTab = draft.inspectorTab === 'history' ? 'history' : 'sites';
+            if (state.modules.designs) state.modules.designs.setSelectedId(draft.designId || '');
+            const restoredTab = inspectorTabs.some(entry => entry.key === draft.inspectorTab) ? draft.inspectorTab : 'sites';
             switchPanel(restoredTab);
-            if (restoredTab === 'history') loadHistoryPanel();
         }
         /* Chat */
         autoResizeTextarea(chatInput);
@@ -436,13 +445,12 @@
         listen(collapseChatBtn, 'click', () => setCollapsed('chat', true));
         listen(collapseInspectorBtn, 'click', () => setCollapsed('inspector', true));
 
-        listen(sitesTab, 'click', () => selectTab(sitesTab, false));
-        listen(historyTab, 'click', () => selectTab(historyTab, false));
+        inspectorTabs.forEach(entry => listen(entry.tab, 'click', () => switchPanel(entry.key, false)));
 
         /* WAI-ARIA tabs pattern: arrow keys move selection and focus. */
         listen(tabList, 'keydown', event => {
             if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight' && event.key !== 'Home' && event.key !== 'End') return;
-            const tabs = [sitesTab, historyTab];
+            const tabs = inspectorTabs.map(entry => entry.tab);
             const currentIndex = tabs.indexOf(document.activeElement);
             if (currentIndex < 0) return;
             event.preventDefault();
@@ -451,7 +459,7 @@
             else if (event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
             else if (event.key === 'Home') nextIndex = 0;
             else nextIndex = tabs.length - 1;
-            selectTab(tabs[nextIndex], true);
+            switchPanel(inspectorTabs[nextIndex].key, true);
         });
 
         listen(root, 'keydown', e => {
@@ -784,33 +792,20 @@
             }
         }
 
-        function switchPanel(panel) {
-            state.inspectorTab = panel === 'history' ? 'history' : 'sites';
-            const historyActive = state.inspectorTab === 'history';
-            historyTab.classList.toggle('is-active', historyActive);
-            historyTab.setAttribute('aria-selected', historyActive ? 'true' : 'false');
-            sitesTab.classList.toggle('is-active', !historyActive);
-            sitesTab.setAttribute('aria-selected', historyActive ? 'false' : 'true');
-            historyTab.setAttribute('tabindex', historyActive ? '0' : '-1');
-            sitesTab.setAttribute('tabindex', historyActive ? '-1' : '0');
-            historyPanel.classList.toggle('is-active', historyActive);
-            sitesPanel.classList.toggle('is-active', !historyActive);
-            if (historyActive) {
-                historyPanel.removeAttribute('hidden');
-                sitesPanel.setAttribute('hidden', '');
-            } else {
-                sitesPanel.removeAttribute('hidden');
-                historyPanel.setAttribute('hidden', '');
-            }
+        function switchPanel(key, moveFocus) {
+            state.inspectorTab = key;
+            inspectorTabs.forEach(entry => {
+                const active = entry.key === key;
+                entry.tab.classList.toggle('is-active', active);
+                entry.tab.setAttribute('aria-selected', active ? 'true' : 'false');
+                entry.tab.setAttribute('tabindex', active ? '0' : '-1');
+                entry.panel.classList.toggle('is-active', active);
+                entry.panel.toggleAttribute('hidden', !active);
+            });
+            const entry = inspectorTabs.find(item => item.key === key);
+            if (entry && entry.load) entry.load();
+            if (entry && moveFocus) entry.tab.focus();
             schedulePersist();
-        }
-
-        function selectTab(tab, moveFocus) {
-            if (!tab) return;
-            const historyActive = tab === historyTab;
-            switchPanel(historyActive ? 'history' : 'sites');
-            if (historyActive) loadHistoryPanel();
-            if (moveFocus) tab.focus();
         }
 
         /* The chat log is a transcript, not a live region: the streaming bubble
@@ -929,6 +924,7 @@
                 target: state.target,
                 homepage_mode: true,
                 window_context: homepageWindowContext(),
+                ...(state.modules.designs ? state.modules.designs.chatContext() : {}),
                 ...(marks ? marks.context : {})
             };
 
@@ -1064,6 +1060,7 @@
                 chatWidth: state.chatWidth,
                 inspectorWidth: state.inspectorWidth,
                 selectedSiteId: state.selectedSiteId,
+                designId: state.modules.designs ? state.modules.designs.getSelectedId() : '',
                 historyQuery: filters.query,
                 historyFilter: filters.filter,
                 savedAt: Date.now()

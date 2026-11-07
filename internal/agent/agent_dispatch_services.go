@@ -1059,10 +1059,17 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					execEnv := homepageExecEnvForCommand(vault, req.Command)
 					return "Tool Output: " + tools.HomepageExec(homepageCfg, req.Command, execEnv, logger)
 				case "init_project":
-					logger.Info("LLM requested homepage init_project", "framework", req.Framework, "name", req.Name, "template", req.Template)
-					result := tools.HomepageInitProject(homepageCfg, req.Framework, req.Name, req.Template, logger)
+					logger.Info("LLM requested homepage init_project", "framework", req.Framework, "name", req.Name, "template", req.Template, "design", req.Design)
+					result := tools.HomepageInitProjectWithDesign(homepageCfg, req.Framework, req.Name, req.Template, req.Design, logger)
 					projectDir := homepageProjectDirFromResult(result, req.Name)
 					result = withHomepageResultFields(result, map[string]interface{}{"project_dir": projectDir})
+					/* The binding belongs to the project: the studio shows it and the
+					   chat carries it into the next turn. */
+					if strings.TrimSpace(req.Design) != "" && homepageRegistryDB != nil {
+						if err := tools.SetHomepageProjectDesign(homepageRegistryDB, projectDir, req.Design); err != nil {
+							logger.Warn("Homepage design could not be stored in the registry", "project_dir", projectDir, "design", req.Design, "error", err)
+						}
+					}
 					return "Tool Output: " + result
 
 				case "build":
