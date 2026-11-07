@@ -1,4 +1,7 @@
-"""Build the game's original chamber-score loops from pinned Earshot instrument takes.
+"""Build the original Earshot chamber-score loops (unused masters) and ship the effect sounds.
+
+The runtime room music is the YuE2 song set built by build-songs.mjs. The eight Earshot loops
+are written to masters/audio/loops/ only: they are not in the runtime payload or the manifest.
 
 Authoring uses committed Earshot 0.4 instrument takes, numpy, soundfile and FFmpeg.
 Runtime needs only the resulting local Ogg/WAV files.
@@ -19,6 +22,8 @@ import soundfile as sf
 ROOT = Path(__file__).resolve().parent
 REPO = ROOT.parents[1]
 OUT = REPO / "ui/img/goldfish-adventure/audio"
+LOOPS = ROOT / "masters/audio/loops"
+LOOPS.mkdir(parents=True, exist_ok=True)
 SAMPLES = ROOT / "masters/audio/samples"
 SR = 48000
 SOURCES = REPO / "internal/gamemaker/asset_packs/aurago-sounds"
@@ -107,14 +112,9 @@ for name, bpm, tonic, motif, ambience in THEMES:
     mix *= 10 ** (-8 / 20) / max(peak, 1e-8)
     master = ROOT / ("masters/audio/" + name + ".wav")
     sf.write(master, mix, SR, subtype="PCM_24")
-    target = OUT / (name + ".ogg")
+    target = LOOPS / (name + ".ogg")
     subprocess.run([FFMPEG, "-hide_banner", "-loglevel", "error", "-y", "-i", str(master),
                     "-c:a", "libvorbis", "-q:a", "5", str(target)], check=True)
-    records.append(dict(id=name, path="audio/" + target.name,
-                        duration=round(len(mix) / SR, 3), bpm=bpm, bars=bars,
-                        source="Original score; Earshot mallet instruments",
-                        ambience=ambience, peak_db=-8,
-                        sha256=hashlib.sha256(target.read_bytes()).hexdigest()))
     print("Composed", name, round(length, 1), "s", flush=True)
 
 # Actual recorded metal impact plus original local cues already owned by AuraGo.
@@ -126,8 +126,11 @@ for name in ["door-metal", "water-splash", "ui-click", "electric-spark"]:
                         source="AuraGo presentation pack; see audio-notices.txt",
                         sha256=hashlib.sha256(target.read_bytes()).hexdigest()))
 shutil.copyfile(ROOT / "audio-notices.txt", OUT / "audio-notices.txt")
-(ROOT / "audio-manifest.json").write_text(
-    json.dumps(dict(version=1, sample_rate=SR, earshot_version="0.4.0",
-                    bank="forge_v2r6+forge04r1+fit1+pluck1", assets=records),
-               ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
+manifest_path = ROOT / "audio-manifest.json"
+manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+# Keep the room songs written by build-songs.mjs; refresh only the effect entries.
+keep = [a for a in manifest["assets"] if a["id"].startswith("song-")]
+manifest["assets"] = keep + records
+manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+                         encoding="utf-8", newline="\n")
 print("Built", len(records), "audio assets")

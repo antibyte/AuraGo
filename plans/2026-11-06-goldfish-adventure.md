@@ -20,7 +20,8 @@ Human duration, replay, editorial, listening and hardware acceptance remain open
   icon and decorative dialogue frame. Ten sprite definitions use 108 distinct
   character/monitor/aquarium poses, 56 clip definitions and 14 authored moments.
   The original 90–120 clip estimate has not been reached and is not claimed.
-- Eight original chamber-score loops, local ambience and four effects, with
+- Sixteen generated room songs (YuE2 Studio, one per room, quiet loop; licence terms
+  unverified) and four effects, with
   source notices, reproducible composition inputs and measured audio levels.
   There is no voice cast. Sound is initially muted and gesture-gated.
 - Three manual saves, autosave, four chapter checkpoints, three branch checkpoints

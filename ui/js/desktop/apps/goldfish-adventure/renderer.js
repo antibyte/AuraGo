@@ -73,12 +73,18 @@
             });
         }
 
+        // Room songs play quietly under the speech; the level comes from the manifest (`audioVolume`, 0..1).
+        function musicVolume() {
+            const value = Number(manifest?.audioVolume);
+            return Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 0.15;
+        }
+
         function syncAudio() {
             if (!scene?.audio || !assetPath(scene.audio) || !unlocked || !state?.settings.sound || paused || disposed) {
                 if (audio) audio.pause();
                 return;
             }
-            if (!audio) { audio = new Audio(scene.audio); audio.loop = true; audio.volume = 0.3; }
+            if (!audio) { audio = new Audio(scene.audio); audio.loop = true; audio.volume = musicVolume(); }
             audio.play().catch(() => options.onAudioBlocked?.());
         }
 

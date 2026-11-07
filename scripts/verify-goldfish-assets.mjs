@@ -82,7 +82,9 @@ for (const room of content.rooms) {
     }, 0);
     assert.ok(decoded <= 192 * 1024 * 1024, room.id + ' decoded image budget');
     if (stage.audio) local(stage.audio);
+    assert.equal(stage.audio, '/img/goldfish-adventure/audio/song-' + room.id.toLowerCase() + '.ogg', room.id + ' plays its own song');
 }
+assert.ok(manifest.audioVolume >= 0.05 && manifest.audioVolume <= 0.25, 'Room music must stay quiet (audioVolume 0.05-0.25)');
 let clips = 0, frames = 0;
 for (const [id, sprite] of Object.entries(manifest.sprites)) {
     for (const frame of sprite.frames) {

@@ -1,8 +1,18 @@
 Goldfish Adventure — audio sources
 
-Eight original score loops composed for this game by AuraGo contributors.
-The numeric motifs and arrangement are in build-audio.py; exact instrument
-parameters and source hashes are in audio-takes.json. No franchise music is used.
+Room music: sixteen instrumental songs (song-r01 .. song-r16, one per room), generated
+locally with YuE2 Studio from the style prompts in music-templates/ (the "Style
+(instrumental)" lines) and prepared by build-songs.mjs (trim, 3 s baked loop
+crossfade, Ogg Vorbis ~104 kbps, peak -8 dBFS). The prompt text and the SHA-256 of
+every source FLAC and Ogg are recorded in audio-manifest.json; the FLAC masters are
+not committed.
+OPEN ITEM: the licence and usage terms of the YuE2 model/Studio for use in a
+distributed game have NOT been verified. No licence is claimed for these songs here.
+Confirm the terms (model licence, any output restrictions, attribution duties) before
+a release ships them, or replace them.
+
+The earlier Earshot chamber-score loops (build-audio.py, audio-takes.json) are no
+longer part of the runtime; they remain as unused masters under masters/audio/.
 Instrument takes: Earshot 0.4.0, forge_v2r6+forge04r1+fit1+pluck1.
 
 Reused local AuraGo presentation sounds and ambience:

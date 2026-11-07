@@ -100,7 +100,7 @@ foreach ($id in $layout.sprites.Keys) {
     $spec.frames = $frames
     $sprites[$id] = $spec
 }
-$manifest = [ordered]@{version=1;rooms=$layout.rooms;sprites=$sprites;portraits=$layout.portraits;moments=$layout.moments}
+$manifest = [ordered]@{version=1;audioVolume=$layout.audioVolume;rooms=$layout.rooms;sprites=$sprites;portraits=$layout.portraits;moments=$layout.moments}
 Write-Json (Join-Path $runtime 'manifest.json') $manifest
 Write-Json (Join-Path $PSScriptRoot 'character-manifest.json') @{version=1;tool='built-in image_gen';processing='Unscaled byte copies and authored grid/row extraction only. Frame pivots use the nontransparent base/feet band.';sheets=$assets}
 Write-Output "Built $($layout.sheets.Count) sheets, $($sprites.Count) sprites and $($layout.rooms.Count) room staging entries."

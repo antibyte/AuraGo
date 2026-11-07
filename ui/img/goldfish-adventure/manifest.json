@@ -1,5 +1,6 @@
 {
   "version": 1,
+  "audioVolume": 0.15,
   "rooms": {
     "R01": {
       "background": "/img/goldfish-adventure/scenes/R01.png",
@@ -23,7 +24,7 @@
           "id": "allgut"
         }
       ],
-      "audio": "/img/goldfish-adventure/audio/second-chances.ogg",
+      "audio": "/img/goldfish-adventure/audio/song-r01.ogg",
       "layers": [
         {
           "requires": [
@@ -63,7 +64,7 @@
           "id": "allgut"
         }
       ],
-      "audio": "/img/goldfish-adventure/audio/paper-moons.ogg"
+      "audio": "/img/goldfish-adventure/audio/song-r02.ogg"
     },
     "R03": {
       "background": "/img/goldfish-adventure/scenes/R03.png",
@@ -91,7 +92,7 @@
           "id": "cafe"
         }
       ],
-      "audio": "/img/goldfish-adventure/audio/paper-moons.ogg"
+      "audio": "/img/goldfish-adventure/audio/song-r03.ogg"
     },
     "R04": {
       "background": "/img/goldfish-adventure/scenes/R04.png",
@@ -129,7 +130,7 @@
           "id": "fracht"
         }
       ],
-      "audio": "/img/goldfish-adventure/audio/borrowed-stars.ogg"
+      "audio": "/img/goldfish-adventure/audio/song-r04.ogg"
     },
     "R05": {
       "background": "/img/goldfish-adventure/scenes/R05.png",
@@ -178,7 +179,7 @@
           "id": "fracht"
         }
       ],
-      "audio": "/img/goldfish-adventure/audio/borrowed-stars.ogg"
+      "audio": "/img/goldfish-adventure/audio/song-r05.ogg"
     },
     "R06": {
       "background": "/img/goldfish-adventure/scenes/R06.png",
@@ -209,7 +210,7 @@
           "id": "aquarium"
         }
       ],
-      "audio": "/img/goldfish-adventure/audio/borrowed-stars.ogg"
+      "audio": "/img/goldfish-adventure/audio/song-r06.ogg"
     },
     "R07": {
       "background": "/img/goldfish-adventure/scenes/R07.png",
@@ -248,7 +249,7 @@
           "id": "customs"
         }
       ],
-      "audio": "/img/goldfish-adventure/audio/paper-moons.ogg"
+      "audio": "/img/goldfish-adventure/audio/song-r07.ogg"
     },
     "R08": {
       "background": "/img/goldfish-adventure/scenes/R08.png",
@@ -294,7 +295,7 @@
           "id": "robot"
         }
       ],
-      "audio": "/img/goldfish-adventure/audio/unkept-promises.ogg"
+      "audio": "/img/goldfish-adventure/audio/song-r08.ogg"
     },
     "R09": {
       "background": "/img/goldfish-adventure/scenes/R09.png",
@@ -325,7 +326,7 @@
           "id": "aquarium"
         }
       ],
-      "audio": "/img/goldfish-adventure/audio/alma.ogg"
+      "audio": "/img/goldfish-adventure/audio/song-r09.ogg"
     },
     "R10": {
       "background": "/img/goldfish-adventure/scenes/R10.png",
@@ -356,7 +357,7 @@
           "id": "aquarium"
         }
       ],
-      "audio": "/img/goldfish-adventure/audio/weather-permission.ogg"
+      "audio": "/img/goldfish-adventure/audio/song-r10.ogg"
     },
     "R11": {
       "background": "/img/goldfish-adventure/scenes/R11.png",
@@ -387,7 +388,7 @@
           "id": "aquarium"
         }
       ],
-      "audio": "/img/goldfish-adventure/audio/a-useful-no.ogg"
+      "audio": "/img/goldfish-adventure/audio/song-r11.ogg"
     },
     "R12": {
       "background": "/img/goldfish-adventure/scenes/R12.png",
@@ -426,7 +427,7 @@
           "id": "robot"
         }
       ],
-      "audio": "/img/goldfish-adventure/audio/alma.ogg"
+      "audio": "/img/goldfish-adventure/audio/song-r12.ogg"
     },
     "R13": {
       "background": "/img/goldfish-adventure/scenes/R13.png",
@@ -466,7 +467,7 @@
           "id": "allgut"
         }
       ],
-      "audio": "/img/goldfish-adventure/audio/a-useful-no.ogg"
+      "audio": "/img/goldfish-adventure/audio/song-r13.ogg"
     },
     "R14": {
       "background": "/img/goldfish-adventure/scenes/R14.png",
@@ -506,7 +507,7 @@
           "id": "allgut"
         }
       ],
-      "audio": "/img/goldfish-adventure/audio/a-useful-no.ogg"
+      "audio": "/img/goldfish-adventure/audio/song-r14.ogg"
     },
     "R15": {
       "background": "/img/goldfish-adventure/scenes/R15.png",
@@ -546,7 +547,7 @@
           "id": "allgut"
         }
       ],
-      "audio": "/img/goldfish-adventure/audio/a-useful-no.ogg"
+      "audio": "/img/goldfish-adventure/audio/song-r15.ogg"
     },
     "R16": {
       "background": "/img/goldfish-adventure/scenes/R16.png",
@@ -619,7 +620,7 @@
           ]
         }
       ],
-      "audio": "/img/goldfish-adventure/audio/the-next-question.ogg"
+      "audio": "/img/goldfish-adventure/audio/song-r16.ogg"
     }
   },
   "sprites": {

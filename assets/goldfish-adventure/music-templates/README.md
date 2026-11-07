@@ -2,9 +2,10 @@
 
 Prompts for generating one original song per room of **Bitte nicht das Universum
 füttern** with YuE2 Studio ("Create music", tab **Studio**: Style + Lyrics → full song).
-The templates are source material only. Nothing here is wired into the game yet; the
-runtime keeps playing the eight Earshot chamber-score loops listed in
-`../audio-manifest.json` until generated takes are chosen, mastered and registered.
+The templates are source material only. The runtime now plays one
+generated instrumental song per room (`song-r01` .. `song-r16`, built from the
+**Style (instrumental)** lines by `../build-songs.mjs`); the sung versions and the
+lyrics are not used by the game.
 
 ## Files
 
@@ -78,13 +79,20 @@ wants it (marked in each score header).
 
 ## Using generated audio
 
-1. Save the chosen take as WAV under `../masters/audio/yue2/<room>-<title>-<take>.wav`
-   (masters are not shipped with the UI package).
-2. Record model, version, date, settings and the generator's licence terms in
-   `../audio-notices.txt` before the file is used anywhere. Do not ship audio whose
-   licence is unclear.
-3. Mastering/looping (target peak -8 dB like the current loops) and the switch of
-   `room audio` in `../art-layout.json` are a separate step; the runtime plays one
-   `audio` path per room and loops it.
-4. Listen to every candidate in the game context. Automated checks do not establish
+The shipped songs were generated locally with YuE2 Studio (instrumental, Style
+(instrumental) line of each template). **Open item: the model/Studio licence terms for
+game use are not verified**; `../audio-notices.txt` states this and claims no licence.
+Resolve it before a release ships them.
+
+1. Export the chosen take of each room as FLAC/WAV into one folder as `R01.flac` ..
+   `R16.flac` (the masters are not committed or shipped).
+2. Run `node assets/goldfish-adventure/build-songs.mjs --sources <folder>`. It trims
+   silence, bakes a 3 s equal-power loop crossfade, scales to a -8 dBFS peak, encodes
+   `ui/img/goldfish-adventure/audio/song-<room>.ogg` and writes duration, hashes, source
+   hash, origin and style prompt into `../audio-manifest.json`.
+3. `room audio` in `../art-layout.json` (and the runtime `manifest.json`) names one song per
+   room; the runtime loops it at the manifest's `audioVolume` (0.15), sound still opt-in.
+4. Record model, version, date, settings and the generator's licence terms in
+   `../audio-notices.txt`. Do not ship audio whose licence is unclear.
+5. Listen to every candidate in the game context. Automated checks do not establish
    that a generated song is musically good.

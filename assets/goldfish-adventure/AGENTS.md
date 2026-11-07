@@ -14,8 +14,11 @@ scope lives in `../../plans/2026-11-06-goldfish-adventure.md`; runtime ownership
   foreground/state layers, room audio and authored cinematic beats.
 - `build-assets.ps1` exports unscaled PNG copies/cells and frame pivots into
   `ui/img/goldfish-adventure/`, then writes its runtime manifest.
-- `build-audio.py`, `audio-takes.json` and committed instrument takes own the
-  original score. Audio notices retain Earshot MIT and reused recording terms.
+- `build-songs.mjs` owns the shipped room music: one YuE2 Studio song per room
+  (`song-r01..r16.ogg`, FLAC masters not committed), recorded in `audio-manifest.json`.
+  `build-audio.py`, `audio-takes.json` and the instrument takes keep the former Earshot
+  loops as unused masters and ship the effects. Audio notices retain Earshot MIT, the
+  reused recording terms and the open YuE2 licence item.
 - `music-templates/` owns the YuE2 Studio prompts (title, style, ABC score header,
   lyrics) for one original song per room. They are source material: generated takes are
   local masters, recorded in `audio-notices.txt` with their licence terms before any use.
