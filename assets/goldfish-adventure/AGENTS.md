@@ -16,6 +16,9 @@ scope lives in `../../plans/2026-11-06-goldfish-adventure.md`; runtime ownership
   `ui/img/goldfish-adventure/`, then writes its runtime manifest.
 - `build-audio.py`, `audio-takes.json` and committed instrument takes own the
   original score. Audio notices retain Earshot MIT and reused recording terms.
+- `music-templates/` owns the YuE2 Studio prompts (title, style, ABC score header,
+  lyrics) for one original song per room. They are source material: generated takes are
+  local masters, recorded in `audio-notices.txt` with their licence terms before any use.
 
 ## Local Contracts
 
