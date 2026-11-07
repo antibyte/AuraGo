@@ -636,6 +636,7 @@ var desktopAppMaterialsExempt = map[string]string{
 	"/css/desktop-app-retro-games.css": "theme-independent skin: the Retro Games arcade player",
 	"/css/ha-switchboard.css":          "theme-independent skin: the walnut and brass Home Assistant switchboard cabinet",
 	"/css/go2rtc-source-form.css":      "no painted region: layout and hint rules only",
+	"/css/theme-optics.css":            "no painted region: places the shared WebGL backdrop layer; its colours come from the per-theme recipes, not from shell tokens",
 }
 
 var desktopAppStylesheetPattern = regexp.MustCompile(`'(/css/[A-Za-z0-9_.\-]+\.css)'`)

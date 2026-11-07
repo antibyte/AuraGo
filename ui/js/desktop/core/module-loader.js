@@ -157,7 +157,7 @@
             ]
         },
         'agent-chat': {
-            styles: appStyles('/css/desktop-app-chat.css', '/css/chat-modules.css', '/css/stt-overlay.css', '/css/hljs-github-dark.min.css'),
+            styles: appStyles('/css/desktop-app-chat.css', '/css/chat-modules.css', '/css/stt-overlay.css', '/css/hljs-github-dark.min.css', '/css/theme-optics.css'),
             scripts: [
                 '/js/vendor/markdown-it.min.js',
                 '/js/vendor/highlight.min.js',
@@ -169,6 +169,9 @@
                 '/js/chat/modules/speech-to-text.js',
                 '/js/chat/modules/mermaid-loader.js',
                 '/js/desktop/chat-renderer.js',
+                '/js/shared/theme-optics-core.js',
+                '/js/desktop/apps/agent-chat-optics-recipes.js',
+                '/js/desktop/apps/agent-chat-optics.js',
                 '/js/desktop/apps/agent-chat.js'
             ]
         },

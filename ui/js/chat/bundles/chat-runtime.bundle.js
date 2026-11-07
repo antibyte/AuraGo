@@ -957,6 +957,7 @@
     'use strict';
 
     const effectPromises = new Map();
+    let opticsPromise = null;
     const EFFECTS = {
         'retro-crt': {
             scripts: [
@@ -1002,6 +1003,15 @@
         }
     };
 
+    // Theme optics are a shared WebGL backdrop that every chat theme gets. The
+    // scripts load once, independent of the theme: the controller swaps the
+    // recipe when the theme changes, so switching themes never reloads a shader.
+    const OPTICS_SCRIPTS = [
+        '/js/shared/theme-optics-core.js',
+        '/js/chat/theme-optics-recipes.js',
+        '/js/chat/theme-optics.js'
+    ];
+
     function assets() {
         if (window.AuraLazyAssets) return window.AuraLazyAssets;
         return {
@@ -1039,21 +1049,40 @@
         return promise;
     }
 
+    // The optics backdrop is theme independent, so it loads once for the page.
+    function ensureOptics() {
+        if (opticsPromise) return opticsPromise;
+        opticsPromise = assets().loadAll({ scripts: OPTICS_SCRIPTS }).then(() => {
+            window.dispatchEvent(new CustomEvent('aurago:theme-optics-loaded', { detail: { theme: currentTheme() } }));
+            return true;
+        }).catch(err => {
+            opticsPromise = null;
+            console.warn('[AuraGo] Failed to load chat theme optics', err);
+            return false;
+        });
+        return opticsPromise;
+    }
+
     function currentTheme() {
         return document.documentElement.getAttribute('data-theme') || 'dark';
     }
 
-    window.AuraChatThemeEffects = { ensure };
+    window.AuraChatThemeEffects = { ensure, ensureOptics };
 
     window.addEventListener('aurago:themechange', event => {
         const theme = event && event.detail && event.detail.theme ? event.detail.theme : currentTheme();
         ensure(theme).catch(() => { });
+        ensureOptics();
     });
 
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => ensure(currentTheme()).catch(() => { }), { once: true });
+        document.addEventListener('DOMContentLoaded', () => {
+            ensure(currentTheme()).catch(() => { });
+            ensureOptics();
+        }, { once: true });
     } else {
         ensure(currentTheme()).catch(() => { });
+        ensureOptics();
     }
 })();
 

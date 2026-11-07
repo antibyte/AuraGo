@@ -268,6 +268,13 @@
         initScrollFab(host);
         setDesktopChatBusy(host, false);
 
+        // Theme optics: one WebGL backdrop that follows the desktop theme.
+        if (window.AuraDesktopChatOptics && typeof window.AuraDesktopChatOptics.mount === 'function') {
+            try {
+                host._desktopChatOptics = window.AuraDesktopChatOptics.mount(host);
+            } catch (_) { /* optics are optional */ }
+        }
+
         ensureDesktopChatPersona().finally(() => loadDesktopChatHistory(host).finally(() => applyChatLaunchContext(id, context || {})));
 
         const clearHistory = host.querySelector('[data-chat-clear-history]');
@@ -1405,6 +1412,10 @@
             if (typeof host._realtimeSpeechDisplayCleanup === 'function') {
                 try { host._realtimeSpeechDisplayCleanup(); } catch (_) {}
                 host._realtimeSpeechDisplayCleanup = null;
+            }
+            if (host._desktopChatOptics && typeof host._desktopChatOptics.dispose === 'function') {
+                try { host._desktopChatOptics.dispose(); } catch (_) {}
+                host._desktopChatOptics = null;
             }
             host.dataset.chatFiles = '';
             host.dataset.chatWindowContext = '';

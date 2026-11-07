@@ -1,0 +1,76 @@
+/* ════════════════════════════════════════════════════════════════════════════
+   THEME OPTICS — shared WebGL backdrop
+   ---------------------------------------------------------------------------
+   The chat page and the virtual desktop agent chat both mount one WebGL canvas
+   that paints the light behaviour of the active theme behind the conversation.
+   The engine (js/shared/theme-optics-core.js) owns the pixels; this file owns
+   the placement:
+
+     #aurago-chat-optics          the chat page layer
+     .vd-chat-optics-canvas       the virtual desktop agent chat layer
+
+   Both layers sit inside their scrolling surface and behind the messages. The
+   engine pins them to the scrollport, so the light stays put while the
+   conversation scrolls. Neither layer takes pointer events.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Chat page ──────────────────────────────────────────────────────────── */
+
+/* The engine sets the inline top while the chat scrolls, so the box must not
+   be stretched by a bottom offset. */
+#aurago-chat-optics {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 420ms ease;
+}
+
+/* The layer fades in once the engine has painted its first frame. */
+#aurago-chat-optics.is-ready {
+    opacity: 1;
+}
+
+/* ── Virtual desktop agent chat ─────────────────────────────────────────── */
+
+.vd-chat-optics-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 420ms ease;
+}
+
+.vd-chat-optics-canvas.is-ready {
+    opacity: 1;
+}
+
+/* The log scrolls, so the canvas is pinned to the scrollport by the engine. */
+.vd-chat-log {
+    position: relative;
+}
+
+.vd-chat-log > .vd-chat-message-row,
+.vd-chat-log > .vd-chat-welcome {
+    position: relative;
+    z-index: 1;
+}
+
+/* ── Reduced motion ─────────────────────────────────────────────────────── */
+
+/* The engine already renders a single still frame; this keeps the layer from
+   fading in, so a reduced-motion visitor sees the theme's static light. */
+@media (prefers-reduced-motion: reduce) {
+    #aurago-chat-optics,
+    .vd-chat-optics-canvas {
+        transition: none;
+    }
+}

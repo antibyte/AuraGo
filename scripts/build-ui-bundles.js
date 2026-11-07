@@ -276,6 +276,7 @@ const cssBundles = [
       'ui/css/enhancements.css',
       'ui/css/chat-themes.css',
       'ui/css/chat-header-controls.css',
+      'ui/css/theme-optics.css',
       'ui/css/chat-standard.css'
     ]
   }
