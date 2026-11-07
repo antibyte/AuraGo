@@ -556,6 +556,9 @@ New app-scoped prefixes must contain no `ad` substring; verify
   Healthy uncapped stems add a node each server hour. Scheduled snapshots must
   redraw this growth even when no care action changes the revision.
   Drag the pot or its grip with mouse/touch; a click/tap still opens care.
+  Opening care on touch release consumes the same pointer's trailing click in
+  capture phase, including when the new panel lies under the finger. Keyboard
+  activation and subsequent independent touch gestures remain available.
   Keep desktop selection out of these gestures, persist the local anchor on
   release, and clear drag capture/offsets on cancellation, blur and disposal.
   Pruning uses a 64px scissors cursor and a direct primary click/tap on a stem.
@@ -1224,6 +1227,11 @@ New app-scoped prefixes must contain no `ad` substring; verify
 - Static contracts: `go test -count=1 ./ui/... -run 'Precision|Config|I18N'`.
 - Operational stylesheet integration and cache release keys:
   `go test -count=1 ./ui/... -run 'TestPrecisionOperationalStylesAreIntegratedAndPageScoped|TestPrecisionChangedPageAssetsUseReleaseBuildVersion'`.
+- Setup bootstrap fixtures load shared-core before setup main, retaining the real
+  toast renderer. GitHub permission journeys use native pointer clicks and confirm
+  the existing delete-permission dialog, first asserting that the grant stays off.
+  Fritz!Box mouse-pager fixtures declare
+  hover-capable pointer hardware; touch layouts intentionally hide its arrows.
 - Browser contracts (Chrome or Edge):
   `$env:AURAGO_RUN_BROWSER_SMOKE='1'; $env:AURAGO_BROWSER_ARTIFACT_DIR='../disposable/browser-artifacts'; go test -count=1 ./ui/... -run 'Precision.*Browser|Config.*Browser'`.
 - Browser discovery honors `CHROME_BIN`, then PATH and standard Windows/macOS locations. An explicit override must be executable; it never silently falls back. With `AURAGO_RUN_BROWSER_SMOKE=1`, missing browsers and launch failures fail the test. Security Gates partitions the full UI package into populated-config, config-layout, General and three Desktop name ranges (`A-G`, `H-R`, `S-Z`) with independent timeouts and fail-fast disabled; the audit package checks that each test belongs to exactly one job.

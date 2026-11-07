@@ -19,6 +19,9 @@ func openSetupWithStatus(t *testing.T, path, statusJS string) *rod.Page {
 	html := renderUIPageWith(t, "setup.html", uiPageOptions{TemplateDataJSON: "{}"})
 	html = regexp.MustCompile(`(?is)<script\s+src="[^"]+"[^>]*></script>`).ReplaceAllString(html, "")
 	page.MustSetDocumentContent(html)
+	if err := page.AddScriptTag("", normalizeAssetText(mustReadUIFile(t, "js/shared/shared-core.js"))); err != nil {
+		t.Fatal(err)
+	}
 	page.MustEval(`() => {
         window.t = key => key;
         window.__setupRequests = [];

@@ -36,6 +36,19 @@ window.t=key=>key;
 </script>
 <script src="/js/shared/lazy-assets.js"></script>
 <script src="/js/desktop/screensavers/host.js"></script>
+<script>
+window.fixtureSceneSample=null;
+const registerScene=AuraScreensavers.register;
+AuraScreensavers.register=(id,factory,meta)=>registerScene(id,async opts=>{
+    const scene=await factory(opts), frame=scene.frame;
+    scene.frame=function(t,dt){
+        const at=Number.isFinite(window.fixtureSceneSample)?window.fixtureSceneSample:t;
+        window.fixtureLastSceneSample=at;
+        return frame.call(scene,at,dt);
+    };
+    return scene;
+},meta);
+</script>
 </body></html>`
 
 func newScreensaverBrowser(t *testing.T) (*rod.Browser, func()) {
@@ -49,7 +62,7 @@ func newScreensaverBrowser(t *testing.T) (*rod.Browser, func()) {
 	if os.Getenv("AURAGO_SCREENSAVER_GPU") == "1" {
 		l = l.Set("use-angle", "d3d11").Set("enable-gpu").Set("ignore-gpu-blocklist")
 	} else {
-		l = l.Set("enable-unsafe-swiftshader")
+		l = l.Set("use-angle", "swiftshader").Set("enable-unsafe-swiftshader")
 	}
 	url, err := l.Launch()
 	if err != nil {
@@ -134,21 +147,30 @@ func TestDesktopScreensaverScenesBrowser(t *testing.T) {
 		themes = strings.Split(only, ",")
 	}
 	shots := []float64{2.5, 7}
+	benchmark := os.Getenv("AURAGO_SCREENSAVER_BENCHMARK") == "1"
 	if os.Getenv("AURAGO_SCREENSAVER_LONG") == "1" {
 		shots = []float64{2.5, 8, 16, 28}
 	}
 	for _, theme := range themes {
 		theme := strings.TrimSpace(theme)
 		t.Run(theme, func(t *testing.T) {
-			page.MustEval(`theme=>AuraScreensaverHost.start({theme, clock:true, reducedMotion:false, lang:'de', t:window.t})`, theme)
+			nativeTime := benchmark || theme == "ink" // Ink accumulates a feedback simulation.
+			page.MustEval(`theme=>{window.fixtureSceneSample=null;return AuraScreensaverHost.start({theme, clock:true, reducedMotion:false, lang:'de', t:window.t});}`, theme)
 			page.Timeout(90 * time.Second).MustWait(`()=>{const c=AuraScreensaverHost.inspect().current;return !!c && (c.frames>=3 || c.state==='poster')}`)
 			report := page.MustEval(`()=>JSON.stringify(AuraScreensaverHost.inspect().current)`).Str()
 			if strings.Contains(report, `"state":"poster"`) {
 				t.Fatalf("%s fell back to the poster: %s", theme, report)
 			}
 			for i, at := range shots {
-				page.Timeout(3*time.Minute).MustWait(`at=>{const c=AuraScreensaverHost.inspect().current;return !!c && c.time>=at}`, at)
+				if nativeTime {
+					page.Timeout(3*time.Minute).MustWait(`at=>{const c=AuraScreensaverHost.inspect().current;return !!c && c.time>=at}`, at)
+				} else {
+					page.MustEval(`at=>{window.fixtureSceneSample=at;}`, at)
+				}
 				raw := page.Timeout(60 * time.Second).MustEval(`async()=>JSON.stringify(await AuraScreensaverHost.probe())`).Str()
+				if !nativeTime && page.MustEval(`()=>fixtureLastSceneSample`).Num() != at {
+					t.Fatal("screensaver probe did not render the requested scene time")
+				}
 				var probe screensaverProbe
 				if err := json.Unmarshal([]byte(raw), &probe); err != nil {
 					t.Fatalf("%s probe decode %q: %v", theme, raw, err)
@@ -164,7 +186,7 @@ func TestDesktopScreensaverScenesBrowser(t *testing.T) {
 					page.MustScreenshot(filepath.Join(artifacts, fmt.Sprintf("%s-%d.png", theme, i)))
 				}
 			}
-			if os.Getenv("AURAGO_SCREENSAVER_BENCHMARK") == "1" {
+			if benchmark {
 				bench := page.Timeout(3 * time.Minute).MustEval(`async()=>JSON.stringify(await AuraScreensaverHost.benchmark(120))`).Str()
 				t.Logf("%s benchmark=%s", theme, bench)
 			}
@@ -353,6 +375,7 @@ window.WebSocket=class extends EventTarget { close(){} };
 	check(`()=>DesktopScreensaver.inspect().idleMs===60000`, "idle minutes must map to milliseconds")
 
 	// Idle activation.
+	page.Mouse.MustMoveTo(640, 360)
 	page.MustEval(`()=>DesktopScreensaver.setIdleOverrideMs(1200)`)
 	page.Timeout(60 * time.Second).MustWait(`()=>{const h=DesktopScreensaver.inspect().host;return DesktopScreensaver.inspect().active && h && h.current && h.current.frames>2}`)
 	check(`()=>DesktopScreensaver.inspect().theme==='aurora' && !DesktopScreensaver.inspect().preview`, "idle activation must use the configured theme")
@@ -360,16 +383,26 @@ window.WebSocket=class extends EventTarget { close(){} };
 	shot("active")
 
 	// A real click wakes the desktop but never reaches it.
-	page.Mouse.MustMoveTo(640, 360)
+	page.MustEval(`()=>{
+        DesktopScreensaver.setIdleOverrideMs(0);
+        window.wakeActivityBefore=Date.now()-DesktopScreensaver.inspect().idleForMs;
+        window.screensaverRealNow=Date.now;
+        window.screensaverRealStop=AuraScreensaverHost.stop;
+        window.screensaverStopDelay=0;
+        Date.now=()=>screensaverRealNow()+screensaverStopDelay;
+        AuraScreensaverHost.stop=options=>{screensaverRealStop(options);screensaverStopDelay+=2000;};
+    }`)
+	time.Sleep(20 * time.Millisecond)
 	page.Mouse.MustClick(proto.InputMouseButtonLeft)
 	page.Timeout(10 * time.Second).MustWait(`()=>!DesktopScreensaver.inspect().active && !document.getElementById('vd-screensaver')`)
 	check(`()=>window.desktopClicks===0`, "the waking click must be swallowed")
+	check(`()=>Date.now()-DesktopScreensaver.inspect().idleForMs>window.wakeActivityBefore`, "waking input must restart the idle timer")
 	check(`()=>DesktopScreensaver.inspect().host.last.stoppedBy==='input'`, "wake must report input")
 	time.Sleep(600 * time.Millisecond)
 	check(`()=>!DesktopScreensaver.inspect().active`, "activity after wake must restart the idle timer")
 
 	// Fullscreen suppresses activation.
-	page.MustEval(`()=>Object.defineProperty(document,'fullscreenElement',{configurable:true,get:()=>document.body})`)
+	page.MustEval(`()=>{Date.now=screensaverRealNow;AuraScreensaverHost.stop=screensaverRealStop;DesktopScreensaver.setIdleOverrideMs(1200);Object.defineProperty(document,'fullscreenElement',{configurable:true,get:()=>document.body});}`)
 	time.Sleep(3500 * time.Millisecond)
 	check(`()=>!DesktopScreensaver.inspect().active && DesktopScreensaver.inspect().suppressedReason==='fullscreen'`, "fullscreen must suppress the screensaver")
 	page.MustEval(`()=>Object.defineProperty(document,'fullscreenElement',{configurable:true,get:()=>null})`)

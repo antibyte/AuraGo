@@ -180,7 +180,7 @@ func TestDesktopLeafyRuntimeBrowser(t *testing.T) {
 	page.Timeout(10 * time.Second).MustElement("[data-action='replant']").MustClick()
 	page.Timeout(10 * time.Second).MustWait(`()=>AuraLeafy.active.metrics().revision===1`)
 	page.MustScreenshot(filepath.Join(dir, "desktop-seedling.png"))
-	page.MustElement(".vd-leafy-panel [data-action='close']").MustClick()
+	page.Timeout(10 * time.Second).MustElement(".vd-leafy-panel [data-action='close']").MustClick()
 	pot := page.MustEval(`()=>{const r=document.querySelector('.vd-leafy-pot').getBoundingClientRect();window.beforePotDrag={...AuraLeafy.active.layout.root};return{x:r.x+r.width/2,y:r.y+r.height/2}}`)
 	page.Mouse.MustMoveTo(pot.Get("x").Num(), pot.Get("y").Num()).MustDown(proto.InputMouseButtonLeft).MustMoveTo(pot.Get("x").Num()+150, pot.Get("y").Num()-70).MustUp(proto.InputMouseButtonLeft)
 	if !page.MustEval(`()=>{const a=AuraLeafy.active.layout.root;return a.x>beforePotDrag.x+140&&a.y>beforePotDrag.y+60&&!!localStorage.getItem('aurago.leafy.anchor.v1')&&document.querySelector('.vd-leafy-panel').hidden&&!document.querySelector('[data-selection-marquee]')}`).Bool() {
@@ -250,7 +250,8 @@ func TestDesktopLeafyRuntimeBrowser(t *testing.T) {
 	if err := page.Timeout(5 * time.Second).Wait(rod.Eval(`()=>!document.querySelector('.vd-leafy-panel').hidden`)); err != nil {
 		t.Fatal("touch tap did not open care", page.MustEval(`()=>JSON.stringify(leafyTouchEvents)`).Str())
 	}
-	page.MustElement(".vd-leafy-panel [data-action='close']").MustClick()
+	page.MustEval(`()=>{if(document.querySelector('.vd-modal-backdrop'))throw Error('Opening care passed the touch click into a panel action');}`)
+	page.Timeout(10 * time.Second).MustElement(".vd-leafy-panel [data-action='close']").MustClick()
 	page.Touch.MustStart(&proto.InputTouchPoint{X: touchPot.Get("x").Num(), Y: touchPot.Get("y").Num()}).MustMove(&proto.InputTouchPoint{X: touchPot.Get("x").Num() - 40, Y: touchPot.Get("y").Num() - 20}).MustCancel()
 	page.MustEval(`()=>{if(document.querySelector('.vd-leafy-dragging')||document.querySelector('.vd-leafy-canvas').style.transform)throw Error('Cancelled touch left a drag active')}`)
 	page.MustSetViewport(1920, 1080, 1, false)
@@ -336,7 +337,9 @@ func TestDesktopLeafyRuntimeBrowser(t *testing.T) {
 	page.MustEval(`async()=>{const p=await(await nativeFetch('/api/desktop/plant')).json();const r=await nativeFetch('/api/desktop/plant/actions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'water',action_id:crypto.randomUUID(),revision:p.plant.revision})});window.leafyConflictRevision=(await r.json()).plant.revision;}`)
 	point = page.MustEval(`()=>leafyCutPoint()`)
 	page.Mouse.MustMoveTo(point.Get("x").Num(), point.Get("y").Num()).MustClick(proto.InputMouseButtonLeft)
-	page.Timeout(10 * time.Second).MustWait(`()=>AuraLeafy.active.metrics().revision===leafyConflictRevision`)
+	if err := page.Timeout(10 * time.Second).Wait(rod.Eval(`()=>AuraLeafy.active.metrics().revision===leafyConflictRevision`)); err != nil {
+		t.Fatal("conflicting cut did not refresh", page.MustEval(`()=>JSON.stringify({metrics:AuraLeafy.active.metrics(),expected:leafyConflictRevision,requests:leafyActionRequests,point:leafyCutPoint()})`).Str())
+	}
 	page.MustEval(`()=>{if(document.querySelector('.vd-leafy-cutting-fall')||document.querySelector('[data-action="undo_prune"]'))throw Error('Rejected cut animated or mutated the plant');document.body.dataset.animations='false';}`)
 	// Preserve list-based cutting without motion as a keyboard alternative.
 	page.Timeout(10 * time.Second).MustElement("[data-branch]").MustSelect("Ranke 1")

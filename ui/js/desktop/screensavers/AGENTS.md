@@ -28,7 +28,9 @@ Flüssige Tinte (`ink`) and Sternenstaub-Uhr (`stardust`).
   without SDK activity pings has focus. Same-origin frames get direct listeners;
   generated apps report `aurago.desktop.activity` through `aura-desktop-sdk.js`.
 - Waking input (pointer, key, wheel, touch or >8 px movement) is swallowed in the
-  capture phase, including the trailing click/keyup for 600 ms. Incoming calls stop
+  capture phase, including the trailing click/keyup for 600 ms after scene teardown
+  completes. Reset the idle clock and remove wake listeners in `finally` after
+  teardown; slow or failed GPU disposal must not exhaust that input window. Incoming calls stop
   the screensaver immediately. Preview ignores input for its first 800 ms.
 - The overlay uses `--vd-z-screensaver` (20000): above the always-on-top pet (9999),
   below incoming calls (26000). It never locks the session.
@@ -51,6 +53,12 @@ Flüssige Tinte (`ink`) and Sternenstaub-Uhr (`stardust`).
   `ui/lang/desktop` locales (`desktop.screensaver_*`, `desktop.settings_screensaver_*`).
 
 ## Verification
+- Static scene probes use fixture-controlled scene time after three native warm-up
+  frames, retaining real GPU pixel/error checks and host lifecycle assertions.
+  Ink retains native time because its dye field accumulates feedback. Shell tests
+  restore the configured idle interval while checking swallowed waking input,
+  verify that input resets the activity clock, then rearm accelerated idle checks.
+  `AURAGO_SCREENSAVER_BENCHMARK=1` keeps native time and adds a 120-frame FPS measurement.
 - `go test -count=1 ./ui -run 'Screensaver|DesktopSettings'` and
   `go test -count=1 ./internal/desktop`.
 - `$env:AURAGO_RUN_BROWSER_SMOKE='1'; go test -count=1 ./ui -run 'TestDesktopScreensaver.*Browser'`

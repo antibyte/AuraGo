@@ -941,7 +941,10 @@ await check('runJob with workers: pool of two, abort terminates one and respawns
                 else this.onmessage({ data: { id: res.id, result: res.result } });
             }, 5);
         }
-        terminate() { this.terminated = true; }
+        terminate() {
+            this.terminated = true;
+            this.onerror?.({ preventDefault: () => { this.cancelledImportPrevented = true; } });
+        }
     }
     globalThis.Worker = FakeWorker;
     try {
@@ -970,6 +973,7 @@ await check('runJob with workers: pool of two, abort terminates one and respawns
         window.PixelApp.dispose('w-pool');
         await assert.rejects(stuck, err => err.name === 'AbortError');
         assert.ok(made.every(w => w.terminated));
+        assert.ok(made.every(w => w.cancelledImportPrevented), 'terminating workers suppresses pending cancelled-import errors');
         await assert.rejects(pool.runJob('test.slow', {}), err => err.name === 'AbortError');
         // a worker that fails before it is ready: everything runs on the main thread
         class BrokenWorker {

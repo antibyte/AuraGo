@@ -604,7 +604,9 @@
         function dropWorker(slot) {
             const index = workers.indexOf(slot);
             if (index >= 0) workers.splice(index, 1);
-            slot.worker.onmessage = slot.worker.onerror = null;
+            slot.worker.onmessage = null;
+            // Termination can cancel an in-flight import and still dispatch its error.
+            slot.worker.onerror = event => event.preventDefault();
             try { slot.worker.terminate(); } catch (_) { /* already gone */ }
         }
 

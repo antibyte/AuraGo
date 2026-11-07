@@ -22,7 +22,7 @@
         let snapshot=null, renderer=null, fallback=false, dead=false, busy=false, hidden=false, scissors=false, selection=null, anchor={x:.40,y:.91};
         let poll=0,breeze=0,frame=0,resize=0,undoTimer=0,fetching=false,pendingRefresh=false,drag=null,suppressPotClick=false;
         let pendingAction=null, message='', bounds={width:innerWidth,height:innerHeight}, renderKey='';
-        let pointer=null,falling=null;
+        let pointer=null,falling=null,suppressedTouch=null;
         try {const saved=JSON.parse(localStorage.getItem('aurago.leafy.anchor.v1')); if(Number.isFinite(saved?.x)&&Number.isFinite(saved?.y))anchor=saved;} catch (_) {}
         const clamp=(n,min,max)=>Math.max(min,Math.min(max,n));
         const plant=()=>snapshot?.plant;
@@ -228,6 +228,10 @@
             }finally{busy=false;drawPanel();if(pendingRefresh&&!dead){pendingRefresh=false;refresh();}}
         }
         listen(shell,'click',()=>openPanel(panel.hidden));
+        listen(document,'click',event=>{
+            if(!suppressedTouch||event.pointerType!=='touch'||event.pointerId!==suppressedTouch.id||Date.now()>suppressedTouch.until)return;
+            suppressedTouch=null;event.preventDefault();event.stopImmediatePropagation();
+        },{capture:true});
         listen(pot,'click',event=>{const handled=suppressPotClick&&(event.detail>0||event.pointerType==='touch');suppressPotClick=false;if(!handled)openPanel(panel.hidden);});
         listen(panel,'click',async event=>{
             const a=event.target.closest('button[data-action]')?.dataset.action;if(!a)return;
@@ -260,7 +264,11 @@
             if(completed.moved)try{localStorage.setItem('aurago.leafy.anchor.v1',JSON.stringify(anchor));}catch(_){}
             // Touch capture may suppress the compatibility click. Activate
             // taps here and ignore that click if the browser also emits it.
-            if(tapped)openPanel(panel.hidden);
+            if(tapped){
+                // The new panel can lie under the finger when the compatibility click arrives.
+                suppressedTouch={id:completed.id,until:Date.now()+600};
+                openPanel(panel.hidden);
+            }
         };
         for(const handle of [pot,move]){
             listen(handle,'pointerdown',event=>{

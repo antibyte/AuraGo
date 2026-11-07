@@ -5,12 +5,25 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
+
+	"github.com/go-rod/rod/lib/proto"
 )
 
 func TestGitHubPermissionsBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	page := newSmokeBrowser(t).MustPage(configRefreshFixtureOrigin(t, "de", true) + "/config#overview")
-	defer page.MustClose()
+	defer func() {
+		_, _ = page.Timeout(5 * time.Second).Eval(`()=>{document.querySelector('#shared-modal-cancel')?.click();AuraConfigState.init(configData);resetDirtySnapshot();}`)
+		_ = page.Timeout(5 * time.Second).Close()
+	}()
+	click := func(selector string) {
+		t.Helper()
+		control := page.Timeout(10 * time.Second).MustElement(selector)
+		control.MustEval(`()=>this.scrollIntoView({block:'center',inline:'center',behavior:'instant'})`)
+		box := control.MustShape().Box()
+		page.Mouse.MustMoveTo(box.X+box.Width/2, box.Y+box.Height/2).MustClick(proto.InputMouseButtonLeft)
+	}
 	waitForJSBool(t, page, `()=>!!document.querySelector('.pw-overview-card')`)
 	page.MustEval(`async ()=>{
   configData.github={enabled:true,owner:'owner',allowed_repos:[]}; AuraConfigState.init(configData); resetDirtySnapshot();
@@ -27,10 +40,14 @@ func TestGitHubPermissionsBrowser(t *testing.T) {
  }`).Bool() {
 		t.Fatal("default deletion or migration policy is incorrect")
 	}
-	page.MustEval(`()=>{
-  document.querySelector('.gh-repo-check').click();
-  document.querySelector('[data-path="github.allow_delete"]').click();
- }`)
+	click(".gh-repo-item")
+	click(`[data-path="github.allow_delete"]`)
+	waitForJSBool(t, page, `()=>document.querySelector('#shared-modal-overlay')?.classList.contains('active')`)
+	if page.MustEval(`()=>AuraConfigState.get('github.allow_delete')===true`).Bool() {
+		t.Fatal("deletion enabled before administrator confirmation")
+	}
+	click("#shared-modal-confirm")
+	waitForJSBool(t, page, `()=>AuraConfigState.get('github.allow_delete')===true`)
 	if !page.MustEval(`()=>document.querySelector('#github-allowed-repos-input').value==='owner/legacy' && AuraConfigState.get('github.allow_delete')===true`).Bool() {
 		t.Fatal("explicit administrator approval was not retained")
 	}
@@ -51,7 +68,7 @@ func TestGitHubPermissionsBrowser(t *testing.T) {
  }`).Bool() {
 		t.Fatal("allowlist matching ignored case or treated a bare name as global")
 	}
-	page.MustEval(`()=>document.querySelectorAll('.gh-repo-check')[1].click()`)
+	click("#github-repos-list .gh-repo-item:nth-of-type(2)")
 	if !page.MustEval(`()=>{
   const parts=document.querySelector('#github-allowed-repos-input').value.split(',').map(entry=>entry.trim());
   return parts.includes('kept/elsewhere') && parts.includes('owner/legacy') && parts.includes('stranger/legacy') && !parts.some(entry=>entry.toLowerCase()==='legacy');
@@ -75,5 +92,4 @@ func TestGitHubPermissionsBrowser(t *testing.T) {
 			}
 		}
 	}
-	page.MustEval(`()=>resetDirtySnapshot()`)
 }

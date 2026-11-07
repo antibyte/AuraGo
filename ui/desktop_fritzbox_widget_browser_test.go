@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/go-rod/rod/lib/launcher"
 )
 
 // Opt-in headless smoke test: renders the Fritz!Box widget against a fake
@@ -23,7 +25,9 @@ func TestDesktopFritzBoxWidgetBrowser(t *testing.T) {
 	sysmon := readDesktopAssetText(t, "js/desktop/core/widget-sysmon-runtime.js")
 	charts := readDesktopAssetText(t, "js/desktop/core/widget-fritzbox-charts.js")
 	runtime := readDesktopAssetText(t, "js/desktop/core/widget-fritzbox-runtime.js")
-	browser := newSmokeBrowser(t)
+	browser := newSmokeBrowserWith(t, func(l *launcher.Launcher) {
+		l.Set("blink-settings", "primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4")
+	})
 	// German renders on the dark token set, English on a light one so both
 	// theme directions are exercised.
 	themes := map[string]string{

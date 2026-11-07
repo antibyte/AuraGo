@@ -67,7 +67,7 @@
         const categories = (catalog.categories || []).filter(category => items.some(item => item.category === category.id));
         const categoryName = new Map((catalog.categories || []).map(category => [category.id, category.name]));
         const ui = { rail: '', query: '', selected: '', view: 'page', compact: false };
-        let page = null, popoverOpen = false, observer = null, hostObserver = null;
+        let page = null, popoverOpen = false, observer = null, hostObserver = null, layoutFrame = 0;
         const mac = /mac|iphone|ipad/i.test(String(navigator.platform || ''));
 
         root.innerHTML = '<header class="ec-top">'
@@ -332,15 +332,24 @@
         });
 
         const measure = width => setCompact(width > 0 && width < COMPACT_BELOW);
+        // Layout writes must run outside ResizeObserver delivery to avoid feedback loops.
+        const queueLayout = () => {
+            if (layoutFrame) return;
+            layoutFrame = requestAnimationFrame(() => {
+                layoutFrame = 0;
+                measure(root.clientWidth);
+                if (page && typeof page.layout === 'function') page.layout();
+            });
+        };
         if (typeof ResizeObserver === 'function') {
-            observer = new ResizeObserver(entries => measure(entries[entries.length - 1].contentRect.width));
+            observer = new ResizeObserver(queueLayout);
             observer.observe(root);
         } else {
             measure(root.clientWidth);
         }
         // The page lays itself out for the width of its host, which is not changed by that layout.
         if (typeof ResizeObserver === 'function') {
-            hostObserver = new ResizeObserver(() => { if (page && typeof page.layout === 'function') page.layout(); });
+            hostObserver = new ResizeObserver(queueLayout);
             hostObserver.observe(hostEl);
         }
 
@@ -369,6 +378,7 @@
                 closePopover();
                 if (observer) observer.disconnect();
                 if (hostObserver) hostObserver.disconnect();
+                if (layoutFrame) cancelAnimationFrame(layoutFrame);
                 if (page) page.dispose();
                 page = null;
                 store.flush();

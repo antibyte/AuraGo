@@ -3230,10 +3230,14 @@
         ss.active = false;
         ss.starting = null;
         ss.preview = false;
-        ss.swallowUntil = reason === 'input' ? Date.now() + SCREENSAVER_SWALLOW_MS : 0;
-        unwireScreensaverWake();
-        noteScreensaverActivity();
-        if (window.AuraScreensaverHost) window.AuraScreensaverHost.stop({ reason: reason || 'stop' });
+        try {
+            if (window.AuraScreensaverHost) window.AuraScreensaverHost.stop({ reason: reason || 'stop' });
+        } finally {
+            // GPU teardown can block longer than the trailing-input protection window.
+            ss.swallowUntil = reason === 'input' ? Date.now() + SCREENSAVER_SWALLOW_MS : 0;
+            unwireScreensaverWake();
+            noteScreensaverActivity();
+        }
     }
 
     function previewDesktopScreensaver(theme) {
