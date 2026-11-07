@@ -1,10 +1,17 @@
 # Aura Drift model kit
 
 Blender 5.2 generator for the Aura Drift model pack (`ui/3d/aura-drift/v1`): eight cars, items,
-track pieces, animals, shared props and eight scenery kits. Everything is built from code, MIT
-licensed, no textures. Contract: section 3 of `plans/2026-11-06-aura-drift-3d-overhaul.md`.
+track pieces, animals, shared props and eight scenery kits. Rebuilt offline from procedural sources
+and retained reviewed vertex-colour geometry, MIT licensed, no runtime textures.
+Contract: section 3 of `plans/2026-11-06-aura-drift-3d-overhaul.md`.
 Art direction: an original stylised **toy diorama at golden hour**: chunky low poly, glossy paint,
 bevelled silhouettes, flat-shaded facets, oversized wheels.
+
+Softeis uses the reviewed NC AI reconstruction of an original Aura Drift ImageGen concept.
+`kit/softeis_mesh.json.gz` retains the body/cone geometry, normalized vertex colours and pivots;
+`kit/car_softeis.py` rebuilds it with the native six-spoke wheels, seven body material groups and
+light/exhaust/weapon anchors. Its colours work with all four liveries. The roof cone and wheel
+nodes are driven by the existing game physics; no baked animation or external API is needed.
 
 ## Commands
 

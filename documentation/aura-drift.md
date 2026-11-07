@@ -198,7 +198,7 @@ weather motion are removed by reduced motion.
 
 - Runtime: `ui/js/vendor/aura-drift/three-runtime.js`, a three.js **0.186.1 (r186)** IIFE bundle
   (908 369 bytes, manifest and licence beside it in `ui/js/vendor/aura-drift/`).
-- Models: 20 GLB files, 9 179 600 bytes (8.75 MiB) in total, under `ui/3d/aura-drift/v1`: eight cars, `items`,
+- Models: 20 GLB files, 9 171 536 bytes (8.75 MiB) in total, under `ui/3d/aura-drift/v1`: eight cars, `items`,
   `track`, `animals`, `shared` props and eight biome scenery kits. `manifest.json` records
   per-file size, hash and car measurements; `LICENSE.txt` lists the licence. The models are made
   by `assets/aura-drift/generate.py` (Blender 5.2, deterministic output) and are untextured:

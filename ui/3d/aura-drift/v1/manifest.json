@@ -2,7 +2,7 @@
   "version": 1,
   "blender": "5.2.2",
   "generator": "assets/aura-drift/generate.py",
-  "totalBytes": 9179600,
+  "totalBytes": 9171536,
   "files": [
     {
       "name": "animals.glb",
@@ -48,9 +48,9 @@
     },
     {
       "name": "car-softeis.glb",
-      "bytes": 460272,
-      "sha256": "89907a6ae45b267cf8cdbba01ab6f3e5a924ca819f5612994436a995b9e3ead0",
-      "triangles": 9432,
+      "bytes": 452208,
+      "sha256": "5af4445f1e87453bf7f4e9d05519087772a94bab8745ae5d372360f0d0961b23",
+      "triangles": 13937,
       "kind": "car"
     },
     {
@@ -191,8 +191,8 @@
       "length": 5.1,
       "width": 2.2,
       "height": 2.4,
-      "wheelRadius": 0.466,
-      "wheelbase": 3.0
+      "wheelRadius": 0.657,
+      "wheelbase": 3.051
     },
     "tundra": {
       "file": "car-tundra.glb",

@@ -11,7 +11,7 @@ Own the Blender 5.2 generator of the Aura Drift model pack and its pure-Python k
   alpine snow gauge, desert anemometer, harbour storm lantern, glacier drift fence). The shared
   builders return `toy.Parts`, the scenery builders fill a `Piece`.
   `runtime-entry.mjs` belongs to the three.js vendor bundle, not to the kit.
-- Runtime payload: `ui/3d/aura-drift/v1/` (20 GLBs, 9 179 600 bytes, `manifest.json`, `LICENSE.txt`).
+- Runtime payload: `ui/3d/aura-drift/v1/` (20 GLBs, 9 171 536 bytes, `manifest.json`, `LICENSE.txt`).
   Written only by `generate.py`, the manifest only by `--only manifest` (a partial `--only` run
   emits a partial manifest, so regenerate the whole pack before shipping). Adding a prop means adding
   its node to `scripts/test-aura-drift-assets.mjs`, its tags to `kit/meta_*.py`, and its placement
@@ -25,6 +25,11 @@ Own the Blender 5.2 generator of the Aura Drift model pack and its pure-Python k
   The eight race songs (`music/<biome>-song.ogg`) are YuE2 Studio generations (licence terms NOT verified, open item),
   recorded in `audio/yue2-songs.json` and re-encoded from FLAC masters with `build-aura-drift-audio.mjs --songs <dir>`.
 - Check: `scripts/test-aura-drift-assets.mjs`.
+- Softeis retains reviewed concept geometry in `kit/softeis_mesh.json.gz`: local glTF-frame
+  vertices, faces, normalized vertex colours, part pivots, attachment anchors and source provenance.
+  `kit/car_softeis.py` rebuilds it offline through `core.Model`; wheels use `cars_common.wheel_accum`
+  so the shared wheel instancer and procedural steering remain unchanged. The `cone` child pivots
+  at its roof joint. Textures are baked into vertex colours; no API or image files are build inputs.
 - Preview renders and scratch builds go outside the repository (`D:\tmp\agdrift-shots`, `D:\tmp\agdrift-build`).
 - Generated scratch folders under `assets/aura-drift/build/` are git-ignored.
 
@@ -38,6 +43,8 @@ Own the Blender 5.2 generator of the Aura Drift model pack and its pure-Python k
   or the manifest.
 - Car body materials are exactly `paint`, `paint_accent`, `trim`, `glass`, `chrome`, `head_light`, `brake_light`;
   wheels use `tyre`.
+- The retained Softeis geometry welds UV seams and uses angle-limited smoothing; its seven body
+  materials and neutral part transforms retain the ordinary livery, lights and animation contract.
 - Budgets live in the validator (cars 14000 triangles and 480 KB, shared.glb 1.75 MiB, scenery
   kits 1.1 MiB each, pack 18 MiB; per-prop 450/1200/4500/14000 triangles by tag). Check after each build.
 
