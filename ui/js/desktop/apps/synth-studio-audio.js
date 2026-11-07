@@ -930,10 +930,22 @@
     view.setUint32(40, frames * channels * 2, true);
     const left = audioBuffer.getChannelData(0);
     const right = audioBuffer.getChannelData(1);
+    // Dense projects can push the master strip past full scale. Scaling the
+    // whole mixdown to a -0.3 dB ceiling replaces hard PCM clipping; clean
+    // renders keep their exact samples because the factor stays at 1.
+    const ceiling = 0.966;
+    let peak = 0;
+    for (let i = 0; i < frames; i++) {
+      const l = Math.abs(left[i] || 0), r = Math.abs(right[i] || 0);
+      if (l > peak) peak = l;
+      if (r > peak) peak = r;
+    }
+    const guard = peak > ceiling ? ceiling / peak : 1;
     let offset = 44;
     for (let i = 0; i < frames; i++) {
       for (const sample of [left[i], right[i]]) {
-        const bounded = Math.max(-1, Math.min(1, sample || 0));
+        const scaled = (sample || 0) * guard;
+        const bounded = Math.max(-1, Math.min(1, scaled));
         view.setInt16(offset, bounded < 0 ? bounded * 32768 : bounded * 32767, true);
         offset += 2;
       }

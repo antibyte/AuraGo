@@ -2,8 +2,11 @@ package ui
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -12,12 +15,28 @@ func TestDesktopSynthStudioAudioBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	mux := http.NewServeMux()
 	mux.Handle("/js/", http.FileServer(http.FS(Content)))
+	mux.HandleFunc("/artifact", func(w http.ResponseWriter, r *http.Request) {
+		if dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); dir != "" {
+			if err := os.MkdirAll(dir, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(dir, "neon-sketch-demo.wav"), body, 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		w.WriteHeader(http.StatusNoContent)
+	})
 	mux.HandleFunc("/fixture", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		fmt.Fprint(w, `<!doctype html><html><head><meta charset="utf-8"></head><body>
 <button id="audio-gesture">Enable audio</button>
 <script src="/js/vendor/synth-studio/gm-data.js"></script>
 <script src="/js/desktop/apps/synth-studio-presets.js"></script>
+<script src="/js/desktop/apps/synth-studio-model.js"></script>
 <script src="/js/desktop/apps/synth-studio-fx.js"></script>
 <script src="/js/desktop/apps/synth-studio-voices.js"></script>
 <script src="/js/desktop/apps/synth-studio-audio.js"></script>
@@ -25,7 +44,7 @@ func TestDesktopSynthStudioAudioBrowser(t *testing.T) {
 	})
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
-	page := newSmokeBrowser(t).MustPage().Timeout(180 * time.Second)
+	page := newSmokeBrowser(t).MustPage().Timeout(300 * time.Second)
 	defer page.Close()
 	page.MustNavigate(srv.URL + "/fixture").MustWaitLoad()
 	if !page.MustEval(`async()=>{
@@ -114,8 +133,20 @@ func TestDesktopSynthStudioAudioBrowser(t *testing.T) {
  const fxProj=makeProject('lead-supersaw',one);
  fxProj.tracks[0].params={tone:0.7,resonance:0.5,drive:0.45,attack:0.01,release:0.15,reverb:0.25,delay:0.2};
  fxProj.tracks[0].fx={inserts:[{type:'chorus',mix:0.55,rate:0.6,depth:0.4,feedback:0.1,tone:0.3},{type:'phaser',mix:0.4,rate:0.42,depth:0.5,feedback:0.35,tone:0.35}]};
- const fxRendered=await readPCM(await window.SynthStudioAudio.renderWav(fxProj));
- check(fxRendered.rms(0.05,0.18)>0.01,'new supersaw preset and full FX chain render audible output');
+  const fxRendered=await readPCM(await window.SynthStudioAudio.renderWav(fxProj));
+  check(fxRendered.rms(0.05,0.18)>0.01,'new supersaw preset and full FX chain render audible output');
+
+  // Dense projects must export with their peaks intact: the exporter scales
+  // the mixdown to its ceiling instead of hard-clipping at the PCM rails.
+  const hot=makeProject('lead-saw',Array.from({length:16},(_,i)=>({id:'h'+i,pitch:60+i%3,start:i*120,duration:120,velocity:0.95})));
+  hot.tracks[0].volume=1.4;
+  hot.master={volume:1.2,low:0,mid:0,high:0,threshold:0,ratio:1,width:1,plateSize:0.5,plateDecay:0.65,echoFeedback:0.28,echoSync:'1/8'};
+  const hotWav=await readPCM(await window.SynthStudioAudio.renderWav(hot));
+  let maxAbs=0,rails=0;
+  for(const sample of hotWav.samples){const a=Math.abs(sample);if(a>maxAbs)maxAbs=a;if(sample===32767||sample===-32768)rails++;}
+  check(maxAbs>1000,'the overdriven export still carries audio');
+  check(rails===0,'hot mixes export without hard-clipped samples');
+  check(maxAbs<=32767*0.97+1,'the export ceiling keeps the peak below full scale');
 
  const overlap=makeProject('lead-saw',Array.from({length:257},(_,i)=>({id:'o'+i,pitch:60,start:0,duration:480,velocity:0.6})));
  let overlapCode='';try{await window.SynthStudioAudio.renderWav(overlap)}catch(error){overlapCode=error.code}
@@ -140,7 +171,28 @@ func TestDesktopSynthStudioAudioBrowser(t *testing.T) {
  release();
  check(player.panic('audition')===true,'live panic releases sustain-held voices by track');
  player.dispose();
- return JSON.stringify({ok:true,notes:sparse.length,longWavBytes:long.bytes,heldRms:held.rms(0.2,0.42)});
+
+ // The recomposed showcase renders as an actual song: a quiet intro, a lifted
+ // chorus, a stripped break and a hot finale. Section loudness is measured
+ // from the same offline render the WAV export uses, and the mix is uploaded
+ // as an artifact when AURAGO_BROWSER_ARTIFACT_DIR is set.
+ const demo=SynthStudioModel.demo();
+ const demoBlob=await window.SynthStudioAudio.renderWav(demo);
+ const demoWav=await readPCM(demoBlob);
+ const bar=60/demo.tempo*4;
+ const section=(from,to)=>demoWav.rms(from*bar,to*bar-.1);
+ const sections={intro:section(0,4),verse:section(4,12),build:section(12,16),chorus:section(16,24),break:section(24,28),finale:section(28,32)};
+ check(sections.chorus>sections.verse,'the chorus lifts over the verse');
+ check(sections.break<sections.chorus,'the break strips the arrangement down');
+ check(sections.break<sections.intro||sections.break<sections.verse,'the break is the quietest full section');
+ check(sections.finale>sections.break+.02,'the finale returns with energy');
+ check(demoWav.rms(15*bar,16*bar)>demoWav.rms(12*bar,13*bar),'the build crescendos into the chorus');
+ let demoPeak=0,demoRails=0;
+ for(const sample of demoWav.samples){const a=Math.abs(sample);if(a>demoPeak)demoPeak=a;if(sample===32767||sample===-32768)demoRails++;}
+ check(demoRails===0,'the showcase exports without hard-clipped samples');
+ check(demoPeak>10000,'the showcase exports with audible level');
+ await fetch('/artifact',{method:'POST',body:demoBlob});
+ return JSON.stringify({ok:true,notes:sparse.length,longWavBytes:long.bytes,heldRms:held.rms(0.2,0.42),sections});
 }`).Str()
 	if result == "" || result[0] != '{' || result[len(result)-1] != '}' {
 		t.Fatalf("audio browser test returned unexpected result: %s", result)

@@ -46,6 +46,15 @@ range uses bar positions; the end is exclusive. The demo supplies a starting
 arrangement. Browser-tab hiding pauses playback; minimizing only the Desktop
 window keeps playback running. Reopening never starts playback automatically.
 
+The demo "Neon Sketch" is a composed synthwave song in A minor at 112 BPM over
+32 bars, not a repeated loop: four-bar phrases follow the harmony bar by bar
+(Am | F | C | G cycles; a Dm–Em–F–E build on the dominant; an F | G | Am | Am
+finale), the bass walks the changes with octave pickups, the supersaw lead
+carries a syncopated hook that answers over the cycle, drums grow from a
+hat pulse to four-on-the-floor with fills, and section velocities plus a lead
+tone curve and a break reverb swell shape the arrangement. The phrases stay
+demo-local, so the pattern library keeps its concise factory vocabulary.
+
 ## Instrument workspace
 
 The transport stays visible while Notes, Sound and Performance share a resizable workbench.
@@ -284,7 +293,10 @@ playing files but disables editing, recording and saving.
 
 WAV export downloads stereo 44.1 kHz PCM16 using the same renderer as playback,
 including per-track effects. It renders one finite arrangement pass and adds
-an effect tail; the transport loop and metronome are not exported. To bound
+an effect tail; the transport loop and metronome are not exported. Dense
+projects can push the master past full scale; the exporter then scales the
+whole mixdown to a −0.3 dB ceiling instead of hard-clipping, and clean mixes
+keep their exact samples. To bound
 browser memory and processing, the complete render including the tail is
 limited to five minutes, 12,000 notes and 256 overlapping voices. Shorten or
 simplify the arrangement if this limit is reached.

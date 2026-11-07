@@ -215,6 +215,20 @@ Replace the four-times-repeated bar with a real arrangement:
 The arrangement is expressed as data in the model module so it stays
 version-controlled and testable, not as UI state.
 
+**Recomposed (2026-11-06).** The B1 rebuild still repeated one-bar factory
+patterns verbatim with a static C-major pad, so the shipped song sounded like a
+loop. The demo was recomposed from dedicated four-bar phrases
+(`demoPhrases()` in `synth-studio-model.js`) in A minor at 112 BPM — the
+section map above, now with real harmony (Am | F | C | G cycles, a
+Dm | Em | F | E build on the dominant, an F | G | Am | Am finale), a
+supersaw hook, a walking bass with approach notes, drum fills and section
+dynamics. `arrangement()` accepts a `lookup` so the demo can use its private
+phrases without polluting the pattern library; the factory patterns and the
+three templates are unchanged. The audio browser journey renders the demo
+offline, asserts the section loudness arc, checks the export against
+hard-clipped samples and uploads the mix as a `neon-sketch-demo.wav` artifact
+through `AURAGO_BROWSER_ARTIFACT_DIR`.
+
 ### B2. Wire the features the demo currently hides
 - **Two scenes** — "Main" (bars 5–24) and "Break" (bars 25–28) — so the scene
   pads are meaningful on first launch. Scenes already exist in format v2.

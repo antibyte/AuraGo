@@ -5,9 +5,17 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 
 const categories = ['drums', 'bass', 'leads', 'pads', 'keys'];
+const named = {
+    drums: [],
+    bass: ['bass-sub'],
+    leads: ['lead-supersaw'],
+    pads: ['pad-warm'],
+    keys: ['key-electric-piano']
+};
 const presets = categories.flatMap((category, index) => [
     { id: `${['drum', 'bass', 'lead', 'pad', 'key'][index]}-one`, category },
-    { id: `${['drum', 'bass', 'lead', 'pad', 'key'][index]}-two`, category }
+    { id: `${['drum', 'bass', 'lead', 'pad', 'key'][index]}-two`, category },
+    ...named[category].map(id => ({ id, category }))
 ]);
 const gm = Array.from({ length: 128 }, (_, program) => ({ id: `gm-${program}`, category: 'gm', program }));
 const byId = new Map([...presets, ...gm, { id: 'drums-kit', category: 'drums' }, { id: 'gm-drums', category: 'gm' }].map(item => [item.id, item]));
@@ -347,10 +355,13 @@ async function main() {
     assert.equal(demo.version, 3);
     assert.equal(demo.scenes.length, 2);
     assert.equal(demo.loop.end, Model.BAR * 32);
-    assert.ok(demo.tracks.every(track => track.clips.length > 0 && track.clips.every(clip => clip.length === Model.BAR)));
+    assert.ok(demo.tracks.every(track => track.clips.length > 0 && track.clips.every(clip => clip.length % Model.BAR === 0 && clip.length <= Model.BAR * 4)), 'showcase clips are whole-bar phrases of up to four bars');
+    assert.ok(demo.tracks.some(track => track.clips.some(clip => clip.length === Model.BAR * 4)), 'the showcase is composed from four-bar phrases');
     assert.ok(demo.tracks.some(track => track.automation.length > 0), 'the showcase ships automation curves');
     assert.ok(demo.tracks.every(track => Array.isArray(track.fx.inserts)), 'every showcase track carries an effect chain');
-    assert.ok(new Set(demo.tracks.flatMap(track => track.clips.map(clip => clip.start))).size > 20, 'the showcase arrangement spans many bars');
+    assert.ok(new Set(demo.tracks.flatMap(track => track.clips.map(clip => clip.start))).size >= 9, 'the showcase arrangement spans many bars');
+    assert.equal(Math.max(...demo.tracks.flatMap(track => track.clips.map(clip => clip.start + clip.length))), Model.BAR * 32, 'the showcase covers the whole loop');
+    assert.ok(demo.tracks.every(track => track.clips.some(clip => clip.notes.length > 0)), 'every showcase track is audible');
     for (const style of ['electronic', 'chill', 'retro']) {
         const built = Model.template(style, style);
         assert.equal(built.tracks.length, 5);
