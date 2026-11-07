@@ -126,7 +126,16 @@ jobs:
         include:
           - name: General
             run: '.'
-            skip: '^TestConfigRefresh(Populated|RealSections)Browser$'
+            skip: '^TestConfigRefresh(Populated|RealSections)Browser$|^TestDesktop'
+          - name: Desktop A-G
+            run: '^TestDesktop[A-G]'
+            skip: '^$'
+          - name: Desktop H-R
+            run: '^TestDesktop[H-R]'
+            skip: '^$'
+          - name: Desktop S-Z
+            run: '^TestDesktop[S-Z]'
+            skip: '^$'
           - name: Populated config
             run: '^TestConfigRefreshPopulatedBrowser$'
             skip: '^$'
