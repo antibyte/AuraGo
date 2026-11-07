@@ -32,7 +32,7 @@ The **Check export setup** button asks the running server whether FFmpeg and a b
 
 The agent writes a film from a topic: first the outline, then the cast, then one scene at a time, then a check with fixes, and at the end the narration. It runs as an isolated job on one project. It can use only the Storymaker tools of its current step.
 
-- **In the app.** The project list has a start form. Inside a project the agent panel has the prompt, length, language, Start or Revise, a progress list and Cancel.
+- **In the app.** The project list has a start form. Inside a project, open the **AI author** side tab of the editor. It holds the prompt, length, language, **Write the story** or **Revise the story**, a progress list, **Stop the author** (cancel), the outcome card, **Export without voice** and **Restore speech**.
 - **From chat.** The `storymaker` tool can create a film, report its status, revise it, export it, open it in the app and list projects. "Mach mir ein Erklärvideo über Backups" is enough to start.
 - **Unattended runs.** With `agent.action_policy` switched on, missions, flows, scheduled runs and co-agents need an administrator rule to call `create`, `revise` or `render`. Chats you take part in need no rule. The policy is off by default. A run that is not watched is then limited only by `storymaker.agent.max_daily_jobs` and the character limits of the voices.
 - **While a job runs.** The editor is locked and shows a banner. Saving, narration and export are refused for that project. A job cannot start while a render, narration or music job of the project runs. One job runs at a time, and eight can wait.
@@ -44,7 +44,7 @@ The agent writes a film from a topic: first the outline, then the cast, then one
 | --- | --- |
 | Your story is ready. Please watch it once. | Scenes, assets and timing were checked. Overlaps and text fit were not checked automatically. |
 | Your story is partly done. | Some scenes still need work, and valid scenes are saved. The revise field is prefilled to finish them. A timeout or a model error ends here too. |
-| The agent could not write this story. | No outline was saved. The card gives the reason. |
+| The agent could not write this story. | No outline was saved. The card names the kind of failure in one line. |
 
 Watch every film once: nothing checks yet whether a prop covers a face or a text overflows. A film may run a little longer than asked, which is listed and is not a failure. Without a browser the compile check is skipped and reported as `compile_unverified`. The job still finishes.
 
