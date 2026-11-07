@@ -388,7 +388,9 @@ func TestDesktopInfraMenusAndShortcutsBrowser(t *testing.T) {
 	if !page.MustEval(`()=>document.querySelector('[data-dialog] h2').textContent===w('desktop.infra_shortcuts')&&document.querySelectorAll('.infra-shortcuts kbd').length>20`).Bool() {
 		t.Fatal("the shortcut sheet needs its title and key caps")
 	}
+	page.MustEval(`()=>{window.infraShortcutsClosed=new Promise(resolve=>document.querySelector('[data-dialog]').addEventListener('close',resolve,{once:true}));}`)
 	page.Keyboard.MustType(input.Escape)
+	page.Timeout(5 * time.Second).MustEval(`async()=>{await infraShortcutsClosed;}`)
 	page.MustWait(`()=>!document.querySelector('[data-dialog]').open`)
 
 	// The legend: More > Legend shows the status, power and connection keys and takes the focus.
@@ -404,7 +406,9 @@ func TestDesktopInfraMenusAndShortcutsBrowser(t *testing.T) {
 		t.Fatalf("the legend must carry the note %q", want)
 	}
 	page.Keyboard.MustType(input.Escape)
-	page.MustWait(`()=>document.querySelector('[data-popover="legend"]').hidden&&document.activeElement===document.querySelector('[data-action="more"]')`)
+	if err := page.Timeout(5 * time.Second).Wait(rod.Eval(`()=>document.querySelector('[data-popover="legend"]').hidden&&document.activeElement===document.querySelector('[data-action="more"]')`)); err != nil {
+		t.Fatal("legend did not restore focus", page.MustEval(`()=>JSON.stringify({hidden:document.querySelector('[data-popover="legend"]').hidden,active:document.activeElement.outerHTML,more:document.querySelector('[data-action="more"]').outerHTML})`).Str())
+	}
 
 	// Filter chips: one per active filter, removable, with Clear filters in the popover.
 	page.MustEval(`()=>document.querySelector('[data-action="filters"]').click()`)

@@ -23,12 +23,13 @@ import (
 // Code Studio API so the real shell, bundle, CodeMirror and xterm can run
 // headless without a container.
 type codeStudioFixtureBackend struct {
-	mu     sync.Mutex
-	files  map[string]string
-	dirs   map[string]bool
-	execs  []string
-	inputs []string
-	chats  []map[string]interface{}
+	mu          sync.Mutex
+	files       map[string]string
+	dirs        map[string]bool
+	execs       []string
+	execOutputs map[string]string
+	inputs      []string
+	chats       []map[string]interface{}
 }
 
 func newCodeStudioFixtureBackend() *codeStudioFixtureBackend {
@@ -42,7 +43,8 @@ func newCodeStudioFixtureBackend() *codeStudioFixtureBackend {
 			"/workspace/src/util/helpers.py": "def add(a, b):\n    return a + b\n",
 			"/workspace/src/util/format.py":  "def fmt(v):\n    return str(v)\n",
 		},
-		dirs: map[string]bool{"/workspace": true, "/workspace/src": true, "/workspace/src/util": true, "/workspace/docs": true},
+		dirs:        map[string]bool{"/workspace": true, "/workspace/src": true, "/workspace/src/util": true, "/workspace/docs": true},
+		execOutputs: map[string]string{},
 	}
 }
 
@@ -153,7 +155,14 @@ func (b *codeStudioFixtureBackend) register(mux *http.ServeMux) {
 		var body struct{ Command string }
 		_ = json.NewDecoder(r.Body).Decode(&body)
 		b.execs = append(b.execs, body.Command)
-		writeJSON(w, map[string]interface{}{"status": "ok", "output": "hello from code studio\n", "exit_code": 0})
+		output := "hello from code studio\n"
+		for prefix, canned := range b.execOutputs {
+			if strings.HasPrefix(body.Command, prefix) {
+				output = canned
+				break
+			}
+		}
+		writeJSON(w, map[string]interface{}{"status": "ok", "output": output, "exit_code": 0})
 	})
 	mux.HandleFunc("/api/code-studio/search", func(w http.ResponseWriter, r *http.Request) {
 		b.mu.Lock()

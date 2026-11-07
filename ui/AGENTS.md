@@ -1232,6 +1232,8 @@ New app-scoped prefixes must contain no `ad` substring; verify
   the existing delete-permission dialog, first asserting that the grant stays off.
   Fritz!Box mouse-pager fixtures declare
   hover-capable pointer hardware; touch layouts intentionally hide its arrows.
+- Infra menu browser journeys await the native dialog `close` event before
+  opening another popover, so pending focus restoration cannot steal its keys.
 - Browser contracts (Chrome or Edge):
   `$env:AURAGO_RUN_BROWSER_SMOKE='1'; $env:AURAGO_BROWSER_ARTIFACT_DIR='../disposable/browser-artifacts'; go test -count=1 ./ui/... -run 'Precision.*Browser|Config.*Browser'`.
 - Browser discovery honors `CHROME_BIN`, then PATH and standard Windows/macOS locations. An explicit override must be executable; it never silently falls back. With `AURAGO_RUN_BROWSER_SMOKE=1`, missing browsers and launch failures fail the test. Security Gates partitions the full UI package into populated-config, config-layout, General and three Desktop name ranges (`A-G`, `H-R`, `S-Z`) with independent timeouts and fail-fast disabled; the audit package checks that each test belongs to exactly one job.
