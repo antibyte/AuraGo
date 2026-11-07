@@ -266,6 +266,8 @@ function vdCfgStorymaker() {
     if (typeof data.enabled !== 'boolean') data.enabled = true;
     const render = data.render || (data.render = {});
     const narration = data.narration || (data.narration = {});
+    const agent = data.agent || (data.agent = {});
+    if (typeof agent.enabled !== 'boolean') agent.enabled = true;
     const prefix = 'config.storymaker.';
     let html = '<h3>' + t(prefix + 'title') + '</h3><p class="field-help">' + t(prefix + 'help') + '</p>';
     html += '<div class="field-grid two-cols">';
@@ -279,6 +281,16 @@ function vdCfgStorymaker() {
     html += vdCfgField(prefix + 'max_daily_chars', prefix + 'max_daily_chars_help', '<input class="field-input" type="number" min="1000" max="100000000" value="' + escapeAttr(String(narration.max_daily_chars || 100000)) + '" data-path="storymaker.narration.max_daily_chars">');
     html += vdCfgField(prefix + 'max_job_chars', prefix + 'max_job_chars_help', '<input class="field-input" type="number" min="100" max="10000000" value="' + escapeAttr(String(narration.max_job_chars || 20000)) + '" data-path="storymaker.narration.max_job_chars">');
     html += '</div><div class="field-group"><button type="button" id="vd-storymaker-btn" class="btn-save dc-test-btn" data-config-action-draft="false" onclick="vdCfgTestStorymaker(this)">' + t(prefix + 'check') + '</button>' + cfgActionResult.html('vd-storymaker-result') + '</div>';
+    html += '<h3>' + t(prefix + 'agent_title') + '</h3><p class="field-help">' + t(prefix + 'agent_help') + '</p>';
+    html += '<div class="field-grid two-cols">';
+    html += vdCfgToggleRow(prefix + 'agent_enabled', '', agent.enabled === true, 'storymaker.agent.enabled');
+    html += '</div><div class="field-grid two-cols">';
+    html += vdCfgField(prefix + 'agent_provider', prefix + 'agent_provider_help', '<select class="field-select" data-path="storymaker.agent.provider" data-config-choice="providers" aria-label="' + escapeAttr(t(prefix + 'agent_provider')) + '">' + cfgChoiceOptionsHTML('providers', helpTexts['storymaker.agent.provider'] || {}, agent.provider || '') + '</select>' + cfgChoiceHintHTML('providers'));
+    html += vdCfgField(prefix + 'agent_model', prefix + 'agent_model_help', '<input class="field-input" type="text" spellcheck="false" autocomplete="off" value="' + escapeAttr(agent.model || '') + '" data-path="storymaker.agent.model">');
+    html += vdCfgField(prefix + 'agent_timeout', prefix + 'agent_timeout_help', '<input class="field-input" type="number" min="120" max="7200" value="' + escapeAttr(String(agent.job_timeout_seconds || 1800)) + '" data-path="storymaker.agent.job_timeout_seconds">');
+    html += vdCfgField(prefix + 'agent_max_length', prefix + 'agent_max_length_help', '<input class="field-input" type="number" min="15" max="3600" value="' + escapeAttr(String(agent.max_length_seconds || 180)) + '" data-path="storymaker.agent.max_length_seconds">');
+    html += vdCfgField(prefix + 'agent_max_daily_jobs', prefix + 'agent_max_daily_jobs_help', '<input class="field-input" type="number" min="1" max="1000" value="' + escapeAttr(String(agent.max_daily_jobs || 10)) + '" data-path="storymaker.agent.max_daily_jobs">');
+    html += '</div>';
     return html;
 }
 

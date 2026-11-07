@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,12 +11,16 @@ import (
 
 // The Storymaker block of the Virtual Desktop configuration page: storymaker.enabled and storymaker.render.{timeout_seconds,
 // max_duration_seconds, browser_path, transport}, storymaker.narration.{max_daily_chars, max_job_chars}, the export-readiness check against /api/desktop/storymaker/status, and the
-// sixteen-language texts in lang/config/common.
+// sixteen-language texts in lang/config/common. The agent settings are storymaker.agent.{enabled, provider, model,
+// job_timeout_seconds, max_length_seconds, max_daily_jobs}.
 
 var storymakerConfigKeys = []string{
 	"title", "help", "enabled", "timeout", "timeout_help", "max_duration", "max_duration_help", "browser_path", "browser_path_help",
 	"transport", "transport_help", "transport_auto", "check", "checking", "unavailable", "save_first", "ready", "missing", "disabled",
 	"part_ffmpeg", "part_browser", "max_daily_chars", "max_daily_chars_help", "max_job_chars", "max_job_chars_help",
+	"agent_title", "agent_help", "agent_enabled", "agent_provider", "agent_provider_help", "agent_provider_main",
+	"agent_model", "agent_model_help", "agent_timeout", "agent_timeout_help", "agent_max_length", "agent_max_length_help",
+	"agent_max_daily_jobs", "agent_max_daily_jobs_help",
 }
 
 func TestConfigStorymakerBlockIsWired(t *testing.T) {
@@ -41,22 +46,42 @@ func TestConfigStorymakerBlockIsWired(t *testing.T) {
 		"'storymaker.enabled'",
 		"fetch('/api/desktop/storymaker/status'",
 		"hasUnsavedConfigChanges()",
+		"'storymaker.agent.enabled'",
+		`data-path="storymaker.agent.provider" data-config-choice="providers"`,
+		"cfgChoiceOptionsHTML('providers', helpTexts['storymaker.agent.provider'] || {}, agent.provider || '')",
+		`data-path="storymaker.agent.model"`,
+		`data-path="storymaker.agent.job_timeout_seconds"`,
+		`min="120" max="7200"`,
+		`data-path="storymaker.agent.max_length_seconds"`,
+		`min="15" max="3600"`,
+		`data-path="storymaker.agent.max_daily_jobs"`,
+		`min="1" max="1000"`,
 	} {
 		if !strings.Contains(src, marker) {
 			t.Errorf("virtual_desktop.js lacks %q", marker)
 		}
 	}
 	for _, key := range storymakerConfigKeys {
+		if key == "agent_provider_main" {
+			continue
+		}
 		if !strings.Contains(src, "'"+key+"'") && !strings.Contains(src, "'config.storymaker."+key+"'") {
 			t.Errorf("virtual_desktop.js never uses config.storymaker.%s", key)
 		}
+	}
+	var meta map[string]map[string]any
+	if err := json.Unmarshal(mustReadUIFile(t, "lang/meta.json"), &meta); err != nil {
+		t.Fatal(err)
+	}
+	if entry := meta["help.storymaker.agent.provider"]; entry["provider_ref"] != true || entry["empty_label_key"] != "config.storymaker.agent_provider_main" {
+		t.Fatalf("lang/meta.json help.storymaker.agent.provider = %v", entry)
 	}
 	// The limits of the form are the limits of NormalizeStorymakerConfig.
 	normalize, err := os.ReadFile(filepath.Join("..", "internal", "config", "storymaker.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, limit := range []string{"60", "14400", "10", "3600", "1000", "100000000", "100", "10000000"} {
+	for _, limit := range []string{"60", "14400", "10", "3600", "1000", "100000000", "100", "10000000", "120", "7200", "15"} {
 		if !strings.Contains(string(normalize), limit) {
 			t.Errorf("internal/config/storymaker.go no longer mentions the limit %s the form promises", limit)
 		}
