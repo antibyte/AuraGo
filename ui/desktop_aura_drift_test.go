@@ -166,7 +166,7 @@ func TestAuraDriftLocaleKeysCoverAllLanguages(t *testing.T) {
 		"aura_drift.daily", "aura_drift.track", "aura_drift.laps",
 		"aura_drift.quality", "aura_drift.auto", "aura_drift.low",
 		"aura_drift.medium", "aura_drift.high", "aura_drift.ultra",
-		"aura_drift.sound", "aura_drift.muted", "aura_drift.weapons_off",
+		"aura_drift.sound", "aura_drift.music", "aura_drift.muted", "aura_drift.weapons_off",
 		"aura_drift.reduced_motion", "aura_drift.show_ghost",
 		"aura_drift.voice", "aura_drift.voice_note",
 		"aura_drift.voice_credit", "aura_drift.voice_credit_url",

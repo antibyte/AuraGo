@@ -47,7 +47,12 @@
     /* Engine bus level per view: silent in the garage, a low bed under the results, full in a race. */
     const ENGINE_BED = { menu: 0, results: 0.3, race: 1 };
     const MASTER_TRIM = 1.0;            /* volume 1 = full scale into the glue compressor and the -3 dB limiter */
-    const MUSIC_LEVEL = 0.32;           /* the score under the race */
+    /* The score has its own bus and its own trim in the settings: the sound slider is the
+     * whole mix, the music slider is the score alone. MUSIC_LEVEL is the score at full, the
+     * player starts at MUSIC_DEFAULT, so the score sits at 0.45 under the race (it used to
+     * be 0.32) and can still be pushed to 0.6. */
+    const MUSIC_LEVEL = 0.6;            /* the score at full */
+    const MUSIC_DEFAULT = 0.75;         /* where the player's trim starts */
     const AMBIENCE_LEVEL = 0.8;         /* the world around the track */
     /* The voice commentary is a dialogue bus of its own: it goes straight to the
      * limiter and skips the glue compressor, because that compressor has a makeup
@@ -65,6 +70,10 @@
         let bank = null, engine = null, music = null;
         let noise = null;
         let volume = settings.volume, muted = settings.muted;
+        /* The player's trim on the score. A missing or broken value keeps the current trim,
+         * so a partial settings object never silences the music. */
+        let musicVolume = typeof settings.musicVolume === 'number' && isFinite(settings.musicVolume)
+            ? clamp(settings.musicVolume, 0, 1) : MUSIC_DEFAULT;
         let running = false, carId = null, biomeId = null, view = 'race';
         let lastTick = 0, heading = 0, myX = 0, myY = 0, lastHornAt = -9, lastKerbAt = -9, lastPassAt = -9, lastSprayAt = -9;
         let rollGain = null, windGain = null, surfaceGain = null, surfaceFilter = null, sprayGain = null, sprayFilter = null;
@@ -111,7 +120,7 @@
             engineBus = ctx.createGain(); engineBus.gain.value = ENGINE_BED[view] === undefined ? 1 : ENGINE_BED[view]; engineBus.connect(master);
             sfxBus = ctx.createGain(); sfxBus.gain.value = 1; sfxBus.connect(master);
             ambBus = ctx.createGain(); ambBus.gain.value = AMBIENCE_LEVEL; ambBus.connect(master);
-            musicBus = ctx.createGain(); musicBus.gain.value = MUSIC_LEVEL; musicBus.connect(master);
+            musicBus = ctx.createGain(); musicBus.gain.value = musicLevel(); musicBus.connect(master);
             /* The voice commentary has its own bus: it speaks over the race and must
              * not push the limiter into clipping. It goes straight to the limiter
              * and skips the glue compressor, so a line keeps the level it was mixed
@@ -184,6 +193,9 @@
             return gain;
         }
 
+        /* The level of the score: the balance of the mix times the player's trim. */
+        function musicLevel() { return MUSIC_LEVEL * musicVolume; }
+
         /* While a driver speaks the race steps back: the engine, the score and the
          * ambience go down, the voice is the only thing on top. */
         function applyVoiceMix(tc) {
@@ -191,7 +203,7 @@
             const now = ctx.currentTime;
             const bed = ENGINE_BED[view] === undefined ? 1 : ENGINE_BED[view];
             if (engineBus) engineBus.gain.setTargetAtTime(bed * (voiceSpeaking ? VOICE_DUCK.engine : 1), now, tc);
-            if (musicBus) musicBus.gain.setTargetAtTime(MUSIC_LEVEL * (voiceSpeaking ? VOICE_DUCK.music : 1), now, tc);
+            if (musicBus) musicBus.gain.setTargetAtTime(musicLevel() * (voiceSpeaking ? VOICE_DUCK.music : 1), now, tc);
             if (ambBus) ambBus.gain.setTargetAtTime(AMBIENCE_LEVEL * (voiceSpeaking ? VOICE_DUCK.ambience : 1), now, tc);
         }
 
@@ -480,9 +492,13 @@
             ui,
             setSettings(next) {
                 volume = clamp(next.volume, 0, 1); muted = !!next.muted;
+                /* The score follows the player's trim; a missing value keeps the current one. */
+                if (typeof next.musicVolume === 'number' && isFinite(next.musicVolume)) musicVolume = clamp(next.musicVolume, 0, 1);
                 if (master && ctx) master.gain.setTargetAtTime(muted ? 0 : volume * MASTER_TRIM, ctx.currentTime, 0.03);
                 /* The voice bus carries the volume of the player too. */
                 if (voiceBus && ctx) voiceBus.gain.setTargetAtTime(muted ? 0 : volume * MASTER_TRIM, ctx.currentTime, 0.03);
+                /* The score keeps the duck while a driver speaks. */
+                if (musicBus && ctx) musicBus.gain.setTargetAtTime(musicLevel() * (voiceSpeaking ? VOICE_DUCK.music : 1), ctx.currentTime, 0.05);
             },
             setBiome(id) {
                 biomeId = id;
@@ -558,7 +574,7 @@
             event,
             stats() {
                 const s = bank ? bank.stats() : { samples: 0, failed: 0, fallback: 0 };
-                return { samples: s.samples, failed: s.failed, fallback: s.fallback, voices: s.voices || 0, engine: engine ? engine.mode() : 'none' };
+                return { samples: s.samples, failed: s.failed, fallback: s.fallback, voices: s.voices || 0, engine: engine ? engine.mode() : 'none', musicVolume: musicVolume };
             },
             suspend() { if (ctx && ctx.state === 'running') ctx.suspend().catch(() => {}); running = false; },
             resume() { if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {}); running = true; },

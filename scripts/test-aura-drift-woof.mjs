@@ -412,11 +412,13 @@ function mixSandbox() {
         cancelScheduledValues() { return this; }
     });
     class FakeNode {
-        constructor() {
+        constructor(nodeKind = 'node') {
+            this.nodeKind = nodeKind;
+            this.outs = [];
             for (const k of ['gain', 'frequency', 'detune', 'Q', 'pan', 'playbackRate', 'threshold', 'knee', 'ratio', 'attack', 'release', 'delayTime']) this[k] = param(k === 'playbackRate' ? 1 : 0);
             this.type = 'x';
         }
-        connect(n) { return n; }
+        connect(n) { this.outs.push(n); return n; }
         disconnect() {}
         start() { this.started = true; }
         stop() { const f = this.onended; this.onended = null; if (f) queueMicrotask(f); }
@@ -431,11 +433,11 @@ function mixSandbox() {
         createBuffer(ch, len, sr) { const data = new Float32Array(len); return { numberOfChannels: ch, length: len, sampleRate: sr, duration: len / sr, getChannelData: () => data }; }
         decodeAudioData(bytes, ok) { const b = this.createBuffer(1, 480, 48000); if (ok) ok(b); return Promise.resolve(b); }
         createBufferSource() { const n = new FakeNode(); sources.push(n); return n; }
-        createOscillator() { return new FakeNode(); }
-        createGain() { const n = new FakeNode(); gains.push(n); return n; }
-        createBiquadFilter() { return new FakeNode(); }
-        createDynamicsCompressor() { return new FakeNode(); }
-        createConvolver() { return new FakeNode(); }
+        createOscillator() { return new FakeNode('oscillator'); }
+        createGain() { const n = new FakeNode('gain'); gains.push(n); return n; }
+        createBiquadFilter() { return new FakeNode('filter'); }
+        createDynamicsCompressor() { return new FakeNode('compressor'); }
+        createConvolver() { return new FakeNode('convolver'); }
         createStereoPanner() { return new FakeNode(); }
         createDelay() { return new FakeNode(); }
         createWaveShaper() { return new FakeNode(); }
@@ -469,11 +471,27 @@ await check('a spoken line is loud enough and the race steps back', async () => 
     const audio = sandbox.window.AuraDriftCore.createAudio({ volume: 1, muted: false });
     assert.equal(audio.unlock(), true);
     audio.setView('race');
-    /* The engine, the score and the ambience are the three buses with a level. */
-    const buses = [];
-    gains.forEach((g, i) => { if (g.gain.last === 1 || g.gain.last === 0.32 || g.gain.last === 0.8) buses.push(i); });
+    /* The master is the gain that feeds the glue compressor (and the compressor that feeds
+     * the limiter); the engine, the score and the ambience are the three buses under it. */
+    const master = gains.find(g => g.outs.some(o => o.nodeKind === 'compressor' && o.outs.some(p => p.nodeKind === 'compressor')));
+    const buses = gains.filter(g => g !== master && g.outs.includes(master) && g.gain.last !== undefined);
     assert.equal(buses.length, 3, 'engine, score and ambience have a level');
-    const before = buses.map(i => gains[i].gain.last);
+    /* The score carries the player's trim, so the buses are told apart by their role and not
+     * by their level. */
+    const engine = buses.find(g => g.gain.last === 1);
+    const ambience = buses.find(g => g.gain.last === 0.8);
+    const music = buses.find(g => g !== engine && g !== ambience);
+    assert.ok(engine && ambience && music, 'engine, score and ambience are told apart');
+    const roles = { engine: engine, music: music, ambience: ambience };
+    const before = {};
+    for (const [role, g] of Object.entries(roles)) before[role] = g.gain.last;
+
+    /* The score follows the trim of the player: a lower trim lowers the bus. */
+    audio.setSettings({ volume: 1, muted: false, musicVolume: 0.5 });
+    assert.ok(Math.abs(music.gain.last / before.music - 0.5 / 0.75) < 1e-6,
+        `the score follows the trim: ${before.music} -> ${music.gain.last}`);
+    audio.setSettings({ volume: 1, muted: false, musicVolume: 0.75 });
+    assert.equal(music.gain.last, before.music, 'the score is back at the trim of the player');
 
     const line = modelLine();
     const quiet = levelOf(line);
@@ -486,21 +504,23 @@ await check('a spoken line is loud enough and the race steps back', async () => 
     assert.ok(loud.rms > quiet.rms * 2, `the line is lifted: ${quiet.rms} -> ${loud.rms}`);
     assert.ok(loud.peak <= 0.96, `the peaks stay under the ceiling: ${loud.peak}`);
 
-    /* While the line is spoken the race steps back: the engine the most, the
-     * score a little less, the ambience the least. */
-    const during = buses.map(i => gains[i].gain.last);
-    const DUCK = { 1: 0.18, 0.8: 0.4, 0.32: 0.25 };
-    for (let i = 0; i < buses.length; i++) {
-        const want = before[i] * DUCK[before[i]];
-        assert.ok(Math.abs(during[i] - want) < 1e-6, `bus ${i}: ${before[i]} -> ${during[i]}, want ${want}`);
+    /* While the line is spoken the race steps back: the engine the most, the score a little
+     * less, the ambience the least. */
+    const during = {};
+    for (const [role, g] of Object.entries(roles)) during[role] = g.gain.last;
+    const DUCK = { engine: 0.18, music: 0.25, ambience: 0.4 };
+    for (const role of Object.keys(roles)) {
+        const want = before[role] * DUCK[role];
+        assert.ok(Math.abs(during[role] - want) < 1e-6, `${role}: ${before[role]} -> ${during[role]}, want ${want}`);
     }
 
     /* When the line ends the race comes back. */
     sources[sources.length - 1].stop();
     await new Promise(resolve => setImmediate(resolve));
-    const after = buses.map(i => gains[i].gain.last);
-    for (let i = 0; i < buses.length; i++) {
-        assert.ok(Math.abs(after[i] - before[i]) < 1e-6, `bus ${i} is back: ${after[i]}`);
+    const after = {};
+    for (const [role, g] of Object.entries(roles)) after[role] = g.gain.last;
+    for (const role of Object.keys(roles)) {
+        assert.ok(Math.abs(after[role] - before[role]) < 1e-6, `${role} is back: ${after[role]}`);
     }
     audio.dispose();
 });

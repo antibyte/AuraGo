@@ -229,6 +229,19 @@
         volume.addEventListener('input', () => { paintVolume(); settings.volume = Number(volume.value) / 100; changed(); });
         pages.settings.appendChild(row(labels.sound, volume));
 
+        /* The score has a trim of its own: the sound slider is the whole mix, this one is the
+         * music alone. It starts where the score sits under the race and may go up to full. */
+        const musicTrim = typeof settings.musicVolume === 'number'
+            ? settings.musicVolume
+            : (typeof AD.defaultSettings === 'function' ? AD.defaultSettings().musicVolume : 0.75);
+        const music = el('input', 'agdrift-range');
+        music.type = 'range'; music.min = '0'; music.max = '100';
+        music.value = String(Math.round(musicTrim * 100));
+        const paintMusic = () => music.style.setProperty('--p', music.value + '%');
+        paintMusic();
+        music.addEventListener('input', () => { paintMusic(); settings.musicVolume = Number(music.value) / 100; changed(); });
+        pages.settings.appendChild(row(labels.music, music));
+
         function toggle(labelText, initial, onChange) {
             const r = el('label', 'agdrift-check');
             const input = el('input');

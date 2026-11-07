@@ -329,6 +329,62 @@ func TestDesktopAuraDriftBrowser(t *testing.T) {
 	auraDriftNoErrors(t, page)
 }
 
+// The Setup tab carries a trim for the score alone: it must show the translated label,
+// reach the audio engine, be stored and survive a reload.
+func TestDesktopAuraDriftMusicVolumeBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	page := auraDriftFixture(t)
+	auraDriftReopen(page, map[string]interface{}{"quality": "low"}, "")
+
+	page.MustElement(".agdrift-tab[data-tab='settings']").MustClick()
+	if !page.MustEval(`()=>{const p=document.querySelector('.agdrift-page[data-page="settings"]');return !!p&&!p.hidden;}`).Bool() {
+		t.Fatal("the Setup page did not open")
+	}
+
+	// The trim sits next to the sound slider and starts at the level of the score.
+	musicValue := page.MustEval(`()=>{
+        const rows=[...document.querySelectorAll('.agdrift-page[data-page="settings"] label.agdrift-row')];
+        const row=rows.find(r=>r.querySelector('.agdrift-row-label').textContent==='Musik');
+        return row&&row.querySelector('input.agdrift-range')?row.querySelector('input.agdrift-range').value:'';
+    }`).Str()
+	if musicValue != "75" {
+		t.Fatalf("the music trim shows %q, want 75", musicValue)
+	}
+
+	// Moving it must reach the audio engine and the stored settings at once.
+	page.MustEval(`()=>{
+        const rows=[...document.querySelectorAll('.agdrift-page[data-page="settings"] label.agdrift-row')];
+        const row=rows.find(r=>r.querySelector('.agdrift-row-label').textContent==='Musik');
+        const input=row.querySelector('input.agdrift-range');
+        input.value='40';
+        input.dispatchEvent(new Event('input',{bubbles:true}));
+    }`)
+	if got := page.MustEval(`()=>String(AuraDriftApp.stats()[0].audio.musicVolume)`).Str(); got != "0.4" {
+		t.Fatalf("the audio engine reports musicVolume = %s, want 0.4", got)
+	}
+	if got := page.MustEval(`()=>String(JSON.parse(localStorage.getItem('aurago.desktop.aura-drift.v1')).musicVolume)`).Str(); got != "0.4" {
+		t.Fatalf("the stored musicVolume = %s, want 0.4", got)
+	}
+
+	// The trim must survive a reload: the score keeps the level the player left it at.
+	page.MustReload()
+	page.MustWaitLoad()
+	page.MustEval(`async()=>{await fixtureReady;await fixtureOpen('aura-drift');}`)
+	page.MustElement(".agdrift-tab[data-tab='settings']").MustClick()
+	kept := page.MustEval(`()=>{
+        const rows=[...document.querySelectorAll('.agdrift-page[data-page="settings"] label.agdrift-row')];
+        const row=rows.find(r=>r.querySelector('.agdrift-row-label').textContent==='Musik');
+        return row&&row.querySelector('input.agdrift-range')?row.querySelector('input.agdrift-range').value:'';
+    }`).Str()
+	if kept != "40" {
+		t.Fatalf("the music trim shows %q after a reload, want 40", kept)
+	}
+	if got := page.MustEval(`()=>String(AuraDriftApp.stats()[0].audio.musicVolume)`).Str(); got != "0.4" {
+		t.Fatalf("the audio engine reports musicVolume = %s after a reload, want 0.4", got)
+	}
+	auraDriftNoErrors(t, page)
+}
+
 // The keyboard-only journey: focus the start button, press Enter, drive with
 // real key events, then pause with Escape. Window blur must pause as well.
 func TestDesktopAuraDriftKeyboardJourneyBrowser(t *testing.T) {

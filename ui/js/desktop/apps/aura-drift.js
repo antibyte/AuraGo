@@ -95,7 +95,7 @@
             quality: 'aura_drift.quality', auto: 'aura_drift.auto',
             low: 'aura_drift.low', medium: 'aura_drift.medium',
             high: 'aura_drift.high', ultra: 'aura_drift.ultra',
-            sound: 'aura_drift.sound', muted: 'aura_drift.muted',
+            sound: 'aura_drift.sound', music: 'aura_drift.music', muted: 'aura_drift.muted',
             weaponsOff: 'aura_drift.weapons_off', reducedMotion: 'aura_drift.reduced_motion',
             showGhost: 'aura_drift.show_ghost', voice: 'aura_drift.voice',
             controlsHint: 'aura_drift.controls_hint',
