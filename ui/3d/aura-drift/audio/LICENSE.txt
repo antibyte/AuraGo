@@ -2,7 +2,17 @@ AuraGo Aura Drift sound pack
 
 Most files in this pack are original work for AuraGo, generated from code by
 scripts/build-aura-drift-audio.mjs (copyright (c) 2026 AuraGo contributors, MIT licence):
-all engines, all music, and every sound group that is not listed below.
+all engines, the menu and results music, and every sound group that is not listed below.
+
+EXCEPTION, OPEN ITEM - the eight race songs (music/<biome>-song.ogg: alpine, desert, harbour,
+salt, forest, industry, glacier, metro) are NOT synthesised by this repository. They are
+instrumental songs generated locally with YuE2 Studio from the text prompts recorded in
+assets/aura-drift/audio/yue2-songs.json and in manifest.json (origin "YuE2 Studio (local
+generation)"). The model and licence terms of YuE2 Studio and its underlying model for
+commercial or game use have NOT been verified, and no licence is granted or implied for these
+eight files by this notice. Clear the terms before any public or commercial release, or replace
+the songs. The FLAC masters are not part of the repository; manifest.json records the SHA-256
+of each master.
 
 The sound groups listed below are cut from third-party recordings that are dedicated to the
 public domain under CC0 1.0 Universal (https://creativecommons.org/publicdomain/zero/1.0/).

@@ -2,6 +2,7 @@
 //   node scripts/build-aura-drift-audio.mjs                         verify the committed pack (read-only, no ffmpeg)
 //   node scripts/build-aura-drift-audio.mjs --check                 same as above
 //   node scripts/build-aura-drift-audio.mjs --write [--sources DIR] rebuild the pack: own synthesis plus approved CC0 overrides in DIR
+//   node scripts/build-aura-drift-audio.mjs --songs DIR             re-encode the eight race songs from DIR/<biome>.flac (YuE2 Studio masters, never committed); the rest of the pack stays
 //   node scripts/build-aura-drift-audio.mjs --preview DIR [--only REGEX]   render normalized WAVs for listening (nothing is written to the repo)
 //   node scripts/build-aura-drift-audio.mjs --list                  print every job id
 // Every sound is synthesized by scripts/aura-drift-synth/*.mjs (seeded, deterministic). A `sources.json` override replaces one
@@ -14,9 +15,11 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Worker } from 'node:worker_threads';
+import { encodeSong } from './aura-drift-song-encode.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const recipeFile = path.join(root, 'assets/aura-drift/audio/sources.json');
+const songsFile = path.join(root, 'assets/aura-drift/audio/yue2-songs.json');
 const outDir = path.join(root, 'ui/3d/aura-drift/audio');
 const synthDir = path.join(root, 'scripts/aura-drift-synth');
 const LICENSE = 'CC0-1.0', OWN = 'own-synthesis';
@@ -53,6 +56,7 @@ async function loadPlan() {
     const ids = new Set(recipe.sources.map(source => source.id));
     if (ids.size !== recipe.sources.length) fail('sources.json: duplicate source id');
     const reg = await registry();
+    const songs = await loadSongs(reg);
     const sfxGroups = new Set(reg.SFX_RECIPES.map(item => item.group));
     const overrides = new Map();
     for (const entry of recipe.overrides) {
@@ -74,21 +78,46 @@ async function loadPlan() {
                 if (job.variant === 0) override.members.forEach((member, i) => push({ path: `sfx/${slug(job.group)}-${i + 1}.ogg`, kind: 'sfx', group: job.group, override: { ...override, member }, source: override.source, member, channels: 1, loop: !!override.loop }));
             } else push({ path: job.path, kind: 'sfx', group: job.group, job, channels: job.channels, loop: job.loop });
         } else if (job.type === 'engine') push({ path: job.path, kind: 'engine', job, car: job.car, layer: job.layer, channels: 1, loop: true });
-        else if (job.type === 'music') for (const [layer, file] of Object.entries(job.paths)) push({ path: file, kind: 'music', job, biome: job.biome, layer, channels: 2, loop: true });
+        else if (job.type === 'music' && songs?.songs[job.biome]) {
+            // a biome with a generated song ships that single looping file instead of its three synthesised stems
+            const song = songs.songs[job.biome];
+            push({ path: song.path, kind: 'music', biome: job.biome, song: { ...song, biome: job.biome }, origin: songs.origin, channels: 2, loop: true });
+        } else if (job.type === 'music') for (const [layer, file] of Object.entries(job.paths)) push({ path: file, kind: 'music', job, biome: job.biome, layer, channels: 2, loop: true });
         else push({ path: job.path, kind: 'music', job, name: job.name, channels: 2, loop: true });
     }
-    return { recipe, files, reg, overrides };
+    return { recipe, files, reg, overrides, songs };
+}
+
+// assets/aura-drift/audio/yue2-songs.json: the generated race songs (prompt, source hash, encoder settings). Missing file = no songs.
+async function loadSongs(reg) {
+    const text = await fs.readFile(songsFile, 'utf8').catch(() => null);
+    if (text === null) return null;
+    const data = JSON.parse(text), biomes = new Set(reg.jobs().filter(job => job.type === 'music').map(job => job.biome));
+    if (data.version !== 1 || typeof data.origin !== 'string' || typeof data.license !== 'string') fail('yue2-songs.json: version 1 with origin and license is required');
+    const enc = data.encode ?? {};
+    if (!(enc.loopFade >= 1 && enc.loopFade <= 8) || !(enc.kbps >= 64 && enc.kbps <= 192) || !(enc.trimThresholdDb <= -30)) fail('yue2-songs.json: encode needs loopFade (1-8 s), kbps (64-192) and trimThresholdDb (<= -30)');
+    for (const [biome, song] of Object.entries(data.songs ?? {})) {
+        if (!biomes.has(biome)) fail(`yue2-songs.json: unknown biome "${biome}"`);
+        if (song.path !== `music/${biome}-song.ogg`) fail(`yue2-songs.json: ${biome} path must be music/${biome}-song.ogg`);
+        for (const key of ['track', 'title', 'style']) if (typeof song[key] !== 'string' || !song[key]) fail(`yue2-songs.json: ${biome}.${key} is required`);
+        if (!(song.bpm > 0) || !/^[0-9a-f]{64}$/.test(song.sourceSha256) || !(song.sourceBytes > 0)) fail(`yue2-songs.json: ${biome} needs bpm, sourceBytes and a hex sourceSha256`);
+    }
+    return data;
 }
 
 function buildManifest(plan, measured, hash) {
     const manifest = { version: 1, synth: hash, sfx: {}, engine: {}, music: {}, files: [], sources: plan.recipe.sources, overrides: plan.recipe.overrides };
     for (const file of plan.files) {
         const m = measured.get(file.path);
-        const entry = { path: file.path, bytes: m.bytes, sha256: m.sha256, seconds: m.seconds, channels: file.channels, loop: !!file.loop, origin: file.source ?? OWN };
-        if (file.source) { entry.member = file.member; entry.license = LICENSE; } else entry.license = OWN;
+        const entry = { path: file.path, bytes: m.bytes, sha256: m.sha256, seconds: m.seconds, channels: file.channels, loop: !!file.loop, origin: file.source ?? file.origin ?? OWN };
+        if (file.source) { entry.member = file.member; entry.license = LICENSE; } else if (file.song) {
+            const { title, style, bpm, sourceSha256 } = file.song, enc = plan.songs.encode;
+            Object.assign(entry, { license: plan.songs.license, title, style, bpm, sourceSha256, sourceSeconds: m.sourceSeconds, loopFade: enc.loopFade, kbps: enc.kbps, gainDb: m.gainDb, lufs: m.lufs, peakDb: m.peakDb });
+        } else entry.license = OWN;
         manifest.files.push(entry);
         if (file.kind === 'sfx') (manifest.sfx[file.group] ??= []).push(file.path);
         else if (file.kind === 'engine') (manifest.engine[file.car] ??= {})[file.layer] = file.path;
+        else if (file.song) manifest.music[file.biome] = file.path;
         else if (file.biome) (manifest.music[file.biome] ??= {})[file.layer] = file.path;
         else manifest.music[file.name] = file.path;
     }
@@ -123,7 +152,13 @@ async function check() {
     if (manifest.synth !== await synthHash()) bad('scripts/aura-drift-synth changed since the pack was built; run with --write');
     const describe = list => list.map(file => [file.path, file.origin ?? file.source ?? OWN, file.member ?? ''].join(' | ')).join('\n');
     const files = manifest.files ?? [];
-    if (describe(files) !== describe(plan.files.map(file => ({ path: file.path, origin: file.source ?? OWN, member: file.member })))) bad('manifest files do not match the planned output list');
+    if (describe(files) !== describe(plan.files.map(file => ({ path: file.path, origin: file.source ?? file.origin ?? OWN, member: file.member })))) bad('manifest files do not match the planned output list');
+    for (const file of plan.files.filter(item => item.song)) { // the recorded prompt, source hash and encoder settings must be those of yue2-songs.json
+        const entry = files.find(item => item.path === file.path), enc = plan.songs.encode;
+        const want = { license: plan.songs.license, title: file.song.title, style: file.song.style, bpm: file.song.bpm, sourceSha256: file.song.sourceSha256, loopFade: enc.loopFade, kbps: enc.kbps };
+        for (const [key, value] of Object.entries(want)) if (entry?.[key] !== value) bad(`${file.path}: ${key} differs from yue2-songs.json (run --songs)`);
+        for (const key of ['sourceSeconds', 'gainDb', 'lufs', 'peakDb']) if (!Number.isFinite(entry?.[key])) bad(`${file.path}: ${key} is not recorded`);
+    }
     const expected = buildManifest(plan, new Map(files.map(file => [file.path, file])), manifest.synth);
     for (const key of ['sfx', 'engine', 'music']) if (JSON.stringify(manifest[key]) !== JSON.stringify(expected[key])) bad(`manifest ${key} map does not match the recipes`);
     const totals = { sfx: 0, engine: 0, music: 0 }, vorbisId = Buffer.from([1, ...Buffer.from('vorbis')]);
@@ -272,6 +307,49 @@ function encodeRecording(override, input, dest, tmp) {
     run('ffmpeg', [...FFMPEG, '-i', stage, '-af', `volume=${(SFX_PEAK_DB - peak).toFixed(3)}dB`, '-map_metadata', '-1', '-fflags', '+bitexact', '-flags:a', '+bitexact', '-c:a', 'libvorbis', '-q:a', String(QUALITY.sfx), '-ar', '44100', dest]);
 }
 
+/* Overwrite in place: the caller copies every listed file. Only remove .ogg files that no recipe produces any more
+   (for example the stems of a biome that now has a song), so a rebuild never mass-deletes the shipped pack. */
+async function dropStale(manifest) {
+    for (const folder of ['sfx', 'engine', 'music']) {
+        await fs.mkdir(path.join(outDir, folder), { recursive: true });
+        const keep = new Set(manifest.files.filter(item => item.path.startsWith(folder + '/')).map(item => item.path.slice(folder.length + 1)));
+        for (const name of await fs.readdir(path.join(outDir, folder))) if (name.endsWith('.ogg') && !keep.has(name)) await fs.rm(path.join(outDir, folder, name));
+    }
+}
+
+// ---- --songs: FLAC masters -> committed Ogg Vorbis, everything else in the pack stays byte for byte ----
+async function songs(dir) {
+    const plan = await loadPlan();
+    if (!plan.songs) fail('assets/aura-drift/audio/yue2-songs.json is missing');
+    const version = run('ffmpeg', ['-hide_banner', '-version']);
+    if (Number(/ffmpeg version [nN]?(\d+)/.exec(version)?.[1]) < 8) fail('ffmpeg 8 or newer is required');
+    if (!/\blibvorbis\b/.test(run('ffmpeg', ['-hide_banner', '-encoders']))) fail('this ffmpeg build lacks the libvorbis encoder');
+    const prior = JSON.parse(await fs.readFile(path.join(outDir, 'manifest.json'), 'utf8'));
+    const measured = new Map(prior.files.map(item => [item.path, item]));
+    const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'aurago-drift-songs-'));
+    try {
+        const encoded = [];
+        for (const file of plan.files.filter(item => item.song)) {
+            const flac = path.resolve(dir, `${file.biome}.flac`), bytes = await fs.readFile(flac).catch(() => fail(`Missing ${flac}; every biome needs <biome>.flac`));
+            if (bytes.length !== file.song.sourceBytes || sha256(bytes) !== file.song.sourceSha256) fail(`${flac} does not match yue2-songs.json (expected ${file.song.sourceBytes} bytes, SHA-256 ${file.song.sourceSha256}); if the master is new, update both values first`);
+            const dest = path.join(tmp, `${file.biome}-song.ogg`), info = encodeSong(flac, dest, tmp, plan.songs.encode), data = await fs.readFile(dest);
+            const seconds = round(Number(run('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', dest]).trim()), 6);
+            measured.set(file.path, { bytes: data.length, sha256: sha256(data), seconds, ...info });
+            encoded.push([dest, file.path]);
+            console.log(`${file.biome.padEnd(9)} ${seconds.toFixed(3)} s (master ${info.sourceSeconds} s, kept ${info.trimmed.join('-')} s), ${data.length} B, gain ${info.gainDb} dB, ${info.lufs} LUFS, decoded peak ${info.peakDb} dB`);
+        }
+        const missing = plan.files.filter(item => !measured.has(item.path)).map(item => item.path);
+        if (missing.length) fail(`the committed manifest lacks ${missing.join(', ')}; run --write first`);
+        const manifest = buildManifest(plan, measured, prior.synth);
+        for (const [dest, file] of encoded) await fs.copyFile(dest, path.join(outDir, file));
+        await dropStale(manifest);
+        await fs.writeFile(path.join(outDir, 'manifest.json'), manifestText(manifest));
+    } finally {
+        await fs.rm(tmp, { recursive: true, force: true });
+    }
+    await check();
+}
+
 async function write(sourcesDir) {
     const plan = await loadPlan(), hash = await synthHash();
     const version = run('ffmpeg', ['-hide_banner', '-version']);
@@ -290,6 +368,13 @@ async function write(sourcesDir) {
             const source = plan.recipe.sources.find(candidate => candidate.id === file.source);
             if (!bases.has(source.id)) bases.set(source.id, await materialize(source, path.resolve(sourcesDir), tmp));
             encodeRecording({ ...file.override, group: file.group }, await resolveMember(bases.get(source.id), source, file.member), path.join(staged, file.path), tmp);
+        }
+        // the songs come from FLAC masters that are not part of the repository: keep the committed files (and their records) as they are
+        const prior = new Map(JSON.parse(await fs.readFile(path.join(outDir, 'manifest.json'), 'utf8').catch(() => '{}')).files?.map(item => [item.path, item]) ?? []);
+        for (const file of plan.files.filter(item => item.song)) {
+            const bytes = await fs.readFile(path.join(outDir, file.path)).catch(() => fail(`${file.path} is missing; run --songs <dir with the FLAC masters>`));
+            if (sha256(bytes) !== prior.get(file.path)?.sha256) fail(`${file.path} differs from the manifest; run --songs <dir with the FLAC masters>`);
+            await fs.writeFile(path.join(staged, file.path), bytes);
         }
         const jobIds = [...new Set(plan.files.filter(file => file.job).map(file => file.job.id))];
         const started = Date.now();
@@ -317,17 +402,11 @@ async function write(sourcesDir) {
         for (const file of plan.files) {
             const dest = path.join(staged, file.path), bytes = await fs.readFile(dest);
             const seconds = round(Number(run('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', dest]).trim()), 6);
-            measured.set(file.path, { bytes: bytes.length, sha256: sha256(bytes), seconds });
+            measured.set(file.path, { ...(file.song ? prior.get(file.path) : {}), bytes: bytes.length, sha256: sha256(bytes), seconds });
         }
         void byPath;
         const manifest = buildManifest(plan, measured, hash);
-        for (const folder of ['sfx', 'engine', 'music']) {
-            await fs.mkdir(path.join(outDir, folder), { recursive: true });
-            /* Overwrite in place: copyFile below replaces every listed file. Only remove .ogg files
-               that a removed recipe left behind, so a rebuild never mass-deletes the shipped pack. */
-            const keep = new Set(manifest.files.filter(item => item.path.startsWith(folder + '/')).map(item => item.path.slice(folder.length + 1)));
-            for (const name of await fs.readdir(path.join(outDir, folder))) if (name.endsWith('.ogg') && !keep.has(name)) await fs.rm(path.join(outDir, folder, name));
-        }
+        await dropStale(manifest);
         for (const file of manifest.files) await fs.copyFile(path.join(staged, file.path), path.join(outDir, file.path));
         await fs.writeFile(path.join(outDir, 'manifest.json'), manifestText(manifest));
     } finally {
@@ -365,11 +444,12 @@ async function preview(dir, only) {
 const args = process.argv.slice(2);
 const valueOf = flag => { const at = args.indexOf(flag); return at >= 0 ? args[at + 1] : undefined; };
 try {
-    const flags = ['--check', '--write', '--sources', '--preview', '--only', '--list'];
-    const values = new Set(['--sources', '--preview', '--only'].map(flag => args.indexOf(flag) + 1).filter(i => i > 0));
+    const flags = ['--check', '--write', '--sources', '--preview', '--only', '--list', '--songs'];
+    const values = new Set(['--sources', '--preview', '--only', '--songs'].map(flag => args.indexOf(flag) + 1).filter(i => i > 0));
     const unknown = args.filter((arg, i) => !flags.includes(arg) && !values.has(i));
-    if (unknown.length) fail(`unknown argument ${unknown[0]}; usage: [--check] | --write [--sources <dir>] | --preview <dir> [--only <regex>] | --list`);
+    if (unknown.length) fail(`unknown argument ${unknown[0]}; usage: [--check] | --write [--sources <dir>] | --songs <dir> | --preview <dir> [--only <regex>] | --list`);
     if (args.includes('--list')) for (const job of (await registry()).jobs()) console.log(job.id);
+    else if (args.includes('--songs')) await songs(valueOf('--songs') ?? fail('--songs needs the directory with the <biome>.flac masters'));
     else if (args.includes('--preview')) await preview(valueOf('--preview') ?? fail('--preview needs a directory'), valueOf('--only'));
     else if (args.includes('--write')) { if (args.includes('--check')) fail('--write and --check are exclusive'); await write(valueOf('--sources')); }
     else if (args.includes('--sources')) fail('--sources is only used with --write');

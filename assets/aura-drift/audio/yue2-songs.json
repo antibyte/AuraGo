@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "origin": "YuE2 Studio (local generation)",
+  "license": "unverified",
+  "note": "Instrumental songs generated locally with YuE2 Studio (job kind drift, lyrics empty, cot full). The FLAC masters are not committed; build-aura-drift-audio.mjs --songs <dir with <biome>.flac> re-encodes the committed Ogg files from them. The model and licence terms for commercial or game use have NOT been verified.",
+  "encode": {
+    "loopFade": 3.5,
+    "kbps": 96,
+    "trimThresholdDb": -50,
+    "lufs": -16,
+    "peakDb": -1
+  },
+  "songs": {
+    "alpine": {
+      "path": "music/alpine-song.ogg",
+      "track": "Alpenpass",
+      "title": "Aura Drift Alpenpass",
+      "style": "instrumental, driving alpine rally synthwave, bright analog lead melody, punchy drums, rolling bass, shimmering pads, sleigh-bell accents, heroic open-road mood, 100 BPM",
+      "bpm": 100,
+      "requestedSeconds": 120,
+      "sourceBytes": 23544655,
+      "sourceSha256": "a7ee368c81723c2599aea42b3566390f47ea2ac94beaf69b9be081a7453f3ace"
+    },
+    "desert": {
+      "path": "music/desert-song.ogg",
+      "track": "Wüsten-Canyon",
+      "title": "Aura Drift Wüsten-Canyon",
+      "style": "instrumental, desert canyon breakbeat rock, twangy baritone guitar riff, darbuka and hand percussion, fat synth bass, dusty warm mood, sun-baked and urgent, 118 BPM",
+      "bpm": 118,
+      "requestedSeconds": 120,
+      "sourceBytes": 21099328,
+      "sourceSha256": "fd0febd2e770f5f829c4f554b3f40cac82e53ca875655a8882893b0f6b21294d"
+    },
+    "harbour": {
+      "path": "music/harbour-song.ogg",
+      "track": "Neon-Hafen",
+      "title": "Aura Drift Neon-Hafen",
+      "style": "instrumental, neon night-harbour synthwave, gated snare, arpeggiated synth bass, glassy chorus pads, saxophone-like lead, wet city reverb, cool and glossy, 92 BPM",
+      "bpm": 92,
+      "requestedSeconds": 120,
+      "sourceBytes": 23318979,
+      "sourceSha256": "987cef3e64e886214f5e6720979deaa2ebf7531071d35e5dd1aeeb9fbcb26db4"
+    },
+    "salt": {
+      "path": "music/salt-song.ogg",
+      "track": "Salzsee",
+      "title": "Aura Drift Salzsee",
+      "style": "instrumental, endless salt flat cruise electronica, four-on-the-floor kick, shimmering supersaw pads, plucked arpeggios, airy delay lead, wide open and euphoric, 106 BPM",
+      "bpm": 106,
+      "requestedSeconds": 120,
+      "sourceBytes": 21933188,
+      "sourceSha256": "a753e91df9d948eb3bc7b835cab0568e3bc3326898909e8c1a4ec73d8b88befb"
+    },
+    "forest": {
+      "path": "music/forest-song.ogg",
+      "track": "Wald-Rallye",
+      "title": "Aura Drift Wald-Rallye",
+      "style": "instrumental, woodland rally folk-breakbeat, plucked acoustic guitar, marimba, shaker and wooden percussion, bouncy upright bass, flute melody, playful and earthy, 96 BPM",
+      "bpm": 96,
+      "requestedSeconds": 120,
+      "sourceBytes": 15781936,
+      "sourceSha256": "aa30866537980fc342ef21c814b1e745aab08843463e841f3155b3f349b74f9e"
+    },
+    "industry": {
+      "path": "music/industry-song.ogg",
+      "track": "Industrie-Ring",
+      "title": "Aura Drift Industrie-Ring",
+      "style": "instrumental, industrial techno drive, anvil and metal percussion, distorted sequenced bass, pulsing synth stabs, relentless four-on-the-floor kick, tense and mechanical, 128 BPM",
+      "bpm": 128,
+      "requestedSeconds": 120,
+      "sourceBytes": 20417428,
+      "sourceSha256": "ce01a1ef47f79f5c5a358a4f0d3ceddb08188c1ac7610d2ef493a15c850f0bb2"
+    },
+    "glacier": {
+      "path": "music/glacier-song.ogg",
+      "track": "Gletscherpass",
+      "title": "Aura Drift Gletscherpass",
+      "style": "instrumental, icy ambient downtempo, glassy bell melody, soft sub bass, sparse brushed drums, slow evolving pads, crystalline reverb, calm and cold, 84 BPM",
+      "bpm": 84,
+      "requestedSeconds": 120,
+      "sourceBytes": 21105313,
+      "sourceSha256": "6e66fded9f486b598a7e0f10dd9d12a8a40ea59315e64534984e455e3f720f8b"
+    },
+    "metro": {
+      "path": "music/metro-song.ogg",
+      "track": "Metropolis-Ring",
+      "title": "Aura Drift Metropolis-Ring",
+      "style": "instrumental, high-energy metropolis electro house, side-chained pumping synth bass, bright stab chords, tight claps and hats, soaring lead hook, fast and glittering, 122 BPM",
+      "bpm": 122,
+      "requestedSeconds": 120,
+      "sourceBytes": 9519179,
+      "sourceSha256": "a0423453cd9ce7c71e29bb73108359a50a8761bf32d864d3de4c1ea9e18660b4"
+    }
+  }
+}

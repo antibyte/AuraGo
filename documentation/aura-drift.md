@@ -320,14 +320,17 @@ described by its `manifest.json`, which marks each file `own-synthesis` or with 
 - **Engines (about 0.66 MB):** eight cars times four layers (idle, low, mid, high), two seconds,
   mono and seamless. The player's engine crossfades the four layers by rpm with equal power;
   each rival plays the mid layer of its own car, spatialised.
-- **Music (about 8.4 MB):** per biome three stereo stems (bed, drive, peak) of 16 bars at one
-  tempo, all the same length, plus menu and results loops. The layers come in with intensity;
-  the peak layer also follows nitro, the final lap and last place.
+- **Music (about 9.7 MB):** per biome ONE generated instrumental song (`music/<biome>-song.ogg`,
+  44 to 116 s, stereo Ogg Vorbis 96 kbps, equal-power loop crossfade baked in), plus the synthesised
+  menu and results loops. The songs were generated locally with YuE2 Studio; their licence terms
+  are not verified (see `assets/aura-drift/audio/README.md`). A song scene is not adaptive: the
+  drive / peak layering and the disco low-pass belong to the stem scenes (the manifest format
+  still supports three-stem biomes), so nitro, final lap and last place only trigger the stingers.
 - **Fallbacks:** the sample bank loads by priority, and a missing or failed sample falls back to
   the live Web Audio synthesis (the earlier engine, music and bed code), so the game plays
   without the pack.
 - **Loudness:** sound effects and engines have decoded-peak targets; each biome's music has one
-  gain that puts the three stems together at -16 LUFS. An earshot `measure` pass on the 12 polish
+  gain that puts the song at -16 LUFS (peak -1 dBFS). An earshot `measure` pass on the 12 polish
   stingers reports no clipped samples, true peaks of -0.9 to -1.7 dBTP and -17.0 to -8.7 LUFS
   (the three 0.3 s ticks are too short for a LUFS reading). Bells and ticks attack in 0 to 2 ms,
   the whoosh and shimmer swells in 61 to 216 ms. **No human listening pass has happened yet.**

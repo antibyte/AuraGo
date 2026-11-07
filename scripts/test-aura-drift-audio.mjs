@@ -81,19 +81,31 @@ ok(Object.keys(manifest.engine).length === CARS.length, 'engine map has extra ca
 const musicSource = fs.readFileSync(path.join(root, 'ui/js/desktop/apps/aura-drift-music.js'), 'utf8');
 const tempoBlock = /const TEMPI = \{([\s\S]*?)\};/.exec(musicSource)?.[1] ?? '';
 const TEMPI = Object.fromEntries([...tempoBlock.matchAll(/(\w+):\s*(\d+)/g)].map(m => [m[1], Number(m[2])]));
+// Every biome plays ONE generated song (YuE2 Studio): a single stereo looping file with the loop crossfade baked in.
+// (The manifest format still allows a biome with three aligned stems; the runtime test below covers that shape with a synthetic manifest.)
+const YUE_ORIGIN = 'YuE2 Studio (local generation)';
+const songRecord = JSON.parse(fs.readFileSync(path.join(root, 'assets/aura-drift/audio/yue2-songs.json'), 'utf8'));
+ok(songRecord.origin === YUE_ORIGIN && songRecord.license === 'unverified', 'yue2-songs.json: origin and the unverified licence must be recorded');
+ok(/NOT been verified/.test(songRecord.note) && /NOT been verified/.test(fs.readFileSync(path.join(audioDir, 'LICENSE.txt'), 'utf8')), 'the unverified model licence must be stated in yue2-songs.json and LICENSE.txt');
+const songFiles = [];
 for (const biome of BIOMES) {
     ok(TEMPI[biome] > 0, `no tempo for ${biome} in aura-drift-music.js`);
-    const stems = STEMS.map(stem => byPath.get(manifest.music[biome]?.[stem]));
-    ok(stems.every(Boolean), `music ${biome}: bed, drive and peak are required`);
-    if (!stems.every(Boolean)) continue;
-    const spread = Math.max(...stems.map(s => s.seconds)) - Math.min(...stems.map(s => s.seconds));
-    ok(spread <= 0.001, `music ${biome}: stem durations differ by ${(spread * 1000).toFixed(2)} ms`);
-    const expected = 16 * 4 * 60 / TEMPI[biome];
-    ok(Math.abs(stems[0].seconds - expected) <= 0.005, `music ${biome}: ${stems[0].seconds} s, expected ${expected.toFixed(3)} s for 16 bars at ${TEMPI[biome]} BPM`);
-    ok(stems.every(s => s.channels === 2 && s.loop), `music ${biome}: stems must be stereo loops`);
+    const entry = byPath.get(manifest.music[biome]), want = `music/${biome}-song.ogg`;
+    ok(manifest.music[biome] === want && entry, `music ${biome}: expected the song entry "${want}", got ${JSON.stringify(manifest.music[biome])}`);
+    ok(!manifest.files.some(f => new RegExp(`^music/${biome}-(bed|drive|peak)\\.ogg$`).test(f.path)), `music ${biome}: stems must be removed once the biome has a song`);
+    if (!entry) continue;
+    songFiles.push(entry);
+    ok(entry.channels === 2 && entry.loop === true, `music ${biome}: the song must be a stereo loop`);
+    ok(entry.origin === YUE_ORIGIN && entry.license === 'unverified', `music ${biome}: origin / license must be ${YUE_ORIGIN} / unverified`);
+    ok(entry.seconds >= 40 && entry.seconds <= 125, `music ${biome}: ${entry.seconds} s is not a plausible song length`);
+    ok(entry.title && entry.style && entry.bpm === TEMPI[biome] && /^[0-9a-f]{64}$/.test(entry.sourceSha256), `music ${biome}: the generation prompt (title, style, BPM) and the master SHA-256 must be recorded`);
+    ok(entry.bpm === songRecord.songs[biome]?.bpm && entry.sourceSha256 === songRecord.songs[biome]?.sourceSha256 && entry.style === songRecord.songs[biome]?.style, `music ${biome}: manifest and yue2-songs.json disagree`);
+    ok(entry.loopFade === 3.5 && entry.kbps >= 64 && Math.abs(entry.seconds - (entry.sourceSeconds - entry.loopFade)) <= 1, `music ${biome}: loop crossfade not recorded or the length does not fit master minus fade`);
+    ok(entry.lufs >= -17 && entry.lufs <= -15.5 && entry.peakDb <= -1 + 0.15 && Number.isFinite(entry.gainDb), `music ${biome}: recorded level ${entry.lufs} LUFS / ${entry.peakDb} dB / gain ${entry.gainDb} dB`);
 }
 for (const name of ['menu', 'results']) ok(byPath.has(manifest.music[name]), `music ${name} missing`);
 ok(Object.keys(manifest.music).length === BIOMES.length + 2, 'music map has unexpected entries');
+ok(Object.keys(songRecord.songs).length === BIOMES.length, 'yue2-songs.json must describe one song per biome');
 
 // ---- 5. budgets ----
 const totals = { sfx: 0, engine: 0, music: 0 };
@@ -103,11 +115,11 @@ for (const file of manifest.files) {
     totals[file.path.split('/')[0]] += stat.size;
 }
 for (const key of Object.keys(totals)) ok(totals[key] <= LIMITS[key], `${key} total ${totals[key]} exceeds ${LIMITS[key]}`);
-ok(manifest.files.every(f => f.origin === 'own-synthesis' || (f.license === 'CC0-1.0' && manifest.sources.some(s => s.id === f.origin))), 'every file is own synthesis or a pinned CC0 source');
+ok(manifest.files.every(f => f.origin === 'own-synthesis' || (f.license === 'CC0-1.0' && manifest.sources.some(s => s.id === f.origin)) || (f.origin === YUE_ORIGIN && f.license === 'unverified' && /^music\/[a-z]+-song\.ogg$/.test(f.path))), 'every file is own synthesis, a pinned CC0 source or one of the (licence-unverified) YuE2 race songs');
 
 // ---- 6. decoded checks ----
-function decode(file, channels) {
-    const out = spawnSync('ffmpeg', ['-hide_banner', '-nostdin', '-loglevel', 'error', '-i', path.join(audioDir, file), '-f', 'f32le', '-ac', String(channels), '-ar', '44100', '-'], { maxBuffer: 512 * 1024 * 1024 });
+function decode(file, channels, rate = 44100) {
+    const out = spawnSync('ffmpeg', ['-hide_banner', '-nostdin', '-loglevel', 'error', '-i', path.join(audioDir, file), '-f', 'f32le', '-ac', String(channels), '-ar', String(rate), '-'], { maxBuffer: 512 * 1024 * 1024 });
     if (out.status !== 0) return null;
     const buf = out.stdout;
     return new Float32Array(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.length));
@@ -129,11 +141,23 @@ if (!fast) {
             const lag = file.seconds - x.length / file.channels / 44100; // ffmpeg's Vorbis decoder drops up to 128 priming samples and may return a partial last block; browsers use the granule length, loops must still match
             ok(lag >= (file.loop ? -0.002 : -0.025) && lag <= 0.0035, `${file.path}: decoded length ${(x.length / file.channels / 44100).toFixed(4)} s differs from the manifest`);
         }
-        for (const biome of BIOMES) { // the three stems played together must land at -16 LUFS
-            const args = ['-hide_banner', '-nostats', '-nostdin', ...STEMS.flatMap(s => ['-i', path.join(audioDir, manifest.music[biome][s])]), '-filter_complex', 'amix=inputs=3:normalize=0,ebur128=framelog=quiet', '-f', 'null', '-'];
-            const out = spawnSync('ffmpeg', args, { encoding: 'utf8' });
+        for (const biome of BIOMES) { // each song lands at about -16 LUFS (peak-limited ones a little lower) and its loop wraps without a click
+            const file = path.join(audioDir, manifest.music[biome]);
+            const out = spawnSync('ffmpeg', ['-hide_banner', '-nostats', '-nostdin', '-i', file, '-af', 'ebur128=framelog=quiet', '-f', 'null', '-'], { encoding: 'utf8' });
             const lufs = Number(/\bI:\s+(-?[\d.]+) LUFS/.exec(`${out.stderr}\n${out.stdout}`)?.[1]);
-            ok(Number.isFinite(lufs) && lufs <= -14.5 && lufs >= -18, `music ${biome}: stems summed measure ${lufs} LUFS, expected about -16`);
+            ok(Number.isFinite(lufs) && lufs <= -15 && lufs >= -17.2, `music ${biome}: song measures ${lufs} LUFS, expected about -16`);
+            const x = decode(manifest.music[biome], 2, 48000); // native rate: a resampler would add its own edge artefacts at the wrap point
+            if (!x) continue;
+            const n = x.length / 2;
+            for (let c = 0; c < 2; c++) {
+                let d2 = 0;
+                for (let i = 1; i < n; i++) { const d = x[2 * i + c] - x[2 * (i - 1) + c]; d2 += d * d; }
+                const step = Math.sqrt(d2 / n) || 1e-9, wrap = Math.abs(x[c] - x[2 * (n - 1) + c]);
+                let seam = 0; // largest sample step within 200 samples either side of the wrap point
+                for (let k = -200; k < 200; k++) { const i = (n + k) % n, j = (i + n - 1) % n; seam = Math.max(seam, Math.abs(x[2 * i + c] - x[2 * j + c])); }
+                ok(wrap / step <= 2, `music ${biome} ch${c}: first and last sample differ by ${(wrap / step).toFixed(2)}x a typical step (loop click)`);
+                ok(seam / step <= 5, `music ${biome} ch${c}: largest step at the loop seam is ${(seam / step).toFixed(2)}x a typical step (click)`);
+            }
         }
     }
 }
@@ -158,12 +182,12 @@ async function checkMusicRuntime() {
         };
         return ctx;
     }
-    function load(fetchOk) {
-        const bytes = path => (fetchOk ? Promise.resolve(Object.assign(new ArrayBuffer(8), { path })) : Promise.reject(new Error('no pack')));
+    function load(fetchOk, { pack = manifest, failBytes = null } = {}) {
+        const bytes = path => (fetchOk && !(failBytes && failBytes.test(path)) ? Promise.resolve(Object.assign(new ArrayBuffer(8), { path })) : Promise.reject(new Error('no pack')));
         const AD = {
             clamp: (v, lo, hi) => Math.min(hi, Math.max(lo, v)),
             assetsFetchBytes: bytes,
-            assetsFetchJson: () => (fetchOk ? Promise.resolve(manifest) : Promise.reject(new Error('no pack')))
+            assetsFetchJson: () => (fetchOk ? Promise.resolve(pack) : Promise.reject(new Error('no pack')))
         };
         const sandbox = { window: { AuraDriftCore: AD }, setTimeout, clearTimeout, Math, Object, Promise };
         vm.runInNewContext(musicSource, sandbox, { filename: 'aura-drift-music.js' });
@@ -190,14 +214,46 @@ async function checkMusicRuntime() {
         } catch (error) { threw = error; }
         ok(!threw, `music ${label}: threw ${threw && threw.stack}`);
         if (withPack) {
-            const metro = ctx.sources.filter(s => s.loop && s.started && s.buffer.bytes && /music\/metro-(bed|drive|peak)\.ogg/.test(s.buffer.bytes.path));
-            ok(metro.length === 3 && new Set(metro.map(s => s.startedAt)).size === 1, `music with pack: the three metro stems must start together (got ${metro.length} sources at ${[...new Set(metro.map(s => s.startedAt))]})`);
+            const musicPaths = ctx.sources.filter(s => s.loop && s.started && s.buffer.bytes && /music\//.test(s.buffer.bytes.path)).map(s => s.buffer.bytes.path);
+            const metro = ctx.sources.filter(s => s.loop && s.started && s.buffer.bytes && /music\/metro-song\.ogg/.test(s.buffer.bytes.path));
+            ok(metro.length === 1, `music with pack: the metro song must play as one looping source (got ${metro.length}; loops started: ${musicPaths})`);
+            ok(musicPaths.every(p => /\/music\/([a-z]+-song|menu|results)\.ogg$/.test(p)), `music with pack: only song, menu and results files may play (got ${musicPaths})`);
             ok(ctx.sources.some(s => !s.loop && s.started), 'music with pack: no one-shot (stinger or fanfare) was played');
         }
         music.stop();
         music.stop();
         ok(ctx.sources.every(s => !s.started || s.stopped), `music ${label}: stop() left a source running`);
         music.setBiome('forest'); music.update(0.016, 0.5, {}); music.event({ type: 'finish', car: 0 });
+    }
+    // a song that fails to load leaves the live synthesiser in charge (no music file plays, nothing throws)
+    {
+        const AD = load(true, { failBytes: /music\/forest-song\.ogg/ });
+        const ctx = makeCtx();
+        const music = AD.createMusicEngine(ctx, { fake: 'noise' }, ctx.createGain());
+        let threw = null;
+        try { music.setBiome('forest'); await tick(); music.update(0.016, 0.9, { intensity: 0.5 }); music.event({ type: 'final_lap', car: 0 }); await tick(); } catch (error) { threw = error; }
+        ok(!threw, `music song load failure: threw ${threw && threw.stack}`);
+        ok(!ctx.sources.some(s => s.loop && s.started && s.buffer && s.buffer.bytes && /music\//.test(s.buffer.bytes.path)), 'music song load failure: no music file may play');
+        ok(ctx.sources.some(s => s.started), 'music song load failure: the live fallback (ambience beds) must be running');
+        music.stop();
+    }
+    // a biome that keeps three aligned stems (the format still allows it) stays adaptive: three sources start together, the song shape never layers
+    {
+        const stemPack = { ...manifest, music: { ...manifest.music, alpine: Object.fromEntries(STEMS.map(s => [s, `music/alpine-${s}.ogg`])) } };
+        const AD = load(true, { pack: stemPack });
+        const ctx = makeCtx();
+        const music = AD.createMusicEngine(ctx, { fake: 'noise' }, ctx.createGain());
+        let threw = null;
+        try {
+            music.setBiome('alpine'); await tick();
+            music.update(0.016, 0.9, { intensity: 0.5 }, { nitro: true }); music.event({ type: 'disco_on', car: 0 });
+            music.setBiome('metro'); await tick(); music.update(0.4, 0.9, {}, { nitro: true }); music.event({ type: 'disco_on', car: 0 });
+        } catch (error) { threw = error; }
+        ok(!threw, `music stems and songs side by side: threw ${threw && threw.stack}`);
+        const stems = ctx.sources.filter(s => s.loop && s.started && s.buffer.bytes && /music\/alpine-(bed|drive|peak)\.ogg/.test(s.buffer.bytes.path));
+        ok(stems.length === 3 && new Set(stems.map(s => s.startedAt)).size === 1, `music stems: the three alpine stems must start together (got ${stems.length})`);
+        ok(ctx.sources.filter(s => s.loop && s.started && s.buffer.bytes && /music\/metro-song\.ogg/.test(s.buffer.bytes.path)).length === 1, 'music stems and songs side by side: the metro song must be one source');
+        music.stop();
     }
     // the sad trombone: a poor finish picks fanfare.lose, a win picks fanfare.win
     const picks = [];

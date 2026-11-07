@@ -401,46 +401,14 @@
     }
   },
   "music": {
-    "alpine": {
-      "bed": "music/alpine-bed.ogg",
-      "drive": "music/alpine-drive.ogg",
-      "peak": "music/alpine-peak.ogg"
-    },
-    "desert": {
-      "bed": "music/desert-bed.ogg",
-      "drive": "music/desert-drive.ogg",
-      "peak": "music/desert-peak.ogg"
-    },
-    "harbour": {
-      "bed": "music/harbour-bed.ogg",
-      "drive": "music/harbour-drive.ogg",
-      "peak": "music/harbour-peak.ogg"
-    },
-    "salt": {
-      "bed": "music/salt-bed.ogg",
-      "drive": "music/salt-drive.ogg",
-      "peak": "music/salt-peak.ogg"
-    },
-    "forest": {
-      "bed": "music/forest-bed.ogg",
-      "drive": "music/forest-drive.ogg",
-      "peak": "music/forest-peak.ogg"
-    },
-    "industry": {
-      "bed": "music/industry-bed.ogg",
-      "drive": "music/industry-drive.ogg",
-      "peak": "music/industry-peak.ogg"
-    },
-    "glacier": {
-      "bed": "music/glacier-bed.ogg",
-      "drive": "music/glacier-drive.ogg",
-      "peak": "music/glacier-peak.ogg"
-    },
-    "metro": {
-      "bed": "music/metro-bed.ogg",
-      "drive": "music/metro-drive.ogg",
-      "peak": "music/metro-peak.ogg"
-    },
+    "alpine": "music/alpine-song.ogg",
+    "desert": "music/desert-song.ogg",
+    "harbour": "music/harbour-song.ogg",
+    "salt": "music/salt-song.ogg",
+    "forest": "music/forest-song.ogg",
+    "industry": "music/industry-song.ogg",
+    "glacier": "music/glacier-song.ogg",
+    "metro": "music/metro-song.ogg",
     "menu": "music/menu.ogg",
     "results": "music/results.ogg"
   },
@@ -973,30 +941,14 @@
     {"path":"engine/bertha-low.ogg","bytes":20510,"sha256":"a7143dc93e5b6245e08feadb9b7f73c08bfdd56ec4b3655c11ce61ce386a6e30","seconds":2,"channels":1,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
     {"path":"engine/bertha-mid.ogg","bytes":18800,"sha256":"eee112fa7e6d84288e7cee274bb4f3174238274d449f718fe324baa8ca4f3fae","seconds":2,"channels":1,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
     {"path":"engine/bertha-high.ogg","bytes":18860,"sha256":"04d1f50263deaf11e09b1f699dc738f88b6eced2f76587a7c27f3ab1750c82b7","seconds":2,"channels":1,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"music/alpine-bed.ogg","bytes":344396,"sha256":"f7344551c130767cdec88eae0a41c8ead79deabcc43a1d841d168b79e8b19426","seconds":38.4,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"music/alpine-drive.ogg","bytes":311928,"sha256":"35bad1aada62e47498d6168e0b5719a26dfc620f012ef7678752aaa7381b307b","seconds":38.4,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"music/alpine-peak.ogg","bytes":354269,"sha256":"a9265e9eea8c3ef2b463345bb4045aa2c7c1d7eae2a18290e1bc43df22ed8041","seconds":38.4,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"music/desert-bed.ogg","bytes":286792,"sha256":"e70a990abc1490f49ec9a02fc9c7fe256bce5d7d15d423e7320fe266d0dfa8de","seconds":32.542381,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"music/desert-drive.ogg","bytes":297804,"sha256":"edfff25532c992d0d991c12f1c0791389f498a6ef0faeb2bb69855d55a1db217","seconds":32.542381,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"music/desert-peak.ogg","bytes":318009,"sha256":"6e05872ff18bfb7cbc79da13218ed3277b7e7bd05608683d1df9e730c6a0d278","seconds":32.542381,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"music/harbour-bed.ogg","bytes":373839,"sha256":"4de4ece3eb5e9d2e711de4e341561493379157ffdf03758aa6924d71218eceb1","seconds":41.739138,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"music/harbour-drive.ogg","bytes":356457,"sha256":"0087fe46007077873279ab1eef17fa0ae37e2519d882267c8d671a19d20504fb","seconds":41.739138,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"music/harbour-peak.ogg","bytes":373665,"sha256":"5980124d937e0d1d140cec8669e0cac5856bbb7de49db3a3ce581c1979c1bbca","seconds":41.739138,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"music/salt-bed.ogg","bytes":354098,"sha256":"235c1a66903d985eac9228da476951bcb8c27a82eb0acc423d3646ecca165f9e","seconds":36.226417,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"music/salt-drive.ogg","bytes":344924,"sha256":"9749a4f2edd95ac58a47f134754c15fa12693859686977b6e0b6c79eabdf0d39","seconds":36.226417,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"music/salt-peak.ogg","bytes":369410,"sha256":"ef329b632d6aa8d219cc2463f184f84cf1f2fa4cf5377fe02085a0fedc870ca8","seconds":36.226417,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"music/forest-bed.ogg","bytes":335881,"sha256":"1811d82225fa8ad01206fcf40ec225af884fd07e2beb046c391ad63032039360","seconds":40,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"music/forest-drive.ogg","bytes":297317,"sha256":"a7a897886b04aa51a9dcd7a400932d2c00a5cda3663617acb44b34aec18a5bb5","seconds":40,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"music/forest-peak.ogg","bytes":347995,"sha256":"7a00793f74de25a38d75a2ff93a2a2255ce28192fac51d2142b7f70b1d772fc8","seconds":40,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"music/industry-bed.ogg","bytes":255263,"sha256":"2a53aa115a748a8acc6fc3e8ab22b866ef95662c97447fa15f00007450ae3c30","seconds":30,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"music/industry-drive.ogg","bytes":279307,"sha256":"00c684cd54b34fbfd06fa98ee69d44f711e1f893c2f206ab13047d4794368a50","seconds":30,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"music/industry-peak.ogg","bytes":278024,"sha256":"fe69c80e1f97d82b83c0bb703416d63c1550424a54b71891be49ce1f23dd1762","seconds":30,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"music/glacier-bed.ogg","bytes":473080,"sha256":"e8e528b8790e8776a1f89abf110af57186255c2c24b40bf9ec655f5480b037db","seconds":45.714286,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"music/glacier-drive.ogg","bytes":308897,"sha256":"2cfa15dfb2e11f7e75595483ee96525da39353af219d38558b16c5902bf4bffa","seconds":45.714286,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"music/glacier-peak.ogg","bytes":506070,"sha256":"d890fcc55dc431c2d46387365d55b7d74a30e2c72e35e1101e43e6ea8467d293","seconds":45.714286,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"music/metro-bed.ogg","bytes":278641,"sha256":"12bc4e5b00f1c38d820e9ac14e9cf032992c8e1ca0a3fddbc590f85896850cab","seconds":31.47542,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"music/metro-drive.ogg","bytes":298662,"sha256":"840e36d20ccf3e621c2ac894f062106552f475757b07e4181c6ec344bb9e87a9","seconds":31.47542,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
-    {"path":"music/metro-peak.ogg","bytes":295255,"sha256":"ca32f82a3ae09f906acda4195b0ce34a3c96f1069e56ea3e0cbb309f38360ea9","seconds":31.47542,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
+    {"path":"music/alpine-song.ogg","bytes":1285767,"sha256":"b20a9bf35e080b2b7893eafc92f9b3f694ad19700994254ae7997e95c7d05564","seconds":114.128667,"channels":2,"loop":true,"origin":"YuE2 Studio (local generation)","license":"unverified","title":"Aura Drift Alpenpass","style":"instrumental, driving alpine rally synthwave, bright analog lead melody, punchy drums, rolling bass, shimmering pads, sleigh-bell accents, heroic open-road mood, 100 BPM","bpm":100,"sourceSha256":"a7ee368c81723c2599aea42b3566390f47ea2ac94beaf69b9be081a7453f3ace","sourceSeconds":118.199,"loopFade":3.5,"kbps":96,"gainDb":-2.9,"lufs":-16.1,"peakDb":-3.14},
+    {"path":"music/desert-song.ogg","bytes":1314393,"sha256":"8d82fbe4cc0cdfc015ecb51cbd35fe2afea08dc402dc8c29366ad343bb440d70","seconds":116.068667,"channels":2,"loop":true,"origin":"YuE2 Studio (local generation)","license":"unverified","title":"Aura Drift Wüsten-Canyon","style":"instrumental, desert canyon breakbeat rock, twangy baritone guitar riff, darbuka and hand percussion, fat synth bass, dusty warm mood, sun-baked and urgent, 118 BPM","bpm":118,"sourceSha256":"fd0febd2e770f5f829c4f554b3f40cac82e53ca875655a8882893b0f6b21294d","sourceSeconds":119.999,"loopFade":3.5,"kbps":96,"gainDb":-1.3,"lufs":-16,"peakDb":-1.32},
+    {"path":"music/harbour-song.ogg","bytes":1302985,"sha256":"5dc08a8c685ff6fbd01fbc6844c025cd535df7caa3af6f535678407e16868734","seconds":116.498667,"channels":2,"loop":true,"origin":"YuE2 Studio (local generation)","license":"unverified","title":"Aura Drift Neon-Hafen","style":"instrumental, neon night-harbour synthwave, gated snare, arpeggiated synth bass, glassy chorus pads, saxophone-like lead, wet city reverb, cool and glossy, 92 BPM","bpm":92,"sourceSha256":"987cef3e64e886214f5e6720979deaa2ebf7531071d35e5dd1aeeb9fbcb26db4","sourceSeconds":119.999,"loopFade":3.5,"kbps":96,"gainDb":-2,"lufs":-16.1,"peakDb":-2.74},
+    {"path":"music/salt-song.ogg","bytes":1315412,"sha256":"12807862b94256c04c1aa842b58ed705bf3ef299718676e727f8af48ead2910f","seconds":116.268667,"channels":2,"loop":true,"origin":"YuE2 Studio (local generation)","license":"unverified","title":"Aura Drift Salzsee","style":"instrumental, endless salt flat cruise electronica, four-on-the-floor kick, shimmering supersaw pads, plucked arpeggios, airy delay lead, wide open and euphoric, 106 BPM","bpm":106,"sourceSha256":"a753e91df9d948eb3bc7b835cab0568e3bc3326898909e8c1a4ec73d8b88befb","sourceSeconds":119.999,"loopFade":3.5,"kbps":96,"gainDb":-1.2,"lufs":-16.1,"peakDb":-2.35},
+    {"path":"music/forest-song.ogg","bytes":972141,"sha256":"dbfaea1d2ca1c1d8a503bdbe2cc44bdfe81117e76fb0aae4a22c311e878a6040","seconds":81.178667,"channels":2,"loop":true,"origin":"YuE2 Studio (local generation)","license":"unverified","title":"Aura Drift Wald-Rallye","style":"instrumental, woodland rally folk-breakbeat, plucked acoustic guitar, marimba, shaker and wooden percussion, bouncy upright bass, flute melody, playful and earthy, 96 BPM","bpm":96,"sourceSha256":"aa30866537980fc342ef21c814b1e745aab08843463e841f3155b3f349b74f9e","sourceSeconds":85.159,"loopFade":3.5,"kbps":96,"gainDb":-1.2,"lufs":-16,"peakDb":-1.59},
+    {"path":"music/industry-song.ogg","bytes":1368684,"sha256":"87b4ac6c88a621a6e2363e23eed60ec80d5e5c223791206ee0efc8c9ca3fec4b","seconds":116.498667,"channels":2,"loop":true,"origin":"YuE2 Studio (local generation)","license":"unverified","title":"Aura Drift Industrie-Ring","style":"instrumental, industrial techno drive, anvil and metal percussion, distorted sequenced bass, pulsing synth stabs, relentless four-on-the-floor kick, tense and mechanical, 128 BPM","bpm":128,"sourceSha256":"ce01a1ef47f79f5c5a358a4f0d3ceddb08188c1ac7610d2ef493a15c850f0bb2","sourceSeconds":119.999,"loopFade":3.5,"kbps":96,"gainDb":-1.207,"lufs":-16.6,"peakDb":-1.91},
+    {"path":"music/glacier-song.ogg","bytes":1270139,"sha256":"85699b91a54bb60e7fc4c577d52a34d76890245e95758c49e64536c30d2af798","seconds":116.498667,"channels":2,"loop":true,"origin":"YuE2 Studio (local generation)","license":"unverified","title":"Aura Drift Gletscherpass","style":"instrumental, icy ambient downtempo, glassy bell melody, soft sub bass, sparse brushed drums, slow evolving pads, crystalline reverb, calm and cold, 84 BPM","bpm":84,"sourceSha256":"6e66fded9f486b598a7e0f10dd9d12a8a40ea59315e64534984e455e3f720f8b","sourceSeconds":119.999,"loopFade":3.5,"kbps":96,"gainDb":-1,"lufs":-16.6,"peakDb":-1.12},
+    {"path":"music/metro-song.ogg","bytes":486854,"sha256":"ccc2aad32605990141151ce471b9c5905a78120a2638c8327057b835326453c9","seconds":44.288667,"channels":2,"loop":true,"origin":"YuE2 Studio (local generation)","license":"unverified","title":"Aura Drift Metropolis-Ring","style":"instrumental, high-energy metropolis electro house, side-chained pumping synth bass, bright stab chords, tight claps and hats, soaring lead hook, fast and glittering, 122 BPM","bpm":122,"sourceSha256":"a0423453cd9ce7c71e29bb73108359a50a8761bf32d864d3de4c1ea9e18660b4","sourceSeconds":48.319,"loopFade":3.5,"kbps":96,"gainDb":-1.4,"lufs":-16.1,"peakDb":-2.5},
     {"path":"music/menu.ogg","bytes":171976,"sha256":"e74366a65f0d762346f96815d5f6e0985e521eb3d5f21bddbdccf3e9b25acf79","seconds":18.461542,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"},
     {"path":"music/results.ogg","bytes":203394,"sha256":"72a962c133b59aa6c001d1e364786f4e649ac4cb6d32ad2d3712a0c3f029401f","seconds":21.333333,"channels":2,"loop":true,"origin":"own-synthesis","license":"own-synthesis"}
   ]

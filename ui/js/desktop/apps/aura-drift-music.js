@@ -346,7 +346,7 @@
      * Sample pack playback
      * ------------------------------------------------------------------ */
     const PACK_ROOT = '/3d/aura-drift/audio/';
-    const PACK_LEVEL = 0.7;        /* stems are normalised to -16 LUFS summed; the live synth is quieter */
+    const PACK_LEVEL = 0.7;        /* songs (and the summed stems) are normalised to -16 LUFS; the live synth is quieter */
     const LAYER_SMOOTH = 0.8;      /* seconds for a layer gain to settle */
     const CROSSFADE = 1.5;         /* biome / view change */
     const PEAK_OPEN = 18000, PEAK_DULL = 700, DISCO_SECONDS = 4;
@@ -404,16 +404,19 @@
         }
         return {
             buffer,
-            /* The three stems of a biome, or the single file of menu / results. */
+            /* A scene is { bed, adaptive } plus drive / peak for the adaptive kind:
+               - a string entry is ONE looping file (the race song of a biome, menu, results): not adaptive,
+               - an object entry is the three aligned stems bed / drive / peak: adaptive (intensity layering).
+               Resolves to null when the key is unknown or any file fails to load. */
             scene(key) {
                 return manifest().then(m => {
                     const entry = m && m.music && m.music[key];
                     if (!entry) return null;
                     if (typeof entry === 'string') {
-                        return buffer(entry).then(b => b ? { bed: b } : null);
+                        return buffer(entry).then(b => b ? { bed: b, adaptive: false } : null);
                     }
                     return Promise.all([buffer(entry.bed), buffer(entry.drive), buffer(entry.peak)]).then(list => (
-                        list[0] && list[1] && list[2] ? { bed: list[0], drive: list[1], peak: list[2] } : null
+                        list[0] && list[1] && list[2] ? { bed: list[0], drive: list[1], peak: list[2], adaptive: true } : null
                     ));
                 });
             },
@@ -483,7 +486,9 @@
             const master = ctx.createGain();
             master.gain.value = 0;
             master.connect(duckGain);
-            const node = { key, master, sources: [], others: [master], layers: {}, filter: null };
+            /* Only stem scenes (adaptive) have drive / peak layers and the peak low-pass; a song scene is one
+               fixed file, so applyLayers() and discoDip() leave it alone. */
+            const node = { key, master, adaptive: !!stems.adaptive, sources: [], others: [master], layers: {}, filter: null };
             for (const name of ['bed', 'drive', 'peak']) {
                 const buffer = stems[name];
                 if (!buffer) continue;
@@ -566,7 +571,7 @@
 
         /* ---- layer gains ------------------------------------------- */
         function applyLayers(force) {
-            if (!scene || !scene.layers.drive) return;
+            if (!scene || !scene.adaptive) return;
             const now = ctx.currentTime;
             const i = lastIntensity;
             /* a little hysteresis keeps a layer from flapping around its threshold */

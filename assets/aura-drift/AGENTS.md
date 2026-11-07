@@ -21,7 +21,9 @@ Own the Blender 5.2 generator of the Aura Drift model pack and its pure-Python k
   and `audio/README.md`. The sound pack itself is `ui/3d/aura-drift/audio/` and is written only by
   `scripts/build-aura-drift-audio.mjs --write --sources D:\tmp\agdrift-cc0` (downloads in one folder per source id,
   never committed); its synthesis code is in `scripts/aura-drift-synth/`. Credits are in
-  `ui/3d/aura-drift/audio/LICENSE.txt`; engines, music and all other groups are own synthesis.
+  `ui/3d/aura-drift/audio/LICENSE.txt`; engines, menu/results music and all other groups are own synthesis.
+  The eight race songs (`music/<biome>-song.ogg`) are YuE2 Studio generations (licence terms NOT verified, open item),
+  recorded in `audio/yue2-songs.json` and re-encoded from FLAC masters with `build-aura-drift-audio.mjs --songs <dir>`.
 - Check: `scripts/test-aura-drift-assets.mjs`.
 - Preview renders and scratch builds go outside the repository (`D:\tmp\agdrift-shots`, `D:\tmp\agdrift-build`).
 - Generated scratch folders under `assets/aura-drift/build/` are git-ignored.
