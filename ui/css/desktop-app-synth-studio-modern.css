@@ -139,3 +139,57 @@
 .ss-designer-group[open] .ss-group-chevron { transform: rotate(45deg); }
 .ss-app .ss-designer-group > .ss-param-grid { padding: 4px 16px 16px; }
 .ss-app .ss-designer-group > summary:focus-visible { outline: 2px solid var(--ss-accent); outline-offset: -2px; }
+
+/* ---- header and transport ---- */
+.ss-app .ss-header { padding: 12px 18px; gap: 16px; background: var(--ss-glass), var(--ss-bar); }
+.ss-app .ss-brand-mark { box-shadow: 0 0 14px var(--ss-glow), var(--ss-edge); }
+.ss-app .ss-transport { gap: 14px; }
+.ss-app .ss-transport-buttons { display: flex; gap: 10px; align-items: center; }
+.ss-app .ss-transport-buttons button {
+    width: 42px; height: 42px; padding: 0; border-radius: 50%; font-size: 15px;
+    border: 1px solid var(--ss-border);
+    background: radial-gradient(circle at 35% 25%, var(--ss-cap-hi), var(--ss-cap-lo) 80%);
+    box-shadow: 0 4px 9px rgb(0 0 0 / .45), inset 0 1px 1px color-mix(in srgb, #fff 40%, transparent);
+}
+.ss-app .ss-transport-buttons button:active { transform: translateY(1px); box-shadow: 0 1px 3px rgb(0 0 0 / .5), inset 0 2px 4px rgb(0 0 0 / .4); }
+.ss-app .ss-transport-buttons .ss-play { width: 52px; height: 52px; font-size: 19px; color: var(--ss-accent); }
+.ss-app .ss-transport-buttons .ss-play.is-active { box-shadow: 0 0 18px var(--ss-glow), 0 4px 9px rgb(0 0 0 / .45); }
+.ss-app .ss-transport-buttons .ss-record { color: var(--ss-hot); }
+.ss-app .ss-transport-buttons .ss-record.is-recording { box-shadow: 0 0 18px color-mix(in srgb, var(--ss-hot) 70%, transparent); }
+.ss-app .ss-position {
+    font: 700 20px/1 var(--vd-mat-mono-font, monospace); letter-spacing: 1px; padding: 8px 14px; border-radius: 10px;
+    background: color-mix(in srgb, #000 40%, var(--ss-panel)); box-shadow: inset 0 2px 5px rgb(0 0 0 / .55); color: var(--ss-accent);
+}
+.ss-app .ss-tempo input { width: 76px; font: 700 18px/1 var(--vd-mat-mono-font, monospace); text-align: center; }
+
+/* ---- inspector and FX cards ---- */
+.ss-app .ss-inspector { padding: 20px 22px; }
+.ss-app .ss-sound-workbench .ss-param-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 14px; }
+.ss-app .ss-fx-slot {
+    margin: 0 0 14px; padding: 12px 14px; border-radius: 16px;
+    background: var(--ss-glass), var(--ss-card); border: 1px solid var(--ss-card-border); box-shadow: var(--ss-edge), var(--ss-lift);
+}
+.ss-app .ss-fx-params { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 12px; margin-top: 10px; }
+.ss-app .ss-master-panel .ss-parameter:has(.ss-ctl-knob) { min-width: 0; }
+
+/* ---- track mixer fader ---- */
+.ss-app .ss-track-head .ss-ctl-hfader { margin-top: 4px; }
+
+/* ---- spacing for the empty states and the welcome card ---- */
+.ss-app .ss-welcome { padding: 18px 22px; border-radius: 18px; background: var(--ss-glass), var(--ss-card); box-shadow: var(--ss-edge), var(--ss-lift); }
+
+/* ---- refinement after comparing with the reference ---- */
+/* Play is a glass cap with a teal ring (not a flat primary fill); Record keeps the orange. */
+.ss-app .ss-transport-buttons button.ss-play {
+    background: radial-gradient(circle at 35% 25%, color-mix(in srgb, var(--ss-accent) 38%, var(--ss-cap-hi)), color-mix(in srgb, var(--ss-accent) 22%, var(--ss-cap-lo)) 82%);
+    color: color-mix(in srgb, var(--ss-accent) 80%, #fff); border-color: color-mix(in srgb, var(--ss-accent) 70%, transparent);
+    box-shadow: 0 0 14px color-mix(in srgb, var(--ss-accent) 45%, transparent), 0 4px 9px rgb(0 0 0 / .45), inset 0 1px 1px color-mix(in srgb, #fff 45%, transparent);
+}
+.ss-app .ss-transport-buttons button.ss-play.is-active { box-shadow: 0 0 22px var(--ss-glow), 0 0 4px var(--ss-accent), 0 4px 9px rgb(0 0 0 / .45); }
+.ss-app .ss-transport-buttons button.ss-record.is-recording {
+    background: radial-gradient(circle at 35% 25%, color-mix(in srgb, var(--ss-hot) 60%, #fff), var(--ss-hot) 85%) !important; color: #3a1700 !important;
+}
+.ss-app .ss-transport-buttons button.ss-record { border-color: color-mix(in srgb, var(--ss-hot) 55%, transparent); }
+/* Sound/Perform/Strudel: the tools strip only keeps its two icon buttons; take it out of the flow's way. */
+.ss-app:not([data-mode=arrange]) .ss-arrange-tools { padding-block: 4px; min-height: 0; border-bottom: 0; background: transparent; }
+.ss-app:not([data-mode=arrange]) .ss-arrange-tools > span { display: none; }
