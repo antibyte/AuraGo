@@ -1,6 +1,7 @@
 {
   "config.whatsapp.intro": "Pište si s AuraGo přes WhatsApp. AuraGo se připojí jako propojené zařízení a odpovídá jen číslům vlastníka.",
   "config.whatsapp.enabled": "Zapnout WhatsApp",
+  "help.whatsapp.enabled": "Povolí AuraGo používat propojený účet WhatsApp. Účet propoj níže.",
   "config.whatsapp.mode": "Číslo",
   "config.whatsapp.mode_dedicated": "Vlastní číslo pro AuraGo",
   "config.whatsapp.mode_self_chat": "Moje vlastní číslo (chat sám se sebou)",

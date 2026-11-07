@@ -1,6 +1,7 @@
 {
   "config.whatsapp.intro": "通过 WhatsApp 与 AuraGo 聊天。AuraGo 以关联设备身份加入，只回复所有者号码。",
   "config.whatsapp.enabled": "启用 WhatsApp",
+  "help.whatsapp.enabled": "允许 AuraGo 使用已关联的 WhatsApp 账号。请在下方关联账号。",
   "config.whatsapp.mode": "号码",
   "config.whatsapp.mode_dedicated": "AuraGo 专用号码",
   "config.whatsapp.mode_self_chat": "我自己的号码（与自己聊天）",

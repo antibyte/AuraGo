@@ -269,9 +269,9 @@ function vdCfgStorymaker() {
     const agent = data.agent || (data.agent = {});
     if (typeof agent.enabled !== 'boolean') agent.enabled = true;
     const prefix = 'config.storymaker.';
-    let html = '<h3>' + t(prefix + 'title') + '</h3><p class="field-help">' + t(prefix + 'help') + '</p>';
+    let html = '<h3>' + t(prefix + 'title') + '</h3>';
     html += '<div class="field-grid two-cols">';
-    html += vdCfgToggleRow(prefix + 'enabled', '', data.enabled === true, 'storymaker.enabled');
+    html += vdCfgToggleRow(prefix + 'enabled', prefix + 'help', data.enabled === true, 'storymaker.enabled');
     html += '</div><div class="field-grid two-cols">';
     html += vdCfgField(prefix + 'timeout', prefix + 'timeout_help', '<input class="field-input" type="number" min="60" max="14400" value="' + escapeAttr(String(render.timeout_seconds || 3600)) + '" data-path="storymaker.render.timeout_seconds">');
     html += vdCfgField(prefix + 'max_duration', prefix + 'max_duration_help', '<input class="field-input" type="number" min="10" max="3600" value="' + escapeAttr(String(render.max_duration_seconds || 900)) + '" data-path="storymaker.render.max_duration_seconds">');
@@ -281,9 +281,9 @@ function vdCfgStorymaker() {
     html += vdCfgField(prefix + 'max_daily_chars', prefix + 'max_daily_chars_help', '<input class="field-input" type="number" min="1000" max="100000000" value="' + escapeAttr(String(narration.max_daily_chars || 100000)) + '" data-path="storymaker.narration.max_daily_chars">');
     html += vdCfgField(prefix + 'max_job_chars', prefix + 'max_job_chars_help', '<input class="field-input" type="number" min="100" max="10000000" value="' + escapeAttr(String(narration.max_job_chars || 20000)) + '" data-path="storymaker.narration.max_job_chars">');
     html += '</div><div class="field-group"><button type="button" id="vd-storymaker-btn" class="btn-save dc-test-btn" data-config-action-draft="false" onclick="vdCfgTestStorymaker(this)">' + t(prefix + 'check') + '</button>' + cfgActionResult.html('vd-storymaker-result') + '</div>';
-    html += '<h3>' + t(prefix + 'agent_title') + '</h3><p class="field-help">' + t(prefix + 'agent_help') + '</p>';
+    html += '<h3>' + t(prefix + 'agent_title') + '</h3>';
     html += '<div class="field-grid two-cols">';
-    html += vdCfgToggleRow(prefix + 'agent_enabled', '', agent.enabled === true, 'storymaker.agent.enabled');
+    html += vdCfgToggleRow(prefix + 'agent_enabled', prefix + 'agent_help', agent.enabled === true, 'storymaker.agent.enabled');
     html += '</div><div class="field-grid two-cols">';
     html += vdCfgField(prefix + 'agent_provider', prefix + 'agent_provider_help', '<select class="field-select" data-path="storymaker.agent.provider" data-config-choice="providers" aria-label="' + escapeAttr(t(prefix + 'agent_provider')) + '">' + cfgChoiceOptionsHTML('providers', helpTexts['storymaker.agent.provider'] || {}, agent.provider || '') + '</select>' + cfgChoiceHintHTML('providers'));
     html += vdCfgField(prefix + 'agent_model', prefix + 'agent_model_help', '<input class="field-input" type="text" spellcheck="false" autocomplete="off" value="' + escapeAttr(agent.model || '') + '" data-path="storymaker.agent.model">');

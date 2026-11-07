@@ -215,9 +215,7 @@ func generateScenarios(tools []ToolExport, contracts OperationContractManifest) 
 		targetTool := tools[sequence%len(tools)]
 		targetFixtures := choicesByTool[targetTool.Name]
 		choice := targetFixtures[(sequence*23+5)%len(targetFixtures)]
-		// Catalog sizes divisible by five must not repeat the same no-call
-		// conversation when a tool is visited in the next rotation.
-		scenario := makeNoCallScenario(tools, choice, allocator.Next(), sequence, (i+i/len(tools))%5)
+		scenario := makeNoCallScenario(tools, choice, allocator.Next(), sequence, noCallVariant(i, len(tools)))
 		scenarios = append(scenarios, scenario)
 		sequence++
 	}
@@ -235,6 +233,14 @@ func generateScenarios(tools []ToolExport, contracts OperationContractManifest) 
 		}
 	}
 	return scenarios, challenge, nil
+}
+
+func noCallVariant(index, toolCount int) int {
+	// Only multiples of five need an offset to avoid repeating a tool's variant.
+	if toolCount%5 == 0 {
+		index += index / toolCount
+	}
+	return index % 5
 }
 
 func makeDirectScenario(

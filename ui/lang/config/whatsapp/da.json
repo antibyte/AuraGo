@@ -1,6 +1,7 @@
 {
   "config.whatsapp.intro": "Chat med AuraGo på WhatsApp. AuraGo tilføjes som en tilknyttet enhed og svarer kun ejernumre.",
   "config.whatsapp.enabled": "Aktivér WhatsApp",
+  "help.whatsapp.enabled": "Tillad AuraGo at bruge en tilknyttet WhatsApp-konto. Tilknyt kontoen nedenfor.",
   "config.whatsapp.mode": "Nummer",
   "config.whatsapp.mode_dedicated": "Eget AuraGo-nummer",
   "config.whatsapp.mode_self_chat": "Mit eget nummer (chat med dig selv)",

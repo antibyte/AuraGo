@@ -14,7 +14,7 @@ function renderWhatsAppSection(section) {
         beforeHTML: cfgStatusBanner.html('whatsapp-status', 'checking'),
         groups: [
             { titleKey: 'config.refresh.operation', content:
-                toggle('enabled', t('config.whatsapp.enabled')) +
+                toggle('enabled', t('config.whatsapp.enabled'), t('help.whatsapp.enabled')) +
                 field('mode', t('config.whatsapp.mode'), { type: 'select', help: t('help.whatsapp.mode'), options: [
                     { value: 'dedicated', label: t('config.whatsapp.mode_dedicated') },
                     { value: 'self_chat', label: t('config.whatsapp.mode_self_chat') }

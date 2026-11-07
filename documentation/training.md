@@ -12,7 +12,10 @@ Moving or duplicating these Go packages into an unrelated module would break Go'
 
 ## Verify and refresh
 
-ECalc has paired German/English search, describe, calculate and open fixtures. Co-agent examples explicitly manage only the initiating session and request cancellation directly. Preserve Kaggle/FindIt and other curated contracts when refreshing; never replace a complete local training history with an older remote pin.
+ECalc has paired German/English fixtures for all eight calculator, table, code and pinout operations. Storymaker covers all six asynchronous project operations with synthetic project IDs. Co-agent examples explicitly manage only the initiating session and request cancellation directly. Preserve Kaggle/FindIt and other curated contracts when refreshing; never replace a complete local training history with an older remote pin.
+
+The 500 negative examples stay balanced across five categories as the catalog grows;
+successive catalog rotations must not repeat a tool's negative-case variant.
 
 From the AuraGo root:
 

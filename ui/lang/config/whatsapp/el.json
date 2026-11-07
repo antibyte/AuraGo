@@ -1,6 +1,7 @@
 {
   "config.whatsapp.intro": "Συνομίλησε με το AuraGo στο WhatsApp. Το AuraGo συνδέεται ως συνδεδεμένη συσκευή και απαντά μόνο στους αριθμούς κατόχου.",
   "config.whatsapp.enabled": "Ενεργοποίηση WhatsApp",
+  "help.whatsapp.enabled": "Επιτρέπει στο AuraGo να χρησιμοποιεί έναν συνδεδεμένο λογαριασμό WhatsApp. Σύνδεσε τον λογαριασμό παρακάτω.",
   "config.whatsapp.mode": "Αριθμός",
   "config.whatsapp.mode_dedicated": "Ξεχωριστός αριθμός AuraGo",
   "config.whatsapp.mode_self_chat": "Ο δικός μου αριθμός (συνομιλία με τον εαυτό σου)",

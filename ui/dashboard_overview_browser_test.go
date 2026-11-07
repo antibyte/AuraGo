@@ -210,6 +210,15 @@ func TestDashboardOverviewBrowserSmoke(t *testing.T) {
 		t.Helper()
 		p.Timeout(20 * time.Second).MustWait(js)
 	}
+	// Keep real pointer targets clear of fixed headers and decorative pseudo-elements.
+	click := func(selector string) {
+		t.Helper()
+		control := p.Timeout(20 * time.Second).MustElement(selector)
+		control.MustEval(`() => this.scrollIntoView({block:'center', inline:'center', behavior:'instant'})`)
+		box := control.MustShape().Box()
+		p.Mouse.MustMoveTo(box.X+box.Width/2, box.Y+box.Height/2)
+		p.Mouse.MustClick(proto.InputMouseButtonLeft)
+	}
 	navs := 0
 	open := func(width int) {
 		t.Helper()
@@ -240,7 +249,7 @@ func TestDashboardOverviewBrowserSmoke(t *testing.T) {
 	stateMu.Lock()
 	summaryFails = false
 	stateMu.Unlock()
-	p.MustElement(`#ov-knowledge .dash-error-retry`).MustClick()
+	click(`#ov-knowledge .dash-error-retry`)
 	wait(allRecovered)
 	wait(`() => document.querySelectorAll('#ov-attention-list a.ov-attention-row').length > 0 && document.querySelector('[data-section-updated="overview"]').textContent !== ''`)
 
@@ -280,7 +289,7 @@ func TestDashboardOverviewBrowserSmoke(t *testing.T) {
 	stateMu.Lock()
 	withHealth = true
 	stateMu.Unlock()
-	p.MustElement(`[data-section-refresh="overview"]`).MustClick()
+	click(`[data-section-refresh="overview"]`)
 	wait(`() => document.querySelectorAll('#ov-system-body .ov-meter').length === 3 && document.getElementById('ov-system-body').textContent.includes('23%')`)
 	events <- `{"type":"system_metrics","payload":{"cpu":{"usage_percent":97.2},"memory":{"used_percent":41},"disk":{"used_percent":55},"uptime_seconds":7300}}`
 	wait(`() => document.getElementById('ov-system-body').textContent.includes('97%')`)
@@ -298,7 +307,7 @@ func TestDashboardOverviewBrowserSmoke(t *testing.T) {
 	stateMu.Lock()
 	summaryFails = true
 	stateMu.Unlock()
-	p.MustElement(`[data-section-refresh="overview"]`).MustClick()
+	click(`[data-section-refresh="overview"]`)
 	wait(allFailed)
 	if stamp := p.MustEval(`() => document.querySelector('[data-section-updated="overview"]').textContent`).Str(); stamp != "stamp-before" {
 		t.Fatalf("a failed refresh must not renew the Updated stamp, got %q", stamp)
@@ -306,28 +315,22 @@ func TestDashboardOverviewBrowserSmoke(t *testing.T) {
 	stateMu.Lock()
 	summaryFails = false
 	stateMu.Unlock()
-	p.MustElement(`#ov-system .dash-error-retry`).MustClick()
+	click(`#ov-system .dash-error-retry`)
 	wait(allRecovered)
 	wait(`() => !!document.querySelector('#ov-attention-list a.ov-attention-more[href="#problems"]') && document.querySelectorAll('#ov-system-body .ov-meter').length === 3 && document.querySelector('[data-section-updated="overview"]').textContent !== 'stamp-before'`)
 
 	// Customize: hide ov-budget, leave the mode, reload, then "Show all".
-	p.MustElement(`[data-action="overview-customize"]`).MustClick()
+	click(`[data-action="overview-customize"]`)
 	wait(`() => document.querySelector('[data-action="overview-customize"]').getAttribute('aria-pressed') === 'true' && !document.querySelector('[data-action="overview-show-all"]').hidden && document.querySelectorAll('[data-tile-toggle]:not([hidden])').length === 6`)
-	// rod's hit test reports the knob (::after of the track) as a CSSPseudoElement that "covers" the button at its
-	// centre point, so MustClick would wait forever. Click the button's left edge, which no pseudo-element reaches.
-	toggle := p.MustElement(`[data-tile-toggle="ov-budget"]`)
-	toggle.MustScrollIntoView()
-	toggleBox := toggle.MustShape().Box()
-	p.Mouse.MustMoveTo(toggleBox.X+3, toggleBox.Y+toggleBox.Height/2)
-	p.Mouse.MustClick(proto.InputMouseButtonLeft)
+	click(`[data-tile-toggle="ov-budget"]`)
 	wait(`() => document.querySelector('[data-tile-toggle="ov-budget"]').getAttribute('aria-pressed') === 'false' && document.getElementById('ov-budget').classList.contains('ov-tile-off') && document.getElementById('ov-system').classList.contains('span-3')`)
-	p.MustElement(`[data-action="overview-customize"]`).MustClick()
+	click(`[data-action="overview-customize"]`)
 	wait(`() => getComputedStyle(document.getElementById('ov-budget')).display === 'none' && localStorage.getItem('aurago-dash-hidden-tiles') === '["ov-budget"]' && document.querySelectorAll('[data-tile-toggle]:not([hidden])').length === 0 && ['ov-system', 'ov-automations', 'ov-knowledge'].every(id => document.getElementById(id).classList.contains('span-4'))`)
 	open(1440)
 	wait(`() => getComputedStyle(document.getElementById('ov-budget')).display === 'none' && getComputedStyle(document.getElementById('ov-system')).display !== 'none'`)
-	p.MustElement(`[data-action="overview-customize"]`).MustClick()
-	p.MustElement(`[data-action="overview-show-all"]`).MustClick()
-	p.MustElement(`[data-action="overview-customize"]`).MustClick()
+	click(`[data-action="overview-customize"]`)
+	click(`[data-action="overview-show-all"]`)
+	click(`[data-action="overview-customize"]`)
 	wait(`() => getComputedStyle(document.getElementById('ov-budget')).display !== 'none' && localStorage.getItem('aurago-dash-hidden-tiles') === '[]' && document.getElementById('ov-system').classList.contains('span-3')`)
 
 	// Medium section width (container 700-1099 px): with ov-budget hidden DashOverview.tileSpans gives the three remaining
@@ -358,18 +361,18 @@ func TestDashboardOverviewBrowserSmoke(t *testing.T) {
 	// 700 px: drawer with the status block; a section link closes it; the status block returns to the overview.
 	open(700)
 	wait(`() => getComputedStyle(document.getElementById('dash-menu-btn')).display !== 'none' && document.getElementById('dash-sidebar').inert`)
-	p.MustElement("#dash-menu-btn").MustClick()
+	click("#dash-menu-btn")
 	wait(`() => document.getElementById('dash-sidebar').classList.contains('open') && !document.getElementById('dash-sidebar-backdrop').hidden`)
 	time.Sleep(400 * time.Millisecond)
 	if !p.MustEval(`() => document.querySelector('[data-sidebar-status]').getBoundingClientRect().width > 100`).Bool() {
 		t.Error("the status block must be visible in the open drawer")
 	}
-	p.MustElement(`#dash-sidebar [data-section-link="logs"]`).MustClick()
+	click(`#dash-sidebar [data-section-link="logs"]`)
 	wait(`() => DashRouter.current() === 'logs' && !document.getElementById('dash-sidebar').classList.contains('open')`)
-	p.MustElement("#dash-menu-btn").MustClick()
+	click("#dash-menu-btn")
 	wait(`() => document.getElementById('dash-sidebar').classList.contains('open')`)
 	time.Sleep(400 * time.Millisecond)
-	p.MustElement(`[data-sidebar-status]`).MustClick()
+	click(`[data-sidebar-status]`)
 	wait(`() => DashRouter.current() === 'overview' && location.hash === '#overview' && !document.getElementById('dash-sidebar').classList.contains('open')`)
 	if p.MustEval(`() => document.documentElement.scrollWidth > innerWidth + 1`).Bool() {
 		t.Error("horizontal overflow at 700 px")

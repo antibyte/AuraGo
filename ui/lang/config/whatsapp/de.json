@@ -1,6 +1,7 @@
 {
   "config.whatsapp.intro": "Chatte mit AuraGo über WhatsApp. AuraGo meldet sich als verknüpftes Gerät an und antwortet nur Besitzernummern.",
   "config.whatsapp.enabled": "WhatsApp aktivieren",
+  "help.whatsapp.enabled": "Erlaubt AuraGo, ein verknüpftes WhatsApp-Konto zu verwenden. Verknüpfe das Konto unten.",
   "config.whatsapp.mode": "Nummer",
   "config.whatsapp.mode_dedicated": "Eigene AuraGo-Nummer",
   "config.whatsapp.mode_self_chat": "Meine eigene Nummer (Chat mit dir selbst)",
