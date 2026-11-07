@@ -594,39 +594,8 @@
     flex-shrink: 0;
 }
 
-/* ── Terminal Resize Handle ── */
-.cs-terminal-resize {
-    position: relative;
-    height: 5px;
-    cursor: ns-resize;
-    background: transparent;
-    transition: background 0.15s;
-    flex-shrink: 0;
-}
-
-.cs-terminal-resize:hover,
-.cs-terminal-resize.dragging {
-    background: var(--cs-accent-glow);
-}
-
-.cs-terminal-resize::after {
-    content: '';
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    width: 36px;
-    height: 3px;
-    border-radius: var(--ds-radius-xs);
-    background: var(--cs-border);
-    opacity: 0;
-    transition: opacity 0.15s;
-}
-
-.cs-terminal-resize:hover::after,
-.cs-terminal-resize.dragging::after {
-    opacity: 1;
-}
+/* ── Terminal Resize Handle ──
+   The drag handle now belongs to the bottom panel, see .cs-panel-resize. */
 
 .cs-toolbar-spacer {
     flex: 1;
@@ -1011,10 +980,9 @@ button.cs-sidebar-crumb:focus-visible {
 }
 
 .code-studio-terminal {
-    flex: 0 0 var(--cs-terminal-height);
-    height: var(--cs-terminal-height);
+    flex: 1 1 auto;
+    height: 100%;
     min-height: 0;
-    border-top: 1px solid var(--cs-line);
     background: var(--cs-panel);
     display: flex;
     flex-direction: column;
@@ -1297,8 +1265,8 @@ button.cs-sidebar-crumb:focus-visible {
     }
 
     .code-studio-terminal {
-        flex-basis: 180px;
-        height: 180px;
+        flex-basis: auto;
+        height: 100%;
     }
 
     .code-studio[data-agent="visible"] .code-studio-chat {
@@ -1726,6 +1694,7 @@ button.cs-sidebar-crumb:focus-visible {
 .code-studio[data-zen="true"] .code-studio-tabs,
 .code-studio[data-zen="true"] .code-studio-breadcrumbs,
 .code-studio[data-zen="true"] .code-studio-terminal,
+.code-studio[data-zen="true"] .code-studio-panel,
 .code-studio[data-zen="true"] .code-studio-chat,
 .code-studio[data-zen="true"] .code-studio-statusbar {
     display: none !important;
@@ -2606,11 +2575,6 @@ button.cs-sidebar-crumb:focus-visible {
         max-width: 50%;
     }
 
-    .code-studio-terminal {
-        flex-basis: 120px !important;
-        height: 120px !important;
-    }
-
     .cs-search-form {
         flex-wrap: wrap;
     }
@@ -2887,5 +2851,486 @@ button.cs-sidebar-crumb:focus-visible {
         animation: none !important;
         transition: none !important;
         scroll-behavior: auto !important;
+    }
+}
+
+/* ── Bottom Panel (Problems / Output / Terminal) ── */
+.code-studio-panel {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 var(--cs-terminal-height);
+    height: var(--cs-terminal-height);
+    min-height: 0;
+    border-top: 1px solid var(--cs-line);
+    background: var(--cs-panel);
+}
+
+.code-studio-panel[hidden] {
+    display: none;
+}
+
+.cs-panel-resize {
+    position: relative;
+    flex: 0 0 5px;
+    height: 5px;
+    cursor: ns-resize;
+    background: transparent;
+    transition: background 0.15s;
+}
+
+.cs-panel-resize:hover,
+.cs-panel-resize.dragging {
+    background: var(--cs-accent-glow);
+}
+
+.cs-panel-resize::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 36px;
+    height: 3px;
+    border-radius: var(--ds-radius-xs);
+    background: var(--cs-border);
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.cs-panel-resize:hover::after,
+.cs-panel-resize.dragging::after {
+    opacity: 1;
+}
+
+.cs-panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex: 0 0 auto;
+    min-height: 30px;
+    padding: 0 6px 0 0;
+    border-bottom: 1px solid var(--cs-line);
+    background: var(--vd-mat-bar, var(--cs-panel));
+    font-size: 12px;
+}
+
+.cs-panel-tabs {
+    display: flex;
+    align-items: stretch;
+    gap: 2px;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.cs-panel-tabs::-webkit-scrollbar {
+    display: none;
+}
+
+.cs-panel-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: var(--cs-muted);
+    font: inherit;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.cs-panel-tab:hover {
+    color: var(--cs-text);
+}
+
+.cs-panel-tab.active {
+    color: var(--cs-text);
+    border-bottom-color: var(--cs-accent);
+}
+
+.cs-panel-badge {
+    min-width: 16px;
+    padding: 0 5px;
+    border-radius: 8px;
+    background: var(--cs-muted);
+    color: var(--cs-panel);
+    font-size: 10px;
+    line-height: 16px;
+    text-align: center;
+}
+
+.cs-panel-badge.error {
+    background: var(--cs-danger);
+    color: #fff;
+}
+
+.cs-panel-badge[hidden] {
+    display: none;
+}
+
+.cs-panel-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 0 0 auto;
+}
+
+.cs-panel-action {
+    padding: 4px 8px;
+    border: 0;
+    border-radius: var(--cs-radius-sm);
+    background: transparent;
+    color: var(--cs-muted);
+    font: inherit;
+    font-size: 11px;
+    cursor: pointer;
+}
+
+.cs-panel-action:hover:not(:disabled) {
+    background: var(--cs-hover);
+    color: var(--cs-text);
+}
+
+.cs-panel-action:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.cs-panel-action.icon {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 6px;
+}
+
+.cs-panel-body {
+    position: relative;
+    display: flex;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.cs-panel-pane {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    overflow: auto;
+}
+
+.cs-panel-pane[hidden] {
+    display: none;
+}
+
+/* ── Problems ── */
+.cs-problems-summary {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex: 0 0 auto;
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--cs-line);
+    color: var(--cs-muted);
+    font-size: 11px;
+}
+
+.cs-problems-count.error {
+    color: var(--cs-danger);
+}
+
+.cs-problems-count.warning {
+    color: var(--cs-warning);
+}
+
+.cs-problems-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.cs-problems-group.collapsed .cs-problem {
+    display: none;
+}
+
+.cs-problems-file {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border: 0;
+    background: transparent;
+    color: var(--cs-text);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+}
+
+.cs-problems-file:hover {
+    background: var(--cs-hover);
+}
+
+.cs-problems-caret {
+    color: var(--cs-muted);
+    font-size: 10px;
+}
+
+.cs-problems-file-count {
+    margin-left: auto;
+    color: var(--cs-muted);
+    font-weight: 400;
+}
+
+.cs-problem {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 3px 12px 3px 30px;
+    border: 0;
+    background: transparent;
+    color: var(--cs-text);
+    font: inherit;
+    font-size: 12px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.cs-problem:hover {
+    background: var(--cs-hover);
+}
+
+.cs-problem-icon {
+    flex: 0 0 auto;
+    font-size: 11px;
+}
+
+.cs-problem-error .cs-problem-icon {
+    color: var(--cs-danger);
+}
+
+.cs-problem-warning .cs-problem-icon {
+    color: var(--cs-warning);
+}
+
+.cs-problem-info .cs-problem-icon {
+    color: var(--cs-accent);
+}
+
+.cs-problem-message {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.cs-problem-source {
+    flex: 0 0 auto;
+    color: var(--cs-muted);
+    font-size: 11px;
+}
+
+/* ── Output ── */
+.cs-output-line {
+    display: flex;
+    gap: 10px;
+    padding: 1px 12px;
+    font: 12px/1.5 var(--cs-mono-font);
+    color: var(--cs-text);
+}
+
+.cs-output-source {
+    flex: 0 0 auto;
+    min-width: 72px;
+    color: var(--cs-accent);
+    font-size: 11px;
+    opacity: 0.8;
+}
+
+.cs-output-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* ── Find and replace widget ── */
+.cs-find-widget {
+    position: absolute;
+    top: 8px;
+    right: 20px;
+    z-index: 6;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 4px;
+    border: 1px solid var(--cs-border);
+    border-radius: var(--cs-radius-md);
+    background: var(--cs-panel-elevated);
+    box-shadow: var(--cs-shadow-md);
+}
+
+.cs-find-widget[hidden] {
+    display: none;
+}
+
+.cs-find-row,
+.cs-find-replace-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.cs-find-replace-row[hidden] {
+    display: none;
+}
+
+.cs-find-input {
+    width: 200px;
+    padding: 3px 6px;
+    border: 1px solid var(--cs-border);
+    border-radius: var(--cs-radius-sm);
+    background: var(--cs-panel-soft);
+    color: var(--cs-text);
+    font: inherit;
+    font-size: 12px;
+}
+
+.cs-find-input:focus {
+    outline: none;
+    border-color: var(--cs-accent-border);
+}
+
+.cs-find-toggle,
+.cs-find-btn {
+    min-width: 22px;
+    height: 22px;
+    padding: 0 5px;
+    border: 1px solid transparent;
+    border-radius: var(--cs-radius-sm);
+    background: transparent;
+    color: var(--cs-muted);
+    font: inherit;
+    font-size: 11px;
+    line-height: 20px;
+    text-align: center;
+    cursor: pointer;
+}
+
+.cs-find-btn.labelled {
+    padding: 0 8px;
+    font-size: 11px;
+}
+
+.cs-find-toggle:hover,
+.cs-find-btn:hover {
+    background: var(--cs-hover);
+    color: var(--cs-text);
+}
+
+.cs-find-toggle.active {
+    border-color: var(--cs-accent-border);
+    background: var(--cs-accent-soft);
+    color: var(--cs-text);
+}
+
+.cs-find-count {
+    min-width: 72px;
+    padding: 0 4px;
+    color: var(--cs-muted);
+    font-size: 11px;
+    text-align: center;
+}
+
+/* ── Outline ── */
+.cs-outline {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+}
+
+.cs-outline-item {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 3px 8px;
+    border: 0;
+    background: transparent;
+    color: var(--cs-text);
+    font: inherit;
+    font-size: 12px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.cs-outline-item:hover {
+    background: var(--cs-hover);
+}
+
+.cs-outline-icon {
+    flex: 0 0 auto;
+    width: 12px;
+    color: var(--cs-accent);
+    font-family: var(--cs-mono-font);
+    font-size: 11px;
+    text-align: center;
+}
+
+.cs-outline-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cs-outline-kind {
+    flex: 0 0 auto;
+    color: var(--cs-muted);
+    font-size: 10px;
+    text-transform: uppercase;
+}
+
+/* ── Status bar problem counters ── */
+.cs-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    margin-left: 6px;
+}
+
+.cs-status-badge.error {
+    color: var(--cs-danger);
+}
+
+.cs-status-badge.warning {
+    color: var(--cs-warning);
+}
+
+.cs-status-problems {
+    cursor: pointer;
+}
+
+/* ── Narrow layouts ──
+   The bottom panel rules live at the end of this file, so the narrow layout
+   override has to be declared after them to win. */
+@container code-studio (max-width: 840px) {
+    .code-studio-panel {
+        flex-basis: 180px;
+        height: 180px;
+    }
+}
+
+@container code-studio (max-width: 640px) {
+    .code-studio-panel {
+        flex-basis: 120px;
+        height: 120px;
     }
 }

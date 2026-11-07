@@ -41,7 +41,25 @@
             containerStatus: 'unknown',
             containerInfo: null,
             terminalVisible: true,
+            panelVisible: true,
+            activePanel: 'terminal',
             terminalHeight: 220,
+            problems: [],
+            diagnosticsRunning: false,
+            diagnosticsRequest: null,
+            lastDiagnosticsAt: 0,
+            outputLines: [],
+            outputSource: '',
+            findOpen: false,
+            findReplaceOpen: false,
+            findQuery: '',
+            findReplaceText: '',
+            findCaseSensitive: false,
+            findWholeWord: false,
+            findRegex: false,
+            findMatches: [],
+            findIndex: -1,
+            sidebarView: 'explorer',
             sidebarVisible: true,
             sidebarWidth: 280,
             editorFontSize: DEFAULT_EDITOR_FONT_SIZE,
@@ -341,9 +359,9 @@
             method: 'POST',
             body: JSON.stringify({ path })
         }),
-        exec: command => runOnWindow(null, () => api('/api/code-studio/exec', {
+        exec: (command, cwd, timeoutSeconds) => runOnWindow(null, () => api('/api/code-studio/exec', {
             method: 'POST',
-            body: JSON.stringify({ command, cwd: currentDirectory(), timeout_seconds: 300 })
+            body: JSON.stringify({ command, cwd: cwd || currentDirectory(), timeout_seconds: timeoutSeconds || 300 })
         })),
         search: options => api('/api/code-studio/search?' + new URLSearchParams(options)),
         agentChat: (message, context) => api('/api/desktop/chat', {
@@ -382,7 +400,11 @@
             state.sidebarVisible = saved.sidebarVisible !== false;
             state.sidebarWidth = clampDimension(saved.sidebarWidth, MIN_SIDEBAR_WIDTH, MAX_SIDEBAR_WIDTH, 280);
             state.editorFontSize = clampEditorFontSize(saved.editorFontSize);
-            state.terminalVisible = saved.terminalVisible !== false;
+            // Sessions from before the bottom panel keep their terminal visibility.
+            state.panelVisible = saved.panelVisible === undefined ? saved.terminalVisible !== false : saved.panelVisible !== false;
+            state.terminalVisible = state.panelVisible;
+            state.activePanel = ['problems', 'output', 'terminal'].includes(saved.activePanel) ? saved.activePanel : 'terminal';
+            state.sidebarView = saved.sidebarView === 'outline' ? 'outline' : 'explorer';
             state.terminalHeight = clampDimension(saved.terminalHeight, MIN_TERMINAL_HEIGHT, MAX_TERMINAL_HEIGHT, 220);
             state.recentFiles = normalizePersistedPaths(saved.recentFiles);
             state.openTabs = savedOpenPaths.map(path => ({
@@ -409,7 +431,10 @@
             sidebarVisible: state.sidebarVisible,
             sidebarWidth: clampDimension(state.sidebarWidth, MIN_SIDEBAR_WIDTH, MAX_SIDEBAR_WIDTH, 280),
             editorFontSize: state.editorFontSize,
-            terminalVisible: state.terminalVisible,
+            terminalVisible: state.panelVisible,
+            panelVisible: state.panelVisible,
+            activePanel: state.activePanel,
+            sidebarView: state.sidebarView,
             terminalHeight: clampDimension(state.terminalHeight, MIN_TERMINAL_HEIGHT, MAX_TERMINAL_HEIGHT, 220),
             recentFiles: recentPaths
         };
@@ -472,6 +497,7 @@
         closeTerminalSessionSockets(instance);
         window.CodeStudioCommandPalette?.close(windowId);
         if (instance.gitRefreshTimer) clearTimeout(instance.gitRefreshTimer);
+        if (instance.checkTimer) clearTimeout(instance.checkTimer);
         for (const disposeFn of [...(instance.disposers || [])]) {
             try { disposeFn(); } catch (_) {}
         }
@@ -665,6 +691,9 @@
                     <button type="button" class="cs-activity-btn" data-activity="agent" title="${esc(tr('codeStudio.agentChat', 'Agent'))}">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
                     </button>
+                    <button type="button" class="cs-activity-btn" data-activity="outline" title="${esc(tr('codeStudio.outline', 'Outline'))}">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h4M12 6h8M4 12h10M18 12h2M4 18h7M15 18h5"/><circle cx="10" cy="6" r="1.6"/><circle cx="16" cy="12" r="1.6"/><circle cx="13" cy="18" r="1.6"/></svg>
+                    </button>
                     <span class="cs-activity-spacer"></span>
                     <button type="button" class="cs-activity-btn" data-activity="terminal" title="${esc(tr('codeStudio.toggleTerminal', 'Terminal'))}">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
@@ -675,7 +704,36 @@
                     <div class="code-studio-tabs" data-tabs></div>
                     <div class="code-studio-breadcrumbs" data-breadcrumbs></div>
                     <div class="code-studio-editor" data-editor></div>
-                    <div class="code-studio-terminal" data-terminal></div>
+                    <div class="cs-find-widget" data-find-widget hidden></div>
+                    <div class="code-studio-panel" data-panel>
+                        <div class="cs-panel-resize" data-panel-resize role="separator" aria-orientation="horizontal"></div>
+                        <div class="cs-panel-head">
+                            <div class="cs-panel-tabs" role="tablist" data-panel-tabs>
+                                <button type="button" class="cs-panel-tab" role="tab" data-panel-tab="problems" aria-selected="false">
+                                    <span>${esc(tr('codeStudio.panelProblems', 'Problems'))}</span>
+                                    <span class="cs-panel-badge" data-panel-badge="problems" hidden></span>
+                                </button>
+                                <button type="button" class="cs-panel-tab" role="tab" data-panel-tab="output" aria-selected="false">
+                                    <span>${esc(tr('codeStudio.panelOutput', 'Output'))}</span>
+                                </button>
+                                <button type="button" class="cs-panel-tab" role="tab" data-panel-tab="terminal" aria-selected="false">
+                                    <span>${esc(tr('codeStudio.panelTerminal', 'Terminal'))}</span>
+                                </button>
+                            </div>
+                            <div class="cs-panel-actions">
+                                <button type="button" class="cs-panel-action" data-panel-action="diagnostics" title="${esc(tr('codeStudio.runDiagnostics', 'Run Checks'))}">${esc(tr('codeStudio.runDiagnostics', 'Run Checks'))}</button>
+                                <button type="button" class="cs-panel-action" data-panel-action="clear" title="${esc(tr('codeStudio.clearPanel', 'Clear'))}">${esc(tr('codeStudio.clearPanel', 'Clear'))}</button>
+                                <button type="button" class="cs-panel-action icon" data-panel-action="close" title="${esc(tr('desktop.close', 'Close'))}">${iconMarkup('x', 'X', 'cs-icon-button-icon', 12)}</button>
+                            </div>
+                        </div>
+                        <div class="cs-panel-body">
+                            <div class="cs-panel-pane" data-panel-pane="problems" data-problems-panel hidden></div>
+                            <div class="cs-panel-pane" data-panel-pane="output" data-output-panel hidden></div>
+                            <div class="cs-panel-pane" data-panel-pane="terminal" data-terminal-pane>
+                                <div class="code-studio-terminal" data-terminal></div>
+                            </div>
+                        </div>
+                    </div>
                 </main>
                 <aside class="code-studio-chat" data-agent-panel></aside>
                 <aside class="code-studio-git" data-git-panel hidden></aside>
@@ -694,7 +752,8 @@
         root.style.setProperty('--cs-sidebar-width', clampDimension(state.sidebarWidth, MIN_SIDEBAR_WIDTH, MAX_SIDEBAR_WIDTH, 280) + 'px');
         root.style.setProperty('--cs-terminal-height', clampDimension(state.terminalHeight, MIN_TERMINAL_HEIGHT, MAX_TERMINAL_HEIGHT, 220) + 'px');
         root.style.setProperty('--cs-editor-font-size', clampEditorFontSize(state.editorFontSize) + 'px');
-        root.dataset.terminal = state.terminalVisible ? 'visible' : 'hidden';
+        root.dataset.terminal = state.panelVisible ? 'visible' : 'hidden';
+        root.dataset.panel = state.panelVisible ? 'visible' : 'hidden';
         root.dataset.sidebar = state.sidebarVisible ? 'visible' : 'hidden';
         root.dataset.agent = state.agentVisible ? 'visible' : 'hidden';
         root.dataset.git = state.gitVisible ? 'visible' : 'hidden';
@@ -706,6 +765,8 @@
         renderBreadcrumbs();
         renderEditor();
         renderTerminal();
+        renderBottomPanel();
+        renderFindWidget();
         renderAgentPanel();
         renderGitPanel();
         renderStatus();
@@ -713,6 +774,8 @@
         renderActivityBar();
         wireShortcuts();
         wireSidebarResize();
+        wirePanelResize();
+        wireBottomPanelEvents();
         const zenExit = root.querySelector('[data-zen-exit]');
         if (zenExit) zenExit.addEventListener('click', bind(() => toggleZenMode()));
     }
@@ -747,6 +810,8 @@
                 labelKey: 'desktop.menu_edit',
                 items: [
                     { id: 'search', label: tr('codeStudio.searchFiles', 'Search in Files'), icon: 'search', shortcut: 'Ctrl+Shift+F', checked: state.searchVisible, action: bind(toggleSearch) },
+                    { id: 'find', label: tr('codeStudio.findInFile', 'Find in File'), icon: 'search', shortcut: 'Ctrl+F', action: bind(() => openFindWidget(false)) },
+                    { id: 'replace', label: tr('codeStudio.replaceInFile', 'Replace in File'), icon: 'edit', shortcut: 'Ctrl+H', action: bind(() => openFindWidget(true)) },
                     { id: 'command-palette', label: tr('codeStudio.commandPalette', 'Command Palette'), icon: 'search', shortcut: 'Ctrl+Shift+P', action: bind(openCommandPalette) },
                     { type: 'separator' },
                     { id: 'shortcuts', label: tr('codeStudio.keyboardShortcuts', 'Keyboard Shortcuts'), icon: 'help', shortcut: '?', action: bind(showShortcutOverlay) }
@@ -757,7 +822,11 @@
                 labelKey: 'desktop.menu_view',
                 items: [
                     { id: 'sidebar', label: tr('codeStudio.sidebar', 'Sidebar'), icon: 'sidebar', shortcut: 'Ctrl+B', checked: state.sidebarVisible, action: bind(toggleSidebar) },
-                    { id: 'terminal', labelKey: 'desktop.menu_terminal', icon: 'terminal', checked: state.terminalVisible, action: bind(toggleTerminal) },
+                    { id: 'outline', label: tr('codeStudio.outline', 'Outline'), icon: 'list', checked: state.sidebarView === 'outline', action: bind(toggleOutline) },
+                    { type: 'separator' },
+                    { id: 'panel-problems', label: tr('codeStudio.panelProblems', 'Problems'), icon: 'alert', shortcut: 'Ctrl+Shift+M', checked: state.panelVisible && state.activePanel === 'problems', action: bind(() => setActivePanel('problems')) },
+                    { id: 'panel-output', label: tr('codeStudio.panelOutput', 'Output'), icon: 'terminal', shortcut: 'Ctrl+Shift+U', checked: state.panelVisible && state.activePanel === 'output', action: bind(() => setActivePanel('output')) },
+                    { id: 'panel-terminal', labelKey: 'desktop.menu_terminal', icon: 'terminal', checked: state.panelVisible && state.activePanel === 'terminal', action: bind(() => togglePanel('terminal')) },
                     { id: 'agent-panel', labelKey: 'desktop.menu_agent_panel', icon: 'chat', shortcut: 'Ctrl+Shift+A', checked: state.agentVisible, action: bind(toggleAgentPanel) },
                     { id: 'git-panel', label: tr('codeStudio.gitPanel', 'Git'), icon: 'git', checked: state.gitVisible, action: bind(toggleGitPanel) },
                     { type: 'separator' },
@@ -774,7 +843,8 @@
                 id: 'run',
                 labelKey: 'desktop.menu_run',
                 items: [
-                    { id: 'run-current', label: tr('codeStudio.run', 'Run'), icon: 'run', shortcut: 'F5', disabled: !hasActiveTab, action: bind(runCurrentFile) }
+                    { id: 'run-current', label: tr('codeStudio.run', 'Run'), icon: 'run', shortcut: 'F5', disabled: !hasActiveTab, action: bind(runCurrentFile) },
+                    { id: 'run-checks', label: tr('codeStudio.runDiagnostics', 'Run Checks'), icon: 'alert', action: bind(runDiagnostics) }
                 ]
             }
         ];
@@ -1058,6 +1128,10 @@
         if (modifiedCount > 0) leftItems.push(`<span class="cs-status-item cs-status-unsaved" title="${esc(tr('codeStudio.unsavedChanges', 'Unsaved changes'))}">\u25cf ${modifiedCount}</span>`);
         const rightItems = [];
         if (state.splitMode) rightItems.push(`<span class="cs-status-item" title="${esc(tr(state.splitMode === 'right' ? 'codeStudio.splitRight' : 'codeStudio.splitDown', 'Split'))}">${state.splitMode === 'right' ? '\u25eb' : '\u2b12'}</span>`);
+        const counts = problemCounts();
+        if (counts.errors || counts.warnings) {
+            rightItems.push(`<span class="cs-status-item cs-status-problems" data-clickable data-status-problems title="${esc(tr('codeStudio.panelProblems', 'Problems'))}">${counts.errors ? `<span class="cs-status-badge error">✖ ${esc(String(counts.errors))}</span>` : ''}${counts.warnings ? `<span class="cs-status-badge warning">⚠ ${esc(String(counts.warnings))}</span>` : ''}</span>`);
+        }
         if (lineInfo) rightItems.push(`<span class="cs-status-item">${esc(lineInfo)}</span>`);
         if (lang) rightItems.push(`<span class="cs-status-item" title="${esc(tr('codeStudio.language', 'Language'))}">${esc(lang)}</span>`);
         rightItems.push(`<span class="cs-status-item" data-clickable title="${esc(tr('codeStudio.zoomReset', 'Reset Zoom'))}" data-status-zoom>${esc(clampEditorFontSize(state.editorFontSize))}px</span>`);
@@ -1065,6 +1139,8 @@
         statusEl.innerHTML = leftItems.join('') + '<span class="cs-status-spacer"></span>' + rightItems.join('');
         const zoom = statusEl.querySelector('[data-status-zoom]');
         if (zoom) zoom.addEventListener('click', bind(resetEditorZoom));
+        const problems = statusEl.querySelector('[data-status-problems]');
+        if (problems) problems.addEventListener('click', bind(() => setActivePanel('problems')));
     }
 
     function flashStatus(message, duration) {
@@ -1678,15 +1754,20 @@
             if (root) root.dataset.zen = 'false';
             revealed = true;
         }
-        if (!state.terminalVisible) {
-            state.terminalVisible = true;
-            if (root) root.dataset.terminal = 'visible';
+        if (!state.panelVisible || state.activePanel !== 'terminal') {
+            state.panelVisible = true;
+            state.activePanel = 'terminal';
+            if (root) {
+                root.dataset.terminal = 'visible';
+                root.dataset.panel = 'visible';
+            }
             revealed = true;
         }
         if (revealed) {
             saveState();
             renderActivityBar();
             renderWindowMenus();
+            renderBottomPanel();
         }
         if (session && state.terminalSessions && state.terminalSessions.includes(session)) {
             const index = state.terminalSessions.indexOf(session);
@@ -1733,14 +1814,15 @@
         scheduleTerminalFit();
     }
 
-    function toggleTerminal() {
-        state.terminalVisible = !state.terminalVisible;
-        ensureShellRoot().dataset.terminal = state.terminalVisible ? 'visible' : 'hidden';
-        if (state.fitAddon && state.terminalVisible) setTimeout(bind(() => state.fitAddon.fit()), 50);
+    function toggleOutline() {
+        state.sidebarView = state.sidebarView === 'outline' ? 'explorer' : 'outline';
+        state.sidebarVisible = true;
+        const root = ensureShellRoot();
+        root.dataset.sidebar = 'visible';
         saveState();
+        renderSidebar();
         renderActivityBar();
         renderWindowMenus();
-        scheduleTerminalFit();
     }
 
     function toggleZenMode() {
@@ -2060,6 +2142,10 @@
     function renderSidebar(errorMessage) {
         const sidebar = shellPart('[data-sidebar]');
         if (!sidebar) return;
+        if (!errorMessage && state.sidebarView === 'outline') {
+            renderOutline();
+            return;
+        }
         const focused = document.activeElement && sidebar.contains(document.activeElement)
             ? (document.activeElement.closest('[data-file-path]') || {}).dataset
             : null;
@@ -2451,15 +2537,26 @@
             } else if (activity === 'agent') {
                 btn.classList.toggle('active', state.agentVisible);
             } else if (activity === 'terminal') {
-                btn.classList.toggle('active', state.terminalVisible);
+                btn.classList.toggle('active', state.panelVisible);
+            } else if (activity === 'outline') {
+                btn.classList.toggle('active', state.sidebarView === 'outline' && state.sidebarVisible);
             }
             btn.setAttribute('aria-pressed', btn.classList.contains('active') ? 'true' : 'false');
             if (!btn._wired) {
                 btn._wired = true;
                 btn.addEventListener('click', bind(() => {
                     const act = btn.dataset.activity;
-                    if (act === 'explorer') toggleSidebar();
-                    else if (act === 'search') toggleSearch();
+                    if (act === 'explorer') {
+                        // Leaving the outline brings the file tree back into the sidebar.
+                        if (state.sidebarView === 'outline') {
+                            state.sidebarView = 'explorer';
+                            saveState();
+                            renderSidebar();
+                        }
+                        toggleSidebar();
+                    } else if (act === 'outline') {
+                        toggleOutline();
+                    } else if (act === 'search') toggleSearch();
                     else if (act === 'git') toggleGitPanel();
                     else if (act === 'agent') toggleAgentPanel();
                     else if (act === 'terminal') toggleTerminal();
@@ -2619,6 +2716,8 @@
             policy.of(editorPolicyExtensions(cm)),
             cm.closeBrackets && cm.closeBrackets(),
             cm.autocompletion && cm.autocompletion(),
+            cm.linter && cm.linter(),
+            cm.lintGutter && cm.lintGutter(),
             cm.rectangularSelection && cm.rectangularSelection(),
             cm.crosshairCursor && cm.crosshairCursor(),
             cm.highlightSelectionMatches && cm.highlightSelectionMatches(),
@@ -2627,13 +2726,18 @@
                 cm.indentWithTab,
                 ...(cm.closeBracketsKeymap || []),
                 ...(cm.defaultKeymap || []),
-                ...(cm.searchKeymap || []),
+                // The studio ships its own find widget, so CodeMirror's search panel is skipped.
+                ...(cm.searchKeymap || []).filter(binding => binding.key !== 'Mod-f'),
                 ...(cm.historyKeymap || []).map(binding => index ? { ...binding,
                     run: () => binding.run(tab.view),
                     shift: binding.shift ? () => binding.shift(tab.view) : undefined
                 } : binding),
                 ...(cm.completionKeymap || []),
-                ...(cm.lintKeymap || []),
+                // The studio owns the problems panel and the problem navigation, so the
+                // lint panel shortcut and F8 of CodeMirror are not bound.
+                ...(cm.lintKeymap || []).filter(binding => binding.key !== 'Mod-Shift-m' && binding.key !== 'F8'),
+                // Ctrl+F and Ctrl+H are handled by the studio shortcut handler, so no
+                // second binding may run them a second time.
                 { key: 'Ctrl-s', run: bind(() => { saveCurrentFile(); return true; }) },
                 { key: 'F5', run: bind(() => { runCurrentFile(); return true; }) }
             ].filter(Boolean)),
@@ -2778,6 +2882,7 @@
             tab.modified = true;
             if (!tab.secondaryView) tab.secondaryEditorSnapshot = null;
             updateSuggestionStatus();
+            scheduleDocumentCheck();
         }
     }
 
@@ -2796,8 +2901,7 @@
                 <span class="cs-terminal-tab-close" data-terminal-close="${index}" title="${esc(tr('desktop.close', 'Close'))}">×</span>
             </button>`).join('');
         if (!terminal.querySelector('[data-terminal-screen]')) {
-            terminal.innerHTML = '<div class="cs-terminal-resize" data-terminal-resize></div><div class="cs-terminal-head"></div><div class="cs-terminal-screen" data-terminal-screen></div>';
-            wireTerminalResize();
+            terminal.innerHTML = '<div class="cs-terminal-head"></div><div class="cs-terminal-screen" data-terminal-screen></div>';
             wireTerminalObserver(terminal);
         }
         terminal.querySelector('.cs-terminal-head').innerHTML = `
@@ -2901,7 +3005,7 @@
     }
 
     function refitTerminal() {
-        if (!state.terminalVisible || state.zenMode) return;
+        if (!state.panelVisible || state.zenMode || state.activePanel !== 'terminal') return;
         const session = activeTerminalSession();
         const fitAddon = (session && session.fitAddon) || state.fitAddon;
         if (!fitAddon) return;
@@ -2927,41 +3031,10 @@
     }
 
     function wireTerminalResize() {
-        const handle = shellPart('[data-terminal-resize]');
-        if (!handle) return;
-        let startY = 0;
-        let startHeight = 0;
-        const onPointerDown = bind(event => {
-            event.preventDefault();
-            const root = studioRoot();
-            if (!root) return;
-            startHeight = parseInt(root.style.getPropertyValue('--cs-terminal-height')) || state.terminalHeight || 220;
-            startY = event.clientY;
-            handle.classList.add('dragging');
-            handle.setPointerCapture(event.pointerId);
-            handle.addEventListener('pointermove', onPointerMove);
-            handle.addEventListener('pointerup', onPointerUp);
-            handle.addEventListener('pointercancel', onPointerUp);
-        });
-        const onPointerMove = bind(event => {
-            const delta = startY - event.clientY;
-            const newHeight = Math.max(80, Math.min(600, startHeight + delta));
-            const root = studioRoot();
-            if (root) root.style.setProperty('--cs-terminal-height', newHeight + 'px');
-            state.terminalHeight = newHeight;
-        });
-        const onPointerUp = bind(event => {
-            handle.classList.remove('dragging');
-            handle.releasePointerCapture(event.pointerId);
-            handle.removeEventListener('pointermove', onPointerMove);
-            handle.removeEventListener('pointerup', onPointerUp);
-            handle.removeEventListener('pointercancel', onPointerUp);
-            saveState();
-            if (state.fitAddon) setTimeout(bind(() => state.fitAddon.fit()), 50);
-            scheduleTerminalFit();
-        });
-        handle.addEventListener('pointerdown', onPointerDown);
+        // The drag handle for the bottom area lives on the panel itself, see panel.js.
+        wirePanelResize();
     }
+
 
     function connectTerminal() {
         const screen = shellPart('[data-terminal-screen]');
@@ -3119,6 +3192,1219 @@
             state.activeTerminalSession = active !== session ? state.terminalSessions.indexOf(active) : Math.min(index, state.terminalSessions.length - 1);
             switchTerminalSession(state.activeTerminalSession);
         }
+    }
+
+;
+/* ui/js/desktop/apps/code-studio/panel.js */
+    // Bottom panel with Visual Studio style tabs (PROBLEMS / OUTPUT / TERMINAL).
+    // The terminal lives inside the panel as one of its views, so the panel keeps a single
+    // vertical slot and the user never loses the terminal while switching to diagnostics.
+    const PANEL_VIEWS = ['problems', 'output', 'terminal'];
+
+    function activePanelView() {
+        return PANEL_VIEWS.includes(state.activePanel) ? state.activePanel : 'terminal';
+    }
+
+    function renderBottomPanel() {
+        const panel = shellPart('[data-panel]');
+        if (!panel) return;
+        panel.hidden = !state.panelVisible;
+        const root = studioRoot();
+        if (root) {
+            root.dataset.panel = state.panelVisible ? 'visible' : 'hidden';
+            // Legacy hook: the terminal stylesheet keys off data-terminal.
+            root.dataset.terminal = state.panelVisible ? 'visible' : 'hidden';
+        }
+        const active = activePanelView();
+        panel.querySelectorAll('[data-panel-tab]').forEach(tab => {
+            const name = tab.dataset.panelTab;
+            const selected = name === active;
+            tab.classList.toggle('active', selected);
+            tab.setAttribute('aria-selected', selected ? 'true' : 'false');
+        });
+        panel.querySelectorAll('[data-panel-pane]').forEach(pane => {
+            pane.hidden = pane.dataset.panelPane !== active;
+        });
+        const problemsBadge = panel.querySelector('[data-panel-badge="problems"]');
+        if (problemsBadge) {
+            const counts = problemCounts();
+            const total = counts.errors + counts.warnings;
+            problemsBadge.textContent = total ? String(total) : '';
+            problemsBadge.hidden = !total;
+            problemsBadge.classList.toggle('error', counts.errors > 0);
+        }
+        const runBtn = panel.querySelector('[data-panel-action="diagnostics"]');
+        if (runBtn) {
+            runBtn.disabled = !canWrite() || state.diagnosticsRunning;
+            runBtn.textContent = state.diagnosticsRunning
+                ? tr('codeStudio.diagnosticsRunning', 'Checking...')
+                : tr('codeStudio.runDiagnostics', 'Run Checks');
+        }
+        const clearBtn = panel.querySelector('[data-panel-action="clear"]');
+        if (clearBtn) {
+            // The terminal owns its own scrollback, so clearing only applies to the
+            // problems and the output view.
+            clearBtn.disabled = active === 'terminal';
+        }
+        renderProblemsPanel();
+        renderOutputPanel();
+        if (active === 'terminal') renderTerminal();
+    }
+
+    function setActivePanel(view) {
+        const next = PANEL_VIEWS.includes(view) ? view : 'terminal';
+        let changed = state.activePanel !== next;
+        state.activePanel = next;
+        if (!state.panelVisible) {
+            state.panelVisible = true;
+            changed = true;
+        }
+        renderBottomPanel();
+        if (changed) saveState();
+        if (next === 'terminal') {
+            if (state.fitAddon) setTimeout(bind(() => state.fitAddon.fit()), 50);
+        }
+    }
+
+    function togglePanel(view) {
+        const next = PANEL_VIEWS.includes(view) ? view : activePanelView();
+        if (state.panelVisible && activePanelView() === next) {
+            state.panelVisible = false;
+            renderBottomPanel();
+            saveState();
+            return;
+        }
+        setActivePanel(next);
+    }
+
+    function toggleTerminal() {
+        togglePanel('terminal');
+    }
+
+    function wireBottomPanelEvents() {
+        const panel = shellPart('[data-panel]');
+        if (!panel || panel.dataset.wired === 'true') return;
+        panel.dataset.wired = 'true';
+        panel.querySelectorAll('[data-panel-tab]').forEach(btn => {
+            btn.addEventListener('click', bind(() => setActivePanel(btn.dataset.panelTab)));
+        });
+        panel.querySelectorAll('[data-panel-action]').forEach(btn => {
+            btn.addEventListener('click', bind(() => {
+                const action = btn.dataset.panelAction;
+                if (action === 'close') {
+                    state.panelVisible = false;
+                    renderBottomPanel();
+                    saveState();
+                } else if (action === 'clear') {
+                    if (activePanelView() === 'problems') clearProblems();
+                    else if (activePanelView() === 'output') clearOutput();
+                } else if (action === 'diagnostics') {
+                    runDiagnostics();
+                }
+            }));
+        });
+    }
+
+    // The panel owns the drag handle that resizes the whole bottom area.
+    function wirePanelResize() {
+        const handle = shellPart('[data-panel-resize]');
+        if (!handle || handle.dataset.wired === 'true') return;
+        handle.dataset.wired = 'true';
+        let startY = 0;
+        let startHeight = 0;
+        const onPointerDown = bind(event => {
+            event.preventDefault();
+            const root = studioRoot();
+            if (!root) return;
+            startHeight = parseInt(root.style.getPropertyValue('--cs-terminal-height')) || state.terminalHeight || 220;
+            startY = event.clientY;
+            handle.classList.add('dragging');
+            handle.setPointerCapture(event.pointerId);
+            handle.addEventListener('pointermove', onPointerMove);
+            handle.addEventListener('pointerup', onPointerUp);
+            handle.addEventListener('pointercancel', onPointerUp);
+        });
+        const onPointerMove = bind(event => {
+            const delta = startY - event.clientY;
+            const newHeight = Math.max(MIN_TERMINAL_HEIGHT, Math.min(MAX_TERMINAL_HEIGHT, startHeight + delta));
+            const root = studioRoot();
+            if (root) root.style.setProperty('--cs-terminal-height', newHeight + 'px');
+            state.terminalHeight = newHeight;
+        });
+        const onPointerUp = bind(event => {
+            handle.classList.remove('dragging');
+            handle.releasePointerCapture(event.pointerId);
+            handle.removeEventListener('pointermove', onPointerMove);
+            handle.removeEventListener('pointerup', onPointerUp);
+            handle.removeEventListener('pointercancel', onPointerUp);
+            saveState();
+            if (state.fitAddon) setTimeout(bind(() => state.fitAddon.fit()), 50);
+            scheduleTerminalFit();
+        });
+        handle.addEventListener('pointerdown', onPointerDown);
+    }
+
+    function appendOutput(text, source) {
+        const lines = String(text == null ? '' : text).split('\n');
+        const target = state;
+        runWithInstance(target, () => {
+            const entries = state.outputLines || (state.outputLines = []);
+            lines.forEach(line => {
+                if (!line && !entries.length) return;
+                entries.push({ text: line, source: source || '', at: Date.now() });
+            });
+            while (entries.length > 500) entries.shift();
+            if (source) state.outputSource = source;
+            if (state.activePanel === 'output') renderOutputPanel();
+        });
+    }
+
+    function clearOutput() {
+        state.outputLines = [];
+        renderOutputPanel();
+    }
+
+    function renderOutputPanel() {
+        const panel = shellPart('[data-output-panel]');
+        if (!panel) return;
+        const entries = state.outputLines || [];
+        panel.innerHTML = entries.length
+            ? entries.map(entry => `<div class="cs-output-line"><span class="cs-output-source">${esc(entry.source || '')}</span><span class="cs-output-text">${esc(entry.text)}</span></div>`).join('')
+            : `<div class="cs-empty">${esc(tr('codeStudio.noOutput', 'No output yet. Run the program or the checks to see its output here.'))}</div>`;
+        panel.scrollTop = panel.scrollHeight;
+    }
+
+;
+/* ui/js/desktop/apps/code-studio/problems.js */
+    // Problem tracking. Diagnostics come from two places: cheap client side checks that run
+    // while the user types, and a real project check that runs the toolchain inside the
+    // container. Both end up in the same list so the panel, the inline squiggles and the
+    // status bar counters always agree.
+
+    const BRACKET_LANGUAGES = ['javascript', 'go', 'c', 'rust', 'css'];
+    const MAX_PROBLEMS = 500;
+    // Sources of the cheap client side checks. They are replaced whenever the
+    // document changes, so they must not collide with the container checks.
+    const CLIENT_PROBLEM_SOURCES = ['syntax', 'json'];
+
+    // A slash starts a regular expression literal only where an operand is expected.
+    // Everywhere else it is a division, so the scanner never eats real code.
+    const REGEX_PRECEDING_CHARS = new Set(['(', ',', '=', ':', '[', '!', '&', '|', '?', '{', '}', ';', '+', '-', '*', '%', '~', '^', '<', '>']);
+    const REGEX_PRECEDING_WORDS = new Set(['return', 'typeof', 'instanceof', 'in', 'of', 'new', 'delete', 'void', 'case', 'do', 'else', 'yield', 'await']);
+
+    function regexCanStartAfter(output) {
+        const trimmed = String(output || '').replace(/\s+$/, '');
+        if (!trimmed) return true;
+        const last = trimmed[trimmed.length - 1];
+        if (/[A-Za-z_$]/.test(last)) {
+            const word = /([A-Za-z_$][\w$]*)$/.exec(trimmed);
+            return !!word && REGEX_PRECEDING_WORDS.has(word[1]);
+        }
+        return REGEX_PRECEDING_CHARS.has(last);
+    }
+
+    function problemCounts() {
+        const problems = state.problems || [];
+        let errors = 0;
+        let warnings = 0;
+        problems.forEach(problem => {
+            if (problem.severity === 'error') errors += 1;
+            else if (problem.severity === 'warning') warnings += 1;
+        });
+        return { errors, warnings };
+    }
+
+    function normalizeProblem(problem) {
+        const severity = ['error', 'warning', 'info'].includes(problem.severity) ? problem.severity : 'error';
+        return {
+            file: String(problem.file || ''),
+            line: Math.max(1, Number(problem.line) || 1),
+            column: Math.max(1, Number(problem.column) || 1),
+            severity,
+            message: String(problem.message || '').trim(),
+            source: String(problem.source || '')
+        };
+    }
+
+    function setProblems(problems) {
+        state.problems = (problems || []).map(normalizeProblem).slice(0, MAX_PROBLEMS);
+        renderBottomPanel();
+        applyDiagnosticsToOpenTabs();
+        renderStatus();
+    }
+
+    function addProblems(problems) {
+        if (!problems || !problems.length) return;
+        const existing = new Set((state.problems || []).map(problem => `${problem.file}|${problem.line}|${problem.column}|${problem.message}`));
+        const merged = (state.problems || []).slice();
+        problems.map(normalizeProblem).forEach(problem => {
+            const key = `${problem.file}|${problem.line}|${problem.column}|${problem.message}`;
+            if (existing.has(key)) return;
+            existing.add(key);
+            merged.push(problem);
+        });
+        state.problems = merged.slice(0, MAX_PROBLEMS);
+        renderBottomPanel();
+        applyDiagnosticsToOpenTabs();
+        renderStatus();
+    }
+
+    function clearProblems() {
+        setProblems([]);
+    }
+
+    function problemsForFile(path) {
+        const target = String(path || '');
+        // Only findings that name this exact file. Workspace wide findings stay in the list
+        // but must not paint a squiggle into every open document.
+        return (state.problems || []).filter(problem => !!problem.file && problem.file === target);
+    }
+
+    // Compilers report paths relative to the project root, so they are anchored at the
+    // workspace before they are opened or matched against a tab.
+    function normalizeDiagnosticPath(file, base) {
+        const value = String(file || '').trim().replace(/\\/g, '/');
+        if (!value) return '';
+        if (value.startsWith('/')) return value;
+        const root = String(base || WORKSPACE_ROOT).replace(/\/+$/, '');
+        return `${root}/${value.replace(/^\.\//, '')}`;
+    }
+
+    function cursorLineNumber(tab) {
+        if (!tab) return 1;
+        const view = tab.focusedView || tab.view;
+        if (view && view.state && view.state.doc && view.state.selection) {
+            try {
+                return view.state.doc.lineAt(view.state.selection.main.head).number;
+            } catch (_) {
+                return 1;
+            }
+        }
+        if (view && view.textarea) {
+            return view.textarea.value.slice(0, view.textarea.selectionStart).split('\n').length;
+        }
+        return 1;
+    }
+
+    function renderProblemsPanel() {
+        const panel = shellPart('[data-problems-panel]');
+        if (!panel) return;
+        const problems = state.problems || [];
+        if (!problems.length) {
+            panel.innerHTML = `<div class="cs-empty">${esc(state.diagnosticsRunning
+                ? tr('codeStudio.diagnosticsRunning', 'Checking...')
+                : tr('codeStudio.noProblems', 'No problems have been detected in the workspace.'))}</div>`;
+            return;
+        }
+        const counts = problemCounts();
+        const groups = [];
+        problems.forEach(problem => {
+            const key = problem.file || tr('codeStudio.problemWorkspace', 'Workspace');
+            let group = groups.find(item => item.key === key);
+            if (!group) {
+                group = { key, label: key, items: [] };
+                groups.push(group);
+            }
+            group.items.push(problem);
+        });
+        const summary = `<div class="cs-problems-summary">
+            <span class="cs-problems-count error">${esc(tr('codeStudio.problemErrors', '{{count}} errors', { count: counts.errors }))}</span>
+            <span class="cs-problems-count warning">${esc(tr('codeStudio.problemWarnings', '{{count}} warnings', { count: counts.warnings }))}</span>
+        </div>`;
+        const body = groups.map((group, groupIndex) => `
+            <div class="cs-problems-group">
+                <button type="button" class="cs-problems-file" data-problem-group="${groupIndex}">
+                    <span class="cs-problems-caret">▾</span>
+                    <span>${esc(group.label)}</span>
+                    <span class="cs-problems-file-count">${esc(String(group.items.length))}</span>
+                </button>
+                ${group.items.map((problem, index) => `
+                    <button type="button" class="cs-problem cs-problem-${esc(problem.severity)}" data-problem-index="${groupIndex}|${index}">
+                        <span class="cs-problem-icon">${problem.severity === 'warning' ? '⚠' : (problem.severity === 'info' ? 'ℹ' : '✖')}</span>
+                        <span class="cs-problem-message">${esc(problem.message)}</span>
+                        ${problem.source ? `<span class="cs-problem-source">${esc(problem.source)}</span>` : ''}
+                    </button>`).join('')}
+            </div>`).join('');
+        panel.innerHTML = summary + body;
+        panel.querySelectorAll('[data-problem-group]').forEach(btn => {
+            btn.addEventListener('click', bind(() => {
+                const group = btn.closest('.cs-problems-group');
+                if (group) group.classList.toggle('collapsed');
+            }));
+        });
+        panel.querySelectorAll('[data-problem-index]').forEach(btn => {
+            btn.addEventListener('click', bind(() => {
+                const [groupIndex, index] = btn.dataset.problemIndex.split('|').map(Number);
+                const group = groups[groupIndex];
+                const problem = group && group.items[index];
+                if (problem) jumpToProblem(problem);
+            }));
+        });
+    }
+
+    async function jumpToProblem(problem) {
+        if (!problem) return;
+        const target = state;
+        if (!isLiveInstance(target)) return;
+        if (problem.file && problem.file !== WORKSPACE_ROOT) {
+            await runAsyncStep(target, () => openFile(problem.file));
+            if (!isLiveInstance(target)) return;
+        }
+        runWithInstance(target, () => {
+            const tab = activeTab();
+            if (!tab) return;
+            const view = tab.view;
+            if (view && view.state && view.state.doc && state.cmModule && state.cmModule.EditorView) {
+                const doc = view.state.doc;
+                // The compiler may report a line that the current buffer does not have
+                // (an older revision, a generated file), so it is clamped.
+                const line = Math.min(Math.max(1, problem.line || 1), doc.lines);
+                const column = Math.max(1, problem.column || 1);
+                const docLine = doc.line(line);
+                const pos = Math.min(docLine.to, docLine.from + column - 1);
+                view.dispatch({
+                    selection: { anchor: pos },
+                    effects: state.cmModule.EditorView.scrollIntoView(pos, { y: 'center' })
+                });
+                view.focus();
+            } else if (view && view.textarea) {
+                const lines = view.textarea.value.split('\n');
+                const line = Math.min(Math.max(1, problem.line || 1), lines.length);
+                const offset = lines.slice(0, line - 1).join('\n').length + (line > 1 ? 1 : 0);
+                view.textarea.focus();
+                view.textarea.setSelectionRange(offset, offset);
+            }
+            renderStatus();
+        });
+    }
+
+    function nextProblem(direction) {
+        const all = (state.problems || []).slice().sort((a, b) => {
+            if (a.file !== b.file) return String(a.file).localeCompare(String(b.file));
+            if (a.line !== b.line) return a.line - b.line;
+            return a.column - b.column;
+        });
+        if (!all.length) return;
+        const tab = activeTab();
+        const currentFile = tab ? tab.path : '';
+        // Problems of the open file come first, the workspace wide ones are the fallback.
+        const inFile = all.filter(problem => problem.file && problem.file === currentFile);
+        const list = inFile.length ? inFile : all;
+        const currentLine = cursorLineNumber(tab);
+        let candidate = null;
+        if (direction > 0) {
+            candidate = list.find(problem => problem.line > currentLine) || list[0];
+        } else {
+            const earlier = list.filter(problem => problem.line < currentLine);
+            candidate = earlier.length ? earlier[earlier.length - 1] : list[list.length - 1];
+        }
+        jumpToProblem(candidate);
+    }
+
+    // --- Client side checks -------------------------------------------------------
+
+    function stripCodeNoise(code) {
+        // Removes comments, string bodies and regular expression literals so bracket
+        // counting never trips over them.
+        let out = '';
+        let i = 0;
+        const length = code.length;
+        while (i < length) {
+            const char = code[i];
+            const next = code[i + 1];
+            if (char === '/' && next === '/') {
+                while (i < length && code[i] !== '\n') i += 1;
+                continue;
+            }
+            if (char === '/' && next === '*') {
+                i += 2;
+                while (i < length && !(code[i] === '*' && code[i + 1] === '/')) i += 1;
+                i += 2;
+                continue;
+            }
+            if (char === '/' && regexCanStartAfter(out)) {
+                i += 1;
+                let inClass = false;
+                while (i < length) {
+                    if (code[i] === '\\') { i += 2; continue; }
+                    if (code[i] === '[') inClass = true;
+                    else if (code[i] === ']') inClass = false;
+                    else if (code[i] === '/' && !inClass) { i += 1; break; }
+                    else if (code[i] === '\n') break;
+                    i += 1;
+                }
+                out += '""';
+                continue;
+            }
+            if (char === '"' || char === "'" || char === '`') {
+                const quote = char;
+                i += 1;
+                while (i < length) {
+                    if (code[i] === '\\') { i += 2; continue; }
+                    if (code[i] === quote) { i += 1; break; }
+                    if (quote !== '`' && code[i] === '\n') break;
+                    i += 1;
+                }
+                out += '""';
+                continue;
+            }
+            out += char;
+            i += 1;
+        }
+        return out;
+    }
+
+    function checkBrackets(code) {
+        const pairs = { ')': '(', ']': '[', '}': '{' };
+        const openers = new Set(['(', '[', '{']);
+        const stack = [];
+        let line = 1;
+        let column = 1;
+        const clean = stripCodeNoise(code);
+        for (let i = 0; i < clean.length; i += 1) {
+            const char = clean[i];
+            if (char === '\n') { line += 1; column = 1; continue; }
+            if (openers.has(char)) stack.push({ char, line, column });
+            else if (pairs[char]) {
+                const top = stack.pop();
+                if (!top) {
+                    return [{ severity: 'error', line, column, message: tr('codeStudio.problemUnexpectedBracket', 'Unexpected closing bracket \'{{char}}\'', { char }), source: 'syntax' }];
+                }
+                if (top.char !== pairs[char]) {
+                    return [{ severity: 'error', line: top.line, column: top.column, message: tr('codeStudio.problemMismatchedBracket', 'Mismatched bracket: expected \'{{expected}}\' but found \'{{found}}\'', { expected: top.char, found: char }), source: 'syntax' }];
+                }
+            }
+            column += 1;
+        }
+        const top = stack.pop();
+        if (top) {
+            return [{ severity: 'error', line: top.line, column: top.column, message: tr('codeStudio.problemUnclosedBracket', 'Unclosed bracket \'{{char}}\'', { char: top.char }), source: 'syntax' }];
+        }
+        return [];
+    }
+
+    function checkJson(code) {
+        try {
+            JSON.parse(code);
+            return [];
+        } catch (err) {
+            const message = String(err && err.message ? err.message : err);
+            const position = /position (\d+)/i.exec(message);
+            let line = 1;
+            let column = 1;
+            if (position) {
+                const offset = Math.min(Number(position[1]) || 0, code.length);
+                const before = code.slice(0, offset);
+                line = before.split('\n').length;
+                column = offset - before.lastIndexOf('\n');
+            } else {
+                const lineMatch = /line (\d+)/i.exec(message);
+                if (lineMatch) line = Number(lineMatch[1]) || 1;
+            }
+            return [{ severity: 'error', line, column, message, source: 'json' }];
+        }
+    }
+
+    function checkDocumentContent(tab) {
+        if (!tab || tab.kind === 'diff') return [];
+        const code = editorValue(tab);
+        if (!code) return [];
+        const language = tab.language || languageForPath(tab.path);
+        if (language === 'json') return checkJson(code);
+        if (BRACKET_LANGUAGES.includes(language)) return checkBrackets(code);
+        return [];
+    }
+
+    function checkActiveDocument() {
+        const tab = activeTab();
+        if (!tab) return;
+        const found = checkDocumentContent(tab);
+        // The client checks of this document are dropped, the findings of the
+        // container check and of the other files stay untouched.
+        const others = (state.problems || []).filter(problem => !(CLIENT_PROBLEM_SOURCES.includes(problem.source) && problem.file === tab.path));
+        const mine = found.map(problem => normalizeProblem({ ...problem, file: tab.path }));
+        setProblems([...others, ...mine]);
+    }
+
+    // Typing triggers a check after a short pause so the problem list does not flicker.
+    function scheduleDocumentCheck() {
+        const instance = state;
+        if (!instance) return;
+        if (instance.checkTimer) clearTimeout(instance.checkTimer);
+        instance.checkTimer = setTimeout(bindInstance(instance, () => {
+            instance.checkTimer = null;
+            if (!isLiveInstance(instance)) return;
+            checkActiveDocument();
+        }), 600);
+    }
+
+    // --- Container side project check ----------------------------------------------
+
+    function detectProjectCheck() {
+        const files = (state.files || []).map(entry => entry.name || '').concat(Object.values(state.treeCache || {}).flat().map(entry => entry.name || ''));
+        const has = name => files.includes(name);
+        const tab = activeTab();
+        const path = tab ? tab.path : '';
+        const ext = String(path).split('.').pop().toLowerCase();
+        const lang = tab ? (tab.language || languageForPath(tab.path)) : '';
+        // A project wide check is preferred when the project marker matches the open file.
+        if (lang === 'go' && has('go.mod')) return { command: 'go build ./...', source: 'go build' };
+        if (lang === 'rust' && has('Cargo.toml')) return { command: 'cargo check --message-format short', source: 'cargo check' };
+        // Otherwise check the open file with the toolchain that understands it.
+        if (ext === 'ts' || ext === 'tsx') return { command: `npx --no-install tsc --noEmit ${shellQuotePath(path)}`, source: 'tsc' };
+        if (lang === 'go' && path) return { command: `go vet ${shellQuotePath(path)}`, source: 'go vet' };
+        if (lang === 'rust' && path) return { command: `rustc --emit=metadata -o /dev/null ${shellQuotePath(path)}`, source: 'rustc' };
+        if ((ext === 'js' || ext === 'mjs' || ext === 'cjs') && path) return { command: `node --check ${shellQuotePath(path)}`, source: 'node' };
+        if (lang === 'python' && path) return { command: `python3 -m py_compile ${shellQuotePath(path)}`, source: 'py_compile' };
+        if ((ext === 'c' || ext === 'h') && path) return { command: `gcc -fsyntax-only -std=c17 ${shellQuotePath(path)}`, source: 'gcc' };
+        if (lang === 'json' && path) return { command: `python3 -m json.tool ${shellQuotePath(path)}`, source: 'json.tool' };
+        // Finally fall back to whatever the project itself offers.
+        if (has('go.mod')) return { command: 'go build ./...', source: 'go build' };
+        if (has('Cargo.toml')) return { command: 'cargo check --message-format short', source: 'cargo check' };
+        if (has('tsconfig.json')) return { command: 'npx --no-install tsc --noEmit', source: 'tsc' };
+        if (has('requirements.txt') || has('pyproject.toml')) return { command: 'python3 -m compileall -q .', source: 'compileall' };
+        if (has('package.json')) return { command: 'npm test --silent', source: 'npm test' };
+        return null;
+    }
+
+    function shellQuotePath(path) {
+        return "'" + String(path).replaceAll("'", "'\"'\"'") + "'";
+    }
+
+    function parseDiagnosticOutput(output, source, base) {
+        const problems = [];
+        const lines = String(output || '').split('\n');
+        const push = (file, line, column, severity, message) => {
+            if (!message) return;
+            problems.push(normalizeProblem({ file: normalizeDiagnosticPath(file, base), line, column, severity, message, source }));
+        };
+        for (let i = 0; i < lines.length; i += 1) {
+            const raw = lines[i];
+            const line = raw.trim();
+            if (!line) continue;
+            // file:line:col: severity: message   (gcc, clang, tsc with --pretty)
+            let match = /^(.*?):(\d+):(\d+):\s*(error|warning|note|info)\s*:\s*(.*)$/i.exec(line);
+            if (match) {
+                push(match[1], Number(match[2]), Number(match[3]), match[4].toLowerCase() === 'note' ? 'info' : match[4].toLowerCase(), match[5]);
+                continue;
+            }
+            // file:line:col: message              (go build, go vet)
+            match = /^(.*?):(\d+):(\d+):\s*(.*)$/.exec(line);
+            if (match && !/^\s*(https?:\/\/)/.test(line)) {
+                push(match[1], Number(match[2]), Number(match[3]), 'error', match[4]);
+                continue;
+            }
+            // file:line: severity: message
+            match = /^(.*?):(\d+):\s*(error|warning)\s*:\s*(.*)$/i.exec(line);
+            if (match) {
+                push(match[1], Number(match[2]), 1, match[3].toLowerCase(), match[4]);
+                continue;
+            }
+            // file(line,col): severity message    (tsc)
+            match = /^(.*?)\((\d+),(\d+)\):\s*(error|warning)\s+(TS\d+:)?\s*(.*)$/i.exec(line);
+            if (match) {
+                push(match[1], Number(match[2]), Number(match[3]), match[4].toLowerCase(), match[6]);
+                continue;
+            }
+            // file(line): severity message
+            match = /^(.*?)\((\d+)\):\s*(error|warning)\s+(TS\d+:)?\s*(.*)$/i.exec(line);
+            if (match) {
+                push(match[1], Number(match[2]), 1, match[3].toLowerCase(), match[5]);
+                continue;
+            }
+            // Python traceback: File "path", line N
+            match = /^\s*File "([^"]+)",\s*line\s*(\d+)/.exec(raw);
+            if (match) {
+                const detail = lines.slice(i + 1).find(entry => /^\s+\S/.test(entry) && !/^\s*File "/.test(entry));
+                const text = (detail || '').trim();
+                push(match[1], Number(match[2]), 1, 'error', text || tr('codeStudio.problemSyntaxError', 'Syntax error'));
+                continue;
+            }
+            // Rust: error[E0308]: message  +  --> file:line:col
+            match = /^error(?:\[(\w+)\])?:\s*(.*)$/i.exec(line);
+            if (match) {
+                const pointer = lines.slice(i + 1, i + 4).map(entry => /^\s*-->\s*(.*?):(\d+):(\d+)/.exec(entry)).find(Boolean);
+                if (pointer) push(pointer[1], Number(pointer[2]), Number(pointer[3]), 'error', match[2]);
+                else push('', 1, 1, 'error', match[2]);
+                continue;
+            }
+            // eslint style: path on its own line, then "  12:5  error  message"
+            if (/^\/\S+/.test(line) || /^[A-Za-z]:[\\/]/.test(line)) {
+                const detail = lines.slice(i + 1).find(entry => /^\s+\d+:\d+\s+(error|warning)\s+.*$/.test(entry));
+                const detailMatch = detail && /^\s+(\d+):(\d+)\s+(error|warning)\s+(.*)$/.exec(detail);
+                if (detailMatch) push(line, Number(detailMatch[1]), Number(detailMatch[2]), detailMatch[3].toLowerCase(), detailMatch[4]);
+                continue;
+            }
+            // eslint compact style: path:12:5: message  (already covered above)
+        }
+        return problems;
+    }
+
+    async function runDiagnostics() {
+        const target = state;
+        if (!isLiveInstance(target) || target.diagnosticsRunning) return;
+        if (!canWrite(target)) {
+            flashStatus(tr('codeStudio.diagnosticsReadOnly', 'Checks need write access to the container.'));
+            return;
+        }
+        const plan = detectProjectCheck();
+        if (!plan) {
+            flashStatus(tr('codeStudio.diagnosticsUnsupported', 'No supported project check found for this workspace.'));
+            return;
+        }
+        target.diagnosticsRunning = true;
+        runWithInstance(target, () => {
+            renderBottomPanel();
+            renderStatus(tr('codeStudio.diagnosticsRunning', 'Checking...'));
+        });
+        const request = Symbol();
+        target.diagnosticsRequest = request;
+        try {
+            const result = await apiClient.exec(plan.command, WORKSPACE_ROOT, 180);
+            if (!isLiveInstance(target) || target.diagnosticsRequest !== request) return;
+            runWithInstance(target, () => {
+                const output = [result && result.output ? result.output : ''].join('\n');
+                appendOutput(output, plan.source);
+                const parsed = parseDiagnosticOutput(output, plan.source, WORKSPACE_ROOT);
+                const others = (state.problems || []).filter(problem => problem.source !== plan.source);
+                setProblems([...others, ...parsed]);
+                state.diagnosticsRunning = false;
+                state.lastDiagnosticsAt = Date.now();
+                renderBottomPanel();
+                const counts = problemCounts();
+                flashStatus(tr('codeStudio.diagnosticsDone', '{{errors}} errors, {{warnings}} warnings', {
+                    errors: counts.errors,
+                    warnings: counts.warnings
+                }));
+            });
+        } catch (err) {
+            if (!isLiveInstance(target) || target.diagnosticsRequest !== request) return;
+            runWithInstance(target, () => {
+                state.diagnosticsRunning = false;
+                renderBottomPanel();
+                showOperationError(err);
+            });
+        }
+    }
+
+    // --- Inline decorations --------------------------------------------------------
+
+    function applyDiagnosticsToOpenTabs() {
+        (state.openTabs || []).forEach(tab => applyDiagnosticsToTab(tab));
+    }
+
+    function applyDiagnosticsToTab(tab) {
+        if (!tab || !tab.view) return;
+        const cm = state.cmModule;
+        if (!cm || !cm.setDiagnostics || !cm.EditorState) return;
+        const findings = problemsForFile(tab.path);
+        const view = tab.view;
+        if (!view.state || !view.state.doc) return;
+        const doc = view.state.doc;
+        const diagnostics = findings.map(problem => {
+            const lineNumber = Math.min(Math.max(1, problem.line), doc.lines);
+            const docLine = doc.line(lineNumber);
+            const from = Math.min(docLine.to, docLine.from + Math.max(0, problem.column - 1));
+            const to = Math.min(docLine.to, Math.max(from + 1, docLine.from + Math.max(0, problem.column - 1)));
+            return {
+                from,
+                to,
+                severity: problem.severity === 'warning' ? 'warning' : (problem.severity === 'info' ? 'info' : 'error'),
+                message: problem.message,
+                source: problem.source || undefined
+            };
+        }).filter(diagnostic => diagnostic.to > diagnostic.from);
+        try {
+            // setDiagnostics is a helper that turns the findings into a transaction spec.
+            view.dispatch(cm.setDiagnostics(view.state, diagnostics));
+        } catch (_) {}
+    }
+
+;
+/* ui/js/desktop/apps/code-studio/find.js */
+    // Find and replace for the active editor. The widget floats over the editor like the one
+    // in Visual Studio, works for both the CodeMirror view and the plain textarea fallback and
+    // keeps the match counter in sync while the user types.
+
+    function findTarget() {
+        const tab = activeTab();
+        if (!tab) return null;
+        const view = tab.focusedView || tab.view;
+        if (!view) return null;
+        if (view.state && view.state.doc && state.cmModule && state.cmModule.EditorView) {
+            const cm = state.cmModule;
+            return {
+                kind: 'codemirror',
+                view,
+                text: () => view.state.doc.toString(),
+                // The editor must not grab the focus here: the find box keeps it while
+                // the user types, exactly like in Visual Studio.
+                reveal: pos => {
+                    view.dispatch({
+                        selection: { anchor: pos },
+                        effects: cm.EditorView.scrollIntoView(pos, { y: 'center' })
+                    });
+                },
+                select: (from, to) => {
+                    view.dispatch({ selection: { anchor: from, head: to } });
+                },
+                replaceRange: (from, to, insert) => {
+                    view.dispatch({ changes: { from, to, insert } });
+                },
+                replaceRanges: (ranges, insert) => {
+                    view.dispatch({ changes: ranges.map(range => ({ from: range.from, to: range.to, insert })) });
+                }
+            };
+        }
+        if (view.textarea) {
+            const textarea = view.textarea;
+            const notify = () => {
+                try { textarea.dispatchEvent(new Event('input', { bubbles: true })); } catch (_) {}
+            };
+            return {
+                kind: 'textarea',
+                view,
+                text: () => textarea.value,
+                reveal: pos => {
+                    textarea.setSelectionRange(pos, pos);
+                },
+                select: (from, to) => {
+                    textarea.setSelectionRange(from, to);
+                },
+                replaceRange: (from, to, insert) => {
+                    textarea.value = textarea.value.slice(0, from) + insert + textarea.value.slice(to);
+                    notify();
+                },
+                replaceRanges: (ranges, insert) => {
+                    let out = '';
+                    let cursor = 0;
+                    ranges.forEach(range => {
+                        out += textarea.value.slice(cursor, range.from) + insert;
+                        cursor = range.to;
+                    });
+                    out += textarea.value.slice(cursor);
+                    textarea.value = out;
+                    notify();
+                }
+            };
+        }
+        return null;
+    }
+
+    function escapeRegExp(value) {
+        return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    function findMatches(text, query, options) {
+        const needle = String(query || '');
+        if (!needle) return [];
+        const flags = options.caseSensitive ? 'g' : 'gi';
+        let pattern;
+        try {
+            if (options.regex) pattern = new RegExp(needle, flags);
+            else if (options.wholeWord) pattern = new RegExp(`\\b${escapeRegExp(needle)}\\b`, flags);
+            else pattern = new RegExp(escapeRegExp(needle), flags);
+        } catch (_) {
+            return [];
+        }
+        const matches = [];
+        let match;
+        while ((match = pattern.exec(text)) !== null) {
+            if (match[0] === '') { pattern.lastIndex += 1; continue; }
+            matches.push({ from: match.index, to: match.index + match[0].length });
+            if (matches.length >= 5000) break;
+        }
+        return matches;
+    }
+
+    function findOptions() {
+        return {
+            caseSensitive: !!state.findCaseSensitive,
+            wholeWord: !!state.findWholeWord,
+            regex: !!state.findRegex
+        };
+    }
+
+    function refreshFindMatches(preferDirection) {
+        const target = findTarget();
+        if (!target) {
+            state.findMatches = [];
+            state.findIndex = -1;
+            renderFindWidget();
+            return;
+        }
+        const text = target.text();
+        const matches = findMatches(text, state.findQuery, findOptions());
+        state.findMatches = matches;
+        if (!matches.length) {
+            state.findIndex = -1;
+        } else if (preferDirection === 'next') {
+            const cursor = findCursorOffset(target);
+            const found = matches.findIndex(match => match.from > cursor);
+            state.findIndex = found === -1 ? 0 : found;
+        } else if (preferDirection === 'previous') {
+            const cursor = findCursorOffset(target);
+            let found = -1;
+            for (let i = matches.length - 1; i >= 0; i -= 1) {
+                if (matches[i].from < cursor) { found = i; break; }
+            }
+            state.findIndex = found === -1 ? matches.length - 1 : found;
+        } else {
+            state.findIndex = Math.min(Math.max(0, state.findIndex), matches.length - 1);
+        }
+        renderFindWidget();
+        if (matches.length && state.findIndex >= 0) {
+            const match = matches[state.findIndex];
+            target.select(match.from, match.to);
+            target.reveal(match.from);
+        }
+    }
+
+    function findCursorOffset(target) {
+        try {
+            if (target.kind === 'codemirror') return target.view.state.selection.main.head;
+            return target.view.textarea.selectionStart;
+        } catch (_) {
+            return 0;
+        }
+    }
+
+    function findMatchLabel() {
+        const total = (state.findMatches || []).length;
+        if (!state.findQuery) return tr('codeStudio.findNoQuery', 'No results');
+        if (!total) return tr('codeStudio.findNoResults', 'No results');
+        return tr('codeStudio.findCounter', '{{current}} of {{total}}', {
+            current: (state.findIndex || 0) + 1,
+            total
+        });
+    }
+
+    function renderFindWidget() {
+        const widget = shellPart('[data-find-widget]');
+        if (!widget) return;
+        widget.hidden = !state.findOpen;
+        if (!state.findOpen) return;
+        // The widget floats over the editor, not over the tab bar.
+        const editor = shellPart('[data-editor]');
+        const main = shellPart('.code-studio-main');
+        if (editor && main) {
+            const delta = editor.getBoundingClientRect().top - main.getBoundingClientRect().top;
+            widget.style.top = Math.max(0, delta + 8) + 'px';
+        }
+        const options = findOptions();
+        if (!widget.querySelector('[data-find-input]')) {
+            widget.innerHTML = `
+            <div class="cs-find-row">
+                <button type="button" class="cs-find-toggle" data-find-option="case" title="${esc(tr('codeStudio.findCase', 'Match case'))}">Aa</button>
+                <button type="button" class="cs-find-toggle" data-find-option="whole" title="${esc(tr('codeStudio.findWholeWord', 'Match whole word'))}">ab</button>
+                <button type="button" class="cs-find-toggle" data-find-option="regex" title="${esc(tr('codeStudio.findRegex', 'Use regular expression'))}">.*</button>
+                <input type="text" class="cs-find-input" data-find-input value="${esc(state.findQuery || '')}" placeholder="${esc(tr('codeStudio.findPlaceholder', 'Find'))}" spellcheck="false" autocomplete="off">
+                <span class="cs-find-count" data-find-count>${esc(findMatchLabel())}</span>
+                <button type="button" class="cs-find-btn" data-find-prev title="${esc(tr('codeStudio.findPrevious', 'Previous match'))}">↑</button>
+                <button type="button" class="cs-find-btn" data-find-next title="${esc(tr('codeStudio.findNext', 'Next match'))}">↓</button>
+                <button type="button" class="cs-find-btn" data-find-replace-toggle title="${esc(tr('codeStudio.findToggleReplace', 'Toggle replace'))}">⇄</button>
+                <button type="button" class="cs-find-btn" data-find-close title="${esc(tr('desktop.close', 'Close'))}">×</button>
+            </div>
+            <div class="cs-find-replace-row" data-find-replace-row${state.findReplaceOpen ? '' : ' hidden'}>
+                <input type="text" class="cs-find-input" data-find-replace value="${esc(state.findReplaceText || '')}" placeholder="${esc(tr('codeStudio.replacePlaceholder', 'Replace'))}" spellcheck="false" autocomplete="off">
+                <button type="button" class="cs-find-btn labelled" data-find-replace-one title="${esc(tr('codeStudio.replaceOne', 'Replace'))}">${esc(tr('codeStudio.replaceOne', 'Replace'))}</button>
+                <button type="button" class="cs-find-btn labelled" data-find-replace-all title="${esc(tr('codeStudio.replaceAll', 'Replace All'))}">${esc(tr('codeStudio.replaceAll', 'Replace All'))}</button>
+            </div>`;
+            wireFindWidget(widget);
+        }
+        // The widget is only patched from here on so typing never loses the caret.
+        const counter = widget.querySelector('[data-find-count]');
+        if (counter) counter.textContent = findMatchLabel();
+        const queryInput = widget.querySelector('[data-find-input]');
+        if (queryInput && queryInput !== document.activeElement && queryInput.value !== (state.findQuery || '')) {
+            queryInput.value = state.findQuery || '';
+        }
+        const replaceField = widget.querySelector('[data-find-replace]');
+        if (replaceField && replaceField !== document.activeElement && replaceField.value !== (state.findReplaceText || '')) {
+            replaceField.value = state.findReplaceText || '';
+        }
+        widget.querySelectorAll('[data-find-option]').forEach(btn => {
+            const key = btn.dataset.findOption;
+            const active = key === 'case' ? options.caseSensitive : (key === 'whole' ? options.wholeWord : options.regex);
+            btn.classList.toggle('active', !!active);
+        });
+        const replaceRow = widget.querySelector('[data-find-replace-row]');
+        if (replaceRow) replaceRow.hidden = !state.findReplaceOpen;
+    }
+
+    function wireFindWidget(widget) {
+        const input = widget.querySelector('[data-find-input]');
+        const replaceInput = widget.querySelector('[data-find-replace]');
+        if (input) {
+            input.addEventListener('input', bind(event => {
+                state.findQuery = event.target.value;
+                refreshFindMatches('next');
+            }));
+            input.addEventListener('keydown', bind(event => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    refreshFindMatches(event.shiftKey ? 'previous' : 'next');
+                } else if (event.key === 'Escape') {
+                    event.preventDefault();
+                    closeFindWidget();
+                }
+            }));
+        }
+        if (replaceInput) {
+            replaceInput.addEventListener('input', bind(event => { state.findReplaceText = event.target.value; }));
+            replaceInput.addEventListener('keydown', bind(event => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    replaceCurrentMatch();
+                } else if (event.key === 'Escape') {
+                    event.preventDefault();
+                    closeFindWidget();
+                }
+            }));
+        }
+        widget.querySelectorAll('[data-find-option]').forEach(btn => {
+            btn.addEventListener('click', bind(() => {
+                const key = btn.dataset.findOption;
+                if (key === 'case') state.findCaseSensitive = !state.findCaseSensitive;
+                if (key === 'whole') state.findWholeWord = !state.findWholeWord;
+                if (key === 'regex') state.findRegex = !state.findRegex;
+                refreshFindMatches('next');
+            }));
+        });
+        const prev = widget.querySelector('[data-find-prev]');
+        if (prev) prev.addEventListener('click', bind(() => refreshFindMatches('previous')));
+        const next = widget.querySelector('[data-find-next]');
+        if (next) next.addEventListener('click', bind(() => refreshFindMatches('next')));
+        const close = widget.querySelector('[data-find-close]');
+        if (close) close.addEventListener('click', bind(() => closeFindWidget()));
+        const toggleReplace = widget.querySelector('[data-find-replace-toggle]');
+        if (toggleReplace) toggleReplace.addEventListener('click', bind(() => {
+            state.findReplaceOpen = !state.findReplaceOpen;
+            renderFindWidget();
+            const field = shellPart(state.findReplaceOpen ? '[data-find-replace]' : '[data-find-input]');
+            if (field) field.focus();
+        }));
+        const replaceOne = widget.querySelector('[data-find-replace-one]');
+        if (replaceOne) replaceOne.addEventListener('click', bind(() => replaceCurrentMatch()));
+        const replaceAll = widget.querySelector('[data-find-replace-all]');
+        if (replaceAll) replaceAll.addEventListener('click', bind(() => replaceAllMatches()));
+    }
+
+    function openFindWidget(showReplace) {
+        state.findOpen = true;
+        if (showReplace) state.findReplaceOpen = true;
+        const tab = activeTab();
+        const target = findTarget();
+        if (target && tab) {
+            const selection = target.kind === 'codemirror'
+                ? target.view.state.selection.main
+                : { from: target.view.textarea.selectionStart, to: target.view.textarea.selectionEnd };
+            const text = target.text();
+            if (!state.findQuery && selection && selection.from !== selection.to) {
+                state.findQuery = text.slice(selection.from, selection.to);
+            }
+        }
+        renderFindWidget();
+        refreshFindMatches('next');
+        const input = shellPart('[data-find-input]');
+        if (input) { input.focus(); input.select(); }
+    }
+
+    function closeFindWidget() {
+        state.findOpen = false;
+        state.findMatches = [];
+        state.findIndex = -1;
+        renderFindWidget();
+        // The editor takes the focus back, like in Visual Studio.
+        const tab = activeTab();
+        const view = tab && (tab.focusedView || tab.view);
+        if (!view) return;
+        if (view.textarea && typeof view.textarea.focus === 'function') view.textarea.focus();
+        else if (typeof view.focus === 'function') view.focus();
+    }
+
+    function replaceCurrentMatch() {
+        const target = findTarget();
+        const matches = state.findMatches || [];
+        if (!target || !matches.length) return;
+        const index = Math.min(Math.max(0, state.findIndex), matches.length - 1);
+        const match = matches[index];
+        const insert = state.findReplaceText || '';
+        target.replaceRange(match.from, match.to, insert);
+        state.findIndex = index;
+        refreshFindMatches('next');
+    }
+
+    function replaceAllMatches() {
+        const target = findTarget();
+        if (!target) return;
+        // The document may have changed since the last search, so the ranges are
+        // recalculated before anything is rewritten.
+        const matches = findMatches(target.text(), state.findQuery, findOptions());
+        if (!matches.length) {
+            refreshFindMatches('next');
+            return;
+        }
+        const insert = state.findReplaceText || '';
+        target.replaceRanges(matches, insert);
+        state.findMatches = matches;
+        refreshFindMatches('next');
+        flashStatus(tr('codeStudio.replaceDone', '{{count}} replacements', { count: matches.length }));
+    }
+
+;
+/* ui/js/desktop/apps/code-studio/outline.js */
+    // Document outline. A real IDE shows the symbols of the active file next to the tree so the
+    // user can navigate a large file without scrolling. The scanner is intentionally simple:
+    // it recognises the declaration shapes of the languages the studio can edit.
+
+    const OUTLINE_RULES = {
+        javascript: [
+            { kind: 'function', regex: /^\s*(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s*\*?\s*([A-Za-z_$][\w$]*)/ },
+            { kind: 'class', regex: /^\s*(?:export\s+)?(?:default\s+)?(?:abstract\s+)?class\s+([A-Za-z_$][\w$]*)/ },
+            { kind: 'function', regex: /^\s*(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>/ },
+            { kind: 'variable', regex: /^\s*(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)/ }
+        ],
+        python: [
+            { kind: 'class', regex: /^\s*class\s+([A-Za-z_][\w]*)/ },
+            { kind: 'function', regex: /^\s*(?:async\s+)?def\s+([A-Za-z_][\w]*)/ }
+        ],
+        go: [
+            { kind: 'function', regex: /^\s*func\s+(?:\([^)]*\)\s*)?([A-Za-z_][\w]*)/ },
+            { kind: 'type', regex: /^\s*type\s+([A-Za-z_][\w]*)/ },
+            { kind: 'variable', regex: /^\s*(?:const|var)\s+([A-Za-z_][\w]*)/ }
+        ],
+        c: [
+            { kind: 'function', regex: /^\s*(?:static\s+|inline\s+|extern\s+)*[A-Za-z_][\w\s*]*?\b([A-Za-z_][\w]*)\s*\([^;]*\)\s*\{?\s*$/ },
+            { kind: 'type', regex: /^\s*typedef\s+.*\b([A-Za-z_][\w]*)\s*;/ },
+            { kind: 'variable', regex: /^\s*(?:#define\s+)([A-Za-z_][\w]*)/ }
+        ],
+        rust: [
+            { kind: 'function', regex: /^\s*(?:pub(?:\([^)]*\))?\s+)?(?:async\s+)?fn\s+([A-Za-z_][\w]*)/ },
+            { kind: 'type', regex: /^\s*(?:pub(?:\([^)]*\))?\s+)?(?:struct|enum|trait|type)\s+([A-Za-z_][\w]*)/ },
+            { kind: 'type', regex: /^\s*impl(?:<[^>]*>)?\s+([A-Za-z_][\w]*)/ }
+        ],
+        json: [
+            { kind: 'variable', regex: /^\s*"([^"]+)"\s*:/ }
+        ],
+        css: [
+            { kind: 'type', regex: /^\s*([.#]?[A-Za-z_][\w-]*)\s*\{/ }
+        ]
+    };
+
+    function outlineLanguage(tab) {
+        if (!tab) return '';
+        const language = tab.language || languageForPath(tab.path);
+        return OUTLINE_RULES[language] ? language : '';
+    }
+
+    function scanDocumentSymbols(tab) {
+        const code = editorValue(tab);
+        if (!code) return [];
+        const language = outlineLanguage(tab);
+        if (!language) return [];
+        const rules = OUTLINE_RULES[language];
+        const lines = code.split('\n');
+        const symbols = [];
+        let depth = 0;
+        lines.forEach((raw, index) => {
+            const text = raw.trim();
+            if (!text || text.startsWith('//') || text.startsWith('#') && language === 'python' && !/^#\s*def/.test(text)) {
+                depth += countBrackets(raw);
+                return;
+            }
+            const level = language === 'python' ? indentLevel(raw) : depth;
+            for (const rule of rules) {
+                const match = rule.regex.exec(raw);
+                if (!match) continue;
+                symbols.push({
+                    name: match[1],
+                    kind: rule.kind,
+                    line: index + 1,
+                    column: raw.length - raw.trimStart().length + 1,
+                    level: Math.max(0, level)
+                });
+                break;
+            }
+            depth += countBrackets(raw);
+        });
+        return symbols;
+    }
+
+    function indentLevel(raw) {
+        const match = /^\s*/.exec(raw);
+        return Math.floor((match ? match[0].length : 0) / 4);
+    }
+
+    function countBrackets(raw) {
+        const clean = stripCodeNoise(raw);
+        let depth = 0;
+        for (const char of clean) {
+            if (char === '{') depth += 1;
+            else if (char === '}') depth -= 1;
+        }
+        return depth;
+    }
+
+    function outlineSymbolIcon(kind) {
+        if (kind === 'function') return 'ƒ';
+        if (kind === 'class') return 'C';
+        if (kind === 'type') return 'T';
+        if (kind === 'variable') return '◇';
+        return '•';
+    }
+
+    function renderOutline() {
+        const sidebar = shellPart('[data-sidebar]');
+        if (!sidebar) return;
+        const tab = activeTab();
+        const symbols = tab && tab.kind !== 'diff' ? scanDocumentSymbols(tab) : [];
+        const head = `<div class="cs-sidebar-head">
+            <div class="cs-sidebar-title">
+                <strong>${esc(tr('codeStudio.outline', 'Outline'))}</strong>
+            </div>
+            <div class="cs-sidebar-path" data-sidebar-path>${esc(tab ? tab.path : tr('codeStudio.noFileOpen', 'No file open'))}</div>
+        </div>`;
+        const body = symbols.length
+            ? `<div class="cs-outline" data-outline role="tree" aria-label="${esc(tr('codeStudio.outline', 'Outline'))}">${symbols.map((symbol, index) => `
+                <button type="button" class="cs-outline-item" data-outline-index="${index}" data-outline-line="${symbol.line}" style="padding-left:${6 + symbol.level * 14}px" title="${esc(symbol.name)}">
+                    <span class="cs-outline-icon">${esc(outlineSymbolIcon(symbol.kind))}</span>
+                    <span class="cs-outline-name">${esc(symbol.name)}</span>
+                    <span class="cs-outline-kind">${esc(symbol.kind)}</span>
+                </button>`).join('')}</div>`
+            : `<div class="cs-empty">${esc(tab ? tr('codeStudio.noOutline', 'No symbols found in this file.') : tr('codeStudio.noFileOpen', 'No file open'))}</div>`;
+        sidebar.innerHTML = `${head}${body}<div class="cs-sidebar-resize" data-sidebar-resize></div>`;
+        wireSidebarHead(sidebar);
+        wireSidebarResize();
+        sidebar.querySelectorAll('[data-outline-index]').forEach(btn => {
+            btn.addEventListener('click', bind(() => {
+                const symbol = symbols[Number(btn.dataset.outlineIndex)];
+                if (symbol) jumpToLine(symbol.line, symbol.column);
+            }));
+        });
+    }
+
+    function jumpToLine(line, column) {
+        const tab = activeTab();
+        if (!tab) return;
+        const lineNumber = Math.max(1, Number(line) || 1);
+        const columnNumber = Math.max(1, Number(column) || 1);
+        if (tab.view && tab.view.state && tab.view.state.doc && state.cmModule && state.cmModule.EditorView) {
+            const doc = tab.view.state.doc;
+            const docLine = doc.line(Math.min(lineNumber, doc.lines));
+            const pos = Math.min(docLine.to, docLine.from + columnNumber - 1);
+            tab.view.dispatch({
+                selection: { anchor: pos },
+                effects: state.cmModule.EditorView.scrollIntoView(pos, { y: 'center' })
+            });
+            tab.view.focus();
+        } else if (tab.view && tab.view.textarea) {
+            const rows = tab.view.textarea.value.split('\n');
+            const offset = rows.slice(0, lineNumber - 1).join('\n').length + (lineNumber > 1 ? 1 : 0);
+            tab.view.textarea.focus();
+            tab.view.textarea.setSelectionRange(offset, offset);
+        }
+        renderStatus();
     }
 
 ;
@@ -3946,6 +5232,13 @@
         return tag === 'input' || tag === 'textarea' || tag === 'select' || element.isContentEditable === true;
     }
 
+    // The terminal belongs to the shell: its keys must not be swallowed by the studio.
+    // The class is used on purpose: the studio root itself carries a data-terminal
+    // attribute for the stylesheet, which would match every element of the studio.
+    function isTerminalTarget(element) {
+        return !!(element && typeof element.closest === 'function' && element.closest('.code-studio-terminal'));
+    }
+
     function openCommandPalette() {
         if (window.CodeStudioCommandPalette && typeof window.CodeStudioCommandPalette.toggle === 'function') {
             window.CodeStudioCommandPalette.toggle(state.windowId);
@@ -3963,6 +5256,7 @@
             const key = String(event.key || '').toLowerCase();
             const mod = event.ctrlKey || event.metaKey;
             const editing = isEditableTarget(event.target) || isEditableTarget(activeElement);
+            const inTerminal = isTerminalTarget(event.target) || isTerminalTarget(activeElement);
             if (mod && event.shiftKey && key === 'p') {
                 event.preventDefault();
                 openCommandPalette();
@@ -3979,6 +5273,30 @@
                     const input = shellPart('[data-search] input[name="q"]');
                     if (input) { input.focus(); input.select(); }
                 }
+            } else if (mod && !event.shiftKey && key === 'f' && !inTerminal) {
+                event.preventDefault();
+                openFindWidget(false);
+            } else if (mod && !event.shiftKey && key === 'h' && !inTerminal) {
+                event.preventDefault();
+                openFindWidget(true);
+            } else if (mod && event.shiftKey && key === 'm' && !inTerminal) {
+                event.preventDefault();
+                setActivePanel('problems');
+            } else if (mod && event.shiftKey && key === 'u' && !inTerminal) {
+                event.preventDefault();
+                setActivePanel('output');
+            } else if (mod && event.shiftKey && key === 'o' && !inTerminal) {
+                event.preventDefault();
+                toggleOutline();
+            } else if (mod && !event.shiftKey && key === 'j' && !inTerminal) {
+                event.preventDefault();
+                togglePanel(activePanelView());
+            } else if (event.key === 'F8' && !inTerminal) {
+                event.preventDefault();
+                nextProblem(event.shiftKey ? -1 : 1);
+            } else if (event.key === 'F3' && !inTerminal) {
+                event.preventDefault();
+                if (state.findOpen) refreshFindMatches(event.shiftKey ? 'previous' : 'next');
             } else if (mod && event.shiftKey && key === 'a') {
                 event.preventDefault();
                 if (!state.agentVisible) toggleAgentPanel();
@@ -4007,7 +5325,10 @@
                 event.preventDefault();
                 runCurrentFile();
             } else if (event.key === 'Escape') {
-                if (state.zenMode) {
+                if (state.findOpen) {
+                    event.preventDefault();
+                    closeFindWidget();
+                } else if (state.zenMode) {
                     event.preventDefault();
                     toggleZenMode();
                 } else if (state.searchVisible && activeElement && activeElement.closest('[data-search]')) {
@@ -4039,12 +5360,20 @@
                 { label: tr('codeStudio.quickOpen', 'Quick open'), keys: 'Ctrl+P' },
                 { label: tr('codeStudio.commandPalette', 'Command Palette'), keys: 'Ctrl+Shift+P' },
                 { label: tr('codeStudio.searchFiles', 'Search in Files'), keys: 'Ctrl+Shift+F' },
+                { label: tr('codeStudio.findInFile', 'Find in File'), keys: 'Ctrl+F' },
+                { label: tr('codeStudio.replaceInFile', 'Replace in File'), keys: 'Ctrl+H' },
+                { label: tr('codeStudio.findNext', 'Next match'), keys: 'F3' },
+                { label: tr('codeStudio.nextProblem', 'Next problem'), keys: 'F8' },
                 { label: tr('codeStudio.zoomIn', 'Zoom In'), keys: 'Ctrl+=' },
                 { label: tr('codeStudio.zoomOut', 'Zoom Out'), keys: 'Ctrl+-' },
                 { label: tr('codeStudio.zoomReset', 'Reset Zoom'), keys: 'Ctrl+0' }
             ]},
             { title: tr('codeStudio.shortcutsView', 'View'), items: [
                 { label: tr('codeStudio.sidebar', 'Sidebar'), keys: 'Ctrl+B' },
+                { label: tr('codeStudio.panelProblems', 'Problems'), keys: 'Ctrl+Shift+M' },
+                { label: tr('codeStudio.panelOutput', 'Output'), keys: 'Ctrl+Shift+U' },
+                { label: tr('codeStudio.panelTerminal', 'Terminal'), keys: 'Ctrl+J' },
+                { label: tr('codeStudio.outline', 'Outline'), keys: 'Ctrl+Shift+O' },
                 { label: tr('codeStudio.agentChat', 'Agent Chat'), keys: 'Ctrl+Shift+A' },
                 { label: tr('codeStudio.zenMode', 'Zen Mode'), keys: 'Ctrl+K' },
                 { label: tr('codeStudio.shortcutsHelp', 'Show keyboard shortcuts'), keys: '?' }
@@ -4107,6 +5436,13 @@
             closeAllTabs,
             toggleSidebar,
             toggleTerminal,
+            togglePanel,
+            setActivePanel,
+            toggleOutline,
+            openFindWidget,
+            closeFindWidget,
+            runDiagnostics,
+            nextProblem,
             toggleAgentPanel,
             toggleGitPanel,
             toggleSearch,
@@ -4166,6 +5502,10 @@
         return runOnWindow(windowId, () => downloadFile(file));
     }
 
+    function exposedParseDiagnostics(output, source, windowId) {
+        return runOnWindow(windowId, () => parseDiagnosticOutput(output, source)) || [];
+    }
+
     function exposedKnownFiles(windowId) {
         return runOnWindow(windowId, () => {
             const seen = new Set();
@@ -4198,7 +5538,8 @@
         openFileFromDialog: exposedOpenFileFromDialog,
         saveCurrentFile: exposedSaveCurrentFile,
         uploadFile: exposedUploadFile,
-        downloadFile: exposedDownloadFile
+        downloadFile: exposedDownloadFile,
+        parseDiagnostics: exposedParseDiagnostics
     };
     window.CodeStudioApp.dispose = dispose;
     window.CodeStudio = window.CodeStudioApp;
@@ -4306,7 +5647,13 @@
             { id: 'refresh', label: tr('codeStudio.refresh', 'Refresh'), icon: 'refresh', run: 'refreshFiles' },
             { id: 'collapse-all', label: tr('codeStudio.collapseAll', 'Collapse all'), icon: 'chevron-up', run: 'collapseAllDirectories' },
             { id: 'toggle-sidebar', label: tr('codeStudio.sidebar', 'Sidebar'), shortcut: 'Ctrl+B', icon: 'sidebar', run: 'toggleSidebar' },
+            { id: 'toggle-outline', label: tr('codeStudio.outline', 'Outline'), shortcut: 'Ctrl+Shift+O', icon: 'list', run: 'toggleOutline' },
             { id: 'toggle-terminal', label: tr('codeStudio.toggleTerminal', 'Toggle Terminal'), icon: 'terminal', run: 'toggleTerminal' },
+            { id: 'show-problems', label: tr('codeStudio.panelProblems', 'Problems'), shortcut: 'Ctrl+Shift+M', icon: 'alert', run: 'setActivePanel', args: ['problems'] },
+            { id: 'show-output', label: tr('codeStudio.panelOutput', 'Output'), shortcut: 'Ctrl+Shift+U', icon: 'terminal', run: 'setActivePanel', args: ['output'] },
+            { id: 'run-checks', label: tr('codeStudio.runDiagnostics', 'Run Checks'), icon: 'alert', run: 'runDiagnostics' },
+            { id: 'find', label: tr('codeStudio.findInFile', 'Find in File'), shortcut: 'Ctrl+F', icon: 'search', run: 'openFindWidget', args: [false], disabled: !hasTab },
+            { id: 'replace', label: tr('codeStudio.replaceInFile', 'Replace in File'), shortcut: 'Ctrl+H', icon: 'edit', run: 'openFindWidget', args: [true], disabled: !hasTab },
             { id: 'toggle-agent', label: tr('codeStudio.agentChat', 'Agent Chat'), shortcut: 'Ctrl+Shift+A', icon: 'chat', run: 'toggleAgentPanel' },
             { id: 'toggle-git', label: tr('codeStudio.gitPanel', 'Source Control'), icon: 'git', run: 'toggleGitPanel' },
             { id: 'toggle-search', label: tr('codeStudio.searchFiles', 'Search in Files'), shortcut: 'Ctrl+Shift+F', icon: 'search', run: 'toggleSearch' },

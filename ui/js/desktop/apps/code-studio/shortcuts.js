@@ -4,6 +4,13 @@
         return tag === 'input' || tag === 'textarea' || tag === 'select' || element.isContentEditable === true;
     }
 
+    // The terminal belongs to the shell: its keys must not be swallowed by the studio.
+    // The class is used on purpose: the studio root itself carries a data-terminal
+    // attribute for the stylesheet, which would match every element of the studio.
+    function isTerminalTarget(element) {
+        return !!(element && typeof element.closest === 'function' && element.closest('.code-studio-terminal'));
+    }
+
     function openCommandPalette() {
         if (window.CodeStudioCommandPalette && typeof window.CodeStudioCommandPalette.toggle === 'function') {
             window.CodeStudioCommandPalette.toggle(state.windowId);
@@ -21,6 +28,7 @@
             const key = String(event.key || '').toLowerCase();
             const mod = event.ctrlKey || event.metaKey;
             const editing = isEditableTarget(event.target) || isEditableTarget(activeElement);
+            const inTerminal = isTerminalTarget(event.target) || isTerminalTarget(activeElement);
             if (mod && event.shiftKey && key === 'p') {
                 event.preventDefault();
                 openCommandPalette();
@@ -37,6 +45,30 @@
                     const input = shellPart('[data-search] input[name="q"]');
                     if (input) { input.focus(); input.select(); }
                 }
+            } else if (mod && !event.shiftKey && key === 'f' && !inTerminal) {
+                event.preventDefault();
+                openFindWidget(false);
+            } else if (mod && !event.shiftKey && key === 'h' && !inTerminal) {
+                event.preventDefault();
+                openFindWidget(true);
+            } else if (mod && event.shiftKey && key === 'm' && !inTerminal) {
+                event.preventDefault();
+                setActivePanel('problems');
+            } else if (mod && event.shiftKey && key === 'u' && !inTerminal) {
+                event.preventDefault();
+                setActivePanel('output');
+            } else if (mod && event.shiftKey && key === 'o' && !inTerminal) {
+                event.preventDefault();
+                toggleOutline();
+            } else if (mod && !event.shiftKey && key === 'j' && !inTerminal) {
+                event.preventDefault();
+                togglePanel(activePanelView());
+            } else if (event.key === 'F8' && !inTerminal) {
+                event.preventDefault();
+                nextProblem(event.shiftKey ? -1 : 1);
+            } else if (event.key === 'F3' && !inTerminal) {
+                event.preventDefault();
+                if (state.findOpen) refreshFindMatches(event.shiftKey ? 'previous' : 'next');
             } else if (mod && event.shiftKey && key === 'a') {
                 event.preventDefault();
                 if (!state.agentVisible) toggleAgentPanel();
@@ -65,7 +97,10 @@
                 event.preventDefault();
                 runCurrentFile();
             } else if (event.key === 'Escape') {
-                if (state.zenMode) {
+                if (state.findOpen) {
+                    event.preventDefault();
+                    closeFindWidget();
+                } else if (state.zenMode) {
                     event.preventDefault();
                     toggleZenMode();
                 } else if (state.searchVisible && activeElement && activeElement.closest('[data-search]')) {
@@ -97,12 +132,20 @@
                 { label: tr('codeStudio.quickOpen', 'Quick open'), keys: 'Ctrl+P' },
                 { label: tr('codeStudio.commandPalette', 'Command Palette'), keys: 'Ctrl+Shift+P' },
                 { label: tr('codeStudio.searchFiles', 'Search in Files'), keys: 'Ctrl+Shift+F' },
+                { label: tr('codeStudio.findInFile', 'Find in File'), keys: 'Ctrl+F' },
+                { label: tr('codeStudio.replaceInFile', 'Replace in File'), keys: 'Ctrl+H' },
+                { label: tr('codeStudio.findNext', 'Next match'), keys: 'F3' },
+                { label: tr('codeStudio.nextProblem', 'Next problem'), keys: 'F8' },
                 { label: tr('codeStudio.zoomIn', 'Zoom In'), keys: 'Ctrl+=' },
                 { label: tr('codeStudio.zoomOut', 'Zoom Out'), keys: 'Ctrl+-' },
                 { label: tr('codeStudio.zoomReset', 'Reset Zoom'), keys: 'Ctrl+0' }
             ]},
             { title: tr('codeStudio.shortcutsView', 'View'), items: [
                 { label: tr('codeStudio.sidebar', 'Sidebar'), keys: 'Ctrl+B' },
+                { label: tr('codeStudio.panelProblems', 'Problems'), keys: 'Ctrl+Shift+M' },
+                { label: tr('codeStudio.panelOutput', 'Output'), keys: 'Ctrl+Shift+U' },
+                { label: tr('codeStudio.panelTerminal', 'Terminal'), keys: 'Ctrl+J' },
+                { label: tr('codeStudio.outline', 'Outline'), keys: 'Ctrl+Shift+O' },
                 { label: tr('codeStudio.agentChat', 'Agent Chat'), keys: 'Ctrl+Shift+A' },
                 { label: tr('codeStudio.zenMode', 'Zen Mode'), keys: 'Ctrl+K' },
                 { label: tr('codeStudio.shortcutsHelp', 'Show keyboard shortcuts'), keys: '?' }
@@ -165,6 +208,13 @@
             closeAllTabs,
             toggleSidebar,
             toggleTerminal,
+            togglePanel,
+            setActivePanel,
+            toggleOutline,
+            openFindWidget,
+            closeFindWidget,
+            runDiagnostics,
+            nextProblem,
             toggleAgentPanel,
             toggleGitPanel,
             toggleSearch,
@@ -224,6 +274,10 @@
         return runOnWindow(windowId, () => downloadFile(file));
     }
 
+    function exposedParseDiagnostics(output, source, windowId) {
+        return runOnWindow(windowId, () => parseDiagnosticOutput(output, source)) || [];
+    }
+
     function exposedKnownFiles(windowId) {
         return runOnWindow(windowId, () => {
             const seen = new Set();
@@ -256,7 +310,8 @@
         openFileFromDialog: exposedOpenFileFromDialog,
         saveCurrentFile: exposedSaveCurrentFile,
         uploadFile: exposedUploadFile,
-        downloadFile: exposedDownloadFile
+        downloadFile: exposedDownloadFile,
+        parseDiagnostics: exposedParseDiagnostics
     };
     window.CodeStudioApp.dispose = dispose;
     window.CodeStudio = window.CodeStudioApp;

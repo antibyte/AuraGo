@@ -147,6 +147,8 @@
             policy.of(editorPolicyExtensions(cm)),
             cm.closeBrackets && cm.closeBrackets(),
             cm.autocompletion && cm.autocompletion(),
+            cm.linter && cm.linter(),
+            cm.lintGutter && cm.lintGutter(),
             cm.rectangularSelection && cm.rectangularSelection(),
             cm.crosshairCursor && cm.crosshairCursor(),
             cm.highlightSelectionMatches && cm.highlightSelectionMatches(),
@@ -155,13 +157,18 @@
                 cm.indentWithTab,
                 ...(cm.closeBracketsKeymap || []),
                 ...(cm.defaultKeymap || []),
-                ...(cm.searchKeymap || []),
+                // The studio ships its own find widget, so CodeMirror's search panel is skipped.
+                ...(cm.searchKeymap || []).filter(binding => binding.key !== 'Mod-f'),
                 ...(cm.historyKeymap || []).map(binding => index ? { ...binding,
                     run: () => binding.run(tab.view),
                     shift: binding.shift ? () => binding.shift(tab.view) : undefined
                 } : binding),
                 ...(cm.completionKeymap || []),
-                ...(cm.lintKeymap || []),
+                // The studio owns the problems panel and the problem navigation, so the
+                // lint panel shortcut and F8 of CodeMirror are not bound.
+                ...(cm.lintKeymap || []).filter(binding => binding.key !== 'Mod-Shift-m' && binding.key !== 'F8'),
+                // Ctrl+F and Ctrl+H are handled by the studio shortcut handler, so no
+                // second binding may run them a second time.
                 { key: 'Ctrl-s', run: bind(() => { saveCurrentFile(); return true; }) },
                 { key: 'F5', run: bind(() => { runCurrentFile(); return true; }) }
             ].filter(Boolean)),
@@ -306,5 +313,6 @@
             tab.modified = true;
             if (!tab.secondaryView) tab.secondaryEditorSnapshot = null;
             updateSuggestionStatus();
+            scheduleDocumentCheck();
         }
     }

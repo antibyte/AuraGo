@@ -36,7 +36,25 @@
             containerStatus: 'unknown',
             containerInfo: null,
             terminalVisible: true,
+            panelVisible: true,
+            activePanel: 'terminal',
             terminalHeight: 220,
+            problems: [],
+            diagnosticsRunning: false,
+            diagnosticsRequest: null,
+            lastDiagnosticsAt: 0,
+            outputLines: [],
+            outputSource: '',
+            findOpen: false,
+            findReplaceOpen: false,
+            findQuery: '',
+            findReplaceText: '',
+            findCaseSensitive: false,
+            findWholeWord: false,
+            findRegex: false,
+            findMatches: [],
+            findIndex: -1,
+            sidebarView: 'explorer',
             sidebarVisible: true,
             sidebarWidth: 280,
             editorFontSize: DEFAULT_EDITOR_FONT_SIZE,
@@ -336,9 +354,9 @@
             method: 'POST',
             body: JSON.stringify({ path })
         }),
-        exec: command => runOnWindow(null, () => api('/api/code-studio/exec', {
+        exec: (command, cwd, timeoutSeconds) => runOnWindow(null, () => api('/api/code-studio/exec', {
             method: 'POST',
-            body: JSON.stringify({ command, cwd: currentDirectory(), timeout_seconds: 300 })
+            body: JSON.stringify({ command, cwd: cwd || currentDirectory(), timeout_seconds: timeoutSeconds || 300 })
         })),
         search: options => api('/api/code-studio/search?' + new URLSearchParams(options)),
         agentChat: (message, context) => api('/api/desktop/chat', {
@@ -377,7 +395,11 @@
             state.sidebarVisible = saved.sidebarVisible !== false;
             state.sidebarWidth = clampDimension(saved.sidebarWidth, MIN_SIDEBAR_WIDTH, MAX_SIDEBAR_WIDTH, 280);
             state.editorFontSize = clampEditorFontSize(saved.editorFontSize);
-            state.terminalVisible = saved.terminalVisible !== false;
+            // Sessions from before the bottom panel keep their terminal visibility.
+            state.panelVisible = saved.panelVisible === undefined ? saved.terminalVisible !== false : saved.panelVisible !== false;
+            state.terminalVisible = state.panelVisible;
+            state.activePanel = ['problems', 'output', 'terminal'].includes(saved.activePanel) ? saved.activePanel : 'terminal';
+            state.sidebarView = saved.sidebarView === 'outline' ? 'outline' : 'explorer';
             state.terminalHeight = clampDimension(saved.terminalHeight, MIN_TERMINAL_HEIGHT, MAX_TERMINAL_HEIGHT, 220);
             state.recentFiles = normalizePersistedPaths(saved.recentFiles);
             state.openTabs = savedOpenPaths.map(path => ({
@@ -404,7 +426,10 @@
             sidebarVisible: state.sidebarVisible,
             sidebarWidth: clampDimension(state.sidebarWidth, MIN_SIDEBAR_WIDTH, MAX_SIDEBAR_WIDTH, 280),
             editorFontSize: state.editorFontSize,
-            terminalVisible: state.terminalVisible,
+            terminalVisible: state.panelVisible,
+            panelVisible: state.panelVisible,
+            activePanel: state.activePanel,
+            sidebarView: state.sidebarView,
             terminalHeight: clampDimension(state.terminalHeight, MIN_TERMINAL_HEIGHT, MAX_TERMINAL_HEIGHT, 220),
             recentFiles: recentPaths
         };
@@ -467,6 +492,7 @@
         closeTerminalSessionSockets(instance);
         window.CodeStudioCommandPalette?.close(windowId);
         if (instance.gitRefreshTimer) clearTimeout(instance.gitRefreshTimer);
+        if (instance.checkTimer) clearTimeout(instance.checkTimer);
         for (const disposeFn of [...(instance.disposers || [])]) {
             try { disposeFn(); } catch (_) {}
         }
@@ -660,6 +686,9 @@
                     <button type="button" class="cs-activity-btn" data-activity="agent" title="${esc(tr('codeStudio.agentChat', 'Agent'))}">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
                     </button>
+                    <button type="button" class="cs-activity-btn" data-activity="outline" title="${esc(tr('codeStudio.outline', 'Outline'))}">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h4M12 6h8M4 12h10M18 12h2M4 18h7M15 18h5"/><circle cx="10" cy="6" r="1.6"/><circle cx="16" cy="12" r="1.6"/><circle cx="13" cy="18" r="1.6"/></svg>
+                    </button>
                     <span class="cs-activity-spacer"></span>
                     <button type="button" class="cs-activity-btn" data-activity="terminal" title="${esc(tr('codeStudio.toggleTerminal', 'Terminal'))}">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
@@ -670,7 +699,36 @@
                     <div class="code-studio-tabs" data-tabs></div>
                     <div class="code-studio-breadcrumbs" data-breadcrumbs></div>
                     <div class="code-studio-editor" data-editor></div>
-                    <div class="code-studio-terminal" data-terminal></div>
+                    <div class="cs-find-widget" data-find-widget hidden></div>
+                    <div class="code-studio-panel" data-panel>
+                        <div class="cs-panel-resize" data-panel-resize role="separator" aria-orientation="horizontal"></div>
+                        <div class="cs-panel-head">
+                            <div class="cs-panel-tabs" role="tablist" data-panel-tabs>
+                                <button type="button" class="cs-panel-tab" role="tab" data-panel-tab="problems" aria-selected="false">
+                                    <span>${esc(tr('codeStudio.panelProblems', 'Problems'))}</span>
+                                    <span class="cs-panel-badge" data-panel-badge="problems" hidden></span>
+                                </button>
+                                <button type="button" class="cs-panel-tab" role="tab" data-panel-tab="output" aria-selected="false">
+                                    <span>${esc(tr('codeStudio.panelOutput', 'Output'))}</span>
+                                </button>
+                                <button type="button" class="cs-panel-tab" role="tab" data-panel-tab="terminal" aria-selected="false">
+                                    <span>${esc(tr('codeStudio.panelTerminal', 'Terminal'))}</span>
+                                </button>
+                            </div>
+                            <div class="cs-panel-actions">
+                                <button type="button" class="cs-panel-action" data-panel-action="diagnostics" title="${esc(tr('codeStudio.runDiagnostics', 'Run Checks'))}">${esc(tr('codeStudio.runDiagnostics', 'Run Checks'))}</button>
+                                <button type="button" class="cs-panel-action" data-panel-action="clear" title="${esc(tr('codeStudio.clearPanel', 'Clear'))}">${esc(tr('codeStudio.clearPanel', 'Clear'))}</button>
+                                <button type="button" class="cs-panel-action icon" data-panel-action="close" title="${esc(tr('desktop.close', 'Close'))}">${iconMarkup('x', 'X', 'cs-icon-button-icon', 12)}</button>
+                            </div>
+                        </div>
+                        <div class="cs-panel-body">
+                            <div class="cs-panel-pane" data-panel-pane="problems" data-problems-panel hidden></div>
+                            <div class="cs-panel-pane" data-panel-pane="output" data-output-panel hidden></div>
+                            <div class="cs-panel-pane" data-panel-pane="terminal" data-terminal-pane>
+                                <div class="code-studio-terminal" data-terminal></div>
+                            </div>
+                        </div>
+                    </div>
                 </main>
                 <aside class="code-studio-chat" data-agent-panel></aside>
                 <aside class="code-studio-git" data-git-panel hidden></aside>
@@ -689,7 +747,8 @@
         root.style.setProperty('--cs-sidebar-width', clampDimension(state.sidebarWidth, MIN_SIDEBAR_WIDTH, MAX_SIDEBAR_WIDTH, 280) + 'px');
         root.style.setProperty('--cs-terminal-height', clampDimension(state.terminalHeight, MIN_TERMINAL_HEIGHT, MAX_TERMINAL_HEIGHT, 220) + 'px');
         root.style.setProperty('--cs-editor-font-size', clampEditorFontSize(state.editorFontSize) + 'px');
-        root.dataset.terminal = state.terminalVisible ? 'visible' : 'hidden';
+        root.dataset.terminal = state.panelVisible ? 'visible' : 'hidden';
+        root.dataset.panel = state.panelVisible ? 'visible' : 'hidden';
         root.dataset.sidebar = state.sidebarVisible ? 'visible' : 'hidden';
         root.dataset.agent = state.agentVisible ? 'visible' : 'hidden';
         root.dataset.git = state.gitVisible ? 'visible' : 'hidden';
@@ -701,6 +760,8 @@
         renderBreadcrumbs();
         renderEditor();
         renderTerminal();
+        renderBottomPanel();
+        renderFindWidget();
         renderAgentPanel();
         renderGitPanel();
         renderStatus();
@@ -708,6 +769,8 @@
         renderActivityBar();
         wireShortcuts();
         wireSidebarResize();
+        wirePanelResize();
+        wireBottomPanelEvents();
         const zenExit = root.querySelector('[data-zen-exit]');
         if (zenExit) zenExit.addEventListener('click', bind(() => toggleZenMode()));
     }
@@ -742,6 +805,8 @@
                 labelKey: 'desktop.menu_edit',
                 items: [
                     { id: 'search', label: tr('codeStudio.searchFiles', 'Search in Files'), icon: 'search', shortcut: 'Ctrl+Shift+F', checked: state.searchVisible, action: bind(toggleSearch) },
+                    { id: 'find', label: tr('codeStudio.findInFile', 'Find in File'), icon: 'search', shortcut: 'Ctrl+F', action: bind(() => openFindWidget(false)) },
+                    { id: 'replace', label: tr('codeStudio.replaceInFile', 'Replace in File'), icon: 'edit', shortcut: 'Ctrl+H', action: bind(() => openFindWidget(true)) },
                     { id: 'command-palette', label: tr('codeStudio.commandPalette', 'Command Palette'), icon: 'search', shortcut: 'Ctrl+Shift+P', action: bind(openCommandPalette) },
                     { type: 'separator' },
                     { id: 'shortcuts', label: tr('codeStudio.keyboardShortcuts', 'Keyboard Shortcuts'), icon: 'help', shortcut: '?', action: bind(showShortcutOverlay) }
@@ -752,7 +817,11 @@
                 labelKey: 'desktop.menu_view',
                 items: [
                     { id: 'sidebar', label: tr('codeStudio.sidebar', 'Sidebar'), icon: 'sidebar', shortcut: 'Ctrl+B', checked: state.sidebarVisible, action: bind(toggleSidebar) },
-                    { id: 'terminal', labelKey: 'desktop.menu_terminal', icon: 'terminal', checked: state.terminalVisible, action: bind(toggleTerminal) },
+                    { id: 'outline', label: tr('codeStudio.outline', 'Outline'), icon: 'list', checked: state.sidebarView === 'outline', action: bind(toggleOutline) },
+                    { type: 'separator' },
+                    { id: 'panel-problems', label: tr('codeStudio.panelProblems', 'Problems'), icon: 'alert', shortcut: 'Ctrl+Shift+M', checked: state.panelVisible && state.activePanel === 'problems', action: bind(() => setActivePanel('problems')) },
+                    { id: 'panel-output', label: tr('codeStudio.panelOutput', 'Output'), icon: 'terminal', shortcut: 'Ctrl+Shift+U', checked: state.panelVisible && state.activePanel === 'output', action: bind(() => setActivePanel('output')) },
+                    { id: 'panel-terminal', labelKey: 'desktop.menu_terminal', icon: 'terminal', checked: state.panelVisible && state.activePanel === 'terminal', action: bind(() => togglePanel('terminal')) },
                     { id: 'agent-panel', labelKey: 'desktop.menu_agent_panel', icon: 'chat', shortcut: 'Ctrl+Shift+A', checked: state.agentVisible, action: bind(toggleAgentPanel) },
                     { id: 'git-panel', label: tr('codeStudio.gitPanel', 'Git'), icon: 'git', checked: state.gitVisible, action: bind(toggleGitPanel) },
                     { type: 'separator' },
@@ -769,7 +838,8 @@
                 id: 'run',
                 labelKey: 'desktop.menu_run',
                 items: [
-                    { id: 'run-current', label: tr('codeStudio.run', 'Run'), icon: 'run', shortcut: 'F5', disabled: !hasActiveTab, action: bind(runCurrentFile) }
+                    { id: 'run-current', label: tr('codeStudio.run', 'Run'), icon: 'run', shortcut: 'F5', disabled: !hasActiveTab, action: bind(runCurrentFile) },
+                    { id: 'run-checks', label: tr('codeStudio.runDiagnostics', 'Run Checks'), icon: 'alert', action: bind(runDiagnostics) }
                 ]
             }
         ];
@@ -1053,6 +1123,10 @@
         if (modifiedCount > 0) leftItems.push(`<span class="cs-status-item cs-status-unsaved" title="${esc(tr('codeStudio.unsavedChanges', 'Unsaved changes'))}">\u25cf ${modifiedCount}</span>`);
         const rightItems = [];
         if (state.splitMode) rightItems.push(`<span class="cs-status-item" title="${esc(tr(state.splitMode === 'right' ? 'codeStudio.splitRight' : 'codeStudio.splitDown', 'Split'))}">${state.splitMode === 'right' ? '\u25eb' : '\u2b12'}</span>`);
+        const counts = problemCounts();
+        if (counts.errors || counts.warnings) {
+            rightItems.push(`<span class="cs-status-item cs-status-problems" data-clickable data-status-problems title="${esc(tr('codeStudio.panelProblems', 'Problems'))}">${counts.errors ? `<span class="cs-status-badge error">✖ ${esc(String(counts.errors))}</span>` : ''}${counts.warnings ? `<span class="cs-status-badge warning">⚠ ${esc(String(counts.warnings))}</span>` : ''}</span>`);
+        }
         if (lineInfo) rightItems.push(`<span class="cs-status-item">${esc(lineInfo)}</span>`);
         if (lang) rightItems.push(`<span class="cs-status-item" title="${esc(tr('codeStudio.language', 'Language'))}">${esc(lang)}</span>`);
         rightItems.push(`<span class="cs-status-item" data-clickable title="${esc(tr('codeStudio.zoomReset', 'Reset Zoom'))}" data-status-zoom>${esc(clampEditorFontSize(state.editorFontSize))}px</span>`);
@@ -1060,6 +1134,8 @@
         statusEl.innerHTML = leftItems.join('') + '<span class="cs-status-spacer"></span>' + rightItems.join('');
         const zoom = statusEl.querySelector('[data-status-zoom]');
         if (zoom) zoom.addEventListener('click', bind(resetEditorZoom));
+        const problems = statusEl.querySelector('[data-status-problems]');
+        if (problems) problems.addEventListener('click', bind(() => setActivePanel('problems')));
     }
 
     function flashStatus(message, duration) {
@@ -1673,15 +1749,20 @@
             if (root) root.dataset.zen = 'false';
             revealed = true;
         }
-        if (!state.terminalVisible) {
-            state.terminalVisible = true;
-            if (root) root.dataset.terminal = 'visible';
+        if (!state.panelVisible || state.activePanel !== 'terminal') {
+            state.panelVisible = true;
+            state.activePanel = 'terminal';
+            if (root) {
+                root.dataset.terminal = 'visible';
+                root.dataset.panel = 'visible';
+            }
             revealed = true;
         }
         if (revealed) {
             saveState();
             renderActivityBar();
             renderWindowMenus();
+            renderBottomPanel();
         }
         if (session && state.terminalSessions && state.terminalSessions.includes(session)) {
             const index = state.terminalSessions.indexOf(session);
@@ -1728,14 +1809,15 @@
         scheduleTerminalFit();
     }
 
-    function toggleTerminal() {
-        state.terminalVisible = !state.terminalVisible;
-        ensureShellRoot().dataset.terminal = state.terminalVisible ? 'visible' : 'hidden';
-        if (state.fitAddon && state.terminalVisible) setTimeout(bind(() => state.fitAddon.fit()), 50);
+    function toggleOutline() {
+        state.sidebarView = state.sidebarView === 'outline' ? 'explorer' : 'outline';
+        state.sidebarVisible = true;
+        const root = ensureShellRoot();
+        root.dataset.sidebar = 'visible';
         saveState();
+        renderSidebar();
         renderActivityBar();
         renderWindowMenus();
-        scheduleTerminalFit();
     }
 
     function toggleZenMode() {

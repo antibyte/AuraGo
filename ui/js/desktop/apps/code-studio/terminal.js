@@ -11,8 +11,7 @@
                 <span class="cs-terminal-tab-close" data-terminal-close="${index}" title="${esc(tr('desktop.close', 'Close'))}">×</span>
             </button>`).join('');
         if (!terminal.querySelector('[data-terminal-screen]')) {
-            terminal.innerHTML = '<div class="cs-terminal-resize" data-terminal-resize></div><div class="cs-terminal-head"></div><div class="cs-terminal-screen" data-terminal-screen></div>';
-            wireTerminalResize();
+            terminal.innerHTML = '<div class="cs-terminal-head"></div><div class="cs-terminal-screen" data-terminal-screen></div>';
             wireTerminalObserver(terminal);
         }
         terminal.querySelector('.cs-terminal-head').innerHTML = `
@@ -116,7 +115,7 @@
     }
 
     function refitTerminal() {
-        if (!state.terminalVisible || state.zenMode) return;
+        if (!state.panelVisible || state.zenMode || state.activePanel !== 'terminal') return;
         const session = activeTerminalSession();
         const fitAddon = (session && session.fitAddon) || state.fitAddon;
         if (!fitAddon) return;
@@ -142,41 +141,10 @@
     }
 
     function wireTerminalResize() {
-        const handle = shellPart('[data-terminal-resize]');
-        if (!handle) return;
-        let startY = 0;
-        let startHeight = 0;
-        const onPointerDown = bind(event => {
-            event.preventDefault();
-            const root = studioRoot();
-            if (!root) return;
-            startHeight = parseInt(root.style.getPropertyValue('--cs-terminal-height')) || state.terminalHeight || 220;
-            startY = event.clientY;
-            handle.classList.add('dragging');
-            handle.setPointerCapture(event.pointerId);
-            handle.addEventListener('pointermove', onPointerMove);
-            handle.addEventListener('pointerup', onPointerUp);
-            handle.addEventListener('pointercancel', onPointerUp);
-        });
-        const onPointerMove = bind(event => {
-            const delta = startY - event.clientY;
-            const newHeight = Math.max(80, Math.min(600, startHeight + delta));
-            const root = studioRoot();
-            if (root) root.style.setProperty('--cs-terminal-height', newHeight + 'px');
-            state.terminalHeight = newHeight;
-        });
-        const onPointerUp = bind(event => {
-            handle.classList.remove('dragging');
-            handle.releasePointerCapture(event.pointerId);
-            handle.removeEventListener('pointermove', onPointerMove);
-            handle.removeEventListener('pointerup', onPointerUp);
-            handle.removeEventListener('pointercancel', onPointerUp);
-            saveState();
-            if (state.fitAddon) setTimeout(bind(() => state.fitAddon.fit()), 50);
-            scheduleTerminalFit();
-        });
-        handle.addEventListener('pointerdown', onPointerDown);
+        // The drag handle for the bottom area lives on the panel itself, see panel.js.
+        wirePanelResize();
     }
+
 
     function connectTerminal() {
         const screen = shellPart('[data-terminal-screen]');

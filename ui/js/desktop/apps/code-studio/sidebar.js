@@ -1,6 +1,10 @@
     function renderSidebar(errorMessage) {
         const sidebar = shellPart('[data-sidebar]');
         if (!sidebar) return;
+        if (!errorMessage && state.sidebarView === 'outline') {
+            renderOutline();
+            return;
+        }
         const focused = document.activeElement && sidebar.contains(document.activeElement)
             ? (document.activeElement.closest('[data-file-path]') || {}).dataset
             : null;
@@ -392,15 +396,26 @@
             } else if (activity === 'agent') {
                 btn.classList.toggle('active', state.agentVisible);
             } else if (activity === 'terminal') {
-                btn.classList.toggle('active', state.terminalVisible);
+                btn.classList.toggle('active', state.panelVisible);
+            } else if (activity === 'outline') {
+                btn.classList.toggle('active', state.sidebarView === 'outline' && state.sidebarVisible);
             }
             btn.setAttribute('aria-pressed', btn.classList.contains('active') ? 'true' : 'false');
             if (!btn._wired) {
                 btn._wired = true;
                 btn.addEventListener('click', bind(() => {
                     const act = btn.dataset.activity;
-                    if (act === 'explorer') toggleSidebar();
-                    else if (act === 'search') toggleSearch();
+                    if (act === 'explorer') {
+                        // Leaving the outline brings the file tree back into the sidebar.
+                        if (state.sidebarView === 'outline') {
+                            state.sidebarView = 'explorer';
+                            saveState();
+                            renderSidebar();
+                        }
+                        toggleSidebar();
+                    } else if (act === 'outline') {
+                        toggleOutline();
+                    } else if (act === 'search') toggleSearch();
                     else if (act === 'git') toggleGitPanel();
                     else if (act === 'agent') toggleAgentPanel();
                     else if (act === 'terminal') toggleTerminal();
