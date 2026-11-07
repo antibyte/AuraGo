@@ -426,7 +426,8 @@
             load: load, loadEngine: loadEngine, engineLayers: engineLayers,
             fetchBuffer: fetchBuffer, buffer(path) { return buffers.get(path) || null; },
             /* Shared decode cache for the music runtime: a pack path, or a random member of an sfx group. */
-            musicBuffer(path) { return fetchBuffer(path, 30); },
+            // A requested scene must not wait behind bulk effect preloads.
+            musicBuffer(path) { return fetchBuffer(path, 0); },
             groupBuffer(group) {
                 return load([group], 30).then(() => {
                     const list = members(group);

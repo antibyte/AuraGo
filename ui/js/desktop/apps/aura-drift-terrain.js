@@ -497,13 +497,14 @@
         /* flat ground has no relief to resolve: half the resolution is enough */
         const nearCell = (q && q.terrainCell ? q.terrainCell : 8) * (rule.kind === 'flat' && !rule.water ? 2 : 1);
         const farCell = min(32, nearCell * 2);
-        const SIZE = 256, M = 600, b = track.bounds;
+        // GTAO draws the terrain twice; larger tiles retain the sample spacing with fewer calls.
+        const SIZE = q && q.gtao ? 1024 : 256, M = 600, b = track.bounds;
         const cx0 = floor((b.minX - M) / SIZE), cy0 = floor((b.minY - M) / SIZE);
         let cx1 = floor((b.maxX + M) / SIZE), cy1 = floor((b.maxY + M) / SIZE);
         if ((cx1 - cx0 + 1) & 1) cx1++;
         if ((cy1 - cy0 + 1) & 1) cy1++;
         const stats = { chunks: 0, near: 0, far: 0, triangles: 0, ms: 0 };
-        const isNear = (cx, cy) => field.at((cx + 0.5) * SIZE, (cy + 0.5) * SIZE) - 181 < 300;
+        const isNear = (cx, cy) => field.at((cx + 0.5) * SIZE, (cy + 0.5) * SIZE) - SIZE * Math.SQRT1_2 < 300;
         function add(x0, z0, size, cell, near) {
             const geo = gridGeometry(T, ctx, x0, z0, size, cell, 14);
             geos.push(geo);

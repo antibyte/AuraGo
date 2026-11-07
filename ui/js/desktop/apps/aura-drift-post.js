@@ -140,12 +140,18 @@
                     const baseRender = gtao.render.bind(gtao);
                     gtao.render = (r, wb, rb, dt, mask) => {
                         const hidden = [];
+                        const shadowAutoUpdate = r.shadowMap.autoUpdate;
                         scene.traverse(o => {
                             if (!o.visible || !(o.isMesh || o.isPoints || o.isLine || o.isSprite)) return;
                             const m = Array.isArray(o.material) ? o.material[0] : o.material;
                             if (m && (m.transparent || m.depthWrite === false)) { o.visible = false; hidden.push(o); }
                         });
-                        try { baseRender(r, wb, rb, dt, mask); } finally { for (const o of hidden) o.visible = true; }
+                        // The preceding beauty pass already rendered this frame's shadows.
+                        r.shadowMap.autoUpdate = false;
+                        try { baseRender(r, wb, rb, dt, mask); } finally {
+                            r.shadowMap.autoUpdate = shadowAutoUpdate;
+                            for (const o of hidden) o.visible = true;
+                        }
                     };
                     cp.addPass(gtao);
                 } catch (_) { gtao = null; }

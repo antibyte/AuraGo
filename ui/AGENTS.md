@@ -1234,6 +1234,14 @@ New app-scoped prefixes must contain no `ad` substring; verify
   section with `-run 'TestConfigRefreshRealSectionsBrowser/matrix/server$'`.
 - Static spacing matrices finish finite running animations before geometry checks;
   bound each asynchronous layout evaluation rather than awaiting paused animation promises.
+- Aura Drift browser journeys advance countdowns and driving through the existing
+  fixed-step debug API, retaining real key input and rendered-pose checks. Center
+  track cards inside their scrollport before native pointer clicks; software GL
+  frame rate and the fixed menu footer must not determine test progression.
+  Give each quality-matrix case its own browser and timeout rather than sharing
+  a single expiring browser context across all five cases.
+  Mode completion and reduced-motion result delays use that simulation clock;
+  keep their state and timing assertions independent of software-GL throughput.
 - Full UI: `go test -count=1 ./ui/...`.
 - Generated bundles: `npm run build:ui -- --check`.
 - UI delivery regressions: `npm run test:ui-regressions`.

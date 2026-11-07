@@ -37,7 +37,7 @@ func TestDesktopAuraDriftSongsBrowser(t *testing.T) {
 				t.Fatalf("manifest has no single-file song for %s", tc.biome)
 			}
 			page.MustElement(`.agdrift-tab[data-tab="track"]`).MustClick()
-			page.MustElement(`.agdrift-track-card[data-track="` + tc.track + `"]`).MustClick()
+			auraDriftClickTrack(t, page, tc.track)
 			page.MustElement(".agdrift-menu .agdrift-primary").MustClick()
 			auraDriftSkipCountdown(t, page)
 

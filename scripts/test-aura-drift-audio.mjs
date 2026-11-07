@@ -338,6 +338,23 @@ await checkMusicRuntime();
         if (type === 'turbo_burst') for (const level of [0, 1, 2, 3, 4]) list.push({ ...base, level });
         return list;
     }
+    {
+        const sb = makeSandbox(true, false), AD = sb.AuraDriftCore;
+        const started = [], release = [];
+        AD.assets.fetchBytes = p => { started.push(p); return new Promise(resolve => release.push(resolve)); };
+        const ctx = new sb.AudioContext(), bank = AD.createSampleBank(ctx, ctx.destination);
+        await bank.ready();
+        bank.load(['impact.light', 'impact.heavy'], 1);
+        await new Promise(resolve => setImmediate(resolve));
+        const occupied = started.length;
+        ok(occupied > 0 && bank.stats().queued > 0, 'music priority: effect preloads must fill the queue');
+        bank.musicBuffer('music/alpine-song.ogg');
+        release.shift()(new ArrayBuffer(16));
+        await new Promise(resolve => setImmediate(resolve));
+        ok(started[occupied]?.endsWith('/music/alpine-song.ogg'), 'requested music must load before the remaining effect preloads');
+        bank.dispose();
+        for (const resolve of release) resolve(new ArrayBuffer(16));
+    }
     async function runPass(label, withSamples, failBytes) {
        
         const sb = makeSandbox(withSamples, failBytes);

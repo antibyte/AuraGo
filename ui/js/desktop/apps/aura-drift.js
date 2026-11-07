@@ -572,6 +572,18 @@
         }
         function stepOnce(step) { if (autopilot) driveAuto(); AD.stepRace(race, step); }
 
+        function advanceResults(dt) {
+            if (pendingResults) {
+                pendingResults.wait -= dt;
+                if (pendingResults.wait <= 0) {
+                    if (typeof audio.setView === 'function') audio.setView('results');
+                    ui.showResults(pendingResults.result, pendingResults.info);
+                    pendingResults = null;
+                    resultsShown = true;
+                }
+            }
+        }
+
         /* One presentation tick for the events and effects a batch of steps produced (the RAF loop minus the wall clock). */
         function presentTick(dt) {
             renderer.emit(race, dt);
@@ -585,16 +597,6 @@
                     if (voice) voice.say(msg);
                 }
             }
-            if (pendingResults) {
-                pendingResults.wait -= dt;
-                if (pendingResults.wait <= 0) {
-                    if (typeof audio.setView === 'function') audio.setView('results');
-                    ui.showResults(pendingResults.result, pendingResults.info);
-                    pendingResults = null;
-                    resultsShown = true;
-                }
-            }
-            lastPose = camera.update(race, dt, { reduced: reducedMotion, paused: false, lowZoom: !!quality.lowZoom });
             renderer.render(race, lastPose, dt, reducedMotion);
             if (playing() && !resultsShown) hud.render(race, dt, settings, lastPose); else clearHud();
         }
@@ -659,15 +661,7 @@
                 if (paused) pausedGlAt = now;
                 renderer.render(race, lastPose, paused ? 0 : simDt, reducedMotion);
             }
-            if (pendingResults) {
-                pendingResults.wait -= dt;
-                if (pendingResults.wait <= 0) {
-                    if (typeof audio.setView === 'function') audio.setView('results');
-                    ui.showResults(pendingResults.result, pendingResults.info);
-                    pendingResults = null;
-                    resultsShown = true;
-                }
-            }
+            advanceResults(dt);
             if (playing() && !paused && !resultsShown) hud.render(race, dt, settings, lastPose);
             else clearHud();
             if (!paused && !frozen) {
@@ -737,6 +731,8 @@
                     stepOnce(AD.STEP);
                     drainEvents();
                     if (race.state === 'finished' && race.cars[0].isPlayer) finishRace();
+                    advanceResults(AD.STEP);
+                    lastPose = camera.update(race, AD.STEP, { reduced: reducedMotion, paused: false, lowZoom: !!quality.lowZoom });
                     if (++ticks % every === 0) { presentTick(Math.min(0.05, AD.STEP * every)); rendered++; }
                 }
                 return { time: race ? race.time : 0, state: race ? race.state : view, rendered: rendered, results: resultsShown };
