@@ -67,6 +67,98 @@ export function powerHex(value) {
     return '#' + [16, 8, 0].map(shift => Math.round(((x >> shift) & 255) * (1 - k) + ((y >> shift) & 255) * k).toString(16).padStart(2, '0')).join('');
 }
 
+// Cloth this close to solid geometry of the same prop (metres) does not sway, so a
+// flag's hoist stays on the pole. The wind reaches full strength at PIN_FREE.
+const PIN_HOLD = 0.035;
+const PIN_FREE = 0.22;
+
+// Pivot of a hole flag authored in world space: the midpoint of its only vertical
+// edge (the hoist). A cloth with two vertical edges (hoist and fly) returns null,
+// because either edge would be a guess. The scene then leaves that cloth still.
+export function flagPolePivot(positions) {
+    if (!Array.isArray(positions) || positions.length < 2) return null;
+    const edges = [];
+    for (let a = 0; a < positions.length; a++) {
+        const pa = positions[a];
+        if (!pa || pa.length < 3 || !pa.every(Number.isFinite)) return null;
+        for (let b = a + 1; b < positions.length; b++) {
+            const pb = positions[b];
+            const vertical = Math.abs(pa[1] - pb[1]);
+            if (vertical < 0.05) continue;
+            if (Math.hypot(pa[0] - pb[0], pa[2] - pb[2]) > vertical * 0.02) continue;
+            edges.push([(pa[0] + pb[0]) / 2, (pa[1] + pb[1]) / 2, (pa[2] + pb[2]) / 2]);
+        }
+    }
+    if (!edges.length) return null;
+    const [x, , z] = edges[0];
+    let y = 0;
+    for (const edge of edges) {
+        if (Math.hypot(edge[0] - x, edge[2] - z) > 0.008) return null;
+        y += edge[1];
+    }
+    return [x, y / edges.length, z];
+}
+
+// Pole meshes keep long edges, so a hoist vertex can sit on the wood and still be
+// many centimetres from the nearest vertex. Samples along each edge close that gap.
+export function edgeSamples(points, indices, step = 0.02) {
+    if (!points?.length) return [];
+    const samples = points.slice();
+    const seen = new Set();
+    const count = indices ? indices.length : points.length;
+    const at = i => indices ? indices[i] : i;
+    for (let i = 0; i + 2 < count; i += 3) {
+        for (let corner = 0; corner < 3; corner++) {
+            const ia = at(i + corner), ib = at(i + (corner + 1) % 3);
+            const key = ia < ib ? ia + ':' + ib : ib + ':' + ia;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            const pa = points[ia], pb = points[ib];
+            if (!pa || !pb) continue;
+            const length = Math.hypot(pb[0] - pa[0], pb[1] - pa[1], pb[2] - pa[2]);
+            const n = Math.floor(length / step);
+            for (let k = 1; k < n; k++) {
+                const t = k / n;
+                samples.push([pa[0] + (pb[0] - pa[0]) * t, pa[1] + (pb[1] - pa[1]) * t, pa[2] + (pb[2] - pa[2]) * t]);
+            }
+        }
+    }
+    return samples;
+}
+
+// One wind weight per cloth vertex: 0 on the pole, 1 once PIN_FREE away from the
+// nearest solid sample. An empty anchor list leaves the cloth free.
+export function clothPinFactors(points, anchors) {
+    if (!points?.length) return [];
+    if (!anchors?.length) return points.map(() => 1);
+    const buckets = new Map();
+    const key = (x, y, z) => `${Math.floor(x / PIN_FREE)},${Math.floor(y / PIN_FREE)},${Math.floor(z / PIN_FREE)}`;
+    for (const anchor of anchors) {
+        const id = key(anchor[0], anchor[1], anchor[2]);
+        const list = buckets.get(id);
+        if (list) list.push(anchor);
+        else buckets.set(id, [anchor]);
+    }
+    const hold2 = PIN_HOLD * PIN_HOLD, free2 = PIN_FREE * PIN_FREE;
+    return points.map(point => {
+        const ix = Math.floor(point[0] / PIN_FREE), iy = Math.floor(point[1] / PIN_FREE), iz = Math.floor(point[2] / PIN_FREE);
+        let best = Infinity;
+        for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) {
+            const list = buckets.get(`${ix + dx},${iy + dy},${iz + dz}`);
+            if (!list) continue;
+            for (const anchor of list) {
+                const ex = point[0] - anchor[0], ey = point[1] - anchor[1], ez = point[2] - anchor[2];
+                const distance = ex * ex + ey * ey + ez * ez;
+                if (distance < best) best = distance;
+            }
+        }
+        if (best <= hold2) return 0;
+        if (best >= free2) return 1;
+        const t = (Math.sqrt(best) - PIN_HOLD) / (PIN_FREE - PIN_HOLD);
+        return t * t * (3 - 2 * t);
+    });
+}
+
 // Automatic graphics tier: starts at medium, drops to low below 38 FPS (at most
 // every 6 s), returns to medium after ~10 s at >= 55 FPS and 12 s after a change.
 export function createQualityGovernor() {

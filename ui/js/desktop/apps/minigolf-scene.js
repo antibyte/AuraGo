@@ -5,7 +5,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { colorValue, createQualityGovernor, MAX_NAME_LENGTH, POWER_STOPS } from './minigolf-shared.js';
+import { colorValue, createQualityGovernor, flagPolePivot, MAX_NAME_LENGTH, POWER_STOPS } from './minigolf-shared.js';
 import { LOOKS, lookOf, tierConfig } from './minigolf-looks.js';
 import { createIntro, overviewFor } from './minigolf-camera.js';
 import { readColliders } from './minigolf-collision.js';
@@ -18,6 +18,24 @@ const [POWER_A, POWER_B, POWER_C] = POWER_STOPS.map(([, hex]) => new THREE.Color
 const powerTint = new THREE.Color();
 // How far past the course bounds (metres) a panned view may centre.
 const PAN_MARGIN = 3;
+
+// Move the flag's origin onto its hoist and remember the rest yaw. A later turn
+// about local Y then swings only the fly; the hoist stays on the pole.
+function pinFlagToPole(node) {
+    const attribute = node.isMesh && node.geometry?.getAttribute('position');
+    if (!attribute || attribute.count < 2) return null;
+    const positions = new Array(attribute.count);
+    for (let i = 0; i < attribute.count; i++) positions[i] = [attribute.getX(i), attribute.getY(i), attribute.getZ(i)];
+    const pivot = flagPolePivot(positions);
+    if (!pivot) return null;
+    for (let i = 0; i < attribute.count; i++) attribute.setXYZ(i, positions[i][0] - pivot[0], positions[i][1] - pivot[1], positions[i][2] - pivot[2]);
+    attribute.needsUpdate = true;
+    node.geometry.computeBoundingBox();
+    node.geometry.computeBoundingSphere();
+    const offset = new THREE.Vector3(pivot[0], pivot[1], pivot[2]).multiply(node.scale).applyQuaternion(node.quaternion);
+    node.position.add(offset);
+    return { node, base: node.rotation.y };
+}
 
 function powerColor(value) {
     if (value <= .5) powerTint.copy(POWER_A).lerp(POWER_B, value * 2);
@@ -440,7 +458,10 @@ export function createScene(host, options) {
                 if (axis.lengthSq() > 1e-12) spinNodes.push({ node, axis: axis.normalize(), speed: spin.speed });
             }
             if (node.name === 'water-shore' && node.isMesh) water.attachShore(node);
-            if (node.name === 'flag' || node.name.startsWith('flag-cloth')) flagNodes.push({ node, z: node.rotation.z });
+            if (node.name === 'flag' || node.name.startsWith('flag-cloth')) {
+                const flag = pinFlagToPole(node);
+                if (flag) flagNodes.push(flag);
+            }
         });
         for (const obstacle of next.obstacles || []) {
             const node = courseRoot.getObjectByName(obstacle.node);
@@ -582,10 +603,11 @@ export function createScene(host, options) {
         swing = Math.max(0, swing - dt * 3);
         const motion = !reduced && cfg().motion;
         if (motion) shaderState.golfTime.value += dt;
-        if (!reduced) {
-            for (const spin of spinNodes) spin.node.rotateOnAxis(spin.axis, spin.speed * dt);
-            for (const flag of flagNodes) flag.node.rotation.z = flag.z + Math.sin(elapsed * (2.2 + fx.flagBoost * 3)) * (.045 + fx.flagBoost * .12);
-        }
+        if (!reduced) for (const spin of spinNodes) spin.node.rotateOnAxis(spin.axis, spin.speed * dt);
+        // The hole flag is authored in world space. Turning the node about Z orbits
+        // it around the origin, so the cloth leaves the pole except while the sine is near zero.
+        const wave = reduced ? 0 : Math.sin(elapsed * (2.2 + fx.flagBoost * 3)) * (.045 + fx.flagBoost * .12);
+        for (const flag of flagNodes) flag.node.rotation.y = flag.base + wave;
         if (motion) props?.update(elapsed);
         const velocity = snapshot?.velocity;
         fxContext.moving = !!snapshot?.moving;

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { placementMatrix } from './minigolf-looks.js';
+import { clothPinFactors, edgeSamples } from './minigolf-shared.js';
 
 // Time and a motion switch shared by every patched material of one scene.
 export function createShaderState() {
@@ -8,7 +9,9 @@ export function createShaderState() {
 
 // Applies the kit material contract (glTF extras -> userData): emission tinted by
 // the vertex colour, optional flame flicker, foliage sway, no transmission pass.
-export function patchMaterial(material, state, height = 1) {
+// `pinned` cloth reads the golfPin vertex weight (0 on the pole, 1 at the fly)
+// instead of bending with height, which would lift the hoist off the pole.
+export function patchMaterial(material, state, height = 1, pinned = false) {
     const data = material?.userData || {};
     const kind = data.aurago_kind;
     if (!kind) return material;
@@ -16,22 +19,26 @@ export function patchMaterial(material, state, height = 1) {
     const glow = kind === 'emissive' || kind === 'glow';
     const sway = kind === 'foliage' || kind === 'cloth' ? Number(data.aurago_sway) || 0 : 0;
     const flicker = glow ? Math.max(0, Math.min(1, Number(data.aurago_flicker) || 0)) : 0;
+    const clothPin = pinned && kind === 'cloth' && sway > 0;
     // The glTF emissiveFactor (glow strength) and emissive strength (emissiveIntensity) stay as exported;
     // the shader below tints the result with the vertex colour.
     if (!glow && !sway) return material;
     const uniforms = { golfTime: state.golfTime, golfMotion: state.golfMotion, golfSway: { value: sway }, golfHeight: { value: Math.max(.1, Number(height) || 1) }, golfFlicker: { value: flicker } };
+    const lift = clothPin
+        ? 'float golfLift = golfPin * golfPin * golfSway * golfMotion;'
+        : `float golfLift = clamp(transformed.y / golfHeight, 0.0, 1.0);
+golfLift = golfLift * golfLift * golfSway * golfMotion;`;
     material.onBeforeCompile = shader => {
         Object.assign(shader.uniforms, uniforms);
         shader.vertexShader = shader.vertexShader
-            .replace('#include <common>', '#include <common>\nuniform float golfTime;\nuniform float golfMotion;\nuniform float golfSway;\nuniform float golfHeight;\nvarying float vGolfPhase;')
+            .replace('#include <common>', `#include <common>\nuniform float golfTime;\nuniform float golfMotion;\nuniform float golfSway;\nuniform float golfHeight;\nvarying float vGolfPhase;${clothPin ? '\nattribute float golfPin;' : ''}`)
             .replace('#include <begin_vertex>', `#include <begin_vertex>
 #ifdef USE_INSTANCING
 vGolfPhase = instanceMatrix[3].x * 0.9 + instanceMatrix[3].z * 1.3;
 #else
 vGolfPhase = 0.0;
 #endif
-float golfLift = clamp(transformed.y / golfHeight, 0.0, 1.0);
-golfLift = golfLift * golfLift * golfSway * golfMotion;
+${lift}
 transformed.x += golfLift * sin(golfTime * 1.6 + vGolfPhase);
 transformed.z += golfLift * 0.6 * sin(golfTime * 1.27 + vGolfPhase * 1.4);`);
         shader.fragmentShader = shader.fragmentShader
@@ -42,8 +49,22 @@ totalEmissiveRadiance *= vColor.rgb;
 #endif
 totalEmissiveRadiance *= 1.0 - golfFlicker * golfMotion * (0.5 + 0.5 * sin(golfTime * 11.0 + vGolfPhase) * sin(golfTime * 6.7 + vGolfPhase * 1.9));`);
     };
-    material.customProgramCacheKey = () => `auragolf-kit-${glow ? 'g' : ''}${sway ? 's' : ''}`;
+    material.customProgramCacheKey = () => `auragolf-kit-${glow ? 'g' : ''}${sway ? 's' : ''}${clothPin ? 'p' : ''}`;
     return material;
+}
+
+function worldPoints(mesh) {
+    const attribute = mesh.geometry?.getAttribute?.('position');
+    if (!attribute) return [];
+    const point = new THREE.Vector3(), out = new Array(attribute.count);
+    for (let i = 0; i < attribute.count; i++) out[i] = point.fromBufferAttribute(attribute, i).applyMatrix4(mesh.matrixWorld).toArray();
+    return out;
+}
+
+function anchorSamples(mesh) {
+    const index = mesh.geometry?.getIndex?.();
+    const indices = index ? Array.from({ length: index.count }, (_, i) => index.getX(i)) : null;
+    return edgeSamples(worldPoints(mesh), indices);
 }
 
 // One InstancedMesh per prop primitive. Geometry stays owned by the cached kit;
@@ -66,9 +87,18 @@ export function buildProps(kit, look, placements, { scatter = true, state }) {
         const info = node.userData?.aurago_prop || {};
         const tags = Array.isArray(info.tags) ? info.tags : [];
         if (!scatter && tags.includes('scatter')) continue;
-        node.traverse(mesh => {
-            if (!mesh.isMesh) return;
-            const material = patchMaterial(mesh.material.clone(), state, info.height);
+        const meshes = [];
+        node.traverse(mesh => { if (mesh.isMesh) meshes.push(mesh); });
+        const hasCloth = meshes.some(mesh => mesh.material?.userData?.aurago_kind === 'cloth' && (Number(mesh.material?.userData?.aurago_sway) || 0) > 0);
+        const anchors = [];
+        if (hasCloth) for (const mesh of meshes) if (mesh.material?.userData?.aurago_kind !== 'cloth') anchors.push(...anchorSamples(mesh));
+        for (const mesh of meshes) {
+            const data = mesh.material?.userData || {};
+            const pinCloth = data.aurago_kind === 'cloth' && (Number(data.aurago_sway) || 0) > 0 && anchors.length > 0;
+            if (pinCloth && !mesh.geometry.getAttribute('golfPin')) {
+                mesh.geometry.setAttribute('golfPin', new THREE.BufferAttribute(Float32Array.from(clothPinFactors(worldPoints(mesh), anchors)), 1));
+            }
+            const material = patchMaterial(mesh.material.clone(), state, info.height, pinCloth && !!mesh.geometry.getAttribute('golfPin'));
             materials.push(material);
             const base = mesh.matrixWorld.clone();
             const inst = new THREE.InstancedMesh(mesh.geometry, material, entries.length);
@@ -81,7 +111,7 @@ export function buildProps(kit, look, placements, { scatter = true, state }) {
                 inst.frustumCulled = false;
                 spinners.push({ inst, entries, base, axis: new THREE.Vector3().fromArray(info.spin.axis || [0, 1, 0]).normalize(), speed: Number(info.spin.speed) || .3 });
             }
-        });
+        }
         instances += entries.length;
     }
     return {

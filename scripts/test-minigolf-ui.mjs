@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { MAX_NAME_LENGTH, PALETTE, DEFAULT_COLORS, FLOOR_SURFACES, colorValue, assignColors, cleanName, uniqueNames, worldIds, formatToPar, fillText, powerHex, createQualityGovernor } from '../ui/js/desktop/apps/minigolf-shared.js';
+import { MAX_NAME_LENGTH, PALETTE, DEFAULT_COLORS, FLOOR_SURFACES, colorValue, assignColors, cleanName, uniqueNames, worldIds, formatToPar, fillText, powerHex, createQualityGovernor, flagPolePivot, clothPinFactors, edgeSamples } from '../ui/js/desktop/apps/minigolf-shared.js';
 import { formatPower, placeMeter } from '../ui/js/desktop/apps/minigolf-hud.js';
 import { laneGeometry, obstacleOutlines } from '../ui/js/desktop/apps/minigolf-minimap.js';
 import { rankPlayers, relativeToPar } from '../ui/js/desktop/apps/minigolf-scorecard.js';
@@ -36,6 +36,51 @@ assert.equal(powerHex(0), '#7fe0a6');
 assert.equal(powerHex(0.25), '#bfdc98');
 assert.equal(powerHex(0.5), '#ffd789');
 assert.equal(powerHex(1), '#ff8f77');
+
+// The hole flag is a world-space triangle. Turning that node about Z orbits the cloth
+// around the origin (course 1's hoist rises about 36 cm at 0.045 rad). The pivot is the hoist.
+{
+    const flag = [[8.03, 0.82, -6.2], [8.03, 0.55, -6.2], [8.42, 0.67, -6.2]];
+    const pivot = flagPolePivot(flag);
+    close(pivot[0], 8.03, 1e-9, 'hoist x');
+    close(pivot[1], 0.685, 1e-9, 'hoist mid height');
+    close(pivot[2], -6.2, 1e-9, 'hoist z');
+    const angle = 0.045, local = flag.map(point => [point[0] - pivot[0], point[1] - pivot[1], point[2] - pivot[2]]);
+    const turned = point => [point[0] * Math.cos(angle) + point[2] * Math.sin(angle), point[1], -point[0] * Math.sin(angle) + point[2] * Math.cos(angle)];
+    for (const point of local.slice(0, 2)) {
+        const next = turned(point);
+        assert.ok(Math.hypot(next[0], next[2]) < 1e-9, 'the hoist stays on the pole');
+    }
+    const fly = turned(local[2]);
+    assert.ok(Math.hypot(fly[0] - local[2][0], fly[2] - local[2][2]) > 0.01, 'the fly still waves');
+    const orbited = flag[0];
+    const risen = orbited[0] * Math.sin(angle) + orbited[1] * Math.cos(angle);
+    assert.ok(Math.abs(risen - orbited[1]) > 0.3, 'the old world-Z turn lifts this flag off the pole');
+    assert.equal(flagPolePivot([[0, 0, 0], [0, 1, 0], [1, 0, 0], [1, 1, 0]]), null, 'two vertical edges are not a pole');
+    assert.equal(flagPolePivot([[0, 0, 0]]), null);
+}
+
+// Decorative flags are cloth on a pole. The hoist weight stays 0 and the fly reaches 1.
+{
+    const pole = [];
+    for (let y = 0; y <= 2.2; y += 0.04) for (let step = 0; step < 8; step++) {
+        const angle = step / 8 * Math.PI * 2;
+        pole.push([Math.cos(angle) * 0.034, y, Math.sin(angle) * 0.034]);
+    }
+    const hoist = [0.03, 1.8, 0], fly = [0.03, 1.8, 1.05], neck = [0.03, 1.8, 0.1];
+    const [hoistPin, flyPin, neckPin] = clothPinFactors([hoist, fly, neck], pole);
+    assert.equal(hoistPin, 0, 'cloth on the pole does not sway');
+    assert.equal(flyPin, 1, 'the fly takes the full wind');
+    assert.ok(neckPin > 0 && neckPin < 1, `the cloth bends away from the pole (${neckPin})`);
+    assert.deepEqual(clothPinFactors([fly], []), [1], 'cloth with nothing to hold it still sways');
+    assert.deepEqual(clothPinFactors([], pole), []);
+    // A pole edge can run the whole mast with vertices only at the ends. The hoist
+    // in the middle is on the wood, and still a metre from either vertex.
+    const sparse = [[0, 0, 0], [0, 2, 0], [0.02, 0, 0]];
+    const middle = [0.02, 1, 0];
+    assert.equal(clothPinFactors([middle], sparse)[0], 1, 'end vertices alone do not hold the middle of the hoist');
+    assert.equal(clothPinFactors([middle], edgeSamples(sparse, [0, 1, 2]))[0], 0, 'samples along the pole edge hold it');
+}
 
 // Auto quality: medium first, low below 38 FPS after 6 s, back after ~10 s >= 55 FPS and 12 s.
 const governor = createQualityGovernor();

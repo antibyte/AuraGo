@@ -830,9 +830,15 @@ Build with `npm run build:pinball`; verify `npm run test:pinball` and
   load (the collision stays in physics). `rail-trim` is plain decor. `water-shore` takes the
   shore material (`TEXCOORD_0.x` is the distance to the shore; animated foam). Only nodes
   with `aurago_spin` turn (teleporter rings, radar arm); the temple sun wheel is a static
-  prop and the scene has no windmill pivot. `flag` waves on every tier unless reduced.
-- Material extras (`patchMaterial`): `aurago_kind` picks the response. `foliage` and
-  `cloth` with `aurago_sway` bend with height, scaled by the `golfMotion` switch;
+  prop and the scene has no windmill pivot. `flag` waves about its pole on every tier
+  unless reduced: the hoist is the pivot and the fly turns about that vertical axis.
+  Reduced motion returns the flag to rest. The cloth is authored in world space, so
+  the scene moves the node origin onto the hoist before the turn.
+- Material extras (`patchMaterial`): `aurago_kind` picks the response. `foliage`
+  with `aurago_sway` bends with height. `cloth` with `aurago_sway` uses the same
+  wind, but a vertex within 3.5 cm of solid geometry of the same prop stays put
+  and the effect grows out to 22 cm, so a flag stays on its pole. Both are scaled
+  by the `golfMotion` switch;
   `emissive` and `glow` multiply their emission by `COLOR_0` and take
   `aurago_flicker`; `glass` loses its transmission (transparent at 0.55 opacity).
   `aurago_strength` is not read at runtime; the exported emission is used.
