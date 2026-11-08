@@ -79,7 +79,8 @@
         const hasPost = typeof AD.createPost === 'function';
         let renderer;
         try {
-            renderer = new T.WebGLRenderer({ canvas: canvas, antialias: !hasPost, alpha: false, powerPreference: 'high-performance', stencil: false });
+            // Keep the completed scene visible while a busy GPU prepares the next frame.
+            renderer = new T.WebGLRenderer({ canvas: canvas, antialias: !hasPost, alpha: false, preserveDrawingBuffer: true, powerPreference: 'high-performance', stencil: false });
         } catch (_) { return null; }
         try {
             const ctx = renderer.getContext();

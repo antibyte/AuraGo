@@ -3722,6 +3722,10 @@ buttons and menu popovers remain excluded from those gestures.
   step even when rendering is skipped; RAF and debug batches share the result transition.
   GTAO tiers use 1024 m terrain tiles with unchanged near/far sample spacing;
   near-track classification uses the actual tile's half-diagonal.
+- The WebGL context preserves its drawing buffer between frames: while drift FX or
+  shader work delays the next draw, compositing retains the completed scene beneath
+  the independent HUD. `TestDesktopAuraDriftKeepsLastFrameBrowser` verifies retained
+  pixels after compositing.
 - The frame buffer is the contract that keeps the screen alive: a tier change and a
   resize both reallocate the WebGL drawing buffer, and the browser composites
   whatever the buffer holds. The quality governor therefore changes the tier
