@@ -41,6 +41,7 @@ Use the existing helper for each job. Check release scripts with harmless fixtur
 - Storymaker articulation: `storymaker-tests/25-sprite-joints.mjs` checks calibrated endpoints, joint alpha coverage, widths and hand proportions across the delivered cast. Native `--matrix --character char.<id> --canvas` saves 512-pixel cells plus individual pose/gesture frames for detailed inspection.
 - Storymaker pose composition: `26-pose-anatomy.mjs` checks gesture targets/returns and hand orientation. Native `--combinations --character char.it-tech-1 --canvas` saves composed-pose frames and a two-second 30 fps presenting MP4 for anatomy review; FFmpeg is required for that clip.
 - Storymaker head registration: `27-head-registration.mjs` verifies fixed skull registration throughout facial swaps. Native `--speech --character char.it-tech-1 --canvas` records all visemes and blinking in every view/facing; FFmpeg is required for these clips.
+- Storymaker anatomy: `28-neck-proportions.mjs` checks opaque head/neck contact across facial swaps and supported tilts using runtime matrices, plus arm segment balance and wrist placement. Keep neck close-ups and complete-figure review together.
 - Strudel: `node scripts/build-strudel-vendor.mjs` rebuilds the pinned runtime,
   license notices, source ZIP and integrity manifest from the npm lock. `--check`
   regenerates in memory and compares without writing. Resolve inputs from the

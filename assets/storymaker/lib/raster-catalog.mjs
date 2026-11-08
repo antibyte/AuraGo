@@ -4,9 +4,8 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { buildOutputs, versionOf } from './catalog.mjs';
 import { decodePNG, encodePNG, cropPNG, cellBounds, cellRect, cellSubjectBounds, thumbnailPNG } from './png.mjs';
-import { BODIES } from './dims.mjs';
 import { NAMES } from './names.mjs';
-import { calibrateAttachments, fitHand, fitFaces } from './raster-attachments.mjs';
+import { calibrateAttachments, fitHand, fitFaces, closeNeck, fitArmRig, RASTER_BODIES } from './raster-attachments.mjs';
 
 const root=path.resolve(import.meta.dirname,'../../..');
 export const PROP_PACKS={
@@ -57,7 +56,8 @@ export function buildRasterOutputs({prototype=false}={}){
         const base=old||{id,kind,name:id,name_key:`storymaker.catalog.${id.replace('.','_')}`,tags:name.split('-'),usage_example:{}};
         return {...base,tags:[...new Set([...(base.tags||[]),...(NAMES[id]||[])])],...extra};
     }
-    const rig={...legacy.rig,variants:{},slots:[]};
+    const rig={...legacy.rig,bodies:structuredClone(legacy.rig.bodies),variants:{},slots:[]};
+    fitArmRig(rig);
     put('rig/human.json',rig);
     for(const id of CHARACTER_IDS){
         const available=VIEWS.every(view=>fs.existsSync(source(master(`characters/${id}-${view}.png`))));
@@ -65,7 +65,7 @@ export function buildRasterOutputs({prototype=false}={}){
         if(!prototype&&!fs.existsSync(source(`previews/char.${id}.png`)))throw new Error(`Missing rendered character preview: ${id}`);
         const views={},resources=[],seated={};
         const originalCharacter=original('char.'+id)||original('char.office-woman-1');
-        const body=BODIES[BODY_TYPES[id]];
+        const body=RASTER_BODIES[BODY_TYPES[id]];
         const facesPath=master(`characters/${id}-faces.png`),handsPath=master(`characters/${id}-hands.png`);
         const faces=fs.existsSync(source(facesPath))?image(facesPath,`textures/characters/${id}-faces.png`):null;
         const hands=fs.existsSync(source(handsPath))?image(handsPath,`textures/characters/${id}-hands.png`):null;
@@ -100,6 +100,11 @@ export function buildRasterOutputs({prototype=false}={}){
                 ['open','fist','point','hold'].forEach((state,i)=>{slot.variants[state]={file:`textures/characters/${id}-hands.png`,rect:cellSubjectBounds(hands,VIEWS.indexOf(view)*8+(side==='l'?0:4)+i,4,6),box:[-33,120,66,state==='fist'||state==='hold'?72:104]};});
             }
             if(hands)calibrateAttachments(parts,bitmap,hands,body,view);
+            if(faces){
+                const rest=name=>({...rig.bones.find(b=>b.name===name).rest[view],...rig.bodies[BODY_TYPES[id]].bones?.[name]?.rest?.[view]});
+                const neck=rest('neck'),head=rest('head');
+                closeNeck(parts,bitmap,faces,[neck.x+head.x,neck.y+head.y],body);
+            }
             views[view]=ORDER[view==='front'?'front':'angled'].map(name=>parts.find(p=>p.name===name));
             if(bent){
                 const width=view==='front'?body.hipHW*2.8:body.upperLeg+145;

@@ -1,9 +1,8 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { jointSection } from '../../assets/storymaker/lib/raster-attachments.mjs';
+import { jointSection, RASTER_BODIES } from '../../assets/storymaker/lib/raster-attachments.mjs';
 import { decodePNG } from '../../assets/storymaker/lib/png.mjs';
-import { BODIES } from '../../assets/storymaker/lib/dims.mjs';
 import { readJSON, root, loadPlayer, realCatalog } from '../storymaker-test-support.mjs';
 import { t } from '../storymaker-test-context.mjs';
 
@@ -29,7 +28,7 @@ t.check('every raster identity has aligned joints, matching knee widths and anat
         return bitmap.pixels[(py*bitmap.width+px)*4+3]>=64;
     };
     for(const entry of catalog.entries.filter(e=>e.kind==='character')){
-        const body=BODIES[entry.params.body],descriptor=readJSON('ui/img/storymaker/'+entry.file),images=new Map();
+        const body=RASTER_BODIES[entry.params.body],descriptor=readJSON('ui/img/storymaker/'+entry.file),images=new Map();
         const image=file=>{if(!images.has(file))images.set(file,decodePNG(fs.readFileSync(path.join(root,'ui/img/storymaker',file))));return images.get(file);};
         for(const [view,slots]of Object.entries(descriptor.views)){
             const byName=Object.fromEntries(slots.map(s=>[s.name,s])),index=name=>slots.findIndex(s=>s.name===name);
@@ -47,7 +46,7 @@ t.check('every raster identity has aligned joints, matching knee widths and anat
                     near(mapped(upper,a,worlds[upper.bone]),point(worlds[upper.bone],0,0),'proximal '+entry.id+'/'+view);
                     near(mapped(upper,b,worlds[upper.bone]),point(worlds[lower.bone],0,0),'distal '+entry.id+'/'+view);
                     near(mapped(lower,lowerStart,worlds[lower.bone]),point(worlds[lower.bone],0,0),'lower '+entry.id+'/'+view);
-                    near(mapped(lower,lowerEnd,worlds[lower.bone]),point(worlds[lower.bone],0,upperName==='upper_leg'?205:135),'ankle/wrist '+entry.id+'/'+view);
+                    near(mapped(lower,lowerEnd,worlds[lower.bone]),point(worlds[lower.bone],0,upperName==='upper_leg'?205:body.lowerArm),'ankle/wrist '+entry.id+'/'+view);
                     const center=point(worlds[lower.bone],0,0),radius=b.width*upper.box[2]*0.2;
                     for(let angle=0;angle<32;angle++){
                         const p=[center[0]+Math.cos(angle*Math.PI/16)*radius,center[1]+Math.sin(angle*Math.PI/16)*radius];
@@ -59,7 +58,7 @@ t.check('every raster identity has aligned joints, matching knee widths and anat
             }
             for(const slot of slots.filter(s=>s.kind==='hand'))for(const [name,variant]of Object.entries(slot.variants).concat(Object.entries(slot.edgeVariants))){
                 const section=jointSection(image(variant.file),variant.rect,0.08),box=variant.box;
-                near([box[0]+section.center*box[2],box[1]+section.fraction*box[3]],[0,135],'hand wrist '+entry.id+'/'+view+'/'+name);
+                near([box[0]+section.center*box[2],box[1]+section.fraction*box[3]],[0,body.lowerArm],'hand wrist '+entry.id+'/'+view+'/'+name);
                 assert.ok(box[3]<=body.forearm*2.2+1e-7,'oversized hand '+entry.id+'/'+view+'/'+name);
                 assert.ok(Math.abs(box[2]/box[3]-variant.rect[2]/variant.rect[3])<1e-7,'stretched hand '+entry.id+'/'+view+'/'+name);
             }
