@@ -93,4 +93,21 @@ for (const [id, { layout }] of Object.entries(TABLES)) {
         assert.ok(Math.abs(kit.m(0.515) - W) < 1e-9, 'metre scale spans the canvas width');
     }
 }
+// 7. Render mechanics: path frames are orthonormal and continuous for every Neon path (adjacent dot product > 0.95).
+{
+    const { pathFrames } = await import('../ui/js/desktop/apps/pinball/render/ramps.js');
+    const { createPaths } = await import('../ui/js/desktop/apps/pinball/physics/paths.js');
+    const layout = TABLES.neon.layout, dot = (A, i, B, j) => A[3 * i] * B[3 * j] + A[3 * i + 1] * B[3 * j + 1] + A[3 * i + 2] * B[3 * j + 2];
+    for (const path of createPaths(layout.paths, { layout }).debug()) {
+        const F = pathFrames(path);
+        assert.equal(F.count, path.samples.length, path.id + ' frame per sample');
+        for (let i = 0; i < F.count; i++) {
+            for (const [A, B] of [[F.t, F.r], [F.t, F.u], [F.r, F.u]]) assert.ok(Math.abs(dot(A, i, B, i)) < 1e-9, path.id + ' orthogonal at ' + i);
+            for (const A of [F.t, F.r, F.u]) {
+                assert.ok(Math.abs(dot(A, i, A, i) - 1) < 1e-9, path.id + ' unit length at ' + i);
+                if (i) assert.ok(dot(A, i, A, i - 1) > 0.95, path.id + ' continuous at ' + i);
+            }
+        }
+    }
+}
 console.log('pinball tables ok');

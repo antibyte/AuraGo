@@ -13,6 +13,7 @@ import { paintPlayfieldArt, createLampTextures, createPlayfieldMaterial, buildWa
 import { createEnvironment, createLights, BALL_RADIUS } from './lighting.js';
 import { buildCabinet, buildRoom } from './cabinet.js';
 import { createCameraRig } from './camera.js';
+import { buildMechanics } from './builders.js';
 
 const TILT = 6.5 * Math.PI / 180;
 const abortError = () => Object.assign(new Error('cancelled'), { name: 'AbortError' });
@@ -143,6 +144,7 @@ export async function createScene(host, { tableId, layout, settings = {}, assetU
         if (tier.bloom) { bloom.strength = tier.bloom.strength * (reducedNow ? 0.6 : 1); bloom.radius = tier.bloom.radius; bloom.threshold = tier.bloom.threshold; }
         pf.uniforms.lampGain.value = tier.lampGain;
         lights.setTier(tier, true);
+        for (const m of mechs) if (m.setQuality) m.setQuality(tier);
         scene.traverse(o => { if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => { m.needsUpdate = true; }); });
         mats.woodTex.anisotropy = art.texture.anisotropy = aniso();
         width = 0; resize();
@@ -249,6 +251,7 @@ export async function createScene(host, { tableId, layout, settings = {}, assetU
             canvas.remove();
         }
     };
+    api.addMechanics(buildMechanics); api.useSimpleBalls(false);
     return api;
 }
 export default createScene;
