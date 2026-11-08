@@ -27,6 +27,13 @@ New app-scoped prefixes must contain no `ad` substring; verify
 
 ## Ownership
 
+<!-- pinball:start -->
+- AuraPinball (`pinball`, Games) lazily loads its isolated pinned Three.js/Rapier runtime.
+  The runtime and all sixteen `pinball.*` locale sets follow
+  `js/desktop/apps/pinball/AGENTS.md`; payloads follow `3d/pinball/AGENTS.md`.
+  No external service, backend route or capability switch is required.
+<!-- pinball:end -->
+
 - The optional `aurago-punk-3d` pet lazily loads `js/desktop/core/pet-3d.js` and the local
   Aura Drift Three.js bundle. Its fixed model/motion URLs are under `3d/pets/punk/`;
   no imported pet can choose model URLs. Keep gaze, animation crossfades, drag,
@@ -1432,6 +1439,11 @@ New app-scoped prefixes must contain no `ad` substring; verify
 - Verify `go test ./ui -run TestDesktopFindIt -count=1`; the real-handler flow is `AURAGO_RUN_BROWSER_SMOKE=1 go test ./internal/server -run TestDesktopFindItBrowser -count=1`.
 
 ## Child DOX Index
+
+<!-- pinball:start -->
+- `js/desktop/apps/pinball/AGENTS.md` — Pinball simulation, rules, controls, browser storage and window lifecycle.
+- `3d/pinball/AGENTS.md` — Versioned table payloads, collision identity, artwork and audio provenance.
+<!-- pinball:end -->
 
 - `../assets/desktop-pets/AGENTS.md` — Desktop Punk 3D authoring, pinned animation sources, runtime model budgets and interaction verification.
 

@@ -1,0 +1,297 @@
+{
+  "version": 1,
+  "blender": "5.2.2",
+  "tables": [
+    {
+      "id": "neon",
+      "model": "neon.glb",
+      "physics": "neon-physics.json",
+      "playfield": "neon-playfield.webp",
+      "backglass": "neon-backglass.webp",
+      "preview": "neon-concept.webp",
+      "normal": "neon-normal.png",
+      "ao": "neon-ao.png"
+    },
+    {
+      "id": "leviathan",
+      "model": "leviathan.glb",
+      "physics": "leviathan-physics.json",
+      "playfield": "leviathan-playfield.webp",
+      "backglass": "leviathan-backglass.webp",
+      "preview": "leviathan-concept.webp",
+      "normal": "leviathan-normal.png",
+      "ao": "leviathan-ao.png"
+    },
+    {
+      "id": "temple",
+      "model": "temple.glb",
+      "physics": "temple-physics.json",
+      "playfield": "temple-playfield.webp",
+      "backglass": "temple-backglass.webp",
+      "preview": "temple-concept.webp",
+      "normal": "temple-normal.png",
+      "ao": "temple-ao.png"
+    }
+  ],
+  "files": [
+    {
+      "path": "neon.glb",
+      "bytes": 1435980,
+      "sha256": "29d4aae37d735497208b6e8466234d053f4f09e4b8be40c1501d6147d4d6583b"
+    },
+    {
+      "path": "neon-physics.json",
+      "bytes": 130502,
+      "sha256": "7f479b5ef06ccd870399a4e4d3e5623f07b795116e025d33af7689814df04279"
+    },
+    {
+      "path": "neon-playfield.webp",
+      "bytes": 573546,
+      "sha256": "00068810bd8c5117c3f36c3fa673a8b17eb396c5b0d9bd0e801da73c70f8fa3a"
+    },
+    {
+      "path": "neon-backglass.webp",
+      "bytes": 685858,
+      "sha256": "7cd14fa0b1a8aba34cf2927fac613ae86cd03cd583116ccf37bc7587bd5a8229"
+    },
+    {
+      "path": "neon-concept.webp",
+      "bytes": 238600,
+      "sha256": "7efcd8a6e5e327acd1906361c443f5fb652845f37fa26aae358fd8554728ec42"
+    },
+    {
+      "path": "neon-normal.png",
+      "bytes": 8920,
+      "sha256": "1e2db3950be716d9493338799ae902ff039c6a6903390463e1b81390434ac9ae"
+    },
+    {
+      "path": "neon-ao.png",
+      "bytes": 503774,
+      "sha256": "4237c44a82723beee386b246e15f0b55fc4c910edc70352af221bce328383207"
+    },
+    {
+      "path": "leviathan.glb",
+      "bytes": 2964996,
+      "sha256": "a52a280f77c75d5bb88ab35cc1207a7f27c911d2d400e44a6e61987c1c462358"
+    },
+    {
+      "path": "leviathan-physics.json",
+      "bytes": 338916,
+      "sha256": "1155cdae35cdabdaab936e7c7fadd4c708db31bf85b877e29f7281666f81a1be"
+    },
+    {
+      "path": "leviathan-playfield.webp",
+      "bytes": 728792,
+      "sha256": "99485fb013673b5dc1cc943774183b193fa8e51514a8e95a9fcbc9c2a3053657"
+    },
+    {
+      "path": "leviathan-backglass.webp",
+      "bytes": 746782,
+      "sha256": "c5508d8feb2b01ece1ab3bcde5f84f9d0d93c831699f3e6bb8d8b6faf142c89b"
+    },
+    {
+      "path": "leviathan-concept.webp",
+      "bytes": 294596,
+      "sha256": "e8e9a94601e56ca8cc835d6949d00e381d1530e61d384d6769d5ed20d11c0291"
+    },
+    {
+      "path": "leviathan-normal.png",
+      "bytes": 8920,
+      "sha256": "1e2db3950be716d9493338799ae902ff039c6a6903390463e1b81390434ac9ae"
+    },
+    {
+      "path": "leviathan-ao.png",
+      "bytes": 470254,
+      "sha256": "c6293f9cd024214abafa54dc2fb3bbebb0dcd0cea76444555f624e3cb4ffca68"
+    },
+    {
+      "path": "temple.glb",
+      "bytes": 1840140,
+      "sha256": "1b7517d3d2fe5a99962e4a0bfb3b1f07ad728a8da27d29e23f7da1527ca94436"
+    },
+    {
+      "path": "temple-physics.json",
+      "bytes": 147011,
+      "sha256": "5b9a7c0576bc77e3df2b526d68ffe18c8d1b3872184e671c44b4c47dc7092b6e"
+    },
+    {
+      "path": "temple-playfield.webp",
+      "bytes": 768762,
+      "sha256": "358d531d3986e96f97b4532c714ce7d0944ff51c9d5059321d57dafbc144e7f8"
+    },
+    {
+      "path": "temple-backglass.webp",
+      "bytes": 797916,
+      "sha256": "f1d93de6b618de252792d99bf2d7ac9254fd693f58769da6fcb3597ec69e6548"
+    },
+    {
+      "path": "temple-concept.webp",
+      "bytes": 324152,
+      "sha256": "93a072ec6efab2ad28004f717dc547eb5615ef19c0cd29b1d5378afceaaf01e5"
+    },
+    {
+      "path": "temple-normal.png",
+      "bytes": 8920,
+      "sha256": "1e2db3950be716d9493338799ae902ff039c6a6903390463e1b81390434ac9ae"
+    },
+    {
+      "path": "temple-ao.png",
+      "bytes": 458877,
+      "sha256": "5e85343824442e16ab62aac886f940066c2be66ae38a09858ae04bb7b16aa462"
+    },
+    {
+      "path": "audio/flipper.ogg",
+      "bytes": 4613,
+      "sha256": "a7c9b2679596809ca76471cf12f757b5d952675cb1038bd23728d5b234fa4a26"
+    },
+    {
+      "path": "audio/bumper.ogg",
+      "bytes": 5349,
+      "sha256": "c6431e4f2397efd074893ae5ee6f5de1f84ea5b412a1bb2cafe599c14b1e50f0"
+    },
+    {
+      "path": "audio/sling.ogg",
+      "bytes": 4691,
+      "sha256": "8076986de70127d765c84ddf10a52d9fdc29a0a73d2a97bd5d3046a6a5be33e9"
+    },
+    {
+      "path": "audio/target.ogg",
+      "bytes": 4937,
+      "sha256": "767035ee3ab22a8838c0da01de816eaeffe8ffc6dd916a223ae51475b67ef8b6"
+    },
+    {
+      "path": "audio/launch.ogg",
+      "bytes": 5138,
+      "sha256": "6411613c6a3bec4dc15e7ae59425dbcbadbfd17dfc3c578abdbb01e1d58d5fb4"
+    },
+    {
+      "path": "audio/drain.ogg",
+      "bytes": 4856,
+      "sha256": "514a042ea3f249e7f035b71d8aba56a9439e42302e35d5f6b1b94746321e857d"
+    },
+    {
+      "path": "audio/lock.ogg",
+      "bytes": 5776,
+      "sha256": "5e0fa0ca0c6b1ac52a4f940a82f562f5224d7152c07cc23146872ad6ce7da66a"
+    },
+    {
+      "path": "audio/jackpot.ogg",
+      "bytes": 27007,
+      "sha256": "52293ebd29c7fedb72118fffebb12bf8df94ea220fcc373892a6089411392531"
+    },
+    {
+      "path": "audio/bonus.ogg",
+      "bytes": 13424,
+      "sha256": "7625138d6857238c460b0fac1094d440ca6f2ace59bd7f93b98ab29fc071d274"
+    }
+  ],
+  "audio": [
+    {
+      "path": "audio/flipper.ogg",
+      "bytes": 4613,
+      "sha256": "a7c9b2679596809ca76471cf12f757b5d952675cb1038bd23728d5b234fa4a26",
+      "seconds": 0.165,
+      "source": "kenney-impact",
+      "member": "Audio/impactMetal_heavy_000.ogg",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "audio/bumper.ogg",
+      "bytes": 5349,
+      "sha256": "c6431e4f2397efd074893ae5ee6f5de1f84ea5b412a1bb2cafe599c14b1e50f0",
+      "seconds": 0.269,
+      "source": "kenney-impact",
+      "member": "Audio/impactMetal_medium_000.ogg",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "audio/sling.ogg",
+      "bytes": 4691,
+      "sha256": "8076986de70127d765c84ddf10a52d9fdc29a0a73d2a97bd5d3046a6a5be33e9",
+      "seconds": 0.527,
+      "source": "kenney-impact",
+      "member": "Audio/impactSoft_heavy_000.ogg",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "audio/target.ogg",
+      "bytes": 4937,
+      "sha256": "767035ee3ab22a8838c0da01de816eaeffe8ffc6dd916a223ae51475b67ef8b6",
+      "seconds": 0.33,
+      "source": "kenney-impact",
+      "member": "Audio/impactWood_medium_000.ogg",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "audio/launch.ogg",
+      "bytes": 5138,
+      "sha256": "6411613c6a3bec4dc15e7ae59425dbcbadbfd17dfc3c578abdbb01e1d58d5fb4",
+      "seconds": 0.356,
+      "source": "kenney-impact",
+      "member": "Audio/impactMetal_heavy_001.ogg",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "audio/drain.ogg",
+      "bytes": 4856,
+      "sha256": "514a042ea3f249e7f035b71d8aba56a9439e42302e35d5f6b1b94746321e857d",
+      "seconds": 0.156,
+      "source": "kenney-impact",
+      "member": "Audio/impactTin_medium_000.ogg",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "audio/lock.ogg",
+      "bytes": 5776,
+      "sha256": "5e0fa0ca0c6b1ac52a4f940a82f562f5224d7152c07cc23146872ad6ce7da66a",
+      "seconds": 0.373,
+      "source": "kenney-impact",
+      "member": "Audio/impactMetal_light_000.ogg",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "audio/jackpot.ogg",
+      "bytes": 27007,
+      "sha256": "52293ebd29c7fedb72118fffebb12bf8df94ea220fcc373892a6089411392531",
+      "seconds": 1.758,
+      "source": "kenney-jingles",
+      "member": "Audio/8-Bit jingles/jingles_NES00.ogg",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "audio/bonus.ogg",
+      "bytes": 13424,
+      "sha256": "7625138d6857238c460b0fac1094d440ca6f2ace59bd7f93b98ab29fc071d274",
+      "seconds": 1.324,
+      "source": "kenney-jingles",
+      "member": "Audio/Pizzicato jingles/jingles_PIZZI07.ogg",
+      "license": "CC0-1.0"
+    }
+  ],
+  "sources": [
+    {
+      "id": "kenney-impact",
+      "title": "Impact Sounds",
+      "author": "Kenney",
+      "page": "https://kenney.nl/assets/impact-sounds",
+      "download": "https://kenney.nl/media/pages/assets/impact-sounds/87b4ddecda-1677589768/kenney_impact-sounds.zip",
+      "file": "kenney_impact-sounds.zip",
+      "bytes": 800850,
+      "sha256": "029d734af1582474edf3a694d1b0cebc97c1c152f2f39fa34d4c2bafc5de77f8",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/"
+    },
+    {
+      "id": "kenney-jingles",
+      "title": "Music Jingles",
+      "author": "Kenney",
+      "page": "https://kenney.nl/assets/music-jingles",
+      "download": "https://kenney.nl/media/pages/assets/music-jingles/f37e530b9e-1677590399/kenney_music-jingles.zip",
+      "file": "kenney_music-jingles.zip",
+      "bytes": 1239525,
+      "sha256": "b729ba57959bd58793d2c5cafa348aaf2655d354f3da35ec4729e03ec77197b8",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/"
+    }
+  ]
+}

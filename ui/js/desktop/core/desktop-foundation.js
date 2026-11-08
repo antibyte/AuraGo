@@ -649,6 +649,7 @@
             'aura-drift': 'AuraDriftApp',
             'goldfish-adventure': 'GoldfishAdventureApp',
             'minigolf': 'MinigolfApp',
+            'pinball': 'PinballApp',
             layerling: 'LayerlingApp',
             nasscad: 'NasscadApp',
             people: 'PeopleApp',
