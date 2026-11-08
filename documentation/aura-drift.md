@@ -245,6 +245,15 @@ weather motion are removed by reduced motion.
 - A lost WebGL context (`webglcontextlost`) switches the window to the 2D view.
 - `auto` starts at High and steps down or up from the frame time (2-second windows, hysteresis,
   cooldowns).
+- **The frame buffer decides what the player sees.** A tier change and a resize both
+  reallocate the WebGL drawing buffer, and the browser composites whatever that buffer
+  holds - an empty buffer is a black screen. The tier is therefore applied *before* the
+  render of the frame it belongs to, a resize repaints the view right away (the resize
+  observer runs after the animation frame), and the renderer reallocates the buffer only
+  when the size really changed. Without this, every tier change of a race costs one
+  black frame.
+- A broken gauge stays a gauge problem: the HUD is caught and emptied, the race keeps its
+  3D view instead of dropping to the Canvas 2D view.
 
 | Tier | Pixel ratio | Shadow map | Post | MSAA | Particles | Triangle budget |
 | --- | --- | --- | --- | --- | --- | --- |

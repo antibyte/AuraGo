@@ -3712,6 +3712,16 @@ buttons and menu popovers remain excluded from those gestures.
   step even when rendering is skipped; RAF and debug batches share the result transition.
   GTAO tiers use 1024 m terrain tiles with unchanged near/far sample spacing;
   near-track classification uses the actual tile's half-diagonal.
+- The frame buffer is the contract that keeps the screen alive: a tier change and a
+  resize both reallocate the WebGL drawing buffer, and the browser composites
+  whatever the buffer holds. The quality governor therefore changes the tier
+  *before* the render of that frame, a resize repaints the view at once (the resize
+  observer runs after the animation frame), and the renderer only reallocates the
+  buffer when the size really changed. The canvases are sized by the stylesheet
+  (absolute, inset 0): never write an inline pixel size on them, it makes the window
+  content overflow and feeds the resize loop. A failing HUD is caught and emptied,
+  never left to the frame loop, which would read the error as a dead renderer and
+  drop the race to the 2D view.
 - All DOM classes use the `agdrift-` prefix: the original `ad-` prefix was hidden by
   AdGuard/EasyList `[class^="ad-"]` rules, leaving a running but invisible app with no console
   error. Never reintroduce a prefix containing `ad`; verify

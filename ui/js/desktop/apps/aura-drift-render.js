@@ -789,8 +789,9 @@
                 dpr = clamp(ratio || 1, 1, 2);
                 canvas.width = Math.round(width * dpr);
                 canvas.height = Math.round(height * dpr);
-                canvas.style.width = width + 'px';
-                canvas.style.height = height + 'px';
+                /* The canvas is absolute and fills the app root by itself (stylesheet:
+                   inset 0). An inline pixel size would make the window content overflow,
+                   which brings a scrollbar and a resize loop with it. */
                 c.setTransform(dpr, 0, 0, dpr, 0, 0);
             },
             setQuality(q) { quality = AD.QUALITY[q] || AD.QUALITY.high; },

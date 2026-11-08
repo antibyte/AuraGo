@@ -430,3 +430,58 @@ func TestAuraDriftHUDUsesKitTAU(t *testing.T) {
 		t.Fatalf("aura-drift-hud.js uses a bare TAU (%q); use kit.TAU", hud[loc[0]:loc[1]])
 	}
 }
+
+// A graphics tier change reallocates the WebGL drawing buffer, and the browser
+// composites whatever the buffer holds. The tier is applied after the render, the
+// buffer is empty and the screen goes black for one frame - once per tier change,
+// for the whole race. The tier therefore has to be applied before the render, and
+// a resize (the observer runs after the animation frame) has to repaint at once.
+func TestAuraDriftKeepsTheCanvasFilledAcrossTierChanges(t *testing.T) {
+	t.Parallel()
+
+	shell := readDesktopAssetText(t, "js/desktop/apps/aura-drift.js")
+	start := strings.Index(shell, "function frame(now, dt)")
+	if start < 0 {
+		t.Fatal("Aura Drift shell has no frame loop")
+	}
+	frame := shell[start:]
+	governor := strings.Index(frame, "governor.sample(dt)")
+	draw := strings.Index(frame, "renderer.render(race, lastPose")
+	if governor < 0 || draw < 0 {
+		t.Fatal("Aura Drift frame loop lost the quality governor or the render")
+	}
+	if governor > draw {
+		t.Fatal("the tier change must be applied before the render: a changed tier empties the drawing buffer, and the empty buffer is composited as a black frame")
+	}
+	resize := strings.Index(shell, "function resize()")
+	if resize < 0 {
+		t.Fatal("Aura Drift shell has no resize handler")
+	}
+	if !strings.Contains(shell[resize:], "repaint()") {
+		t.Fatal("Aura Drift must repaint after a resize: the resize observer runs after the animation frame, so the empty buffer would be composited as a black frame")
+	}
+	if !strings.Contains(shell, "function repaint()") {
+		t.Fatal("Aura Drift shell lost the repaint helper")
+	}
+	// A broken gauge must not take the 3D view down with it: the frame loop reads
+	// a failed frame as a dead renderer and drops the race to the 2D view.
+	if !strings.Contains(shell, "hudFailed") {
+		t.Fatal("Aura Drift must contain a failing HUD instead of dropping the 3D view")
+	}
+	// The canvases are sized by the stylesheet (absolute, inset 0). An inline pixel
+	// size makes the window content overflow, which brings a scrollbar and a
+	// resize loop with it.
+	for _, file := range []string{"aura-drift-render3d.js", "aura-drift-render.js", "aura-drift-hud.js"} {
+		source := readDesktopAssetText(t, filepath.Join("js", "desktop", "apps", file))
+		if strings.Contains(source, "canvas.style.width") {
+			t.Fatalf("%s writes an inline pixel size on the canvas; the stylesheet sizes it", file)
+		}
+	}
+	renderer := readDesktopAssetText(t, "js/desktop/apps/aura-drift-render3d.js")
+	if !strings.Contains(renderer, "setSize(size.w, size.h, false)") {
+		t.Fatal("the three.js renderer must not write an inline pixel size on the canvas")
+	}
+	if !strings.Contains(renderer, "applied.dpr") {
+		t.Fatal("the three.js renderer must only reallocate the drawing buffer when the size really changed")
+	}
+}

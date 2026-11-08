@@ -110,6 +110,7 @@
 
         let tier = 'high', glq = AD.QUALITY.high.gl;
         let size = { w: 960, h: 540, dpr: 1 };
+        let applied = { w: 0, h: 0, dpr: 0 };
         let look = AD.LOOK.alpine, track = null, race = null, lost = false, disposed = false, held = true;
         let env = null, envKey = '', wetness = 0, time = 0, gen = 0;
         let actors = null, carLights = null, terrain = null, road = null, sky = null, props = null, fx = null, fallback = null;
@@ -180,8 +181,15 @@
         }
         function applySize() {
             const dpr = Math.min(size.dpr, glq.dpr);
-            renderer.setPixelRatio(dpr);
-            renderer.setSize(size.w, size.h, true);
+            /* Every reallocation of the drawing buffer empties it, and the frame after it has
+               to paint again. The canvas is sized by the stylesheet (absolute, inset 0), so
+               the size is only handed over when it really changed - an inline pixel size on
+               the canvas would make the window content overflow and feed the resize loop. */
+            if (dpr !== applied.dpr || size.w !== applied.w || size.h !== applied.h) {
+                applied = { w: size.w, h: size.h, dpr: dpr };
+                renderer.setPixelRatio(dpr);
+                renderer.setSize(size.w, size.h, false);
+            }
             camera.aspect = size.w / size.h;
             camera.updateProjectionMatrix();
         }

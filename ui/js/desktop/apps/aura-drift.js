@@ -183,6 +183,7 @@
         let cupScores = [0, 0, 0, 0, 0, 0];
         let view = 'menu';             /* menu -> loading -> play -> results (the results panel overlays 'play') */
         let paused = false, raf = 0, last = 0, frozen = false, startToken = 0, assetsHeld = false;
+        let running = false, hudBroken = false;
         let lastPose = null, aspect = 16 / 9, pausedGlAt = 0, inactive = false;
         let pendingResults = null, resultsShown = false, appliedQuality = settings.quality;
         let tier = governor.tier;
@@ -217,6 +218,28 @@
             hud.resize(w, h, dpr);
             /* Touch pads are two 56 px rows plus padding: lift the gauges clear of them. */
             if (typeof hud.setInset === 'function') hud.setInset(window.matchMedia && window.matchMedia('(pointer: coarse)').matches ? 140 : 0);
+            repaint();
+        }
+
+        /* Draws the current view once, outside the frame loop.
+           A resize reallocates the WebGL drawing buffer and empties it. The resize observer
+           runs after the animation frame, so the browser would composite the empty canvas and
+           the screen would go black for one frame: draw the same view again right away. */
+        function repaint() {
+            if (!running) return;
+            try {
+                if (view === 'menu' || view === 'loading' || !race) renderer.showcase(0, reducedMotion);
+                else if (lastPose) renderer.render(race, lastPose, 0, reducedMotion);
+            } catch (_) { /* the frame loop paints the next frame */ }
+        }
+
+        /* A broken gauge must not take the 3D view down with it: the frame loop reads a
+           failed frame as a dead renderer and drops the race to the 2D view. The HUD is one
+           unit - when it throws, the gauges stay empty and the race keeps its 3D view. */
+        function hudFailed(error) {
+            if (hudBroken) return;
+            hudBroken = true;
+            if (window.console && console.error) console.error('Aura Drift: the HUD failed, the gauges stay empty', error);
         }
         const observer = window.ResizeObserver ? new ResizeObserver(resize) : null;
         if (observer) observer.observe(root);
@@ -598,7 +621,11 @@
                 }
             }
             renderer.render(race, lastPose, dt, reducedMotion);
-            if (playing() && !resultsShown) hud.render(race, dt, settings, lastPose); else clearHud();
+            if (!hudBroken && playing() && !resultsShown) {
+                try { hud.render(race, dt, settings, lastPose); }
+                catch (error) { hudFailed(error); }
+            }
+            else clearHud();
         }
 
         /* Another desktop window took the focus: fires neither blur nor visibilitychange. */
@@ -656,18 +683,25 @@
                 if (race.state === 'finished' && race.cars[0].isPlayer) finishRace();
             }
             lastPose = camera.update(race, dt, { reduced: reducedMotion, paused: paused || frozen, lowZoom: !!quality.lowZoom });
+            /* The graphics tier can change mid-race. Applying it reallocates the drawing buffer
+               and rebuilds the composer, which empties the canvas: that has to happen before the
+               render. Painted after the change, the browser composites the empty buffer and the
+               screen goes black for one frame - once per tier change, for the whole race. */
+            if (!paused && !frozen) {
+                const next = governor.sample(dt);
+                if (next) quality = applyQuality(next);
+            }
             /* A paused GL scene needs only 10 frames per second. */
             if (!(paused && renderer.kind === 'three' && now - pausedGlAt < 100)) {
                 if (paused) pausedGlAt = now;
                 renderer.render(race, lastPose, paused ? 0 : simDt, reducedMotion);
             }
             advanceResults(dt);
-            if (playing() && !paused && !resultsShown) hud.render(race, dt, settings, lastPose);
-            else clearHud();
-            if (!paused && !frozen) {
-                const next = governor.sample(dt);
-                if (next) quality = applyQuality(next);
+            if (!hudBroken && playing() && !paused && !resultsShown) {
+                try { hud.render(race, dt, settings, lastPose); }
+                catch (error) { hudFailed(error); }
             }
+            else clearHud();
         }
 
         function snapshot() {
@@ -869,6 +903,7 @@
         document.addEventListener('visibilitychange', entry.onVisibility);
         showMenu();
         last = performance.now();
+        running = true;
         raf = requestAnimationFrame(loop);
     }
 
