@@ -138,6 +138,21 @@ for (const customs of choices.customs) for (const garden of choices.garden) for 
     }
 }
 
+// A flag that a content change retired still loads: the run keeps its progress and loses the flag.
+let retired = S.apply(initial, 'r01_stop').state;
+retired = S.apply(retired, 'r01_clamp').state;
+retired = S.apply(retired, 'r01_brake', { answer: ['stop', 'hold', 'release'] }).state;
+retired = S.apply(retired, 'r01_open').state;
+const withRetired = clone(retired);
+withRetired.flags.push('e_scrap_refusal');
+const migrated = S.validate(withRetired);
+assert.equal(migrated.flags.includes('e_scrap_refusal'), false, 'A retired flag is dropped on load');
+assert.deepEqual(clone(migrated.flags), clone(retired.flags), 'The migration keeps every earned flag');
+assert.deepEqual(clone(migrated.applied), clone(retired.applied), 'The migration keeps the applied actions');
+const unknownFlag = clone(retired);
+unknownFlag.flags.push('e_not_a_flag');
+assert.throws(() => S.validate(unknownFlag), /invalid|impossible/, 'An unknown flag is still rejected');
+
 for (const mutate of [
     value => { value.schema = 999; },
     value => { value.contentVersion = 999; },

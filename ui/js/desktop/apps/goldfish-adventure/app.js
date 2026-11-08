@@ -350,6 +350,8 @@
                 pick.type = 'button';
                 pick.dataset.agfishExit = exit.to;
                 if (!window.GoldfishState.conditions(state, exit)) pick.classList.add('agfish-locked-exit');
+                // Exits that sit on the left edge of the frame point back out of it.
+                if ((exit.rect?.[0] ?? 1) < 0.25) pick.classList.add('agfish-exit-left');
                 const [x, y, width, height] = exit.rect;
                 Object.assign(pick.style, { left: x * 100 + '%', top: y * 100 + '%', width: width * 100 + '%', height: height * 100 + '%' });
                 panel.bind(pick, {

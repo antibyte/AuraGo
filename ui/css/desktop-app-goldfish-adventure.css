@@ -106,17 +106,29 @@
     text-shadow: -1px 0 #000, 1px 0 #000, 0 -1px #000, 0 1px #000;
 }
 .agfish-hotspot:focus-visible, .agfish-exit:focus-visible { z-index: 2; }
-.agfish-exit { align-items: center; }
-.agfish-exit:hover::after, .agfish-exit:focus-visible::after, .agfish-show-hotspots .agfish-exit::after {
+/* The way out is a door sign on the frame edge: always visible, dimmed while it is still locked.
+   Its label stays in the bar sentence on hover, the sign only points the way. */
+.agfish-exit { align-items: center; padding-right: 24px; }
+.agfish-exit::after {
     content: '▸';
     position: absolute;
-    right: 6px;
+    right: 4px;
     top: 50%;
     transform: translateY(-50%);
+    padding: 1px 4px;
+    border-radius: 3px;
+    background: rgba(12, 30, 33, .45);
     color: #ffd45e;
+    font-size: 14px;
+    line-height: 1.1;
     text-shadow: 0 0 3px #000, 1px 1px 0 #000;
+    pointer-events: none;
 }
+.agfish-exit:hover::after, .agfish-exit:focus-visible::after { color: #fff0b0; }
+.agfish-exit-left { padding-right: 2px; padding-left: 24px; }
+.agfish-exit-left::after { content: '◂'; right: auto; left: 4px; }
 .agfish-locked-exit { border-style: dashed; }
+.agfish-locked-exit::after { color: #9a9384; border: 1px dashed rgba(249, 219, 163, .45); }
 .agfish-show-hotspots .agfish-locked-exit { color: #c3bdab; }
 .agfish-busy .agfish-hotspots, .agfish-busy .agfish-bar-body { pointer-events: none; }
 .agfish-in-moment .agfish-hotspots { visibility: hidden; }

@@ -3,6 +3,8 @@
 
     const MAX_BYTES = 128 * 1024;
     const SCHEMA = 1;
+    // Flags that a content change retired. A save that still carries one loads without it.
+    const LEGACY_FLAGS = new Set(['e_scrap_refusal']);
     const copy = value => JSON.parse(JSON.stringify(value));
     const unique = values => [...new Set(values)];
     const fail = code => { const error = new Error(code); error.code = code; throw error; };
@@ -181,13 +183,15 @@
         }
         if (!reachable(replay, raw.room)) fail('impossible');
         for (const visited of raw.visited) if (!reachable(replay, visited) && !witnessed.has(visited)) fail('impossible');
+        const flags = Array.isArray(raw.flags) ? raw.flags.filter(id => !LEGACY_FLAGS.has(id)) : raw.flags;
         for (const field of ['flags', 'inventory', 'completed', 'journal', 'protocols']) {
-            stringArray(raw[field], new Set(replay[field]));
-            if (raw[field].length !== replay[field].length) fail('impossible');
+            const values = field === 'flags' ? flags : raw[field];
+            stringArray(values, new Set(replay[field]));
+            if (values.length !== replay[field].length) fail('impossible');
         }
         if (JSON.stringify(Object.entries(raw.routes).sort()) !== JSON.stringify(Object.entries(replay.routes).sort()) ||
             raw.ending !== replay.ending) fail('impossible');
-        return copy(raw);
+        return copy(Array.isArray(raw.flags) ? { ...raw, flags } : raw);
     }
 
     window.GoldfishState = Object.freeze({

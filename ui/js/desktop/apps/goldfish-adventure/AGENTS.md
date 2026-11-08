@@ -39,6 +39,9 @@ approved content and acceptance scope lives in
   ordered applied actions, branch exclusivity, inventory and known IDs. Apply
   rewards/consumption once, then present animation. A skipped scene cannot repeat
   an effect. Repeatable conversations do not repeat rewards.
+- `validate()` accepts a save that still carries a flag a later content change
+  retired: the retired flag is dropped on load through an explicit, tested
+  migration, so existing games keep loading. Unknown flags stay invalid.
 - Saves use one IndexedDB transaction for revision comparison and write. Twelve
   named current slots plus prior revisions: 128 KiB/state and 4 MiB total payload.
   Never overwrite on conflict or failed import. Keep memory state and offer
@@ -58,6 +61,9 @@ approved content and acceptance scope lives in
   else cancels an armed verb/item or choice menu, else opens the game menu. Hotspot
   and exit buttons stay semantic, focusable DOM over the canvas. Puzzle prompts are
   conversation menus in the bar; `GoldfishState.apply` alone judges the answer.
+- Exits stay discoverable without pixel hunting: every exit hotspot carries a
+  permanent direction sign on the frame edge (gold while open, grey and dashed
+  while locked), and its label stays in the bar sentence on hover.
 - Derive unread results from schema-1 `applied`/`seenLines` using action-time
   conditions. A line counts as read only when it was shown for its full timer or
   the player skipped it (click on the scene or Space on a line); Esc over a queue
