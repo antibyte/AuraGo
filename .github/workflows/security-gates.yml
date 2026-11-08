@@ -102,7 +102,7 @@ jobs:
         run: node scripts/check-web-assets.mjs
 
       - name: Check Desktop module structure before Go tests
-        run: go test ./ui -run '^TestVirtualDesktop(FirstPartyJSFilesStayBelowLineBudget|JSUsesSemanticChunkNames)$' -count=1
+        run: go test ./ui -p 1 -run '^TestVirtualDesktop(FirstPartyJSFilesStayBelowLineBudget|JSUsesSemanticChunkNames)$' -count=1
 
       - name: Prepare verified prompt baseline vocabulary
         env:
