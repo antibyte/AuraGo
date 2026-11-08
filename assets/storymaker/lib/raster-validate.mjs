@@ -40,6 +40,7 @@ export function validateRasterOutputs({files,manifest,entries,rig}){
     for(const slot of slots||[]){
      check(bones.has(slot.bone)&&slot.box.length===4&&slot.box.every(Number.isFinite),`Bad attachment: ${e.id}/${slot.name}`);
      if(slot.pivot)check(slot.pivot.length===2&&slot.pivot.every(Number.isFinite),`Bad pivot: ${e.id}/${slot.name}`);
+     if(slot.shear!==undefined)check(Number.isFinite(slot.shear)&&Math.abs(slot.shear)<1,`Bad joint calibration: ${e.id}/${slot.name}`);
      region(slot.image,e.id+'/'+slot.name);
      const count=slot.kind==='head'?19:slot.kind==='hand'?4:0;
      if(count)check(Object.keys(slot.variants||{}).length===count,`Missing swaps: ${e.id}/${view}/${slot.name}`);

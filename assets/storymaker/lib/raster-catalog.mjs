@@ -6,6 +6,7 @@ import { buildOutputs, versionOf } from './catalog.mjs';
 import { decodePNG, encodePNG, cropPNG, cellBounds, cellRect, cellSubjectBounds, thumbnailPNG } from './png.mjs';
 import { BODIES } from './dims.mjs';
 import { NAMES } from './names.mjs';
+import { calibrateAttachments } from './raster-attachments.mjs';
 
 const root=path.resolve(import.meta.dirname,'../../..');
 export const PROP_PACKS={
@@ -32,7 +33,8 @@ const PARTS=[
     ['upper_leg_r','upper_leg_r',[-48,-20,96,250]],['lower_leg_r','lower_leg_r',[-42,-18,84,240]],
     ['shoe_l','lower_leg_l',[-40,175,126,50]],['shoe_r','lower_leg_r',[-40,175,126,50]]
 ];
-const ORDER=['upper_arm_l','lower_arm_l','hand_l','upper_arm_r','upper_leg_l','lower_leg_l','shoe_l','upper_leg_r','lower_leg_r','shoe_r','hips','torso','head','lower_arm_r','hand_r'];
+const LEGS=['upper_leg_l','lower_leg_l','shoe_l','upper_leg_r','lower_leg_r','shoe_r','hips','torso','head'];
+const ORDER={front:[...LEGS,'upper_arm_l','lower_arm_l','hand_l','upper_arm_r','lower_arm_r','hand_r'],angled:['upper_arm_l','lower_arm_l','hand_l',...LEGS,'upper_arm_r','lower_arm_r','hand_r']};
 export function buildRasterOutputs({prototype=false}={}){
     const legacy=buildOutputs(),files=new Map(), images=new Map(),entries=[];
     const put=(name,value)=>files.set(name,Buffer.isBuffer(value)?value:JSON.stringify(value)+'\n');
@@ -92,9 +94,10 @@ export function buildRasterOutputs({prototype=false}={}){
             }
             if(hands)for(const side of ['l','r']){
                 const slot=parts.find(p=>p.name==='hand_'+side);slot.kind='hand';slot.side=side;slot.variants={};
-                ['open','fist','point','hold'].forEach((state,i)=>{slot.variants[state]={file:`textures/characters/${id}-hands.png`,rect:cellBounds(hands,VIEWS.indexOf(view)*8+(side==='l'?0:4)+i,4,6),box:[-33,120,66,state==='fist'||state==='hold'?72:104]};});
+                ['open','fist','point','hold'].forEach((state,i)=>{slot.variants[state]={file:`textures/characters/${id}-hands.png`,rect:cellSubjectBounds(hands,VIEWS.indexOf(view)*8+(side==='l'?0:4)+i,4,6),box:[-33,120,66,state==='fist'||state==='hold'?72:104]};});
             }
-            views[view]=ORDER.map(name=>parts.find(p=>p.name===name));
+            if(hands)calibrateAttachments(parts,bitmap,hands,body,view);
+            views[view]=ORDER[view==='front'?'front':'angled'].map(name=>parts.find(p=>p.name===name));
             if(bent){
                 const width=view==='front'?body.hipHW*2.8:body.upperLeg+145;
                 seated[view]={name:'seated_lower_body',bone:'hips',box:[view==='front'?-width/2:-90,-30,width,255],image:{file:seatedFile,rect:cellBounds(bent,VIEWS.indexOf(view),3,2)}};

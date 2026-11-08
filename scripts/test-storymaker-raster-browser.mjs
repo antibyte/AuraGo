@@ -14,6 +14,8 @@ const installed=path.join(ui,'img/storymaker');
 const catalogDir=JSON.parse(fs.readFileSync(path.join(installed,'catalog.json'))).schema==='storymaker-catalog/2'?installed:fixture;
 const baseline=process.argv.includes('--baseline'),legacy=baseline?buildOutputs():null;
 const matrix=process.argv.includes('--matrix'),environments=process.argv.includes('--environments');
+const characterIndex=process.argv.indexOf('--character'),selectedCharacter=characterIndex<0?null:process.argv[characterIndex+1];
+assert.ok(characterIndex<0||selectedCharacter?.startsWith('char.'),'--character needs a catalog character ID');
 const previousBundles=new Map(baseline?['host','player'].map(name=>['/js/storymaker/'+name+'.bundle.js',execFileSync('git',['show','HEAD:ui/js/storymaker/'+name+'.bundle.js'],{cwd:root,maxBuffer:4*1048576})]):[]);
 const browser=[process.env.CHROME_BIN,'C:/Program Files/Google/Chrome/Application/chrome.exe','C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe','/usr/bin/google-chrome','/usr/bin/chromium'].filter(Boolean).find(fs.existsSync);
 assert.ok(browser,'An installed Chrome/Edge is required');
@@ -151,10 +153,13 @@ try{
     };
     if(matrix){
         const catalog=JSON.parse(fs.readFileSync(path.join(catalogDir,'catalog.json'))),directory=path.join(fixture,'rig-matrix');fs.mkdirSync(directory,{recursive:true});
-        for(const character of catalog.entries.filter(e=>e.kind==='character'))for(const view of ['front','three_quarter','profile'])for(const facing of ['left','right']){
+        const cellSize=selectedCharacter?512:256;
+        const characters=catalog.entries.filter(e=>e.kind==='character'&&(!selectedCharacter||e.id===selectedCharacter));
+        assert.ok(characters.length,'Unknown matrix character');
+        for(const character of characters)for(const view of ['front','three_quarter','profile'])for(const facing of ['left','right']){
             await call('Page.navigate',{url:address+'/?matrix='+encodeURIComponent(character.id)+'&view='+view+'&facing='+facing});await wait(0);
-            const states=await evaluate('fixture.states'),sheet={width:1536,height:Math.ceil(states.length/6)*256,pixels:Buffer.alloc(1536*Math.ceil(states.length/6)*256*4)};
-            for(let i=0;i<states.length;i++){const bytes=await capture(i*60+18,256,256),png=decodePNG(Buffer.from(bytes,'base64'));for(let y=0;y<256;y++)png.pixels.copy(sheet.pixels,((Math.floor(i/6)*256+y)*sheet.width+(i%6)*256)*4,y*256*4,(y+1)*256*4);}
+            const states=await evaluate('fixture.states'),sheet={width:cellSize*6,height:Math.ceil(states.length/6)*cellSize,pixels:Buffer.alloc(cellSize*6*Math.ceil(states.length/6)*cellSize*4)};
+            for(let i=0;i<states.length;i++){const bytes=await capture(i*60+18,cellSize,cellSize),png=decodePNG(Buffer.from(bytes,'base64'));for(let y=0;y<cellSize;y++)png.pixels.copy(sheet.pixels,((Math.floor(i/6)*cellSize+y)*sheet.width+(i%6)*cellSize)*4,y*cellSize*4,(y+1)*cellSize*4);if(selectedCharacter&&i<19)fs.writeFileSync(path.join(directory,character.id+'-'+view+'-'+facing+'-'+states[i]+'.png'),Buffer.from(bytes,'base64'));}
             fs.writeFileSync(path.join(directory,character.name+'-'+view+'-'+facing+'.png'),encodePNG(sheet));
             fs.writeFileSync(path.join(directory,character.name+'-'+view+'-'+facing+'.json'),JSON.stringify({states,story:await evaluate('fixture.story')},null,2)+'\n');
             console.log(JSON.stringify({character:character.id,view,facing,states:states.length,status:'passed'}));

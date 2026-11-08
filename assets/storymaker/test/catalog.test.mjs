@@ -133,12 +133,18 @@ test('the sfx entries follow the frozen shape', () => {
   }
 });
 
-test('the raster build validator refuses one changed byte of a copied WAV without mutating delivery files', () => {
+test('the raster build validator refuses changed resources and invalid joint calibration', () => {
   const built = buildRasterOutputs();
   const changed = Buffer.from(built.files.get('sfx/pop_1.wav'));
   changed[changed.length - 1] ^= 1;
   built.files.set('sfx/pop_1.wav', changed);
   assert.ok(validateRasterOutputs(built).some(p => p.includes('Incorrect inventory: sfx/pop_1.wav')));
+  const file='characters/office-woman-1.json',descriptor=JSON.parse(built.files.get(file));
+  for(const shear of ['bad',null,1,-1]){
+    descriptor.views.front[0].shear=shear;
+    built.files.set(file,JSON.stringify(descriptor));
+    assert.ok(validateRasterOutputs(built).some(p=>p.includes('Bad joint calibration: char.office-woman-1/')));
+  }
 });
 
 test('node scripts/build-storymaker-catalog.mjs --check is green on the committed outputs', () => {

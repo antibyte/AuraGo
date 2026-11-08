@@ -5,7 +5,8 @@
     var RAD = Math.PI / 180;
     function slotMatrix(world, slot) {
         var R = SM.rig, m = slot.pivot ? R.mul(world, R.translate(slot.pivot[0], slot.pivot[1])) : world;
-        return slot.upright ? R.mul(m, R.rotate(-Math.atan2(m[1], m[0]) / RAD)) : m;
+        if (slot.upright) m = R.mul(m, R.rotate(-Math.atan2(m[1], m[0]) / RAD));
+        return slot.shear ? R.mul(m, [1, 0, slot.shear, 1, 0, 0]) : m;
     }
     function solve(rig, body, view, offsets, upper, lower, targetX, targetY, second) {
         var R = SM.rig, worlds = R.boneMatrices(rig, view, body, offsets), origin = worlds[upper], joint = worlds[lower];
