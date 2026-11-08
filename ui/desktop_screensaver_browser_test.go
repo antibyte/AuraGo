@@ -128,11 +128,18 @@ func TestDesktopScreensaverScenesBrowser(t *testing.T) {
 	defer closeBrowser()
 	page := browser.MustPage("about:blank").Timeout(8 * time.Minute)
 	defer page.MustClose()
+	artifacts := screensaverArtifactDir(t)
+	benchmark := os.Getenv("AURAGO_SCREENSAVER_BENCHMARK") == "1"
+	renderScale := 1.0
+	if artifacts == "" && !benchmark && os.Getenv("AURAGO_SCREENSAVER_FULLHD") != "1" &&
+		os.Getenv("AURAGO_SCREENSAVER_GPU") != "1" && os.Getenv("AURAGO_SCREENSAVER_LONG") != "1" {
+		renderScale = 0.5 // Bound functional software-GPU raster cost; keep CSS viewport sizes.
+	}
 	width, height := 1280, 720
 	if os.Getenv("AURAGO_SCREENSAVER_FULLHD") == "1" {
 		width, height = 1920, 1080
 	}
-	page.MustSetViewport(width, height, 1, false)
+	page.MustSetViewport(width, height, renderScale, false)
 	setReducedMotion(t, page, "no-preference")
 	page.MustNavigate(server.URL + "/fixture")
 	page.MustWaitLoad()
@@ -141,13 +148,12 @@ func TestDesktopScreensaverScenesBrowser(t *testing.T) {
 		page.MustEval(`iso=>{const offset=new Date(iso).getTime()-Date.now();const Real=Date;class Shifted extends Real{constructor(...a){super(...(a.length?a:[Real.now()+offset]))}static now(){return Real.now()+offset}};window.Date=Shifted}`, fake)
 	}
 
-	artifacts := screensaverArtifactDir(t)
+	t.Logf("Functional render scale: %g", renderScale)
 	themes := []string{"aurora", "event_horizon", "ink", "stardust", "abyss"}
 	if only := os.Getenv("AURAGO_SCREENSAVER_THEMES"); only != "" {
 		themes = strings.Split(only, ",")
 	}
 	shots := []float64{2.5, 7}
-	benchmark := os.Getenv("AURAGO_SCREENSAVER_BENCHMARK") == "1"
 	if os.Getenv("AURAGO_SCREENSAVER_LONG") == "1" {
 		shots = []float64{2.5, 8, 16, 28}
 	}

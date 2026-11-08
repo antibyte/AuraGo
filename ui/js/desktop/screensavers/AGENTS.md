@@ -55,6 +55,9 @@ Flüssige Tinte (`ink`) and Sternenstaub-Uhr (`stardust`).
 ## Verification
 - Static scene probes use fixture-controlled scene time after three native warm-up
   frames, retaining real GPU pixel/error checks and host lifecycle assertions.
+  Default functional smoke uses device scale 0.5 at the same CSS viewport to bound
+  software-GPU raster cost. Screenshots, benchmarks, Full-HD, hardware-GPU and long
+  sample modes retain scale 1; pixel thresholds and probe deadlines stay unchanged.
   Ink retains native time because its dye field accumulates feedback. Shell tests
   restore the configured idle interval while checking swallowed waking input,
   verify that input resets the activity clock, then rearm accelerated idle checks.
