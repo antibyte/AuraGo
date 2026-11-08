@@ -16,8 +16,13 @@ doc.nodes.forEach((n,i)=>(n.children||[]).forEach(c=>parents.set(c,i)));
 assert.equal([...jointSet].filter(i=>!jointSet.has(parents.get(i))).length,1,'All limbs and fingers must share the body root');
 const indexByName=new Map(doc.nodes.map((n,i)=>[n.name,i]));
 assert.equal(parents.get(indexByName.get('DEF-thumb.01.L')),indexByName.get('DEF-hand.L'));
+const eyes=doc.nodes[indexByName.get('PunkPersona_Eyes')];
+assert.ok(eyes?.mesh!==undefined,'The model must contain the authored eyes');
+assert.equal(parents.get(indexByName.get('PunkPersona_Eyes')),indexByName.get('DEF-spine.006'),'Eyes must follow the animated head');
+assert.equal(eyes.skin,undefined,'Rigid head-bound eyes must not introduce another skin');
+assert.deepEqual(doc.meshes[eyes.mesh].primitives.map(p=>doc.materials[p.material].name).sort(),['Eye catchlight','Eye iris','Eye pupil','Eye sclera']);
 const binary=model.subarray(28+length);
-for(const mesh of doc.meshes)for(const primitive of mesh.primitives){const a=doc.accessors[primitive.attributes.WEIGHTS_0],v=doc.bufferViews[a.bufferView];assert.equal(a.type,'VEC4');assert.equal(a.componentType,5126);for(let i=0;i<a.count;i++){const offset=(v.byteOffset||0)+(a.byteOffset||0)+i*(v.byteStride||16);let sum=0;for(let j=0;j<4;j++)sum+=binary.readFloatLE(offset+j*4);assert.ok(Math.abs(sum-1)<.0001);}}
+for(const node of doc.nodes.filter(n=>n.skin!==undefined))for(const primitive of doc.meshes[node.mesh].primitives){const a=doc.accessors[primitive.attributes.WEIGHTS_0],v=doc.bufferViews[a.bufferView];assert.equal(a.type,'VEC4');assert.equal(a.componentType,5126);for(let i=0;i<a.count;i++){const offset=(v.byteOffset||0)+(a.byteOffset||0)+i*(v.byteStride||16);let sum=0;for(let j=0;j<4;j++)sum+=binary.readFloatLE(offset+j*4);assert.ok(Math.abs(sum-1)<.0001);}}
 for(const image of doc.images){const view=doc.bufferViews[image.bufferView],bytes=binary.subarray(view.byteOffset,view.byteOffset+view.byteLength);assert.equal(bytes.toString('ascii',1,4),'PNG');assert.ok(bytes.readUInt32BE(16)<=1024&&bytes.readUInt32BE(20)<=1024,'Runtime textures must actually be resized');}
 const pack=JSON.parse(readFileSync(resolve(ui,'3d/pets/punk/motions.json'),'utf8'));
 assert.equal(pack.clips.length,30);

@@ -15,6 +15,10 @@ Authoring sources and reproducible animation assets for the optional real-time P
 - Add `aurago-punk-3d` as a separate bundled pet; preserve the existing sprite Punk and active selection. Its ordinary OpenPets sheet is the picker/WebGL-failure fallback; keep it hidden and noninteractive while the 3D model is loading.
 - Model and motion URLs are fixed, version-bound local resource URLs, never supplied by an imported pet manifest. No cloud service is required at runtime.
 - Preserve normalized skinning, packed textures and the original editable source. Runtime model budget: 60,000 triangles, 71 deform joints, textures at most 1024 square.
+- `PunkPersona_Eyes` is authored geometry with separate sclera, violet iris,
+  pupil and catchlight materials, parented to `DEF-spine.006`. Export it with the
+  portable head, retain its world placement and include it in geometry budgets.
+  Check the eyes in a face close-up and at desktop scale, with head gaze/motion.
 - Bake the A-pose mesh into a T-bind pose before retargeting. The runtime deform
   rig has one root: hips/pelvis under `DEF-spine`, shoulders under the chest,
   upper arms under shoulders, palms/first finger segments under hands. Do not
@@ -28,7 +32,7 @@ Authoring sources and reproducible animation assets for the optional real-time P
 
 ## Verification
 
-Run Blender with `--background --factory-startup --python assets/desktop-pets/build_model.py`, then `node scripts/build-punk-pet-motions.mjs`. `node scripts/test-punk-pet.mjs` checks real encoded texture sizes, motion hashes, skinned WebGL movement and interaction/lifecycle. Existing `go test ./internal/desktop -run 'TestBundledPersonaSprites|TestInstallBundledDefaultPets|TestServiceBootstrapIncludesAllBundledDefaultPets|TestBundledPet'` and `go test ./ui -run 'DesktopPet|DesktopChat.*Pet'` cover catalog preservation and the shared runtime.
+Run Blender with `--background --factory-startup --python-exit-code 1 --python assets/desktop-pets/build_model.py`, then `node scripts/build-punk-pet-motions.mjs`. `node scripts/test-punk-pet.mjs` checks real encoded texture sizes, head-bound eyes, motion hashes, skinned WebGL movement and interaction/lifecycle. Existing `go test ./internal/desktop -run 'TestBundledPersonaSprites|TestInstallBundledDefaultPets|TestServiceBootstrapIncludesAllBundledDefaultPets|TestBundledPet'` and `go test ./ui -run 'DesktopPet|DesktopChat.*Pet'` cover catalog preservation and the shared runtime.
 
 ## Child DOX Index
 

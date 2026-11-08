@@ -17,6 +17,7 @@ if bpy.context.object and bpy.context.object.mode!='OBJECT':
 rig=bpy.data.objects['PunkPersona_Rig']
 author_rig=rig
 mesh=bpy.data.objects['PunkPersona_Surface']
+eyes=bpy.data.objects['PunkPersona_Eyes']
 rig.data.pose_position='REST'
 bpy.ops.object.select_all(action='DESELECT')
 mesh.hide_set(False)
@@ -27,6 +28,7 @@ modifier=mesh.modifiers.new('Desktop LOD','DECIMATE')
 modifier.ratio=.24
 bpy.ops.object.modifier_apply(modifier=modifier.name)
 triangles=sum(len(p.vertices)-2 for p in mesh.data.polygons)
+triangles+=sum(len(p.vertices)-2 for p in eyes.data.polygons)
 assert 30000<triangles<=60000,triangles
 texture_files=[]
 for image in bpy.data.images:
@@ -109,13 +111,20 @@ bpy.ops.object.mode_set(mode='OBJECT')
 mesh.modifiers.new('Armature','ARMATURE').object=rig
 mesh.parent=rig
 mesh.select_set(True)
+eye_world=eyes.matrix_world.copy()
+eyes.parent=rig
+eyes.parent_type='BONE'
+eyes.parent_bone='DEF-spine.006'
+bpy.context.view_layer.update()
+eyes.matrix_world=eye_world
+eyes.select_set(True)
 assert armature.bones['DEF-thigh.L'].parent.name=='DEF-spine'
 assert armature.bones['DEF-upper_arm.L'].parent.name=='DEF-shoulder.L'
 assert sum(b.parent is None for b in armature.bones)==1
 rig.select_set(True)
 OUT.mkdir(parents=True,exist_ok=True)
 bpy.ops.export_scene.gltf(filepath=str(OUT/'model.glb'),export_format='GLB',use_selection=True,export_skins=True,export_def_bones=True,export_animations=False,export_cameras=False,export_lights=False)
-report={'source_sha256':hashlib.sha256(SOURCE.read_bytes()).hexdigest(),'triangles':triangles,'vertices':len(mesh.data.vertices),'deform_joints':sum(b.use_deform for b in rig.data.bones),'texture_max_size':1024,'model_sha256':hashlib.sha256((OUT/'model.glb').read_bytes()).hexdigest()}
+report={'source_sha256':hashlib.sha256(SOURCE.read_bytes()).hexdigest(),'triangles':triangles,'vertices':len(mesh.data.vertices)+len(eyes.data.vertices),'deform_joints':sum(b.use_deform for b in rig.data.bones),'texture_max_size':1024,'model_sha256':hashlib.sha256((OUT/'model.glb').read_bytes()).hexdigest()}
 assert (OUT/'model.glb').stat().st_size<8*1024*1024
 (OUT/'model.json').write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8',newline='\n')
 for side in ('L','R'):
