@@ -17,6 +17,44 @@
 (function () {
     'use strict';
     window.fixtureErrors = [];
+    /* The dev harness must never be shadowed by the PWA cache. The service worker
+       serves the app scripts cache-first, so a cached ?v=dev build would keep the
+       scripts of the first visit alive and hide every edit made since.
+       The cleanup has to run before the app modules load, and unregistering the
+       worker does not release the page that it already controls: its scripts came
+       from the old cache. One reload after the cleanup is the only way to make the
+       harness run the files that are on disk right now. */
+    window.AuraDriftHarnessClean = (async () => {
+        let stale = false;
+        if (navigator.serviceWorker) {
+            try {
+                const list = await navigator.serviceWorker.getRegistrations();
+                stale = stale || list.length > 0;
+                await Promise.all(list.map(reg => reg.unregister()));
+            } catch (_) { }
+        }
+        if (window.caches && caches.keys) {
+            try {
+                const keys = await caches.keys();
+                stale = stale || keys.length > 0;
+                await Promise.all(keys.map(key => caches.delete(key)));
+            } catch (_) { }
+        }
+        /* The flag is consumed on every load, so a later stale state still gets its
+           own reload instead of running on the files of the previous visit. */
+        const KEY = 'aurago.harness.reloaded';
+        let reloaded = false;
+        try { reloaded = sessionStorage.getItem(KEY) === '1'; sessionStorage.removeItem(KEY); } catch (_) { }
+        if (stale && !reloaded) {
+            try {
+                sessionStorage.setItem(KEY, '1');
+                location.reload();
+                /* The page is on its way out: never start the app on top of it. */
+                await new Promise(() => { });
+            } catch (_) { }
+        }
+        return true;
+    })();
     addEventListener('error', e => window.fixtureErrors.push(String((e.error && e.error.stack) || e.message)));
     addEventListener('unhandledrejection', e => window.fixtureErrors.push(String(e.reason)));
     const nativeFetch = window.fetch.bind(window);
@@ -53,6 +91,7 @@
         return nativeFetch(url, options);
     };
     window.AuraDriftHarnessReady = (async () => {
+        await window.AuraDriftHarnessClean;
         window.I18N = await (await nativeFetch('/lang/desktop/de.json')).json();
         const t = key => window.I18N[key] || key;
         window.t = t;

@@ -63,6 +63,48 @@ func TestServiceWorkerKeepsPushHandlersAndSecureStaticCachePolicy(t *testing.T) 
 	}
 }
 
+// A dev build carries no version, so its cache key (?v=dev) never rotates. A
+// cache-first worker would pin the scripts of the very first visit and hide
+// every edit made since - the dev server has to deliver the current files.
+func TestServiceWorkerNeverServesTheDevBuildFromTheCache(t *testing.T) {
+	t.Parallel()
+
+	sw := normalizeAssetText(mustReadUIFile(t, "sw.js"))
+	dev := strings.Index(sw, "if (SERVICE_WORKER_BUILD === 'dev')")
+	cached := strings.Index(sw, "const cached = await cache.match(key)")
+	if dev < 0 {
+		t.Fatal("the service worker must send a dev build to the network")
+	}
+	if cached < 0 {
+		t.Fatal("the service worker lost its cache-first path for release builds")
+	}
+	if dev > cached {
+		t.Fatal("the dev build must reach the network before the cache is consulted")
+	}
+	if !strings.Contains(sw[dev:], "fetch(request)") {
+		t.Fatal("the dev build of the service worker must go to the network")
+	}
+	harness := normalizeAssetText(mustReadUIFile(t, "testdata/aura-drift-harness.html"))
+	for _, marker := range []string{"navigator.serviceWorker.getRegistrations()", "caches.keys()"} {
+		if !strings.Contains(harness, marker) {
+			t.Fatalf("the Aura Drift dev harness lost %q; a registered worker would shadow the dev server", marker)
+		}
+	}
+	/* Unregistering the worker does not release the page it already controls, so the
+	   harness has to reload once - and the cleanup has to run before the app modules
+	   are requested, otherwise the first load still runs on the cached scripts. */
+	for _, marker := range []string{"location.reload()", "await window.AuraDriftHarnessClean"} {
+		if !strings.Contains(harness, marker) {
+			t.Fatalf("the Aura Drift dev harness lost %q; it would keep running the scripts of the previous visit", marker)
+		}
+	}
+	clean := strings.Index(harness, "window.AuraDriftHarnessClean = (async () => {")
+	load := strings.Index(harness, "await window.AuraDriftHarnessClean")
+	if clean < 0 || load < 0 || clean > load {
+		t.Fatal("the Aura Drift dev harness must clean the cache before it loads the app modules")
+	}
+}
+
 func TestSharedLifecycleOrdersDisposerBeforeSSEAndPreservesBFCache(t *testing.T) {
 	t.Parallel()
 
