@@ -238,8 +238,7 @@ weather motion are removed by reduced motion.
   the camera; a drifting car carries a teal-to-turbo sigil on the road plus a rotating shell
   (radius follows the yaw rate, the palette the drift level, OVER_CORE the overdrive); a gust
   sweeps a broad wave of biome motes with leaves past the camera and hard braking above 30 units
-  leaves glowing brake dust at the rear wheels. On High and Ultra the post pass adds radial
-  speed streaks that fade in above about 32 speed units and thicken under the nitro blur.
+  leaves glowing brake dust at the rear wheels.
 - The 3D view needs WebGL2. Without it the game falls back to the Canvas 2D view.
 - On `auto`, a software GL renderer (the renderer string matches SwiftShader, llvmpipe or
   software) is rejected and the 2D view is used. An explicit graphics tier still accepts it.

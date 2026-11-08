@@ -17,7 +17,6 @@
         'uniform float uAspect; uniform float uVig; uniform float uBlur; uniform vec2 uBlurC; uniform float uAb;',
         'uniform float uSat; uniform float uCon; uniform vec3 uLift; uniform vec3 uGain; uniform vec3 uShadow; uniform vec3 uHigh;',
         'uniform float uSplit; uniform float uPink; uniform float uDesat; uniform float uWob; uniform float uTime;',
-        'uniform float uSpeed; uniform vec2 uSpeedC;',
         'uniform vec4 uH0; uniform vec4 uH1;',
         'varying vec2 vUv;',
         'const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);',
@@ -71,16 +70,6 @@
         '  float sat = uSat + (1.0 - clamp(length(c - l2) / (l2 + 0.1), 0.0, 1.0)) * (uSat - 1.0) * 0.6;',
         '  c = mix(vec3(l2), c, sat);',
         '  c = mix(c, vec3(dot(c, LUMA)), uDesat);',
-        /* Speed lines: a closed-form radial pattern (no noise lookup) that fades in with raw speed
-           and thickens under nitro, so the world keeps a sense of pace on long straights. */
-        '  if (uSpeed > 0.002) {',
-        '    vec2 sd = vUv - uSpeedC; sd.x *= uAspect;',
-        '    float rl = length(sd);',
-        '    float ra = atan(sd.y, sd.x);',
-        '    float band = sin(ra * 22.0 + sin(ra * 5.0 + uTime * 1.6) * 1.6);',
-        '    float streak = pow(max(band, 0.0), 8.0) * smoothstep(0.26, 0.95, rl) * uSpeed;',
-        '    c += vec3(0.4, 0.62, 1.0) * streak * 0.34;',
-        '  }',
         '  vec2 q = (vUv - 0.5) * vec2(uAspect, 1.0) * 0.9;',
         '  c *= 1.0 - uVig * smoothstep(0.25, 1.0, dot(q, q) * 1.6);',
         '  c = c * (1.0 - core) + vec3(0.62, 0.33, 1.0) * ring * 0.22;',
@@ -181,8 +170,7 @@
                     tDiffuse: { value: null }, uAspect: { value: 1.7 }, uVig: { value: 0.25 }, uBlur: { value: 0 }, uBlurC: { value: new T.Vector2(0.5, 0.5) },
                     uAb: { value: 0 }, uSat: { value: 1 }, uCon: { value: 1 }, uLift: { value: new T.Vector3() }, uGain: { value: new T.Vector3(1, 1, 1) },
                     uShadow: { value: new T.Vector3(1, 1, 1) }, uHigh: { value: new T.Vector3(1, 1, 1) }, uSplit: { value: 0 }, uPink: { value: 0 },
-                    uDesat: { value: 0 }, uWob: { value: 0 }, uTime: { value: 0 }, uH0: { value: new T.Vector4() }, uH1: { value: new T.Vector4() },
-                    uSpeed: { value: 0 }, uSpeedC: { value: new T.Vector2(0.5, 0.52) }
+                    uDesat: { value: 0 }, uWob: { value: 0 }, uTime: { value: 0 }, uH0: { value: new T.Vector4() }, uH1: { value: new T.Vector4() }
                 },
                 vertexShader: FINAL_VERT, fragmentShader: FINAL_FRAG
             });
@@ -242,8 +230,6 @@
             u.uBlur.value = clamp(blur * 0.1 + kick * 0.05, 0, 0.14) * calm;
             u.uWob.value = 0.5 * calm;
             u.uTime.value = time % 100;
-            const spd = car ? Math.hypot(car.vx, car.vy) : 0;
-            u.uSpeed.value = clamp(clamp((spd - 32) / 46, 0, 1) * 0.9 + blur * 0.4, 0, 1) * calm;
             u.uDesat.value = car ? clamp((car.damage - 55) / 45, 0, 1) * 0.35 : 0;
             let n = 0;
             if (manual) {

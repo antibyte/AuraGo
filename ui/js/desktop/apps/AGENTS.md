@@ -715,6 +715,16 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   `TestSynthStudioMIDIPolicyOnlyAllowsDesktop`. Keep all sixteen locales and both
   Desktop themes usable, including compact library/sound-panel controls.
 
+## AuraPinball
+
+<!-- pinball:start -->
+AuraPinball is the separate `pinball` Games app. Its thin sibling `pinball.js` exposes
+`window.PinballApp`; `pinball/AGENTS.md` owns the isolated runtime, 480 Hz Rapier
+simulation, three authored tables, local multiplayer/training, input and lifecycle.
+Build with `npm run build:pinball`; verify `npm run test:pinball` and
+`TestDesktopPinballBrowser`. Production sources belong to `assets/pinball/`.
+<!-- pinball:end -->
+
 ## AuraGolf
 
 - `minigolf` is a native Games app. `minigolf.js` owns window instances and lazy
@@ -3658,7 +3668,7 @@ buttons and menu popovers remain excluded from those gestures.
   The drift aura is its own presentation layer (`auraEmit`/`stepAura`, meshes `fx-aura-ground` and
   `fx-aura-shell`): it reads only `driftLevel`, `overdrive`, `slip` and `driftCharge`, tints teal
   while charging and uses the drift-level palettes otherwise, and follows the yaw rate with its
-  radius. Its ambient and speed layers are gated by reduced motion, so probe screenshots need the
+  radius. Its ambient layers are gated by reduced motion, so probe screenshots need the
   harness `?reduced=0` (headless browsers report `prefers-reduced-motion: reduce`).
   `aura-drift-sky.js` crossfades its GLSL weather, leans precipitation, whitens the dome with the
   `uFlash` uniform and lifts the hemisphere light on a strike.
@@ -5368,6 +5378,10 @@ registration lives in `internal/desktop/types.go`.
 - `go build ./cmd/aurago`
 
 ## Child DOX Index
+
+<!-- pinball:start -->
+- `pinball/AGENTS.md` — Three-table pinball runtime, scene/physics/rules separation, input, local persistence and verification.
+<!-- pinball:end -->
 
 - `goldfish-adventure/AGENTS.md` owns **Bitte nicht das Universum füttern**:
   declarative story and puzzles, Canvas staging, semantic controls, transactional
