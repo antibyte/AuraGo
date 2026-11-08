@@ -44,6 +44,19 @@ func TestDesktopSheetsVersionedAssetsBrowser(t *testing.T) {
 	})
 }
 
+func TestDesktopSheetsDisposePendingFormulaProgressBrowser(t *testing.T) {
+	testSheetsAppBrowser(t, func(t *testing.T, page *rod.Page) {
+		page.MustEval(`async()=>{
+  const app=SheetsApp.instances.get('test');
+  await app.state.prepareOutput();
+  await app.api.executeCommand('formula.mutation.set-formula-calculation-notification',{stageInfo:{stage:1}},{onlyLocal:true});
+  SheetsApp.dispose('test');
+  await new Promise(resolve=>setTimeout(resolve,1100));
+  if(sheetErrors.length)throw Error(sheetErrors.join('\n'));
+ }`)
+	})
+}
+
 func testSheetsAppBrowser(t *testing.T, check func(*testing.T, *rod.Page)) {
 	t.Helper()
 	requirePrecisionBrowserSmoke(t)

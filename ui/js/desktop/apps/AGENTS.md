@@ -5255,6 +5255,9 @@ registration lives in `internal/desktop/types.go`.
   modules; load session and panels before writer.js. Rebuild and check local vendor
   assets with `node scripts/build-writer-vendor.js [--check]`.
 - Build/check Sheets with `node scripts/build-sheets-vendor.js [--check]`.
+  The pinned Univer 1.0.4 build patch disposes its delayed formula-progress
+  timer before locale teardown; retain the fail-closed source match and
+  `TestDesktopSheetsDisposePendingFormulaProgressBrowser` on close/remount.
   Both the main engine and worker register AVG as the AVERAGE compatibility
   alias. English formula syntax is independent from localized input/display.
   The worker's cycle guard uses the public dependency graph and runtime result

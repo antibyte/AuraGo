@@ -452,16 +452,16 @@
   },
   "files": {
     "engine.js": {
-      "bytes": 20171009,
-      "sha256": "78956e1cda91e294281dec596b4efbf32276dc673c6abcc9101f1bbfffd1ac6d"
+      "bytes": 20171063,
+      "sha256": "f88e61520c049c4dcc948b16fb92b1089a483665d6ad61057e560388dfcd9da4"
     },
     "engine.css": {
       "bytes": 126979,
       "sha256": "82633b423b7f539998ffd8aafd2e5842ba9e64c01bfa20b10838720dbe861ad4"
     },
     "worker.js": {
-      "bytes": 7924655,
-      "sha256": "ebb37eb0e0d29aca778f29fe8026daf24553638344c18479f2de1cfffdbc2651"
+      "bytes": 7924709,
+      "sha256": "5803533ead6c5f533045cbdb631c024a83557469e4be81d1d712712f5a6199f8"
     },
     "LICENSES.md": {
       "bytes": 556995,
