@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "generator": "Built-in ImageGen",
+  "assets": [
+    {
+      "table": "neon",
+      "role": "concept",
+      "file": "masters/neon-concept.png",
+      "sha256": "59528e2b5ee3e6dd319c1a1c7c0d98cadf8bff409a2f8bdaf4abdae6047a13a4"
+    },
+    {
+      "table": "neon",
+      "role": "backglass",
+      "file": "masters/neon-backglass.png",
+      "sha256": "62b6867ad12c782985e24ec0ffbe401e9cc63467d7505bf1701a7653488618f5"
+    },
+    {
+      "table": "neon",
+      "role": "playfield",
+      "file": "masters/neon-playfield.png",
+      "sha256": "f5f20788f7e350e7266ec6db9d8c11d9adaa8c8c82fdbff94475e8a06bd986f2"
+    },
+    {
+      "table": "leviathan",
+      "role": "concept",
+      "file": "masters/leviathan-concept.png",
+      "sha256": "f5cc87500d7219287f5e0d9d38719db3483c54d4fc67fe022c98095a31858055"
+    },
+    {
+      "table": "leviathan",
+      "role": "backglass",
+      "file": "masters/leviathan-backglass.png",
+      "sha256": "55d12754a273ef7a764d1be24f5e3f1baeebeab8674b245196149eb8fd11ddab"
+    },
+    {
+      "table": "leviathan",
+      "role": "playfield",
+      "file": "masters/leviathan-playfield.png",
+      "sha256": "8c0a948b1963d4608db65015b591ce3347312b7202b227f803070441205e117b"
+    },
+    {
+      "table": "temple",
+      "role": "concept",
+      "file": "masters/temple-concept.png",
+      "sha256": "42e2a0e1db930f8662d8ceea88aadbf0abcf5bea69a231b8cbcf2a52f15da8b3"
+    },
+    {
+      "table": "temple",
+      "role": "backglass",
+      "file": "masters/temple-backglass.png",
+      "sha256": "66c98afa38d1bffb05b94e903c08769c80d66f54a7463ea58b85c16484b56da3"
+    },
+    {
+      "table": "temple",
+      "role": "playfield",
+      "file": "masters/temple-playfield.png",
+      "sha256": "5372f260ffef7d3c2b00a7465f2c386ff0b98d5861f730a4ee3a8062116e243a"
+    }
+  ]
+}

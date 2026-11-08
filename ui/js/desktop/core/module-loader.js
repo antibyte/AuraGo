@@ -38,6 +38,10 @@
             styles: appStyles('/css/desktop-app-minigolf.css'),
             scripts: ['/js/desktop/apps/minigolf.js']
         },
+        'pinball': {
+            styles: appStyles('/css/desktop-app-pinball.css'),
+            scripts: ['/js/desktop/apps/pinball.js']
+        },
         'goldfish-adventure': {
             styles: appStyles('/css/desktop-app-goldfish-adventure.css'),
             scripts: [
@@ -745,6 +749,7 @@
     const APP_I18N_SECTIONS = {
         kaggle: ['kaggle'],
         'minigolf': ['minigolf'],
+        'pinball': ['pinball'],
         'aura-drift': ['aura_drift'],
         infra: [],
         'ruview': ['ruview'],

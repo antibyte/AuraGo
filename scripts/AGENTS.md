@@ -24,6 +24,14 @@ Use the existing helper for each job. Check release scripts with harmless fixtur
 
 ## Verification
 
+<!-- pinball:start -->
+- Pinball: `npm run build:pinball`, `npm run test:pinball`, and the runtime/asset builders'
+  read-only `--check` modes. `assets/pinball/prepare.py` converts retained ImageGen
+  masters with existing FFmpeg; Blender 5.2.2 runs `assets/pinball/generate.py`.
+  Native browser verification is `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run DesktopPinball`;
+  `AURAGO_PINBALL_GPU=1` permits the available hardware renderer for captures.
+<!-- pinball:end -->
+
 - `node scripts/test-desktop-icon-resolver.mjs` checks all seven Desktop icon
   catalogs and their files, shared mini aliases/SVG symbols, and EasyDrag's
   literal app-local icon calls. `TestDesktopAllAppIconsBrowser` verifies every

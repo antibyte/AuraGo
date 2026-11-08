@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "artDirection": "User-supplied three pinball reference boards; original constructible 3D table concepts with a clear lower playfield.",
+  "prompts": [
+    {
+      "id": "neon",
+      "kind": "concept",
+      "prompt": "Use case: stylized-concept. Asset type: original premium 3D pinball table art-direction master. Use the attached board ONLY as thematic/material inspiration. Generate ONE coherent clean portrait composition, no collage, no panels, no explanatory text, no logos or watermarks. Theme: CYBER NEON METROPOLIS: black enamel, brushed chrome, electric cyan and hot magenta, a miniature futuristic skyline at the rear, a crystalline central tower and small holographic billboards. Show a physically credible playable pinball machine from the player's elevated front perspective, all of the playfield visible, sophisticated cinematic PBR materials, extraordinary fine mechanical details, pristine chrome ball, two beautifully machined lower flippers, three pop bumpers, two elevated ramps with actual supports and sufficient ball clearance, inlanes and outlanes, real shooter lane at right, rich dramatic lighting. Keep the lower third spacious and uncluttered with an easily readable chrome ball. Every rail, ramp and mechanism must look constructible; no impossible tangles. Table fills the frame with only a small dark margin, premium product photography, crystal-clear material definition, detailed but restrained emissive lighting. No written words."
+    },
+    {
+      "id": "leviathan",
+      "kind": "concept",
+      "prompt": "Use case: stylized-concept. Asset type: original premium 3D pinball table art-direction master. Use the attached board ONLY as thematic/material inspiration. Generate ONE coherent clean portrait composition, no collage, no panels, no explanatory text, no logos or watermarks. Theme: DEEP SEA LEVIATHAN: midnight ocean blue enamel, aged brass and polished steel, turquoise bioluminescent corals, sunken classical ruins and one exquisitely sculpted teal sea dragon above a rear capture scoop. Show a physically credible playable pinball machine from the player's elevated front perspective, all of the playfield visible, sophisticated cinematic PBR materials, extraordinary fine mechanical details, pristine chrome ball, two beautifully machined lower flippers, three pop bumpers, two elevated ramps with actual supports and sufficient ball clearance, inlanes and outlanes, real shooter lane at right, rich dramatic lighting. Keep the lower third spacious and uncluttered with an easily readable chrome ball. Every rail, ramp and mechanism must look constructible; no impossible tangles. Table fills the frame with only a small dark margin, premium product photography, crystal-clear material definition, detailed but restrained emissive lighting. No written words."
+    },
+    {
+      "id": "temple",
+      "kind": "concept",
+      "prompt": "Use case: stylized-concept. Asset type: original premium 3D pinball table art-direction master. Use the attached board ONLY as thematic/material inspiration. Generate ONE coherent clean portrait composition, no collage, no panels, no explanatory text, no logos or watermarks. Theme: LOST TEMPLE OF THE SUN: charcoal enamel and richly engraved gold, weathered limestone ruins, a huge rear sun idol with opening mouth, restrained green tropical plants, an elevated left playfield and a miniature bridge over a decorative waterfall. Show a physically credible playable pinball machine from the player's elevated front perspective, all of the playfield visible, sophisticated cinematic PBR materials, extraordinary fine mechanical details, pristine chrome ball, two beautifully machined lower flippers, three pop bumpers, two elevated ramps with actual supports and sufficient ball clearance, inlanes and outlanes, real shooter lane at right, rich dramatic lighting. Keep the lower third spacious and uncluttered with an easily readable chrome ball. Every rail, ramp and mechanism must look constructible; no impossible tangles. Table fills the frame with only a small dark margin, premium product photography, crystal-clear material definition, detailed but restrained emissive lighting. No written words."
+    },
+    {
+      "id": "neon",
+      "kind": "backglass",
+      "prompt": "Use case: illustration-story. Asset type: finished original wide landscape pinball backglass painting, 16:9 composition, no surrounding frame. Reference image is art direction only. Theme: Cyber Neon Metropolis. Midnight black, electric cyan and magenta, intricate chrome circuits, futuristic skyscrapers, a faceted central skyscraper and subtle neon skylines. Create a stunning cinematic illustrated scene with refined photorealistic painted details, premium collector pinball art, powerful focal subject, intricate narrative environment, rich atmospheric depth and controlled vibrant highlights. This is a flat full-bleed PRINTED PAINTING, not a 3D table or photograph of a machine. No hardware, no flippers, no ramps, no ball, no text, no lettering, no logos, no UI."
+    },
+    {
+      "id": "neon",
+      "kind": "playfield",
+      "prompt": "Use case: stylized-concept. Asset type: flat full-bleed pinball PLAYFIELD PRINT texture, tall portrait 1:2 aspect ratio. Reference is palette and theme only. Theme: Cyber Neon Metropolis. Midnight black, electric cyan and magenta, intricate chrome circuits, futuristic skyscrapers, a faceted central skyscraper and subtle neon skylines. Make an exceptionally detailed elegant printed enamel artwork viewed EXACTLY ORTHOGRAPHIC TOP-DOWN as a completely flat 2D design. Dark richly textured lacquer base, exquisite line engravings and thematic painting. Symmetrical fine ornamental side borders; richly illustrated upper third; a beautiful thematic medallion at the center; quiet uncluttered dark lower third for tracking the ball. Technical editorial clarity with lavish premium details. Everything must be a flat printed design. NO actual ramps, rails, bumpers, balls, flippers, knobs, cabinet, holes or other 3D hardware. NO cast shadows or perspective. No text, no lettering, no labels, no logos, no scores, no UI, no watermark."
+    },
+    {
+      "id": "leviathan",
+      "kind": "backglass",
+      "prompt": "Use case: illustration-story. Asset type: finished original wide landscape pinball backglass painting, 16:9 composition, no surrounding frame. Reference image is art direction only. Theme: Deep Sea Leviathan. Midnight ocean blue and turquoise bioluminescence, elegantly engraved aged brass, a magnificent blue sea dragon, submerged ancient Greek ruins, coral and shafts of light from the sea surface. Create a stunning cinematic illustrated scene with refined photorealistic painted details, premium collector pinball art, powerful focal subject, intricate narrative environment, rich atmospheric depth and controlled vibrant highlights. This is a flat full-bleed PRINTED PAINTING, not a 3D table or photograph of a machine. No hardware, no flippers, no ramps, no ball, no text, no lettering, no logos, no UI."
+    },
+    {
+      "id": "leviathan",
+      "kind": "playfield",
+      "prompt": "Use case: stylized-concept. Asset type: flat full-bleed pinball PLAYFIELD PRINT texture, tall portrait 1:2 aspect ratio. Reference is palette and theme only. Theme: Deep Sea Leviathan. Midnight ocean blue and turquoise bioluminescence, elegantly engraved aged brass, a magnificent blue sea dragon, submerged ancient Greek ruins, coral and shafts of light from the sea surface. Make an exceptionally detailed elegant printed enamel artwork viewed EXACTLY ORTHOGRAPHIC TOP-DOWN as a completely flat 2D design. Dark richly textured lacquer base, exquisite line engravings and thematic painting. Symmetrical fine ornamental side borders; richly illustrated upper third; a beautiful thematic medallion at the center; quiet uncluttered dark lower third for tracking the ball. Technical editorial clarity with lavish premium details. Everything must be a flat printed design. NO actual ramps, rails, bumpers, balls, flippers, knobs, cabinet, holes or other 3D hardware. NO cast shadows or perspective. No text, no lettering, no labels, no logos, no scores, no UI, no watermark."
+    },
+    {
+      "id": "temple",
+      "kind": "backglass",
+      "prompt": "Use case: illustration-story. Asset type: finished original wide landscape pinball backglass painting, 16:9 composition, no surrounding frame. Reference image is art direction only. Theme: Lost Temple of the Sun. Rich gold and charcoal black, intricately engraved sun motifs and geometric temple stonework, a lost stepped pyramid in a lush jungle at sunset, waterfall and sun idol. Create a stunning cinematic illustrated scene with refined photorealistic painted details, premium collector pinball art, powerful focal subject, intricate narrative environment, rich atmospheric depth and controlled vibrant highlights. This is a flat full-bleed PRINTED PAINTING, not a 3D table or photograph of a machine. No hardware, no flippers, no ramps, no ball, no text, no lettering, no logos, no UI."
+    },
+    {
+      "id": "temple",
+      "kind": "playfield",
+      "prompt": "Use case: stylized-concept. Asset type: flat full-bleed pinball PLAYFIELD PRINT texture, tall portrait 1:2 aspect ratio. Reference is palette and theme only. Theme: Lost Temple of the Sun. Rich gold and charcoal black, intricately engraved sun motifs and geometric temple stonework, a lost stepped pyramid in a lush jungle at sunset, waterfall and sun idol. Make an exceptionally detailed elegant printed enamel artwork viewed EXACTLY ORTHOGRAPHIC TOP-DOWN as a completely flat 2D design. Dark richly textured lacquer base, exquisite line engravings and thematic painting. Symmetrical fine ornamental side borders; richly illustrated upper third; a beautiful thematic medallion at the center; quiet uncluttered dark lower third for tracking the ball. Technical editorial clarity with lavish premium details. Everything must be a flat printed design. NO actual ramps, rails, bumpers, balls, flippers, knobs, cabinet, holes or other 3D hardware. NO cast shadows or perspective. No text, no lettering, no labels, no logos, no scores, no UI, no watermark."
+    }
+  ]
+}

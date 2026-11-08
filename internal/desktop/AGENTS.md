@@ -10,6 +10,13 @@ The Service owns authorization, read-only state, mutation locks and cache invali
 
 ## Local Contracts
 
+<!-- pinball:start -->
+- AuraPinball (`pinball`, category `games`) is a local built-in app with no capability
+  gate. Keep `open_maximized=true` and app-owned `/img/desktop-icons/pinball.svg`;
+  its icon key stays outside theme substitutions. Runtime ownership is
+  `../../ui/js/desktop/apps/pinball/AGENTS.md`. Verify `TestBuiltinPinballApp`.
+<!-- pinball:end -->
+
 - Goldfish Adventure (`goldfish-adventure`, category `games`) is a built-in
   local point-and-click app without a capability/config gate. Its app-owned
   `logo_path` is `/img/goldfish-adventure/icon.png`; keep it out of themed icon

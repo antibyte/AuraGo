@@ -1917,6 +1917,13 @@ if (appId === 'pixel') {
             }
             if (typeof window.GalaxaDeluxe.render === 'function') return window.GalaxaDeluxe.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, isActive: () => state.activeWindowId === id }));
         }
+        if (appId === 'pinball') {
+            if (!window.PinballApp) {
+                window.AuraDesktopModules.loadAppScript('pinball').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            return window.PinballApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, isActive: () => state.activeWindowId === id }));
+        }
         if (appId === 'minigolf') {
             if (!window.MinigolfApp) {
                 window.AuraDesktopModules.loadAppScript('minigolf').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));

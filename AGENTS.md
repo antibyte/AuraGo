@@ -190,6 +190,7 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 | Game Maker presentation | `assets/game-maker-presentation/AGENTS.md` | Effects/audio sources, licensing, builds, runtime limits. |
 | Game Maker worlds | `assets/game-maker-worlds/AGENTS.md` | Maritime/isometric Blender sources, catalog counts, exports, runtime limits. |
 | AuraGolf | `assets/minigolf/kit/AGENTS.md` | Procedural Blender tracks/courses/props, exports, collisions. |
+| AuraPinball | `assets/pinball/AGENTS.md`, `ui/js/desktop/apps/pinball/AGENTS.md`, `ui/3d/pinball/AGENTS.md` | Three original Blender/ImageGen tables, 480 Hz Rapier pinball, local hotseat/training, desktop integration and reproducible payloads; operator guide `documentation/pinball.md`. |
 | Aura Drift assets | `assets/aura-drift/AGENTS.md` | Deterministic Blender model kit (20 GLBs in `ui/3d/aura-drift/v1`), own-synthesis audio generator and CC0 override hook. |
 | Goldfish Adventure | `assets/goldfish-adventure/AGENTS.md`, `ui/js/desktop/apps/goldfish-adventure/AGENTS.md` | ImageGen masters, animation staging, local audio, authored story, browser saves, sixteen locales and Desktop integration. |
 | Tiefsee screensaver | `assets/screensaver-abyss/AGENTS.md` | Creature generator, deterministic exports, asset checks. |
