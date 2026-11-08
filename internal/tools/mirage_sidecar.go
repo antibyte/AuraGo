@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"aurago/internal/config"
@@ -32,13 +33,20 @@ var mirageSidecarServerRaw []byte
 //go:embed mirage_sidecar/CACTUS_VERSION
 var mirageSidecarVersionRaw []byte
 
-const (
-	mirageFingerprintLabel = "aurago.mirage.fingerprint"
-	mirageReadyTimeout     = 10 * time.Minute // first start downloads the weights
+const mirageFingerprintLabel = "aurago.mirage.fingerprint"
+
+// Package vars so tests can shorten the waits.
+var (
+	mirageReadyTimeout           = 10 * time.Minute // first start downloads the weights
+	mirageReadyPollInterval      = 2 * time.Second
+	mirageContainerCheckInterval = 10 * time.Second
 )
 
 var (
-	mirageEnsureMu     sync.Mutex
+	mirageEnsureMu sync.Mutex
+	// mirageGeneration counts EnsureMirageRunning calls; a wait for readiness
+	// ends as soon as a newer call exists (it does the waiting from then on).
+	mirageGeneration   atomic.Uint64
 	mirageBuildBackoff go2RTCBuildBackoff
 )
 
@@ -203,10 +211,17 @@ func mirageHealthURL(cfg *config.Config) string {
 	return strings.TrimSuffix(strings.TrimRight(mirageBaseURLFor(cfg), "/"), "/v1") + "/health"
 }
 
-func waitForMirageReady(cfg *config.Config, logger *slog.Logger) error {
+func waitForMirageReady(cfg *config.Config, logger *slog.Logger, gen uint64) error {
 	deadline := time.Now().Add(mirageReadyTimeout)
 	client := &http.Client{Timeout: 3 * time.Second}
+	docker := DockerConfig{Host: cfg.Docker.Host}
+	name := mirageContainerName(cfg)
+	lastCheck := time.Now()
 	for time.Now().Before(deadline) {
+		if mirageGeneration.Load() != gen {
+			logger.Info("[Mirage] A newer start request superseded this readiness wait")
+			return nil
+		}
 		resp, err := client.Get(mirageHealthURL(cfg))
 		if err == nil {
 			var body struct {
@@ -222,7 +237,13 @@ func waitForMirageReady(cfg *config.Config, logger *slog.Logger) error {
 				return fmt.Errorf("mirage model failed to load: %s", body.Error)
 			}
 		}
-		time.Sleep(2 * time.Second)
+		if time.Since(lastCheck) >= mirageContainerCheckInterval {
+			lastCheck = time.Now()
+			if st, err := mirageInspect(docker, name); err == nil && (!st.Exists || !st.Running) {
+				return fmt.Errorf("mirage sidecar container stopped while waiting for it to become ready")
+			}
+		}
+		time.Sleep(mirageReadyPollInterval)
 	}
 	logger.Warn("[Mirage] Sidecar did not become ready in time")
 	return fmt.Errorf("mirage sidecar did not become ready within %s", mirageReadyTimeout)
@@ -238,6 +259,18 @@ func EnsureMirageRunning(cfg *config.Config, logger *slog.Logger, userInitiated 
 	if logger == nil {
 		logger = slog.Default()
 	}
+	gen := mirageGeneration.Add(1)
+	if err := startMirageContainer(cfg, logger, userInitiated); err != nil {
+		return err
+	}
+	// The (possibly long) readiness wait runs without the lock so later saves
+	// are not queued behind it.
+	return waitForMirageReady(cfg, logger, gen)
+}
+
+// startMirageContainer builds, inspects, recreates and starts the container
+// under mirageEnsureMu, without waiting for readiness.
+func startMirageContainer(cfg *config.Config, logger *slog.Logger, userInitiated bool) error {
 	mirageEnsureMu.Lock()
 	defer mirageEnsureMu.Unlock()
 	if userInitiated {
@@ -271,7 +304,7 @@ func EnsureMirageRunning(cfg *config.Config, logger *slog.Logger, userInitiated 
 				return fmt.Errorf("mirage: starting the existing container failed (status %d, err %v)", code, err)
 			}
 		}
-		return waitForMirageReady(cfg, logger)
+		return nil
 	}
 	if state.Exists {
 		logger.Info("[Mirage] Container settings changed; recreating", "container", name)
@@ -285,13 +318,8 @@ func EnsureMirageRunning(cfg *config.Config, logger *slog.Logger, userInitiated 
 		labels[k] = v
 	}
 	labels[mirageFingerprintLabel] = fp
-	payload := map[string]interface{}{
-		"Image":        image,
-		"Env":          mirageEnv(cfg, gpu),
-		"Labels":       labels,
-		"ExposedPorts": map[string]interface{}{fmt.Sprintf("%d/tcp", config.MirageInternalPort): struct{}{}},
-		"HostConfig":   mirageHostConfig(cfg, absData, gpu),
-	}
+	payload := mirageCreatePayload(image, cfg, gpu, absData, managedContainerUserSpec())
+	payload["Labels"] = labels
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return fmt.Errorf("mirage create payload: %w", err)
@@ -303,7 +331,23 @@ func EnsureMirageRunning(cfg *config.Config, logger *slog.Logger, userInitiated 
 		return fmt.Errorf("mirage: starting the container failed (status %d, err %v)", code, err)
 	}
 	logger.Info("[Mirage] Sidecar started", "container", name, "gpu_requested", gpu.Backend)
-	return waitForMirageReady(cfg, logger)
+	return nil
+}
+
+// mirageCreatePayload builds the container create body. With CapDrop ALL the
+// container's root cannot write the bind-mounted /data that AuraGo created as
+// its own user, so on Linux the container runs as the managed user spec.
+func mirageCreatePayload(image string, cfg *config.Config, gpu GPUInfo, absData, userSpec string) map[string]interface{} {
+	payload := map[string]interface{}{
+		"Image":        image,
+		"Env":          mirageEnv(cfg, gpu),
+		"ExposedPorts": map[string]interface{}{fmt.Sprintf("%d/tcp", config.MirageInternalPort): struct{}{}},
+		"HostConfig":   mirageHostConfig(cfg, absData, gpu),
+	}
+	if userSpec != "" {
+		payload["User"] = userSpec
+	}
+	return payload
 }
 
 // MirageStatusTarget is a lock-free snapshot of what MirageStatus needs, so a

@@ -2,6 +2,7 @@ package tools
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"aurago/internal/config"
 	"aurago/internal/testutil"
@@ -236,5 +238,74 @@ func TestEnsureMirageRunningDoesNothingWhenDisabled(t *testing.T) {
 	cfg := &config.Config{}
 	if err := EnsureMirageRunning(cfg, mirageTestLogger(), true); err != nil {
 		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestMirageCreatePayloadRunsAsTheManagedUser(t *testing.T) {
+	cfg := mirageSidecarTestConfig(t, "")
+	gpu := GPUInfo{Backend: "none"}
+	with := mirageCreatePayload("img", cfg, gpu, "/data", "1000:1000")
+	if with["User"] != "1000:1000" {
+		t.Fatalf("User = %#v, want 1000:1000", with["User"])
+	}
+	without := mirageCreatePayload("img", cfg, gpu, "/data", "")
+	if _, ok := without["User"]; ok {
+		t.Fatalf("User must be absent without a managed user, got %#v", without["User"])
+	}
+}
+
+func shortenMirageWait(t *testing.T) {
+	t.Helper()
+	pt, pp, pc := mirageReadyTimeout, mirageReadyPollInterval, mirageContainerCheckInterval
+	mirageReadyTimeout, mirageReadyPollInterval, mirageContainerCheckInterval = 5*time.Second, 10*time.Millisecond, 20*time.Millisecond
+	t.Cleanup(func() { mirageReadyTimeout, mirageReadyPollInterval, mirageContainerCheckInterval = pt, pp, pc })
+}
+
+func unreachableMirageHealth(t *testing.T) {
+	t.Helper()
+	prev := mirageBaseURLFor
+	mirageBaseURLFor = func(*config.Config) string { return "http://127.0.0.1:1/v1" }
+	t.Cleanup(func() { mirageBaseURLFor = prev })
+}
+
+func TestMirageWaitStopsWhenTheContainerStopped(t *testing.T) {
+	configureDockerSecurityTestPermissions(t, false)
+	shortenMirageWait(t)
+	unreachableMirageHealth(t)
+	mirageBuildBackoff.reset()
+	rec := &mirageDockerRecorder{}
+	var fp string
+	var calls atomic.Int32
+	host := newMirageFakeDocker(t, rec, func() (int, string) {
+		running := calls.Add(1) == 1 // running for the ensure step, dead afterwards
+		return http.StatusOK, fmt.Sprintf(`{"State":{"Running":%t},"Config":{"Labels":{"%s":"%s"}}}`, running, mirageFingerprintLabel, fp)
+	}, nil)
+	cfg := mirageSidecarTestConfig(t, host)
+	fp = mirageCurrentFingerprint(cfg)
+	start := time.Now()
+	err := EnsureMirageRunning(cfg, mirageTestLogger(), true)
+	if err == nil || !strings.Contains(err.Error(), "stopped while waiting") {
+		t.Fatalf("err = %v, want a stopped-while-waiting error", err)
+	}
+	if time.Since(start) > 3*time.Second {
+		t.Fatalf("wait took %s, want an early exit", time.Since(start))
+	}
+}
+
+func TestMirageWaitEndsWhenANewerEnsureArrives(t *testing.T) {
+	shortenMirageWait(t)
+	unreachableMirageHealth(t)
+	cfg := mirageSidecarTestConfig(t, "")
+	gen := mirageGeneration.Add(1)
+	done := make(chan error, 1)
+	go func() { done <- waitForMirageReady(cfg, mirageTestLogger(), gen) }()
+	mirageGeneration.Add(1)
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("superseded wait err = %v, want nil", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("superseded wait did not end")
 	}
 }

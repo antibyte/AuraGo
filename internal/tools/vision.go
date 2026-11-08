@@ -156,7 +156,7 @@ func analyzeImageReferenceWithPromptContext(ctx context.Context, imageReference,
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	if UseMirageVision(cfg) {
+	if mirageShouldHandle(cfg, imageReference) {
 		return analyzeWithMirage(ctx, imageReference, cfg)
 	}
 

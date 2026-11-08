@@ -172,3 +172,32 @@ func TestTrustedLocalFileReachesMirageAsDataURL(t *testing.T) {
 		t.Fatalf("sidecar received %.30q, want a data URL", gotURL)
 	}
 }
+
+func TestMirageShouldHandleTable(t *testing.T) {
+	overrideMirageHooks(t, "http://unused/v1", false)
+	const data, remote = "data:image/png;base64,AAAA", "https://example.com/a.png"
+	cases := []struct {
+		name string
+		mode string
+		prov string
+		ref  string
+		want bool
+	}{
+		{"data url fallback", config.MirageModeFallback, "", data, true},
+		{"data url always", config.MirageModeAlways, "", data, true},
+		{"https url fallback", config.MirageModeFallback, "", remote, true},
+		{"https url always falls through", config.MirageModeAlways, "", remote, false},
+		{"explicit provider fallback", config.MirageModeFallback, "p", data, false},
+		{"explicit provider always", config.MirageModeAlways, "p", data, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := mirageTestConfig()
+			cfg.Vision.Mirage.Mode = tc.mode
+			cfg.Vision.Provider = tc.prov
+			if got := mirageShouldHandle(cfg, tc.ref); got != tc.want {
+				t.Fatalf("mirageShouldHandle = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}

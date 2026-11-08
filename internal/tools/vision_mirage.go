@@ -101,3 +101,17 @@ func analyzeWithMirage(ctx context.Context, imageReference string, cfg *config.C
 	}
 	return parsed.Choices[0].Message.Content, 0, 0, nil
 }
+
+// mirageShouldHandle decides whether an image reference goes to Mirage. The
+// sidecar only reads data: images. In "fallback" mode a URL still goes there
+// (the normal route cannot work, so the clear Mirage error is better); in
+// "always" mode a URL falls through to the normal provider path.
+func mirageShouldHandle(cfg *config.Config, imageReference string) bool {
+	if !UseMirageVision(cfg) {
+		return false
+	}
+	if strings.HasPrefix(imageReference, "data:image/") {
+		return true
+	}
+	return cfg.MirageMode() != config.MirageModeAlways
+}
