@@ -8,11 +8,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/rod/lib/proto"
 )
 
 func TestDesktopThemeSensoryBrowser(t *testing.T) {
-	s := newThemeSweepSession(t, "reduce")
+	s := newThemeSweepSessionWithBrowser(t, "reduce", func(l *launcher.Launcher) {
+		l.Set("blink-settings", "primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4")
+	})
 	s.eval(t, `() => {
         Object.defineProperty(document, 'hidden', {configurable:true, get:()=>false});
         Object.defineProperty(document, 'visibilityState', {configurable:true, get:()=>'visible'});

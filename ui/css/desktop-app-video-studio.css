@@ -577,7 +577,7 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-tx-icon { flex: none; display: block; border-radius: 3px; }
 .vs-tx-picker { display: grid; gap: 10px; padding: 10px; border: 1px solid var(--vs-border); border-radius: 10px; background: color-mix(in srgb, var(--vs-inset) 55%, transparent); }
 .vs-tx-group h4 { margin: 0 0 6px; font-family: var(--vs-cap-font); font-size: 11px; font-weight: 650; letter-spacing: var(--vd-mat-label-tracking, .03em); text-transform: var(--vd-mat-label-transform, uppercase); color: var(--vs-cap-color); }
-.vs-tx-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 5px; }
+.vs-tx-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 5px; }
 .vs-app .vs-tx-list button { display: grid; justify-items: center; align-content: start; gap: 4px; min-width: 0; padding: 6px 3px; border: 1px solid var(--vs-btn-border); border-radius: var(--vs-card-radius); background: var(--vs-btn); box-shadow: var(--vs-btn-shadow); font-size: 10.5px; line-height: 1.25; color: var(--vs-btn-text); text-align: center; }
 .vs-app .vs-tx-list button span { max-width: 100%; overflow-wrap: anywhere; }
 .vs-app .vs-tx-list button:hover:not(:disabled) { border-color: var(--vs-accent-border); background: var(--vs-btn-hover); }

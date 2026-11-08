@@ -1235,7 +1235,7 @@ New app-scoped prefixes must contain no `ad` substring; verify
 - Setup bootstrap fixtures load shared-core before setup main, retaining the real
   toast renderer. GitHub permission journeys use native pointer clicks and confirm
   the existing delete-permission dialog, first asserting that the grant stays off.
-  Fritz!Box mouse-pager fixtures declare
+  Fritz!Box mouse-pager and theme-cursor fixtures declare
   hover-capable pointer hardware; touch layouts intentionally hide its arrows.
 - Infra menu browser journeys await the native dialog `close` event before
   opening another popover, so pending focus restoration cannot steal its keys.

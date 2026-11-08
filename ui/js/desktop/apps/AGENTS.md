@@ -3126,6 +3126,8 @@ buttons and menu popovers remain excluded from those gestures.
     The edits are `P.animChange` and `P.liveAnimDuration` in `video-studio-inspector-effects.js`, one undo step per
     commit.
   - Transition picker (`transitionSection`):
+    - Tiles have a 90px minimum so localized labels remain readable in the narrow drawer;
+      keep the German, Danish, Norwegian and Italian word-boundary browser checks.
     - the summary `[data-action="transition-picker"]` (aria-expanded) and the inline panel `[data-tx-picker]`, with
       `none` and one `role="group"` per `transitionGroups()` category;
     - buttons `button[data-transition][aria-pressed]`; unavailable ones are disabled with `transitionUnavailable`, but
