@@ -60,7 +60,7 @@
     "build:storymaker-ranges": "node scripts/build-storymaker-ranges.mjs",
     "check:storymaker-ranges": "node scripts/build-storymaker-ranges.mjs --check",
     "build:pinball": "node scripts/build-pinball-assets.mjs && node scripts/build-pinball.mjs",
-    "test:pinball": "node scripts/test-pinball-rules.mjs && node scripts/test-pinball-input.mjs && node scripts/test-pinball-physics.mjs && node scripts/test-pinball-assets.mjs"
+    "test:pinball": "node scripts/test-pinball.mjs"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",
