@@ -25,15 +25,66 @@ const note = document.getElementById('note');
 function showNote(text) { note.textContent = text; note.classList.add('on'); }
 
 // ---- mode hooks (filled in by later tasks) ---------------------------------------------------------------------------
+// English strings for the harness (the app passes its own tr). Keys follow the plan's section 9.
+const HARNESS_TEXT = {
+    card_replay: 'REPLAY AT {score}',
+    card_rules_neon: 'DROP FIREWALL · LOCK 3 BALLS\nDATA CORE STARTS MODES\nN-E-O-N ADVANCES BONUS ×',
+    card_rules_leviathan: 'PEARL LIGHTS LOCK\nSHIP STARTS MODES\nSONAR LIGHTS DEEP GRAB',
+    card_rules_temple: 'SUN OPENS THE IDOL\nPOPS LIGHT THE LOCK\nIDOL STARTS MODES',
+    lamp_extra_ball: 'EXTRA BALL', lamp_shoot_again: 'SHOOT AGAIN', lamp_lock: 'LOCK', lamp_jackpot: 'JACKPOT', lamp_super: 'SUPER',
+    lamp_kickback: 'KICKBACK', lamp_mode: 'MODE', lamp_combo: 'COMBO', lamp_wizard: 'WIZARD', lamp_spinner: 'SPINNER',
+    dmd_press_start: 'PRESS START', dmd_free_play: 'FREE PLAY', dmd_high_scores: 'HIGH SCORES', dmd_replay_at: 'REPLAY AT', dmd_game_over: 'GAME OVER'
+};
+const harnessTr = (key, vars) => {
+    const text = HARNESS_TEXT[key];
+    if (text === undefined) return key;
+    return text.replace(/\{(\w+)\}/g, (m, k) => (vars && vars[k] !== undefined ? vars[k] : m));
+};
+
+// T12 engine mode: render core + lamp controller (attract playlist) + DMD, physics balls from the harness world.
 async function modeEngine(h) {
-    // T12/T13 hook: import render/scene.js here and mount it on h.stage, drawing from h.renderSnapshot().
-    showNote('mode=engine: renderer not available yet (T12/T13)');
-    return { dispose() {} };
+    const [sceneMod, lampMod, dmdMod, rasterMod] = await Promise.all([
+        import(BASE + 'render/scene.js'), import(BASE + 'lights/controller.js'), import(BASE + 'dmd/core.js'), import(BASE + 'dmd/raster.js')
+    ]);
+    const layout = h.layout, ctrl = new AbortController();
+    const spec = params.scene || '';
+    const cameraName = ['play', 'top', 'showcase', 'attract'].includes(params.camera) ? params.camera : spec === 'attract' ? 'attract' : 'play';
+    const sc = await sceneMod.createScene(h.stage, { tableId: params.table, layout, settings: { quality: params.quality, camera: cameraName, reduced: false }, assetURL: p => p, signal: ctrl.signal, tr: harnessTr });
+    const lamps = lampMod.createLamps(layout, { seed: params.seed });
+    const dmd = dmdMod.createDmd({ raster: rasterMod.createRaster(), tr: harnessTr, locale: params.lang });
+    dmd.setBase('attract', { title: layout.meta.title, scores: [{ name: 'AAA', score: 12345670 }, { name: 'BBB', score: 8200000 }, { name: 'CCC', score: 5100000 }], replayAt: 2000000 });
+    const mechanical = spec !== 'attract' && spec !== 'showcase';
+    if (mechanical) lamps.setModes(Uint8Array.from(layout.lamps, (_, i) => (i % 4 === 3 ? 2 : 1)));
+    const closeup = /^closeup:(-?[\d.]+)[,;](-?[\d.]+)[,;]?(-?[\d.]*)/.exec(spec);
+    if (closeup) sc.three.rig.closeup(Number(closeup[1]), Number(closeup[2]), Number(closeup[3]) || 0);
+    if (spec === 'play' || spec === 'action' || spec === 'top') { h.placeBall(-0.06, 0.34, 0.2, -0.3); h.placeBall(0.1, 0.52, -0.1, -0.2); }
+    const inset = () => sc.setInsets({ top: Number(new URLSearchParams(location.search).get('inset') ?? (cameraName === 'top' ? 0 : 0.24)) * h.stage.clientHeight });
+    inset(); addEventListener('resize', inset);
+    const list = layout.meta.attract || [];
+    let li = 0, lt = 0;
+    const startShow = () => { if (!list.length) return; lamps.stopShows(); lamps.show(list[li][0], { duration: list[li][1] / 1000, loop: false }); };
+    if (!mechanical) startShow();
+    let last = performance.now(), raf = 0, disposed = false, tTotal = 0;
+    const frame = now => {
+        if (disposed) return;
+        const dt = Math.min(0.05, (now - last) / 1000); last = now; tTotal += dt;
+        const alpha = h.advance(dt), snap = h.renderSnapshot(alpha);
+        if (!mechanical) { lt += dt; if (list.length && lt * 1000 >= list[li][1]) { lt = 0; li = (li + 1) % list.length; startShow(); } }
+        lamps.update(dt); dmd.update(dt);
+        sc.update({ snap, lamps, dmd: { frame: dmd.frame, version: dmd.version }, toyState: null, dt, time: tTotal, paused: false, reduced: false, interactive: true });
+        raf = requestAnimationFrame(frame);
+    };
+    // Warm up the lamp shows so the first screenshot already has lit inserts.
+    for (let i = 0; i < 24; i++) lamps.update(0.05);
+    for (let i = 0; i < 40; i++) dmd.update(0.05);
+    raf = requestAnimationFrame(frame);
+    h.engine = { scene: sc, lamps, dmd };
+    await new Promise(resolve => { const t0 = performance.now(); const wait = () => (sc.stats().frames >= 2 || performance.now() - t0 > 60000 ? resolve() : setTimeout(wait, 50)); wait(); });
+    return { dispose() { disposed = true; cancelAnimationFrame(raf); removeEventListener('resize', inset); ctrl.abort(); sc.dispose(); } };
 }
 async function modeGame(h) {
-    // T17 hook: import session.js / game.js here and mount the full game on h.stage.
-    showNote('mode=game: game orchestration not available yet (T17)');
-    return { dispose() {} };
+    // T17 hook: replace with session.js / game.js. Until then the game scene is the engine view with the play camera.
+    return modeEngine(h);
 }
 async function mode2d(h) {
     const mod = await import('/testdata/pinball-debug2d.js').catch(e => { loadErrors.push(String(e)); return null; });

@@ -61,4 +61,36 @@ for (const [id, { layout }] of Object.entries(TABLES)) {
     for (const table of Object.values(TABLES)) for (const key of validateTable(table).keys) if (!('pinball.' + key in en)) missing.push('layout key pinball.' + key);
     assert.deepEqual([...new Set(missing)], [], 'keys missing from en.json');
 }
+
+// 5. Render core: fitDistance keeps every corner inside the NDC margin (16:9, 4:3, 9:16, 15 % top inset) and is minimal.
+{
+    const { fitCamera, fitDistance, projectCorners, FIELD_CORNERS_LOCAL } = await import('../ui/js/desktop/apps/pinball/render/camera.js');
+    const tilt = 6.5 * Math.PI / 180, rot = ([x, y, z]) => [x, y * Math.cos(tilt) - z * Math.sin(tilt), y * Math.sin(tilt) + z * Math.cos(tilt)];
+    const corners = FIELD_CORNERS_LOCAL.map(rot);
+    const cam = { fov: 36, target: rot([0, 0.02, -0.46]), dir: rot([0, Math.sin(52 * Math.PI / 180), Math.cos(52 * Math.PI / 180)]), up: [0, 1, 0] };
+    for (const [name, aspect] of [['16:9', 16 / 9], ['4:3', 4 / 3], ['9:16', 9 / 16]]) {
+        const margin = 0.03, fit = fitCamera(cam, corners, aspect, { top: 0.15 }, margin), eps = 1e-3;
+        assert.equal(fitDistance(cam, corners, aspect, { top: 0.15 }, margin), fit.distance, name + ' fitDistance matches fitCamera');
+        const p = projectCorners(cam, corners, aspect, fit.distance);
+        assert.ok(p.ok, name + ' all corners in front of the camera');
+        for (const [x, y] of p.ndc) {
+            assert.ok(x + fit.shiftX >= -1 + 2 * margin - eps && x + fit.shiftX <= 1 - 2 * margin + eps, name + ' x inside margin: ' + x);
+            assert.ok(y + fit.shiftY >= -1 + 2 * margin - eps && y + fit.shiftY <= 1 - 2 * margin - 0.3 + eps, name + ' y inside margin and top inset: ' + y);
+        }
+        const tight = projectCorners(cam, corners, aspect, fit.distance * 0.97);
+        const spanX = tight.maxX - tight.minX, spanY = tight.maxY - tight.minY;
+        assert.ok(spanX > 2 - 4 * margin + 1e-6 || spanY > 2 - 4 * margin - 0.6 + 1e-6, name + ' distance is the smallest that fits');
+    }
+}
+
+// 6. Art kit pixel mapping equals lights/shapes.js canvasPx.
+{
+    const { createArtKit } = await import('../ui/js/desktop/apps/pinball/render/art-kit.js');
+    const { canvasPx } = await import('../ui/js/desktop/apps/pinball/lights/shapes.js');
+    for (const [W, H] of [[2048, 4096], [1024, 2048]]) {
+        const kit = createArtKit({}, { W, H, layout: TABLES.neon.layout, tr: null, palette: {} });
+        for (const [x, y] of [[0, 0], [-0.2575, 1.07], [0.2575, 0], [0.123, 0.456], [-0.2, 0.9]]) assert.deepEqual(kit.px(x, y), canvasPx(x, y, W, H));
+        assert.ok(Math.abs(kit.m(0.515) - W) < 1e-9, 'metre scale spans the canvas width');
+    }
+}
 console.log('pinball tables ok');
