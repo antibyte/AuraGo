@@ -763,6 +763,14 @@ treg:
 
 Jeder Endpunkt braucht eine explizite Genehmigung mit der Operationsklasse `read`, `create`, `update` oder `delete` (maximal 256 Einträge). Das Kostelimit deckt nur treg-Gebühren. Ergebnisse trennen reservierte und abgerechnete Beträge; Statusabfragen laufen über serverseitige, an Token und Sitzung gebundene Referenzen (24 Stunden gültig). Administrative `/api/treg/`-Routen zeigen nur Status, Katalog, Endpunktdetails, Guthaben und Verbindungstest. Details: [treg-Integration](../../treg.md).
 
+### Lokale Bildanalyse mit Mirage (optional)
+
+Für Systeme ohne bildfähiges Modell kann AuraGo das kleine Cactus-Modell **Mirage** (51M Parameter, etwa 22 MB, Apache-2.0) in einem verwalteten Docker-Sidecar betreiben. Es wird nur genutzt, solange `vision.provider` leer ist: im `mode: fallback`, wenn das Hauptmodell keine Bilder lesen kann, im `mode: always` immer, wenn kein Anbieter gesetzt ist. Mirage liefert eine Klartext-Beschreibung aus Szene, Objekten (mit Position und Attributen), Text im Bild und Beziehungen; das Hauptmodell beantwortet Fragen zum Bild anhand dieses Textes. Mirage selbst beantwortet keine freien Fragen und analysiert keine Bild-URLs, nur lokale Bilder.
+
+Schlüssel, Standardwerte und Bedeutung: `vision.mirage.enabled` (`false`), `mode` (`fallback` oder `always`), `container_name` / `container_port` (`aurago_mirage` / `8791`, Host-Port auf 127.0.0.1), `image` (`python:3.12-slim`, Python-Basisimage des Sidecar-Builds), `data_path` (`data/mirage`, Gewichte-Cache), `gpu` (`auto`, `none`, `nvidia`, `amd`, `intel`, `vulkan`), `max_objects` / `max_text_lines` (`20` / `30`) und `language` (leer = Standard der Engine).
+
+GPU-Geräte werden unter Linux durchgereicht, wenn sie erkannt werden; die Engine meldet aber noch kein GPU-Backend. Der Status zeigt das Backend, das die Engine meldet, derzeit CPU. Windows und macOS laufen auf der CPU. Die Vision-Seite zeigt den Zustand des Sidecars und dieses Backend. Der erste Start baut das Image und lädt das Modell, das dauert einige Minuten. Eine geänderte Einstellung erstellt den Container neu.
+
 ### Lokale Wikipedia
 
 `local_wikipedia` lädt eine Kiwix-Wikipedia-Ausgabe (ZIM) herunter und liest sie offline in reinem Go – für das Agenten-Tool `local_wikipedia` und die Desktop-App **Wikipedia**. Standardmäßig aus; heruntergeladen wird erst, wenn ein Administrator unter **Config → Lokale Wikipedia** auf **Installieren** klickt.
