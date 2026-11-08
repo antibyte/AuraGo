@@ -816,14 +816,14 @@
                 id: 'view',
                 labelKey: 'desktop.menu_view',
                 items: [
-                    { id: 'sidebar', label: tr('codeStudio.sidebar', 'Sidebar'), icon: 'sidebar', shortcut: 'Ctrl+B', checked: state.sidebarVisible, action: bind(toggleSidebar) },
+                    { id: 'sidebar', label: tr('codeStudio.sidebar', 'Sidebar'), icon: 'columns', shortcut: 'Ctrl+B', checked: state.sidebarVisible, action: bind(toggleSidebar) },
                     { id: 'outline', label: tr('codeStudio.outline', 'Outline'), icon: 'list', checked: state.sidebarView === 'outline', action: bind(toggleOutline) },
                     { type: 'separator' },
-                    { id: 'panel-problems', label: tr('codeStudio.panelProblems', 'Problems'), icon: 'alert', shortcut: 'Ctrl+Shift+M', checked: state.panelVisible && state.activePanel === 'problems', action: bind(() => setActivePanel('problems')) },
+                    { id: 'panel-problems', label: tr('codeStudio.panelProblems', 'Problems'), icon: 'info', shortcut: 'Ctrl+Shift+M', checked: state.panelVisible && state.activePanel === 'problems', action: bind(() => setActivePanel('problems')) },
                     { id: 'panel-output', label: tr('codeStudio.panelOutput', 'Output'), icon: 'terminal', shortcut: 'Ctrl+Shift+U', checked: state.panelVisible && state.activePanel === 'output', action: bind(() => setActivePanel('output')) },
                     { id: 'panel-terminal', labelKey: 'desktop.menu_terminal', icon: 'terminal', checked: state.panelVisible && state.activePanel === 'terminal', action: bind(() => togglePanel('terminal')) },
                     { id: 'agent-panel', labelKey: 'desktop.menu_agent_panel', icon: 'chat', shortcut: 'Ctrl+Shift+A', checked: state.agentVisible, action: bind(toggleAgentPanel) },
-                    { id: 'git-panel', label: tr('codeStudio.gitPanel', 'Git'), icon: 'git', checked: state.gitVisible, action: bind(toggleGitPanel) },
+                    { id: 'git-panel', label: tr('codeStudio.gitPanel', 'Git'), icon: 'network', checked: state.gitVisible, action: bind(toggleGitPanel) },
                     { type: 'separator' },
                     { id: 'split-right', label: tr('codeStudio.splitRight', 'Split Right'), icon: 'columns', checked: state.splitMode === 'right', disabled: !hasActiveTab && !state.splitMode, action: bind(() => splitEditor('right')) },
                     { id: 'split-down', label: tr('codeStudio.splitDown', 'Split Down'), icon: 'layout', checked: state.splitMode === 'down', disabled: !hasActiveTab && !state.splitMode, action: bind(() => splitEditor('down')) },
@@ -839,7 +839,7 @@
                 labelKey: 'desktop.menu_run',
                 items: [
                     { id: 'run-current', label: tr('codeStudio.run', 'Run'), icon: 'run', shortcut: 'F5', disabled: !hasActiveTab, action: bind(runCurrentFile) },
-                    { id: 'run-checks', label: tr('codeStudio.runDiagnostics', 'Run Checks'), icon: 'alert', action: bind(runDiagnostics) }
+                    { id: 'run-checks', label: tr('codeStudio.runDiagnostics', 'Run Checks'), icon: 'info', action: bind(runDiagnostics) }
                 ]
             }
         ];

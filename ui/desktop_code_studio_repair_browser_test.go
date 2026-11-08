@@ -2,6 +2,50 @@ package ui
 
 import "testing"
 
+func TestDesktopCodeStudioMenuIconsBrowser(t *testing.T) {
+	for _, theme := range []string{"standard", "fruity"} {
+		for _, scheme := range []string{"light", "dark"} {
+			if theme == "standard" && scheme == "light" {
+				continue
+			}
+			t.Run(theme+"/"+scheme, func(t *testing.T) {
+				page, _ := newCodeStudioBrowser(t)
+				result, err := page.Eval(`async(theme,scheme)=>{
+                    await csWait(()=>csState()?.root.querySelector('[data-action="save"]'));
+                    const settings=codeStudioTest.state.bootstrap.settings;
+                    settings['appearance.theme']=theme;
+                    settings['appearance.fruity_mode']=scheme;
+                    settings['appearance.icon_theme']=theme==='fruity'?'whitesur':'papirus';
+                    codeStudioTest.applyDesktopSettings();
+                    await codeStudioTest.loadIconManifest();
+                    const target=csState();
+                    await CodeStudioApp.openFile('/workspace/main.go',true,target.windowId);
+                    const missing=[];
+                    const check=(root,selector)=>{
+                        const slots=[...root.querySelectorAll(selector)];
+                        if(!slots.length)throw new Error('No icons found for '+selector);
+                        for(const slot of slots){
+                            if(!slot.firstElementChild||slot.querySelector('.vd-symbol-fallback,.vd-icon-letter'))missing.push(slot.closest('button')?.textContent.trim());
+                        }
+                    };
+                    check(document,'.vd-window-menu-icon:not(.empty)');
+                    csMenuAction('edit','command-palette');
+                    const palette=await csWait(()=>document.querySelector('.cs-command-palette-backdrop'));
+                    await Promise.all([...palette.querySelectorAll('img')].map(img=>img.decode()));
+                    check(palette,'.cs-cp-item-icon');
+                    return {missing,errors:fixtureErrors};
+                }`, theme, scheme)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if len(result.Value.Get("missing").Arr()) != 0 || len(result.Value.Get("errors").Arr()) != 0 {
+					t.Fatalf("menu icons: %s", result.Value.JSON("", "  "))
+				}
+			})
+		}
+	}
+}
+
 func TestDesktopCodeStudioLivePolicyAndDrafts(t *testing.T) {
 	for _, fallback := range []bool{false, true} {
 		t.Run(map[bool]string{false: "codemirror", true: "textarea"}[fallback], func(t *testing.T) {
