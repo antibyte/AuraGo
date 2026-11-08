@@ -11,7 +11,7 @@ implemented. That plan remains the record of the intended scope.
 
 ## Strudel live coding
 
-Open the **Strudel** workbench tab to write and run patterns with the local
+Switch to the **Strudel** mode to write and run patterns with the local
 Strudel 1.3.0 engine. **Run / Update** or Ctrl+Enter evaluates the current code;
 updates preserve the running clock. Its Stop button and the main transport's
 Stop/Pause stop it immediately. Starting the arrangement stops Strudel, and
