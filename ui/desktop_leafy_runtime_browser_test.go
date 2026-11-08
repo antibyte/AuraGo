@@ -355,8 +355,9 @@ func TestDesktopLeafyRuntimeBrowser(t *testing.T) {
         window.leafyBeforeCut=AuraLeafy.active.layout.branches.map(b=>({id:b.id,nodes:b.points.length,parent:b.parent,attach:b.attach}));
         window.leafyHoldCut=false;leafyReleaseCut();
     }`)
-	if err := page.Timeout(10 * time.Second).Wait(rod.Eval(`()=>!!document.querySelector('.vd-leafy-cutting-fall')`)); err != nil {
-		t.Fatalf("cutting absent: %s", page.MustEval(`()=>JSON.stringify({metrics:AuraLeafy.active.metrics(),requests:leafyActionRequests,status:document.querySelector('.vd-leafy-status').textContent,motion:matchMedia('(prefers-reduced-motion: reduce)').matches,hidden:document.hidden,errors:[...bootErrors,...fixtureErrors]})`).Str())
+	// Software-GPU capture can exceed ten seconds while rasterizing four million pixels.
+	if err := page.Timeout(30 * time.Second).Wait(rod.Eval(`()=>!!document.querySelector('.vd-leafy-cutting-fall')`)); err != nil {
+		t.Fatalf("cutting absent: %s", page.MustEval(`()=>JSON.stringify({metrics:AuraLeafy.active.metrics(),fall:!!document.querySelector('.vd-leafy-cutting-fall'),animations:document.body.dataset.animations,paused:window.leafyFall?.playState,requests:leafyActionRequests,status:document.querySelector('.vd-leafy-status').textContent,motion:matchMedia('(prefers-reduced-motion: reduce)').matches,hidden:document.hidden,errors:[...bootErrors,...fixtureErrors]})`).Str())
 	}
 	page.MustEval(`()=>{
         const action=leafyActionRequests[0],b=AuraLeafy.active.layout.branches.find(b=>b.id===action.branch);

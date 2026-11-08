@@ -570,7 +570,9 @@ New app-scoped prefixes must contain no `ad` substring; verify
   Browser remount checks await the first loaded server revision before checking
   that biology is unchanged; initial pending state is not a reset. Motion checks
   await native rendering after media changes; pruning checks wait for theme/DPR
-  geometry to settle past the 120ms resize debounce. Native cut targets stay
+  geometry to settle past the 120ms resize debounce. Allow up to 30 seconds for
+  acknowledged cutting capture on software GPUs; all pixel/animation checks remain.
+  Native cut targets stay
   outside a 24px halo around pot/grip controls so Chrome touch adjustment
   cannot redirect the tap into care. Scroll panel controls into view before
   computing native touch coordinates.
