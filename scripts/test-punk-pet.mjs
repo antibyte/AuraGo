@@ -22,6 +22,15 @@ assert.equal(parents.get(indexByName.get('PunkPersona_Eyes')),indexByName.get('D
 assert.equal(eyes.skin,undefined,'Rigid head-bound eyes must not introduce another skin');
 assert.deepEqual(doc.meshes[eyes.mesh].primitives.map(p=>doc.materials[p.material].name).sort(),['Eye catchlight','Eye iris','Eye pupil','Eye sclera']);
 const binary=model.subarray(28+length);
+function eyeWidth(material,side){
+    const primitive=doc.meshes[eyes.mesh].primitives.find(p=>doc.materials[p.material].name===material);
+    const a=doc.accessors[primitive.attributes.POSITION],v=doc.bufferViews[a.bufferView],positions=[];
+    assert.equal(a.componentType,5126);assert.equal(a.type,'VEC3');
+    for(let i=0;i<a.count;i++){const x=binary.readFloatLE((v.byteOffset||0)+(a.byteOffset||0)+i*(v.byteStride||12));if(x*side>0)positions.push(x);}
+    assert.ok(positions.length>0);
+    return Math.max(...positions)-Math.min(...positions);
+}
+for(const side of [-1,1]){const ratio=eyeWidth('Eye iris',side)/eyeWidth('Eye sclera',side);assert.ok(ratio>.58&&ratio<.68,'Reference-sized irises must leave restrained sclera');}
 for(const node of doc.nodes.filter(n=>n.skin!==undefined))for(const primitive of doc.meshes[node.mesh].primitives){const a=doc.accessors[primitive.attributes.WEIGHTS_0],v=doc.bufferViews[a.bufferView];assert.equal(a.type,'VEC4');assert.equal(a.componentType,5126);for(let i=0;i<a.count;i++){const offset=(v.byteOffset||0)+(a.byteOffset||0)+i*(v.byteStride||16);let sum=0;for(let j=0;j<4;j++)sum+=binary.readFloatLE(offset+j*4);assert.ok(Math.abs(sum-1)<.0001);}}
 for(const image of doc.images){const view=doc.bufferViews[image.bufferView],bytes=binary.subarray(view.byteOffset,view.byteOffset+view.byteLength);assert.equal(bytes.toString('ascii',1,4),'PNG');assert.ok(bytes.readUInt32BE(16)<=1024&&bytes.readUInt32BE(20)<=1024,'Runtime textures must actually be resized');}
 const pack=JSON.parse(readFileSync(resolve(ui,'3d/pets/punk/motions.json'),'utf8'));

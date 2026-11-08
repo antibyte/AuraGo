@@ -1,8 +1,8 @@
 {
-  "source_sha256": "c0ed408fad6467dbc2fafa9c7786e6ee87f99882f47df4df3cabbc7ebd7ac37e",
+  "source_sha256": "dcfdfd9b47d5713a5b30bb95afdf563a1e70179ebac9858977411e3bf451e5df",
   "triangles": 48636,
   "vertices": 24445,
   "deform_joints": 71,
   "texture_max_size": 1024,
-  "model_sha256": "d7f825a9eed5d42bb25bb824a10ebe282fbc7b76a651e1d03de2ce3e0c84a80c"
+  "model_sha256": "65360e5ce10cffee0cbfedd46ff957cc612949bd2777551c827c156ae1372637"
 }

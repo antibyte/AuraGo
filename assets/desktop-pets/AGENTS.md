@@ -19,6 +19,8 @@ Authoring sources and reproducible animation assets for the optional real-time P
   pupil and catchlight materials, parented to `DEF-spine.006`. Export it with the
   portable head, retain its world placement and include it in geometry budgets.
   Check the eyes in a face close-up and at desktop scale, with head gaze/motion.
+  Match the reference's large violet irises (about 60% of the opening width),
+  clipped by the lids, with restrained warm sclera rather than broad white areas.
 - Bake the A-pose mesh into a T-bind pose before retargeting. The runtime deform
   rig has one root: hips/pelvis under `DEF-spine`, shoulders under the chest,
   upper arms under shoulders, palms/first finger segments under hands. Do not
