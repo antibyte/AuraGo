@@ -25,6 +25,9 @@ Own the Blender 5.2 generator of the Aura Drift model pack and its pure-Python k
   The eight race songs (`music/<biome>-song.ogg`) are YuE2 Studio generations (licence terms NOT verified, open item),
   recorded in `audio/yue2-songs.json` and re-encoded from FLAC masters with `build-aura-drift-audio.mjs --songs <dir>`.
 - Check: `scripts/test-aura-drift-assets.mjs`.
+- `kit/export.py` stages each GLB beside its destination and atomically replaces it only after
+  export succeeds; readers never receive a truncated model. `check_export.py` checks failure
+  preservation, successful promotion and staging cleanup with a local exporter fixture.
 - Softeis retains its native rig scaffold in `kit/softeis_mesh.json.gz`; its body and cone are
   replaced by the reviewed UV reconstruction, as with the other cars. Wheels use
   `cars_common.wheel_accum`; the `cone` child pivots at its roof joint.
@@ -49,6 +52,9 @@ Own the Blender 5.2 generator of the Aura Drift model pack and its pure-Python k
   `brake_light`; reviewed bodies use `paint`, `trim`, `head_light`, `brake_light`. Wheels use `tyre`.
 - Reviewed cars retain welded geometry with per-loop UV seams, angle-limited smoothing and
   neutral part transforms; livery, lights and animation keep their native contract.
+- Reviewed wheel fits in `reviewed/wheels.json` bind to original model hashes. Preserve
+  `source_length`, independent axle dimensions, downward-open clearances and regression tread
+  witnesses. Wheel node scale preserves mesh instancing; the runtime uses scaled rolling radii.
 - Budgets live in the validator (cars 30000 triangles and 1.25 MiB, shared.glb 1.75 MiB, scenery
   kits 1.1 MiB each, pack 18 MiB; per-prop 450/1200/4500/14000 triangles by tag). Check after each build.
 
@@ -57,6 +63,7 @@ Own the Blender 5.2 generator of the Aura Drift model pack and its pure-Python k
 - `AURAGO_AURA_DRIFT_ASSETS_PARTIAL=1 node scripts/test-aura-drift-assets.mjs` (partial packs) or without the variable (full pack).
 - `node scripts/build-aura-drift-audio.mjs --check` (audio pack, read-only, no ffmpeg) and `node scripts/test-aura-drift-audio.mjs`.
 - Visual review: `--preview <abs scratch dir>`, then read the PNGs.
+- `"D:\Blender 5.2\blender.exe" --background --factory-startup --python-exit-code 1 --python <abs>/assets/aura-drift/check_export.py` (atomic-export self-check).
 - Model and sound changes are followed by a regenerate and a commit of the pack together with the kit.
 
 ## Child DOX Index

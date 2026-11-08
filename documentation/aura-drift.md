@@ -204,8 +204,11 @@ weather motion are removed by reduced motion.
   by `assets/aura-drift/generate.py` (Blender 5.2, deterministic output): chunky toy shapes with
   glossy paint. All eight reviewed vehicles preserve UV artwork in one compact embedded WebP atlas;
   its alpha channel masks livery paint without changing opacity. Wheels and movable parts have capped
-  cuts and native pivots. Props retain vertex colours. The polish round
-  added six props from `assets/aura-drift/kit/polish_props.py`: a balloon bunch and a camera tower
+  cuts and native pivots. Props retain vertex colours. Vehicles
+  preserve measured front/rear wheel sizes and tracks; shared wheel meshes use node scale and
+  the matching rolling radius. Wheel openings extend downward to remove the old reconstructed
+  tyres completely; enlarged steering/spin views live in `assets/aura-drift/reviewed/wheel-review.js`.
+  The polish round added six props from `assets/aura-drift/kit/polish_props.py`: a balloon bunch and a camera tower
   beside the stands on every track, plus an alpine waymark, a desert parasol, a harbour signal
   mast and a metro holo arrow in their biomes. The weather round added six more from
   `kit/weather_props.py`: a wind sock at every sector and a covered rain shelter on every track,

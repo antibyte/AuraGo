@@ -39,6 +39,9 @@ async () => {
             rig.fxRoot.traverse(o=>{if(o.isMesh && o.userData.srcName==='paint' && !maps.includes(o.material.map)) throw new Error(car.id+': lost atlas on quality change');});
         }
         if (rig.wheels.length !== 4) throw new Error(car.id + ': wheel count');
+        for (const w of rig.wheels) {
+            if (Math.abs(w.radius-w.node.position.y)>w.radius*.03) throw new Error(car.id+': wheel ground clearance or scaled radius');
+        }
         const before = rig.wheels.map(w => w.node.quaternion.clone());
         const transforms = {};
         for (const key of ['cone','blade','gnome','lamp']) if (rig.parts[key]) transforms[key] = rig.parts[key].quaternion.clone();
@@ -47,6 +50,8 @@ async () => {
         for (let i=0;i<120;i++) rig.update(vehicle,1/60,{night:false});
         if (rig.wheels.some((w,i)=>w.node.quaternion.angleTo(before[i])<0.01)) throw new Error(car.id+': wheel spin');
         if (rig.wheels.some(w=>Math.abs(w.node.rotation.y-(w.front?-0.2:0))>0.001)) throw new Error(car.id+': steering');
+        const frontWheel=rig.wheels.find(w=>w.front), rearWheel=rig.wheels.find(w=>!w.front);
+        if(Math.abs(frontWheel.spin*frontWheel.radius-rearWheel.spin*rearWheel.radius)>.0001) throw new Error(car.id+': axle sizes changed rolling distance');
         for (const key in transforms) if (rig.parts[key].quaternion.angleTo(transforms[key])<0.001) throw new Error(car.id+': '+key+' did not move');
         if (car.id==='couch' && !rig.parts.cushion) throw new Error('Missing cushion');
         if (rig.parts.cushion) {

@@ -209,23 +209,45 @@ def prepare(car, source_folder):
     bm.to_mesh(obj.data); bm.free()
     front, rear, radius, track_ratio = CONFIG[car]
     track = (high.z - low.z) / size * track_ratio
-    length = old["wheels"]["radius"] / radius
+    length = old.get("source_length", old["wheels"]["radius"] / radius)
+    fits = json.loads((HERE / "wheels.json").read_text()).get(car)
+    if fits:
+        assert fits["source_sha256"] == expected, car
+        old["wheels"]["axles"] = {axle: {key: fits[axle][key] * length for key in ("radius", "width")} for axle in ("f", "r")}
+        old["wheels"].update(old["wheels"]["axles"]["f"])
+        old["wheels"]["positions"] = {"wheel_" + axle + side:
+            [fits[axle]["x"] * length, fits[axle]["radius"] * length, sign * fits[axle]["track"] * length]
+            for axle in ("f", "r") for side, sign in (("l", -1), ("r", 1))}
+        old["source_length"] = length
     # The sofa has a narrower front axle; the overall bounds include its side table.
     tracks = {"f": .29, "r": .425} if car == "couch" else {"f": track, "r": track}
-    if car == "couch":
+    if car == "couch" and not fits:
         old["wheels"]["width"] = length * .10
         old["wheels"]["positions"] = {"wheel_" + axle + side: [x * length, radius * length, sign * tracks[axle] * length]
             for axle, x in (("f", front), ("r", rear)) for side, sign in (("l", -1), ("r", 1))}
     for axle, x in (("f", front), ("r", rear)):
+        fit = fits[axle] if fits else None
+        x, y = (fit["x"], fit["radius"]) if fit else (x, radius)
+        cut_x, cut_y = (fit["cut_x"], fit["cut_y"]) if fit else (radius * 1.045, radius * 1.045)
         for sign in (-1, 1):
-            inner = tracks[axle] * .50
+            if fit:
+                inset = math.hypot(fit["radius"], fit["width"] * .5) * 1.06 if axle == "f" else fit["width"] * .75
+                inner = fit["track"] - inset
+            else:
+                inner = tracks[axle] * .50
+            inner = max(.025, inner)
             outer = (high.z - low.z) / size * .5 + .1
-            bpy.ops.mesh.primitive_cylinder_add(vertices=64, radius=radius * 1.045, depth=outer - inner,
-                location=(x, -sign * (outer + inner) / 2, radius), rotation=(math.pi / 2, 0, 0))
+            bpy.ops.mesh.primitive_cylinder_add(vertices=64, radius=1, depth=outer - inner,
+                location=(x, -sign * (outer + inner) / 2, y), rotation=(math.pi / 2, 0, 0))
             cutter = bpy.context.object
+            cutter.scale.x, cutter.scale.y = cut_x, cut_y
             for mat in obj.data.materials: cutter.data.materials.append(mat)
             for poly in cutter.data.polygons: poly.material_index = 1
             boolean(obj, cutter)
+            if fit:
+                # A wheel arch opens downward; a circular hole leaves the AI tyre's lower corners.
+                zlow, zhigh = sorted((sign * inner, sign * outer))
+                cut_box(obj, (x-cut_x, -.1, zlow), (x+cut_x, y+cut_y*.05, zhigh), "DIFFERENCE")
     if car == "maehkoenig":
         cut_box(obj, (.32, .11, -.10), (.48, .17, .10), "DIFFERENCE")
     removed = clean_fragments(obj, radius)
@@ -255,11 +277,12 @@ def prepare(car, source_folder):
     axles = Accum()
     for axle in ("f", "r"):
         x, y, z = old["wheels"]["positions"]["wheel_" + axle + "r"]
-        axles.add(strut((x, y, -z), (x, y, z), old["wheels"]["radius"] * .10, 8))
+        axle_radius = old["wheels"].get("axles", {}).get(axle, {}).get("radius", old["wheels"]["radius"])
+        axles.add(strut((x, y, -z), (x, y, z), axle_radius * .10, 8))
         for side in (-1, 1):
             a = (x, y, side * z * .45)
-            b = (x, y + old["wheels"]["radius"] * 1.2, side * z * .45)
-            axles.add(strut(a, b, old["wheels"]["radius"] * .06, 6))
+            b = (x, y + axle_radius * 1.2, side * z * .45)
+            axles.add(strut(a, b, axle_radius * .06, 6))
     trim = body["parts"]["trim"]
     offset = len(trim["verts"])
     trim["verts"].extend(axles.verts)

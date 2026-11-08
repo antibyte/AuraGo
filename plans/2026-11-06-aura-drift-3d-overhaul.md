@@ -874,6 +874,11 @@ default ≤ 1200, `hero` ≤ 4500, `crowd` ≤ 14000. Total pack ≤ 18 MiB (188
 
 Required top-level nodes:
 - `body`, `wheel_fl`, `wheel_fr`, `wheel_rl`, `wheel_rr`. Wheel origin sits at the wheel centre, axle along Z.
+- Measured front/rear radii and widths may differ through node scale; retain circular radial X/Y
+  scaling, axial Z width and a centre height matching each radius. Instancing preserves the node
+  matrix; visual spin uses the scaled radius. The offline `reviewed/wheels.json` measurements bind
+  to source hashes and `source_length`. Wheel cavities retain the upper arch and open downward,
+  with no reconstructed tyre witnesses in the static body; inspect enlarged steering/spin poses.
 - Empties: `anchor_exhaust_l`, `anchor_exhaust_r`, `anchor_head_l`, `anchor_head_r`, `anchor_tail_l`, `anchor_tail_r`, `anchor_weapon` (roof or front mount).
 
 Optional animated children under `body`, driven at runtime if present:

@@ -98,7 +98,7 @@
             const mesh = node.isMesh ? node : null;
             if (mesh && mesh.geometry) {
                 mesh.geometry.computeBoundingBox();
-                radius = (mesh.geometry.boundingBox.max.y - mesh.geometry.boundingBox.min.y) / 2 || radius;
+                radius = (mesh.geometry.boundingBox.max.y - mesh.geometry.boundingBox.min.y) / 2 * Math.abs(node.scale.y) || radius;
             }
             wheels.push({ node: node, front: name.indexOf('_f') > 0, radius: radius });
         }

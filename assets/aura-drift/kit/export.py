@@ -5,6 +5,7 @@ import json
 import math
 import os
 import struct
+import tempfile
 
 import bpy
 from mathutils import Vector
@@ -49,7 +50,11 @@ def export_glb(model, path):
         "export_morph": False,
     }
     supported = set(bpy.ops.export_scene.gltf.get_rna_type().properties.keys())
-    bpy.ops.export_scene.gltf(**{key: value for key, value in options.items() if key in supported})
+    # Readers can keep the old model open on Windows; never truncate the live file.
+    with tempfile.TemporaryDirectory(prefix=".aura-drift-", dir=os.path.dirname(path)) as staging:
+        options["filepath"] = os.path.join(staging, os.path.basename(path))
+        bpy.ops.export_scene.gltf(**{key: value for key, value in options.items() if key in supported})
+        os.replace(options["filepath"], path)
 
 
 def read_glb(path):

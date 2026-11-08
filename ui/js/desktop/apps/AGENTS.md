@@ -3617,6 +3617,10 @@ buttons and menu popovers remain excluded from those gestures.
   Each reviewed car embeds one UV/WebP atlas: RGB artwork, alpha 0.5 untinted / 1 livery paint.
   `carPaint` ignores atlas alpha for opacity, preserves the mask through quality changes and
   composes it with rim shading; shared textures are disposed only by the asset owner.
+  Wheel nodes may scale front/rear radius and width independently; `createCarRig` includes local
+  Y scale in the rolling radius and `carWheelInst` retains the complete node matrix. Verify ground
+  contact and equal axle rolling distance in `reviewed/runtime-check.js`, and use
+  `reviewed/wheel-review.js` for enlarged spin/steering inspection (both under `assets/aura-drift/`).
   Tall cars raise the chase camera from `AD.CAR_VIEW` heights.
   Opaque glazing writes depth; transparent glazing and cloaked cars do not. Returning from
   cloak restores opaque depth handling (`assets/aura-drift/reviewed/runtime-check.js`).

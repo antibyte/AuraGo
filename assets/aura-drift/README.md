@@ -18,6 +18,11 @@ approximation. The mower's driver/blade, sofa's lamp/cushion, Softeis cone and w
 independent joints. Closed Boolean cuts replace the old triangle-centroid wheel deletion; loose axle
 scraps are discarded and lights touch the surface. The whole pack still has an 18 MiB limit.
 `kit/softeis_mesh.json.gz` remains the Softeis rig scaffold; its body/cone are replaced through the shared loader.
+`reviewed/wheels.json` records measured front/rear wheel fits against the original model hashes.
+Axles can have different radii and widths through node scale while retaining one instanced wheel mesh.
+Clearances follow the upper arch and open downward, removing the original tyre's lower corners.
+`source_length` keeps repeated preparation at the same scale. The source check rejects known retained
+tread vertices; `wheel-review.js` adds enlarged views at three spin/steering poses per vehicle.
 
 Selected scenery replacements (large, frequently visible silhouettes):
 

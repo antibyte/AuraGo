@@ -13,9 +13,19 @@ PROPS = {"grandstand", "gnome_statue", "hotdog_stand", "camper_van", "chalet", "
 
 
 def check():
+    fits = json.loads((HERE / "wheels.json").read_text(encoding="utf-8"))
     sources = json.loads((HERE / "sources.json").read_text(encoding="utf-8"))["assets"]
     expected = {"car-" + car for car in CARS} | PROPS
     assert len(sources) == 28 and {s["id"] for s in sources} == expected
+    assert set(fits) <= CARS
+    for car, fit in fits.items():
+        assert fit["source_sha256"] == next(s["model_sha256"] for s in sources if s["id"] == "car-" + car), car
+        for axle in ("f", "r"):
+            values = fit[axle]
+            assert all(math.isfinite(values[key]) and values[key] > 0 for key in ("radius", "track", "width", "cut_x", "cut_y")), car
+            for point in values.get("source_tread_points", []):
+                distance = ((point[0]-values["x"])/values["cut_x"])**2 + ((point[1]-values["radius"])/values["cut_y"])**2
+                assert distance < 1, (car, axle, "Tread witness outside clearance")
     groups = {}
     for source in sources:
         for key in ("image_sha256", "model_sha256"):
@@ -54,7 +64,14 @@ def check():
             wheel = data["wheels"]
             assert 0.2 < wheel["radius"] < 1.5 and wheel["width"] > 0, group
             assert set(wheel["positions"]) == {"wheel_" + axle + side for axle in ("f", "r") for side in ("l", "r")}
-            assert all(abs(p[1] - wheel["radius"]) < 0.00001 for p in wheel["positions"].values()), group
+            assert all(abs(p[1] - wheel.get("axles", {}).get(name[6], {}).get("radius", wheel["radius"])) < 0.00001 for name, p in wheel["positions"].items()), group
+            if group[4:] in fits:
+                length = data["source_length"]
+                source_vertices = {tuple(round(c, 5) for c in p) for p in body["parts"]["paint"]["verts"]}
+                for axle in ("f", "r"):
+                    fit = fits[group[4:]][axle]
+                    assert all(abs(wheel["axles"][axle][key] - fit[key] * length) < 1e-5 for key in ("radius", "width")), group
+                    assert all(tuple(round(c * length, 5) for c in p) not in source_vertices for p in fit.get("source_tread_points", [])), (group, axle, "Original tyre residue")
             required = {"maehkoenig": {"gnome"}, "couch": {"lamp", "cushion"}, "softeis": {"cone"}}.get(group[4:], set())
             assert required.issubset(names), group
         if group == "scenery-desert":

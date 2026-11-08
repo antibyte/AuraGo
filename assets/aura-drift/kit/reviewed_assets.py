@@ -22,6 +22,13 @@ def apply(model):
     if model.name.startswith("car-"):
         # Reconstructed window shells have no separate interior behind their glazing.
         MATERIALS["glass"].node_tree.nodes["Principled BSDF"].inputs["Alpha"].default_value = 1.0
+        trim_tree = MATERIALS["trim"].node_tree
+        trim = trim_tree.nodes["Principled BSDF"]
+        for link in list(trim.inputs["Base Color"].links):
+            trim_tree.links.remove(link)
+        trim.inputs["Base Color"].default_value = (*hex_linear("#10131a"), 1)
+        trim.inputs["Metallic"].default_value = 0
+        trim.inputs["Roughness"].default_value = .95
     if "texture" in data:
         image = bpy.data.images.load(str(SOURCE / data["texture"]), check_existing=False)
         image.alpha_mode = "CHANNEL_PACKED"
@@ -74,6 +81,10 @@ def apply(model):
                 name = "wheel_" + axle + side
                 objects[name].data = temporary.data
                 objects[name].location = to_blender(wheel["positions"][name])
+                dimensions = wheel.get("axles", {}).get(axle)
+                if dimensions:
+                    radial = dimensions["radius"] / wheel["radius"]
+                    objects[name].scale = (radial, dimensions["width"] / wheel["width"], radial)
                 model.stats[name] = geometry.triangles()
             model.stats.pop(temporary.name)
             model.objects.remove(temporary)
