@@ -68,6 +68,7 @@
   "synthStudio.bar_position": "Placering i takter",
   "synthStudio.value": "Værdi",
   "synthStudio.scenes": "Scener",
+  "synthStudio.grid": "Gitter",
   "synthStudio.scene_from_loop": "Opret fra løkke",
   "synthStudio.xy_hint": "Lys klang vandret, rumklang lodret",
   "synthStudio.automation_record": "Optag automation",

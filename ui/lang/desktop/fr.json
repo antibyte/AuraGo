@@ -68,6 +68,7 @@
   "synthStudio.bar_position": "Position en mesures",
   "synthStudio.value": "Valeur",
   "synthStudio.scenes": "Scènes",
+  "synthStudio.grid": "Grille",
   "synthStudio.scene_from_loop": "Créer depuis la boucle",
   "synthStudio.xy_hint": "Brillance horizontale, réverbération verticale",
   "synthStudio.automation_record": "Enregistrer l’automation",

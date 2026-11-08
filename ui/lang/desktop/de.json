@@ -68,6 +68,7 @@
   "synthStudio.bar_position": "Taktposition",
   "synthStudio.value": "Wert",
   "synthStudio.scenes": "Szenen",
+  "synthStudio.grid": "Raster",
   "synthStudio.scene_from_loop": "Aus Loop erstellen",
   "synthStudio.xy_hint": "Horizontal Helligkeit, vertikal Hall",
   "synthStudio.automation_record": "Automation aufnehmen",

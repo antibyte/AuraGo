@@ -68,6 +68,7 @@
   "synthStudio.bar_position": "Posição em compassos",
   "synthStudio.value": "Valor",
   "synthStudio.scenes": "Cenas",
+  "synthStudio.grid": "Grade",
   "synthStudio.scene_from_loop": "Criar a partir do ciclo",
   "synthStudio.xy_hint": "Brilho horizontal, reverberação vertical",
   "synthStudio.automation_record": "Gravar automação",

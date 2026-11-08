@@ -113,6 +113,18 @@ displayed and, as before, dragging a sound or volume control previews it
 immediately and commits one undo step; Escape or pointer cancellation restores the
 previous sound.
 
+Perform and Strudel use the same glass-card look. Perform groups its controls into
+cards: scenes (eight raised pads with an LED, lit and glowing while active, dashed
+while queued, empty slots as faint outlines), the XY pad with Tone/Reverb knobs,
+the take recorder, Live FX, the automation editor and the composer (harmony,
+chord pads, one card per generator with its sliders drawn as knobs). Take buttons
+that do not apply (Stop, Use take, Discard) are hidden until a take exists. Strudel is a
+toolbar (Run / Update, Stop, a status light for idle, loading, playing and error,
+then Examples, Open, Download and the guide links) above a code editor with a line
+gutter, a glow focus ring and no wrapping; the editor fills the mode area. All
+data-* hooks and behaviour are unchanged; the layout is CSS in
+`desktop-app-synth-studio-modern.css`.
+
 The envelope section of the sound designer uses four vertical faders (attack,
 decay, sustain, release) next to a small envelope shape. A vertical fader behaves
 like the other controls: drag or click the track, mouse wheel and arrow keys while

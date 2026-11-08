@@ -68,6 +68,7 @@
   "synthStudio.bar_position": "小節位置",
   "synthStudio.value": "値",
   "synthStudio.scenes": "シーン",
+  "synthStudio.grid": "グリッド",
   "synthStudio.scene_from_loop": "ループから作成",
   "synthStudio.xy_hint": "横方向は明るさ、縦方向はリバーブ",
   "synthStudio.automation_record": "オートメーションを録音",
