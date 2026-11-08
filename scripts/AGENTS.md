@@ -12,6 +12,7 @@ This folder owns the maintained helpers and the `start.*`, `kill_all.*`, `instal
 
 - Resolve the repository root from the script location before using project-relative inputs or outputs; invoking an entrypoint from another working directory must not relocate state, locks or artifacts.
 - `install-ci-cosign.ps1` stages the pinned Windows/Linux X64 tool through the GitHub releases API. It uses CI runner paths and exposes only size/SHA-256-verified binaries on `GITHUB_PATH`; it never manages signing keys.
+- Retained license inputs copied verbatim by vendor generators must be LF-pinned in `.gitattributes`. The Windows runtime CI job checks Storymaker vendor bytes after its clean npm install, before release cross-builds.
 - `check-web-assets.mjs` caps first-party package embeds at 12 MB, including bundled speech runtimes, firmware and design templates. Full UI embedding stays forbidden; recovery assets stay below 1 MB and stripped binaries below 200 MB. Security Gates checks embeds before the Go test suite, and release CI checks them before cross-building.
 - Sibling helpers are relative to this folder; `deploy/`, `bin/`, `.env` and source inputs remain relative to the repository root.
 - Source paths may change; release asset names and installed config/notice paths stay stable. The English third-party notices come from `../licences/`.

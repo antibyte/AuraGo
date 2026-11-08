@@ -42,6 +42,7 @@ ui/img/buuf-nestort/LICENSE.txt -whitespace
 licences/linked-go-modules.tsv text eol=lf
 
 # Preserve generated template literals and upstream license text byte-for-byte.
+licences/storymaker-colord-LICENSE.txt text eol=lf -whitespace
 ui/fonts/qr/OFL-*.txt text eol=lf -whitespace
 ui/fonts/qr/Go-fonts-LICENSE.txt text eol=lf -whitespace
 ui/js/vendor/** text=auto eol=lf -whitespace
