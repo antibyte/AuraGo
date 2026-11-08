@@ -155,8 +155,11 @@ reusing stale `deploy/web-assets.ldflags`, or selecting an installed directory
 by date cannot repair the executable's missing pin.
 
 `node scripts/check-web-assets.mjs <stripped-binary>...` enforces a
-200 MB (200,000,000 bytes) executable ceiling, a 10 MB first-party embed budget and a 1 MB bootstrap
-limit. The packaging CI checks Windows and Linux. Production assets are never
+200 MB (200,000,000 bytes) executable ceiling, a 12 MB first-party package embed budget and a 1 MB bootstrap
+limit. The embed budget includes the bundled sanoTTS wheel, CYD firmware and design
+templates; it never permits the full UI. Security Gates checks embeds before the
+Go tests, and release CI repeats the check before cross-building. The packaging CI
+checks Windows and Linux. Production assets are never
 committed as generated archives; source files and the inclusion manifest are.
 
 Checks: `go test ./internal/webassets ./cmd/assetpack`, focused Desktop/Game Maker

@@ -90,6 +90,14 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      - name: Set up Node.js for resource budget checks
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+
+      - name: Check embedded resource budget before Go tests
+        run: node scripts/check-web-assets.mjs
+
       - name: Prepare verified prompt baseline vocabulary
         env:
           TIKTOKEN_CACHE_DIR: ${{ runner.temp }}/tiktoken-cache
