@@ -325,8 +325,19 @@ func TestCompactSourceWindowIsBounded(t *testing.T) {
 			return errors.New("compact api cheat sheet exceeds its bound")
 		}
 		body, _, _ := strings.Cut(sheet, "\n- Cheat sheet only:")
-		if body == "" || !strings.HasPrefix(reference, body) {
+		if body == "" {
 			return errors.New("cheat sheet is not derived from the installed reference")
+		}
+		// Compact references retain complete ordered lines, not necessarily a prefix.
+		lines, next := strings.Split(reference, "\n"), 0
+		for _, line := range strings.Split(body, "\n") {
+			for next < len(lines) && lines[next] != line {
+				next++
+			}
+			if next == len(lines) {
+				return errors.New("cheat sheet contains a missing or reordered reference line")
+			}
+			next++
 		}
 		if compactRuntime["version"] != runtimeContext["version"] {
 			return errors.New("compact runtime lost the helper version")

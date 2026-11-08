@@ -371,7 +371,8 @@ func TestDesktopLeafyRuntimeBrowser(t *testing.T) {
 	page.Timeout(10 * time.Second).MustWait(`()=>!!document.querySelector('.vd-leafy-cutting-fall')`)
 	page.MustEval(`()=>{if(!document.querySelector('.vd-leafy-scissors-cursor').hidden)throw Error('Touch left a floating mouse cursor');leafyFall.currentTime=500;}`)
 	page.MustScreenshot(filepath.Join(dir, "desktop-fallback-cut.png"))
-	page.MustElement("[data-action='undo_prune']").MustClick()
+	undo := page.MustElement("[data-action='undo_prune']").MustShape().Box()
+	page.Touch.MustTap(undo.X+undo.Width/2, undo.Y+undo.Height/2)
 	page.Timeout(10 * time.Second).MustWait(`()=>!document.querySelector('[data-action="undo_prune"]')&&!document.querySelector('.vd-leafy-cutting-fall')`)
 	if err := (proto.EmulationSetTouchEmulationEnabled{Enabled: false}).Call(page); err != nil {
 		t.Fatal(err)
@@ -380,7 +381,9 @@ func TestDesktopLeafyRuntimeBrowser(t *testing.T) {
 
 	page.MustEval(`()=>{window.lastLeafy=AuraLeafy.active;aurora.switchSpace(2);aurora.switchSpace(1);if(AuraLeafy.active!==lastLeafy)throw Error('Spaces recreated plant');}`)
 	t.Log(page.MustEval(`()=>JSON.stringify(AuraLeafy.active.metrics())`).Str())
-	page.MustEval(`async()=>{const revision=AuraLeafy.active.metrics().revision;const widget=aurora.state.bootstrap.widgets[0];aurora.state.bootstrap.widgets=[];aurora.renderWidgets();aurora.state.bootstrap.widgets=[widget];aurora.renderWidgets();await new Promise(r=>setTimeout(r,700));if(AuraLeafy.active.metrics().revision!==revision)throw Error('Remount reset biology');if(document.querySelectorAll('.vd-leafy').length!==1)throw Error('Duplicate plant');}`)
+	page.MustEval(`()=>{window.leafyRevisionBeforeRemount=AuraLeafy.active.metrics().revision;const widget=aurora.state.bootstrap.widgets[0];aurora.state.bootstrap.widgets=[];aurora.renderWidgets();aurora.state.bootstrap.widgets=[widget];aurora.renderWidgets();}`)
+	page.Timeout(10 * time.Second).MustWait(`()=>window.AuraLeafy.active?.metrics().revision>0`)
+	page.MustEval(`()=>{if(AuraLeafy.active.metrics().revision!==leafyRevisionBeforeRemount)throw Error('Remount reset biology');if(document.querySelectorAll('.vd-leafy').length!==1)throw Error('Duplicate plant');}`)
 	if errors := page.MustEval(`()=>JSON.stringify([...bootErrors,...fixtureErrors])`).Str(); errors != "[]" {
 		t.Fatal(errors)
 	}

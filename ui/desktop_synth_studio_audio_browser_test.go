@@ -28,6 +28,11 @@ func TestDesktopSynthStudioAudioBrowser(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
+		if _, err := io.Copy(io.Discard, r.Body); err != nil {
+			t.Error(err)
+			http.Error(w, "artifact upload failed", http.StatusBadRequest)
+			return
+		}
 		w.WriteHeader(http.StatusNoContent)
 	})
 	mux.HandleFunc("/fixture", func(w http.ResponseWriter, _ *http.Request) {
@@ -191,7 +196,8 @@ func TestDesktopSynthStudioAudioBrowser(t *testing.T) {
  for(const sample of demoWav.samples){const a=Math.abs(sample);if(a>demoPeak)demoPeak=a;if(sample===32767||sample===-32768)demoRails++;}
  check(demoRails===0,'the showcase exports without hard-clipped samples');
  check(demoPeak>10000,'the showcase exports with audible level');
- await fetch('/artifact',{method:'POST',body:demoBlob});
+ const upload=await fetch('/artifact',{method:'POST',body:demoBlob});
+ check(upload.ok,'the fixture accepts the complete WAV upload');
  return JSON.stringify({ok:true,notes:sparse.length,longWavBytes:long.bytes,heldRms:held.rms(0.2,0.42),sections});
 }`).Str()
 	if result == "" || result[0] != '{' || result[len(result)-1] != '}' {

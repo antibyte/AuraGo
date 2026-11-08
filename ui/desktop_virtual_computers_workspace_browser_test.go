@@ -16,12 +16,17 @@ func TestVirtualComputersWorkspaceSelectionBrowser(t *testing.T) {
  {id:'ws-desktop', state:'ready', template:'desktop', owner_session_id:'virtual-desktop'},
  {id:'ws-other', state:'ready', template:'desktop', owner_session_id:'other-chat'},
  {id:'ws-closed', state:'closed', template:'desktop', owner_session_id:'virtual-desktop'}];
- window.fetch = async path => new Response(JSON.stringify(path.endsWith('/status') ? {enabled:true, capabilities:{agent_control:true}} : path.endsWith('/workspaces') ? {workspaces:window.fixtureWorkspaces} : {}), {headers:{'Content-Type':'application/json'}});
+ window.fetch = async path => {
+   if(path.endsWith('/workspaces'))await window.workspaceReplyGate;
+   return new Response(JSON.stringify(path.endsWith('/status') ? {enabled:true, capabilities:{agent_control:true}} : path.endsWith('/workspaces') ? {workspaces:window.fixtureWorkspaces} : {}), {headers:{'Content-Type':'application/json'}});
+ };
  }`)
 	for _, file := range []string{"js/desktop/apps/virtual-computers-workspaces.js", "js/desktop/apps/virtual-computers.js"} {
 		page.MustEval(`source => { (0,eval)(source); }`, string(mustReadUIFile(t, file)))
 	}
 	page.MustEval(`() => window.VirtualComputersApp.render(document.querySelector('#app'),'fixture',{t:k=>k,openApp:(app,context)=>window.selectedLaunch={app,context}})`)
+	page.MustElement(`[data-action="refresh"]:not([disabled])`)
+	page.MustEval(`()=>{window.workspaceReplyGate=new Promise(resolve=>window.releaseWorkspaceReply=resolve);}`)
 	page.MustElement(`[data-action="new-agent-job"]:not([disabled])`).MustClick()
 	page.MustElement(`[data-role="agent-workspace"] option[value="ws-desktop"]`)
 	if page.MustEval(`() => !!document.querySelector('[data-role="agent-workspace"] option[value="ws-other"], [data-role="agent-workspace"] option[value="ws-closed"]')`).Bool() {
@@ -29,6 +34,16 @@ func TestVirtualComputersWorkspaceSelectionBrowser(t *testing.T) {
 	}
 	page.MustEval(`() => { document.querySelector('[data-role="agent-workspace"]').value='ws-desktop'; }`)
 	page.MustElement(`[data-role="agent-request"]`).MustInput("Open the visible browser")
+	page.MustEval(`()=>{
+ window.agentInputBeforeRefresh=document.querySelector('[data-role="agent-request"]');
+ agentInputBeforeRefresh.setSelectionRange(4,12);
+ fixtureWorkspaces.push({id:'ws-refreshed',state:'ready',template:'desktop',owner_session_id:'virtual-desktop'});
+ releaseWorkspaceReply();window.workspaceReplyGate=null;
+ }`)
+	page.MustElement(`[data-role="agent-workspace"] option[value="ws-refreshed"]`)
+	if !page.MustEval(`()=>document.querySelector('[data-role="agent-request"]')===agentInputBeforeRefresh && document.activeElement===agentInputBeforeRefresh && agentInputBeforeRefresh.value==='Open the visible browser' && agentInputBeforeRefresh.selectionStart===4 && agentInputBeforeRefresh.selectionEnd===12`).Bool() {
+		t.Fatal("workspace refresh replaced or unfocused the in-progress agent request")
+	}
 	page.MustElement(`[data-action="ask-agent"]`).MustClick()
 	if got := page.MustEval(`() => window.selectedLaunch.context.window_context.workspace_id`).Str(); got != "ws-desktop" {
 		t.Fatalf("wrong workspace: %q", got)

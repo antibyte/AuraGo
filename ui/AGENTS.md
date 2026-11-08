@@ -559,6 +559,8 @@ New app-scoped prefixes must contain no `ad` substring; verify
   Opening care on touch release consumes the same pointer's trailing click in
   capture phase, including when the new panel lies under the finger. Keyboard
   activation and subsequent independent touch gestures remain available.
+  Browser remount checks await the first loaded server revision before checking
+  that biology is unchanged; initial pending state is not a reset.
   Keep desktop selection out of these gestures, persist the local anchor on
   release, and clear drag capture/offsets on cancellation, blur and disposal.
   Pruning uses a 64px scissors cursor and a direct primary click/tap on a stem.
@@ -934,6 +936,9 @@ New app-scoped prefixes must contain no `ad` substring; verify
 - Maximized windows end above the taskbar or dock shell (`data-shell`) at every width via
   `--vd-maximized-window-reserve` (`desktop-windows.css`); keep it, the narrow
   overrides and `--vd-fruity-dock-reserve` in step with the bar/dock geometry.
+  Maximized CSS height is capped by the measured `--vd-workspace-height` so
+  mobile reserve estimates cannot cover a taller taskbar. Wide mobile app content
+  excludes native dialogs from its 920px minimum.
   The touch phone layout keeps its own `--vd-mobile-taskbar-reserve`. Verify
   `TestDesktopMaximizedWindowClearsTaskbarBrowser`.
 - On viewport resize, recompute maximized window workspace bounds and reachable inline minimums
@@ -1234,6 +1239,17 @@ New app-scoped prefixes must contain no `ad` substring; verify
   hover-capable pointer hardware; touch layouts intentionally hide its arrows.
 - Infra menu browser journeys await the native dialog `close` event before
   opening another popover, so pending focus restoration cannot steal its keys.
+- Artifact upload fixtures consume the complete request body even when capture
+  is disabled; an early response can abort a large browser upload.
+- Maximized-window resize checks await converged rendered and inline bounds after viewport
+  and taskbar updates, retaining the restore-geometry and logical-minimum assertions.
+  Learnings dialogs likewise await responsive width before geometry checks.
+- Durable reconnect browser checks allow one full five-second metadata poll
+  after a streamed wake; the status wait must exceed that polling cadence.
+- The full Docker Manager browser journey owns a three-minute page context;
+  the shared 30-second startup context is too short for its combined lifecycle checks.
+- Orbit's native drag/tilt probe uses static-scene quality 3 so software GL does
+  not stale its velocity samples. Scene, coverage and quality assertions retain quality 1.
 - Browser contracts (Chrome or Edge):
   `$env:AURAGO_RUN_BROWSER_SMOKE='1'; $env:AURAGO_BROWSER_ARTIFACT_DIR='../disposable/browser-artifacts'; go test -count=1 ./ui/... -run 'Precision.*Browser|Config.*Browser'`.
 - Browser discovery honors `CHROME_BIN`, then PATH and standard Windows/macOS locations. An explicit override must be executable; it never silently falls back. With `AURAGO_RUN_BROWSER_SMOKE=1`, missing browsers and launch failures fail the test. Security Gates partitions the full UI package into populated-config, config-layout, General and three Desktop name ranges (`A-G`, `H-R`, `S-Z`) with independent timeouts and fail-fast disabled; the audit package checks that each test belongs to exactly one job.

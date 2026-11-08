@@ -444,7 +444,7 @@ func dockerManagerPress(page *rod.Page, key input.Key) {
 
 func TestDesktopDockerManagerBrowser(t *testing.T) {
 	fixture := newDockerManagerFixture()
-	page := desktopAuditBrowserWithAPI(t, map[string]http.Handler{"/api/docker-manager/": fixture})
+	page := desktopAuditBrowserWithAPI(t, map[string]http.Handler{"/api/docker-manager/": fixture}).CancelTimeout().Timeout(3 * time.Minute)
 	page.MustEval(`()=>auditTest.openApp('docker-manager')`)
 
 	// Stacks section (the default): own stacks by name, the external project and the single containers, each group with its

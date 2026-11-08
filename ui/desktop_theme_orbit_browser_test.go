@@ -136,6 +136,8 @@ func TestDesktopOrbitBrowser(t *testing.T) {
 	if got := s.eval(t, `()=>{const w=[...auditTest.state.windows.values()].find(w=>w.appId==='calculator');return [AuraDesktopThemeFx.command('orbit.burst',{kind:'dissolve',windowId:w.id}),AuraDesktopThemeFx.command('orbit.burst',{kind:'materialize',windowId:'no-such-window'})];}`).Value; !got.Get("0").Bool() || !got.Get("1").Nil() {
 		t.Errorf("orbit.burst answers %s, want [true, null]", got.String())
 	}
+	// Static-scene quality keeps slow software GL below the velocity sampler's 250 ms stale boundary.
+	s.eval(t, `async()=>{AuraDesktopThemeFx.command('orbit.quality',{level:3});await new Promise(requestAnimationFrame);await new Promise(requestAnimationFrame);}`)
 	s.eval(t, `()=>{const w=[...auditTest.state.windows.values()].find(w=>w.appId==='calculator');Object.assign(w.element.style,{left:'700px',top:'300px'});dispatchEvent(new CustomEvent('aurago:desktop-windows-refresh'));}`)
 	time.Sleep(900 * time.Millisecond) // the opening animation is over
 	grip := s.eval(t, `()=>{const r=document.querySelector('.vd-window[data-app-id="calculator"] .vd-window-titlebar').getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+r.height/2};}`).Value
@@ -163,6 +165,7 @@ func TestDesktopOrbitBrowser(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.waitFor(t, "the tilt to settle after the drag", 2*time.Second, `()=>!document.querySelector('.vd-window[data-app-id="calculator"]').hasAttribute('data-orbit-tilt')`)
+	s.eval(t, `()=>AuraDesktopThemeFx.command('orbit.quality',{level:1})`)
 
 	// A window that covers the screen slows the scene down; the plumbing is coverage -> setState -> throttled.
 	s.openApps(t, "files")

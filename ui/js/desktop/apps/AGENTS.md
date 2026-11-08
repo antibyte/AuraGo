@@ -2470,6 +2470,8 @@ buttons and menu popovers remain excluded from those gestures.
   `desktop.virtual_computers_expiry_days`. Volume TTL options use
   `formatDuration` for 1/7/30 days. Do not hardcode `s`/`min`/`h`/`d`
   there. Leave `tx` as a key-only helper.
+- Workspace refreshes retain the agent-request textarea node, focus and selection
+  while rebuilding workspace choices, including an unavailable selected workspace.
 - Virtual Computers volume sizes use `desktop.bytes`, `desktop.kib`,
   `desktop.mib`, and `desktop.gib`. Do not hardcode `KB`/`MB`/`GB` there.
 - The New computer dialog shows the per-machine Network choice for both Python

@@ -217,7 +217,9 @@
         const content = state.host.querySelector('[data-role="content"]');
         const modal = state.host.querySelector('[data-role="modal-host"]');
         if (!toolbar || !sections || !statusRegion || !content || !modal) return;
-        state.agentRequestDraft = content.querySelector('[data-role="agent-request"]')?.value ?? state.agentRequestDraft ?? '';
+        const agentRequest = content.querySelector('[data-role="agent-request"]');
+        const agentRequestFocused = document.activeElement === agentRequest;
+        state.agentRequestDraft = agentRequest?.value ?? state.agentRequestDraft ?? '';
         state.agentWorkspaceId = content.querySelector('[data-role="agent-workspace"]')?.value ?? state.agentWorkspaceId ?? '';
         toolbar.innerHTML = toolbarPane(state);
         sections.innerHTML = sectionTabs(state);
@@ -238,6 +240,11 @@
             if (list) list.innerHTML = machineList(state);
         } else if (state.activeSection === 'workspaces') {
             content.innerHTML = workspacePane(state);
+            const nextAgentRequest = content.querySelector('[data-role="agent-request"]');
+            if (agentRequest && nextAgentRequest) {
+                nextAgentRequest.replaceWith(agentRequest);
+                if (agentRequestFocused) agentRequest.focus({ preventScroll: true });
+            }
             if (workspaceLiveMount) {
                 const replacement = content.querySelector('[data-role="workspace-vnc-mount"]');
                 if (replacement) replacement.replaceWith(workspaceLiveMount);

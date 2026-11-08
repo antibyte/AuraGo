@@ -8649,6 +8649,7 @@ function wireWindow(win, id) {
 
     function windowLayoutLimits(win) {
         const workspace = workspaceBoundsForWindow();
+        win.style.setProperty('--vd-workspace-height', workspace.height + 'px');
         const minimum = appWindowMinSize(win.dataset.appId);
         const minWidth = Math.min(workspace.width, minimum.width || WINDOW_MIN_W);
         const minHeight = Math.min(workspace.height, minimum.height || WINDOW_MIN_H);

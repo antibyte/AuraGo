@@ -30,6 +30,12 @@ func TestDesktopMaximizedWindowFollowsViewportResizeBrowser(t *testing.T) {
 				mobile        bool
 			}{{320, 844, false}, {320, 844, true}, {640, 180, false}, {1440, 900, false}} {
 				setDesktopMobileViewport(t, page, viewport.width, viewport.height, viewport.mobile)
+				page.Timeout(5*time.Second).MustWait(`(id,mobile)=>{
+					const e=auditTest.state.windows.get(id).element,b=auditTest.workspaceBoundsForWindow();
+					const r=e.getBoundingClientRect();
+					return r.width<=b.width+1 && (mobile || r.height<=b.height+1) && parseFloat(e.style.width)<=b.width+1 && parseFloat(e.style.minWidth)<=b.width+1 &&
+						parseFloat(e.style.minHeight)<=b.height+1 && (mobile || parseFloat(e.style.height)<=b.height+1);
+				}`, id, viewport.mobile)
 				result := page.MustEval(`id=>{
 					const a=auditTest,w=a.state.windows.get(id),e=w.element,r=e.getBoundingClientRect(),b=a.workspaceBoundsForWindow();
 					return {maximized:w.maximized,restore:JSON.stringify(w.restoreBounds),width:r.width,height:r.height,

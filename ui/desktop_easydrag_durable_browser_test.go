@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 // These synthetic journeys never edit config.yaml or enable the production Runner.
@@ -104,7 +105,8 @@ func TestDesktopEasyDragDurableReconnectBrowser(t *testing.T) {
 	p.MustSetViewport(390, 844, 1, true)
 	p.MustEval(`()=>fixtureTheme('fruity-light')`)
 	p.MustEval(`id=>edDurableFixture.wake(id)`, runID)
-	s.wait(`()=>edFixture.editor().run.status==='running' && edFixture.editor().run.durableStatus?.state==='running'`)
+	// The five-second metadata poll needs a complete cadence after the streamed wake.
+	p.Timeout(10 * time.Second).MustWait(`()=>edFixture.editor().run.status==='running' && edFixture.editor().run.durableStatus?.state==='running'`)
 	s.wait(`()=>document.querySelector('.ed-run-results').open`)
 	p.MustElement(`.ed-run-results summary`).MustClick()
 	s.wait(`()=>!document.querySelector('.ed-run-results').open`)

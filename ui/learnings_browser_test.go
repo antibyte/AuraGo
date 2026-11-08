@@ -78,6 +78,7 @@ func TestDesktopLearningsBrowser(t *testing.T) {
 		page.MustEval(`async()=>{const b=[...document.querySelectorAll('.learning-list button')].find(b=>b.textContent===knowledgeWords['learnings.history']);b.click();await csWait(()=>document.querySelector('.learning-details summary'));}`)
 		check("history revision visible", `()=>document.querySelector('.learning-details').textContent.includes('#1')`)
 		page.MustSetViewport(500, 800, 1, false)
+		waitForJSBool(t, page, `()=>document.querySelector('.learning-dialog').getBoundingClientRect().width<=500`)
 		check("narrow dialog fits", `()=>document.querySelector('.learning-dialog').getBoundingClientRect().width<=500`)
 		if dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); dir != "" {
 			if err := os.MkdirAll(dir, 0755); err != nil {
