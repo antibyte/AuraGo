@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>AuraPinball harness</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<script type="importmap">{"imports":{"three":"/node_modules/three/build/three.module.js","three/addons/":"/node_modules/three/examples/jsm/"}}</script>
+<style>
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#0b0d12;color:#cfd8e3;font:13px "Segoe UI","Noto Sans",Arial,sans-serif}
+#stage{position:fixed;inset:0}
+#stage canvas{display:block;width:100%;height:100%}
+#note{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);padding:14px 22px;border:1px solid #37d9ff;border-radius:8px;background:#10151dcc;display:none}
+#note.on{display:block}
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="note"></div>
+<script type="module" src="/testdata/pinball-harness.js"></script>
+</body>
+</html>
