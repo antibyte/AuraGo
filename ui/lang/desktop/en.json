@@ -1,4 +1,11 @@
 {
+  "desktop.pet_action_wave": "Wave",
+  "desktop.pet_action_nod": "Nod",
+  "desktop.pet_action_dance": "Dance",
+  "desktop.pet_action_sit": "Sit down",
+  "desktop.pet_action_sleep": "Sleep",
+  "desktop.pet_action_stand": "Stand up",
+  "desktop.pet_3d_failed": "3D is unavailable. Showing the animated companion.",
   "synthStudio.strudel_open": "Open code",
   "synthStudio.workspace_strudel": "Strudel",
   "synthStudio.strudel_run": "Run / Update",

@@ -73,8 +73,8 @@ func TestBundledPersonaSprites(t *testing.T) {
 			}
 		})
 	}
-	if personas != 12 {
-		t.Fatalf("got %d persona pets, want 12", personas)
+	if personas != 13 {
+		t.Fatalf("got %d persona pets, want 13", personas)
 	}
 	if mascots != 13 {
 		t.Fatalf("got %d mascot pets, want 13", mascots)

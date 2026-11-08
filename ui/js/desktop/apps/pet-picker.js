@@ -104,7 +104,7 @@
             }
             grid.innerHTML = pets.map(pet => `
                 <div class="vd-pet-picker-card${pet.id === activeId ? ' is-active' : ''}" data-id="${esc(pet.id)}">
-                    <div class="vd-pet-picker-thumb" style="background-image:url('${petAssetURL(pet.id, pet.spritesheet)}')"></div>
+                    <div class="vd-pet-picker-thumb${pet.id === 'aurago-punk-3d' && pet.subcategory === '3d' ? ' is-model' : ''}" style="background-image:url('${pet.id === 'aurago-punk-3d' && pet.subcategory === '3d' ? '/3d/pets/punk/thumbnail.png?v=' + encodeURIComponent(window.BUILD_VERSION || 'dev') : petAssetURL(pet.id, pet.spritesheet)}')"></div>
                     <div class="vd-pet-picker-name">${esc(pet.display_name || pet.id)}</div>
                     <div class="vd-pet-picker-desc">${esc(pet.description || '')}</div>
                     <button type="button" class="vd-pet-picker-select vd-btn-secondary" data-id="${esc(pet.id)}">${esc(t('desktop.pet_select'))}</button>

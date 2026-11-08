@@ -1,4 +1,11 @@
 {
+  "desktop.pet_action_wave": "Vinke",
+  "desktop.pet_action_nod": "Nikke",
+  "desktop.pet_action_dance": "Danse",
+  "desktop.pet_action_sit": "Sette seg",
+  "desktop.pet_action_sleep": "Sove",
+  "desktop.pet_action_stand": "Reise seg",
+  "desktop.pet_3d_failed": "3D er ikke tilgjengelig. Den animerte følgesvennen vises.",
   "synthStudio.strudel_open": "Åpne kode",
   "synthStudio.workspace_strudel": "Strudel",
   "synthStudio.strudel_run": "Start / Oppdater",

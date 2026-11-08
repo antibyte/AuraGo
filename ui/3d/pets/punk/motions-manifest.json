@@ -1,0 +1,218 @@
+{
+  "revision": "fd9fdeb2ba214d210e8e4f28015c2a3c06cd8f5b",
+  "skeleton_sha256": "1784d9aa20e24dee3233d97a8ac2f2e0d72cc74f0692b44fcded87d2d3e33f9c",
+  "clips": [
+    {
+      "id": "idle-a",
+      "name": "Idle_A",
+      "loop": true,
+      "source_sha256": "87b14d162867d6448bdf4f3e854e7fbd2901bcabafcc45aa06b64590c88eec15",
+      "duration": 3.0833332538604736
+    },
+    {
+      "id": "idle-subtle",
+      "name": "Idle_Subtle",
+      "loop": false,
+      "source_sha256": "847e7940489504963800a04c5c25fdf29532b5f92064154c8a8cc87c74bdea30",
+      "duration": 2.5416667461395264
+    },
+    {
+      "id": "idle-listening",
+      "name": "Idle Listening",
+      "loop": false,
+      "source_sha256": "baf99e376c145322be3a4132603df41c9a125ec603df9f116beaca0011d20f81",
+      "duration": 1.625
+    },
+    {
+      "id": "idle-foldarms",
+      "name": "Idle_FoldArms",
+      "loop": true,
+      "source_sha256": "cf2633678d94edad1b80cfcdc25c4b165bf7ec7141b1177b6f4951f4484efa51",
+      "duration": 2.4583332538604736
+    },
+    {
+      "id": "idle-talking",
+      "name": "Idle_Talking",
+      "loop": true,
+      "source_sha256": "d955f598b772c2de5832ed33178d7106e7f15251db1a0ca425626325fe6492c9",
+      "duration": 3.625
+    },
+    {
+      "id": "walk-female",
+      "name": "Walk_Female",
+      "loop": false,
+      "source_sha256": "af85db7f3cc5889c9b035d18283e5454479f2bcde3501b10b4c11832cba3250e",
+      "duration": 1.3333333730697632
+    },
+    {
+      "id": "walk-happy",
+      "name": "Walk_Happy",
+      "loop": true,
+      "source_sha256": "22053daa9ec83e0aacc8deb98568faf5bcedcf00bfd5194d310e2b551cbfebf2",
+      "duration": 1.0416666269302368
+    },
+    {
+      "id": "jog",
+      "name": "Jog",
+      "loop": true,
+      "source_sha256": "8262507f43549549daedc4c660ee68d0aec56748140d4e81fd82b2315d37c70b",
+      "duration": 1.1666666269302368
+    },
+    {
+      "id": "run-female",
+      "name": "Run_Female",
+      "loop": false,
+      "source_sha256": "24f4fbe93f6be857e77a517b3d2c1bc5f5c21b2c7dc11099658e2b4590c8752f",
+      "duration": 0.8333333134651184
+    },
+    {
+      "id": "greeting",
+      "name": "Greeting",
+      "loop": false,
+      "source_sha256": "abf286fad0374970d78e72f1d0d8ce190d4b6d976adf58d8bbd6072d873b88bf",
+      "duration": 4.916666507720947
+    },
+    {
+      "id": "head-nod",
+      "name": "Head Nod",
+      "loop": false,
+      "source_sha256": "8a44b309edc5c9371e10afa823caa48bfcb2d2cf4fe1faf98f036b429644a8d3",
+      "duration": 0.7916666865348816
+    },
+    {
+      "id": "yes",
+      "name": "Yes",
+      "loop": false,
+      "source_sha256": "a059523bf92320a8a57224dfb1a8aafd558a0032432689bf7682f8035f35f4d1",
+      "duration": 2.4583332538604736
+    },
+    {
+      "id": "confused",
+      "name": "Confused",
+      "loop": true,
+      "source_sha256": "20d0ba8de8aea5fbebfc164a508666472b17faed354ad6ae0fd970ec07a6b1de",
+      "duration": 2.8333332538604736
+    },
+    {
+      "id": "reject",
+      "name": "Reject",
+      "loop": false,
+      "source_sha256": "27a4ea946e5ee0f85413cdfaf3f6c0347c70d9ce3048293ee0ae803d4ee7784b",
+      "duration": 3.7083332538604736
+    },
+    {
+      "id": "clapping",
+      "name": "Clapping",
+      "loop": true,
+      "source_sha256": "4d603cf8b90b109950c82f73f11f00232c438670770a57a4ebb901a153319c5a",
+      "duration": 1.4583333730697632
+    },
+    {
+      "id": "victory-fist-pump",
+      "name": "Victory Fist Pump",
+      "loop": false,
+      "source_sha256": "9241e35c368c17d7e4393fe7551a605a38ced35f2ac7b0970e6e8a0ceb256c40",
+      "duration": 2.4583332538604736
+    },
+    {
+      "id": "dance-simple",
+      "name": "Dance_Simple",
+      "loop": true,
+      "source_sha256": "aa3e2b18ffac97ada71c2086f410d93fcd7735b6bdd338e5d4a3f63cbf260305",
+      "duration": 1.2083333730697632
+    },
+    {
+      "id": "dance-arm-pump",
+      "name": "Dance_Arm_Pump",
+      "loop": true,
+      "source_sha256": "f74803590c39d8e12d9b535cb2c3056f2b8b3564ae6621fe625178caa92d0af8",
+      "duration": 1.9583333730697632
+    },
+    {
+      "id": "sit-ground-idle",
+      "name": "Sit_Ground_Idle",
+      "loop": true,
+      "source_sha256": "4fd660495f41d22fb1229873395e66c15e1369b8481948c11507177ed0d2d74f",
+      "duration": 2.9583332538604736
+    },
+    {
+      "id": "sleeping",
+      "name": "Sleeping",
+      "loop": true,
+      "source_sha256": "8da3191f387ca1c8fed4ad75b52555ac4c1a46538b7b2581eebead661c24b5fa",
+      "duration": 1.5833333730697632
+    },
+    {
+      "id": "shiver",
+      "name": "Shivering",
+      "loop": false,
+      "source_sha256": "0e5a4b5c984400756e5df5b4eb208da2f04889c91e2f193f7f3386f9240671ca",
+      "duration": 0.1666666716337204
+    },
+    {
+      "id": "jump-2",
+      "name": "Jump_2",
+      "loop": false,
+      "source_sha256": "a76a0842d3f55e9da82a72fdec28e5f56a73311bdfe0b5ede364cc3eeae1d61b",
+      "duration": 1.6666666269302368
+    },
+    {
+      "id": "jump-land",
+      "name": "Jump_Land",
+      "loop": false,
+      "source_sha256": "38a417280d96aa01cf34c56680863aa6435f238e581b0961d79ba06e29a03609",
+      "duration": 1.5833333730697632
+    },
+    {
+      "id": "freefall",
+      "name": "Freefall",
+      "loop": true,
+      "source_sha256": "af892d3b93bdaa937197a80b70c9dba1593f2fcc136324603a422b8288651df8",
+      "duration": 1.4583333730697632
+    },
+    {
+      "id": "ledge-hang",
+      "name": "Ledge Hang",
+      "loop": true,
+      "source_sha256": "b5c82bae80a02e74dec3f95c4a01227a78042aa9f356eefde245e24bbdac4bb4",
+      "duration": 1.8333333730697632
+    },
+    {
+      "id": "guitar-playing",
+      "name": "Guitar_Playing",
+      "loop": true,
+      "source_sha256": "6c2aaa53647bb77d07b8b3ad4cdb565021bffb1dd796790a9dc62bd7e552fba5",
+      "duration": 3.9583332538604736
+    },
+    {
+      "id": "dab",
+      "name": "Dab",
+      "loop": false,
+      "source_sha256": "2deb58f359d7ab1f0984f1067db3e0a3f722785a02b3f95b934f62fbf1a951d2",
+      "duration": 1.9166666269302368
+    },
+    {
+      "id": "tired-hunched",
+      "name": "Tired Hunched",
+      "loop": false,
+      "source_sha256": "6993e4d924b2efbfb5a9753112c9d5392b9e0c1a1a5cf1f4a8b24fa9e72444b5",
+      "duration": 0.9583333134651184
+    },
+    {
+      "id": "interact",
+      "name": "Interact",
+      "loop": false,
+      "source_sha256": "9091ffa013fccc28ad74284e689584ec4254dc0ac13e8e9c31884f9bce2b84f9",
+      "duration": 2.4583332538604736
+    },
+    {
+      "id": "fixing-kneeling",
+      "name": "Fixing_Kneeling",
+      "loop": true,
+      "source_sha256": "239d0d15a645572ac1351a3a0444fb7f6b03dd1dea4b5f64debb12d892bc2445",
+      "duration": 6.458333492279053
+    }
+  ],
+  "bytes": 2959297,
+  "sha256": "0771a759338333d57bf87002aef0641fd6faa7b6a465f480d826cbded9cc541e"
+}

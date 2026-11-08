@@ -84,6 +84,48 @@
     let gravityVelocity = 0;
     let dockFloorObserver = null;
     let dockFloorTarget = null;
+    let modelPet = null;
+    let modelAbort = null;
+    let modelEpoch = 0;
+    let modelState = 'idle';
+    const modelAmbientStates = ['waving', 'jumping', 'running', 'running', 'dancing', 'sitting', 'sleeping', 'nodding', 'playing', 'clapping'];
+
+    function isModelPet(pet) {
+        // shortcut: only bundled Punk is 3D; add a validated model manifest when more 3D pets are requested.
+        return pet && pet.id === 'aurago-punk-3d' && pet.subcategory === '3d';
+    }
+
+    function releaseModelPet() {
+        modelEpoch++;
+        if (modelAbort) modelAbort.abort();
+        modelAbort = null;
+        if (modelPet) modelPet.dispose();
+        modelPet = null;
+    }
+
+    function loadModelPet() {
+        if (modelAbort || !spriteEl) return;
+        const host = spriteEl;
+        const epoch = ++modelEpoch;
+        modelAbort = new AbortController();
+        const signal = modelAbort.signal;
+        const versionedURL = url => window.AuraLazyAssets.versionedURL(url);
+        const failed = () => {
+            if (signal.aborted || epoch !== modelEpoch) return;
+            releaseModelPet();
+            showDesktopNotification({ title: t('desktop.notification'), message: t('desktop.pet_3d_failed') });
+        };
+        Promise.resolve().then(() => window.AuraLazyAssets.loadScript('/js/vendor/aura-drift/three-runtime.js'))
+            .then(() => window.AuraLazyAssets.loadScript('/js/desktop/core/pet-3d.js'))
+            .then(() => {
+                signal.throwIfAborted();
+                return window.AuraPunkPet3D.create(host, { signal, versionedURL, scale: petScale, onFailure: failed });
+            }).then(controller => {
+                if (signal.aborted || epoch !== modelEpoch || host !== spriteEl) { controller.dispose(); return; }
+                modelPet = controller;
+                controller.setState(modelState);
+            }).catch(failed);
+    }
 
     function petEnabled() {
         return String(settingValue('pet.enabled')).toLowerCase() !== 'false';
@@ -206,6 +248,10 @@
 
     function removeLayer() {
         if (!layer) return;
+        releaseModelPet();
+        cancelDragSettle();
+        stopDragMotionLoop();
+        drag = null;
         clearAmbientTimers();
         clearReactionTimer();
         stopGravityFall();
@@ -266,6 +312,10 @@
         stopGravityFall();
         if (!petGravity()) return;
         layer.classList.add('is-falling');
+        if (isModelPet(activePet()) && layer.offsetTop < petRestingY(petScale()) - 1) {
+            modelState = 'falling';
+            if (modelPet) modelPet.setState('falling');
+        }
         let last = performance.now();
         const tick = now => {
             const dt = Math.min(0.05, Math.max(0.001, (now - last) / 1000));
@@ -277,6 +327,12 @@
                 layer.classList.remove('is-falling');
                 gravityFallFrame = null;
                 gravityVelocity = 0;
+                if (isModelPet(activePet())) {
+                    modelState = 'landing';
+                    if (modelPet) modelPet.setState('landing');
+                    clearReactionTimer();
+                    reactionTimer = window.setTimeout(() => { reactionTimer = null; if (layer && !drag) { setSpriteState('idle'); scheduleAmbientAnimation(); } }, (modelPet ? modelPet.duration('landing') : 1500) + 200);
+                }
                 persistRestingY(targetY);
                 positionBubbleInViewport();
                 return;
@@ -328,6 +384,8 @@
         if (!spriteEl) return;
         const def = stateRows[stateId] || stateRows.idle;
         currentState = stateId;
+        modelState = stateId;
+        if (modelPet) modelPet.setState(stateId);
         spriteEl.dataset.state = stateId;
         spriteEl.style.setProperty('--pet-row', String(def.row));
         spriteEl.style.setProperty('--pet-frames', String(def.frames));
@@ -346,6 +404,7 @@
     }
 
     function ambientPlaybackMs(stateId) {
+        if (modelPet) return Math.max(1500, modelPet.duration(stateId) + AMBIENT_RETURN_PADDING_MS);
         const def = stateRows[stateId] || stateRows.idle;
         const iterations = Number(def.iterations || 1);
         return Math.max(300, def.duration * (Number.isFinite(iterations) ? iterations : 1) + AMBIENT_RETURN_PADDING_MS);
@@ -375,6 +434,7 @@
 
     function scheduleAmbientAnimation() {
         if (!layer || !spriteEl || !petEnabled()) return;
+        if (isModelPet(activePet()) && (document.hidden || window.matchMedia('(prefers-reduced-motion: reduce)').matches || document.body.dataset.animations === 'false')) return;
         if (ambientTimer) window.clearTimeout(ambientTimer);
         ambientTimer = window.setTimeout(playAmbientAnimation, randomAmbientDelay());
     }
@@ -442,7 +502,8 @@
             scheduleAmbientAnimation();
             return;
         }
-        const ambientState = ambientStates[Math.floor(Math.random() * ambientStates.length)] || 'waving';
+        const states = modelPet ? modelAmbientStates : ambientStates;
+        const ambientState = states[Math.floor(Math.random() * states.length)] || 'waving';
         if (ambientState === 'running') {
             const runPlan = ambientRunPlan();
             if (!runPlan) {
@@ -487,15 +548,25 @@
             return;
         }
         if (loadedPetId !== pet.id) {
+            releaseModelPet();
             loadedPetId = pet.id;
             spriteEl.style.backgroundImage = 'url("' + url + '")';
             spriteEl.setAttribute('aria-label', pet.display_name || pet.id);
         }
-        applyPosition();
+        if (isModelPet(pet)) {
+            spriteEl.setAttribute('role', 'button');
+            spriteEl.tabIndex = 0;
+            loadModelPet();
+        } else {
+            releaseModelPet();
+            spriteEl.setAttribute('role', 'img');
+            spriteEl.removeAttribute('tabindex');
+        }
         updateLayerZIndex();
         clearAmbientTimers();
         clearReactionTimer();
         setSpriteState('idle');
+        applyPosition();
         scheduleAmbientAnimation();
     }
 
@@ -562,6 +633,8 @@
         const stateId = reactionToState[reaction] || 'idle';
         clearAmbientTimers();
         setSpriteState(stateId);
+        modelState = reaction;
+        if (modelPet) modelPet.setState(reaction);
         if (stateId === 'idle') scheduleAmbientAnimation();
         return stateId;
     }
@@ -576,7 +649,7 @@
         clearReactionTimer();
         const stateId = applyReaction(reactionName);
         if (stateId === 'idle') return;
-        const duration = Math.max(500, Number(options.durationMs || PET_REACTION_DURATIONS_MS[reactionName] || PET_REACTION_DURATION_MS));
+        const duration = Math.max(500, modelPet ? modelPet.duration(reactionName) : 0, Number(options.durationMs || PET_REACTION_DURATIONS_MS[reactionName] || PET_REACTION_DURATION_MS));
         reactionTimer = window.setTimeout(() => {
             reactionTimer = null;
             if (layer && currentState === stateId && !drag) {
@@ -693,6 +766,7 @@
         const instVelX = (drag.pointerX - drag.lastPointerX) / dt;
         drag.lastPointerX = drag.pointerX;
         drag.velX = drag.velX * (1 - DRAG_VEL_SMOOTH) + instVelX * DRAG_VEL_SMOOTH;
+        if (modelPet) modelPet.setDrag(drag.velX);
         const tiltTarget = Math.max(-DRAG_TILT_MAX_DEG, Math.min(DRAG_TILT_MAX_DEG, drag.velX * DRAG_TILT_GAIN));
         const tiltAccel = (tiltTarget - drag.tilt) * DRAG_TILT_SPRING - drag.tiltVel * DRAG_TILT_DAMPING;
         drag.tiltVel += tiltAccel * dt;
@@ -757,6 +831,12 @@
 
     function wireDrag() {
         if (!layer) return;
+        spriteEl.addEventListener('keydown', event => {
+            if (!isModelPet(activePet()) || !['Enter', ' '].includes(event.key)) return;
+            event.preventDefault();
+            react('waving');
+        });
+        spriteEl.addEventListener('dblclick', () => { if (modelPet) performModelAction('dancing'); });
         layer.addEventListener('pointerdown', event => {
             if (event.button !== 0) return;
             clearAmbientTimers();
@@ -765,6 +845,10 @@
             stopGravityFall();
             const now = performance.now();
             drag = {
+                isModel: isModelPet(activePet()),
+                moved: !isModelPet(activePet()),
+                startPointerX: event.clientX,
+                startPointerY: event.clientY,
                 pointerId: event.pointerId,
                 pointerX: event.clientX,
                 pointerY: event.clientY,
@@ -778,23 +862,34 @@
             };
             layer.setPointerCapture(event.pointerId);
             layer.classList.add('dragging');
-            applyDragHangPosition();
-            startDragMotionLoop();
+            if (drag.moved) { applyDragHangPosition(); startDragMotionLoop(); }
         });
         layer.addEventListener('pointermove', event => {
             if (!drag || drag.pointerId !== event.pointerId) return;
             drag.pointerX = event.clientX;
             drag.pointerY = event.clientY;
+            if (!drag.moved && Math.hypot(drag.pointerX - drag.startPointerX, drag.pointerY - drag.startPointerY) > 6) {
+                drag.moved = true;
+                startDragMotionLoop();
+            }
         });
         layer.addEventListener('pointerup', event => {
             if (!drag || drag.pointerId !== event.pointerId) return;
             layer.releasePointerCapture(event.pointerId);
             layer.classList.remove('dragging');
+            if (drag.isModel && !drag.moved) {
+                drag = null;
+                react('waving');
+                return;
+            }
+            if (modelPet) modelPet.setState('landing');
             const x = layer.offsetLeft;
             const y = layer.offsetTop;
             settleDragTilt(() => {
                 cancelDragSettle();
                 drag = null;
+                setSpriteState('idle');
+                scheduleAmbientAnimation();
                 saveSetting('pet.position_x', String(x));
                 if (petGravity()) {
                     // Gravity pulls the dropped pet back down onto the dock bar.
@@ -813,6 +908,8 @@
             stopDragMotionLoop();
             drag = null;
             if (layer) layer.style.transform = '';
+            setSpriteState('idle');
+            scheduleAmbientAnimation();
             applyPosition();
         });
         layer.addEventListener('contextmenu', event => {
@@ -834,7 +931,23 @@
             { separator: true },
             { label: t('desktop.pet_hide_bubble'), icon: 'x', action: hideBubble }
         ];
+        if (modelPet) {
+            const actions = [['wave', 'waving'], ['nod', 'nodding'], ['dance', 'dancing'], ['sit', 'sitting'], ['sleep', 'sleeping'], ['stand', 'idle']];
+            items.splice(1, 0, ...actions.map(([label, motion]) => ({ label: t('desktop.pet_action_' + label), icon: 'heart', action: () => performModelAction(motion) })));
+        }
         showContextMenu(event.clientX, event.clientY, items);
+    }
+
+    function performModelAction(motion) {
+        if (!modelPet) return;
+        clearAmbientTimers();
+        clearReactionTimer();
+        setSpriteState(motion);
+        if (motion === 'idle') { scheduleAmbientAnimation(); return; }
+        reactionTimer = window.setTimeout(() => {
+            reactionTimer = null;
+            if (layer && !drag) { setSpriteState('idle'); scheduleAmbientAnimation(); }
+        }, Math.max(modelPet.duration(motion) + 350, ['sitting', 'sleeping'].includes(motion) ? 12000 : 3500));
     }
 
     function toggleEnabled() {
@@ -894,6 +1007,15 @@
         if (typeof window.addEventListener !== 'function') return;
         if (petRuntimeInitialized) return;
         petRuntimeInitialized = true;
+        const refreshMotion = () => {
+            if (!isModelPet(activePet())) return;
+            const ambientActive = !!ambientReturnTimer || !!ambientMoveFrame;
+            clearAmbientTimers();
+            if (ambientActive) setSpriteState('idle');
+            if (!document.hidden && currentState === 'idle') scheduleAmbientAnimation();
+        };
+        document.addEventListener('visibilitychange', refreshMotion);
+        window.matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', refreshMotion);
         window.addEventListener('resize', () => {
             if (layer) applyPosition();
         });
@@ -920,6 +1042,7 @@
         hideBubble,
         handleEvent: handlePetEvent,
         syncBootstrap: syncPetBootstrap,
+        inspect3D: () => modelPet ? modelPet.inspect() : null,
         saveSetting
     };
     initPetRuntime();

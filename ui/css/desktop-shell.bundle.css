@@ -9963,6 +9963,24 @@
     cursor: grabbing;
 }
 
+.vd-pet-sprite.is-3d-ready {
+    animation: none !important;
+    background-image: none !important;
+}
+
+.vd-pet-sprite.is-3d-ready canvas {
+    display: block;
+    width: 192px;
+    height: 208px;
+    pointer-events: none;
+}
+
+.vd-pet-sprite[role="button"]:focus-visible {
+    outline: 2px solid var(--vd-accent, #a663db);
+    outline-offset: 3px;
+    border-radius: 16px;
+}
+
 @keyframes vd-pet-frames {
     from { background-position: 0 var(--pet-row-y); }
     to { background-position: var(--pet-frame-end-x) var(--pet-row-y); }

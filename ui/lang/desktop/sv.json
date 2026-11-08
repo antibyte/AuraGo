@@ -1,4 +1,11 @@
 {
+  "desktop.pet_action_wave": "Vinka",
+  "desktop.pet_action_nod": "Nicka",
+  "desktop.pet_action_dance": "Dansa",
+  "desktop.pet_action_sit": "Sätta sig",
+  "desktop.pet_action_sleep": "Sova",
+  "desktop.pet_action_stand": "Resa sig",
+  "desktop.pet_3d_failed": "3D är inte tillgängligt. Den animerade följeslagaren visas.",
   "synthStudio.strudel_open": "Öppna kod",
   "synthStudio.workspace_strudel": "Strudel",
   "synthStudio.strudel_run": "Starta / Uppdatera",

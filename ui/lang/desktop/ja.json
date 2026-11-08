@@ -1,4 +1,11 @@
 {
+  "desktop.pet_action_wave": "手を振る",
+  "desktop.pet_action_nod": "うなずく",
+  "desktop.pet_action_dance": "踊る",
+  "desktop.pet_action_sit": "座る",
+  "desktop.pet_action_sleep": "眠る",
+  "desktop.pet_action_stand": "立ち上がる",
+  "desktop.pet_3d_failed": "3Dを利用できません。アニメーションのキャラクターを表示します。",
   "synthStudio.strudel_open": "コードを開く",
   "synthStudio.workspace_strudel": "Strudel",
   "synthStudio.strudel_run": "実行 / 更新",

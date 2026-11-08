@@ -21,6 +21,11 @@ Use the existing helper for each job. Check release scripts with harmless fixtur
 
 ## Verification
 
+- Punk 3D pet: Blender runs `assets/desktop-pets/build_model.py`, then
+  `node scripts/build-punk-pet-motions.mjs` retargets the pinned Mesh2Motion clips.
+  `node scripts/test-punk-pet.mjs` checks encoded texture sizes, skin/motion
+  provenance and real Chrome/Edge WebGL interaction/failure/disposal behavior.
+
 - Aura Drift: `node scripts/test-aura-drift-audio.mjs --fast` checks the pack and
   requested-music queue priority; the full run also decodes assets with FFmpeg.
 - Storymaker: `build-storymaker-vendor.mjs [--check]` bundles the exact PixiJS/GSAP lock versions and included notices; `build-storymaker-catalog.mjs [--check]` packages retained ImageGen masters offline. `test-storymaker-raster-browser.mjs` owns native renderer, rig-matrix, environment and seek-parity acceptance; see `../assets/storymaker/ASSET-CONTRACT.md`.

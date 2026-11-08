@@ -27,6 +27,14 @@ New app-scoped prefixes must contain no `ad` substring; verify
 
 ## Ownership
 
+- The optional `aurago-punk-3d` pet lazily loads `js/desktop/core/pet-3d.js` and the local
+  Aura Drift Three.js bundle. Its fixed model/motion URLs are under `3d/pets/punk/`;
+  no imported pet can choose model URLs. Keep gaze, animation crossfades, drag,
+  reduced motion, hidden-tab suspension, stale-load cancellation and GPU disposal.
+  Loading/WebGL failure retains its OpenPets fallback. Source and licensing
+  ownership: `../assets/desktop-pets/AGENTS.md`. Verify `node scripts/test-punk-pet.mjs`
+  and existing `go test ./ui -run 'DesktopPet|DesktopChat.*Pet'` checks.
+
 - Synth Studio's optional Strudel workbench uses a locally bundled runtime and
   downloadable source archive under `js/vendor/strudel/`. Its evaluator runs in
   the server-owned sandbox document, with no external assets or API bridge.
@@ -1367,6 +1375,8 @@ New app-scoped prefixes must contain no `ad` substring; verify
 - Verify `go test ./ui -run TestDesktopFindIt -count=1`; the real-handler flow is `AURAGO_RUN_BROWSER_SMOKE=1 go test ./internal/server -run TestDesktopFindItBrowser -count=1`.
 
 ## Child DOX Index
+
+- `../assets/desktop-pets/AGENTS.md` — Desktop Punk 3D authoring, pinned animation sources, runtime model budgets and interaction verification.
 
 - `js/storymaker/AGENTS.md` and `../assets/storymaker/AGENTS.md` — Shared PixiJS/GSAP player, catalog v2 ImageGen masters, texture transport and deterministic bitmap production. Delivered payloads live in `img/storymaker/` and `js/vendor/storymaker/`.
 - `js/desktop/apps/goldfish-adventure/AGENTS.md` — Authored adventure content,

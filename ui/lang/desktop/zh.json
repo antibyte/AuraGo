@@ -1,4 +1,11 @@
 {
+  "desktop.pet_action_wave": "挥手",
+  "desktop.pet_action_nod": "点头",
+  "desktop.pet_action_dance": "跳舞",
+  "desktop.pet_action_sit": "坐下",
+  "desktop.pet_action_sleep": "睡觉",
+  "desktop.pet_action_stand": "站起",
+  "desktop.pet_3d_failed": "3D暂不可用，现显示动画伙伴。",
   "synthStudio.strudel_open": "打开代码",
   "synthStudio.workspace_strudel": "Strudel",
   "synthStudio.strudel_run": "运行 / 更新",

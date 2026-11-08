@@ -7,8 +7,9 @@ OpenPets-compatible sprite artwork shipped in AuraGo's external resource set.
 ## Ownership
 
 - `service_pets.go:bundledDefaultPets` owns the selectable catalog.
-- Six original OpenPets sheets and twenty-five `aurago-*` sheets (twelve personas
-  and thirteen mascots) live here.
+- Six original OpenPets sheets and twenty-six `aurago-*` sheets (thirteen persona
+  entries and thirteen mascots) live here. `aurago-punk-3d` uses the sprite Punk
+  sheet as its loading/failure fallback and remains a separate selectable entry.
 - Pet generation sources, prompts, export script and importable packages
   live in the sibling `personas/openpets/` project, outside runtime resources.
 
@@ -27,6 +28,8 @@ OpenPets-compatible sprite artwork shipped in AuraGo's external resource set.
   never add Go embeds or a production source-directory fallback.
 - The original OpenPets provenance in README applies to its six original
   sheets, not to the newly generated AuraGo artwork.
+- The additional 3D Punk entry has subcategory `3d`; its fixed local 3D resources
+  and Mesh2Motion inputs are owned by `../../../assets/desktop-pets/AGENTS.md`.
 
 ## Work Guidance
 

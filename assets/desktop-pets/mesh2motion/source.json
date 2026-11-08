@@ -1,0 +1,435 @@
+{
+  "repository": "https://github.com/Mesh2Motion/mesh2motion-app",
+  "revision": "fd9fdeb2ba214d210e8e4f28015c2a3c06cd8f5b",
+  "animations": [
+    {
+      "id": "idle-a",
+      "name": "Idle_A",
+      "file": "human/animations/idle-a.glb",
+      "hash": "87b14d162867d644",
+      "tags": [
+        "idles",
+        "quaternius"
+      ],
+      "loop": true,
+      "root_motion": false,
+      "frame_count": 75,
+      "duration": 3.0833,
+      "source": "rigs/human/idles/animation-human-idle-a.blend"
+    },
+    {
+      "id": "idle-subtle",
+      "name": "Idle_Subtle",
+      "file": "human/animations/idle-subtle.glb",
+      "hash": "847e794048950496",
+      "tags": [
+        "idles"
+      ],
+      "loop": false,
+      "root_motion": false,
+      "frame_count": 62,
+      "duration": 2.5417,
+      "source": "rigs/human/idles/animation-human-idle-subtle.blend"
+    },
+    {
+      "id": "idle-listening",
+      "name": "Idle Listening",
+      "file": "human/animations/idle-listening.glb",
+      "hash": "baf99e376c145322",
+      "tags": [
+        "idles"
+      ],
+      "loop": false,
+      "root_motion": false,
+      "frame_count": 40,
+      "duration": 1.625,
+      "source": "rigs/human/idles/animation-human-idle-listening.blend"
+    },
+    {
+      "id": "idle-foldarms",
+      "name": "Idle_FoldArms",
+      "file": "human/animations/idle-foldarms.glb",
+      "hash": "cf2633678d94edad",
+      "tags": [
+        "idles",
+        "quaternius"
+      ],
+      "loop": true,
+      "root_motion": false,
+      "frame_count": 60,
+      "duration": 2.4583,
+      "source": "rigs/human/idles/animation-human-idle-foldarms.blend"
+    },
+    {
+      "id": "idle-talking",
+      "name": "Idle_Talking",
+      "file": "human/animations/idle-talking.glb",
+      "hash": "d955f598b772c2de",
+      "tags": [
+        "idles",
+        "quaternius"
+      ],
+      "loop": true,
+      "root_motion": false,
+      "frame_count": 88,
+      "duration": 3.625,
+      "source": "rigs/human/idles/animation-human-idle-talking.blend"
+    },
+    {
+      "id": "walk-female",
+      "name": "Walk_Female",
+      "file": "human/animations/walk-female.glb",
+      "hash": "af85db7f3cc5889c",
+      "tags": [
+        "locomotion"
+      ],
+      "loop": false,
+      "root_motion": false,
+      "frame_count": 33,
+      "duration": 1.3333,
+      "source": "rigs/human/locomotion/animation-human-walk-female.blend"
+    },
+    {
+      "id": "walk-happy",
+      "name": "Walk_Happy",
+      "file": "human/animations/walk-happy.glb",
+      "hash": "22053daa9ec83e0a",
+      "tags": [
+        "locomotion"
+      ],
+      "loop": true,
+      "root_motion": false,
+      "frame_count": 26,
+      "duration": 1.0417,
+      "source": "rigs/human/locomotion/animation-human-walk-happy.blend"
+    },
+    {
+      "id": "jog",
+      "name": "Jog",
+      "file": "human/animations/jog.glb",
+      "hash": "8262507f43549549",
+      "tags": [
+        "locomotion",
+        "quaternius"
+      ],
+      "loop": true,
+      "root_motion": false,
+      "frame_count": 29,
+      "duration": 1.1667,
+      "source": "rigs/human/locomotion/animation-human-jog.blend"
+    },
+    {
+      "id": "run-female",
+      "name": "Run_Female",
+      "file": "human/animations/run-female.glb",
+      "hash": "24f4fbe93f6be857",
+      "tags": [
+        "locomotion"
+      ],
+      "loop": false,
+      "root_motion": false,
+      "frame_count": 21,
+      "duration": 0.8333,
+      "source": "rigs/human/locomotion/animation-human-run-female.blend"
+    },
+    {
+      "id": "greeting",
+      "name": "Greeting",
+      "file": "human/animations/greeting.glb",
+      "hash": "abf286fad0374970",
+      "tags": [
+        "emotes"
+      ],
+      "loop": false,
+      "root_motion": false,
+      "frame_count": 119,
+      "duration": 4.9167,
+      "source": "rigs/human/emotes/animation-human-greeting.blend"
+    },
+    {
+      "id": "head-nod",
+      "name": "Head Nod",
+      "file": "human/animations/head-nod.glb",
+      "hash": "8a44b309edc5c937",
+      "tags": [
+        "emotes"
+      ],
+      "loop": false,
+      "root_motion": false,
+      "frame_count": 20,
+      "duration": 0.7917,
+      "source": "rigs/human/emotes/animation-human-head-nod.blend"
+    },
+    {
+      "id": "yes",
+      "name": "Yes",
+      "file": "human/animations/yes.glb",
+      "hash": "a059523bf92320a8",
+      "tags": [
+        "emotes",
+        "quaternius"
+      ],
+      "loop": false,
+      "root_motion": false,
+      "frame_count": 60,
+      "duration": 2.4583,
+      "source": "rigs/human/emotes/animation-human-yes.blend"
+    },
+    {
+      "id": "confused",
+      "name": "Confused",
+      "file": "human/animations/confused.glb",
+      "hash": "20d0ba8de8aea5fb",
+      "tags": [
+        "emotions"
+      ],
+      "loop": true,
+      "root_motion": false,
+      "frame_count": 69,
+      "duration": 2.8333,
+      "source": "rigs/human/emotions/animation-human-confused.blend"
+    },
+    {
+      "id": "reject",
+      "name": "Reject",
+      "file": "human/animations/reject.glb",
+      "hash": "27a4ea946e5ee0f8",
+      "tags": [
+        "emotions"
+      ],
+      "loop": false,
+      "root_motion": false,
+      "frame_count": 90,
+      "duration": 3.7083,
+      "source": "rigs/human/emotions/animation-human-reject.blend"
+    },
+    {
+      "id": "clapping",
+      "name": "Clapping",
+      "file": "human/animations/clapping.glb",
+      "hash": "4d603cf8b90b1099",
+      "tags": [
+        "emotes"
+      ],
+      "loop": true,
+      "root_motion": false,
+      "frame_count": 36,
+      "duration": 1.4583,
+      "source": "rigs/human/emotes/animation-human-clapping.blend"
+    },
+    {
+      "id": "victory-fist-pump",
+      "name": "Victory Fist Pump",
+      "file": "human/animations/victory-fist-pump.glb",
+      "hash": "9241e35c368c17d7",
+      "tags": [
+        "emotions"
+      ],
+      "loop": false,
+      "root_motion": false,
+      "frame_count": 60,
+      "duration": 2.4583,
+      "source": "rigs/human/emotions/animation-human-victory-fist-pump.blend"
+    },
+    {
+      "id": "dance-simple",
+      "name": "Dance_Simple",
+      "file": "human/animations/dance-simple.glb",
+      "hash": "aa3e2b18ffac97ad",
+      "tags": [
+        "emotes",
+        "quaternius"
+      ],
+      "loop": true,
+      "root_motion": false,
+      "frame_count": 30,
+      "duration": 1.2083,
+      "source": "rigs/human/emotes/animation-human-dance-simple.blend"
+    },
+    {
+      "id": "dance-arm-pump",
+      "name": "Dance_Arm_Pump",
+      "file": "human/animations/dance-arm-pump.glb",
+      "hash": "f74803590c39d8e1",
+      "tags": [
+        "emotes"
+      ],
+      "loop": true,
+      "root_motion": false,
+      "frame_count": 48,
+      "duration": 1.9583,
+      "source": "rigs/human/emotes/animation-human-dance-arm-pump.blend"
+    },
+    {
+      "id": "sit-ground-idle",
+      "name": "Sit_Ground_Idle",
+      "file": "human/animations/sit-ground-idle.glb",
+      "hash": "4fd660495f41d22f",
+      "tags": [
+        "idles"
+      ],
+      "loop": true,
+      "root_motion": false,
+      "frame_count": 72,
+      "duration": 2.9583,
+      "source": "rigs/human/idles/animation-human-sit-ground-idle.blend"
+    },
+    {
+      "id": "sleeping",
+      "name": "Sleeping",
+      "file": "human/animations/sleeping.glb",
+      "hash": "8da3191f387ca1c8",
+      "tags": [
+        "idles"
+      ],
+      "loop": true,
+      "root_motion": false,
+      "frame_count": 39,
+      "duration": 1.5833,
+      "source": "rigs/human/idles/animation-human-sleeping.blend"
+    },
+    {
+      "id": "shiver",
+      "name": "Shivering",
+      "file": "human/animations/shiver.glb",
+      "hash": "0e5a4b5c98440075",
+      "tags": [
+        "emotions"
+      ],
+      "loop": false,
+      "root_motion": false,
+      "frame_count": 5,
+      "duration": 0.1667,
+      "source": "rigs/human/emotions/animation-human-shiver.blend"
+    },
+    {
+      "id": "jump-2",
+      "name": "Jump_2",
+      "file": "human/animations/jump-2.glb",
+      "hash": "a76a0842d3f55e9d",
+      "tags": [
+        "locomotion"
+      ],
+      "loop": false,
+      "root_motion": false,
+      "frame_count": 41,
+      "duration": 1.6667,
+      "source": "rigs/human/locomotion/animation-human-jump-2.blend"
+    },
+    {
+      "id": "jump-land",
+      "name": "Jump_Land",
+      "file": "human/animations/jump-land.glb",
+      "hash": "38a417280d96aa01",
+      "tags": [
+        "locomotion",
+        "quaternius"
+      ],
+      "loop": false,
+      "root_motion": false,
+      "frame_count": 39,
+      "duration": 1.5833,
+      "source": "rigs/human/locomotion/animation-human-jump-land.blend"
+    },
+    {
+      "id": "freefall",
+      "name": "Freefall",
+      "file": "human/animations/freefall.glb",
+      "hash": "af892d3b93bdaa93",
+      "tags": [
+        "locomotion"
+      ],
+      "loop": true,
+      "root_motion": false,
+      "frame_count": 36,
+      "duration": 1.4583,
+      "source": "rigs/human/locomotion/animation-human-freefall.blend"
+    },
+    {
+      "id": "ledge-hang",
+      "name": "Ledge Hang",
+      "file": "human/animations/ledge-hang.glb",
+      "hash": "b5c82bae80a02e74",
+      "tags": [
+        "locomotion"
+      ],
+      "loop": true,
+      "root_motion": false,
+      "frame_count": 45,
+      "duration": 1.8333,
+      "source": "rigs/human/locomotion/animation-human-ledge-hang.blend"
+    },
+    {
+      "id": "guitar-playing",
+      "name": "Guitar_Playing",
+      "file": "human/animations/guitar-playing.glb",
+      "hash": "6c2aaa53647bb77d",
+      "tags": [
+        "activities"
+      ],
+      "loop": true,
+      "root_motion": false,
+      "frame_count": 96,
+      "duration": 3.9583,
+      "source": "rigs/human/activities/animation-human-guitar-playing.blend"
+    },
+    {
+      "id": "dab",
+      "name": "Dab",
+      "file": "human/animations/dab.glb",
+      "hash": "2deb58f359d7ab1f",
+      "tags": [
+        "emotes"
+      ],
+      "loop": false,
+      "root_motion": false,
+      "frame_count": 47,
+      "duration": 1.9167,
+      "source": "rigs/human/emotes/animation-human-dab.blend"
+    },
+    {
+      "id": "tired-hunched",
+      "name": "Tired Hunched",
+      "file": "human/animations/tired-hunched.glb",
+      "hash": "6993e4d924b2efbf",
+      "tags": [
+        "emotions"
+      ],
+      "loop": false,
+      "root_motion": false,
+      "frame_count": 24,
+      "duration": 0.9583,
+      "source": "rigs/human/emotions/animation-human-tired-hunched.blend"
+    },
+    {
+      "id": "interact",
+      "name": "Interact",
+      "file": "human/animations/interact.glb",
+      "hash": "9091ffa013fccc28",
+      "tags": [
+        "activities",
+        "quaternius"
+      ],
+      "loop": false,
+      "root_motion": false,
+      "frame_count": 60,
+      "duration": 2.4583,
+      "source": "rigs/human/activities/animation-human-interact.blend"
+    },
+    {
+      "id": "fixing-kneeling",
+      "name": "Fixing_Kneeling",
+      "file": "human/animations/fixing-kneeling.glb",
+      "hash": "239d0d15a645572a",
+      "tags": [
+        "activities",
+        "quaternius"
+      ],
+      "loop": true,
+      "root_motion": false,
+      "frame_count": 156,
+      "duration": 6.4583,
+      "source": "rigs/human/activities/animation-human-fixing-kneeling.blend"
+    }
+  ]
+}

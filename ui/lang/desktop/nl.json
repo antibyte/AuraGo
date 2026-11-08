@@ -1,4 +1,11 @@
 {
+  "desktop.pet_action_wave": "Zwaaien",
+  "desktop.pet_action_nod": "Knikken",
+  "desktop.pet_action_dance": "Dansen",
+  "desktop.pet_action_sit": "Gaan zitten",
+  "desktop.pet_action_sleep": "Slapen",
+  "desktop.pet_action_stand": "Opstaan",
+  "desktop.pet_3d_failed": "3D is niet beschikbaar. De geanimeerde metgezel wordt getoond.",
   "synthStudio.strudel_open": "Code openen",
   "synthStudio.workspace_strudel": "Strudel",
   "synthStudio.strudel_run": "Starten / Bijwerken",

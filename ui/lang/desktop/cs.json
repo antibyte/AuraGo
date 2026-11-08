@@ -1,4 +1,11 @@
 {
+  "desktop.pet_action_wave": "Zamávat",
+  "desktop.pet_action_nod": "Přikývnout",
+  "desktop.pet_action_dance": "Tančit",
+  "desktop.pet_action_sit": "Sednout si",
+  "desktop.pet_action_sleep": "Spát",
+  "desktop.pet_action_stand": "Vstát",
+  "desktop.pet_3d_failed": "3D není dostupné. Zobrazuje se animovaný společník.",
   "synthStudio.strudel_open": "Otevřít kód",
   "synthStudio.workspace_strudel": "Strudel",
   "synthStudio.strudel_run": "Spustit / Aktualizovat",

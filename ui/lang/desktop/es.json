@@ -1,4 +1,11 @@
 {
+  "desktop.pet_action_wave": "Saludar",
+  "desktop.pet_action_nod": "Asentir",
+  "desktop.pet_action_dance": "Bailar",
+  "desktop.pet_action_sit": "Sentarse",
+  "desktop.pet_action_sleep": "Dormir",
+  "desktop.pet_action_stand": "Levantarse",
+  "desktop.pet_3d_failed": "El 3D no está disponible. Se muestra el acompañante animado.",
   "synthStudio.strudel_open": "Abrir código",
   "synthStudio.workspace_strudel": "Strudel",
   "synthStudio.strudel_run": "Iniciar / Actualizar",

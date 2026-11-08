@@ -1,4 +1,11 @@
 {
+  "desktop.pet_action_wave": "Winken",
+  "desktop.pet_action_nod": "Nicken",
+  "desktop.pet_action_dance": "Tanzen",
+  "desktop.pet_action_sit": "Hinsetzen",
+  "desktop.pet_action_sleep": "Schlafen",
+  "desktop.pet_action_stand": "Aufstehen",
+  "desktop.pet_3d_failed": "3D ist nicht verfügbar. Dein animierter Begleiter wird angezeigt.",
   "synthStudio.strudel_open": "Code öffnen",
   "synthStudio.workspace_strudel": "Strudel",
   "synthStudio.strudel_run": "Start / Aktualisieren",

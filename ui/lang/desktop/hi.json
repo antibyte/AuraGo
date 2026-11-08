@@ -1,4 +1,11 @@
 {
+  "desktop.pet_action_wave": "हाथ हिलाएँ",
+  "desktop.pet_action_nod": "सिर हिलाएँ",
+  "desktop.pet_action_dance": "नाचें",
+  "desktop.pet_action_sit": "बैठें",
+  "desktop.pet_action_sleep": "सोएँ",
+  "desktop.pet_action_stand": "खड़े हों",
+  "desktop.pet_3d_failed": "3D उपलब्ध नहीं है। एनिमेटेड साथी दिखाया जा रहा है।",
   "synthStudio.strudel_open": "कोड खोलें",
   "synthStudio.workspace_strudel": "Strudel",
   "synthStudio.strudel_run": "चलाएँ / अपडेट करें",

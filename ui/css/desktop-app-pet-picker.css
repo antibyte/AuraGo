@@ -86,6 +86,12 @@
     margin-bottom: 4px;
 }
 
+.vd-pet-picker-thumb.is-model {
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
 .vd-pet-picker-desc {
     font-size: 11px;
     color: var(--vd-theme-muted);

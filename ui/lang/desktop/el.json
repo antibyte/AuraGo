@@ -1,4 +1,11 @@
 {
+  "desktop.pet_action_wave": "Χαιρετισμός",
+  "desktop.pet_action_nod": "Νεύμα",
+  "desktop.pet_action_dance": "Χορός",
+  "desktop.pet_action_sit": "Κάθισμα",
+  "desktop.pet_action_sleep": "Ύπνος",
+  "desktop.pet_action_stand": "Σήκωμα",
+  "desktop.pet_3d_failed": "Το 3D δεν είναι διαθέσιμο. Εμφανίζεται ο κινούμενος συνοδός.",
   "synthStudio.strudel_open": "Άνοιγμα κώδικα",
   "synthStudio.workspace_strudel": "Strudel",
   "synthStudio.strudel_run": "Εκτέλεση / Ενημέρωση",

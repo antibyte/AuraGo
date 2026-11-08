@@ -208,6 +208,7 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 | Decisions service | `internal/decisions/AGENTS.md` | Optional shared service, verified artifacts/device placement/CPU permission/bounded scoring. |
 | Decisions runtime | `decisions_runtime/AGENTS.md` | Pinned llama.cpp/mtmd scorer, private protocol/offload evidence/native-Docker packaging, HTTP `runtime_busy`. |
 | Desktop files/archives | `internal/desktop/AGENTS.md` | Rooted operations; owns pets-assets child index. |
+| Desktop 3D Punk pet | `assets/desktop-pets/AGENTS.md`, `internal/desktop/AGENTS.md`, `internal/desktop/pets_assets/AGENTS.md`, `ui/AGENTS.md` | Separate `aurago-punk-3d` entry; compact Rigify model, pinned CC0 Mesh2Motion movements, local rendering, gaze and interaction layers; existing sprite pets and selection remain supported. |
 | God's Eye View Store | `internal/desktopstore/AGENTS.md` | Store app config/runtime/assets/publication. |
 | Detective | `internal/detective/AGENTS.md` | Isolated Desktop research cases/evidence/budgets/revisions/exports. |
 | Docker Engine | `internal/dockerutil/AGENTS.md` | Transport/API negotiation, mutation retry, streaming cancellation. |
