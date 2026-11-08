@@ -252,6 +252,16 @@ weather motion are removed by reduced motion.
   observer runs after the animation frame), and the renderer reallocates the buffer only
   when the size really changed. Without this, every tier change of a race costs one
   black frame.
+- **The empty buffer must be as short as the picture that follows it.** A tier change
+  rebuilds the scene (shadow map, light pool, environment, composer), and that rebuild
+  costs a slow GPU about a second. The reallocation of the drawing buffer therefore waits
+  for the draw that fills it again (`commitSize`), and everything expensive runs before it:
+  the programs of the new tier are compiled while the canvas still holds the old picture
+  (`warmUp`), the environment is built once per biome instead of once per tier, and the
+  composer follows the resolution of the tier. The empty buffer is then on screen for one
+  picture instead of for the whole rebuild - a drifting car is what makes the governor
+  change the tier in the first place, so the black play field showed up exactly while
+  steering.
 - **The dev server must deliver the files on disk.** A dev build carries no version, so its
   service worker cache key (`?v=dev`) never rotates: a cache-first worker pins the scripts of
   the first visit, and every later edit stays invisible in the browser - the old code keeps

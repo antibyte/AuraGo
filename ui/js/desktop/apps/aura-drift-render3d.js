@@ -112,6 +112,7 @@
         let size = { w: 960, h: 540, dpr: 1 };
         let applied = { w: 0, h: 0, dpr: 0 };
         let look = AD.LOOK.alpine, track = null, race = null, lost = false, disposed = false, held = true, needsPresent = false;
+        let sizeDirty = false, tierDirty = false, lastPose = null, inShowcase = false;
         let env = null, envKey = '', wetness = 0, time = 0, gen = 0;
         let actors = null, carLights = null, terrain = null, road = null, sky = null, props = null, fx = null, fallback = null;
         let post = null, realPost = null;
@@ -137,12 +138,14 @@
             geo.dispose(); mat.dispose();
             return rt;
         }
+        /* The environment is built once per biome. A tier change must not rebuild the
+           PMREM chain: that costs the GPU a long moment, and it happens in the middle
+           of a race when the governor follows the frame times of a drifting car. */
         function setEnv(l, key) {
-            const k = key + '/' + glq.envSize;
-            if (envKey === k && env) return;
+            if (envKey === key && env) return;
             if (env) env.dispose();
             env = buildEnv(l, glq.envSize);
-            envKey = k;
+            envKey = key;
             scene.environment = env.texture;
             scene.environmentIntensity = l.env;
         }
@@ -184,15 +187,43 @@
             /* Every reallocation of the drawing buffer empties it, and the frame after it has
                to paint again. The canvas is sized by the stylesheet (absolute, inset 0), so
                the size is only handed over when it really changed - an inline pixel size on
-               the canvas would make the window content overflow and feed the resize loop. */
+               the canvas would make the window content overflow and feed the resize loop.
+               The reallocation itself waits for commitSize(): the buffer only exists between
+               the reallocation and the next picture, and the browser shows the empty canvas
+               until the GPU hands that picture over. */
             if (dpr !== applied.dpr || size.w !== applied.w || size.h !== applied.h) {
                 applied = { w: size.w, h: size.h, dpr: dpr };
-                renderer.setPixelRatio(dpr);
-                renderer.setSize(size.w, size.h, false);
-                needsPresent = true;
+                sizeDirty = true;
             }
             camera.aspect = size.w / size.h;
             camera.updateProjectionMatrix();
+        }
+
+        /* Hands the new size over to the drawing buffer, right before the picture that
+           fills it. Everything that costs time (shadow map, light pool, environment,
+           composer, the program compiles of a new tier) has to run before this point:
+           the empty canvas stands on the screen for the whole rebuild, and on a slow
+           GPU that rebuild is a full second of black play field. */
+        function commitSize() {
+            if (!sizeDirty) return;
+            sizeDirty = false;
+            /* The composer draws into a target of its own, so it has to follow the tier:
+               with the old resolution the picture comes in the wrong scale. */
+            if (realPost) realPost.resize(applied.w, applied.h, applied.dpr);
+            renderer.setPixelRatio(applied.dpr);
+            renderer.setSize(applied.w, applied.h, false);
+            needsPresent = true;
+        }
+
+        /* A new tier changes the programs of the scene (the count of the point lights,
+           the materials of the car). Compiling them while the canvas still holds the
+           old picture keeps the play field on the screen; compiling them after the
+           reallocation would hold the empty canvas there for the whole compile. */
+        function warmUp() {
+            try {
+                if (inShowcase && show) renderer.render(show.scene, show.cam);
+                else if (!(realPost && realPost.enabled && realPost.render(0, race, lastPose, false))) renderer.render(scene, camera);
+            } catch (_) { /* the next frame draws the same view anyway */ }
         }
 
         /* A reallocated drawing buffer is empty, and the browser composites the empty canvas
@@ -356,10 +387,10 @@
             sc.add(rim);
             sc.add(new T.HemisphereLight(new T.Color(l.hemiSky), new T.Color(l.hemiGround), l.night ? 0.8 : 0.45));
             show = { scene: sc, cam: cam, key: key, rim: rim, stage: stage, rig: null, blob: null, blobTex: null, props: [], angle: -0.6, tpl: null, look: l };
-            if (showEnvKey !== showCfg.biomeId + '/' + glq.envSize) {
+            if (showEnvKey !== showCfg.biomeId) {
                 if (showEnv) showEnv.dispose();
                 showEnv = buildEnv(l, glq.envSize);
-                showEnvKey = showCfg.biomeId + '/' + glq.envSize;
+                showEnvKey = showCfg.biomeId;
             }
             sc.environment = showEnv.texture;
             sc.environmentIntensity = Math.max(0.8, l.env * 0.9);
@@ -491,7 +522,11 @@
                 if (!AD.QUALITY[name]) return;
                 tier = name;
                 glq = AD.QUALITY[name].gl;
-                applySize();
+                /* The order matters: everything that costs GPU time runs before the
+                   drawing buffer is reallocated. The reallocation empties the canvas,
+                   and the browser shows the empty canvas until the new picture is
+                   there - the shorter that gap is, the shorter the black play field.
+                   The programs of the new tier are compiled in warmUp(). */
                 applySun();
                 applyPool();
                 setEnv(look, track ? track.biomeId : 'alpine');
@@ -501,6 +536,8 @@
                 if (carLights) carLights.setQuality(glq);
                 if (show) show.rig && show.rig.setGl(glq);
                 if (realPost) realPost.setQuality(glq);
+                applySize();
+                tierDirty = true;
             },
             setTrack(next, r) {
                 track = next; race = r || race;
@@ -518,12 +555,17 @@
             showcase(dt, reduced) {
                 if (lost || disposed) return;
                 time += dt;
+                inShowcase = true;
+                if (tierDirty) { tierDirty = false; warmUp(); }
+                commitSize();
                 drawShowcase(dt, reduced);
                 presentNow();
             },
             render(r, pose, dt, reduced) {
                 if (lost) throw new Error('webgl context lost');
                 race = r;
+                lastPose = pose;
+                inShowcase = false;
                 time += dt;
                 applyPose(pose);
                 const v = r.cars[0].v;
@@ -544,6 +586,12 @@
                 }
                 followSun(v.x, v.z, v.y);
                 renderer.toneMappingExposure = look.exposure;
+                /* The programs of a new tier are compiled while the canvas still holds
+                   the old picture. The drawing buffer is reallocated after that, in the
+                   draw that fills it again - so the empty canvas is on screen for that
+                   one picture and not for the whole rebuild. */
+                if (tierDirty) { tierDirty = false; warmUp(); }
+                commitSize();
                 renderer.info.reset();
                 if (!(realPost && realPost.enabled && realPost.render(dt, r, pose, reduced))) renderer.render(scene, camera);
                 presentNow();

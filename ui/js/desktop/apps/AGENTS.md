@@ -3734,6 +3734,14 @@ buttons and menu popovers remain excluded from those gestures.
   long as the GPU needs for one frame. The frame that follows a reallocation therefore
   waits for the GPU (`presentNow`, `gl.finish`). The wait costs the work the player would
   have seen as black; without it a tier change on a slow GPU costs a full second of black.
+- The empty buffer must last no longer than the picture that follows it. A tier change
+  rebuilds the scene (shadow map, light pool, environment, composer) and that rebuild
+  costs a slow GPU about a second, so the reallocation waits for the draw that fills the
+  buffer again (`commitSize`), and everything expensive runs before it: the programs of
+  the new tier are compiled while the canvas still holds the old picture (`warmUp`), the
+  environment is built once per biome instead of once per tier, and the composer follows
+  the resolution of the tier. A drifting car is what makes the governor change the tier,
+  so the black play field showed up exactly while steering.
 - The server answers a request for an older asset set with 409 "Asset version changed.
   Reload this page.". The asset loader reloads the page on that answer - once per conflict,
   at most three times per session, so a server that keeps changing cannot become a reload

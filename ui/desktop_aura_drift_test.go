@@ -479,7 +479,7 @@ func TestAuraDriftKeepsTheCanvasFilledAcrossTierChanges(t *testing.T) {
 		}
 	}
 	renderer := readDesktopAssetText(t, "js/desktop/apps/aura-drift-render3d.js")
-	if !strings.Contains(renderer, "setSize(size.w, size.h, false)") {
+	if !strings.Contains(renderer, "setSize(applied.w, applied.h, false)") {
 		t.Fatal("the three.js renderer must not write an inline pixel size on the canvas")
 	}
 	if !strings.Contains(renderer, "applied.dpr") {
@@ -563,7 +563,7 @@ func TestAuraDriftWaitsForTheFrameAfterABufferChange(t *testing.T) {
 	}
 	// The wait belongs to the frame that follows the reallocation, not to the
 	// reallocation itself.
-	size := strings.Index(renderer, "renderer.setSize(size.w, size.h, false)")
+	size := strings.Index(renderer, "renderer.setSize(applied.w, applied.h, false)")
 	if size < 0 {
 		t.Fatal("the three.js renderer must hand the size over to the drawing buffer")
 	}
@@ -578,5 +578,57 @@ func TestAuraDriftWaitsForTheFrameAfterABufferChange(t *testing.T) {
 	}
 	if !strings.Contains(body, "presentNow()") {
 		t.Fatal("the Aura Drift render must present the frame after a reallocation")
+	}
+}
+
+// A tier change rebuilds the scene: shadow map, light pool, environment and
+// composer. The drawing buffer is reallocated in the middle of that, and the
+// browser composites the empty canvas until the new picture is there. On a slow
+// GPU the rebuild takes a full second, and the play field stays black for that
+// whole second - and a drifting car is what makes the governor change the tier
+// in the first place. So the reallocation waits for the draw that fills the
+// buffer again, and the rebuild runs before it.
+func TestAuraDriftAllocatesTheDrawingBufferRightBeforeTheDraw(t *testing.T) {
+	t.Parallel()
+
+	renderer := readDesktopAssetText(t, "js/desktop/apps/aura-drift-render3d.js")
+	// Applying a tier must not reallocate the drawing buffer.
+	apply := strings.Index(renderer, "setQuality(name) {")
+	if apply < 0 {
+		t.Fatal("the three.js renderer has no quality setter")
+	}
+	applyBlock := renderer[apply:]
+	if end := strings.Index(applyBlock, "\n            },"); end > 0 {
+		applyBlock = applyBlock[:end]
+	}
+	if strings.Contains(applyBlock, "setSize(") {
+		t.Fatal("a tier change must not reallocate the drawing buffer: the empty canvas would stand on the screen for the whole rebuild")
+	}
+	if !strings.Contains(applyBlock, "applySize()") {
+		t.Fatal("a tier change has to hand the new size over")
+	}
+	// The reallocation waits for the draw that fills the buffer again.
+	commit := strings.Index(renderer, "function commitSize()")
+	if commit < 0 {
+		t.Fatal("the three.js renderer must hand the size over to the drawing buffer in the draw")
+	}
+	if !strings.Contains(renderer[commit:commit+900], "setSize(") {
+		t.Fatal("commitSize has to reallocate the drawing buffer")
+	}
+	render := strings.Index(renderer, "render(r, pose, dt, reduced) {")
+	if render < 0 {
+		t.Fatal("the three.js renderer has no race frame")
+	}
+	body := renderer[render:]
+	if end := strings.Index(body[1:], "\n            },"); end > 0 {
+		body = body[:end+1]
+	}
+	if !strings.Contains(body, "commitSize()") {
+		t.Fatal("the race frame must hand the size over to the drawing buffer before it draws")
+	}
+	// The programs of the new tier are compiled while the canvas still holds the
+	// old picture, so the empty canvas is not on screen while they compile.
+	if !strings.Contains(body, "warmUp()") {
+		t.Fatal("the race frame must compile the programs of a new tier before the drawing buffer is reallocated")
 	}
 }
