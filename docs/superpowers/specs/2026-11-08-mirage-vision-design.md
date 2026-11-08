@@ -72,6 +72,6 @@ UI: Abschnitt in den Vision-Einstellungen mit Schalter, GPU-Auswahl und Statusan
 
 ## Offene Punkte (beim Bauen zu klären)
 
-1. Ob und wie die Cactus-Engine in einem Linux-Container GPU-Geräte nutzt. Wenn nicht, bleibt `gpu` ein reiner Durchreich-Parameter, und die UI zeigt immer „CPU". Der Rest des Designs bleibt gültig.
-2. Genaue Python-Version und Pakete des Images (Cactus nennt Python 3.9+), Größe des fertigen Images.
-3. Ob `cactus-compute` beim ersten Aufruf selbst herunterlädt (dann den Cache auf das Datenvolume lenken) oder ob AuraGo die Dateien vorab holen muss.
+1. **Erledigt: GPU.** Die Mirage-Engine (cactus-compute 4.1.0) liefert kein `backend`-Attribut, der Sidecar meldet daher immer Backend `cpu`. Ob der Container eine GPU nutzt, ist ungeprüft: die GPU-Erkennung scheiterte auf der Entwicklungsmaschine mit „WSL environment detected but no adapters were found", dort also nicht testbar. `gpu` bleibt ein Durchreich-Parameter (Geräte werden unter Linux eingehängt), die UI zeigt das von der Engine gemeldete Backend, derzeit CPU.
+2. **Erledigt: Image.** Python 3.12-slim mit `cactus-compute` 4.1.0 (gepinnt in `CACTUS_VERSION`) und dem Stdlib-HTTP-Server.
+3. **Erledigt: Gewichte.** Das Paket lädt die Gewichte beim ersten Aufruf selbst herunter, in `HOME=/data`; das ist das eingehängte Datenvolume, der Cache bleibt also erhalten.
