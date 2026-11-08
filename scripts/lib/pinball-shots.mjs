@@ -115,6 +115,8 @@ export function soak(layout, { seed = 7, balls = 4, seconds = 60, restLimit = 8,
     for (const d of layout.devices || []) {
         if (d.type === 'kickback') timed.push({ every: 5, cmd: () => ({ type: 'kickback', id: d.id, armed: true }) });
         else if (d.type === 'dropBank') timed.push({ every: 9, cmd: () => ({ type: 'resetBank', id: d.id }) });
+        else if (d.type === 'door') { let open = false; timed.push({ every: 8, cmd: () => ({ type: 'door', id: d.id, open: (open = !open) }) }); }
+        else if (d.type === 'hole' && d.enabled === false) { let on = false; timed.push({ every: 10, cmd: () => ({ type: 'holeEnable', id: d.id, on: (on = !on) }) }); }
         else if (d.type === 'diverter') { let on = false; timed.push({ every: 7, cmd: () => ({ type: 'diverter', id: d.id, on: (on = !on) }) }); }
     }
     for (const q of timed) if (q.every >= 5) world.command(q.cmd());
