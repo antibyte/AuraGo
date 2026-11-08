@@ -41,7 +41,7 @@ Milestones: **M1** Neon playable end-to-end (T01–T19; Leviathan/Temple load as
 | target | 0.45 | 0.04 | 0.30 | 0.20 |
 | ball | 0.93 | 0 | 0.93 | 0.05 |
 
-  - `FLIPPER` defaults: `length 0.059` (pivot to tip centre; about 3" overall), `rBase 0.012`, `rTip 0.006`, `rest −0.5236`, `up +0.4887`, `alphaUp 3000 rad/s²`, `omegaMax 45` (tuning range 38–50), `alphaDown 1200`, `omegaDownMax 26`, `stopRebound 0.15`, `restRebound 0.25`.
+  - `FLIPPER` defaults: `length 0.059` (pivot to tip centre; about 3" overall), `rBase 0.012`, `rTip 0.006`, `rest −0.5236`, `up +0.4887`, `alphaUp 3000 rad/s²`, `omegaMax 50` (T02 tuned; range 38–50), `alphaDown 1200`, `omegaDownMax 26`, `stopRebound 0.15`, `restRebound 0.25`.
   - Refinement against the brief: ω 30–35 cannot reach a 5–8 m/s tip exit with a kinematic bat. Real bats peak at 40–60 rad/s.
 - **`config.js`** exports:
   - `STORAGE` (keys `aurago.desktop.pinball.settings.v1` / `.scores.v1`), `TABLE_IDS`, `ASSET_ROOT='/3d/pinball/v1/'`.
@@ -421,9 +421,9 @@ DMD priorities: base 0; info 3; award 5; big 7; tilt 9.
 - Plunger as in §3.1; drainY 0.075.
 
 **Lower** (u = x − cx, cx −0.017, mirror u → −u):
-- Flippers `left`/`right`: pivots (u ∓0.080, 0.160). Rest tips leave a 0.0458 m centre gap.
+- Flippers `left`/`right`: pivots (u ∓0.080, 0.148). Rest tips leave a 0.0458 m centre gap.
 - Divider: metal (u −0.2045, 0.400)→(u −0.2045, 0.2376); rubber post (u −0.2045, 0.4045) r 0.0045.
-- Inlane guide: metal (u −0.2045, 0.2376)→(u −0.0955, 0.1714). The cradle is the V against the raised bat.
+- Inlane guide: metal (u −0.2045, 0.2376)→(u −0.0738, 0.1582), tangent into the top of the resting bat. The cradle is the V against the raised bat.
 - Sling: S1 (u −0.1665, 0.360), S2 (u −0.1665, 0.2526), S3 (u −0.1150, 0.2213); rubber posts r 0.0055. Band walls are offset outward by the post radius: `slingL_face` S1→S3, `slingL_side`, `slingL_base`. Device `slingL {face: 'slingL_face'}`.
 - Rollovers `inlaneL` (u −0.1855, 0.300) and `outlaneL` (u −0.2225, 0.300). Optional `kickbackL` (u −0.2225, 0.150).
 - Lamps:

@@ -3,6 +3,9 @@ import { post, wall, bandSegments } from './geom.js';
 
 export const CX = -0.017;
 const POST_R = 0.0055;
+// Pivot height: the inlane guide runs tangent into the top of the resting bat (guide end at u -0.0738, y 0.1582),
+// so a ball rolls from the guide onto the bat. (The plan draft had y 0.160 / guide end u -0.0955, which left a 1 cm step.)
+const PIVOT_Y = 0.148;
 const COLORS = Object.freeze({ lane: '#ffd34d', kickback: '#ff5a3c', saver: '#ff3b3b', bonus: '#ffb347' });
 
 // opts: { cx, kickback: 'left' | 'right' | null }
@@ -11,10 +14,10 @@ export function lowerKit({ cx = CX, kickback = null } = {}) {
     for (const [side, sgn] of [['L', -1], ['R', 1]]) {
         const X = u => cx - sgn * u; // u is the signed left-side offset from the centre line (negative); right mirrors it
         const s = side;
-        part.flippers.push({ id: side === 'L' ? 'left' : 'right', key: side === 'L' ? 'left' : 'right', x: X(-0.080), y: 0.160, side: -sgn });
+        part.flippers.push({ id: side === 'L' ? 'left' : 'right', key: side === 'L' ? 'left' : 'right', x: X(-0.080), y: PIVOT_Y, side: -sgn });
         // Divider between inlane and outlane, and the inlane guide down to the flipper.
         part.walls.push(wall('divider' + s, 'metal', [[X(-0.2045), 0.400], [X(-0.2045), 0.2376]]));
-        part.walls.push(wall('inlaneGuide' + s, 'metal', [[X(-0.2045), 0.2376], [X(-0.0955), 0.1714]]));
+        part.walls.push(wall('inlaneGuide' + s, 'metal', [[X(-0.2045), 0.2376], [X(-0.0738), 0.1582]]));
         part.posts.push(post('dividerPost' + s, X(-0.2045), 0.4045, 0.0045, 'rubber'));
         // Sling: three rubber posts joined by a rubber band offset outward by the post radius.
         const S = [[X(-0.1665), 0.360], [X(-0.1665), 0.2586], [X(-0.1150), 0.2273]];

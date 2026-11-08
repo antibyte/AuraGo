@@ -32,7 +32,7 @@ export function restitution(material, vn) {
 
 export const FLIPPER = Object.freeze({
     length: 0.059, rBase: 0.012, rTip: 0.006, rest: -0.5236, up: 0.4887,
-    alphaUp: 3000, omegaMax: 45, alphaDown: 1200, omegaDownMax: 26, stopRebound: 0.15, restRebound: 0.25
+    alphaUp: 3000, omegaMax: 50, alphaDown: 1200, omegaDownMax: 26, stopRebound: 0.15, restRebound: 0.25
 });
 
 // Playfield extents (m).
