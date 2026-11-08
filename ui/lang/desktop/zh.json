@@ -11491,5 +11491,6 @@
   "codeStudio.findInFile": "在文件中查找",
   "codeStudio.knowledge": "见解",
   "codeStudio.replaceInFile": "在文件中替换",
-  "codeStudio.nextProblem": "下一个问题"
+  "codeStudio.nextProblem": "下一个问题",
+  "synthStudio.master_level": "主输出电平"
 }

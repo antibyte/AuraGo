@@ -11491,5 +11491,6 @@
   "codeStudio.findInFile": "In Datei suchen",
   "codeStudio.knowledge": "Erkenntnisse",
   "codeStudio.replaceInFile": "In Datei ersetzen",
-  "codeStudio.nextProblem": "Nächstes Problem"
+  "codeStudio.nextProblem": "Nächstes Problem",
+  "synthStudio.master_level": "Master-Pegel"
 }

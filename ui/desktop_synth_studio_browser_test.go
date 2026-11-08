@@ -20,7 +20,7 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 	html = regexp.MustCompile(`(?s)<script\b[^>]*>.*?</script>`).ReplaceAllString(html, "")
 	html = regexp.MustCompile(`\{\{[^}]*\}\}`).ReplaceAllString(html, "")
 	html = strings.Replace(html, "</head>", `<link rel="stylesheet" href="/css/desktop-app-synth-studio.css"><link rel="stylesheet" href="/css/desktop-app-synth-studio-modern.css"><style>body{margin:0}.vd-shell{height:100vh}</style></head>`, 1)
-	scripts := []string{"/synth-shell.js", "/js/desktop/apps/writer-session.js", "/js/vendor/synth-studio/gm-data.js", "/js/desktop/apps/synth-studio-presets.js", "/js/desktop/apps/synth-studio-designer.js", "/js/vendor/synth-studio/tone-midi-2.0.28.bundle.js", "/js/desktop/apps/synth-studio-model.js", "/js/desktop/apps/synth-studio-fx.js", "/js/desktop/apps/synth-studio-music.js", "/js/desktop/apps/synth-studio-voices.js", "/js/desktop/apps/synth-studio-audio.js", "/js/desktop/apps/synth-studio-export.js", "/js/desktop/apps/synth-studio-midi.js", "/js/desktop/apps/synth-studio-storage.js", "/js/desktop/apps/synth-studio-editor.js", "/js/desktop/apps/synth-studio-controls.js", "/js/desktop/apps/synth-studio-workspace.js", "/js/desktop/apps/synth-studio-compose.js", "/js/desktop/apps/synth-studio-performance.js", "/js/desktop/apps/synth-studio-stage.js", "/js/desktop/apps/synth-studio.js", "/testdata/synth-studio-fixture.js"}
+	scripts := []string{"/synth-shell.js", "/js/desktop/apps/writer-session.js", "/js/vendor/synth-studio/gm-data.js", "/js/desktop/apps/synth-studio-presets.js", "/js/desktop/apps/synth-studio-designer.js", "/js/vendor/synth-studio/tone-midi-2.0.28.bundle.js", "/js/desktop/apps/synth-studio-model.js", "/js/desktop/apps/synth-studio-fx.js", "/js/desktop/apps/synth-studio-music.js", "/js/desktop/apps/synth-studio-voices.js", "/js/desktop/apps/synth-studio-audio.js", "/js/desktop/apps/synth-studio-export.js", "/js/desktop/apps/synth-studio-midi.js", "/js/desktop/apps/synth-studio-storage.js", "/js/desktop/apps/synth-studio-editor.js", "/js/desktop/apps/synth-studio-controls.js", "/js/desktop/apps/synth-studio-curves.js", "/js/desktop/apps/synth-studio-workspace.js", "/js/desktop/apps/synth-studio-compose.js", "/js/desktop/apps/synth-studio-performance.js", "/js/desktop/apps/synth-studio-stage.js", "/js/desktop/apps/synth-studio.js", "/testdata/synth-studio-fixture.js"}
 	var tags strings.Builder
 	scripts = append([]string{"/js/desktop/apps/synth-studio-strudel.js"}, scripts...)
 	for _, path := range scripts {
@@ -67,7 +67,7 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 		if !page.MustEval(`()=>document.querySelector('.ss-app').classList.contains('ss-library-open')`).Bool() {
 			page.MustEval(`()=>document.querySelector('[data-action=library]').click()`)
 		}
-		waitForJSBool(t, page, `()=>getComputedStyle(document.querySelector('.ss-library')).visibility==='visible'`)
+		waitForJSBool(t, page, `()=>{const l=document.querySelector('.ss-library');return getComputedStyle(l).visibility==='visible'&&l.getBoundingClientRect().left>=-1}`)
 	}
 	closeLibrary := func() {
 		t.Helper()
@@ -151,6 +151,11 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 	check("master gesture commits into the project", `()=>synthInstance().project().master.threshold===-20`)
 	page.MustElement("[data-action=undo]").MustClick()
 	check("master gesture is one undo step", `()=>synthInstance().project().master.threshold!==-20`)
+	check("master volume is a hero knob with a dB readout and an LED meter", `()=>{const h=document.querySelector('.ss-master-hero'),e=h.querySelector('[data-master-param=volume]');return h.querySelector('.ss-ctl-knob').getBoundingClientRect().width>=100&&h.querySelector('output').textContent===SynthStudioCurves.formatDb(e.value)&&/dB$/.test(h.querySelector('output').textContent)&&document.querySelectorAll('[data-led-meter] .ss-led-seg').length===16}`)
+	page.MustEval(`()=>{const e=document.querySelector('[data-master-param=volume]');e.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true}));e.value=.4;e.dispatchEvent(new Event('input',{bubbles:true}));window.dispatchEvent(new PointerEvent('pointerup'));}`)
+	check("master volume readout and project follow the knob", `()=>synthInstance().project().master.volume===.4&&document.querySelector('.ss-master-hero output').textContent==='-8.0 dB'`)
+	page.MustElement("[data-action=undo]").MustClick()
+	check("master volume change is one undo step", `()=>synthInstance().project().master.volume!==.4&&document.querySelector('.ss-master-hero output').textContent===SynthStudioCurves.formatDb(synthInstance().project().master.volume)`)
 	page.MustEval(`()=>{const e=document.querySelector('[data-master-select=echoSync]');e.value='1/16';e.dispatchEvent(new Event('change',{bubbles:true}));}`)
 	check("master sync selection commits", `()=>synthInstance().project().master.echoSync==='1/16'`)
 	page.MustElement("[data-action=undo]").MustClick()

@@ -11491,5 +11491,6 @@
   "codeStudio.findInFile": "ファイル内検索",
   "codeStudio.knowledge": "知見",
   "codeStudio.replaceInFile": "ファイル内置換",
-  "codeStudio.nextProblem": "次の問題"
+  "codeStudio.nextProblem": "次の問題",
+  "synthStudio.master_level": "マスターレベル"
 }

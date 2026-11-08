@@ -9,7 +9,7 @@
     "test:aura-drift": "node scripts/test-aura-drift-globals.mjs && node scripts/test-aura-drift-physics.mjs && node scripts/test-aura-drift-tracks.mjs && node scripts/test-aura-drift-balance.mjs && node scripts/test-aura-drift-tricks.mjs && node scripts/test-aura-drift-features.mjs && node scripts/test-aura-drift-weapons.mjs && node scripts/test-aura-drift-modes.mjs && node scripts/test-aura-drift-camera.mjs && node scripts/test-aura-drift-world.mjs && node scripts/test-aura-drift-props.mjs && node scripts/test-aura-drift-banter.mjs && node scripts/test-aura-drift-assets.mjs && node scripts/test-aura-drift-audio.mjs && node scripts/test-aura-drift-woof.mjs && node scripts/test-aura-drift-woof-model.mjs",
     "build:minigolf": "node scripts/build-minigolf-audio.mjs --check && node scripts/build-minigolf.mjs",
     "test:minigolf": "node scripts/test-minigolf-model.mjs && node scripts/test-minigolf-look.mjs && node scripts/test-minigolf-ui.mjs && node scripts/test-minigolf-physics.mjs && node scripts/test-minigolf-collision.mjs && node scripts/test-minigolf-assets.mjs && node scripts/test-minigolf-courses.mjs && node scripts/test-minigolf-audio.mjs",
-    "test:synth-studio": "node scripts/test-synth-studio-audio.mjs && node scripts/test-synth-studio-designer.mjs && node scripts/test-synth-studio-controls.mjs",
+    "test:synth-studio": "node scripts/test-synth-studio-audio.mjs && node scripts/test-synth-studio-designer.mjs && node scripts/test-synth-studio-controls.mjs && node scripts/test-synth-studio-curves.mjs",
     "build:strudel-vendor": "node scripts/build-strudel-vendor.mjs",
     "check:strudel-vendor": "node scripts/build-strudel-vendor.mjs --check",
     "test:pixel": "node scripts/test-pixel-all.mjs",

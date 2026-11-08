@@ -362,3 +362,33 @@
 [data-scheme="light"] .ss-app .ss-file-actions > :is(button, select), [data-scheme="light"] .ss-app .ss-master-toggle { background-color: #fff; box-shadow: var(--ss-edge), 0 1px 3px rgb(30 45 70 / .18); }
 [data-scheme="light"] .ss-app .ss-scene-pads button { box-shadow: var(--ss-edge), inset 0 -3px 0 color-mix(in srgb, var(--ss-scene-color, var(--ss-muted)) 55%, transparent), 0 3px 6px rgb(30 45 70 / .16); }
 [data-scheme="light"] .ss-app .ss-scene-pads button:not(.active) span { color: color-mix(in srgb, var(--ss-text) 72%, transparent); }
+
+/* ---- master hero: big volume knob with dB readout and a segmented LED meter ---- */
+.ss-app .ss-master-panel .ss-master-fields > .ss-master-hero-row {
+    grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; gap: 22px;
+    padding: 14px 18px; border-radius: 18px;
+    background: radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--ss-accent) 14%, transparent), transparent 70%), var(--ss-glass), var(--ss-card);
+    border: 1px solid var(--ss-card-border); box-shadow: var(--ss-edge), var(--ss-lift);
+}
+.ss-app .ss-master-panel .ss-master-hero-row > .ss-master-hero {
+    position: relative; flex: none; width: auto; padding: 0; gap: 8px; background: none; border: 0; box-shadow: none;
+}
+.ss-app .ss-master-hero > span:first-child { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; }
+.ss-app .ss-master-hero .ss-ctl-knob { width: 116px; height: 116px; }
+.ss-app .ss-master-hero .ss-ctl-cap { inset: 21px; box-shadow: 0 9px 16px rgb(0 0 0 / .55), 0 0 22px color-mix(in srgb, var(--ss-accent) 18%, transparent), inset 0 1px 2px color-mix(in srgb, #fff 45%, transparent), inset 0 -6px 9px rgb(0 0 0 / .4); }
+.ss-app .ss-master-hero .ss-ctl-cap::after { top: 8px; width: 4px; height: 20px; margin-left: -2px; }
+.ss-app .ss-master-hero .ss-ctl-groove, .ss-app .ss-master-hero .ss-ctl-arc { stroke-width: 3.4; }
+.ss-app .ss-master-panel .ss-master-hero output {
+    min-width: 92px; padding: 5px 12px; border-radius: 9px; text-align: center; font-size: 19px; letter-spacing: .5px;
+    background: var(--ss-recess); box-shadow: var(--ss-well-in); text-shadow: 0 0 10px var(--ss-glow);
+}
+.ss-led-meter {
+    --ss-led-green: var(--ss-meter, #3fe0b0); --ss-led-amber: #f0b43c; --ss-led-red: #ff5a4a;
+    display: flex; flex-direction: column-reverse; gap: 3px; width: 16px; height: 128px; flex: none; padding: 5px 4px; border-radius: 8px;
+    background: var(--ss-pill-bg); border: 1px solid color-mix(in srgb, var(--ss-text) 10%, transparent); box-shadow: var(--ss-well-in);
+}
+.ss-led-seg { flex: 1 1 0; display: block; border-radius: 2px; background: color-mix(in srgb, var(--ss-led-c) 14%, var(--ss-recess-deep)); --ss-led-c: var(--ss-led-green); }
+.ss-led-seg[data-tone=a] { --ss-led-c: var(--ss-led-amber); }
+.ss-led-seg[data-tone=r] { --ss-led-c: var(--ss-led-red); }
+.ss-led-seg.is-on { background: var(--ss-led-c); box-shadow: 0 0 6px color-mix(in srgb, var(--ss-led-c) 75%, transparent); }
+[data-scheme="light"] .ss-app .ss-led-seg.is-on { box-shadow: 0 0 4px color-mix(in srgb, var(--ss-led-c) 55%, transparent); }

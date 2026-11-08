@@ -11491,5 +11491,6 @@
   "codeStudio.findInFile": "Hledat v souboru",
   "codeStudio.knowledge": "Poznatky",
   "codeStudio.replaceInFile": "Nahradit v souboru",
-  "codeStudio.nextProblem": "Další problém"
+  "codeStudio.nextProblem": "Další problém",
+  "synthStudio.master_level": "Úroveň master"
 }

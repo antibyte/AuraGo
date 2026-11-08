@@ -11491,5 +11491,6 @@
   "codeStudio.findInFile": "Hitta i fil",
   "codeStudio.knowledge": "Insikter",
   "codeStudio.replaceInFile": "Ersätt i fil",
-  "codeStudio.nextProblem": "Nästa problem"
+  "codeStudio.nextProblem": "Nästa problem",
+  "synthStudio.master_level": "Masternivå"
 }

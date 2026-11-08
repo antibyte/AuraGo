@@ -11491,5 +11491,6 @@
   "codeStudio.findInFile": "फ़ाइल में खोजें",
   "codeStudio.knowledge": "सीख",
   "codeStudio.replaceInFile": "फ़ाइल में बदलें",
-  "codeStudio.nextProblem": "अगली समस्या"
+  "codeStudio.nextProblem": "अगली समस्या",
+  "synthStudio.master_level": "मास्टर स्तर"
 }

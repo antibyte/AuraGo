@@ -11491,5 +11491,6 @@
   "codeStudio.findInFile": "Find in File",
   "codeStudio.knowledge": "Insights",
   "codeStudio.replaceInFile": "Replace in File",
-  "codeStudio.nextProblem": "Next problem"
+  "codeStudio.nextProblem": "Next problem",
+  "synthStudio.master_level": "Master level"
 }

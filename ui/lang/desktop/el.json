@@ -11491,5 +11491,6 @@
   "codeStudio.findInFile": "Εύρεση στο αρχείο",
   "codeStudio.knowledge": "Συμπεράσματα",
   "codeStudio.replaceInFile": "Αντικατάσταση στο αρχείο",
-  "codeStudio.nextProblem": "Επόμενο πρόβλημα"
+  "codeStudio.nextProblem": "Επόμενο πρόβλημα",
+  "synthStudio.master_level": "Επίπεδο master"
 }
