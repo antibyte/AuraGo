@@ -107,6 +107,11 @@ func (s *Studio) writeScene(ctx context.Context, op, sceneID string, args map[st
 	}
 	ev := s.evaluateSceneWrite(story, sceneID, fields)
 	if ev.errors == 0 {
+		if ev.scene.Kind == "code" {
+			if _, err := s.deps.Projects.LoadCodeBundle(ctx, s.job.ProjectID, sceneID); err != nil {
+				return sceneWriteRefused(op, sceneID, CodeCodeError, "A code scene needs a successfully bundled source first.", "Call get_code, then put_code, then repeat this scene write.", nil)
+			}
+		}
 		s.writes[sceneID]++
 		newETag, err := s.saveSceneStory(ctx, &ev.story, etag)
 		if err != nil {

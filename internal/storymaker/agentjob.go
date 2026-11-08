@@ -139,8 +139,9 @@ func StoryIsBlank(st *Story) bool {
 // ChangedScenes compares two versions of a story scene by scene, by id. changed holds the scenes that
 // differ or are new, and unchanged the scenes that are equal. A moved scene that is otherwise equal is
 // unchanged. removed holds the ids that only before has. changed and unchanged follow after, and removed
-// follows before. A nil story counts as having no scenes.
-func ChangedScenes(before, after *Story) (changed, unchanged, removed []string) {
+// follows before. Code-only changes can be supplied separately. A nil story counts as having no scenes.
+func ChangedScenes(before, after *Story, codeScenes ...string) (changed, unchanged, removed []string) {
+	codeChanged := nameSet(codeScenes...)
 	old := map[string]string{}
 	if before != nil {
 		for i := range before.Scenes {
@@ -152,7 +153,7 @@ func ChangedScenes(before, after *Story) (changed, unchanged, removed []string) 
 		for i := range after.Scenes {
 			sc := &after.Scenes[i]
 			seen[sc.ID] = true
-			if prev, had := old[sc.ID]; had && prev == sceneFingerprint(sc) {
+			if prev, had := old[sc.ID]; had && prev == sceneFingerprint(sc) && !codeChanged[sc.ID] {
 				unchanged = append(unchanged, sc.ID)
 			} else {
 				changed = append(changed, sc.ID)

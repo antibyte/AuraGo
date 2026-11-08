@@ -55,7 +55,7 @@ var studioPhaseTools = map[string][]string{
 	PhaseOutline: {ToolStory},
 	PhaseCast:    {ToolCatalog, ToolStory},
 	PhaseFill:    {ToolCatalog, ToolStory},
-	PhaseCheck:   {ToolCheck, ToolStory},
+	PhaseCheck:   {ToolCheck, ToolStory, ToolCatalog},
 	PhaseRevise:  {ToolCatalog, ToolStory, ToolCheck},
 }
 
@@ -65,26 +65,27 @@ var studioPhaseOperations = map[string]map[string][]string{
 		ToolStory: {"outline", "get"},
 	},
 	PhaseCast: {
-		ToolCatalog: {"search", "describe"},
+		ToolCatalog: {"search", "describe", "reference"},
 		ToolStory:   {"set_meta", "get"},
 	},
 	PhaseFill: {
-		ToolCatalog: {"search", "describe"},
-		ToolStory:   {"put_scene", "patch_scene", "dry_run", "get"},
+		ToolCatalog: {"search", "describe", "reference"},
+		ToolStory:   {"put_scene", "patch_scene", "dry_run", "get", "get_code", "put_code"},
 	},
 	PhaseCheck: {
-		ToolCheck: {"validate"},
-		ToolStory: {"patch_scene", "get"},
+		ToolCheck:   {"validate"},
+		ToolStory:   {"patch_scene", "get", "get_code", "put_code"},
+		ToolCatalog: {"reference"},
 	},
 	PhaseRevise: {
-		ToolCatalog: {"search", "describe"},
-		ToolStory:   {"get", "put_scene", "patch_scene", "remove_scene", "move_scene", "set_meta", "dry_run"},
+		ToolCatalog: {"search", "describe", "reference"},
+		ToolStory:   {"get", "put_scene", "patch_scene", "remove_scene", "move_scene", "set_meta", "dry_run", "get_code", "put_code"},
 		ToolCheck:   {"validate"},
 	},
 }
 
 // studioWriteOps change the story, so a read-only desktop refuses them.
-var studioWriteOps = nameSet("outline", "set_meta", "put_scene", "patch_scene", "remove_scene", "move_scene")
+var studioWriteOps = nameSet("outline", "set_meta", "put_scene", "patch_scene", "remove_scene", "move_scene", "put_code")
 
 // PhaseTools returns the tool names of a phase, or nil for an unknown phase.
 func PhaseTools(phase string) []string {
@@ -196,6 +197,7 @@ type Studio struct {
 	checkClean     bool
 	compileETag    string
 	compileSummary CompileSummary
+	codeChanges    map[string]studioCodeChange
 }
 
 // NewStudio returns the session of one job.

@@ -37,6 +37,10 @@ The **Check export setup** button asks the running server whether FFmpeg and a b
 
 The agent writes a film from a topic: first the outline, then the cast, then one scene at a time, then a check with fixes, and at the end the narration. It runs as an isolated job on one project. It can use only the Storymaker tools of its current step.
 
+The author receives animation instructions in both normal and compact modes and can read the bundled animation/code references through its catalog tool. These cover staged movement, expressions, cues, overlapping actions, duration/easing, camera, highlights, sound effects and rhythm. Rig motion, blinking, breathing, storyboard lip-sync and background parallax are automatic.
+
+For custom diagrams and effects it can read and write the existing restricted code-scene API, with an executable particle example. Code writes require a current revision, stay within 8 KiB and preserve saved source/bundles on syntax errors; larger user code stays for manual editing. Code is bundled before a scene is activated. This grants no direct PixiJS/GSAP, DOM or network access. Speaking actors use storyboard scenes; code scenes have no dialogue/lip-sync binding. Pixel layout still needs review, and real model output may need correction.
+
 - **In the app.** The project list has a start form. Inside a project, open the **AI author** side tab of the editor. It holds the prompt, length, language, **Write the story** or **Revise the story**, a progress list, **Stop the author** (cancel), the outcome card, **Export without voice** and **Restore speech**.
 - **From chat.** The `storymaker` tool can create a film, report its status, revise it, export it, open it in the app and list projects. "Mach mir ein Erklärvideo über Backups" is enough to start.
 - **Unattended runs.** With `agent.action_policy` switched on, missions, flows, scheduled runs and co-agents need an administrator rule to call `create`, `revise` or `render`. Chats you take part in need no rule. The policy is off by default. A run that is not watched is then limited only by `storymaker.agent.max_daily_jobs` and the character limits of the voices.

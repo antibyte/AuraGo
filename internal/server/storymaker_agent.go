@@ -727,7 +727,7 @@ func (j *storymakerAgentJob) publishOutcome(ctx context.Context, in storymaker.O
 	var changed, unchanged, removed []string
 	if j.before != nil {
 		if after := j.readStory(ctx); after != nil {
-			changed, unchanged, removed = storymaker.ChangedScenes(j.before, after)
+			changed, unchanged, removed = storymaker.ChangedScenes(j.before, after, j.studio.CodeChangedScenes()...)
 		}
 	}
 	j.emit(agentEventOutcome, map[string]any{"outcome": outcome})

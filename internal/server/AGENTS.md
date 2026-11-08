@@ -251,6 +251,7 @@ Server-owned HTTP and cross-component integration contracts.
 
 ### Storymaker export and handoff
 
+- `storymaker_agent_profile.go` supplies versioned `storymaker/v2` normal/compact/native/text prompts. Visual phases require the embedded catalog references; custom code remains project/phase-bound through Studio, never general filesystem or raw PixiJS/GSAP access. `publishOutcome` merges source-only changes into revision scene lists. See `../storymaker/AGENTS.md`; verify profile and scripted code-create/revise tests in both tool modes.
 - Startup verifies the catalog v2 delivery inventory, exact hashes, byte sizes and encoded image dimensions before exposing the runtime. The opaque player CSP permits only the existing player path and exact local `js/vendor/storymaker/runtime.js` path, with `connect-src 'none'` retained. Asset bounds and source ownership belong to `../../assets/storymaker/ASSET-CONTRACT.md`.
 - Parallel render: `storymakerSettings` passes `LogicalCPUs` (`runtime.NumCPU()`) and `FreeMemoryMB` (gopsutil `mem.VirtualMemory().Available >> 20`, capped by `render.BoundMemoryToCgroup` over `/sys/fs/cgroup`, 0 when unknown) to the render runner. `render.ChooseWorkers` decides the worker count; the handlers do not.
 - The Video Studio handoff adds no Storymaker route. The app calls the existing `/api/desktop/video-studio` routes, so their scopes, read-only checks and `max_asset_size_mb` hold. `source_path` passes `OpenPreviewFile` before anything is copied into the Video Studio project.

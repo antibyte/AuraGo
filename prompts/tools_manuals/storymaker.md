@@ -2,6 +2,8 @@
 
 Use `storymaker` when the user wants an explainer video from a topic. An isolated agent writes the story in the background in the Storymaker desktop app. This tool starts and follows that job; you never write scenes yourself.
 
+Pass visual requirements in topic/instruction: the isolated author has bundled references for movement, speech cues, camera, timing/easing, highlights and sound, plus restricted code-scene effects with revision-safe source editing. It uses the existing catalog and sandbox; raw PixiJS/GSAP, unsupported filters and code-scene dialogue/lip-sync are unavailable. Do not promise those effects or verified pixel layout.
+
 ## Operations
 
 - `create` with `topic` (1-2000 characters) starts a job and returns `project_id`, `job_id`, `state` and `eta_hint_seconds`. Optional: `audience` (at most 120 characters), `length_seconds` (default 60; the server clamps it), `format` (`16:9`, `9:16` or `1:1`), `language` (default is the UI language) and `voice` (`{provider, voice}`).

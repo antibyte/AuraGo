@@ -80,17 +80,17 @@ func storymakerRequireClosed(t *testing.T, path string, node map[string]interfac
 
 func TestStorymakerPhaseSchemasFollowThePhaseTable(t *testing.T) {
 	names := storymakerCatalogNames(t)
-	catalogOps := []string{"search", "describe"}
+	catalogOps := []string{"search", "describe", "reference"}
 	checkOps := []string{"validate"}
 	table := map[string]map[string][]string{
 		storymaker.PhaseOutline: {storymaker.ToolStory: {"outline", "get"}},
 		storymaker.PhaseCast:    {storymaker.ToolCatalog: catalogOps, storymaker.ToolStory: {"set_meta", "get"}},
-		storymaker.PhaseFill:    {storymaker.ToolCatalog: catalogOps, storymaker.ToolStory: {"put_scene", "patch_scene", "dry_run", "get"}},
-		storymaker.PhaseCheck:   {storymaker.ToolCheck: checkOps, storymaker.ToolStory: {"patch_scene", "get"}},
+		storymaker.PhaseFill:    {storymaker.ToolCatalog: catalogOps, storymaker.ToolStory: {"put_scene", "patch_scene", "dry_run", "get", "get_code", "put_code"}},
+		storymaker.PhaseCheck:   {storymaker.ToolCheck: checkOps, storymaker.ToolCatalog: {"reference"}, storymaker.ToolStory: {"patch_scene", "get", "get_code", "put_code"}},
 		storymaker.PhaseRevise: {
 			storymaker.ToolCatalog: catalogOps,
 			storymaker.ToolCheck:   checkOps,
-			storymaker.ToolStory:   {"get", "put_scene", "patch_scene", "remove_scene", "move_scene", "set_meta", "dry_run"},
+			storymaker.ToolStory:   {"get", "put_scene", "patch_scene", "remove_scene", "move_scene", "set_meta", "dry_run", "get_code", "put_code"},
 		},
 	}
 	type fields struct{ present, absent []string }
@@ -151,11 +151,11 @@ func TestStorymakerPhaseSchemasFollowThePhaseTable(t *testing.T) {
 		fill := StorymakerPhaseToolSchemas(storymaker.PhaseFill, compact, names)
 		story := storymakerToolParams(fill, storymaker.ToolStory)
 		for _, field := range []string{"count", "id", "sound", "delay", "duration", "ease"} {
-			if (storymakerSchemaAt(story, "data", "beats", "[]", field) != nil) == compact {
+			if storymakerSchemaAt(story, "data", "beats", "[]", field) == nil {
 				t.Errorf("fill compact=%v beat field %s has the wrong presence", compact, field)
 			}
 		}
-		poses, _ := storymakerSchemaAt(story, "data", "actors", "[]", "pose")["enum"].([]string)
+		poses, _ := storymakerSchemaAt(story, "data", "beats", "[]", "pose")["enum"].([]string)
 		if len(poses) == 0 || !slices.Equal(poses, names.Poses) {
 			t.Errorf("actor pose enum = %v, want %v", poses, names.Poses)
 		}
@@ -168,14 +168,24 @@ func TestStorymakerPhaseSchemasFollowThePhaseTable(t *testing.T) {
 
 		cast := StorymakerPhaseToolSchemas(storymaker.PhaseCast, compact, names)
 		meta := storymakerToolParams(cast, storymaker.ToolStory)
-		for _, path := range [][]string{{"data", "style"}, {"data", "voice"}, {"data", "cast", "[]", "voice"}} {
+		for _, path := range [][]string{{"data", "voice"}, {"data", "cast", "[]", "voice"}} {
 			if (storymakerSchemaAt(meta, path...) != nil) == compact {
 				t.Errorf("cast compact=%v %s has the wrong presence", compact, strings.Join(path, "."))
 			}
 		}
 		characters, _ := storymakerSchemaAt(meta, "data", "cast", "[]", "character")["enum"].([]string)
-		if len(characters) == 0 || !slices.Equal(characters, names.Characters) {
+		if !compact && (len(characters) == 0 || !slices.Equal(characters, names.Characters)) {
 			t.Errorf("character enum = %v, want %v", characters, names.Characters)
+		}
+		for _, field := range []string{"rhythm", "auto_sfx"} {
+			if storymakerSchemaAt(meta, "data", "style", field) == nil {
+				t.Errorf("compact=%v missing style.%s", compact, field)
+			}
+		}
+		for _, field := range []string{"kind", "source"} {
+			if storymakerSchemaAt(story, "data", field) == nil {
+				t.Errorf("compact=%v missing %s", compact, field)
+			}
 		}
 		kinds, _ := storymakerSchemaAt(storymakerToolParams(cast, storymaker.ToolCatalog), "kind")["enum"].([]string)
 		if slices.Contains(kinds, "voice") == compact {

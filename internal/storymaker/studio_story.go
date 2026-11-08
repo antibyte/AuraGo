@@ -299,6 +299,8 @@ type metaInput struct {
 type metaStyle struct {
 	Palette  *string `json:"palette"`
 	Captions *bool   `json:"captions"`
+	Rhythm   *string `json:"rhythm"`
+	AutoSFX  *bool   `json:"auto_sfx"`
 }
 
 // studioSetMeta changes the fields the data names. cast is replaced whole.
@@ -335,6 +337,12 @@ func studioSetMeta(ctx context.Context, s *Studio, args map[string]any) StudioRe
 		st.Title = strings.TrimSpace(*in.Title)
 	}
 	if in.Style != nil {
+		if in.Style.Rhythm != nil {
+			st.Style.Rhythm = strings.TrimSpace(*in.Style.Rhythm)
+		}
+		if in.Style.AutoSFX != nil {
+			st.Style.AutoSFX = *in.Style.AutoSFX
+		}
 		if in.Style.Palette != nil {
 			st.Style.Palette = strings.TrimSpace(*in.Style.Palette)
 		}

@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import http from 'node:http';
 import { spawn, execFileSync } from 'node:child_process';
+import { transformSync } from 'esbuild';
 import { buildOutputs } from '../assets/storymaker/lib/catalog.mjs';
 import { decodePNG, encodePNG } from '../assets/storymaker/lib/png.mjs';
 const root=path.resolve(import.meta.dirname,'..'),ui=path.join(root,'ui');
@@ -88,7 +89,9 @@ const server=http.createServer((request,response)=>{
             response.end('<!doctype html><html data-sm-mode="app" data-sm-base="'+address+'"><link rel="stylesheet" href="/css/storymaker-player.css"><canvas id="sm-stage"></canvas><script src="/js/storymaker/host.bundle.js"></script></html>');return;
         }
         if(url.pathname==='/fixture-code.js'){
-            response.setHeader('Content-Type','text/javascript');response.end(fs.readFileSync(path.join(root,'internal/storymaker/testdata/scenes/s3.bundle.js')));return;
+            const reference=process.argv.includes('--agent-reference');
+            const code=reference?transformSync(fs.readFileSync(path.join(root,'internal/storymaker/reference/effects.js'),'utf8'),{format:'iife',globalName:'__smSceneModule',target:'es2020',legalComments:'none'}).code+'\nself.__smScene=__smSceneModule.default;':fs.readFileSync(path.join(root,'internal/storymaker/testdata/scenes/s3.bundle.js'));
+            response.setHeader('Content-Type','text/javascript');response.end(code);return;
         }
         const decoded=decodeURIComponent(url.pathname),base=decoded.startsWith('/img/storymaker/')?catalogDir:ui;
         const relative=base===catalogDir?decoded.slice('/img/storymaker/'.length):decoded.slice(1),file=path.resolve(base,relative);

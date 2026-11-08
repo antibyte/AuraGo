@@ -59,6 +59,16 @@ The context names one scene. Call storymaker_story with operation put_scene, its
 - If the answer is a draft, fix the listed issues with patch_scene and the same scene_id. An optional dry_run checks without saving.
 A saved scene ends this phase: stop.`
 
+const storymakerAnimationGuide = `## Animation and custom effects
+- Read storymaker_catalog operation reference, topic animation before filling or revising visuals. It describes actual beat fields, timing, cues, easing, camera, highlights, sound and aspect-safe staging. Search/describe the live catalog for exact assets and usage examples.
+- Explain through motion: walk for people, move for props; pair a gesture with a fitting expression and look. Use cue markers to align reveals with words; with prev overlaps actions. Control delay, duration, ease and count deliberately. A camera move should direct attention, not decorate every scene.
+- Characters, environments and props are illustrated fixed identities. Rig articulation, breathing, blinking, planted walking and storyboard lip-sync are automatic. Environment layers supply parallax during camera movement. No unsupported view, clothing, shader or filter parameters.
+- In cast/revise, set_meta supports style.rhythm calm/standard/lively and style.auto_sfx. Keep text short and check portrait/square composition. Preserve layout_unverified: you have not watched the actual pixels.
+- Prefer storyboard for dialogue. For a custom diagram or repeated drawing effect, read reference topic code. get_code reads the bound scene's source and code rev. put_code takes expected_rev from that answer and data.source only, within 8 KiB. Invalid code keeps the saved source/bundle; stale revisions require a fresh read.
+- To create a code scene, bundle its source with put_code first, then activate it with put_scene and data.kind code. Omit actors/props/beats/environment and keep the narration. Use the story rev from get for scene writes; it is different from the code rev. Existing code scenes need only a source update.
+- Code uses export default function scene(api), handles/tweens and the restricted onFrame(t,g) drawing facade. Use explicit scene time and fixed seeded constants, never counters or mutable state across frames, clocks, timers, imports, DOM/network, raw PixiJS or GSAP. Keep loops bounded. chart/diagram helpers are unsupported; use shapes/text/drawing. See the reference for the executable example and speech limitations.
+- After changes run storymaker_check and repair its errors. A compile failure is fixed in source; never bypass isolation or relax deadlines. Preserve unrelated scenes and user code.`
+
 const storymakerCheckWorkflow = `## Check and fix
 1. The context lists issues; storymaker_check gives the current list after a change.
 2. Fix each issue with storymaker_story operation patch_scene. Each issue has a fix with an example.
@@ -135,6 +145,12 @@ func storymakerToolGuide(phase string, names agent.StorymakerNames) string {
 		"Reply with exactly one raw JSON object and no other text. The field action names the tool. " + label,
 	}
 	lines = append(lines, examples...)
+	for _, name := range storymaker.PhaseTools(phase) {
+		lines = append(lines, name+" operations: "+strings.Join(storymaker.PhaseOperations(phase, name), ", "))
+	}
+	if phase != storymaker.PhaseOutline {
+		lines = append(lines, `Reference example: {"action":"storymaker_catalog","operation":"reference","topic":"animation"}`)
+	}
 	lines = append(lines,
 		"Poses: "+strings.Join(names.Poses, ", "),
 		"Gestures: "+strings.Join(names.Gestures, ", "),
@@ -155,8 +171,12 @@ func storymakerAgentProfile(phase string, compact, text bool, names agent.Storym
 	if compact {
 		house, variant = storymakerHouseRules, "compact"
 	}
-	name := "storymaker/v1/" + phase + "/" + variant
-	sections := []string{storymakerGroundRules, house, workflow}
+	name := "storymaker/v2/" + phase + "/" + variant
+	sections := []string{storymakerGroundRules, house}
+	if phase == storymaker.PhaseFill || phase == storymaker.PhaseCheck || phase == storymaker.PhaseRevise {
+		sections = append(sections, storymakerAnimationGuide)
+	}
+	sections = append(sections, workflow)
 	if text {
 		name += "/text"
 		sections = append(sections, storymakerToolGuide(phase, names))

@@ -16,7 +16,7 @@ type StorymakerNames struct {
 }
 
 // storymakerSceneFields are the scene fields patch_scene can remove with null.
-var storymakerSceneFields = []string{"environment", "variant", "narration", "speaker", "transition", "duration", "camera", "actors", "props", "beats"}
+var storymakerSceneFields = []string{"kind", "environment", "variant", "narration", "speaker", "transition", "duration", "camera", "actors", "props", "beats"}
 
 // StorymakerPhaseToolSchemas returns the closed job tool schemas of one phase.
 // The tools never join the normal catalog: a job profile is their only route.
@@ -100,9 +100,10 @@ func storymakerCatalogTool(phase string, compact bool) openai.Tool {
 		kinds = append(kinds, "voice")
 	}
 	return tool(storymaker.ToolCatalog,
-		"Find exact catalog ids. search takes query and optional kind; describe takes id. Search terms are English.",
+		"Find exact asset ids, or read the animation/code reference with operation reference and topic. Search terms are English.",
 		schema(map[string]interface{}{
 			"operation": storymakerEnum(storymaker.PhaseOperations(phase, storymaker.ToolCatalog)...),
+			"topic":     storymakerEnum("animation", "code"),
 			"query":     storymakerTyped("string"),
 			"id":        storymakerTyped("string"),
 			"limit":     map[string]interface{}{"type": "integer", "minimum": 1, "maximum": 12},
@@ -150,22 +151,30 @@ func storymakerOutlineProperties() map[string]interface{} {
 }
 
 func storymakerMetaProperties(compact bool, names StorymakerNames) map[string]interface{} {
+	character := storymakerNames(names.Characters)
+	if compact {
+		// Asset IDs already travel in the phase packet/catalog.
+		character = storymakerTyped("string")
+	}
 	member := map[string]interface{}{
 		"id":        storymakerTyped("string"),
 		"name":      storymakerTyped("string"),
-		"character": storymakerNames(names.Characters),
+		"character": character,
 	}
 	properties := map[string]interface{}{
 		"title": storymakerTyped("string"),
 		"cast":  storymakerArray(schema(member)),
+		"style": schema(map[string]interface{}{
+			"rhythm":   storymakerEnum("calm", "standard", "lively"),
+			"auto_sfx": storymakerTyped("boolean"),
+		}),
 	}
 	if !compact {
 		member["voice"] = storymakerVoiceSchema()
 		properties["voice"] = storymakerVoiceSchema()
-		properties["style"] = schema(map[string]interface{}{
-			"palette":  prop("string", "Palette name from the catalog"),
-			"captions": storymakerTyped("boolean"),
-		})
+		fields := properties["style"].(map[string]interface{})["properties"].(map[string]interface{})
+		fields["palette"] = prop("string", "Palette name from the catalog")
+		fields["captions"] = storymakerTyped("boolean")
 	}
 	return properties
 }
@@ -179,8 +188,17 @@ func storymakerVoiceSchema() map[string]interface{} {
 }
 
 func storymakerSceneProperties(compact bool, names StorymakerNames) map[string]interface{} {
+	environment := storymakerNames(names.Environments)
+	pose, expression := storymakerNames(names.Poses), storymakerNames(names.Expressions)
+	if compact {
+		environment = storymakerTyped("string")
+		// Names remain in the phase packet and beat enums; avoid duplicating them.
+		pose, expression = storymakerTyped("string"), storymakerTyped("string")
+	}
 	return map[string]interface{}{
-		"environment": storymakerNames(names.Environments),
+		"kind":        storymakerEnum("storyboard", "code"),
+		"source":      map[string]interface{}{"type": "string", "maxLength": storymaker.StudioCodeBytes, "description": "put_code only; first read get_code and the code reference"},
+		"environment": environment,
 		"variant":     storymakerEnum("day", "night"),
 		"narration":   storymakerTyped("string"),
 		"speaker":     storymakerTyped("string"),
@@ -193,9 +211,9 @@ func storymakerSceneProperties(compact bool, names StorymakerNames) map[string]i
 		"actors": storymakerArray(schema(map[string]interface{}{
 			"cast":       storymakerTyped("string"),
 			"at":         storymakerTyped("string"),
-			"pose":       storymakerNames(names.Poses),
+			"pose":       pose,
 			"facing":     storymakerEnum("left", "right", "auto"),
-			"expression": storymakerNames(names.Expressions),
+			"expression": expression,
 			"scale":      storymakerTyped("number"),
 		})),
 		"props": storymakerArray(schema(map[string]interface{}{
@@ -230,14 +248,12 @@ func storymakerBeatSchema(compact bool, names StorymakerNames) map[string]interf
 		"with":       storymakerEnum("prev"),
 		"cue":        storymakerTyped("integer"),
 	}
-	if !compact {
-		properties["count"] = storymakerTyped("integer")
-		properties["id"] = storymakerTyped("string")
-		properties["sound"] = storymakerTyped("string")
-		properties["delay"] = storymakerTyped("number")
-		properties["duration"] = storymakerTyped("number")
-		properties["ease"] = storymakerEnum("linear", "ease-in", "ease-out", "ease-in-out", "back-out", "bounce-out")
-	}
+	properties["count"] = storymakerTyped("integer")
+	properties["id"] = storymakerTyped("string")
+	properties["sound"] = storymakerTyped("string")
+	properties["delay"] = storymakerTyped("number")
+	properties["duration"] = storymakerTyped("number")
+	properties["ease"] = storymakerEnum("linear", "ease-in", "ease-out", "ease-in-out", "back-out", "bounce-out")
 	return schema(properties, "do")
 }
 
