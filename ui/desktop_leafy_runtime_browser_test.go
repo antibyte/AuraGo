@@ -22,6 +22,8 @@ import (
 
 // Exercise the real shell and lazy app modules against local, non-mutating fixtures.
 func TestDesktopLeafyRuntimeBrowser(t *testing.T) {
+	// Software GPU rebuilds can outlast ten seconds before CDP returns.
+	const renderTimeout = 30 * time.Second
 	requirePrecisionBrowserSmoke(t)
 	bin, ok := browserExecutable()
 	if !ok {
@@ -172,13 +174,13 @@ func TestDesktopLeafyRuntimeBrowser(t *testing.T) {
   };
   aurora.renderWidgets();
  }`)
-	if err := page.Timeout(10 * time.Second).Wait(rod.Eval(`()=>!!window.AuraLeafy?.active?.layout`)); err != nil {
+	if err := page.Timeout(renderTimeout).Wait(rod.Eval(`()=>!!window.AuraLeafy?.active?.layout`)); err != nil {
 		page.MustScreenshot(filepath.Join(dir, "startup-error.png"))
 		t.Fatal(page.MustEval(`()=>JSON.stringify({errors:[...bootErrors,...fixtureErrors],card:document.getElementById('vd-widgets').innerHTML,body:document.body.dataset,metrics:window.AuraLeafy?.active?.metrics()})`).Str())
 	}
 	page.MustElement(".vd-leafy-shell").MustClick()
 	page.Timeout(10 * time.Second).MustElement("[data-action='replant']").MustClick()
-	page.Timeout(10 * time.Second).MustWait(`()=>AuraLeafy.active.metrics().revision===1`)
+	page.Timeout(renderTimeout).MustWait(`()=>AuraLeafy.active.metrics().revision===1`)
 	page.MustScreenshot(filepath.Join(dir, "desktop-seedling.png"))
 	page.Timeout(10 * time.Second).MustElement(".vd-leafy-panel [data-action='close']").MustClick()
 	pot := page.MustEval(`()=>{const r=document.querySelector('.vd-leafy-pot').getBoundingClientRect();window.beforePotDrag={...AuraLeafy.active.layout.root};return{x:r.x+r.width/2,y:r.y+r.height/2}}`)
@@ -198,7 +200,7 @@ func TestDesktopLeafyRuntimeBrowser(t *testing.T) {
 		now = now.Add(time.Hour)
 		clockMu.Unlock()
 		page.MustEval(`()=>{const p=window.leafyPoll;if(!p || p.delay!==3600000)throw Error('Hourly refresh not scheduled');clearTimeout(p.id);p.run();}`)
-		page.Timeout(10*time.Second).MustWait(`hour=>AuraLeafy.active.metrics().age===hour`, hour)
+		page.Timeout(renderTimeout).MustWait(`hour=>AuraLeafy.active.metrics().age===hour`, hour)
 		page.MustEval(`hour=>{
             const p=AuraLeafy.active;
             if(p.metrics().revision!==1 || p.layout.branches.some(b=>b.points.length!==hour+2) || p.layout.leaves.length!==3*(hour+1))throw Error('Hourly growth was not drawn without a care action');
@@ -207,7 +209,7 @@ func TestDesktopLeafyRuntimeBrowser(t *testing.T) {
 	}
 	page.MustEval(`()=>{window.setTimeout=leafyNativeTimeout;delete window.leafyNativeTimeout;delete window.leafyPoll;}`)
 	page.MustEval(`async()=>{const r=await nativeFetch('/fixture-grow');if(!r.ok)throw Error(await r.text());await aurora.handleDesktopEvent({type:'plant_changed'});}`)
-	page.Timeout(20 * time.Second).MustWait(`()=>AuraLeafy.active.metrics().age>=500`)
+	page.Timeout(renderTimeout).MustWait(`()=>AuraLeafy.active.metrics().age>=500`)
 	for _, theme := range []string{"standard", "fruity-dark", "fruity-light"} {
 		for _, size := range [][2]int{{1920, 1080}, {1366, 768}, {390, 844}} {
 			page.MustSetViewport(size[0], size[1], 1, size[0] < 821)
@@ -279,7 +281,7 @@ func TestDesktopLeafyRuntimeBrowser(t *testing.T) {
 	page.MustEval(`()=>{if(document.querySelector('.vd-leafy-canvas').style.transform)throw Error('Drag left a canvas offset');if(AuraLeafy.active.layout.root.x<preDragRoot.x+40)throw Error('Grip did not move plant');}`)
 	page.MustSetViewport(1366, 768, 2, false)
 	page.MustEval(`()=>{fixtureTheme('fruity-dark');aurora.state.bootstrap.settings['appearance.density']='compact';aurora.applyDesktopSettings();}`)
-	page.Timeout(10 * time.Second).MustEval(`async()=>{
+	page.Timeout(renderTimeout).MustEval(`async()=>{
         await document.fonts.ready;
         window.leafySettle=()=>new Promise(resolve=>{
             let previous='',stableSince=0;
@@ -355,8 +357,7 @@ func TestDesktopLeafyRuntimeBrowser(t *testing.T) {
         window.leafyBeforeCut=AuraLeafy.active.layout.branches.map(b=>({id:b.id,nodes:b.points.length,parent:b.parent,attach:b.attach}));
         window.leafyHoldCut=false;leafyReleaseCut();
     }`)
-	// Software-GPU capture can exceed ten seconds while rasterizing four million pixels.
-	if err := page.Timeout(30 * time.Second).Wait(rod.Eval(`()=>!!document.querySelector('.vd-leafy-cutting-fall')`)); err != nil {
+	if err := page.Timeout(renderTimeout).Wait(rod.Eval(`()=>!!document.querySelector('.vd-leafy-cutting-fall')`)); err != nil {
 		t.Fatalf("cutting absent: %s", page.MustEval(`()=>JSON.stringify({metrics:AuraLeafy.active.metrics(),fall:!!document.querySelector('.vd-leafy-cutting-fall'),animations:document.body.dataset.animations,paused:window.leafyFall?.playState,requests:leafyActionRequests,status:document.querySelector('.vd-leafy-status').textContent,motion:matchMedia('(prefers-reduced-motion: reduce)').matches,hidden:document.hidden,errors:[...bootErrors,...fixtureErrors]})`).Str())
 	}
 	page.MustEval(`()=>{
@@ -376,34 +377,34 @@ func TestDesktopLeafyRuntimeBrowser(t *testing.T) {
 	page.MustEval(`()=>leafyFall.finish()`)
 	page.Timeout(5 * time.Second).MustWait(`()=>!document.querySelector('.vd-leafy-cutting-fall')`)
 	page.Timeout(10 * time.Second).MustElement("[data-action='undo_prune']").MustClick()
-	page.Timeout(10 * time.Second).MustWait(`()=>!document.querySelector('[data-action="undo_prune"]')`)
+	page.Timeout(renderTimeout).MustWait(`()=>!document.querySelector('[data-action="undo_prune"]')`)
 	page.MustEval(`()=>{if(JSON.stringify(AuraLeafy.active.layout.branches.map(b=>({id:b.id,nodes:b.points.length,parent:b.parent,attach:b.attach})))!==JSON.stringify(leafyBeforeCut))throw Error('Undo did not restore the complete branch tree');}`)
 	// A competing write must refresh the state without animating a rejected cut.
 	page.MustEval(`async()=>{const p=await(await nativeFetch('/api/desktop/plant')).json();const r=await nativeFetch('/api/desktop/plant/actions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'water',action_id:crypto.randomUUID(),revision:p.plant.revision})});window.leafyConflictRevision=(await r.json()).plant.revision;}`)
 	point = page.MustEval(`()=>leafyCutPoint()`)
 	page.Mouse.MustMoveTo(point.Get("x").Num(), point.Get("y").Num()).MustClick(proto.InputMouseButtonLeft)
-	if err := page.Timeout(10 * time.Second).Wait(rod.Eval(`()=>AuraLeafy.active.metrics().revision===leafyConflictRevision`)); err != nil {
+	if err := page.Timeout(renderTimeout).Wait(rod.Eval(`()=>AuraLeafy.active.metrics().revision===leafyConflictRevision`)); err != nil {
 		t.Fatal("conflicting cut did not refresh", page.MustEval(`()=>JSON.stringify({metrics:AuraLeafy.active.metrics(),expected:leafyConflictRevision,requests:leafyActionRequests,point:leafyCutPoint()})`).Str())
 	}
 	page.MustEval(`()=>{if(document.querySelector('.vd-leafy-cutting-fall')||document.querySelector('[data-action="undo_prune"]'))throw Error('Rejected cut animated or mutated the plant');document.body.dataset.animations='false';}`)
 	// Preserve list-based cutting without motion as a keyboard alternative.
 	page.Timeout(10 * time.Second).MustElement("[data-branch]").MustSelect("Ranke 1")
 	page.Timeout(10 * time.Second).MustElement("[data-action='cut']").MustClick()
-	page.Timeout(10 * time.Second).MustWait(`()=>!!document.querySelector('[data-action="undo_prune"]')`)
+	page.Timeout(renderTimeout).MustWait(`()=>!!document.querySelector('[data-action="undo_prune"]')`)
 	page.MustEval(`()=>{if(document.querySelector('.vd-leafy-cutting-fall'))throw Error('Disabled animations still fell');}`)
 	page.MustScreenshot(filepath.Join(dir, "desktop-pruned.png"))
 	page.Timeout(10 * time.Second).MustElement("[data-action='undo_prune']").MustClick()
-	page.Timeout(10 * time.Second).MustWait(`()=>!document.querySelector('[data-action="undo_prune"]')`)
+	page.Timeout(renderTimeout).MustWait(`()=>!document.querySelector('[data-action="undo_prune"]')`)
 	page.Timeout(10 * time.Second).MustElement("[data-action='scissors']").MustClick()
 	page.Timeout(10 * time.Second).MustElement("[data-action='vacation']").MustClick()
-	page.Timeout(10 * time.Second).MustWait(`()=>document.querySelector('[data-action="vacation"]').textContent.includes('beenden')`)
+	page.Timeout(renderTimeout).MustWait(`()=>document.querySelector('[data-action="vacation"]').textContent.includes('beenden')`)
 	page.Timeout(10 * time.Second).MustElement("[data-action='vacation']").MustClick()
-	page.Timeout(10 * time.Second).MustWait(`()=>document.querySelector('[data-action="vacation"]').textContent==='Urlaub'`)
+	page.Timeout(renderTimeout).MustWait(`()=>document.querySelector('[data-action="vacation"]').textContent==='Urlaub'`)
 	page.Timeout(10 * time.Second).MustElement("[data-action='hide']").MustClick()
 	page.MustEval(`()=>{if(!document.querySelector('.vd-leafy').hidden||document.querySelector('.vd-leafy-shell').hidden)throw Error('Hide lost escape control')}`)
 	page.Timeout(10 * time.Second).MustElement("[data-action='hide']").MustClick()
 	page.MustEval(`()=>{const c=document.querySelector('.vd-leafy-canvas');c.dispatchEvent(new Event('webglcontextlost',{cancelable:true}));}`)
-	page.Timeout(10 * time.Second).MustWait(`()=>AuraLeafy.active.metrics().renderer==='canvas2d'`)
+	page.Timeout(renderTimeout).MustWait(`()=>AuraLeafy.active.metrics().renderer==='canvas2d'`)
 	page.MustEval(`async()=>{await new Promise(r=>setTimeout(r,300))}`)
 	page.MustScreenshot(filepath.Join(dir, "desktop-fallback.png"))
 	page.MustEval(`async()=>{const rev=AuraLeafy.active.metrics().revision;document.querySelector('[data-action="water"]').click();for(let i=0;i<50&&AuraLeafy.active.metrics().revision===rev;i++)await new Promise(r=>setTimeout(r,20));if(AuraLeafy.active.metrics().revision!==rev+1)throw Error('Fallback care failed');}`)
@@ -411,16 +412,16 @@ func TestDesktopLeafyRuntimeBrowser(t *testing.T) {
 	if err := (proto.EmulationSetTouchEmulationEnabled{Enabled: true}).Call(page); err != nil {
 		t.Fatal(err)
 	}
-	point = page.Timeout(10 * time.Second).MustEval(`async()=>{await leafySettle();return window.leafyTouchPoint=leafyCutPoint();}`)
+	point = page.Timeout(renderTimeout).MustEval(`async()=>{await leafySettle();return window.leafyTouchPoint=leafyCutPoint();}`)
 	page.Touch.MustTap(point.Get("x").Num(), point.Get("y").Num())
-	if err := page.Timeout(10 * time.Second).Wait(rod.Eval(`()=>!!document.querySelector('.vd-leafy-cutting-fall')`)); err != nil {
+	if err := page.Timeout(renderTimeout).Wait(rod.Eval(`()=>!!document.querySelector('.vd-leafy-cutting-fall')`)); err != nil {
 		t.Fatalf("touch cutting absent: %s", page.MustEval(`()=>JSON.stringify({metrics:AuraLeafy.active.metrics(),point:leafyTouchPoint,canvas:document.querySelector('.vd-leafy-canvas').getBoundingClientRect(),requests:leafyActionRequests,status:document.querySelector('.vd-leafy-status').textContent,errors:[...bootErrors,...fixtureErrors]})`).Str())
 	}
 	page.MustEval(`()=>{if(!document.querySelector('.vd-leafy-scissors-cursor').hidden)throw Error('Touch left a floating mouse cursor');leafyFall.currentTime=500;}`)
 	page.MustScreenshot(filepath.Join(dir, "desktop-fallback-cut.png"))
 	undo := page.MustElement("[data-action='undo_prune']").MustScrollIntoView().MustShape().Box()
 	page.Touch.MustTap(undo.X+undo.Width/2, undo.Y+undo.Height/2)
-	page.Timeout(10 * time.Second).MustWait(`()=>!document.querySelector('[data-action="undo_prune"]')&&!document.querySelector('.vd-leafy-cutting-fall')`)
+	page.Timeout(renderTimeout).MustWait(`()=>!document.querySelector('[data-action="undo_prune"]')&&!document.querySelector('.vd-leafy-cutting-fall')`)
 	if err := (proto.EmulationSetTouchEmulationEnabled{Enabled: false}).Call(page); err != nil {
 		t.Fatal(err)
 	}
@@ -429,7 +430,7 @@ func TestDesktopLeafyRuntimeBrowser(t *testing.T) {
 	page.MustEval(`()=>{window.lastLeafy=AuraLeafy.active;aurora.switchSpace(2);aurora.switchSpace(1);if(AuraLeafy.active!==lastLeafy)throw Error('Spaces recreated plant');}`)
 	t.Log(page.MustEval(`()=>JSON.stringify(AuraLeafy.active.metrics())`).Str())
 	page.MustEval(`()=>{window.leafyRevisionBeforeRemount=AuraLeafy.active.metrics().revision;const widget=aurora.state.bootstrap.widgets[0];aurora.state.bootstrap.widgets=[];aurora.renderWidgets();aurora.state.bootstrap.widgets=[widget];aurora.renderWidgets();}`)
-	page.Timeout(10 * time.Second).MustWait(`()=>window.AuraLeafy.active?.metrics().revision>0`)
+	page.Timeout(renderTimeout).MustWait(`()=>window.AuraLeafy.active?.metrics().revision>0`)
 	page.MustEval(`()=>{if(AuraLeafy.active.metrics().revision!==leafyRevisionBeforeRemount)throw Error('Remount reset biology');if(document.querySelectorAll('.vd-leafy').length!==1)throw Error('Duplicate plant');}`)
 	if errors := page.MustEval(`()=>JSON.stringify([...bootErrors,...fixtureErrors])`).Str(); errors != "[]" {
 		t.Fatal(errors)
