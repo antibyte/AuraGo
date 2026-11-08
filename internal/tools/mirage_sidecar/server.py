@@ -70,23 +70,6 @@ def _as_list(value):
     return value if isinstance(value, list) else []
 
 
-def _position(box):
-    try:
-        x0, y0, x1, y1 = [float(v) for v in list(box)[:4]]
-    except (TypeError, ValueError):
-        return ""
-    cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
-    horizontal = "left" if cx < 333 else "right" if cx > 666 else "center"
-    vertical = "top" if cy < 333 else "bottom" if cy > 666 else "middle"
-    if horizontal == "center" and vertical == "middle":
-        return "center"
-    if horizontal == "center":
-        return vertical
-    if vertical == "middle":
-        return horizontal
-    return vertical + " " + horizontal
-
-
 def format_description(result, max_objects=20, max_text_lines=30):
     """Turn Mirage's structured result into the text the main model reads."""
     if not isinstance(result, dict):
@@ -95,34 +78,43 @@ def format_description(result, max_objects=20, max_text_lines=30):
 
     scene = result.get("scene")
     if isinstance(scene, dict):
-        scene = _first(scene, "description", "caption", "text", "summary")
+        # Real Mirage output: a dict of short fields (setting, background, lighting, style).
+        scene = ", ".join(str(v).strip() for v in scene.values() if isinstance(v, (str, int, float)) and str(v).strip())
     if isinstance(scene, str) and scene.strip():
         lines.append("Scene: " + scene.strip())
 
+    names = {}
     entries = []
+    counts = {}
     for obj in _as_list(result.get("objects"))[:max_objects]:
         if isinstance(obj, str):
-            entries.append(obj)
-            continue
-        name = _first(obj, "name", "label", "class")
-        if not name:
-            continue
-        text = str(name)
-        attrs = _first(obj, "attributes", "attrs")
-        if isinstance(attrs, (list, tuple)):
-            text += " (" + ", ".join(str(a) for a in attrs) + ")"
-        elif isinstance(attrs, str):
-            text += " (" + attrs + ")"
-        place = _position(_first(obj, "bbox", "box") or [])
-        if place:
-            text += " at " + place
-        entries.append(text)
+            text = obj
+        else:
+            name = _first(obj, "name", "label", "class")
+            if not name:
+                continue
+            names.setdefault(obj.get("id"), str(name))
+            text = str(name)
+            attrs = _first(obj, "description", "attributes", "attrs")
+            if isinstance(attrs, dict):
+                attrs = [v for v in attrs.values() if isinstance(v, (str, int, float))]
+            if isinstance(attrs, (list, tuple)) and attrs:
+                text += " (" + ", ".join(str(a) for a in attrs) + ")"
+            elif isinstance(attrs, str):
+                text += " (" + attrs + ")"
+            place = _first(obj, "position")
+            if isinstance(place, str):
+                text += " at " + place
+        if text not in counts:
+            entries.append(text)
+        counts[text] = counts.get(text, 0) + 1
+    entries = [e + (" x%d" % counts[e] if counts[e] > 1 else "") for e in entries]
     if entries:
         lines.append("Objects: " + "; ".join(entries) + ".")
 
     texts = []
     for item in _as_list(result.get("text"))[:max_text_lines]:
-        value = item if isinstance(item, str) else _first(item, "text", "content", "value")
+        value = item if isinstance(item, str) else _first(item, "string", "text", "content", "value")
         if value and str(value).strip():
             texts.append('"' + str(value).strip() + '"')
     if texts:
@@ -131,13 +123,19 @@ def format_description(result, max_objects=20, max_text_lines=30):
     relations = []
     for rel in _as_list(result.get("relations"))[:max_objects]:
         if isinstance(rel, str):
-            relations.append(rel)
-            continue
-        subject = _first(rel, "subject", "source")
-        verb = _first(rel, "relation", "predicate", "verb")
-        target = _first(rel, "object", "target")
-        if subject and verb and target:
-            relations.append("%s %s %s" % (subject, verb, target))
+            text = rel
+        else:
+            subject = _first(rel, "subject", "source")
+            verb = _first(rel, "relation", "predicate", "verb")
+            target = _first(rel, "object", "target")
+            if not (subject and verb and target):
+                continue
+            # Real Mirage output refers to objects by id; ids are shared per object kind.
+            subject = names.get(subject, subject)
+            target = names.get(target, target)
+            text = "%s %s %s" % (subject, str(verb).replace("_", " "), target)
+        if text not in relations:
+            relations.append(text)
     if relations:
         lines.append("Relations: " + "; ".join(relations) + ".")
 

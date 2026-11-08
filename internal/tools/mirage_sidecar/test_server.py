@@ -19,10 +19,10 @@ DATA_URL = "data:image/png;base64," + PNG_1X1
 SAMPLE = {
     "scene": "A street at dusk.",
     "objects": [
-        {"name": "car", "bbox": [100, 600, 400, 900], "attributes": ["red"]},
-        {"name": "sign", "bbox": [450, 50, 550, 150]},
+        {"name": "car", "position": "bottom left", "description": {"color": "red"}},
+        {"name": "sign", "position": "top"},
     ],
-    "text": [{"text": "STOP", "bbox": [450, 50, 550, 150]}, "Main St"],
+    "text": [{"string": "STOP", "bbox": [450, 50, 550, 150]}, "Main St"],
     "relations": [{"subject": "car", "relation": "near", "object": "sign"}],
 }
 

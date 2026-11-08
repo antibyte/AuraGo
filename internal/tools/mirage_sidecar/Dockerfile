@@ -1,0 +1,9 @@
+ARG BASE_IMAGE=python:3.12-slim
+FROM ${BASE_IMAGE}
+ARG CACTUS_VERSION
+ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 HOME=/data PIP_NO_CACHE_DIR=1
+RUN pip install "cactus-compute==${CACTUS_VERSION}"
+WORKDIR /app
+COPY server.py /app/server.py
+EXPOSE 8080
+CMD ["python", "/app/server.py"]
