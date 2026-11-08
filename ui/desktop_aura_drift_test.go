@@ -486,3 +486,58 @@ func TestAuraDriftKeepsTheCanvasFilledAcrossTierChanges(t *testing.T) {
 		t.Fatal("the three.js renderer must only reallocate the drawing buffer when the size really changed")
 	}
 }
+
+// A hidden or inactive window draws nothing, and the browser can drop the canvas
+// texture while it is out of sight. The first frame back would then composite an
+// empty canvas: the view has to be painted again as soon as the window returns.
+func TestAuraDriftRepaintsWhenTheWindowComesBack(t *testing.T) {
+	t.Parallel()
+
+	shell := readDesktopAssetText(t, "js/desktop/apps/aura-drift.js")
+	loop := strings.Index(shell, "function loop(now)")
+	if loop < 0 {
+		t.Fatal("Aura Drift shell has no frame loop")
+	}
+	if !strings.Contains(shell[loop:loop+900], "repaint()") {
+		t.Fatal("Aura Drift must repaint when the window becomes active again: nothing is drawn while it is inactive, so the first frame back can be a black canvas")
+	}
+	visibility := strings.Index(shell, "onVisibility()")
+	if visibility < 0 {
+		t.Fatal("Aura Drift shell has no visibility handler")
+	}
+	if !strings.Contains(shell[visibility:visibility+700], "repaint()") {
+		t.Fatal("Aura Drift must repaint when the tab becomes visible again: the browser can drop the canvas texture while the tab is hidden")
+	}
+	// The repaint has to draw the current view, not just poke the renderer.
+	paint := strings.Index(shell, "function repaint()")
+	if paint < 0 {
+		t.Fatal("Aura Drift shell lost the repaint helper")
+	}
+	repaint := shell[paint:paint+600]
+	if !strings.Contains(repaint, "renderer.render(") || !strings.Contains(repaint, "renderer.showcase(") {
+		t.Fatal("the Aura Drift repaint must draw the current view")
+	}
+}
+
+// The server answers a request for an older asset set with 409 "Asset version
+// changed. Reload this page.". Running on with the old version means the model kit
+// never arrives and the race falls back to stand-ins, so the page reloads itself.
+func TestAuraDriftReloadsWhenTheAssetSetChanged(t *testing.T) {
+	t.Parallel()
+
+	assets := readDesktopAssetText(t, "js/desktop/apps/aura-drift-assets.js")
+	conflict := strings.Index(assets, "409")
+	if conflict < 0 {
+		t.Fatal("the Aura Drift asset loader must know the version conflict of the server")
+	}
+	if !strings.Contains(assets, "reloadForNewVersion") {
+		t.Fatal("the Aura Drift asset loader must reload the page when the asset set changed")
+	}
+	if !strings.Contains(assets, "location.reload()") {
+		t.Fatal("the Aura Drift asset loader must reload the page when the asset set changed")
+	}
+	// A server that keeps changing must not turn into a reload loop.
+	if !strings.Contains(assets, "VERSION_RELOAD_MAX") {
+		t.Fatal("the Aura Drift version reload must be bounded")
+	}
+}

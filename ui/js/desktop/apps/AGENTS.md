@@ -3726,6 +3726,13 @@ buttons and menu popovers remain excluded from those gestures.
   content overflow and feeds the resize loop. A failing HUD is caught and emptied,
   never left to the frame loop, which would read the error as a dead renderer and
   drop the race to the 2D view.
+- A hidden or inactive window draws nothing, and the browser can drop the canvas texture
+  while it is out of sight: the view is repainted when the tab becomes visible and when the
+  window becomes active again, so the first frame back cannot be a black canvas.
+- The server answers a request for an older asset set with 409 "Asset version changed.
+  Reload this page.". The asset loader reloads the page on that answer - once per conflict,
+  at most three times per session, so a server that keeps changing cannot become a reload
+  loop. Without it the model kit never arrives and the race runs on stand-ins.
 - The dev server must deliver the files on disk. A dev build carries no version, so
   its service worker cache key (`?v=dev`) never rotates and a cache-first worker pins
   the scripts of the very first visit: later edits never reach the browser and the old

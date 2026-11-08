@@ -224,7 +224,10 @@
         /* Draws the current view once, outside the frame loop.
            A resize reallocates the WebGL drawing buffer and empties it. The resize observer
            runs after the animation frame, so the browser would composite the empty canvas and
-           the screen would go black for one frame: draw the same view again right away. */
+           the screen would go black for one frame: draw the same view again right away.
+           The same holds when the window comes back: while it is hidden or inactive the frame
+           loop draws nothing, and the browser may have dropped the canvas texture in the
+           meantime - the first frame back would composite an empty canvas. */
         function repaint() {
             if (!running) return;
             try {
@@ -646,6 +649,9 @@
             if (inactive) {
                 inactive = false;
                 if (!paused) audio.resume();
+                /* The window draws nothing while it is inactive. The browser can drop the
+                   canvas texture in the meantime, so the first frame back would be black. */
+                repaint();
             }
             try {
                 frame(now, dt);
@@ -893,6 +899,10 @@
                 } else {
                     last = performance.now();
                     if (!paused && !inactive) audio.resume();
+                    /* The tab draws nothing while it is hidden. Paint the view again right
+                       away, before the browser composites the window: a canvas whose texture
+                       was dropped in the meantime would show black for one frame. */
+                    repaint();
                 }
             }
         };

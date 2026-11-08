@@ -57,11 +57,31 @@
 
     /* A stalled request must end as a failure so stand-ins take over; the abort also covers reading the body. */
     const FETCH_TIMEOUT_MS = 20000;
+    /* The server answers a request that carries an older asset set with 409 "Asset version
+       changed. Reload this page.". Running on with the old version means the model kit never
+       arrives and the race shows stand-ins, so the page is reloaded - once. The counter keeps a
+       server that keeps changing from turning into a reload loop: it counts the reloads, not
+       the requests, so the kit files that fail together cause a single reload. */
+    const VERSION_RELOAD_KEY = 'aurago.drift.version-reload';
+    const VERSION_RELOAD_MAX = 3;
+    let versionReloadPending = false;
+    function reloadForNewVersion() {
+        if (versionReloadPending) return false;
+        try {
+            const count = Number(sessionStorage.getItem(VERSION_RELOAD_KEY) || 0) || 0;
+            if (count >= VERSION_RELOAD_MAX) return false;
+            sessionStorage.setItem(VERSION_RELOAD_KEY, String(count + 1));
+        } catch (_) { /* private mode: reload anyway */ }
+        versionReloadPending = true;
+        try { location.reload(); } catch (_) { versionReloadPending = false; return false; }
+        return true;
+    }
     function fetchTimed(path, init, read, timeoutMs) {
         const ctl = typeof AbortController === 'function' ? new AbortController() : null;
         const timer = ctl ? setTimeout(() => ctl.abort(), timeoutMs || FETCH_TIMEOUT_MS) : 0;
         const options = Object.assign({}, init, ctl ? { signal: ctl.signal } : {});
         return fetch(AD.assetURL(path), options).then(r => {
+            if (r.status === 409) { reloadForNewVersion(); throw new Error('asset 409: the asset set changed'); }
             if (!r.ok) throw new Error('asset ' + r.status);
             return read(r);
         }).then(v => { clearTimeout(timer); return v; }, e => { clearTimeout(timer); throw e; });

@@ -259,6 +259,15 @@ weather motion are removed by reduced motion.
   Aura Drift harness unregisters the worker and clears the caches before it loads the app
   modules - then reloads once, because unregistering does not release the page the worker
   already controls.
+- **A window that comes back paints again at once.** While the tab is hidden or the window is
+  inactive the frame loop draws nothing, and the browser may drop the canvas texture in the
+  meantime. The first frame back would then composite an empty canvas - a black frame. The view
+  is therefore repainted when the tab becomes visible and when the window becomes active again.
+- **A changed asset set reloads the page.** The server answers a request that carries an older
+  asset set with `409 Asset version changed. Reload this page.` Running on with the old version
+  means the model kit never arrives and the race falls back to stand-ins, so the asset loader
+  reloads the page - once per conflict, at most three times per session, so a server that keeps
+  changing cannot become a reload loop.
 - A broken gauge stays a gauge problem: the HUD is caught and emptied, the race keeps its
   3D view instead of dropping to the Canvas 2D view.
 
