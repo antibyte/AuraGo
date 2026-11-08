@@ -39,6 +39,10 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 	t.Cleanup(server.Close)
 	benchmark := os.Getenv("AURAGO_MINIGOLF_BENCHMARK") == "1"
 	functionalSmoke := !benchmark && artifactDir == ""
+	renderScale := 1.0
+	if functionalSmoke {
+		renderScale = 0.5
+	}
 	browser := newSmokeBrowserWith(t, func(l *launcher.Launcher) {
 		l.Set("mute-audio")
 		l.Set("enable-unsafe-swiftshader")
@@ -49,7 +53,7 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 	// The page deadline is absolute; individual waits below narrow it further.
 	page := browser.MustPage("about:blank").Timeout(15 * time.Minute)
 	t.Cleanup(func() { _ = page.Close() })
-	page.MustSetViewport(1280, 760, 1, false)
+	page.MustSetViewport(1280, 760, renderScale, false)
 	audioManifestData, err := os.ReadFile("3d/minigolf/audio/manifest.json")
 	if err != nil {
 		t.Fatal(err)
@@ -167,7 +171,7 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 		page.MustEval(`()=>{const select=document.querySelector('[data-quality]');select.value='low';select.dispatchEvent(new Event('change',{bubbles:true}));}`)
 		page.MustElement(`.mg-panel [data-action="close"]`).MustClick()
 		page.MustWait(`before=>{const s=golfFixture.inspect(),settings=JSON.parse(localStorage.getItem('aurago.desktop.minigolf.settings.v1'));return s.panel===before&&settings?.quality==='low'&&(!s.graphics||s.graphics.quality==='low');}`, before)
-		t.Log("functional graphics preset: low")
+		t.Logf("functional graphics preset: low; device scale %.1f", page.MustEval(`()=>devicePixelRatio`).Num())
 	}
 	setFunctionalQuality()
 	// All recorded effects decode in the background after the first gesture; wait
@@ -452,10 +456,10 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 	page.MustEval(`()=>{document.querySelector('#golf-host').style.display='none'}`)
 	page.Timeout(10 * time.Second).MustWait(`()=>!golfFixture.inspect().visible&&golfFixture.inspect().audio.paused`)
 	if benchmark {
-		page.MustSetViewport(1920, 1080, 1, false)
+		page.MustSetViewport(1920, 1080, renderScale, false)
 		baseline := page.Timeout(20 * time.Second).MustEval(`async()=>JSON.stringify(await golfFixture.measureFrameIntervals(240))`).Str()
 		t.Logf("minigolf 1920x1080 hidden-host baseline (course RAF paused, 240 continuous rAF intervals): %s", baseline)
-		page.MustSetViewport(1280, 760, 1, false)
+		page.MustSetViewport(1280, 760, renderScale, false)
 	}
 	paused := page.MustEval(`()=>golfFixture.inspect().physics`).JSON("", " ")
 	page.MustEval(`()=>new Promise(resolve=>setTimeout(resolve,300))`)
@@ -590,7 +594,7 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 		t.Fatalf("captured only %d world screenshots", len(worldCaptured))
 	}
 	if benchmark {
-		page.MustSetViewport(1920, 1080, 1, false)
+		page.MustSetViewport(1920, 1080, renderScale, false)
 		for _, quality := range []string{"high", "medium", "low"} {
 			page.MustElement(`[data-action="settings"]`).MustClick()
 			page.MustWait(`()=>golfFixture.inspect().panel==='settings'`)
@@ -606,7 +610,7 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 		for _, mode := range []string{"light", "dark"} {
 			page.MustEval(`(theme,mode)=>{document.body.dataset.theme=theme;document.body.dataset.fruityMode=mode}`, theme, mode)
 			for _, width := range []int{1280, 420} {
-				page.MustSetViewport(width, 760, 1, width < 600)
+				page.MustSetViewport(width, 760, renderScale, width < 600)
 				settle()
 				label := fmt.Sprintf("%s/%s at %dpx", theme, mode, width)
 				layoutOK(label)
@@ -651,7 +655,7 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 	layoutPass := func(width int) {
 		t.Logf("checking panel navigation at %dpx", width)
 		label := fmt.Sprint(width)
-		page.MustSetViewport(width, 760, 1, width < 600)
+		page.MustSetViewport(width, 760, renderScale, width < 600)
 		settle()
 		page.MustWait(`()=>golfFixture.inspect().panel===''`)
 		layoutOK("game " + label)
@@ -779,7 +783,7 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 		t.Fatalf("the podium names the wrong winner: %s", page.MustEval(`()=>document.querySelector('.mg-winner').textContent`).Str())
 	}
 	for _, width := range []int{1280, 420} {
-		page.MustSetViewport(width, 760, 1, width < 600)
+		page.MustSetViewport(width, 760, renderScale, width < 600)
 		settle()
 		// Two players stand as a centred pair: equal free space left and right of the two steps.
 		if !page.MustEval(`()=>{const list=document.querySelector('.mg-podium'),box=list.getBoundingClientRect(),steps=[...list.children].map(e=>e.getBoundingClientRect());return list.dataset.count==='2'&&steps.length===2&&Math.abs((steps[0].left-box.left)-(box.right-steps[1].right))<=2}`).Bool() {
@@ -788,7 +792,7 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 		layoutOK(fmt.Sprintf("podium %dpx", width))
 		shot(fmt.Sprintf("podium-%d", width))
 	}
-	page.MustSetViewport(1280, 760, 1, false)
+	page.MustSetViewport(1280, 760, renderScale, false)
 	settle()
 	page.MustElement(`[data-action="again"]`).MustClick()
 	page.Timeout(30 * time.Second).MustWait(`()=>{const s=golfFixture.inspect();return !s.loading&&s.panel===''&&s.course==='temple-07'&&s.round.holeIndex===0}`)
