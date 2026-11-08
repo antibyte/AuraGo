@@ -6,24 +6,22 @@ Versioned local table payloads consumed by the Desktop Pinball app.
 
 ## Ownership
 
-- `v1/` contains three GLBs, matching physics JSON, nine WebP paintings/previews,
-  baked normal/AO maps, shared CC0 audio and the generated integrity manifest.
+- `v1/` contains nine WebP images (flat playfield underlay, backglass and preview per table),
+  shared CC0 audio and the generated integrity manifest (version 2).
 - Original sources and recipes belong to `../../../assets/pinball/AGENTS.md`.
 - Runtime behaviour belongs to `../../js/desktop/apps/pinball/AGENTS.md`.
 
 ## Local Contracts
 
-- Do not hand-edit generated files. Rebuild geometry with Blender, artwork with
-  `assets/pinball/prepare.py`, then `node scripts/build-pinball-assets.mjs`.
-- Each GLB scene embeds the SHA-256 of its exact physics JSON. Keep SI scale,
-  dynamic actor IDs and the true pocket opening aligned across both outputs.
-- Payloads remain below 110 MiB total. Load only the selected table at runtime.
+- Do not hand-edit generated files. Rebuild artwork with `assets/pinball/prepare.py`,
+  then `node scripts/build-pinball-assets.mjs`.
+- Tables are procedural in code; there are no GLB, physics JSON or baked map files.
+- Payloads remain below 20 MiB total and every file in `v1/` is listed in the manifest.
 - All audio records retain their CC0 source, member, archive pin and delivered hash.
 
 ## Work Guidance
 
 - Preserve ImageGen masters outside the payload tree. Use local URLs only.
-- Rebuild all tables from fresh factory startup before checking reproducibility.
 
 ## Verification
 

@@ -1,49 +1,26 @@
 {
-  "version": 1,
-  "blender": "5.2.2",
+  "version": 2,
   "tables": [
     {
       "id": "neon",
-      "model": "neon.glb",
-      "physics": "neon-physics.json",
-      "playfield": "neon-playfield.webp",
       "backglass": "neon-backglass.webp",
       "preview": "neon-concept.webp",
-      "normal": "neon-normal.png",
-      "ao": "neon-ao.png"
+      "underlay": "neon-playfield.webp"
     },
     {
       "id": "leviathan",
-      "model": "leviathan.glb",
-      "physics": "leviathan-physics.json",
-      "playfield": "leviathan-playfield.webp",
       "backglass": "leviathan-backglass.webp",
       "preview": "leviathan-concept.webp",
-      "normal": "leviathan-normal.png",
-      "ao": "leviathan-ao.png"
+      "underlay": "leviathan-playfield.webp"
     },
     {
       "id": "temple",
-      "model": "temple.glb",
-      "physics": "temple-physics.json",
-      "playfield": "temple-playfield.webp",
       "backglass": "temple-backglass.webp",
       "preview": "temple-concept.webp",
-      "normal": "temple-normal.png",
-      "ao": "temple-ao.png"
+      "underlay": "temple-playfield.webp"
     }
   ],
   "files": [
-    {
-      "path": "neon.glb",
-      "bytes": 1435980,
-      "sha256": "29d4aae37d735497208b6e8466234d053f4f09e4b8be40c1501d6147d4d6583b"
-    },
-    {
-      "path": "neon-physics.json",
-      "bytes": 130502,
-      "sha256": "7f479b5ef06ccd870399a4e4d3e5623f07b795116e025d33af7689814df04279"
-    },
     {
       "path": "neon-playfield.webp",
       "bytes": 573546,
@@ -58,26 +35,6 @@
       "path": "neon-concept.webp",
       "bytes": 238600,
       "sha256": "7efcd8a6e5e327acd1906361c443f5fb652845f37fa26aae358fd8554728ec42"
-    },
-    {
-      "path": "neon-normal.png",
-      "bytes": 8920,
-      "sha256": "1e2db3950be716d9493338799ae902ff039c6a6903390463e1b81390434ac9ae"
-    },
-    {
-      "path": "neon-ao.png",
-      "bytes": 503774,
-      "sha256": "4237c44a82723beee386b246e15f0b55fc4c910edc70352af221bce328383207"
-    },
-    {
-      "path": "leviathan.glb",
-      "bytes": 2964996,
-      "sha256": "a52a280f77c75d5bb88ab35cc1207a7f27c911d2d400e44a6e61987c1c462358"
-    },
-    {
-      "path": "leviathan-physics.json",
-      "bytes": 338916,
-      "sha256": "1155cdae35cdabdaab936e7c7fadd4c708db31bf85b877e29f7281666f81a1be"
     },
     {
       "path": "leviathan-playfield.webp",
@@ -95,26 +52,6 @@
       "sha256": "e8e9a94601e56ca8cc835d6949d00e381d1530e61d384d6769d5ed20d11c0291"
     },
     {
-      "path": "leviathan-normal.png",
-      "bytes": 8920,
-      "sha256": "1e2db3950be716d9493338799ae902ff039c6a6903390463e1b81390434ac9ae"
-    },
-    {
-      "path": "leviathan-ao.png",
-      "bytes": 470254,
-      "sha256": "c6293f9cd024214abafa54dc2fb3bbebb0dcd0cea76444555f624e3cb4ffca68"
-    },
-    {
-      "path": "temple.glb",
-      "bytes": 1840140,
-      "sha256": "1b7517d3d2fe5a99962e4a0bfb3b1f07ad728a8da27d29e23f7da1527ca94436"
-    },
-    {
-      "path": "temple-physics.json",
-      "bytes": 147011,
-      "sha256": "5b9a7c0576bc77e3df2b526d68ffe18c8d1b3872184e671c44b4c47dc7092b6e"
-    },
-    {
       "path": "temple-playfield.webp",
       "bytes": 768762,
       "sha256": "358d531d3986e96f97b4532c714ce7d0944ff51c9d5059321d57dafbc144e7f8"
@@ -128,16 +65,6 @@
       "path": "temple-concept.webp",
       "bytes": 324152,
       "sha256": "93a072ec6efab2ad28004f717dc547eb5615ef19c0cd29b1d5378afceaaf01e5"
-    },
-    {
-      "path": "temple-normal.png",
-      "bytes": 8920,
-      "sha256": "1e2db3950be716d9493338799ae902ff039c6a6903390463e1b81390434ac9ae"
-    },
-    {
-      "path": "temple-ao.png",
-      "bytes": 458877,
-      "sha256": "5e85343824442e16ab62aac886f940066c2be66ae38a09858ae04bb7b16aa462"
     },
     {
       "path": "audio/flipper.ogg",

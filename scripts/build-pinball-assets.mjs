@@ -18,12 +18,12 @@ for(const [id,path] of Object.entries(selected)){
     audio.push({...record,path:target});
 }
 const sources=source.sources.filter(s=>audio.some(a=>a.source===s.id));
-const tables=['neon','leviathan','temple'].map(id=>({id,model:id+'.glb',physics:id+'-physics.json',playfield:id+'-playfield.webp',backglass:id+'-backglass.webp',preview:id+'-concept.webp',normal:id+'-normal.png',ao:id+'-ao.png'}));
-const paths=[...tables.flatMap(t=>[t.model,t.physics,t.playfield,t.backglass,t.preview,t.normal,t.ao]),...audio.map(a=>a.path)];
+const tables=['neon','leviathan','temple'].map(id=>({id,backglass:id+'-backglass.webp',preview:id+'-concept.webp',underlay:id+'-playfield.webp'}));
+const paths=[...tables.flatMap(t=>[t.underlay,t.backglass,t.preview]),...audio.map(a=>a.path)];
 const files=[];
 for(const path of paths){const bytes=await fs.readFile(root+'/'+path);files.push({path,bytes:bytes.length,sha256:hash(bytes)});}
-if(files.reduce((n,f)=>n+f.bytes,0)>110*1024*1024)throw Error('Pinball assets exceed 110 MiB');
-const text=JSON.stringify({version:1,blender:'5.2.2',tables,files,audio,sources},null,2)+'\n';
+if(files.reduce((n,f)=>n+f.bytes,0)>20*1024*1024)throw Error('Pinball assets exceed 20 MiB');
+const text=JSON.stringify({version:2,tables,files,audio,sources},null,2)+'\n';
 if(check){if(await fs.readFile(root+'/manifest.json','utf8')!==text)throw Error('Rebuild Pinball asset manifest');}
 else await fs.writeFile(root+'/manifest.json',text);
 console.log('Pinball assets '+(check?'verified':'built')+': '+files.length+' files, '+files.reduce((n,f)=>n+f.bytes,0)+' bytes');
