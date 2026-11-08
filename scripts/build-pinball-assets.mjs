@@ -6,7 +6,7 @@ process.chdir(fileURLToPath(new URL('../', import.meta.url)));
 const check=process.argv.includes('--check'),root='ui/3d/pinball/v1',sourceRoot='ui/3d/minigolf/audio';
 const source=JSON.parse(await fs.readFile(sourceRoot+'/manifest.json','utf8'));
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
-const selected={flipper:'sfx/impact-metal-heavy-1.ogg',bumper:'sfx/impact-metal-medium-1.ogg',sling:'sfx/impact-soft-heavy-1.ogg',target:'sfx/impact-wood-medium-1.ogg',launch:'sfx/impact-metal-heavy-2.ogg',drain:'sfx/cup-rattle-1.ogg',lock:'sfx/impact-metal-light-1.ogg',jackpot:'sfx/win-moon-1.ogg',bonus:'sfx/win-temple-1.ogg'};
+const selected={flipper:'sfx/impact-metal-heavy-1.ogg',bumper:'sfx/impact-metal-medium-1.ogg',sling:'sfx/impact-soft-heavy-1.ogg',target:'sfx/impact-wood-medium-1.ogg',launch:'sfx/impact-metal-heavy-2.ogg',drain:'sfx/cup-rattle-1.ogg',lock:'sfx/impact-metal-light-1.ogg',jackpot:'sfx/win-moon-1.ogg',bonus:'sfx/win-temple-1.ogg',clack:'sfx/impact-metal-light-2.ogg',rubber:'sfx/impact-soft-light-1.ogg',scoop:'sfx/cup-rim-1.ogg',knock:'sfx/impact-wood-heavy-1.ogg'};
 const audio=[];
 for(const [id,path] of Object.entries(selected)){
     const record=source.files.find(f=>f.path===path);

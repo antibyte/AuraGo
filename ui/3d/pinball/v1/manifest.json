@@ -183,6 +183,26 @@
       "path": "audio/bonus.ogg",
       "bytes": 13424,
       "sha256": "7625138d6857238c460b0fac1094d440ca6f2ace59bd7f93b98ab29fc071d274"
+    },
+    {
+      "path": "audio/clack.ogg",
+      "bytes": 5315,
+      "sha256": "ba3c2a026eec7659615772e94753cb89dd3968a7df75015567c802769947f6d8"
+    },
+    {
+      "path": "audio/rubber.ogg",
+      "bytes": 4169,
+      "sha256": "6c24ee5e05fb0a1bcd16bca191bf4dab4bde15b7259887385b6c70de16dae10e"
+    },
+    {
+      "path": "audio/scoop.ogg",
+      "bytes": 7866,
+      "sha256": "f57109188b19f7990dfe349af20861c5f40d341e3c52f56513946e21d6396c54"
+    },
+    {
+      "path": "audio/knock.ogg",
+      "bytes": 4500,
+      "sha256": "a6580143df6c64ab48cfc6ea5bf33d7f7b61478ca1c708a64a8d493e46ff7960"
     }
   ],
   "audio": [
@@ -265,6 +285,42 @@
       "seconds": 1.324,
       "source": "kenney-jingles",
       "member": "Audio/Pizzicato jingles/jingles_PIZZI07.ogg",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "audio/clack.ogg",
+      "bytes": 5315,
+      "sha256": "ba3c2a026eec7659615772e94753cb89dd3968a7df75015567c802769947f6d8",
+      "seconds": 0.249,
+      "source": "kenney-impact",
+      "member": "Audio/impactMetal_light_001.ogg",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "audio/rubber.ogg",
+      "bytes": 4169,
+      "sha256": "6c24ee5e05fb0a1bcd16bca191bf4dab4bde15b7259887385b6c70de16dae10e",
+      "seconds": 0.115,
+      "source": "kenney-impact",
+      "member": "Audio/impactSoft_medium_000.ogg",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "audio/scoop.ogg",
+      "bytes": 7866,
+      "sha256": "f57109188b19f7990dfe349af20861c5f40d341e3c52f56513946e21d6396c54",
+      "seconds": 0.542,
+      "source": "kenney-impact",
+      "member": "Audio/impactPlate_light_000.ogg",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "audio/knock.ogg",
+      "bytes": 4500,
+      "sha256": "a6580143df6c64ab48cfc6ea5bf33d7f7b61478ca1c708a64a8d493e46ff7960",
+      "seconds": 0.31,
+      "source": "kenney-impact",
+      "member": "Audio/impactWood_heavy_000.ogg",
       "license": "CC0-1.0"
     }
   ],
