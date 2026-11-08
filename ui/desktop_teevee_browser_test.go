@@ -242,7 +242,8 @@ func TestDesktopTeeVeeBrowser(t *testing.T) {
 	waitForJSBool(t, page, `()=>document.querySelector('[data-video-mount]').dataset.crtMode==='webgl'`)
 	check("desktop animations off removes temporal noise", `()=>tvMotion===0`)
 	page.MustSetViewport(1700, 1020, 2, false)
-	check("DPR buffers bounded", `async()=>{await new Promise(r=>setTimeout(r,100));const c=document.querySelector('.teevee-crt-canvas');return c.width<=1920 && c.height<=1440 && c.width>1000}`)
+	// DPR-only changes reach the renderer on the next decoded video frame.
+	waitForJSBool(t, page, `()=>{const c=document.querySelector('.teevee-crt-canvas');return c.width<=1920 && c.height<=1440 && c.width>1000}`)
 	page.MustSetViewport(1700, 1020, 1, false)
 	page.MustEval(`async()=>{const v=document.querySelector('video');v.pause();v.currentTime=1;await new Promise(r=>v.addEventListener('seeked',r,{once:true}));await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));}`)
 	screenshot("teevee-video-crt")

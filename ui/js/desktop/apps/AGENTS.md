@@ -3552,6 +3552,8 @@ buttons and menu popovers remain excluded from those gestures.
   globally proxy all streams to enable effects. Explicit reconnect applies only
   to the current station. Cancel renderer work while hidden/minimized and dispose
   callbacks, observers and GPU resources. Keep `playbackID` and catalog guards.
+  Browser DPR checks await decoded-frame buffer resizing rather than a fixed delay;
+  retain the 1920x1440 buffer caps and native playback checks.
 - Chess chrome uses `--chess-*` aliases mapped to `--vd-theme-*`. The wood
   frame (`--chess-board-frame*`) and felt (`--chess-felt`) stay the board
   surface. Warn/danger/good stay semantic.
