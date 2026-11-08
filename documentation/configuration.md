@@ -235,6 +235,23 @@ Image analysis for the `analyze_image` tool and Telegram photo messages.
 | `base_url` | `"https://openrouter.ai/api/v1"` | API base URL. |
 | `model` | `"google/gemini-2.5-flash-lite-preview-09-2025"` | Vision-capable model (must support image inputs). |
 
+### Local vision with Mirage (optional)
+
+For systems without a vision-capable model, AuraGo can run the small Cactus **Mirage** model (51M parameters, about 22 MB, Apache-2.0) in a managed Docker sidecar. It is used only while `vision.provider` is empty: in `mode: fallback` when the main model cannot read images, in `mode: always` whenever no provider is set. Mirage returns a plain-text description built from the scene, the objects (with position and attributes), text found in the image and relations; the main model answers questions about the image from that text. It cannot answer free-form questions itself and cannot analyze image URLs, only local images.
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `vision.mirage.enabled` | `false` | Build and run the sidecar |
+| `vision.mirage.mode` | `fallback` | `fallback` or `always` |
+| `vision.mirage.container_name` / `container_port` | `aurago_mirage` / `8791` | Container name, host port on 127.0.0.1 |
+| `vision.mirage.image` | `python:3.12-slim` | Python base image of the sidecar build |
+| `vision.mirage.data_path` | `data/mirage` | Weights cache (downloaded on first start) |
+| `vision.mirage.gpu` | `auto` | `auto`, `none`, `nvidia`, `amd`, `intel`, `vulkan` (detection works on Linux; Windows/macOS run on CPU) |
+| `vision.mirage.max_objects` / `max_text_lines` | `20` / `30` | Limits for the description |
+| `vision.mirage.language` | empty | Output language (en, de, fr, es, it, nl, pl); empty = engine default |
+
+GPU devices are passed through when detected on Linux, but the engine does not report a GPU backend yet; the status shows the backend the engine reports, currently CPU. The Vision page shows the sidecar state and that backend. The first start builds the image and downloads the model, which takes a few minutes. Changing a setting recreates the container.
+
 ---
 
 ## `maintenance`
