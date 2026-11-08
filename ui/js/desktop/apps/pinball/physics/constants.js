@@ -19,7 +19,7 @@ export const MATERIALS = Object.freeze({
     metal: Object.freeze({ e0: 0.45, eSlope: 0.04, eMin: 0.30, mu: 0.10 }),
     plastic: Object.freeze({ e0: 0.50, eSlope: 0.05, eMin: 0.30, mu: 0.20 }),
     rubber: Object.freeze({ e0: 0.88, eSlope: 0.07, eMin: 0.55, mu: 0.60 }),
-    flipper: Object.freeze({ e0: 0.82, eSlope: 0.03, eMin: 0.60, mu: 0.80 }),
+    flipper: Object.freeze({ e0: 0.86, eSlope: 0.03, eMin: 0.60, mu: 0.80 }),
     target: Object.freeze({ e0: 0.45, eSlope: 0.04, eMin: 0.30, mu: 0.20 }),
     ball: Object.freeze({ e0: 0.93, eSlope: 0, eMin: 0.93, mu: 0.05 })
 });
@@ -32,7 +32,7 @@ export function restitution(material, vn) {
 
 export const FLIPPER = Object.freeze({
     length: 0.059, rBase: 0.012, rTip: 0.006, rest: -0.5236, up: 0.4887,
-    alphaUp: 3000, omegaMax: 50, alphaDown: 1200, omegaDownMax: 26, stopRebound: 0.15, restRebound: 0.25
+    alphaUp: 3000, omegaMax: 65, alphaDown: 1200, omegaDownMax: 26, stopRebound: 0.15, restRebound: 0.25
 });
 
 // Playfield extents (m).

@@ -59,6 +59,7 @@ function distSeg(px, py, s) {
     let ticks = 0;
     for (let n = 0; n < 50; n++) {
         const w = createWorld(neon, { seed: n + 1 });
+        w.command({ type: 'coils', on: false }); // passive: slings and bumpers must not kick
         const a = rngNext(rng) * Math.PI * 2, v = 0.5 + rngNext(rng) * 3;
         w.placeBall(1, -0.15 + rngNext(rng) * 0.3, 0.25 + rngNext(rng) * 0.45, v * Math.cos(a), v * Math.sin(a));
         let last = null;
@@ -152,6 +153,28 @@ const cradle = {};
     run(w, 240, () => ({ left: false }));
     const b = w.snapshot().balls[0];
     assert.ok(!b || Math.hypot(b.x - before[0], b.y - before[1]) > 0.02, 'releasing the flipper frees the ball');
+}
+
+// 5b. Inlane-roll mid-bat shot: a ball rolls down the left inlane onto the resting bat and is flipped at varying delays.
+const inlane = { best: 0 };
+{
+    let leftAim = false, rightAim = false;
+    for (let d = 240; d <= 420; d += 6) {
+        const w = createWorld(neon);
+        w.placeBall(1, -0.19, 0.30, 0, -0.4);
+        let vmax = 0, crossX = null;
+        run(w, d + 120 + 200, t => ({ left: t >= d && t < d + 120 }), (t, ww) => {
+            const b = ww.snapshot().balls[0];
+            if (!b || t < d) return;
+            vmax = Math.max(vmax, Math.hypot(b.vx, b.vy));
+            if (crossX === null && b.y > 0.6) crossX = b.x;
+        });
+        inlane.best = Math.max(inlane.best, vmax);
+        if (crossX !== null) { if (crossX < -0.12) leftAim = true; if (crossX > -0.02) rightAim = true; }
+    }
+    assert.ok(inlane.best >= 3.9 && inlane.best <= 4.6, 'inlane-roll best shot ' + inlane.best);
+    assert.ok(leftAim, 'some timing sends the ball up the left side');
+    assert.ok(rightAim, 'some timing sends the ball to the centre/right');
 }
 
 // 6. Plunger.
@@ -276,4 +299,4 @@ const pair = {};
     assert.ok(ms < 2, '4-ball frame cost ' + ms);
 }
 
-console.log('physics ok: tip ' + tip.best.toFixed(2) + ' m/s, rebound ' + tip.rebound.toFixed(2) + ', stroke up ' + (strokes.up * 1000).toFixed(1) + ' ms / back ' + (strokes.back * 1000).toFixed(1) + ' ms, cradle drift ' + cradle.drift.toExponential(2) + ' speed ' + cradle.speed.toExponential(2) + ', plunger ' + plungerSpeeds.full + '/' + plungerSpeeds.part.toFixed(3) + ', ball-ball e ' + pair.e.toFixed(4));
+console.log('physics ok: tip ' + tip.best.toFixed(2) + ' m/s, rebound ' + tip.rebound.toFixed(2) + ', stroke up ' + (strokes.up * 1000).toFixed(1) + ' ms / back ' + (strokes.back * 1000).toFixed(1) + ' ms, cradle drift ' + cradle.drift.toExponential(2) + ' speed ' + cradle.speed.toExponential(2) + ', plunger ' + plungerSpeeds.full + '/' + plungerSpeeds.part.toFixed(3) + ', inlane ' + inlane.best.toFixed(2) + ', ball-ball e ' + pair.e.toFixed(4));
