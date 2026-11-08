@@ -360,5 +360,17 @@
   "mailer.rule_run_failed": "Åtgärden misslyckades",
   "mailer.rule_run_failed_help": "Åtgärden misslyckades. Kontrollera meddelandet och statusen hos leverantören innan du försöker igen.",
   "mailer.rule_run_error_details": "Tekniska detaljer",
-  "mailer.test_busy": "Ett anslutningstest pågår redan. Vänta en stund och försök igen."
+  "mailer.test_busy": "Ett anslutningstest pågår redan. Vänta en stund och försök igen.",
+  "mailer.shortcuts_title": "Kortkommandon",
+  "mailer.shortcuts_hint": "Kortkommandon fungerar bara när inget inmatningsfält har fokus.",
+  "mailer.shortcuts_move": "Flytta dig i meddelandelistan",
+  "mailer.shortcuts_open": "Öppna det valda meddelandet",
+  "mailer.shortcuts_star": "Växla stjärna",
+  "mailer.shortcuts_close": "Stäng en dialog eller återgå till listan",
+  "mailer.density_toggle": "Listtäthet: {mode}",
+  "mailer.density_compact": "Kompakt",
+  "mailer.density_comfortable": "Bekväm",
+  "mailer.snooze_preset_later": "Om 3 timmar",
+  "mailer.snooze_preset_tomorrow": "I morgon bitti",
+  "mailer.snooze_preset_week": "Om en vecka"
 }

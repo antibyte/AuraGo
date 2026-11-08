@@ -360,5 +360,17 @@
   "mailer.rule_run_failed": "Aktion fehlgeschlagen",
   "mailer.rule_run_failed_help": "Diese Aktion ist fehlgeschlagen. Prüfe Nachricht und Anbieterstatus, bevor Du sie erneut ausführst.",
   "mailer.rule_run_error_details": "Technische Details",
-  "mailer.test_busy": "Ein Verbindungstest läuft bereits. Warte kurz und versuche es erneut."
+  "mailer.test_busy": "Ein Verbindungstest läuft bereits. Warte kurz und versuche es erneut.",
+  "mailer.shortcuts_title": "Tastenkürzel",
+  "mailer.shortcuts_hint": "Kürzel wirken nur, wenn kein Eingabefeld fokussiert ist.",
+  "mailer.shortcuts_move": "In der Nachrichtenliste bewegen",
+  "mailer.shortcuts_open": "Nachricht öffnen",
+  "mailer.shortcuts_star": "Markierung umschalten",
+  "mailer.shortcuts_close": "Dialog schließen oder zurück zur Liste",
+  "mailer.density_toggle": "Listendichte: {mode}",
+  "mailer.density_compact": "Kompakt",
+  "mailer.density_comfortable": "Komfortabel",
+  "mailer.snooze_preset_later": "In 3 Stunden",
+  "mailer.snooze_preset_tomorrow": "Morgen früh",
+  "mailer.snooze_preset_week": "In einer Woche"
 }

@@ -126,6 +126,14 @@ At wide window sizes, navigation, message list, and reader are visible together.
 Narrow windows progressively collapse navigation and use a back action between
 the list and reader. Selection and scroll position remain stable during refresh.
 Keyboard focus and status announcements remain available throughout the workflow.
+`J`/`K` or the arrow keys move the focus through the message list, `Enter` opens
+the focused message, `S` toggles its star, `E` archives it, `C` starts a new
+message, `/` focuses the search field, `?` opens the shortcut help and `Esc`
+closes a dialog or returns from the overlay reader to the list. Shortcuts never
+act while a text field, settings or a composer has focus, and every action still
+obeys account capabilities and read-only mode. A density toggle in the list
+toolbar switches between comfortable and compact rows; the choice is remembered
+per Desktop and only changes spacing, never message metadata.
 
 Opening a message intentionally can mark it read when the account permits it.
 Background IMAP fetches use `BODY.PEEK` and do not consume unread mail. A quiet
@@ -163,7 +171,11 @@ or failed actions remain visible on the message; already completed actions are
 not repeated. Review an uncertain provider outcome before explicitly retrying
 the current action. Searching older mail does not queue automatic rules.
 Snooze hides a message inside Mailer until the chosen time without changing other
-clients. Templates and signatures are account-specific.
+clients. Its dialog offers one-click presets (in three hours, tomorrow morning,
+in a week) beside the custom time picker. Presets are calculated when chosen, so
+a dialog left open cannot snooze a message into the past; a past custom time
+keeps the dialog open with an inline notice. Templates and signatures are
+account-specific.
 
 ## Compose and send
 

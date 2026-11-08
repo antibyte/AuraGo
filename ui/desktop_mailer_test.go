@@ -171,6 +171,86 @@ func TestDesktopMailerResponsiveAndReaderContracts(t *testing.T) {
 	}
 }
 
+func TestDesktopMailerFeatureContracts(t *testing.T) {
+	t.Parallel()
+
+	app := readDesktopAssetText(t, "js/desktop/apps/mailer.js")
+	workflow := readDesktopAssetText(t, "js/desktop/apps/mailer-workflow.js")
+	loader := readDesktopAssetText(t, "js/desktop/core/module-loader.js")
+	workflowIndex := strings.Index(loader, "'/js/desktop/apps/mailer-workflow.js'")
+	appIndex := strings.Index(loader, "'/js/desktop/apps/mailer.js'")
+	if workflowIndex < 0 || appIndex <= workflowIndex {
+		t.Fatal("desktop Mailer workflow module must load before its app entry point")
+	}
+	for _, marker := range []string{
+		"window.MailerWorkflow.create({",
+		"inst.workflow.syncDensity(inst)",
+		"inst.workflow.shortcutKey(inst, event)",
+		"inst.workflow.setBusy(inst, true)",
+		"inst.workflow.setBusy(inst, false)",
+		"data-density-toggle",
+		"data-open-shortcuts",
+		"data-snooze-preset",
+		"data-close-shortcuts",
+		`tabindex="-1"`,
+		"inst.mailerRoot.focus({ preventScroll: true })",
+		"pendingFocusThread",
+	} {
+		if !strings.Contains(app, marker) {
+			t.Fatalf("desktop Mailer is missing workflow/polish marker %q", marker)
+		}
+	}
+	for _, marker := range []string{
+		"function shortcutKey(inst, event)",
+		"function shortcutsMarkup(inst)",
+		"function shortcutEscape(inst)",
+		"function syncDensity(inst)",
+		"function snoozePresetDate(kind)",
+		"function setBusy(inst, busy)",
+		"function submitSnooze(inst, presetValue)",
+		`input, textarea, select, [contenteditable="true"], button, a, [data-settings], .vd-mailer-compose`,
+		"window.MailerWorkflow = { create }",
+		"inst.snoozing",
+	} {
+		if !strings.Contains(workflow, marker) {
+			t.Fatalf("desktop Mailer workflow module is missing marker %q", marker)
+		}
+	}
+	css := readDesktopAssetText(t, "css/desktop-app-mailer.css")
+	for _, marker := range []string{
+		`[data-refresh][aria-busy="true"]`,
+		`@keyframes vd-mailer-spin`,
+		`.vd-mailer[data-density="compact"] .vd-mailer-thread`,
+		`.vd-mailer-shortcuts-card`,
+		`@media (hover: none)`,
+		`@media (prefers-reduced-motion: no-preference)`,
+		`.vd-mailer-snooze-error`,
+	} {
+		if !strings.Contains(css, marker) {
+			t.Fatalf("desktop Mailer styles are missing workflow/polish marker %q", marker)
+		}
+	}
+	english := readMailerLocale(t, "en")
+	newKeys := []string{
+		"mailer.shortcuts_title", "mailer.shortcuts_hint", "mailer.shortcuts_move",
+		"mailer.shortcuts_open", "mailer.shortcuts_star", "mailer.shortcuts_close",
+		"mailer.density_toggle", "mailer.density_compact", "mailer.density_comfortable",
+		"mailer.snooze_preset_later", "mailer.snooze_preset_tomorrow", "mailer.snooze_preset_week",
+	}
+	for _, locale := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
+		translations := readMailerLocale(t, locale)
+		for _, key := range newKeys {
+			value := translations[key]
+			if strings.TrimSpace(value) == "" || value == key {
+				t.Errorf("locale %s is missing a usable translation for %s", locale, key)
+			}
+			if got, want := mailerPlaceholders(value), mailerPlaceholders(english[key]); strings.Join(got, "|") != strings.Join(want, "|") {
+				t.Errorf("locale %s key %s has placeholders %v; want %v", locale, key, got, want)
+			}
+		}
+	}
+}
+
 func TestDesktopMailerLocaleCoverage(t *testing.T) {
 	t.Parallel()
 

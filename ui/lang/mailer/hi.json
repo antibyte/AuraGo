@@ -360,5 +360,17 @@
   "mailer.rule_run_failed": "कार्रवाई विफल",
   "mailer.rule_run_failed_help": "यह कार्रवाई विफल हुई। दोबारा कोशिश करने से पहले संदेश और प्रदाता की स्थिति जाँचें।",
   "mailer.rule_run_error_details": "तकनीकी विवरण",
-  "mailer.test_busy": "कनेक्शन परीक्षण पहले से चल रहा है। थोड़ी देर बाद फिर कोशिश करें।"
+  "mailer.test_busy": "कनेक्शन परीक्षण पहले से चल रहा है। थोड़ी देर बाद फिर कोशिश करें।",
+  "mailer.shortcuts_title": "कीबोर्ड शॉर्टकट",
+  "mailer.shortcuts_hint": "शॉर्टकट तभी काम करते हैं जब कोई इनपुट फ़ील्ड फ़ोकस में न हो।",
+  "mailer.shortcuts_move": "संदेश सूची में आगे-पीछे जाएँ",
+  "mailer.shortcuts_open": "चुना हुआ संदेश खोलें",
+  "mailer.shortcuts_star": "स्टार लगाएँ या हटाएँ",
+  "mailer.shortcuts_close": "डायलॉग बंद करें या सूची पर लौटें",
+  "mailer.density_toggle": "सूची घनत्व: {mode}",
+  "mailer.density_compact": "कॉम्पैक्ट",
+  "mailer.density_comfortable": "आरामदायक",
+  "mailer.snooze_preset_later": "3 घंटे बाद",
+  "mailer.snooze_preset_tomorrow": "कल सुबह",
+  "mailer.snooze_preset_week": "एक सप्ताह बाद"
 }

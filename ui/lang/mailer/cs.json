@@ -360,5 +360,17 @@
   "mailer.rule_run_failed": "Akce selhala",
   "mailer.rule_run_failed_help": "Tato akce selhala. Zkontroluj zprávu a stav u poskytovatele, než ji znovu spustíš.",
   "mailer.rule_run_error_details": "Technické podrobnosti",
-  "mailer.test_busy": "Test připojení již probíhá. Chvíli počkej a zkus to znovu."
+  "mailer.test_busy": "Test připojení již probíhá. Chvíli počkej a zkus to znovu.",
+  "mailer.shortcuts_title": "Klávesové zkratky",
+  "mailer.shortcuts_hint": "Zkratky fungují jen tehdy, když není zaměřené žádné vstupní pole.",
+  "mailer.shortcuts_move": "Pohyb v seznamu zpráv",
+  "mailer.shortcuts_open": "Otevřít vybranou zprávu",
+  "mailer.shortcuts_star": "Přepnout hvězdičku",
+  "mailer.shortcuts_close": "Zavřít dialog nebo se vrátit k seznamu",
+  "mailer.density_toggle": "Hustota seznamu: {mode}",
+  "mailer.density_compact": "Kompaktní",
+  "mailer.density_comfortable": "Pohodlná",
+  "mailer.snooze_preset_later": "Za 3 hodiny",
+  "mailer.snooze_preset_tomorrow": "Zítra ráno",
+  "mailer.snooze_preset_week": "Za týden"
 }

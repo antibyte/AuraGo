@@ -360,5 +360,17 @@
   "mailer.rule_run_failed": "Działanie nie powiodło się",
   "mailer.rule_run_failed_help": "To działanie nie powiodło się. Przed ponowieniem sprawdź wiadomość i stan u dostawcy.",
   "mailer.rule_run_error_details": "Szczegóły techniczne",
-  "mailer.test_busy": "Test połączenia już trwa. Poczekaj chwilę i spróbuj ponownie."
+  "mailer.test_busy": "Test połączenia już trwa. Poczekaj chwilę i spróbuj ponownie.",
+  "mailer.shortcuts_title": "Skróty klawiszowe",
+  "mailer.shortcuts_hint": "Skróty działają tylko wtedy, gdy żadne pole wprowadzania nie ma fokusu.",
+  "mailer.shortcuts_move": "Poruszanie się po liście wiadomości",
+  "mailer.shortcuts_open": "Otwórz wybraną wiadomość",
+  "mailer.shortcuts_star": "Włącz lub wyłącz gwiazdkę",
+  "mailer.shortcuts_close": "Zamknij okno dialogowe lub wróć do listy",
+  "mailer.density_toggle": "Gęstość listy: {mode}",
+  "mailer.density_compact": "Zwarta",
+  "mailer.density_comfortable": "Wygodna",
+  "mailer.snooze_preset_later": "Za 3 godziny",
+  "mailer.snooze_preset_tomorrow": "Jutro rano",
+  "mailer.snooze_preset_week": "Za tydzień"
 }

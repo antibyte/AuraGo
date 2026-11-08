@@ -360,5 +360,17 @@
   "mailer.rule_run_failed": "Échec de l’action",
   "mailer.rule_run_failed_help": "Cette action a échoué. Vérifiez le message et l’état chez le fournisseur avant de la relancer.",
   "mailer.rule_run_error_details": "Détails techniques",
-  "mailer.test_busy": "Un test de connexion est déjà en cours. Patiente un instant et réessaie."
+  "mailer.test_busy": "Un test de connexion est déjà en cours. Patiente un instant et réessaie.",
+  "mailer.shortcuts_title": "Raccourcis clavier",
+  "mailer.shortcuts_hint": "Les raccourcis ne fonctionnent que lorsqu’aucun champ de saisie n’a le focus.",
+  "mailer.shortcuts_move": "Parcourir la liste des messages",
+  "mailer.shortcuts_open": "Ouvrir le message sélectionné",
+  "mailer.shortcuts_star": "Activer ou retirer l’étoile",
+  "mailer.shortcuts_close": "Fermer une fenêtre ou revenir à la liste",
+  "mailer.density_toggle": "Densité de la liste : {mode}",
+  "mailer.density_compact": "Compacte",
+  "mailer.density_comfortable": "Confortable",
+  "mailer.snooze_preset_later": "Dans 3 heures",
+  "mailer.snooze_preset_tomorrow": "Demain matin",
+  "mailer.snooze_preset_week": "Dans une semaine"
 }

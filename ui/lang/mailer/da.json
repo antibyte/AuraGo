@@ -360,5 +360,17 @@
   "mailer.rule_run_failed": "Handlingen mislykkedes",
   "mailer.rule_run_failed_help": "Handlingen mislykkedes. Kontrollér beskeden og status hos udbyderen, før du prøver igen.",
   "mailer.rule_run_error_details": "Tekniske detaljer",
-  "mailer.test_busy": "En forbindelsestest kører allerede. Vent lidt, og prøv igen."
+  "mailer.test_busy": "En forbindelsestest kører allerede. Vent lidt, og prøv igen.",
+  "mailer.shortcuts_title": "Tastaturgenveje",
+  "mailer.shortcuts_hint": "Genveje virker kun, når intet inputfelt har fokus.",
+  "mailer.shortcuts_move": "Bevæg dig gennem beskedlisten",
+  "mailer.shortcuts_open": "Åbn den markerede besked",
+  "mailer.shortcuts_star": "Slå stjerne til og fra",
+  "mailer.shortcuts_close": "Luk en dialog eller vend tilbage til listen",
+  "mailer.density_toggle": "Listetæthed: {mode}",
+  "mailer.density_compact": "Kompakt",
+  "mailer.density_comfortable": "Komfortabel",
+  "mailer.snooze_preset_later": "Om 3 timer",
+  "mailer.snooze_preset_tomorrow": "I morgen tidlig",
+  "mailer.snooze_preset_week": "Om en uge"
 }

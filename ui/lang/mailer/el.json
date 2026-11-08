@@ -360,5 +360,17 @@
   "mailer.rule_run_failed": "Η ενέργεια απέτυχε",
   "mailer.rule_run_failed_help": "Η ενέργεια απέτυχε. Έλεγξε το μήνυμα και την κατάσταση στον πάροχο πριν την επαναλάβεις.",
   "mailer.rule_run_error_details": "Τεχνικές λεπτομέρειες",
-  "mailer.test_busy": "Εκτελείται ήδη δοκιμή σύνδεσης. Περίμενε λίγο και δοκίμασε ξανά."
+  "mailer.test_busy": "Εκτελείται ήδη δοκιμή σύνδεσης. Περίμενε λίγο και δοκίμασε ξανά.",
+  "mailer.shortcuts_title": "Συντομεύσεις πληκτρολογίου",
+  "mailer.shortcuts_hint": "Οι συντομεύσεις λειτουργούν μόνο όταν δεν είναι εστιασμένο κάποιο πεδίο.",
+  "mailer.shortcuts_move": "Μετακίνηση στη λίστα μηνυμάτων",
+  "mailer.shortcuts_open": "Άνοιγμα επιλεγμένου μηνύματος",
+  "mailer.shortcuts_star": "Εναλλαγή αστεριού",
+  "mailer.shortcuts_close": "Κλείσιμο διαλόγου ή επιστροφή στη λίστα",
+  "mailer.density_toggle": "Πυκνότητα λίστας: {mode}",
+  "mailer.density_compact": "Συμπαγής",
+  "mailer.density_comfortable": "Άνετη",
+  "mailer.snooze_preset_later": "Σε 3 ώρες",
+  "mailer.snooze_preset_tomorrow": "Αύριο το πρωί",
+  "mailer.snooze_preset_week": "Σε μία εβδομάδα"
 }

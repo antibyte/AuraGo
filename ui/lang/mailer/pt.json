@@ -360,5 +360,17 @@
   "mailer.rule_run_failed": "Ação falhou",
   "mailer.rule_run_failed_help": "Esta ação falhou. Verifique a mensagem e o estado no fornecedor antes de tentar novamente.",
   "mailer.rule_run_error_details": "Detalhes técnicos",
-  "mailer.test_busy": "Já está a decorrer um teste de ligação. Aguarda um pouco e tenta novamente."
+  "mailer.test_busy": "Já está a decorrer um teste de ligação. Aguarda um pouco e tenta novamente.",
+  "mailer.shortcuts_title": "Atalhos de teclado",
+  "mailer.shortcuts_hint": "Os atalhos só funcionam quando nenhum campo de entrada está em foco.",
+  "mailer.shortcuts_move": "Percorrer a lista de mensagens",
+  "mailer.shortcuts_open": "Abrir a mensagem selecionada",
+  "mailer.shortcuts_star": "Alternar a estrela",
+  "mailer.shortcuts_close": "Fechar uma janela ou voltar à lista",
+  "mailer.density_toggle": "Densidade da lista: {mode}",
+  "mailer.density_compact": "Compacta",
+  "mailer.density_comfortable": "Confortável",
+  "mailer.snooze_preset_later": "Em 3 horas",
+  "mailer.snooze_preset_tomorrow": "Amanhã de manhã",
+  "mailer.snooze_preset_week": "Daqui a uma semana"
 }

@@ -4690,11 +4690,14 @@ registration lives in `internal/desktop/types.go`.
 - The Mailer is split into `mailer.js` (window shell, list, reader, lifecycle),
   `mailer-views.js` (pure rendering helpers: `safeMailHTML`, `initials`,
   `parseSender`, `formatDate`, `formatBytes`, avatar, empty state, skeleton),
-  `mailer-compose.js`, `mailer-settings.js`, `mailer-stickers.js` and
+  `mailer-compose.js`, `mailer-settings.js`, `mailer-stickers.js`,
+  `mailer-workflow.js` (keyboard shortcuts, shortcut help, list density, busy
+  feedback and the snooze dialog, all delegated from the shell) and
   `mailer-api.js`. The loader order is `mailer-api` → `mailer-views` →
-  `mailer-stickers` → `mailer-compose` → `mailer-settings` → `mailer`; the views
-  module must load before the shell because the shell delegates to it.
-  `window.MailerApp` keeps `{ render, dispose, safeMailHTML }`.
+  `mailer-workflow` → `mailer-stickers` → `mailer-compose` → `mailer-settings`
+  → `mailer`; views and workflow must load before the shell. Keeping workflow
+  helpers in their own module keeps `mailer.js` under the 1100-line Desktop JS
+  budget. `window.MailerApp` keeps `{ render, dispose, safeMailHTML }`.
 - Mailer connection tests disable their account-test buttons while pending,
   including settings repaints. Translate the server's 429/mail_test_busy into a
   wait/retry notice in all sixteen Mailer locales. Completion preserves current
@@ -4716,6 +4719,31 @@ registration lives in `internal/desktop/types.go`.
   styled thin scrollbars, 140 ms hover feedback, `prefers-reduced-motion`
   fallbacks, sender avatars with a stable tone per name, and an unread marker on
   the avatar instead of an extra grid child.
+- Mailer keyboard workflow (`mailer-workflow.js`, `shortcutKey`): `J`/`K` or arrow keys
+  move the row focus, `Enter` opens it, `S` toggles its star, `E` archives it,
+  `C` composes, `/` focuses search, `?` opens the translated shortcut dialog
+  and `Esc` closes shortcuts → snooze dialog → settings → overlay reader.
+  Shortcuts are inert while an input, select, contenteditable, button, settings
+  or composer has focus, with modifier keys, or while the help dialog is open.
+  Every action reuses `runOneAction`/`openCompose` capability and readonly gates;
+  `pendingFocusThread` restores row focus after a list repaint. Help is a
+  `role="dialog"` overlay that remembers and restores the previous focus.
+- Mailer list density is a per-Desktop `localPrefs().density` value mirrored to
+  the root's `data-density`; `syncDensity` owns the toggle label and
+  `aria-pressed`. Compact tightens spacing and hides the list preview only —
+  never unread state, sender, subject, date, star or attachment count.
+- Mailer snooze presets (`later`, `tomorrow`, `week`) are computed at click time
+  by `snoozePresetDate`, use the existing per-message snooze path and guard
+  against double submits with `inst.snoozing`. A past custom time keeps the
+  dialog open and reports `mailer.snooze_future_required` inline instead of
+  replacing the status bar that hosts the dialog.
+- `setBusy` marks the workspace and refresh button with `aria-busy` for every
+  load; the refresh icon spins, reduced motion disables the spin and press
+  transform, and `@media (hover: none)` only resets stuck touch hover surfaces
+  (no viewport-width queries). New visible strings need genuine translations in
+  all sixteen `ui/lang/mailer/*.json` files with matching placeholders.
+  Verify `TestDesktopMailerFeatureContracts`, `TestDesktopMailerLocaleCoverage`,
+  `scripts/test-mailer-browser.mjs` and `documentation/mailer.md`.
 - A thread row shows one person. `threadIdentity` picks the sender of the
   latest message and, in a sent folder, its recipient. The `participants` list
   of a thread mixes recipients and the sender, so it must never reach
@@ -5903,11 +5931,13 @@ registration lives in `internal/desktop/types.go`.
   EventSource to `/api/desktop/logs/stream`, readonly-gated download.
   Exposes `window.LogViewerFilters` then `window.LogViewerApp`. No child
   DOX file needed.
-- `mailer-views.js` / `mailer.js` / `mailer-compose.js` / `mailer-settings.js` /
-  `mailer-stickers.js` / `mailer-api.js` - Mailer: theme-native three-pane
-  mail client (folder rail | message list | reader). `mailer-views.js` owns the
-  pure rendering helpers (mail HTML sandbox, sender parsing, avatar tones,
-  empty state, skeleton) and loads before the shell; `mailer.js` owns the
+- `mailer-views.js` / `mailer.js` / `mailer-workflow.js` / `mailer-compose.js` /
+  `mailer-settings.js` / `mailer-stickers.js` / `mailer-api.js` - Mailer:
+  theme-native three-pane mail client (folder rail | message list | reader).
+  `mailer-views.js` owns the pure rendering helpers (mail HTML sandbox, sender
+  parsing, avatar tones, empty state, skeleton); `mailer-workflow.js` owns
+  shortcuts, shortcut help, density, busy feedback and snooze through deps
+  supplied by the shell. Both load before the shell; `mailer.js` owns the
   window lifecycle, list, reader and `window.MailerApp`
   (`{ render, dispose, safeMailHTML }`). Styles live in
   `css/desktop-app-mailer.css` and resolve `--mail-*` from the `--vd-theme-*`

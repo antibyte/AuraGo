@@ -360,5 +360,17 @@
   "mailer.rule_run_failed": "Action failed",
   "mailer.rule_run_failed_help": "This action failed. Check the message and provider state before you retry it.",
   "mailer.rule_run_error_details": "Technical details",
-  "mailer.test_busy": "A connection test is already running. Wait briefly and try again."
+  "mailer.test_busy": "A connection test is already running. Wait briefly and try again.",
+  "mailer.shortcuts_title": "Keyboard shortcuts",
+  "mailer.shortcuts_hint": "Shortcuts work only when no input field is focused.",
+  "mailer.shortcuts_move": "Move through the message list",
+  "mailer.shortcuts_open": "Open the focused message",
+  "mailer.shortcuts_star": "Toggle the star",
+  "mailer.shortcuts_close": "Close a dialog or return to the list",
+  "mailer.density_toggle": "List density: {mode}",
+  "mailer.density_compact": "Compact",
+  "mailer.density_comfortable": "Comfortable",
+  "mailer.snooze_preset_later": "In 3 hours",
+  "mailer.snooze_preset_tomorrow": "Tomorrow morning",
+  "mailer.snooze_preset_week": "In a week"
 }

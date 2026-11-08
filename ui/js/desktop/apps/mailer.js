@@ -40,7 +40,9 @@
             forward: '<path d="m12 5 5 4-5 4M17 9H8a5 5 0 0 0-5 5v1"/>',
             print: '<path d="M6 8V3h8v5M6 8h8a2 2 0 0 1 2 2v4h-3M6 14H4v-4a2 2 0 0 1 2-2M7 12h6v5H7z"/>',
             download: '<path d="M10 3v9M6 9l4 4 4-4M4 16h12"/>',
-            back: '<path d="M12 4 6 10l6 6M6 10h11"/>'
+            back: '<path d="M12 4 6 10l6 6M6 10h11"/>',
+            help: '<circle cx="10" cy="10" r="7.5"/><path d="M8 8a2 2 0 1 1 2.6 1.9c-.8.3-1.1.8-1.1 1.6M10 14h.01"/>',
+            density: '<path d="M3 5h14M3 10h14M3 15h14"/>'
         };
         return `<svg class="vd-mailer-icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">${shapes[name] || shapes.folder}</svg>`;
     }
@@ -67,19 +69,24 @@
         const inst = {
             windowId, host, ctx, api: window.MailerAPI.create(ctx.api), state: null, folders: [], threads: [], drafts: [], outbox: [],
             view: localPrefs().view || 'inbox', accountId: localPrefs().accountId || '', folderId: '', query: '', nextCursor: '', outboxCursor: '', outboxHasMore: false, loadingMore: false,
+            density: localPrefs().density === 'compact' ? 'compact' : 'comfortable', keyboardIndex: -1, pendingFocusThread: '', snoozing: false, shortcutReturnFocus: null,
             selected: new Set(), activeThread: null, activeThreadData: null, ruleRunsByMessage: Object.create(null), loadGeneration: 0, searchTimer: 0, remoteSearch: false,
             refreshTimer: 0, disposed: false, listeners: [], abort: null, remoteImages: new Set(), inlineImageURLs: new Set(), readerRenderGeneration: 0, readerAbort: null, selectedLabel: '',
             resizeState: null, settingsTab: 'accounts', records: {}, eventHandler: null, footerMessage: ''
         };
+        inst.workflow = window.MailerWorkflow.create({
+            t, esc, clamp, savePrefs, localPrefs, localDateTime, openCompose, runOneAction, openThread,
+            selectedReadOnly, showError, setStatus, refreshCurrent
+        });
         inst.settings = window.MailerSettings.create(inst, {
             esc, t, responseItems, accountSettingsRecord, showError, setStatus, reloadState, refreshCurrent, localDateTime
         });
         instances.set(windowId, inst);
-        host.innerHTML = `<section class="vd-mailer ${ctx.readonly ? 'is-readonly' : ''}" data-mailer-app>
+        host.innerHTML = `<section class="vd-mailer ${ctx.readonly ? 'is-readonly' : ''}" data-mailer-app data-density="${esc(inst.density)}" tabindex="-1">
             <header class="vd-mailer-topbar"><div class="vd-mailer-brand"><span class="vd-mailer-logo" aria-hidden="true">${ctx.iconMarkup ? ctx.iconMarkup('mail', '✉', 'vd-mailer-logo-icon', 24) : '✉'}</span><div class="vd-mailer-brand-text"><p class="vd-mailer-eyebrow">AuraGo Desktop</p><h1>Mailer</h1></div></div>
                 <label class="vd-mailer-account-picker"><span>${esc(t(ctx, 'account'))}</span><select data-account-picker aria-label="${esc(t(ctx, 'account'))}"></select></label>
                 <label class="vd-mailer-search"><span aria-hidden="true">${iconSVG('search')}</span><input type="search" data-search placeholder="${esc(t(ctx, 'search_placeholder'))}" aria-label="${esc(t(ctx, 'search'))}" autocomplete="off"><button type="button" data-clear-search aria-label="${esc(t(ctx, 'clear_search'))}" hidden>×</button></label>
-                <div class="vd-mailer-top-actions"><button type="button" class="vd-mailer-button" data-provider-search hidden>${esc(t(ctx, 'search_provider'))}</button><button type="button" class="vd-mailer-button" data-refresh aria-label="${esc(t(ctx, 'refresh'))}" title="${esc(t(ctx, 'refresh'))}">${iconSVG('refresh')}</button><button type="button" class="vd-mailer-button" data-open-settings>${esc(t(ctx, 'settings'))}</button><button type="button" class="vd-mailer-button vd-mailer-primary" data-compose><span>${iconSVG('compose')}</span>${esc(t(ctx, 'compose'))}</button></div>
+                <div class="vd-mailer-top-actions"><button type="button" class="vd-mailer-button" data-provider-search hidden>${esc(t(ctx, 'search_provider'))}</button><button type="button" class="vd-mailer-button" data-refresh aria-label="${esc(t(ctx, 'refresh'))}" title="${esc(t(ctx, 'refresh'))}">${iconSVG('refresh')}</button><button type="button" class="vd-mailer-button" data-open-shortcuts aria-label="${esc(t(ctx, 'shortcuts_title'))}" title="${esc(t(ctx, 'shortcuts_title'))}">${iconSVG('help')}</button><button type="button" class="vd-mailer-button" data-open-settings>${esc(t(ctx, 'settings'))}</button><button type="button" class="vd-mailer-button vd-mailer-primary" data-compose><span>${iconSVG('compose')}</span>${esc(t(ctx, 'compose'))}</button></div>
             </header>
             <div class="vd-mailer-readonly-banner" data-readonly-banner hidden role="status">${esc(t(ctx, 'readonly'))}</div>
             <div class="vd-mailer-workspace" data-mailer-workspace aria-busy="true">
@@ -88,7 +95,7 @@
                 <section class="vd-mailer-list-panel" aria-label="${esc(t(ctx, 'message_list'))}">
                 <div class="vd-mailer-list-toolbar"><label class="vd-mailer-select-all"><input type="checkbox" data-select-all aria-label="${esc(t(ctx, 'select_all'))}" ${ctx.readonly ? 'disabled' : ''}><span data-selection-count>${esc(t(ctx, 'no_selection'))}</span></label>
                         <div class="vd-mailer-list-actions"><button type="button" data-action="archive" title="${esc(t(ctx, 'archive'))}" aria-label="${esc(t(ctx, 'archive'))}">${iconSVG('archive')}</button><button type="button" data-action="junk" title="${esc(t(ctx, 'junk'))}" aria-label="${esc(t(ctx, 'junk'))}">${iconSVG('junk')}</button><button type="button" data-action="trash" title="${esc(t(ctx, 'trash'))}" aria-label="${esc(t(ctx, 'trash'))}">${iconSVG('trash')}</button><button type="button" data-action="restore" title="${esc(t(ctx, 'restore'))}" aria-label="${esc(t(ctx, 'restore'))}">${iconSVG('restore')}</button><button type="button" data-action="delete" title="${esc(t(ctx, 'delete'))}" aria-label="${esc(t(ctx, 'delete'))}">${iconSVG('delete')}</button><button type="button" data-action="mark_read" title="${esc(t(ctx, 'mark_read'))}" aria-label="${esc(t(ctx, 'mark_read'))}">${iconSVG('read')}</button>
-                            <select data-move-folder aria-label="${esc(t(ctx, 'move_to'))}"><option value="">${esc(t(ctx, 'move_to'))}</option></select><select data-label-select aria-label="${esc(t(ctx, 'add_label'))}"><option value="">${esc(t(ctx, 'add_label'))}</option></select><button type="button" data-action="snooze" title="${esc(t(ctx, 'snooze'))}" aria-label="${esc(t(ctx, 'snooze'))}">${iconSVG('snooze')}</button></div>
+                            <select data-move-folder aria-label="${esc(t(ctx, 'move_to'))}"><option value="">${esc(t(ctx, 'move_to'))}</option></select><select data-label-select aria-label="${esc(t(ctx, 'add_label'))}"><option value="">${esc(t(ctx, 'add_label'))}</option></select><button type="button" data-action="snooze" title="${esc(t(ctx, 'snooze'))}" aria-label="${esc(t(ctx, 'snooze'))}">${iconSVG('snooze')}</button><button type="button" data-density-toggle aria-pressed="false" title="${esc(inst.workflow.densityLabel(inst))}" aria-label="${esc(inst.workflow.densityLabel(inst))}">${iconSVG('density')}</button></div>
                     </div>
                     <div class="vd-mailer-items" data-thread-list aria-live="polite"></div>
                     <div class="vd-mailer-list-footer"><span data-search-notice></span><span data-list-count></span><button type="button" class="vd-mailer-button" data-load-more hidden>${esc(t(ctx, 'load_more'))}</button></div>
@@ -98,9 +105,14 @@
             </div>
             <div class="vd-mailer-status" data-status role="status" aria-live="polite"></div>
             <section class="vd-mailer-settings" data-settings hidden aria-label="${esc(t(ctx, 'settings'))}"></section>
+            <div class="vd-mailer-shortcuts" data-shortcuts hidden></div>
         </section>`;
         inst.mailerRoot = host.querySelector('[data-mailer-app]');
         bind(inst);
+        inst.workflow.syncDensity(inst);
+        // A newly opened window owns the keyboard, so shortcuts work without
+        // an extra click. tabindex="-1" keeps the root out of the tab order.
+        inst.mailerRoot.focus({ preventScroll: true });
         restoreSizes(inst);
         subscribe(inst);
         const showSettings = !!launchContext?.showSettings;
@@ -144,6 +156,12 @@
             if (event.target.matches('[data-label-select]') && event.target.value) runBulkAction(inst, 'label_add', { label_id: event.target.value });
         });
         listen(host, 'click', event => {
+            if (event.target.matches('[data-shortcuts]')) { inst.workflow.closeShortcuts(inst); return; }
+            if (event.target.closest('[data-open-shortcuts]')) { inst.workflow.openShortcuts(inst); return; }
+            if (event.target.closest('[data-close-shortcuts]')) { inst.workflow.closeShortcuts(inst); return; }
+            if (event.target.closest('[data-density-toggle]')) { inst.workflow.toggleDensity(inst); return; }
+            const preset = event.target.closest('[data-snooze-preset]');
+            if (preset) { inst.workflow.submitSnooze(inst, inst.workflow.snoozePresetDate(preset.dataset.snoozePreset).toISOString()); return; }
             const view = event.target.closest('[data-view]');
             if (view) {
                 inst.view = view.dataset.view;
@@ -208,18 +226,19 @@
             if (event.target.closest('[data-rule-preview]')) { inst.settings.previewRule(); return; }
             if (event.target.closest('[data-rule-apply]')) { inst.settings.applyRule(); return; }
             if (event.target.closest('[data-rule-enabled]')) { inst.settings.toggleRule(event.target.closest('[data-rule-enabled]').dataset.ruleEnabled, event.target.closest('[data-rule-enabled]').checked); return; }
-            if (event.target.closest('[data-snooze-submit]')) { submitSnooze(inst); return; }
-            if (event.target.closest('[data-close-snooze]')) { closeSnooze(inst); return; }
+            if (event.target.closest('[data-snooze-submit]')) { inst.workflow.submitSnooze(inst); return; }
+            if (event.target.closest('[data-close-snooze]')) { inst.workflow.closeSnooze(inst); return; }
         });
         listen(host, 'keydown', event => {
             const separator = event.target.closest('[data-resizer]');
             if (separator && ['ArrowLeft', 'ArrowRight'].includes(event.key)) {
-                event.preventDefault(); resizeKeyboard(inst, separator.dataset.resizer, event.key === 'ArrowRight' ? 24 : -24);
+                event.preventDefault(); resizeKeyboard(inst, separator.dataset.resizer, event.key === 'ArrowRight' ? 24 : -24); return;
             }
-            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f') { event.preventDefault(); host.querySelector('[data-search]').focus(); }
-            if (event.key === 'Escape' && !host.querySelector('[data-settings]').hidden) host.querySelector('[data-settings]').hidden = true;
+            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f') { event.preventDefault(); host.querySelector('[data-search]').focus(); return; }
+            if (event.key === 'Escape' && inst.workflow.shortcutEscape(inst)) { event.preventDefault(); return; }
             const row = event.target.closest('[data-thread-id]');
-            if (row && ['Enter', ' '].includes(event.key) && !event.target.closest('button,input,a,select')) { event.preventDefault(); openThread(inst, row.dataset.threadId); }
+            if (row && ['Enter', ' '].includes(event.key) && !event.target.closest('button,input,a,select')) { event.preventDefault(); openThread(inst, row.dataset.threadId); return; }
+            inst.workflow.shortcutKey(inst, event);
         });
         for (const handle of host.querySelectorAll('[data-resizer]')) {
             listen(handle, 'pointerdown', event => startResize(inst, event, handle.dataset.resizer));
@@ -371,7 +390,7 @@
         if (more) more.disabled = !!append;
         if (!append) list.innerHTML = skeleton(6);
         if (!append && inst.view === 'outbox') { inst.outbox = []; inst.outboxCursor = ''; inst.outboxHasMore = false; }
-        inst.host.querySelector('[data-mailer-workspace]').setAttribute('aria-busy', 'true');
+        inst.workflow.setBusy(inst, true);
         try {
             if (['drafts', 'outbox'].includes(inst.view)) {
                 const result = inst.view === 'drafts' ? await inst.api.drafts() : await inst.api.outbox(Object.assign({ limit: 50 }, append && inst.outboxCursor ? { cursor: inst.outboxCursor } : {}));
@@ -403,7 +422,7 @@
             inst.loadingMore = false;
             syncProviderSearchButton(inst);
             if (more) more.disabled = inst.view === 'outbox' ? !inst.outboxHasMore || inst.loadingMore : !inst.nextCursor || inst.loadingMore;
-            if (generation === inst.loadGeneration) inst.host.querySelector('[data-mailer-workspace]').setAttribute('aria-busy', 'false');
+            if (generation === inst.loadGeneration) inst.workflow.setBusy(inst, false);
         }
     }
 
@@ -439,6 +458,11 @@
         more.hidden = !inst.nextCursor;
         more.disabled = !inst.nextCursor || inst.loadingMore;
         if (!items.length && !inst.activeThread) inst.host.querySelector('[data-reader]').innerHTML = `<div class="vd-mailer-empty-reader"><span class="vd-mailer-empty-badge" aria-hidden="true">✉</span><p>${esc(t(inst.ctx, 'select_message'))}</p></div>`;
+        if (inst.pendingFocusThread) {
+            const focusRow = root.querySelector(`[data-thread-id="${cssEscape(inst.pendingFocusThread)}"]`);
+            inst.pendingFocusThread = '';
+            if (focusRow) focusRow.focus({ preventScroll: true });
+        }
     }
 
     function paintSpecialList(inst) {
@@ -836,7 +860,7 @@
     }
 
     async function runToolbarAction(inst, action) {
-        if (action === 'snooze') { openSnooze(inst); return; }
+        if (action === 'snooze') { inst.workflow.openSnooze(inst); return; }
         if (action === 'junk') return runBulkAction(inst, 'junk');
         if (action === 'delete' && !canDeleteSelected(inst)) return;
         if (action === 'delete' && !await inst.ctx.confirmDialog(t(inst.ctx, 'delete'), t(inst.ctx, 'delete_confirm'))) return;
@@ -870,7 +894,7 @@
         const required = { archive: 'archive', junk: 'junk', trash: 'trash', restore: 'restore', delete: 'delete', mark_read: 'read_state', mark_unread: 'read_state', star: 'star', unstar: 'star', move: 'move', label_add: 'labels_write', label_remove: 'labels_write' }[action];
         if (inst.state.readonly || !inst.selected.size || (required ? !selectedHasCapability(inst, required) : !hasMutableSelection(inst))) return;
         const ids = Array.from(inst.selected);
-        if (action === 'snooze') return openSnooze(inst);
+        if (action === 'snooze') return inst.workflow.openSnooze(inst);
         try {
             await Promise.all(ids.map(threadId => inst.api.action(threadId, Object.assign({ action }, extra || {}))));
             inst.selected.clear();
@@ -889,29 +913,7 @@
         }
     }
 
-    function openSnooze(inst) {
-        if (inst.state.readonly || !inst.selected.size || selectedReadOnly(inst)) return;
-        const until = new Date(Date.now() + 86400000);
-        inst.host.querySelector('[data-status]').innerHTML = `<span class="vd-mailer-snooze-dialog" role="group" aria-label="${esc(t(inst.ctx, 'snooze'))}"><label>${esc(t(inst.ctx, 'snooze_until'))}<input type="datetime-local" data-snooze-time value="${localDateTime(until)}"></label><button type="button" class="vd-mailer-button" data-snooze-submit>${esc(t(inst.ctx, 'snooze'))}</button><button type="button" class="vd-mailer-button" data-close-snooze>${esc(t(inst.ctx, 'cancel'))}</button></span>`;
-        inst.host.querySelector('[data-snooze-time]').focus();
-    }
-
     function localDateTime(date) { const d = new Date(date.getTime() - date.getTimezoneOffset() * 60000); return d.toISOString().slice(0, 16); }
-
-    function closeSnooze(inst) { inst.host.querySelector('[data-status]').textContent = ''; }
-
-    async function submitSnooze(inst) {
-        const until = inst.host.querySelector('[data-snooze-time]').value;
-        if (!until || new Date(until) <= new Date()) { setStatus(inst, t(inst.ctx, 'snooze_future_required'), true); return; }
-        const ids = Array.from(inst.selected);
-        try {
-            for (const threadId of ids) {
-                const detail = await inst.api.thread(threadId);
-                for (const message of detail.messages || []) await inst.api.snooze(message.id, new Date(until).toISOString());
-            }
-            inst.selected.clear(); closeSnooze(inst); await refreshCurrent(inst, true);
-        } catch (error) { showError(inst, error); }
-    }
 
     async function refreshCurrent(inst, quiet) {
         if (!inst.state || inst.disposed) return;
@@ -935,7 +937,7 @@
     function errorState(inst) {
         const root = inst.host.querySelector('[data-thread-list]');
         root.innerHTML = emptyState({ icon: '!', title: t(inst.ctx, 'load_failed'), action: 'refresh', actionLabel: t(inst.ctx, 'retry') });
-        inst.host.querySelector('[data-mailer-workspace]').setAttribute('aria-busy', 'false');
+        inst.workflow.setBusy(inst, false);
     }
 
     function subscribe(inst) {
@@ -1058,6 +1060,8 @@
         const inst = instances.get(windowId);
         if (!inst) { window.MailerCompose.dispose(windowId); return; }
         inst.disposed = true;
+        inst.shortcutReturnFocus = null;
+        inst.pendingFocusThread = '';
         clearInlineImages(inst);
         clearInterval(inst.refreshTimer); clearTimeout(inst.searchTimer);
         if (inst.abort) inst.abort.abort();

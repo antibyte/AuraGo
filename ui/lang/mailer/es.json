@@ -360,5 +360,17 @@
   "mailer.rule_run_failed": "Acción fallida",
   "mailer.rule_run_failed_help": "Esta acción falló. Comprueba el mensaje y el estado del proveedor antes de reintentarla.",
   "mailer.rule_run_error_details": "Detalles técnicos",
-  "mailer.test_busy": "Ya hay una prueba de conexión en curso. Espera un momento y vuelve a intentarlo."
+  "mailer.test_busy": "Ya hay una prueba de conexión en curso. Espera un momento y vuelve a intentarlo.",
+  "mailer.shortcuts_title": "Atajos de teclado",
+  "mailer.shortcuts_hint": "Los atajos solo funcionan cuando ningún campo de entrada tiene el foco.",
+  "mailer.shortcuts_move": "Moverse por la lista de mensajes",
+  "mailer.shortcuts_open": "Abrir el mensaje seleccionado",
+  "mailer.shortcuts_star": "Alternar la estrella",
+  "mailer.shortcuts_close": "Cerrar un diálogo o volver a la lista",
+  "mailer.density_toggle": "Densidad de la lista: {mode}",
+  "mailer.density_compact": "Compacta",
+  "mailer.density_comfortable": "Cómoda",
+  "mailer.snooze_preset_later": "En 3 horas",
+  "mailer.snooze_preset_tomorrow": "Mañana por la mañana",
+  "mailer.snooze_preset_week": "En una semana"
 }

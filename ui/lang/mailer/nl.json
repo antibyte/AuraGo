@@ -360,5 +360,17 @@
   "mailer.rule_run_failed": "Actie mislukt",
   "mailer.rule_run_failed_help": "Deze actie is mislukt. Controleer het bericht en de status bij de provider voordat je opnieuw probeert.",
   "mailer.rule_run_error_details": "Technische details",
-  "mailer.test_busy": "Er loopt al een verbindingstest. Wacht even en probeer het opnieuw."
+  "mailer.test_busy": "Er loopt al een verbindingstest. Wacht even en probeer het opnieuw.",
+  "mailer.shortcuts_title": "Sneltoetsen",
+  "mailer.shortcuts_hint": "Sneltoetsen werken alleen als geen invoerveld de focus heeft.",
+  "mailer.shortcuts_move": "Door de berichtenlijst bewegen",
+  "mailer.shortcuts_open": "Het geselecteerde bericht openen",
+  "mailer.shortcuts_star": "Ster aan- of uitzetten",
+  "mailer.shortcuts_close": "Een dialoog sluiten of terug naar de lijst",
+  "mailer.density_toggle": "Lijstdichtheid: {mode}",
+  "mailer.density_compact": "Compact",
+  "mailer.density_comfortable": "Comfortabel",
+  "mailer.snooze_preset_later": "Over 3 uur",
+  "mailer.snooze_preset_tomorrow": "Morgenochtend",
+  "mailer.snooze_preset_week": "Over een week"
 }

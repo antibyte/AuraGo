@@ -360,5 +360,17 @@
   "mailer.rule_run_failed": "Azione non riuscita",
   "mailer.rule_run_failed_help": "Questa azione non è riuscita. Controlla il messaggio e lo stato presso il fornitore prima di riprovare.",
   "mailer.rule_run_error_details": "Dettagli tecnici",
-  "mailer.test_busy": "È già in corso un test di connessione. Attendi un momento e riprova."
+  "mailer.test_busy": "È già in corso un test di connessione. Attendi un momento e riprova.",
+  "mailer.shortcuts_title": "Scorciatoie da tastiera",
+  "mailer.shortcuts_hint": "Le scorciatoie funzionano solo quando nessun campo di input ha il focus.",
+  "mailer.shortcuts_move": "Spostarsi nell’elenco dei messaggi",
+  "mailer.shortcuts_open": "Aprire il messaggio selezionato",
+  "mailer.shortcuts_star": "Attivare o disattivare la stella",
+  "mailer.shortcuts_close": "Chiudere una finestra o tornare all’elenco",
+  "mailer.density_toggle": "Densità dell’elenco: {mode}",
+  "mailer.density_compact": "Compatta",
+  "mailer.density_comfortable": "Comoda",
+  "mailer.snooze_preset_later": "Tra 3 ore",
+  "mailer.snooze_preset_tomorrow": "Domani mattina",
+  "mailer.snooze_preset_week": "Tra una settimana"
 }

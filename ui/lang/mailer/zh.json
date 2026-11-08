@@ -360,5 +360,17 @@
   "mailer.rule_run_failed": "操作失败",
   "mailer.rule_run_failed_help": "此操作失败。重试前请检查邮件和服务提供方的状态。",
   "mailer.rule_run_error_details": "技术详情",
-  "mailer.test_busy": "已有连接测试正在运行，请稍等后重试。"
+  "mailer.test_busy": "已有连接测试正在运行，请稍等后重试。",
+  "mailer.shortcuts_title": "键盘快捷键",
+  "mailer.shortcuts_hint": "仅当没有输入框获得焦点时，快捷键才会生效。",
+  "mailer.shortcuts_move": "在邮件列表中移动",
+  "mailer.shortcuts_open": "打开选中的邮件",
+  "mailer.shortcuts_star": "切换星标",
+  "mailer.shortcuts_close": "关闭对话框或返回列表",
+  "mailer.density_toggle": "列表密度：{mode}",
+  "mailer.density_compact": "紧凑",
+  "mailer.density_comfortable": "宽松",
+  "mailer.snooze_preset_later": "3 小时后",
+  "mailer.snooze_preset_tomorrow": "明天早上",
+  "mailer.snooze_preset_week": "一周后"
 }

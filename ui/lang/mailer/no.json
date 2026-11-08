@@ -360,5 +360,17 @@
   "mailer.rule_run_failed": "Handlingen mislyktes",
   "mailer.rule_run_failed_help": "Handlingen mislyktes. Sjekk meldingen og status hos leverandøren før du prøver igjen.",
   "mailer.rule_run_error_details": "Tekniske detaljer",
-  "mailer.test_busy": "En tilkoblingstest kjører allerede. Vent litt og prøv igjen."
+  "mailer.test_busy": "En tilkoblingstest kjører allerede. Vent litt og prøv igjen.",
+  "mailer.shortcuts_title": "Hurtigtaster",
+  "mailer.shortcuts_hint": "Hurtigtastene virker bare når ingen inndatafelt har fokus.",
+  "mailer.shortcuts_move": "Bevege seg gjennom meldingslisten",
+  "mailer.shortcuts_open": "Åpne den valgte meldingen",
+  "mailer.shortcuts_star": "Slå stjerne av eller på",
+  "mailer.shortcuts_close": "Lukk en dialog eller gå tilbake til listen",
+  "mailer.density_toggle": "Listetetthet: {mode}",
+  "mailer.density_compact": "Kompakt",
+  "mailer.density_comfortable": "Komfortabel",
+  "mailer.snooze_preset_later": "Om 3 timer",
+  "mailer.snooze_preset_tomorrow": "I morgen tidlig",
+  "mailer.snooze_preset_week": "Om én uke"
 }

@@ -360,5 +360,17 @@
   "mailer.rule_run_failed": "操作に失敗",
   "mailer.rule_run_failed_help": "この操作は失敗しました。再試行する前にメッセージとプロバイダーの状態を確認してください。",
   "mailer.rule_run_error_details": "技術的な詳細",
-  "mailer.test_busy": "接続テストは実行中です。少し待ってから再試行してください。"
+  "mailer.test_busy": "接続テストは実行中です。少し待ってから再試行してください。",
+  "mailer.shortcuts_title": "キーボードショートカット",
+  "mailer.shortcuts_hint": "ショートカットは入力欄にフォーカスがないときだけ使えます。",
+  "mailer.shortcuts_move": "メッセージ一覧を移動",
+  "mailer.shortcuts_open": "選択中のメッセージを開く",
+  "mailer.shortcuts_star": "スターの切り替え",
+  "mailer.shortcuts_close": "ダイアログを閉じる、または一覧に戻る",
+  "mailer.density_toggle": "一覧の表示密度: {mode}",
+  "mailer.density_compact": "コンパクト",
+  "mailer.density_comfortable": "ゆったり",
+  "mailer.snooze_preset_later": "3 時間後",
+  "mailer.snooze_preset_tomorrow": "明日の朝",
+  "mailer.snooze_preset_week": "1 週間後"
 }
