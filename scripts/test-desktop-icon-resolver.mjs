@@ -35,4 +35,38 @@ for (const invalid of ['https://example.com/a.svg', '//example.com/a.png', 'img/
   assert.equal(resolve({ candy: { icons: { file: invalid } } }, { 'appearance.icon_theme': 'candy' }, 'light', 'file'), '');
 }
 assert.equal(resolve(manifests, { 'appearance.icon_theme': 'tela' }, 'light', 'fluent:folder'), '/' + manifests.fluent.icons.folder);
+const miniManifest = JSON.parse(fs.readFileSync(path.join(root, 'ui/img/desktop-mini/manifest.json'), 'utf8'));
+const symbols = fs.readFileSync(path.join(root, 'ui/img/desktop-mini/symbols.svg'), 'utf8');
+const miniContext = {
+  state: { miniIconManifest: miniManifest, iconThemeManifests: manifests },
+  normalizeIconName: window.AuraDesktopIcons.normalize,
+  esc: value => String(value),
+  versionedIconAssetPath: value => value,
+  settingValue: () => 'papirus',
+  themeIconFamily: () => 'standard',
+  iconUrlStyle: value => value,
+  document: { body: { style: { setProperty() {} } } }
+};
+vm.createContext(miniContext);
+vm.runInContext(fs.readFileSync(path.join(root, 'ui/js/desktop/core/mini-icons-runtime.js'), 'utf8'), miniContext);
+const { symbols: symbolicNames, aliases } = vm.runInContext('({symbols:[...MINI_SYMBOLS],aliases:MINI_ALIASES})', miniContext);
+for (const name of symbolicNames) assert.ok(symbols.includes(`id="${name}"`), `Missing SVG symbol ${name}`);
+for (const [alias, target] of Object.entries(aliases)) assert.ok(miniManifest.icons[target] || symbolicNames.includes(target), `Missing mini alias ${alias} -> ${target}`);
+for (const key of ['film', 'flip', 'next', 'previous', 'shuffle', 'repeat', 'history', 'flask', 'sidebar', 'zoom-fit', 'rotate']) {
+  assert.ok(miniContext.miniIconMarkup(key, 'vd-window-menu-papirus-icon', 16), `App action ${key} has no icon`);
+}
+const verifyFiles = value => {
+  if (typeof value === 'string' && value.startsWith('img/')) assert.ok(fs.existsSync(path.join(root, 'ui', value)), `Missing icon file ${value}`);
+  else if (value && typeof value === 'object') Object.values(value).forEach(verifyFiles);
+};
+Object.values(manifests).forEach(verifyFiles);
+verifyFiles(miniManifest);
+const appsDir = path.join(root, 'ui/js/desktop/apps');
+const easyDragSource = fs.readFileSync(path.join(appsDir, 'easydrag-core.js'), 'utf8');
+const easyDragIcons = vm.runInNewContext(easyDragSource.slice(easyDragSource.indexOf('    const ICONS ='), easyDragSource.indexOf('    function icon(')) + '\nICONS');
+for (const file of fs.readdirSync(appsDir).filter(file => /^easydrag.*\.js$/.test(file))) {
+  for (const match of fs.readFileSync(path.join(appsDir, file), 'utf8').matchAll(/\b(?:core|ED\.core)\.icon\(\s*['"]([^'"]+)['"]/g)) {
+    assert.ok(easyDragIcons[match[1]], `${file}: missing EasyDrag icon ${match[1]}`);
+  }
+}
 console.log('Icon resolver: seven themes, full catalogs, roles, palettes, aliases and unsafe/missing paths verified.');

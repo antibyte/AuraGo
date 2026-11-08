@@ -15,6 +15,10 @@
 
 ## EasyDrag editor and run stream
 
+- `easydrag-core.js` owns the app-local SVG dictionary, including the library's
+  pause and folder actions. Shared window/context menus use Desktop icon keys.
+  `node scripts/test-desktop-icon-resolver.mjs` checks every literal `core.icon`
+  call against that dictionary, separately from the shared theme catalogs.
 - Node labels are limited to 80 Unicode code points by the shared model for edits and imported
   fragments. The detail input's HTML `maxlength` is 160 UTF-16 units to allow astral characters
   without weakening the model limit.

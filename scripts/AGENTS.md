@@ -23,6 +23,10 @@ Use the existing helper for each job. Check release scripts with harmless fixtur
 
 ## Verification
 
+- `node scripts/test-desktop-icon-resolver.mjs` checks all seven Desktop icon
+  catalogs and their files, shared mini aliases/SVG symbols, and EasyDrag's
+  literal app-local icon calls. `TestDesktopAllAppIconsBrowser` verifies every
+  built-in app identity and the shared action supplements in light and dark.
 - Punk 3D pet: Blender runs `assets/desktop-pets/build_model.py`, then
   `node scripts/build-punk-pet-motions.mjs` retargets the pinned Mesh2Motion clips.
   `node scripts/test-punk-pet.mjs` checks encoded texture sizes, skin/motion

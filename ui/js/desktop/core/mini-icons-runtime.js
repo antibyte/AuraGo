@@ -1,5 +1,5 @@
     // Action roles are semantic: a 16px taskbar logo is still an app icon.
-    const MINI_SYMBOLS = new Set(["chevron-left","chevron-right","chevron-up","chevron-down","arrow-up","arrow-down","plus","minus","x","check","square","check-square","maximize","restore","refresh","undo","redo","menu","list","sort","play","pause","stop","external","eye","eye-off","zoom-in","zoom-out","grid","columns","layout","keyboard","contrast","mesh","format-bold","format-italic","format-strike","format-numbered","format-quote"]);
+    const MINI_SYMBOLS = new Set(["chevron-left","chevron-right","chevron-up","chevron-down","arrow-up","arrow-down","plus","minus","x","check","square","check-square","maximize","restore","refresh","undo","redo","menu","list","sort","play","pause","stop","external","eye","eye-off","zoom-in","zoom-out","grid","columns","layout","keyboard","contrast","mesh","format-bold","format-italic","format-strike","format-numbered","format-quote","next","previous","shuffle","repeat","flip","history","flask"]);
     const MINI_ALIASES = {
         'arrow-left': 'chevron-left', back: 'chevron-left', 'arrow-right': 'chevron-right',
         'folder-open': 'folder', documents: 'file', 'file-text': 'file', paste: 'clipboard',
@@ -17,7 +17,8 @@
         'hard-drive': 'server', 'refresh-cw': 'refresh', 'rotate-cw': 'refresh',
         'rotate-ccw': 'undo', 'maximize-2': 'maximize', 'minimize': 'minus',
         'more-horizontal': 'menu', 'more-vertical': 'menu', 'check-circle': 'check',
-        'file-minus': 'file', 'external-link': 'external', 'zoom-reset': 'search'
+        'file-minus': 'file', 'external-link': 'external', 'zoom-reset': 'search',
+        film: 'video', sidebar: 'columns', 'zoom-fit': 'maximize', rotate: 'refresh'
     };
     function miniIconRole(className) {
         return /(?:^|\s)(?:vd-(?:tool|context-papirus|window-menu-papirus|settings-nav|settings-pane-papirus|settings-hamburger|modal-action|window-ai-button|quickchat-send|dock-scroll|todo-action|calendar-(?:action|mini)|gallery-action|chess-action|chat-(?:toolbar|sidebar|scroll|voice|send|context)|qc-(?:btn|filter|close|input)|launchpad-action|store-(?:btn|terminal-action|terminal-tab-close)|hp-(?:btn|send)|viewer-action)|fm-(?:btn|search|sort-indicator|drop|context)|cs-(?:button|icon-button|file-action|tab-close)|pixel-toolbar|oscad-btn|camera-btn)-icon(?:\s|$)/.test(String(className || ''));
