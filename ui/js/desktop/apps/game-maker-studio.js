@@ -739,6 +739,7 @@
             if (!state.job) state.job = { id: event.job_id };
             state.job.phase = payload.phase;
             state.job.status = payload.phase;
+            updateStatus(state, payload.phase);
             if (!state.jobStartedAt) state.jobStartedAt = jobStartMillis(state.job) || Date.now();
             state.container.querySelector('[data-gm-phases]').innerHTML = phaseMarkup(state, step);
             syncJobControls(state);

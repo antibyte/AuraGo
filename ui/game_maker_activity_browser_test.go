@@ -85,9 +85,16 @@ fetch('/lang/desktop/de.json').then(r=>r.json()).then(lang=>GameMakerStudioApp.r
 		send(i+3, "file_changed", map[string]any{"path": path})
 	}
 	page.MustWait(`()=>document.querySelector('.gm-build-lines')?.textContent.includes('src/main.ts')`)
-	send(0, "model_progress", map[string]any{"status": "receiving", "content": "PRIVATE_SENTINEL"})
+	if !page.MustEval(`()=>{const s=GameMakerStudioApp.instances.get('fixture');return document.querySelector('[data-gm-status]').textContent===s.context.t('game_maker.status_building')}`).Bool() {
+		t.Error("phase event left the status badge on the previous phase")
+	}
+	// Repeated stream heartbeats must not fill the terminal as elapsed time advances.
+	page.MustEval(`()=>{const s=GameMakerStudioApp.instances.get('fixture'),started=s.jobStartedAt;for(let i=0;i<65;i++){s.jobStartedAt=Date.now()-i*10000;s.activity.event({type:'model_progress',payload:{status:'receiving',content:'PRIVATE_SENTINEL'}})}s.jobStartedAt=started}`)
 	send(0, "model_progress", map[string]any{"status": "retrying"})
 	page.MustWait(`()=>document.querySelector('.gm-build-lines')?.textContent.includes('erneut angefordert')`)
+	if !page.MustEval(`()=>{const s=GameMakerStudioApp.instances.get('fixture'),label=s.context.t('game_maker.terminal_model_receiving');return [...document.querySelectorAll('.gm-build-line')].filter(row=>row.textContent.includes(label)).length===1}`).Bool() {
+		t.Fatal("repeated model progress replaced the actual work with heartbeat rows")
+	}
 	if !page.MustEval(`()=>Math.abs(document.querySelector('.gm-preview-empty img').getBoundingClientRect().y-iconY)<1&&document.querySelector('.gm-preview-empty strong').textContent===fixedCopy&&getComputedStyle(document.querySelector('.gm-build-cursor')).animationName==='none'&&getComputedStyle(document.querySelector('.gm-build-terminal')).fontFamily.includes('Press Start 2P')`).Bool() {
 		t.Fatal("foreground moved or reduced motion/font contract failed")
 	}
@@ -100,6 +107,9 @@ fetch('/lang/desktop/de.json').then(r=>r.json()).then(lang=>GameMakerStudioApp.r
 		for _, theme := range []string{"standard", "light", "dark"} {
 			for _, size := range [][2]int{{1920, 1080}, {1366, 768}, {390, 844}} {
 				page.MustSetViewport(size[0], size[1], 1, size[0] == 390)
+				if size[0] == 390 {
+					page.MustElement(`[data-gm-steps] [data-gm-step="preview"]`).MustClick()
+				}
 				page.MustEval(`theme=>{document.body.dataset.theme=theme==='standard'?'standard':'fruity';document.body.dataset.fruityMode=theme}`, theme)
 				page.MustElement("[data-gm-preview]").MustScrollIntoView()
 				page.MustEval(`async()=>{await document.fonts.ready;await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))}`)

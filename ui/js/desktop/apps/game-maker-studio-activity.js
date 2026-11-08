@@ -158,7 +158,7 @@
             const p = event.payload || {};
             switch (event.type) {
             case 'model_progress':
-                if (['waiting', 'receiving', 'retrying', 'recovering'].includes(p.status)) add(t('game_maker.terminal_model_' + p.status) + ' · ' + elapsed());
+                if (['waiting', 'receiving', 'retrying', 'recovering'].includes(p.status)) add(t('game_maker.terminal_model_' + p.status));
                 break;
             case 'tool_call': add(t('game_maker.terminal_' + (tools[p.tool] || 'tool'))); break;
             case 'file_changed': add(t('game_maker.updated') + ' > ' + text(p.path)); break;

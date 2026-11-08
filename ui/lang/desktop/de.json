@@ -4821,7 +4821,7 @@
   "game_maker.skills_title": "Agenten-Skill-Übersicht",
   "game_maker.source": "Herkunft",
   "game_maker.start_creating": "Erstellung starten",
-  "game_maker.status_building": "Erstellt",
+  "game_maker.status_building": "Wird erstellt",
   "game_maker.status_cancelled": "Abgebrochen",
   "game_maker.status_cancelling": "Wird gestoppt",
   "game_maker.status_create_disabled": "Erstellen gesperrt",

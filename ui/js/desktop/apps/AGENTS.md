@@ -4198,7 +4198,10 @@ registration lives in `internal/desktop/types.go`.
   Verify with `TestGameMakerActivityTerminalBrowser`; optional screenshots use
   `AURAGO_GAME_TERMINAL_SCREENSHOTS` under ignored `reports/`.
 - Allowlisted `model_progress` statuses show waiting, receiving, retry and code
-  recovery without exposing model text. Failed/cancelled runs retain a static
+  recovery without exposing model text. Consecutive identical statuses produce
+  one terminal/feed line; elapsed time stays live in the terminal prompt. Phase
+  events update the header status badge along with the banner and stepper,
+  including replayed phases. Failed/cancelled runs retain a static
   terminal transcript with no animation timer. Recreate the activity controller
   whenever deleting a project replaces the shell, so later jobs target the new
   preview node. Keep all 16 desktop locales aligned.
