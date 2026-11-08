@@ -20,7 +20,7 @@
         offsets[upper] = a / RAD - parentAngle - (angles[upper] - (offsets[upper] || 0));
         offsets[lower] = (b - a) / RAD - (angles[lower] - (offsets[lower] || 0));
     }
-    function adjust(pose, state, entity, time, rc, stage) {
+    function placeFeet(pose, state, entity, time, rc, stage) {
         var R = SM.rig, rig = rc.assets.rig, body = R.bodyOf(rig, state.params.body);
         var worlds = R.boneMatrices(rig, pose.view, body, pose.offsets);
         var upper = Math.hypot(worlds.lower_leg_r[4] - worlds.upper_leg_r[4], worlds.lower_leg_r[5] - worlds.upper_leg_r[5]);
@@ -66,6 +66,30 @@
             pose.offsets[b] = priorB * (1 - weight) + pose.offsets[b] * weight;
         });
         pose.planted = true;
+    }
+    function gesturePose(pose, state, rc) {
+        var name = state.pose.u >= 0.5 ? state.pose.b : state.pose.a;
+        pose.handViews = { l: 'edge', r: name === 'wave' ? 'palm' : 'edge' };
+        if (!state.gesture) return;
+        var gesture = rc.cat.gestures[state.gesture.name], fraction = state.gesture.frac;
+        if (!gesture || !gesture.keys || !gesture.keys.length) return;
+        ['l', 'r'].forEach(function (side) {
+            var upper = 'upper_arm_' + side, lower = 'lower_arm_' + side;
+            var keys = gesture.keys.filter(function (key) { return key.bones && (key.bones[upper] || key.bones[lower]) || key.hands && key.hands[side]; });
+            if (!keys.length) return;
+            var start = gesture.keys[0].t, end = gesture.keys[gesture.keys.length - 1].t;
+            var first = keys[0].t, last = keys[keys.length - 1].t;
+            var enter = first > start ? Math.max(0, Math.min(1, (fraction - start) / (first - start))) : 1;
+            var exit = end > last ? Math.max(0, Math.min(1, (end - fraction) / (end - last))) : 1;
+            var weight = Math.min(enter * enter * (3 - 2 * enter), exit * exit * (3 - 2 * exit));
+            // Gesture arm keys describe a canonical target, not another full turn on top of a raised arm.
+            [upper, lower].forEach(function (bone) { pose.offsets[bone] = (pose.offsets[bone] || 0) - ((pose.basePoseBones || {})[bone] || 0) * weight; });
+            if (weight >= 0.5) pose.handViews[side] = /^(wave|shrug|celebrate|count)$/.test(state.gesture.name) ? 'palm' : 'edge';
+        });
+    }
+    function adjust(pose, state, entity, time, rc, stage) {
+        placeFeet(pose, state, entity, time, rc, stage);
+        gesturePose(pose, state, rc);
     }
     SM.rasterRig = { slotMatrix: slotMatrix, adjust: adjust };
 })(typeof globalThis !== 'undefined' ? globalThis : self);

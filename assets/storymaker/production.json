@@ -1613,6 +1613,20 @@
       "sha256": "ca69af5c6d02fb6164ed0012e2335a0d26603dc800bbacd1a06ac12c38d79224",
       "width": 1536,
       "height": 1024
+    },
+    {
+      "id": "it-tech-1-hands-back",
+      "file": "masters/characters/it-tech-1-hands-back.png",
+      "tool": "ImageGen",
+      "prompt": "Use case: precise-object-edit / identity-preserve. Asset type: animation hand replacement atlas, edit target is image 1 (existing it-tech hand sheet); image 2 is character identity, skin and illustration style reference only. Produce a genuinely transparent RGBA PNG, portrait 1024 by 1536, EXACTLY the same 4-column by 6-row grid with generous transparent gutters. Preserve the 24-cell layout, same hand sizes and wrist-top/fingers-down registration. CHANGE THE SIX OPEN HANDS IN THE FIRST COLUMN ONLY: in all six rows replace the palm-facing open hand with a natural relaxed open hand seen FROM ITS BACK (dorsal side, knuckles and fingernails visible, absolutely NO palm or palm creases facing the viewer). Fingers close together with a gentle natural curve, no splayed presentation palm. Rows 1 and 2 are front views of left then right hands; rows 3 and 4 are three-quarter views of left then right hands; rows 5 and 6 are side-biased views of left then right hands, showing back/ulnar edge rather than palm. Every wrist remains at TOP of its cell and fingertips point DOWN; retain a short bare wrist with a straight horizontal cut across the top to overlap the forearm, no clothing or sleeves. Match the warm medium-brown skin of the woman with glasses and headphones, softly textured editorial illustration, anatomically accurate five fingers. Keep the other three columns (fist, pointing index finger, holding) visually unchanged as reference; only the new first-column cells will be consumed. Remove the brown backdrop and all cast background shadows: actual transparency in the gutters and outside each hand. No text, no labels, no outlines, no checkerboard, no glow, no additional hands or objects.",
+      "references": [
+        "masters/characters/it-tech-1-hands.png",
+        "masters/characters/it-tech-1-reference.png"
+      ],
+      "bytes": 1844601,
+      "sha256": "955cd70f76c12f7f6f90a18e6bd3318b58b8713fe82aafe9dc422c54d8a55c59",
+      "width": 1024,
+      "height": 1536
     }
   ]
 }

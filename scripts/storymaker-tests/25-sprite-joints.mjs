@@ -57,7 +57,7 @@ t.check('every raster identity has aligned joints, matching knee widths and anat
                 assert.ok(Math.abs(b.width*upper.box[2]-lowerStart.width*lower.box[2])<1e-7,'joint width step '+entry.id+'/'+view);
                 assert.ok(Math.abs(upper.shear)<1&&Math.abs(lower.shear)<1,'implausible shear '+entry.id+'/'+view);
             }
-            for(const slot of slots.filter(s=>s.kind==='hand'))for(const [name,variant]of Object.entries(slot.variants)){
+            for(const slot of slots.filter(s=>s.kind==='hand'))for(const [name,variant]of Object.entries(slot.variants).concat(Object.entries(slot.edgeVariants))){
                 const section=jointSection(image(variant.file),variant.rect,0.08),box=variant.box;
                 near([box[0]+section.center*box[2],box[1]+section.fraction*box[3]],[0,135],'hand wrist '+entry.id+'/'+view+'/'+name);
                 assert.ok(box[3]<=body.forearm*2.2+1e-7,'oversized hand '+entry.id+'/'+view+'/'+name);

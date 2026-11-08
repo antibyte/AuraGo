@@ -6,7 +6,7 @@ import { buildOutputs, versionOf } from './catalog.mjs';
 import { decodePNG, encodePNG, cropPNG, cellBounds, cellRect, cellSubjectBounds, thumbnailPNG } from './png.mjs';
 import { BODIES } from './dims.mjs';
 import { NAMES } from './names.mjs';
-import { calibrateAttachments } from './raster-attachments.mjs';
+import { calibrateAttachments, fitHand, fitFaces } from './raster-attachments.mjs';
 
 const root=path.resolve(import.meta.dirname,'../../..');
 export const PROP_PACKS={
@@ -72,6 +72,9 @@ export function buildRasterOutputs({prototype=false}={}){
         if(!prototype&&(!faces||!hands))throw new Error(`Facial/hand production incomplete: ${id}`);
         if(faces)resources.push(`textures/characters/${id}-faces.png`);
         if(hands)resources.push(`textures/characters/${id}-hands.png`);
+        const backPath=`characters/${id}-hands-back.png`,backFile=`textures/characters/${id}-hands-back.png`;
+        const back=fs.existsSync(source(backPath))?image(backPath,backFile):null;
+        if(back)resources.push(backFile);
         const seatedPath=master(`characters/${id}-seated.png`),seatedFile=`textures/characters/${id}-seated.png`;
         const bent=fs.existsSync(source(seatedPath))?image(seatedPath,seatedFile):null;
         if(bent)resources.push(seatedFile);else if(!prototype)throw new Error(`Seated production incomplete: ${id}`);
@@ -87,10 +90,10 @@ export function buildRasterOutputs({prototype=false}={}){
             parts.filter(p=>p.name.startsWith('upper_leg')).forEach(p=>{p.box[3]=body.upperLeg+35;});
             if(faces){
                 const slot=parts[0];slot.kind='head';slot.variants={};
-                // Exclude neighboring hair in uneven generated gutters while preserving the shared neck coordinate frame.
+                // Exclude neighboring hair, then register the drawings to the neutral skull rather than the uneven grid.
                 FACE_STATES.forEach((state,i)=>{const index=VIEWS.indexOf(view)*18+i,frame=cellRect(faces,index,9,6),rect=cellSubjectBounds(faces,index,9,6),box=slot.box;
                     slot.variants[state]={file:`textures/characters/${id}-faces.png`,rect,box:[box[0]+(rect[0]-frame[0])/frame[2]*box[2],box[1]+(rect[1]-frame[1])/frame[3]*box[3],rect[2]/frame[2]*box[2],rect[3]/frame[3]*box[3]]};});
-                slot.variants.default=slot.variants.neutral;
+                fitFaces(slot.variants,faces);slot.variants.default=slot.variants.neutral;
             }
             if(hands)for(const side of ['l','r']){
                 const slot=parts.find(p=>p.name==='hand_'+side);slot.kind='hand';slot.side=side;slot.variants={};
@@ -103,6 +106,11 @@ export function buildRasterOutputs({prototype=false}={}){
                 seated[view]={name:'seated_lower_body',bone:'hips',box:[view==='front'?-width/2:-90,-30,width,255],image:{file:seatedFile,rect:cellBounds(bent,VIEWS.indexOf(view),3,2)}};
             }
             if(view==='three_quarter')head={bitmap,rect:parts[0].image.rect};
+        }
+        if(hands)for(const view of VIEWS)for(const side of ['l','r']){
+            const slot=views[view].find(p=>p.name==='hand_'+side);
+            slot.edgeVariants={...views.profile.find(p=>p.name==='hand_'+side).variants};
+            if(back)slot.edgeVariants.open=fitHand({file:backFile,rect:cellSubjectBounds(back,VIEWS.indexOf(view)*8+(side==='l'?0:4),4,6)},back,body,'open');
         }
         const file=`characters/${id}.json`;put(file,{schema:'storymaker-character/1',views,seated});
         const old=originalCharacter;

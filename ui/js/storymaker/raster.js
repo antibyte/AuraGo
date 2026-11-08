@@ -42,7 +42,8 @@
                 : slot.kind === 'eyes' ? (state.blink ? 'blink' : state.expr.eyes || 'neutral')
                 : slot.kind === 'brows' ? state.expr.brows || 'neutral'
                 : slot.kind === 'hand' ? state.hands[slot.side] || 'open' : 'default';
-            return slot.variants[pick] || slot.variants.default || slot.variants.rest || slot.variants.neutral;
+            var variants = slot.kind === 'hand' && state.handViews && state.handViews[slot.side] === 'edge' && slot.edgeVariants || slot.variants;
+            return variants[pick] || variants.default || variants.rest || variants.neutral;
         }
         return slot.image;
     }
@@ -135,13 +136,30 @@
         var self = this;
         this.nodes.forEach(function (node, key) { if (!active.has(key.split(':')[0])) { node.destroy(); self.nodes.delete(key); } });
     };
-    Drawer.prototype.sprite = function (key, image, transform, box, alpha, z) {
+    Drawer.prototype.sprite = function (key, image, transform, box, alpha, z, clip) {
         var sprite = this.nodes.get(key);
         if (!sprite) { sprite = new (V().Sprite)(); this.nodes.set(key, sprite); this.root.addChild(sprite); }
         this.used.add(key); sprite.visible = true; sprite.texture = this.texture(image);
         var r = image.rect, width = r ? r[2] : sprite.texture.width, height = r ? r[3] : sprite.texture.height;
         var local = [box[2] / width, 0, 0, box[3] / height, box[0], box[1]];
         sprite.setFromMatrix(matrix(RG().mul(transform, local))); sprite.alpha = alpha; sprite.zIndex = z;
+        var maskKey = key + ':cap', mask = this.nodes.get(maskKey), cap = clip && clip.shoulderCap, torso = clip && clip.torsoCap;
+        if (cap > 0 || torso) {
+            if (!mask) { mask = new (V().Graphics)(); this.nodes.set(maskKey, mask); this.root.addChild(mask); }
+            var shape = JSON.stringify([cap, torso, box]);
+            if (mask.shapeKey !== shape) {
+                mask.clear();
+                if (torso) {
+                    var x = box[0], y = torso.y, w = box[2], bottom = box[1] + box[3], r = torso.radius;
+                    mask.moveTo(x + r, y).lineTo(x + w - r, y).quadraticCurveTo(x + w, y, x + w, y + r)
+                        .lineTo(x + w, bottom).lineTo(x, bottom).lineTo(x, y + r).quadraticCurveTo(x, y, x + r, y).closePath()
+                        .rect(-torso.neck, box[1], torso.neck * 2, y + r - box[1]).fill(0xffffff);
+                } else mask.rect(-cap, 0, 2 * cap, box[1] + box[3]).circle(0, 0, cap).fill(0xffffff);
+                mask.shapeKey = shape;
+            }
+            mask.setFromMatrix(matrix(transform)); sprite.mask = mask;
+            this.used.add(maskKey); mask.visible = true;
+        } else if (sprite.mask) sprite.mask = null;
         return sprite;
     };
     Drawer.prototype.draw = function (ctx, sc, time, rc) {
@@ -179,7 +197,7 @@
             var worlds = RG().boneMatrices(rig, actor.state.view, body, actor.state.offsets);
             actor.slots.forEach(function (slot, i) {
                 var image = slotImage(slot, actor.state);
-                if (image) self.sprite(sc.id+':'+s.id+':'+i, image, RG().mul(m, SM.rasterRig.slotMatrix(worlds[slot.bone], slot)), image.box || slot.box, s.alpha, z++);
+                if (image) self.sprite(sc.id+':'+s.id+':'+i, image, RG().mul(m, SM.rasterRig.slotMatrix(worlds[slot.bone], slot)), image.box || slot.box, s.alpha, z++, slot);
             });
         });
         layers.forEach(function (layer, i) { if (layer.foreground) background(layer, i); });

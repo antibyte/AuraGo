@@ -145,6 +145,19 @@ test('the raster build validator refuses changed resources and invalid joint cal
     built.files.set(file,JSON.stringify(descriptor));
     assert.ok(validateRasterOutputs(built).some(p=>p.includes('Bad joint calibration: char.office-woman-1/')));
   }
+  const arm=descriptor.views.front.find(s=>s.name==='upper_arm_r');
+  for(const cap of ['bad',null,0,100]){
+    arm.shoulderCap=cap;built.files.set(file,JSON.stringify(descriptor));
+    assert.ok(validateRasterOutputs(built).some(p=>p.includes('Bad shoulder cap: char.office-woman-1/')));
+  }
+  const torso=descriptor.views.front.find(s=>s.name==='torso');
+  for(const radius of ['bad',null,0,torso.box[2]]){
+    torso.torsoCap.radius=radius;built.files.set(file,JSON.stringify(descriptor));
+    assert.ok(validateRasterOutputs(built).some(p=>p.includes('Bad torso cap: char.office-woman-1/')));
+  }
+  delete descriptor.views.front.find(s=>s.kind==='hand').edgeVariants.open;
+  built.files.set(file,JSON.stringify(descriptor));
+  assert.ok(validateRasterOutputs(built).some(p=>p.includes('Missing hand orientations: char.office-woman-1/')));
 });
 
 test('node scripts/build-storymaker-catalog.mjs --check is green on the committed outputs', () => {

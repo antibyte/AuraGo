@@ -3,6 +3,7 @@
 // Angles are degrees added to the bone's rest angle (poses) or on top of the pose (gestures, cycles).
 // Negative swings a limb towards +x, which is forward for a right-facing character. "_r" is the near limb in the
 // three_quarter and profile views and sits on the screen right in the front view.
+// The bitmap rig fades out base arm angles while gesture arm targets take over; legacy vector evaluation stays additive.
 // Gesture and cycle keys are additive deltas, linearly interpolated; every gesture ends at its first key (t = 1).
 
 import { BODIES, hipHeight, LOWER_LEG, ANKLE } from './dims.mjs';

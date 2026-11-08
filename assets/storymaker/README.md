@@ -2,7 +2,7 @@
 
 Twelve fixed characters, twelve day/night environments and eighty props, illustrated with ImageGen during development. Three-view bitmap attachments, facial/hand swaps and seated replacements share the existing thirteen-bone skeleton and animation names. The delivered catalog is `storymaker-catalog/2`; projects remain `storymaker/1`.
 
-`AGENTS.md` owns production; [ASSET-CONTRACT.md](ASSET-CONTRACT.md) defines the exact schema, atlas conventions, budgets, rights and review workflow. `production.json` records all 122 generated originals with prompts, references, dimensions, byte sizes and hashes. Ordinary builds use retained sources offline.
+`AGENTS.md` owns production; [ASSET-CONTRACT.md](ASSET-CONTRACT.md) defines the exact schema, atlas conventions, budgets, rights and review workflow. `production.json` records all 123 generated originals with prompts, references, dimensions, byte sizes and hashes. Ordinary builds use retained sources offline.
 
 ## Build and review
 

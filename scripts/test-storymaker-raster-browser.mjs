@@ -13,7 +13,7 @@ const reviewIndex=process.argv.indexOf('--review'),previews=process.argv.include
 const installed=path.join(ui,'img/storymaker');
 const catalogDir=JSON.parse(fs.readFileSync(path.join(installed,'catalog.json'))).schema==='storymaker-catalog/2'?installed:fixture;
 const baseline=process.argv.includes('--baseline'),legacy=baseline?buildOutputs():null;
-const matrix=process.argv.includes('--matrix'),environments=process.argv.includes('--environments');
+const speech=process.argv.includes('--speech'),combinations=process.argv.includes('--combinations'),matrix=process.argv.includes('--matrix')||combinations||speech,environments=process.argv.includes('--environments');
 const characterIndex=process.argv.indexOf('--character'),selectedCharacter=characterIndex<0?null:process.argv[characterIndex+1];
 assert.ok(characterIndex<0||selectedCharacter?.startsWith('char.'),'--character needs a catalog character ID');
 const previousBundles=new Map(baseline?['host','player'].map(name=>['/js/storymaker/'+name+'.bundle.js',execFileSync('git',['show','HEAD:ui/js/storymaker/'+name+'.bundle.js'],{cwd:root,maxBuffer:4*1048576})]):[]);
@@ -44,6 +44,15 @@ window.addEventListener('message',async event=>{
     story.style.captions=false;story.format.aspect='1:1';
     story.scenes=catalog.entries.filter(e=>['pose','gesture','expression'].includes(e.kind)).map((e,i)=>({id:'state-'+i,environment:'env.plain-stage',duration:2,silent:true,narration:'',transition:'cut',camera:{framing:'medium',target:'anna'},actors:[{cast:'anna',at:'center',facing:params.get('facing'),pose:e.kind==='pose'?e.name:'stand',expression:e.kind==='expression'?e.name:'neutral'}],beats:e.kind==='gesture'?[{do:'gesture',who:'anna',gesture:e.name,duration:1.5}]:[]}));
     fixture.states=catalog.entries.filter(e=>['pose','gesture','expression'].includes(e.kind)).map(e=>e.id);
+    if(params.has('combinations')){
+     const states=[];story.scenes=[];
+     for(const pose of ['stand','present','wave','point-right','typing'])for(const gesture of ['present','point','wave']){
+      states.push('pose.'+pose+'+gesture.'+gesture);
+      story.scenes.push({id:'combo-'+story.scenes.length,environment:'env.plain-stage',duration:2,silent:true,narration:'',transition:'cut',camera:{framing:'close',target:'anna'},actors:[{cast:'anna',at:'center',facing:params.get('facing'),pose}],beats:[{do:'gesture',who:'anna',gesture,duration:1.5}]});
+     }
+     fixture.states=states;
+    }
+    if(params.has('speech'))story.scenes=[{id:'speech',environment:'env.plain-stage',duration:3,silent:true,narration:'',camera:{framing:'close',target:'anna'},actors:[{cast:'anna',at:'center',facing:params.get('facing'),pose:'stand'}],beats:[]}];
    }
    if(params.has('environment')){story.scenes[0].environment=params.get('environment');story.scenes[0].variant=params.get('variant');story.scenes[0].beats=[{do:'show',text:'Storymaker',style:'title',at:{x:50,y:15},entry:'none'}];}
    if(entry){
@@ -104,6 +113,7 @@ const server=http.createServer((request,response)=>{
         // Test-only instrumentation observes the real renderer without adding a product diagnostics API.
         if(decoded==='/js/storymaker/player.bundle.js'&&process.argv.includes('--webgl'))contents=Buffer.concat([contents,Buffer.from("\nStorymakerCore.raster.softwareGL = function(){return false;};\n")]);
         if(decoded==='/js/storymaker/player.bundle.js'&&matrix)contents=Buffer.concat([contents,Buffer.from("\n;(function(){const original=StorymakerCore.render.rigState;StorymakerCore.render.rigState=function(state){const result=original.apply(this,arguments);if(state.expression.indexOf('qa-mouth-')===0){result.mouth=state.expression.slice(9);result.expression='neutral';}return result;};})();\n")]);
+        if(decoded==='/js/storymaker/player.bundle.js'&&speech)contents=Buffer.concat([contents,Buffer.from("\n;(function(){const original=StorymakerCore.render.rigState;StorymakerCore.render.rigState=function(){const result=original.apply(this,arguments);result.mouth=['rest','ai','e','o','u','mbp','fv'][Math.floor(arguments[1]*10)%7];return result;};})();\n")]);
         if(decoded==='/js/storymaker/player.bundle.js'&&process.argv.includes('--canvas')&&!baseline)contents=Buffer.concat([contents,Buffer.from("\nStorymakerVendor.WebGLRenderer.prototype.init = async function(){throw new Error('Test: WebGL is unavailable');};\n")]);
         if(decoded==='/js/storymaker/player.bundle.js')contents=Buffer.concat([contents,Buffer.from(`
 ;(function(){for(const name of ['workerPlayer','workerScene']){const p=StorymakerCore[name].Runtime.prototype,original=p.handle;p.handle=async function(m){const result=await original.call(this,m);if((m.type==='render'||m.type==='frame')&&!m.prepareOnly){const d=this.renderers&&Object.values(this.renderers)[0];result.payload.backend=d?(d.renderer instanceof StorymakerVendor.WebGLRenderer?'webgl':'canvas'):'legacy';${process.argv.includes('--loss')?"if(m.n===120&&!this.__lostOnce&&d&&d.renderer.gl){this.__lostOnce=true;d.renderer.gl.getExtension('WEBGL_lose_context').loseContext();}":''}}return result;};}})();
@@ -151,17 +161,32 @@ try{
         fs.writeFileSync(path.join(fixture,'parity-first.png'),Buffer.from(expected,'base64'));fs.writeFileSync(path.join(fixture,'parity-second.png'),Buffer.from(actual,'base64'));
         throw new Error(label+'; saved parity-first.png and parity-second.png');
     };
-    if(matrix){
+    if(speech){
+        assert.ok(selectedCharacter,'--speech needs --character');
+        for(const view of ['front','three_quarter','profile'])for(const facing of ['left','right']){
+            await call('Page.navigate',{url:address+'/?matrix='+encodeURIComponent(selectedCharacter)+'&view='+view+'&facing='+facing+'&speech=1'});await wait(0);
+            const directory=path.join(fixture,'speech-'+selectedCharacter+'-'+view+'-'+facing);fs.mkdirSync(directory,{recursive:true});
+            for(let n=0;n<60;n++)fs.writeFileSync(path.join(directory,String(n).padStart(3,'0')+'.png'),Buffer.from(await capture(n,512,512),'base64'));
+            execFileSync('ffmpeg',['-hide_banner','-loglevel','error','-framerate','30','-i',path.join(directory,'%03d.png'),'-frames:v','60','-c:v','libx264','-pix_fmt','yuv420p','-movflags','+faststart','-y',directory+'.mp4'],{windowsHide:true});
+            console.log(JSON.stringify({character:selectedCharacter,view,facing,frames:60,status:'passed'}));
+        }
+    }else if(matrix){
         const catalog=JSON.parse(fs.readFileSync(path.join(catalogDir,'catalog.json'))),directory=path.join(fixture,'rig-matrix');fs.mkdirSync(directory,{recursive:true});
         const cellSize=selectedCharacter?512:256;
         const characters=catalog.entries.filter(e=>e.kind==='character'&&(!selectedCharacter||e.id===selectedCharacter));
         assert.ok(characters.length,'Unknown matrix character');
         for(const character of characters)for(const view of ['front','three_quarter','profile'])for(const facing of ['left','right']){
-            await call('Page.navigate',{url:address+'/?matrix='+encodeURIComponent(character.id)+'&view='+view+'&facing='+facing});await wait(0);
+            await call('Page.navigate',{url:address+'/?matrix='+encodeURIComponent(character.id)+'&view='+view+'&facing='+facing+(combinations?'&combinations=1':'')});await wait(0);
             const states=await evaluate('fixture.states'),sheet={width:cellSize*6,height:Math.ceil(states.length/6)*cellSize,pixels:Buffer.alloc(cellSize*6*Math.ceil(states.length/6)*cellSize*4)};
             for(let i=0;i<states.length;i++){const bytes=await capture(i*60+18,cellSize,cellSize),png=decodePNG(Buffer.from(bytes,'base64'));for(let y=0;y<cellSize;y++)png.pixels.copy(sheet.pixels,((Math.floor(i/6)*cellSize+y)*sheet.width+(i%6)*cellSize)*4,y*cellSize*4,(y+1)*cellSize*4);if(selectedCharacter&&i<19)fs.writeFileSync(path.join(directory,character.id+'-'+view+'-'+facing+'-'+states[i]+'.png'),Buffer.from(bytes,'base64'));}
             fs.writeFileSync(path.join(directory,character.name+'-'+view+'-'+facing+'.png'),encodePNG(sheet));
             fs.writeFileSync(path.join(directory,character.name+'-'+view+'-'+facing+'.json'),JSON.stringify({states,story:await evaluate('fixture.story')},null,2)+'\n');
+            if(combinations&&view==='three_quarter'&&facing==='right'){
+                const motion=path.join(fixture,'pose-motion');fs.mkdirSync(motion,{recursive:true});
+                const index=states.indexOf('pose.present+gesture.present');assert.ok(index>=0);
+                for(let n=0;n<60;n++)fs.writeFileSync(path.join(motion,String(n).padStart(3,'0')+'.png'),Buffer.from(await capture(index*60+n,512,512),'base64'));
+                execFileSync('ffmpeg',['-hide_banner','-loglevel','error','-framerate','30','-i',path.join(motion,'%03d.png'),'-frames:v','60','-c:v','libx264','-pix_fmt','yuv420p','-movflags','+faststart','-y',path.join(fixture,'pose-present.mp4')],{windowsHide:true});
+            }
             console.log(JSON.stringify({character:character.id,view,facing,states:states.length,status:'passed'}));
         }
     }else if(environments){

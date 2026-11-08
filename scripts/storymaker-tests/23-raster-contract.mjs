@@ -38,10 +38,10 @@ t.check('production catalog: compiler timing stays compatible and every bitmap n
     }
 });
 
-t.check('production provenance: all 122 original masters and their reference relationships verify',()=>{
+t.check('production provenance: all 123 original masters and their reference relationships verify',()=>{
     const production=readJSON('assets/storymaker/production.json'),base=path.join(root,'assets/storymaker');
-    assert.equal(production.schema,'storymaker-production/1');assert.equal(production.images.length,122);
-    const files=new Set(production.images.map(e=>e.file));assert.equal(files.size,122);
+    assert.equal(production.schema,'storymaker-production/1');assert.equal(production.images.length,123);
+    const files=new Set(production.images.map(e=>e.file));assert.equal(files.size,123);
     const originals=fs.readdirSync(path.join(base,'masters'),{recursive:true}).filter(file=>file.endsWith('.png')&&!file.startsWith('previews'+path.sep)).map(file=>'masters/'+file.replaceAll(path.sep,'/'));
     assert.deepEqual(new Set(originals),files,'Every retained original needs a production record');
     for(const source of production.images){
