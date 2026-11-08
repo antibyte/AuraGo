@@ -510,6 +510,7 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 		if os.Getenv("AURAGO_MINIGOLF_ALL_COURSES") != "1" && course.Number != finale[course.World] {
 			continue
 		}
+		t.Logf("loading practice course %s", course.ID)
 		openHoles()
 		if !introChecked {
 			layoutOK("holes 1280")
@@ -633,6 +634,7 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 
 	// Layout of the five screens at the phone and the desktop width, each shot for review.
 	layoutPass := func(width int) {
+		t.Logf("checking panel navigation at %dpx", width)
 		label := fmt.Sprint(width)
 		page.MustSetViewport(width, 760, 1, width < 600)
 		settle()
@@ -671,7 +673,13 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 		}
 		page.MustElement(`.mg-panel [data-action="back"]`).MustClick()
 		page.MustWait(`()=>golfFixture.inspect().menuStep==='holes'`)
-		page.MustElement(`.mg-step-head [data-action="back"]`).MustClick()
+		back, err := page.Timeout(10 * time.Second).Element(`.mg-step-head [data-action="back"]`)
+		if err == nil {
+			err = back.Click(proto.InputMouseButtonLeft, 1)
+		}
+		if err != nil {
+			t.Fatalf("return from holes at %dpx: %v; state=%s", width, err, page.MustEval(`()=>JSON.stringify({state:golfFixture.inspect(),buttons:[...document.querySelectorAll('.mg-step-head [data-action=back]')].map(e=>{const r=e.getBoundingClientRect();return {rect:r,disabled:e.disabled,hit:document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.outerHTML}})})`).Str())
+		}
 		page.MustWait(`()=>golfFixture.inspect().menuStep==='home'`)
 		page.MustElement(`[data-action="resume"]`).MustClick()
 		page.Timeout(30 * time.Second).MustWait(`()=>!golfFixture.inspect().loading&&golfFixture.inspect().panel===''`)
