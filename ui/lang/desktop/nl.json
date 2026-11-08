@@ -11494,5 +11494,6 @@
   "codeStudio.nextProblem": "Volgend probleem",
   "synthStudio.master_level": "Masterniveau",
   "synthStudio.eq_curve": "EQ-frequentierespons",
-  "synthStudio.filter_curve": "Frequentierespons van het filter"
+  "synthStudio.filter_curve": "Frequentierespons van het filter",
+  "synthStudio.env_shape": "Vorm van de envelope"
 }

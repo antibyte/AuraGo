@@ -238,10 +238,10 @@
             { key: "filterDecay", type: "range", min: 0.04, max: 2.5, step: 0.01, labelKey: "param_filter_decay" }
         ] },
         { labelKey: "grp_envelope", fields: [
-            { key: "attack", type: "range", min: 0, max: 4, step: 0.005, labelKey: "attack" },
-            { key: "decay", type: "range", min: 0.01, max: 6, step: 0.01, labelKey: "param_decay" },
-            { key: "sustain", type: "range", min: 0, max: 1.2, step: 0.005, labelKey: "param_sustain" },
-            { key: "release", type: "range", min: 0.02, max: 6, step: 0.01, labelKey: "release" }
+            { key: "attack", type: "range", kind: "vfader", min: 0, max: 4, step: 0.005, labelKey: "attack" },
+            { key: "decay", type: "range", kind: "vfader", min: 0.01, max: 6, step: 0.01, labelKey: "param_decay" },
+            { key: "sustain", type: "range", kind: "vfader", min: 0, max: 1.2, step: 0.005, labelKey: "param_sustain" },
+            { key: "release", type: "range", kind: "vfader", min: 0.02, max: 6, step: 0.01, labelKey: "release" }
         ] },
         { labelKey: "grp_pitch", fields: [
             { key: "pitchEnv", type: "range", min: 0.25, max: 4, step: 0.01, labelKey: "param_pitch_env" },
@@ -304,12 +304,15 @@
         const curves = root.SynthStudioCurves;
         function curveMarkup(group) {
             if (!curves) return "";
-            return group.labelKey === "grp_filter" ? curves.filterMarkup(esc(tr("filter_curve"))) : "";
+            if (group.labelKey === "grp_filter") return curves.filterMarkup(esc(tr("filter_curve")));
+            if (group.labelKey === "grp_envelope") return curves.adsrMarkup(esc(tr("env_shape")));
+            return "";
         }
         function paintCurves() {
             if (!curves) return;
             const p = state.patch;
             curves.paintFilter(host.querySelector("[data-curve=filter]"), p.filterType, p.cutoff, p.filterQ);
+            curves.paintAdsr(host.querySelector("[data-curve=adsr]"), p.attack, p.decay, p.sustain, p.release);
         }
         const schedulePaint = curves ? curves.scheduler(paintCurves) : () => {};
 
@@ -326,7 +329,8 @@
                 const inLfo = field.key.includes(".");
                 return `<label class="ss-designer-field"><span>${label}</span><select data-designer-param="${esc(field.key)}" aria-label="${label}">${body}</select></label>`;
             }
-            return `<label class="ss-designer-field"><span>${label}</span><input data-designer-param="${esc(field.key)}" type="range" min="${field.min}" max="${field.max}" step="${field.step}" value="${value}" aria-label="${label}"><output>${Number(value).toFixed(2)}</output></label>`;
+            const fader = field.kind === "vfader" ? ` data-ss-kind="vfader" data-ss-default="${DEFAULT_PATCH[field.key]}"` : "";
+            return `<label class="ss-designer-field"><span>${label}</span><input data-designer-param="${esc(field.key)}"${fader} type="range" min="${field.min}" max="${field.max}" step="${field.step}" value="${value}" aria-label="${label}"><output>${Number(value).toFixed(2)}</output></label>`;
         }
         function render() {
             const disabled = options.blocked && options.blocked();

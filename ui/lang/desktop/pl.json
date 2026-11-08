@@ -11494,5 +11494,6 @@
   "codeStudio.nextProblem": "Następny problem",
   "synthStudio.master_level": "Poziom master",
   "synthStudio.eq_curve": "Charakterystyka częstotliwościowa EQ",
-  "synthStudio.filter_curve": "Charakterystyka częstotliwościowa filtra"
+  "synthStudio.filter_curve": "Charakterystyka częstotliwościowa filtra",
+  "synthStudio.env_shape": "Kształt obwiedni"
 }

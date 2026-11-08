@@ -11494,5 +11494,6 @@
   "codeStudio.nextProblem": "Problema successivo",
   "synthStudio.master_level": "Livello master",
   "synthStudio.eq_curve": "Risposta in frequenza dell'EQ",
-  "synthStudio.filter_curve": "Risposta in frequenza del filtro"
+  "synthStudio.filter_curve": "Risposta in frequenza del filtro",
+  "synthStudio.env_shape": "Forma dell'inviluppo"
 }

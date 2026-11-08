@@ -18,6 +18,12 @@
         const span = spec.max - spec.min;
         return span > 0 ? clamp((value - spec.min) / span, 0, 1) : 0;
     }
+    // Where a pointer sits on a fader track, 0..1. The thumb centre travels
+    // `length - thumb`; `invert` makes the far end the minimum (vertical faders).
+    function trackFraction(pos, start, length, thumb, invert) {
+        const f = clamp((pos - start - thumb / 2) / Math.max(1, length - thumb), 0, 1);
+        return invert ? 1 - f : f;
+    }
     function angle(f) { return START + (END - START) * f; }
     function polar(deg) {
         const rad = (deg - 90) * Math.PI / 180;
@@ -60,8 +66,8 @@
 
     function bind(input, dial, kind) {
         let drag = null, wheelTimer = 0;
-        const horizontal = kind === 'hfader';
-        const thumb = () => (dial.querySelector('.ss-ctl-thumb') || {}).offsetWidth || 14;
+        const horizontal = kind === 'hfader', vertical = kind === 'vfader';
+        const thumb = () => (dial.querySelector('.ss-ctl-thumb') || {})[vertical ? 'offsetHeight' : 'offsetWidth'] || 14;
         const set = value => {
             const next = snap(value, spec(input));
             if (next === Number(input.value)) return;
@@ -76,9 +82,11 @@
             try { dial.setPointerCapture(event.pointerId); } catch (_) { /* synthetic pointer ids */ }
             input.focus({ preventScroll: true });
             fakeDown(event.pointerId);
-            if (horizontal) {
+            if (horizontal || vertical) {
                 const rect = dial.getBoundingClientRect(), s = spec(input);
-                const f = clamp((event.clientX - rect.left - thumb() / 2) / Math.max(1, rect.width - thumb()), 0, 1);
+                const f = horizontal
+                    ? trackFraction(event.clientX, rect.left, rect.width, thumb(), false)
+                    : trackFraction(event.clientY, rect.top, rect.height, thumb(), true);
                 set(s.min + f * (s.max - s.min));
             }
             drag = { x: event.clientX, y: event.clientY, value: Number(input.value) };
@@ -87,7 +95,7 @@
         dial.addEventListener('pointermove', event => {
             if (!drag) return;
             const delta = horizontal ? event.clientX - drag.x : drag.y - event.clientY;
-            const pixels = horizontal ? Math.max(40, dial.clientWidth - thumb()) : 160;
+            const pixels = horizontal ? Math.max(40, dial.clientWidth - thumb()) : vertical ? Math.max(40, dial.clientHeight - thumb()) : 160;
             set(dragValue(drag.value, delta, pixels, spec(input), event.shiftKey));
         });
         dial.addEventListener('pointerup', () => {
@@ -115,9 +123,17 @@
                 window.dispatchEvent(new PointerEvent('pointerup'));
             }, 250);
         }, { passive: false });
+        // Double click resets: through the row's reset button when it has one,
+        // otherwise to the control's declared default (the designer faders).
         dial.addEventListener('dblclick', () => {
             const reset = input.closest('label')?.querySelector('[data-reset-param]');
-            if (reset && !reset.disabled) reset.click();
+            if (reset) { if (!reset.disabled) reset.click(); return; }
+            const fallback = Number(input.dataset.ssDefault);
+            if (input.dataset.ssDefault === undefined || input.disabled || !Number.isFinite(fallback)) return;
+            fakeDown(1);
+            set(fallback);
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+            window.dispatchEvent(new PointerEvent('pointerup'));
         });
     }
 
@@ -131,7 +147,7 @@
         dial.setAttribute('aria-hidden', 'true');
         dial.innerHTML = kind === 'knob'
             ? '<svg viewBox="0 0 56 56"><path class="ss-ctl-groove" d="' + arcPath(0, 1) + '"/><path class="ss-ctl-arc" d=""/></svg><span class="ss-ctl-cap"></span>'
-            : '<span class="ss-ctl-groove-h"></span><span class="ss-ctl-fill"></span><span class="ss-ctl-thumb"></span>';
+            : '<span class="ss-ctl-groove-' + (kind === 'vfader' ? 'v' : 'h') + '"></span><span class="ss-ctl-fill"></span><span class="ss-ctl-thumb"></span>';
         input.after(dial);
         paint(input, dial);
         bind(input, dial, kind);
@@ -162,5 +178,5 @@
         return observer;
     }
 
-    window.SynthStudioControls = { KNOB_SELECTOR, snap, fraction, angle, arcPath, dragValue, kindFor, upgrade, upgradeAll, sync, observe };
+    window.SynthStudioControls = { KNOB_SELECTOR, snap, fraction, trackFraction, angle, arcPath, dragValue, kindFor, upgrade, upgradeAll, sync, observe };
 })();

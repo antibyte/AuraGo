@@ -11494,5 +11494,6 @@
   "codeStudio.nextProblem": "Nächstes Problem",
   "synthStudio.master_level": "Master-Pegel",
   "synthStudio.eq_curve": "EQ-Frequenzgang",
-  "synthStudio.filter_curve": "Filter-Frequenzgang"
+  "synthStudio.filter_curve": "Filter-Frequenzgang",
+  "synthStudio.env_shape": "Hüllkurvenform"
 }

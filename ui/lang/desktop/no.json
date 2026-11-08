@@ -11494,5 +11494,6 @@
   "codeStudio.nextProblem": "Neste problem",
   "synthStudio.master_level": "Masternivå",
   "synthStudio.eq_curve": "EQ-frekvensrespons",
-  "synthStudio.filter_curve": "Filterets frekvensrespons"
+  "synthStudio.filter_curve": "Filterets frekvensrespons",
+  "synthStudio.env_shape": "Envelopeform"
 }

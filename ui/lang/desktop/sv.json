@@ -11494,5 +11494,6 @@
   "codeStudio.nextProblem": "Nästa problem",
   "synthStudio.master_level": "Masternivå",
   "synthStudio.eq_curve": "EQ-frekvenssvar",
-  "synthStudio.filter_curve": "Filtrets frekvenssvar"
+  "synthStudio.filter_curve": "Filtrets frekvenssvar",
+  "synthStudio.env_shape": "Envelopform"
 }

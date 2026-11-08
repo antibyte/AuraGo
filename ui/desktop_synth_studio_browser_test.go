@@ -227,6 +227,32 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 	page.MustElement(".ss-inspector [data-action=design]").MustClick()
 	check("designer opens the full parameter surface", `()=>document.querySelectorAll('.ss-designer [data-designer-param]').length>=30&&document.querySelectorAll('.ss-designer-group').length===7&&!SynthStudioPresets.presets.some(p=>p.id==='user-preview')`)
 	check("designer filter curve is drawn and follows type and cutoff", `()=>new Promise(r=>{const g=()=>document.querySelector('[data-designer] [data-curve=filter] .ss-curve-line').getAttribute('d'),before=g(),t=document.querySelector('[data-designer-param=filterType]');t.value='highpass';t.dispatchEvent(new Event('input',{bubbles:true}));requestAnimationFrame(()=>requestAnimationFrame(()=>{const after=g();const m=document.querySelector('[data-curve=filter] .ss-curve-marker'),x1=m.getAttribute('x1');const c=document.querySelector('[data-designer-param=cutoff]');c.value=.2;c.dispatchEvent(new Event('input',{bubbles:true}));requestAnimationFrame(()=>requestAnimationFrame(()=>r(before.length>100&&after!==before&&m.getAttribute('x1')!==x1&&!/NaN/.test(g()))));}));})`)
+	check("designer envelope is four vertical faders with a shape preview", `()=>['attack','decay','sustain','release'].every(k=>{const e=document.querySelector('[data-designer-param='+k+']');return e.dataset.ssCtl==='vfader'&&e.nextElementSibling?.classList.contains('ss-ctl-vfader')&&e.nextElementSibling.getBoundingClientRect().height>=100})&&document.querySelector('[data-designer] [data-curve=adsr] .ss-curve-line').getAttribute('d').length>20`)
+	page.MustEval(`()=>{document.querySelector('[data-designer-param=sustain] + .ss-ctl-vfader').scrollIntoView({block:'center'});window.vfLog={input:0,change:0,project:JSON.stringify(synthInstance().project()),shape:document.querySelector('[data-curve=adsr] .ss-curve-line').getAttribute('d'),start:Number(document.querySelector('[data-designer-param=sustain]').value)};const e=document.querySelector('[data-designer-param=sustain]');e.addEventListener('input',()=>vfLog.input++);e.addEventListener('change',()=>vfLog.change++);}`)
+	vf := page.MustElement("[data-designer-param=sustain] + .ss-ctl-vfader").MustShape().Box()
+	vx, vy := vf.X+vf.Width/2, vf.Y+vf.Height/2
+	vdy := -30.0
+	if page.MustEval(`()=>vfLog.start`).Num() > 0.6 {
+		vdy = 30.0
+	}
+	page.Mouse.MustMoveTo(vx, vy)
+	page.Mouse.MustDown(proto.InputMouseButtonLeft)
+	page.Mouse.MustMoveTo(vx, vy+vdy/2)
+	page.Mouse.MustMoveTo(vx, vy+vdy)
+	page.Mouse.MustUp(proto.InputMouseButtonLeft)
+	check("dragging a vertical fader moves the draft value, one change per drag", `()=>{const e=document.querySelector('[data-designer-param=sustain]');return Math.abs(Number(e.value)-vfLog.start)>.05&&vfLog.input>=2&&vfLog.change===1&&Math.abs(parseFloat(e.nextElementSibling.style.getPropertyValue("--ss-f"))-Number(e.value)/1.2)<.02&&document.querySelector('[data-curve=adsr] .ss-curve-line').getAttribute('d')!==vfLog.shape}`)
+	check("the designer draft is not a project undo step", `()=>JSON.stringify(synthInstance().project())===vfLog.project`)
+	page.MustEval(`()=>document.querySelector('[data-designer-param=sustain] + .ss-ctl-vfader').dispatchEvent(new MouseEvent('dblclick',{bubbles:true}))`)
+	check("double click resets a vertical fader to its default", `()=>Number(document.querySelector('[data-designer-param=sustain]').value)===0.65`)
+	page.MustEval(`()=>{window.relBefore=Number(document.querySelector("[data-designer-param=release]").value)}`)
+	page.MustElement("[data-designer-param=release]").MustFocus()
+	for _, kind := range []proto.InputDispatchKeyEventType{proto.InputDispatchKeyEventTypeKeyDown, proto.InputDispatchKeyEventTypeKeyUp} {
+		if err := (proto.InputDispatchKeyEvent{Type: kind, Key: "ArrowUp", Code: "ArrowUp", WindowsVirtualKeyCode: 38}).Call(page); err != nil {
+			t.Fatal(err)
+		}
+	}
+	check("arrow keys move a vertical fader", `()=>Number(document.querySelector("[data-designer-param=release]").value)>relBefore`)
+	check("the mouse wheel moves the focused vertical fader", `()=>{const e=document.querySelector('[data-designer-param=release]'),before=Number(e.value);e.focus();e.nextElementSibling.dispatchEvent(new WheelEvent('wheel',{deltaY:-100,bubbles:true,cancelable:true}));return Number(e.value)>before}`)
 	page.MustEval(`()=>{const e=document.querySelector('[data-designer-param=level]');e.value=1.5;e.dispatchEvent(new Event('input',{bubbles:true}));}`)
 	check("parameter change drives the preview instrument", `()=>SynthStudioPresets.get('user-preview')&&SynthStudioPresets.get('user-preview').patch.level===1.5`)
 	page.MustElement("[data-designer-action=saveAs]").MustClick()

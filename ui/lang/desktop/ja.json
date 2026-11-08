@@ -11494,5 +11494,6 @@
   "codeStudio.nextProblem": "次の問題",
   "synthStudio.master_level": "マスターレベル",
   "synthStudio.eq_curve": "EQの周波数特性",
-  "synthStudio.filter_curve": "フィルターの周波数特性"
+  "synthStudio.filter_curve": "フィルターの周波数特性",
+  "synthStudio.env_shape": "エンベロープの形"
 }
