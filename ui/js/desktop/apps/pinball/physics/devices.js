@@ -383,7 +383,7 @@ export function createDevices(defs, ctx) {
     }
 
     ctx.deliverToHole = (ball, holeId) => { const h = holes.get(holeId); return h ? h.accept(ball) : false; };
-    ctx.diverterOn = id => { const d = diverters.get(id); return d ? d.on : false; };
+    ctx.diverterOn = id => { const d = diverters.get(id); return d ? d.on : undefined; };
 
     return {
         ids: (defs || []).map(d => d.id),

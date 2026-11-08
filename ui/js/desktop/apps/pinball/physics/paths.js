@@ -110,7 +110,7 @@ export function createPaths(defs, ctx) {
         S.x = P.xs[lo] + ddx * f; S.y = P.ys[lo] + ddy * f; S.h = P.hs[lo] + ddh * f;
         S.tx = ddx / seg; S.ty = ddy / seg; S.th = ddh / seg;
     }
-    const diverterOn = id => (ctx && typeof ctx.diverterOn === 'function') ? !!ctx.diverterOn(id) : !!divState.get(id);
+    const diverterOn = id => { const v = ctx && typeof ctx.diverterOn === 'function' ? ctx.diverterOn(id) : undefined; return v === undefined ? !!divState.get(id) : !!v; };
 
     function sync(ball, st, P) {
         lookup(P, st.s);
