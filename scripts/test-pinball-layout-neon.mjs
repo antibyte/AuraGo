@@ -27,10 +27,11 @@ const has = (events, type, id) => events.some(e => e.type === type && (id === un
 
 test('the neon layout validates and keeps the agreed ids', () => {
     assert.deepEqual(validateTable(TABLES.neon).errors, []);
-    assert.deepEqual(layout.shots.map(s => s.id), ['leftOrbit', 'leftRamp', 'vault', 'core', 'rightRamp', 'rightOrbit']);
+    assert.deepEqual(layout.shots.map(s => s.id), ['leftOrbit', 'leftRamp', 'vault', 'core', 'rightRamp', 'rightOrbit', 'uplink']);
     for (const id of ['flCore', 'flVault', 'flLeftRamp', 'flRightRamp', 'flPops']) assert.ok(layout.flashers.some(f => f.id === id), id);
     assert.ok(layout.lamps.length >= 70 && layout.lamps.length <= 100, 'lamp count ' + layout.lamps.length);
     assert.equal(layout.flippers.length, 3);
+    for (const id of ['uplinkU', 'uplinkP', 'uplinkL']) assert.ok(layout.devices.some(d => d.id === id && d.type === 'standup') && layout.lamps.some(l => l.id === id), id);
 });
 
 test('leftRamp at 3.5 m/s reaches the right flipper area within 2 s', () => {
@@ -84,6 +85,26 @@ test('the vault captures a ball through the dropped bank, and not through the ra
     w.placeBall(1, base[0], base[1], -n[0] * 1.8, -n[1] * 1.8);
     r = play(w, 1.2);
     assert.ok(!has(r.events, 'hole', 'vault') && has(r.events, 'drop'), 'bank hit instead');
+});
+
+test('the upper flipper reaches all three UPLINK targets', () => {
+    const f = layout.flippers.find(x => x.id === 'upperRight'), rest = -Math.PI / 6;
+    const mx = f.x + f.side * f.length / 2 * Math.cos(rest), my = f.y + f.length / 2 * Math.sin(rest);
+    const got = new Set();
+    for (let delay = 60; delay <= 125; delay++) {
+        const w = fresh();
+        w.placeBall(1, mx, my + 0.06, 0, 0);
+        for (let t = 0; t < Math.round(3 / STEP) + delay; t++) {
+            w.step({ right: t >= delay });
+            let drained = false;
+            for (const ev of w.events()) {
+                if (ev.type === 'standup' && ev.id.startsWith('uplink')) got.add(ev.id);
+                if (ev.type === 'drain') drained = true;
+            }
+            if (drained) break;
+        }
+    }
+    assert.deepEqual([...got].sort(), ['uplinkL', 'uplinkP', 'uplinkU']);
 });
 
 console.log('layout-neon ok (' + passed + ' tests)');

@@ -3,6 +3,8 @@
 // Pure and deterministic: all randomness comes from ctx.rng, all output goes through ctx.
 const LETTERS = ['neonN', 'neonE', 'neonO', 'neonN2'];
 const FW = ['fw1', 'fw2', 'fw3'];
+const UPLINK = ['uplinkU', 'uplinkP', 'uplinkL'];
+const UPLINK_SCORE = 250000, UPLINK_REPEAT = 500000, UPLINK_MODE_SECONDS = 10;
 const SPIN_RELIGHT = 10;
 const SHOT_BONUS = { leftRamp: 'ramps', rightRamp: 'ramps', leftOrbit: 'orbits', rightOrbit: 'orbits' };
 const SHOT_FLASH = { core: 'flCore', vault: 'flVault', leftRamp: 'flLeftRamp', rightRamp: 'flRightRamp' };
@@ -31,6 +33,29 @@ function onStandup(ctx, t, id) {
     else if (t.neon === 3) ctx.lightKickback();
     big(ctx, 'dmd_neon_letters');
     ctx.show('sparkle', { ms: 1200 });
+}
+
+// U-P-L: the upper flipper's targets. Every completion pays 250k. Level 1 also lights the extra ball (500k more if it is
+// already lit), later levels pay 500k more;
+// a running mode gets 10 s more, Gridlock multiball re-lights every jackpot.
+function onUplink(ctx, t, id) {
+    const i = UPLINK.indexOf(id);
+    if (i < 0) return;
+    ctx.flash('flPops', 200);
+    t.up[i] = 1;
+    if (!t.up.every(Boolean)) return;
+    t.up = [0, 0, 0];
+    t.uplink++;
+    const g = ctx.game;
+    let value = UPLINK_SCORE;
+    if (t.uplink === 1 && !ctx.player.ebLit) ctx.lightExtraBall();
+    else value += UPLINK_REPEAT;
+    ctx.score(value);
+    if (g.mode.id) g.mode.until += UPLINK_MODE_SECONDS;
+    if (ctx.mbActive()) g.mb.litShots = [...(ctx.table.rules.multiball?.jackpotShots || [])];
+    ctx.dmd('big', { text: 'UPLINK', score: value, vars: {} }, 1600, 7);
+    ctx.cue('combo');
+    ctx.show('sweepUp', { ms: 900 });
 }
 
 function onFirewall(ctx) {
@@ -64,6 +89,7 @@ function onEvent(ctx, ev) {
         break;
     case 'standup':
         onStandup(ctx, t, ev.id);
+        onUplink(ctx, t, ev.id);
         break;
     case 'spinner':
         if (ctx.game.mode.id === 'chase') ctx.score(4000);
@@ -85,6 +111,9 @@ function lamps(ctx, set) {
     const p = ctx.player, t = p.table, g = ctx.game;
     FW.forEach((id, i) => set(id, p.lockLit ? 'slow' : (t.fw[i] ? 'on' : 'off')));
     LETTERS.forEach((id, i) => set(id, t.letters[i] ? 'on' : 'off'));
+    // The bank pays out in modes and multiball: its unlit letters blink slowly then.
+    const hot = g.mode.id || g.mb.state !== 'off';
+    UPLINK.forEach((id, i) => set(id, t.up[i] ? 'on' : hot ? 'slow' : 'off'));
     set('spinnerLit', g.mode.id === 'chase' ? 'on' : 'off');
 }
 
@@ -135,7 +164,7 @@ export const rules = {
     combos: { window: 3.0, base: 100000 },
     replay: 40000000,
     hooks: {
-        init: () => ({ letters: [0, 0, 0, 0], neon: 0, spins: 0, fw: [0, 0, 0], ebModes: false, mb: false }),
+        init: () => ({ letters: [0, 0, 0, 0], neon: 0, up: [0, 0, 0], uplink: 0, spins: 0, fw: [0, 0, 0], ebModes: false, mb: false }),
         onBallStart(ctx) {
             const t = ctx.player.table;
             t.mb = false; t.fw = [0, 0, 0];

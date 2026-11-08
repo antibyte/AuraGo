@@ -4,7 +4,7 @@ import { composeLayout } from '../kit/compose.js';
 import { shell, leftChannel, rightChannel } from '../kit/shell.js';
 import { lowerKit, CX } from '../kit/lower.js';
 import { wall, post } from '../kit/geom.js';
-import { neonLamps, neonFlashers, neonGI } from './lamps.js';
+import { neonLamps, neonFlashers, neonGI, UPLINK, UPLINK_ANGLE } from './lamps.js';
 
 const PINK = '#ff48c4', CYAN = '#37d9ff', VIOLET = '#a98bff';
 // Paths that are only entered from another path or a hole must never catch a field ball.
@@ -12,6 +12,11 @@ const CHAINED = 99;
 const FW_ANGLE = Math.atan2(-0.906, 0.423);
 
 const standup = (id, x, y) => ({ id, type: 'standup', x, y, angle: Math.atan2(0.20 - y, CX - x), width: 0.020 });
+
+// UPLINK: three 45-degree standups on the inner face of the left orbit guide, facing the upper right flipper's cross-top shots.
+function uplink() {
+    return { devices: UPLINK.map(([id, x, y]) => ({ id, type: 'standup', x, y, angle: UPLINK_ANGLE, width: 0.020 })) };
+}
 
 function topArea() {
     const guides = [-0.0675, -0.0225, 0.0225, 0.0675].map((x, i) => wall('laneGuide' + (i + 1), 'metal', [[x, 0.905], [x, 0.955]]));
@@ -90,8 +95,8 @@ export const layout = composeLayout(
     } },
     shell(),
     lowerKit({ cx: CX, kickback: 'left' }),
-    topArea(), dataCore(), firewall(), orbitsAndRamps(),
-    { allowGaps: [['firewall', 'vaultWall']] },
+    topArea(), uplink(), dataCore(), firewall(), orbitsAndRamps(),
+    { allowGaps: [['firewall', 'vaultWall'], ['chanL_roof', 'uplinkL']] }, // the L target's lower end is 20 mm from the roof, too narrow for a ball
     {
         flippers: [{ id: 'upperRight', key: 'right', x: 0.170, y: 0.780, side: -1, length: 0.050 }],
         devices: [
@@ -104,7 +109,8 @@ export const layout = composeLayout(
             { id: 'vault', on: 'hole:vault', combo: true, setup: [{ type: 'dropBank', id: 'firewall' }] },
             { id: 'core', on: 'hole:dataCore', combo: true, setup: [] },
             { id: 'rightRamp', on: 'pathMade:rightRamp', combo: true, bonus: 'ramps', setup: [] },
-            { id: 'rightOrbit', on: 'trigger:rightOrbitUp@1', combo: true, bonus: 'orbits', setup: [] }
+            { id: 'rightOrbit', on: 'trigger:rightOrbitUp@1', combo: true, bonus: 'orbits', setup: [] },
+            { id: 'uplink', on: 'standup:uplinkP', setup: [] }
         ],
         lamps: neonLamps(), flashers: neonFlashers(), gi: neonGI(),
         toys: [

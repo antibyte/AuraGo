@@ -5,6 +5,9 @@ import { STEP, BALL_R, FLIPPER } from '../ui/js/desktop/apps/pinball/physics/con
 import { lerpSnapshot } from '../ui/js/desktop/apps/pinball/physics/snapshot.js';
 import { rngNext } from '../ui/js/desktop/apps/pinball/config.js';
 import { TABLES } from '../ui/js/desktop/apps/pinball/tables/index.js';
+import { composeLayout } from '../ui/js/desktop/apps/pinball/tables/kit/compose.js';
+import { shell } from '../ui/js/desktop/apps/pinball/tables/kit/shell.js';
+import { lowerKit, CX } from '../ui/js/desktop/apps/pinball/tables/kit/lower.js';
 import { run, runFrames, energy, outline, crossesWall } from './lib/pinball-sim.mjs';
 
 const neon = TABLES.neon.layout, cx = neon.meta.cx;
@@ -53,12 +56,14 @@ function distSeg(px, py, s) {
     return Math.hypot(px - s.a[0] - t * dx, py - s.a[1] - t * dy);
 }
 
-// 2. Passive energy never increases (50 seeded balls, 2 s, Neon with unpressed flippers).
+// 2. Passive energy never increases (50 seeded balls, 2 s, shell + lower kit with unpressed flippers). Passive surfaces only:
+// no holes, pops or paths, whose ejects are legitimate energy sources.
 {
+    const passive = composeLayout({ id: 'passive', version: 1, meta: { cx: CX, troughSize: 4 } }, shell(), lowerKit({ cx: CX, kickback: 'left' }));
     const rng = { seed: 99 };
     let ticks = 0;
     for (let n = 0; n < 50; n++) {
-        const w = createWorld(neon, { seed: n + 1 });
+        const w = createWorld(passive, { seed: n + 1 });
         w.command({ type: 'coils', on: false }); // passive: slings and bumpers must not kick
         const a = rngNext(rng) * Math.PI * 2, v = 0.5 + rngNext(rng) * 3;
         w.placeBall(1, -0.15 + rngNext(rng) * 0.3, 0.25 + rngNext(rng) * 0.45, v * Math.cos(a), v * Math.sin(a));

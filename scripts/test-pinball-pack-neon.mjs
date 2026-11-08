@@ -10,12 +10,13 @@ const shots = [
     { id: 'vault', on: 'hole:vault' },
     { id: 'core', on: 'hole:dataCore' },
     { id: 'rightRamp', on: 'pathMade:rightRamp', combo: true, bonus: 'ramps' },
-    { id: 'rightOrbit', on: 'trigger:rightOrbitUp@1', combo: true, bonus: 'orbits' }
+    { id: 'rightOrbit', on: 'trigger:rightOrbitUp@1', combo: true, bonus: 'orbits' },
+    { id: 'uplink', on: 'standup:uplinkP' }
 ];
 const lampIds = [
     'shootAgain', 'bonus2x', 'bonus3x', 'bonus4x', 'bonus5x', 'laneT1', 'laneT2', 'laneT3', 'inlaneL', 'outlaneL', 'inlaneR', 'outlaneR',
     'kickbackL', 'extraBall', 'lockLit', 'lock1', 'lock2', 'lock3', 'modeStart', 'wizard', 'superJackpot', 'fw1', 'fw2', 'fw3',
-    'neonN', 'neonE', 'neonO', 'neonN2', 'spinnerLit', ...rules.modes.map(m => 'mode_' + m.id),
+    'neonN', 'neonE', 'neonO', 'neonN2', 'uplinkU', 'uplinkP', 'uplinkL', 'arrow_uplink', 'spinnerLit', ...rules.modes.map(m => 'mode_' + m.id),
     ...shots.flatMap(s => ['arrow_' + s.id, 'jp_' + s.id, 'combo_' + s.id])
 ];
 const layout = { id: 'neon', shots, lamps: lampIds.map((id, i) => ({ id, x: i * 0.01, y: 0.5 })) };
@@ -162,6 +163,37 @@ const gridlock = () => {
     assert.equal(toyState(m).vault, 0);
     m.mb.state = 'wizard';
     assert.equal(toyState(m).spire.speed, 6);
+}
+
+// 7. UPLINK: U-P-L pays 250k and lights the extra ball once, then 500k more per completion; modes get 10 s, multiball re-lights jackpots
+{
+    const g = play(mk());
+    const upl = () => ['uplinkU', 'uplinkP', 'uplinkL'].forEach(id => ev(g, 'standup', id));
+    ev(g, 'standup', 'uplinkP');
+    assert.equal(lamp(g, 'uplinkP'), LAMP_MODES.on);
+    assert.equal(lamp(g, 'uplinkU'), LAMP_MODES.off);
+    take(g);
+    let s = P(g).score;
+    ev(g, 'standup', 'uplinkU'); ev(g, 'standup', 'uplinkL');
+    const q = take(g);
+    assert.equal(P(g).score - s, 2 * 5010 + 250000, 'level 1 pays 250k over the target points');
+    assert.equal(P(g).ebLit, true);
+    assert.ok(q.some(c => c.type === 'dmd' && c.scene === 'big' && c.params.text === 'UPLINK' && c.params.score === 250000));
+    assert.ok(q.some(c => c.type === 'cue' && c.name === 'combo'));
+    assert.equal(lamp(g, 'uplinkU'), LAMP_MODES.off, 'the letters reset');
+    s = P(g).score;
+    upl();
+    assert.equal(P(g).score - s, 3 * 5010 + 250000 + 500000, 'level 2 adds 500k');
+    g.mode = { id: 'hack', until: 40, count: 0, target: 0, moveAt: 0, total: 0 };
+    assert.equal(lamp(g, 'uplinkU'), LAMP_MODES.slow, 'unlit letters blink during a mode');
+    upl();
+    assert.equal(g.mode.until, 50, 'a running mode gets 10 s');
+}
+{
+    const { g } = gridlock();
+    g.mb.litShots = ['core'];
+    ['uplinkU', 'uplinkP', 'uplinkL'].forEach(id => handle(g, { type: 'standup', id, ball: g.balls.ids[0] }));
+    assert.deepEqual(g.mb.litShots, ['leftRamp', 'rightRamp', 'leftOrbit', 'rightOrbit']);
 }
 
 console.log('pinball neon pack tests ok');

@@ -12,6 +12,11 @@ const STACKS = [
     ['rightOrbit', [0.2055, 0.640], [0.2055, 0.615], [0.2, 0.595], C.cyan, 0]
 ];
 
+// UPLINK standups on the inner face of the left orbit guide, tilted 45 degrees to face the upper flipper's shots down the
+// corridor. 42.4 mm apart in y, so the parallel faces are 30 mm apart. [id, x, y, letter]; the upper end of each face touches the guide, and the top one meets the arc joint.
+export const UPLINK_ANGLE = Math.PI / 4;
+export const UPLINK = [['uplinkU', 0.8056, 'U'], ['uplinkP', 0.7632, 'P'], ['uplinkL', 0.7208, 'L']].map(([id, y, ch]) => [id, -0.2215 + 0.01 * Math.sin(UPLINK_ANGLE) + 0.001, y, ch]);
+
 export function neonLamps() {
     const L = [];
     const add = (id, x, y, shape, w, h, color, extra = {}) => L.push({ id, x, y, shape, w, h, angle: 0, color, mount: 'insert', ...extra });
@@ -39,6 +44,10 @@ export function neonLamps() {
     [['neonN', -0.100, 0.549], ['neonE', -0.064, 0.609], ['neonO', 0.064, 0.609], ['neonN2', 0.068, 0.549]].forEach(([id, x, y]) =>
         add(id, x, y, 'circle', 0.014, 0.014, C.cyan, { group: 'neon', text: id === 'neonN2' ? 'N' : id.slice(4) }));
     [-0.045, 0, 0.045].forEach((x, i) => add('laneT' + (i + 1), x, 0.930, 'circle', 0.016, 0.016, C.amber, { device: 'laneT' + (i + 1), group: 'topLanes' }));
+    // UPLINK: letters in front of the three standups on the left orbit guide, arrow above them.
+    const ux = Math.cos(UPLINK_ANGLE), uy = Math.sin(UPLINK_ANGLE);
+    UPLINK.forEach(([id, x, y, ch]) => add(id, x + 0.024 * ux, y + 0.024 * uy, 'circle', 0.014, 0.014, C.green, { group: 'uplink', text: ch }));
+    add('arrow_uplink', UPLINK[1][1] + 0.05 * ux, UPLINK[1][2] + 0.05 * uy, 'arrow', 0.015, 0.022, C.green, { angle: UPLINK_ANGLE + Math.PI / 2, group: 'arrows' });
     add('spinnerLit', -0.2395, 0.682, 'roundRect', 0.014, 0.012, C.gold, { label: 'lamp_spinner' });
     // Pops light their bumpers.
     for (const id of ['popL', 'popR', 'popB']) add(id, ({ popL: -0.048, popR: 0.045, popB: 0 })[id], ({ popL: 0.836, popR: 0.845, popB: 0.778 })[id], 'circle', 0.030, 0.030, C.pink, { mount: 'bumper', device: id });
