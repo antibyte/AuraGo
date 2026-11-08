@@ -86,24 +86,24 @@ func TestDesktopPetAssetURLsPreserveNestedSpritePaths(t *testing.T) {
 	}
 }
 
-func TestDesktopPetLayerSitsAboveWindowsByDefault(t *testing.T) {
+func TestDesktopPetLayerSitsBelowWindowsByDefault(t *testing.T) {
 	t.Parallel()
 
 	base := readDesktopAssetText(t, "css/desktop-base.css")
-	if !strings.Contains(base, "--vd-z-pet: 650;") {
-		t.Fatalf("desktop base CSS must define --vd-z-pet above windows and dock but below menus")
+	if !strings.Contains(base, "--vd-z-pet: calc(var(--vd-z-window) - 1);") {
+		t.Fatalf("desktop base CSS must define --vd-z-pet below windows")
 	}
 
 	petCSS := readDesktopAssetText(t, "css/desktop-pet.css")
 	layerBody := desktopExactCSSRuleBody(t, petCSS, ".vd-pet-layer")
-	if !strings.Contains(layerBody, "z-index: var(--vd-z-pet, 650);") {
+	if !strings.Contains(layerBody, "z-index: var(--vd-z-pet, 99);") {
 		t.Fatalf("desktop pet layer should use --vd-z-pet, got %s", layerBody)
 	}
 
 	bundle := readDesktopAssetText(t, "css/desktop-shell.bundle.css")
 	for _, marker := range []string{
-		"--vd-z-pet: 650;",
-		"z-index: var(--vd-z-pet, 650);",
+		"--vd-z-pet: calc(var(--vd-z-window) - 1);",
+		"z-index: var(--vd-z-pet, 99);",
 	} {
 		if !strings.Contains(bundle, marker) {
 			t.Fatalf("desktop shell CSS bundle is missing pet layer marker %q", marker)

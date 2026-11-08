@@ -26,7 +26,7 @@ for(const item of pack.clips){const source=readFileSync(resolve(root,'assets/des
 const browser=[process.env.CHROME_BIN,process.env.PROGRAMFILES&&resolve(process.env.PROGRAMFILES,'Google/Chrome/Application/chrome.exe'),process.env['PROGRAMFILES(X86)']&&resolve(process.env['PROGRAMFILES(X86)'],'Microsoft/Edge/Application/msedge.exe'),'/usr/bin/google-chrome','/usr/bin/chromium'].filter(Boolean).find(existsSync);
 assert.ok(browser,'Chrome/Edge is required for the real WebGL pet test');
 const labels=JSON.parse(readFileSync(resolve(ui,'lang/desktop/de.json'),'utf8'));
-const html=`<!doctype html><html lang="de"><head><meta charset="utf-8"><link rel="stylesheet" href="/css/desktop-pet.css"><style>body{margin:0;background:#252331;color:white;font:16px system-ui}.vd-taskbar{position:fixed;bottom:0;width:100%;height:48px;background:#131219}#title{padding:20px}button{margin:8px} .vd-pet-layer{--vd-z-pet:650}</style></head><body class="desktop-body" data-animations="true" data-theme="standard" data-scheme="dark"><div id="title">AuraGo · Punk 3D · Mesh2Motion</div><div class="vd-taskbar"></div><script>
+const html=`<!doctype html><html lang="de"><head><meta charset="utf-8"><link rel="stylesheet" href="/css/desktop-shell.bundle.css"><style>body{margin:0;background:#252331;color:white;font:16px system-ui}.vd-taskbar{position:fixed;bottom:0;width:100%;height:48px;background:#131219}#title{padding:20px}button{margin:8px}#test-window{position:absolute;inset:0;background:#252331;pointer-events:auto}</style></head><body class="desktop-body" data-animations="true" data-theme="standard" data-scheme="dark"><main class="vd-shell"><section class="vd-workspace" id="vd-workspace"><div class="vd-window-layer" id="test-window-layer"><div id="test-window"></div></div></section></main><div id="title">AuraGo · Punk 3D · Mesh2Motion</div><div class="vd-taskbar"></div><script>
 window.I18N=${JSON.stringify(labels)};window.BUILD_VERSION='pet-test';
 window.state={bootstrap:{pets:[{id:'aurago-punk-3d',display_name:'Punk 3D',subcategory:'3d',spritesheet:'spritesheet.webp'},{id:'aurago-punk',display_name:'Punk',spritesheet:'spritesheet.webp'}],active_pet_id:'aurago-punk-3d',settings:{'pet.enabled':'true','pet.scale':'2','pet.position_x':'350','pet.position_y':'240','pet.gravity':'false'}}};
 window.settingValue=k=>state.bootstrap.settings[k];window.t=k=>I18N[k]||k;window.shellLayout=()=> 'taskbar';window.notifications=[];window.showDesktopNotification=x=>notifications.push(x);window.showContextMenu=(x,y,items)=>window.menuItems=items;window.openApp=()=>{};
@@ -65,6 +65,16 @@ try{
     await call('Page.bringToFront');
     const initial=await evaluate(`(async()=>{await until(()=>window.PetRuntime&&PetRuntime.inspect3D()?.frames>3,'3D load');return PetRuntime.inspect3D();})()`);
     assert.equal(initial.bones,71);assert.equal(initial.clips,30);assert.ok(initial.triangles>40000&&initial.triangles<=60000);
+    const checkLayering=async()=>{
+        for(const theme of ['standard','fruity'])for(const onTop of [false,true,false]){
+            await evaluate(`document.body.dataset.theme=${JSON.stringify(theme)};PetRuntime.syncBootstrap({settings:{'pet.always_on_top':'${onTop}'}});PetRuntime.load();`);
+            const hit=await evaluate(`(()=>{const r=document.querySelector('.vd-pet-sprite').getBoundingClientRect();const el=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);return {pet:!!el?.closest('.vd-pet-layer'),window:el?.id==='test-window'};})()`);
+            assert.deepEqual(hit,{pet:onTop,window:!onTop},'Pet foreground setting must control real window occlusion in '+theme);
+        }
+        await evaluate(`document.getElementById('test-window-layer').hidden=true;document.body.dataset.theme='standard';`);
+        assert.equal(await evaluate(`(()=>{const r=document.querySelector('.vd-pet-sprite').getBoundingClientRect();return !!document.elementFromPoint(r.left+r.width/2,r.top+r.height/2)?.closest('.vd-pet-layer');})()`),true,'Unpinned pet must remain clickable on the desktop');
+    };
+    await checkLayering();
     await shot('idle');
     await call('Input.dispatchMouseEvent',{type:'mouseMoved',x:10,y:150});
     await new Promise(r=>setTimeout(r,450));const left=await evaluate('PetRuntime.inspect3D().gaze[0]');
@@ -96,10 +106,12 @@ try{
     await call('Page.bringToFront');await fetch('http://'+new URL(debug).host+'/json/close/'+background.id);
     await evaluate(`until(()=>PetRuntime.inspect3D().frames>${hiddenFrames},'visible tab resumes')`);
     await call('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});
-    await new Promise(r=>setTimeout(r,150));const reduced=await evaluate('PetRuntime.inspect3D().frames');await new Promise(r=>setTimeout(r,200));assert.equal(await evaluate('PetRuntime.inspect3D().frames'),reduced,'Reduced motion must stop continuous rendering');
+    await evaluate(`(async()=>{await until(()=>PetRuntime.inspect3D().reducedMotion,'reduced motion media change');await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));})()`);const reduced=await evaluate('PetRuntime.inspect3D().frames');await new Promise(r=>setTimeout(r,200));assert.equal(await evaluate('PetRuntime.inspect3D().frames'),reduced,'Reduced motion must stop continuous rendering');
     await call('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'no-preference'}]});
     await evaluate(`window.oldCanvas=document.querySelector('.vd-pet-sprite canvas');changePet('aurago-punk');`);
     assert.equal(await evaluate('PetRuntime.inspect3D()'),null);assert.equal(await evaluate('document.querySelectorAll(".vd-pet-sprite canvas").length'),0);assert.equal(await evaluate('oldCanvas.getContext("webgl2").isContextLost()'),true);
+    await evaluate(`document.getElementById('test-window-layer').hidden=false;`);
+    await checkLayering();
     delay=400;
     await evaluate(`changePet('aurago-punk-3d');changePet('aurago-punk');`);await new Promise(r=>setTimeout(r,600));assert.equal(await evaluate('document.querySelectorAll(".vd-pet-sprite canvas").length'),0,'Late load must not revive a removed pet');
     delay=0;fail=true;
@@ -109,7 +121,7 @@ try{
     await evaluate(`document.querySelector('.vd-pet-sprite canvas').getContext('webgl2').getExtension('WEBGL_lose_context').loseContext()`);
     await evaluate(`until(()=>notifications.length===2&&!PetRuntime.inspect3D(),'context-loss fallback')`);
     assert.deepEqual(errors,[]);
-    console.log(JSON.stringify({passed:true,initial,gazeRange:right-left,checks:['actual skin render','normalized weights','connected T-pose skeleton','30 pinned motions','pointer gaze without drift','agent reactions','manual gestures','greeting without position jump','pickup and drop','dock landing','speech bubbles','hidden-tab pause and resume','reduced motion','GPU disposal','late-load cancellation','asset failure fallback','context loss fallback']},null,2));
+    console.log(JSON.stringify({passed:true,initial,gazeRange:right-left,checks:['actual skin render','normalized weights','connected T-pose skeleton','30 pinned motions','3D and sprite foreground toggles in Standard and Fruity','desktop pet hit testing','pointer gaze without drift','agent reactions','manual gestures','greeting without position jump','pickup and drop','dock landing','speech bubbles','hidden-tab pause and resume','reduced motion','GPU disposal','late-load cancellation','asset failure fallback','context loss fallback']},null,2));
 }finally{
     socket?.close();
     if(child.exitCode===null){if(process.platform==='win32'){const stop=spawn('taskkill',['/PID',String(child.pid),'/T','/F'],{windowsHide:true,stdio:'ignore'});await new Promise(r=>stop.once('exit',r));}else child.kill();}

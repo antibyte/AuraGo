@@ -238,7 +238,8 @@
         layer.id = 'vd-pet-layer';
         layer.className = 'vd-pet-layer';
         layer.innerHTML = '<div class="vd-pet-sprite" role="img"></div><div class="vd-pet-bubble" hidden></div>';
-        document.body.appendChild(layer);
+        // Compare pet and window z-indices inside the same isolated workspace.
+        (document.getElementById('vd-workspace') || document.body).appendChild(layer);
         spriteEl = layer.querySelector('.vd-pet-sprite');
         bubbleEl = layer.querySelector('.vd-pet-bubble');
         spriteEl.setAttribute('aria-label', t('desktop.pet_aria_label'));

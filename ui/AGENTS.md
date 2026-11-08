@@ -35,6 +35,13 @@ New app-scoped prefixes must contain no `ad` substring; verify
   ownership: `../assets/desktop-pets/AGENTS.md`. Verify `node scripts/test-punk-pet.mjs`
   and existing `go test ./ui -run 'DesktopPet|DesktopChat.*Pet'` checks.
 
+- Sprite and 3D pets share the workspace stacking context with windows. With
+  `pet.always_on_top=false` (default), the pet sits below the window layer;
+  enabling it raises the same pet layer above windows. Do not mount the pet on
+  `document.body` when `vd-workspace` exists: its isolation prevents window
+  z-indices from competing there. `node scripts/test-punk-pet.mjs` checks actual
+  hit testing through off/on/off toggles for both renderers in Standard/Fruity.
+
 - Synth Studio's optional Strudel workbench uses a locally bundled runtime and
   downloadable source archive under `js/vendor/strudel/`. Its evaluator runs in
   the server-owned sandbox document, with no external assets or API bridge.
