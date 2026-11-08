@@ -68,6 +68,7 @@
   "synthStudio.bar_position": "Bar position",
   "synthStudio.value": "Value",
   "synthStudio.scenes": "Scenes",
+  "synthStudio.grid": "Grid",
   "synthStudio.scene_from_loop": "Create from loop",
   "synthStudio.xy_hint": "Brightness horizontally, reverb vertically",
   "synthStudio.automation_record": "Record automation",

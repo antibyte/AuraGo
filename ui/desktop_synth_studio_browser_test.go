@@ -392,7 +392,7 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 	for _, theme := range []string{"standard", "fruity"} {
 		for _, mode := range []string{"dark", "light"} {
 			for _, width := range []int{1280, 760, 420} {
-				page.MustEval(`(theme,mode,width)=>{document.body.dataset.theme=theme;document.body.dataset.fruityMode=mode;document.body.dataset.mode=mode;document.body.dataset.scheme=mode;const w=document.querySelector('[data-app-id="synth-studio"]');w.classList.remove('maximized');w.style.width=width+'px';w.style.height='800px';w.style.left='8px';w.style.top='8px';}`, theme, mode, width)
+				page.MustEval(`(theme,mode,width)=>{document.body.dataset.theme=theme;document.body.dataset.fruityMode=mode;document.body.dataset.mode=mode;document.body.dataset.scheme=mode;for(const [k,v] of [['--vd-text','#202731'],['--vd-theme-muted','#505c69']]){if(mode==='light')document.body.style.setProperty(k,v);else document.body.style.removeProperty(k);}const w=document.querySelector('[data-app-id="synth-studio"]');w.classList.remove('maximized');w.style.width=width+'px';w.style.height='800px';w.style.left='8px';w.style.top='8px';}`, theme, mode, width)
 				page.MustElement("[data-work-tab=notes]").MustClick()
 				page.MustEval(`()=>document.querySelector('.ss-clip').scrollIntoView({block:'nearest',inline:'nearest'})`)
 				page.MustElement(".ss-clip").MustClick()
@@ -410,6 +410,22 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 					}
 					if err := os.WriteFile(filepath.Join(dir, fmt.Sprintf("synth-%s-%s-%d.png", theme, mode, width)), page.MustScreenshot(), 0644); err != nil {
 						t.Fatal(err)
+					}
+					if width == 1280 {
+						// The lower half of Perform: the composer cards, then the end of the workbench.
+						// The pads shot swaps in lit/queued/selected pads and restores the real markup.
+						shots := []struct{ name, js string }{
+							{"compose", `()=>{document.querySelector('.ss-compose').scrollIntoView({block:'start'})}`},
+							{"bottom", `()=>{const p=document.querySelector('.ss-performance-workbench');p.scrollTop=p.scrollHeight}`},
+							{"pads", `()=>{const p=document.querySelector('.ss-performance-workbench');p.scrollTop=0;const pads=document.querySelector('.ss-scene-pads');window.padsMarkup=pads.innerHTML;const states=['active','queued','stopped is-selected','stopped'];pads.innerHTML=Array.from({length:8},(_,i)=>i<4?'<button type="button" data-scene="x'+i+'" class="'+states[i]+'" style="--ss-scene-color:var(--ss-color-'+i+')" aria-pressed="'+(i===0)+'"><strong>Scene '+(i+1)+'</strong><span>'+states[i].split(' ')[0]+'</span></button>':'<button type="button" disabled class="stopped" style="--ss-scene-color:var(--ss-color-'+(i%6)+')"><strong>—</strong><span>stopped</span></button>').join('')}`},
+						}
+						for _, shot := range shots {
+							page.MustEval(shot.js)
+							if err := os.WriteFile(filepath.Join(dir, fmt.Sprintf("synth-perform-%s-%s-%s-%d.png", shot.name, theme, mode, width)), page.MustScreenshot(), 0644); err != nil {
+								t.Fatal(err)
+							}
+						}
+						page.MustEval(`()=>{document.querySelector('.ss-scene-pads').innerHTML=window.padsMarkup;document.querySelector('.ss-performance-workbench').scrollTop=0}`)
 					}
 				}
 				check("responsive bounds", `()=>{const a=document.querySelector('.ss-app'),r=a.getBoundingClientRect(),f=document.querySelector('.ss-footer').getBoundingClientRect();return a.scrollWidth<=a.clientWidth+1 && f.bottom<=r.bottom+1 && document.querySelector('.ss-performance-workbench').clientHeight>=100;}`)

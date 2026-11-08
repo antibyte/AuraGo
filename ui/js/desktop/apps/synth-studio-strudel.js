@@ -24,15 +24,26 @@
         const file = el('input'); file.type = 'file'; file.accept = '.strudel,.txt,text/plain'; file.hidden = true;
         const guide = el('a', tr('strudel_guide')); guide.href = 'https://strudel.cc/workshop/getting-started/'; guide.target = '_blank'; guide.rel = 'noopener noreferrer';
         const source = el('a', tr('strudel_source')); source.href = '/js/vendor/strudel/sources.zip'; source.download = 'strudel-1.3.0-sources.zip';
-        tools.append(run, stopButton, select, importButton, download, guide, source);
+        tools.append(run, stopButton);
         const code = el('textarea'); code.dataset.strudelCode = ''; code.spellcheck = false; code.maxLength = LIMIT; code.setAttribute('aria-label', tr('strudel_code'));
         code.value = examples.melody;
         try { const saved = localStorage.getItem(KEY); if (fits(saved)) code.value = saved; } catch (_) {}
         const hint = el('p', tr('strudel_hint')), status = el('output', tr('strudel_idle'));
         status.dataset.strudelState = 'idle'; status.setAttribute('role', 'status');
-        host.append(tools, hint, status, code, file);
+        // Toolbar: transport, status, then file actions. Editor: line gutter + code, the hint is its footer.
+        tools.append(status, select, importButton, download, guide, source);
+        const editor = el('div'), gutter = el('div');
+        editor.className = 'ss-strudel-editor'; gutter.className = 'ss-strudel-gutter'; gutter.setAttribute('aria-hidden', 'true');
+        code.wrap = 'off'; hint.className = 'ss-strudel-hint';
+        const lines = () => {
+            const count = code.value.split('\n').length;
+            if (gutter.dataset.lines !== String(count)) { gutter.dataset.lines = String(count); gutter.textContent = Array.from({ length: count }, (_, i) => i + 1).join('\n'); }
+            gutter.scrollTop = code.scrollTop;
+        };
+        editor.append(gutter, code);
+        host.append(tools, editor, hint, file);
         const message = (key, detail = '') => { status.dataset.strudelState = key; status.textContent = tr('strudel_' + key) + (detail ? ': ' + detail : ''); };
-        const persist = () => { if (!fits(code.value)) { message('error'); return; } try { localStorage.setItem(KEY, code.value); } catch (_) { message('draft_error'); } };
+        const persist = () => { lines(); if (!fits(code.value)) { message('error'); return; } try { localStorage.setItem(KEY, code.value); } catch (_) { message('draft_error'); } };
         function refresh() { run.disabled = disposed || loading || options.blocked(); code.readOnly = options.readonly(); select.disabled = importButton.disabled = options.readonly(); }
         function stop() {
             request++; clearTimeout(timer); frame?.remove(); frame = null; loading = running = false;
@@ -49,7 +60,7 @@
             if (frame) { send(); return; }
             frame = el('iframe'); frame.title = tr('strudel_sound'); frame.sandbox = 'allow-scripts'; frame.allow = 'autoplay'; frame.referrerPolicy = 'no-referrer'; frame.hidden = true;
             frame.src = '/api/desktop/synth-studio/strudel';
-            host.insertBefore(frame, code);
+            host.insertBefore(frame, editor);
             // Ready comes from the initialized engine, rather than the document load event.
             frame._send = send;
         }
@@ -86,7 +97,8 @@
             link.href = url; link.download = 'Synth Studio.strudel'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
         }, { signal });
         signal.addEventListener('abort', () => { disposed = true; stop(); }, { once: true });
-        refresh();
+        code.addEventListener('scroll', () => { gutter.scrollTop = code.scrollTop; }, { signal });
+        lines(); refresh();
         return { stop, refresh, running: () => running };
     }
     window.SynthStudioStrudel = { create, examples };

@@ -68,6 +68,7 @@
   "synthStudio.bar_position": "Posición en compases",
   "synthStudio.value": "Valor",
   "synthStudio.scenes": "Escenas",
+  "synthStudio.grid": "Cuadrícula",
   "synthStudio.scene_from_loop": "Crear desde bucle",
   "synthStudio.xy_hint": "Brillo horizontal, reverberación vertical",
   "synthStudio.automation_record": "Grabar automatización",

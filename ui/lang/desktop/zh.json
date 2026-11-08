@@ -68,6 +68,7 @@
   "synthStudio.bar_position": "小节位置",
   "synthStudio.value": "数值",
   "synthStudio.scenes": "场景",
+  "synthStudio.grid": "网格",
   "synthStudio.scene_from_loop": "从循环创建",
   "synthStudio.xy_hint": "水平控制明亮度，垂直控制混响",
   "synthStudio.automation_record": "录制自动化",

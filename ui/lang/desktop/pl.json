@@ -68,6 +68,7 @@
   "synthStudio.bar_position": "Pozycja w taktach",
   "synthStudio.value": "Wartość",
   "synthStudio.scenes": "Sceny",
+  "synthStudio.grid": "Siatka",
   "synthStudio.scene_from_loop": "Utwórz z pętli",
   "synthStudio.xy_hint": "Jasność poziomo, pogłos pionowo",
   "synthStudio.automation_record": "Nagraj automatykę",
