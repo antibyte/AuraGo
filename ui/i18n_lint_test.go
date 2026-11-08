@@ -1068,7 +1068,6 @@ var desktopLocalI18nHelpers = map[string]localI18nHelper{
 	"js/desktop/shared/qr-dialog.js":             {name: "tr", prefix: "desktop.qr_"},
 	"js/desktop/apps/minigolf-game.js":           {name: "tr", prefix: "minigolf."},
 	"js/desktop/apps/pinball/game.js":            {name: "tr", prefix: "pinball."},
-	"js/desktop/apps/pinball/views.js":           {name: "tr", prefix: "pinball."},
 	"js/desktop/apps/pinball/ui/views.js":        {name: "tr", prefix: "pinball."},
 	"js/desktop/apps/pinball/ui/hud.js":          {name: "tr", prefix: "pinball."},
 	"js/desktop/apps/minigolf-views.js":          {name: "tr", prefix: "minigolf."},

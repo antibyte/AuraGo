@@ -82,9 +82,36 @@ async function modeEngine(h) {
     await new Promise(resolve => { const t0 = performance.now(); const wait = () => (sc.stats().frames >= 2 || performance.now() - t0 > 60000 ? resolve() : setTimeout(wait, 50)); wait(); });
     return { dispose() { disposed = true; cancelAnimationFrame(raf); removeEventListener('resize', inset); ctrl.abort(); sc.dispose(); } };
 }
+// T17 game mode: the real app (mountGame) inside the page. `autoplay=1` (or scene=play) starts a game and lets the bot flip.
 async function modeGame(h) {
-    // T17 hook: replace with session.js / game.js. Until then the game scene is the engine view with the play camera.
-    return modeEngine(h);
+    const [gameMod, storageMod, botMod] = await Promise.all([import(BASE + 'game.js'), import(BASE + 'config.js'), import('/testdata/pinball-bot.js')]);
+    if (!document.querySelector('link[data-pb-css]')) {
+        const link = document.createElement('link');
+        link.rel = 'stylesheet'; link.href = '/css/desktop-app-pinball.css'; link.dataset.pbCss = '1';
+        document.head.append(link);
+        await new Promise(resolve => { link.onload = link.onerror = resolve; });
+    }
+    const dict = await fetch('/lang/desktop/' + params.lang + '.json').then(r => r.json()).catch(() => ({}));
+    document.documentElement.lang = params.lang;
+    const stored = (() => { try { return JSON.parse(localStorage.getItem(storageMod.STORAGE.settings)) || {}; } catch (_) { return {}; } })();
+    const camera = ['play', 'top'].includes(params.camera) ? params.camera : stored.camera;
+    localStorage.setItem(storageMod.STORAGE.settings, JSON.stringify({ ...stored, quality: params.quality, camera }));
+    const game = gameMod.mountGame(h.stage, { t: key => dict[key] ?? key, assetURL: p => p, isActive: () => true, testing: true, table: params.table, seed: params.seed });
+    h.game = game;
+    const ready = () => { const i = game.inspect(); return i.panel === 'lobby' || i.panel === 'error' ? i : null; };
+    await new Promise(resolve => { const t0 = performance.now(); const wait = () => (ready() || performance.now() - t0 > 90000 ? resolve() : setTimeout(wait, 100)); wait(); });
+    if (game.inspect().panel === 'error') throw new Error('game failed to load');
+    // Audio needs a user gesture: the first click or key press unlocks it.
+    const unlock = () => game.internals().audio?.unlock().then(() => game.internals().audio?.resume());
+    addEventListener('pointerdown', unlock, { once: true }); addEventListener('keydown', unlock, { once: true });
+    if (params.autoplay || params.scene === 'play') {
+        const bot = botMod.createBot(h.layout, params.seed);
+        game.start(false, ['AAA']);
+        game.autoplay((balls, tick) => bot.controls(balls, tick));
+        game.advance(480 * 14);
+        await new Promise(resolve => setTimeout(resolve, 600));
+    }
+    return { dispose() { game.dispose(); } };
 }
 async function mode2d(h) {
     const mod = await import('/testdata/pinball-debug2d.js').catch(e => { loadErrors.push(String(e)); return null; });
@@ -146,7 +173,7 @@ async function boot() {
     window.pinballHarness = h;
 
     if (params.scene === 'play' && params.mode === '2d') h.addBall(true);
-    if (params.autoplay) startAutoplay(h);
+    if (params.autoplay && params.mode !== 'game') startAutoplay(h);
     const run = MODES[params.mode] || mode2d;
     h.view = await run(h);
     h.ready = true;

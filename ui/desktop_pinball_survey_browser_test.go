@@ -113,6 +113,7 @@ func pinballSurveyURL(table, scene, quality string) string {
 		q.Set("debug", "1")
 	case scene == "play":
 		q.Set("mode", "game")
+		q.Set("autoplay", "1")
 	default:
 		q.Set("mode", "engine")
 		q.Set("scene", scene)

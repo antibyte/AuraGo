@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createInput } from '../ui/js/desktop/apps/pinball/input.js';
-import { normalizeSettings } from '../ui/js/desktop/apps/pinball/tables.js';
+import { normalizeSettings } from '../ui/js/desktop/apps/pinball/config.js';
 import { normalizeSettings as normalizeNew } from '../ui/js/desktop/apps/pinball/config.js';
 
 const doc = new EventTarget(), win = new EventTarget();
