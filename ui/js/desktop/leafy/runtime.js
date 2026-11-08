@@ -186,7 +186,12 @@
             if(dead||document.hidden)return;
             if(fetching||busy){pendingRefresh=true;return;}
             fetching=true;
-            try {accept(await api('/api/desktop/plant',{signal}));}
+            try {
+                const data=await api('/api/desktop/plant',{signal});
+                // Preserve the pre-cut geometry until the pending write captures its cutting.
+                if(busy){pendingRefresh=true;return;}
+                accept(data);
+            }
             catch(err){if(!dead&&err.name!=='AbortError'){message=tr('error');drawPanel();clearTimeout(poll);poll=setTimeout(refresh,30000);}}
             finally {fetching=false;if(pendingRefresh&&!dead){pendingRefresh=false;queueMicrotask(refresh);}}
         }

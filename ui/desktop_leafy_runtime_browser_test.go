@@ -308,17 +308,33 @@ func TestDesktopLeafyRuntimeBrowser(t *testing.T) {
             }
             throw Error('No reachable stem outside touch adjustment');
         };
-        window.leafyFetch=window.fetch;window.leafyActionRequests=[];window.leafyHoldCut=true;
+        window.leafyFetch=window.fetch;window.leafyActionRequests=[];window.leafyHoldCut=true;window.leafyHoldRead=true;
+        // Let an earlier read observe the committed cut before its POST is acknowledged.
+        window.leafyReadDone=new Promise(resolve=>window.leafyReadFinished=resolve);
         window.fetch=async(url,options)=>{
+            if(String(url)==='/api/desktop/plant'&&leafyHoldRead){
+                leafyHoldRead=false;
+                await new Promise(resolve=>window.leafyReleaseRead=resolve);
+                const response=await leafyFetch(url,options),read=response.json.bind(response);
+                response.json=async()=>{const body=await read();setTimeout(leafyReadFinished,0);return body;};
+                return response;
+            }
             if(String(url)==='/api/desktop/plant/actions'){
                 const action=JSON.parse(options.body);leafyActionRequests.push(action);
-                if(action.action==='prune'&&leafyHoldCut)await new Promise(resolve=>window.leafyReleaseCut=resolve);
+                if(action.action==='prune'&&leafyHoldCut){
+                    await new Promise(resolve=>window.leafyReleaseCut=resolve);
+                    const response=await leafyFetch(url,options);
+                    leafyReleaseRead();await leafyReadDone;
+                    return response;
+                }
             }
             return leafyFetch(url,options);
         };
         window.leafyAnimate=Element.prototype.animate;window.leafyPauseFalls=true;
         Element.prototype.animate=function(...args){const animation=leafyAnimate.apply(this,args);if(this.classList.contains('vd-leafy-cutting-fall')&&leafyPauseFalls){animation.pause();window.leafyFall=animation;}return animation;};
     }`)
+	page.MustEval(`()=>document.dispatchEvent(new CustomEvent('aurago:plant-change'))`)
+	page.Timeout(10 * time.Second).MustWait(`()=>!!window.leafyReleaseRead`)
 	page.Timeout(10 * time.Second).MustElement("[data-action='scissors']").MustClick()
 	point := page.MustEval(`()=>leafyCutPoint()`)
 	page.Mouse.MustMoveTo(point.Get("x").Num(), point.Get("y").Num())

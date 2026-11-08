@@ -579,6 +579,8 @@ New app-scoped prefixes must contain no `ad` substring; verify
   Pruning uses a 64px scissors cursor and a direct primary click/tap on a stem.
   Keep the segment preview when leaving foliage; the branch list and Cut here
   remain keyboard alternatives. Empty clicks never cut the last selection.
+  An in-flight read completing during a write must wait until the acknowledged
+  cut captures the pre-write geometry, then refetch.
   Only acknowledged cuts animate removed stems/leaves/flowers down behind the
   taskbar, in both renderers. Capture the complete removed geometry, including
   offscreen foliage, within four million pixels. Bound the transient canvas to

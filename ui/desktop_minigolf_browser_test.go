@@ -38,6 +38,7 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
 	benchmark := os.Getenv("AURAGO_MINIGOLF_BENCHMARK") == "1"
+	functionalSmoke := !benchmark && artifactDir == ""
 	browser := newSmokeBrowserWith(t, func(l *launcher.Launcher) {
 		l.Set("mute-audio")
 		l.Set("enable-unsafe-swiftshader")
@@ -155,6 +156,20 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 	if !page.MustEval(`()=>golfFixture.inspect().round.players[0].name==='Player 1 Has A Very Long'&&golfFixture.inspect().round.players[1].name==='Player 2 Has A Very Long'`).Bool() {
 		t.Fatalf("long player names did not survive menu validation: %s", page.MustEval(`()=>JSON.stringify(golfFixture.inspect().round.players.map(p=>p.name))`).Str())
 	}
+	setFunctionalQuality := func() {
+		if !functionalSmoke {
+			return
+		}
+		// Functional smoke checks do not need expensive software-rendered scenery.
+		before := page.MustEval(`()=>golfFixture.inspect().panel`).Str()
+		page.MustElement(`[data-action="settings"]`).MustClick()
+		page.MustWait(`()=>golfFixture.inspect().panel==='settings'`)
+		page.MustEval(`()=>{const select=document.querySelector('[data-quality]');select.value='low';select.dispatchEvent(new Event('change',{bubbles:true}));}`)
+		page.MustElement(`.mg-panel [data-action="close"]`).MustClick()
+		page.MustWait(`before=>{const s=golfFixture.inspect(),settings=JSON.parse(localStorage.getItem('aurago.desktop.minigolf.settings.v1'));return s.panel===before&&settings?.quality==='low'&&(!s.graphics||s.graphics.quality==='low');}`, before)
+		t.Log("functional graphics preset: low")
+	}
+	setFunctionalQuality()
 	// All recorded effects decode in the background after the first gesture; wait
 	// for them so the underrun measurement below does not overlap that work.
 	page.Timeout(30*time.Second).MustWait(`count=>{const s=golfFixture.inspect().audio.samples;return s.loaded===count&&s.failed===0}`, sfxFiles)
@@ -750,8 +765,9 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 	page.MustEval(`()=>{document.body.dataset.animations='false';localStorage.removeItem('aurago.desktop.minigolf.settings.v1')}`)
 	page.MustEval(`async()=>{await golfFixture.seedFinalHole('temple');golfFixture.reopen()}`)
 	page.MustWait(`()=>!golfFixture.inspect().loading&&golfFixture.inspect().panel==='menu'&&!!document.querySelector('[data-action="resume"]')`)
+	setFunctionalQuality()
 	page.MustElement(`[data-action="resume"]`).MustClick()
-	page.Timeout(30 * time.Second).MustWait(`()=>golfFixture.inspect().panel==='scorecard'&&!!document.querySelector('[data-action="next-hole"]')`)
+	page.Timeout(30*time.Second).MustWait(`low=>golfFixture.inspect().panel==='scorecard'&&!!document.querySelector('[data-action="next-hole"]')&&(!low||golfFixture.inspect().graphics?.quality==='low')`, functionalSmoke)
 	if running := page.MustEval(`()=>document.querySelector('.mg-app').getAnimations({subtree:true}).length`).Int(); running != 0 {
 		t.Fatalf("%d animations still run on the scorecard with animations disabled", running)
 	}

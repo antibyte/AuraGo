@@ -899,7 +899,11 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   `node scripts/build-minigolf-audio.mjs --check`, `node scripts/build-minigolf.mjs --check`
   (6 MiB cap, pinned Three.js 0.186.1 and Rapier 0.21.0), `TestDesktopMinigolf*`,
   `TestFrontend_StaticI18nKeysExistInEnglishBundle` and the desktop bundle checks.
-- `TestDesktopMinigolfBrowser` needs `AURAGO_RUN_BROWSER_SMOKE=1`. This machine's
+- `TestDesktopMinigolfBrowser` needs `AURAGO_RUN_BROWSER_SMOKE=1`. Functional
+  smoke without screenshots selects Low through Settings after initial load and
+  fresh-profile reset to bound software-GPU
+  cost; screenshot and benchmark modes retain their requested quality. All
+  physics/audio/input/layout checks and the 15-minute page budget remain. This machine's
   headless Chrome reports `prefers-reduced-motion: reduce`, so the smoke emulates
   `no-preference` only for its first intro check, resets it, and then requires that
   later loads under reduced motion start no flight. It loads the finale of each world of manifest v2
