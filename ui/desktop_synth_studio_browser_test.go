@@ -421,6 +421,22 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 	check("keyboard slider changes sound", `()=>JSON.stringify(synthInstance().project())!==beforeTouch`)
 	page.MustElement("[data-action=undo]").MustClick()
 	check("one undo restores held keyboard gesture", `()=>JSON.stringify(synthInstance().project())===beforeTouch`)
+	check("performance macros are drawn as knobs", `()=>[...document.querySelectorAll('[data-macro]')].length===2&&[...document.querySelectorAll('[data-macro]')].every(e=>e.classList.contains('ss-ctl-native')&&e.nextElementSibling?.classList.contains('ss-ctl-knob'))`)
+	page.MustEval(`()=>document.querySelector('[data-macro=tone] + .ss-ctl-knob').scrollIntoView({block:'center'})`)
+	macroBox := page.MustElement("[data-macro=tone] + .ss-ctl-knob").MustShape().Box()
+	macroX, macroY := macroBox.X+macroBox.Width/2, macroBox.Y+macroBox.Height/2
+	macroDY := -60.0
+	macroBefore := page.MustEval(`()=>synthInstance().project().tracks[1].params.tone`).Num()
+	if macroBefore > 0.5 {
+		macroDY = 60.0
+	}
+	page.Mouse.MustMoveTo(macroX, macroY)
+	page.Mouse.MustDown(proto.InputMouseButtonLeft)
+	page.Mouse.MustMoveTo(macroX, macroY+macroDY)
+	page.Mouse.MustUp(proto.InputMouseButtonLeft)
+	check("dragging a macro knob changes the sound and the readout", `()=>{const e=document.querySelector('[data-macro=tone]');return Math.abs(synthInstance().project().tracks[1].params.tone-`+fmt.Sprint(macroBefore)+`)>.05&&Number(e.parentElement.querySelector('output').textContent)===Number(Number(e.value).toFixed(2))}`)
+	page.MustElement("[data-action=undo]").MustClick()
+	check("a macro knob drag is one undo step", `()=>JSON.stringify(synthInstance().project())===beforeTouch&&Math.abs(parseFloat(document.querySelector('[data-macro=tone] + .ss-ctl-knob').style.getPropertyValue('--ss-f'))-Number(document.querySelector('[data-macro=tone]').value))<.02`)
 	page.MustEval(`()=>{const root=document.querySelector('.ss-app');root.classList.remove('ss-library-open');document.querySelector('[data-action=library]').click();}`)
 	waitForJSBool(t, page, `()=>getComputedStyle(document.querySelector('.ss-library')).visibility==='visible'`)
 	check("library drawer opens", `()=>document.querySelector('.ss-app').classList.contains('ss-library-open')`)

@@ -4,7 +4,7 @@
     // single source of truth (value, events, keyboard, forms); this module draws
     // a 3D dial next to it and forwards drags/wheel to the input.
     const START = -135, END = 135, CX = 28, CY = 28, R = 22;
-    const KNOB_SELECTOR = '[data-param],[data-master-param],[data-designer-param],[data-fx-param]';
+    const KNOB_SELECTOR = '[data-param],[data-master-param],[data-designer-param],[data-fx-param],[data-macro]';
     const clamp = (value, low, high) => Math.min(high, Math.max(low, value));
     const decimals = step => (String(step).split('.')[1] || '').length;
 
@@ -161,5 +161,5 @@
         return observer;
     }
 
-    window.SynthStudioControls = { snap, fraction, angle, arcPath, dragValue, kindFor, upgrade, upgradeAll, sync, observe };
+    window.SynthStudioControls = { KNOB_SELECTOR, snap, fraction, angle, arcPath, dragValue, kindFor, upgrade, upgradeAll, sync, observe };
 })();

@@ -46,4 +46,5 @@ assert.equal(kind({ dataset: { ssKind: 'hfader' } }), 'hfader');
 assert.equal(kind({ knob: true, dataset: { ssPlain: '' } }), null);
 assert.equal(kind({ knob: true }, 'number'), null);
 assert.equal(kind({}), null);
+assert.ok(C.KNOB_SELECTOR.split(',').includes('[data-macro]'), 'performance macros are drawn as knobs');
 console.log('synth-studio controls ok');

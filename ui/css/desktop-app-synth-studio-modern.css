@@ -296,3 +296,30 @@
 .ss-app .ss-output-meter meter::-webkit-meter-suboptimum-value,
 .ss-app .ss-output-meter meter::-webkit-meter-even-less-good-value { border-radius: 3px; box-shadow: 0 0 6px color-mix(in srgb, var(--ss-meter) 55%, transparent); }
 .ss-app .ss-analyser { border-radius: 10px; border-color: color-mix(in srgb, var(--ss-text) 10%, transparent); box-shadow: var(--ss-well-in); }
+
+/* ---- perform mode: macro knobs and raised scene pads ---- */
+.ss-app .ss-macro-controls { display: grid; grid-template-columns: repeat(2, 96px); gap: 8px 12px; align-items: start; }
+.ss-app .ss-macro-controls > :not(label:has(.ss-ctl-knob)) { grid-column: 1 / -1; justify-self: start; }
+.ss-app .ss-macro-controls label:has(.ss-ctl-knob) {
+    flex-direction: column; flex-wrap: nowrap; justify-content: flex-start; align-items: center; gap: 4px; text-align: center;
+    padding: 10px 6px 8px; border-radius: 14px; font-size: 11px; color: var(--ss-muted);
+    background: var(--ss-glass), var(--ss-card); border: 1px solid var(--ss-card-border); box-shadow: var(--ss-edge);
+}
+.ss-app .ss-macro-controls .ss-ctl-dial { order: 1; }
+.ss-app .ss-macro-controls output { order: 2; font: 600 12px/1 var(--vd-mat-mono-font, monospace); color: var(--ss-accent); }
+.ss-app .ss-macro-controls input[type=range].ss-ctl-native { width: 1px; }
+.ss-app .ss-xy { border-radius: 14px; box-shadow: var(--ss-well-in), var(--ss-edge); }
+.ss-app .ss-scene-pads button {
+    border-radius: 12px; border: 1px solid color-mix(in srgb, var(--ss-text) 14%, transparent);
+    background: var(--ss-glass), linear-gradient(180deg, color-mix(in srgb, var(--ss-scene-color, var(--ss-muted)) 24%, var(--ss-panel)), color-mix(in srgb, var(--ss-scene-color, var(--ss-muted)) 8%, var(--ss-panel)));
+    box-shadow: var(--ss-edge), inset 0 -3px 0 color-mix(in srgb, var(--ss-scene-color, var(--ss-muted)) 55%, transparent), 0 4px 8px rgb(0 0 0 / .3);
+    transition: transform .12s, box-shadow .12s;
+}
+.ss-app .ss-scene-pads button:hover:not(:disabled) { transform: translateY(-1px); }
+.ss-app .ss-scene-pads button:active:not(:disabled) { transform: translateY(1px); box-shadow: var(--ss-edge), 0 1px 2px rgb(0 0 0 / .4); }
+.ss-app .ss-scene-pads button.active {
+    background: var(--ss-glass), linear-gradient(180deg, color-mix(in srgb, var(--ss-scene-color, var(--ss-accent)) 92%, #fff), var(--ss-scene-color, var(--ss-accent)));
+    box-shadow: var(--ss-edge), 0 0 16px color-mix(in srgb, var(--ss-scene-color, var(--ss-accent)) 65%, transparent);
+}
+.ss-app .ss-chord-pads button { border-radius: 12px; box-shadow: var(--ss-edge), 0 3px 6px rgb(0 0 0 / .25); }
+@media (prefers-reduced-motion: reduce) { .ss-app .ss-scene-pads button { transition: none; } }
