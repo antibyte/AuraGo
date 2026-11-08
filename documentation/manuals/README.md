@@ -74,6 +74,9 @@ Full maps with parts and one-liners: [Deutsche Übersicht](de/README.md) · [Eng
 | 31 · Pixel | [Pixel](de/31-pixel.md) | [Pixel](en/31-pixel.md) | Layered image editor, filters, generators, AI background removal |
 | 32 · ECalc | [ECalc](de/32-ecalc.md) | [ECalc](en/32-ecalc.md) | Electronics formula collection: calculators, live results, E series |
 | 33 · Aura Drift | [Aura Drift](de/33-aura-drift.md) | [Aura Drift](en/33-aura-drift.md) | Offline 3D racer with a 2D fallback: deterministic tyre physics, eight tracks and cars, seven modes, live weather, style scoring, weapons |
+| 34 · Storymaker | [Storymaker](de/34-storymaker.md) | [Storymaker](en/34-storymaker.md) | Illustrated explainer videos: stage scenes, write the narration, export an MP4, and let the AI author write the film |
+| 35 · Please Do Not Feed the Universe | [Please Do Not Feed the Universe](de/35-goldfish-adventure.md) | [Please Do Not Feed the Universe](en/35-goldfish-adventure.md) | A painted point-and-click adventure in sixteen rooms, with a verb bar and one original song per room |
+| 36 · Synth Studio | [Synth Studio](de/36-synth-studio.md) | [Synth Studio](en/36-synth-studio.md) | Five workspace modes, a library drawer, 3D knobs and faders, live EQ curves, stem export and a Strudel live-coding mode |
 | FAQ | [FAQ](de/faq.md) | [FAQ](en/faq.md) | Quick answers |
 
 ## What this book is
@@ -82,7 +85,7 @@ AuraGo is a self-hosted Go agent for a home lab. The backend is one portable bin
 
 These chapters stay in sync with the product, not with a marketing checklist. If a sentence and the code disagree, the code wins. Deep dives for MeshCore, Game Maker, SIP, Speech Lab, Docker and web assets live next to this handbook under [`documentation/`](../).
 
-**Stand: 1. November 2026.** Both languages cover the same 32 chapters. German uses *du*.
+**Stand: 8 November 2026.** Both languages cover the same 36 chapters. German uses *du*.
 
 ## Nearby docs
 
@@ -92,3 +95,5 @@ These chapters stay in sync with the product, not with a marketing checklist. If
 - [Architecture](../architecture.md)
 - [Telegram](../telegram_setup.md)
 - [Security introduction](../security_introduction.md)
+- [Storymaker](../storymaker.md) · [Aura Drift](../aura-drift.md) · [Synth Studio](../synth-studio.md)
+- [FindIt](../findit.md) · [Kaggle](../kaggle.md) · [Please Do Not Feed the Universe](../goldfish-adventure.md) · [Punk 3D pet](../desktop-punk-pet.md)

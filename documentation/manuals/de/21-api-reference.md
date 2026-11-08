@@ -6,7 +6,7 @@
 
 JSON, Admin-Auth wo es weh tut, SSE unter `GET /events`. Kein öffentlicher Chat-`/ws`. Default-Origin: `http://localhost:8088`.
 
-> Stand: 19. Oktober 2026. Routen ohne spezifizierte Mutation sind so, wie der Server sie registriert — nicht wie ein Wunschkonzert.
+> Stand: 8. November 2026. Routen ohne spezifizierte Mutation sind so, wie der Server sie registriert — nicht wie ein Wunschkonzert.
 
 ---
 
@@ -21,11 +21,11 @@ Vorab: [Authentifizierung](#authentifizierung). Zehn Domänen-Gruppen, jeder End
 | [Memory- & Wissens-APIs](#memory---wissens-apis) | [Memory](#memory-api), [Knowledge](#knowledge-api), [Knowledge Graph](#knowledge-graph-api), [Cheat Sheets](#cheat-sheets-api), [Indexing](#indexing-api), [SQL Connections](#sql-connections-api), [Lokale Wikipedia](#local-wikipedia-api) |
 | [Missions- & Automatisierungs-APIs](#missions---automatisierungs-apis) | [Mission Control](#mission-control-api), [Invasion Control](#invasion-control-api), [Cron](#cron-api), [Background Tasks](#background-tasks-api), [Webhook](#webhook-api) |
 | [Personen & Organisation](#personen--organisation) | [People](#people-api), [Contacts](#contacts-api), [Appointments](#appointments-api), [Todos](#todos-api), [Preferences](#preferences-api), [Space Agent](#space-agent-api), [Warnings](#warnings-api) |
-| [Medien & Kreatives](#medien--kreatives) | [Upload](#upload-api), [Pixel Bildeditor](#pixel-bildeditor-api), [Music Generation](#music-generation-api), [Video Generation](#video-generation-api), [Document Creator](#document-creator-api), [Game Maker](#game-maker-api), [Newspaper](#newspaper-api), [Detective](#detective-api), [Personal Radio](#personal-radio-api), [Radio Browser](#radio-browser-api), [RTL-SDR](#rtl-sdr-api), [Noisemaker](#noisemaker-api) |
+| [Medien & Kreatives](#medien--kreatives) | [Upload](#upload-api), [Pixel Bildeditor](#pixel-bildeditor-api), [Music Generation](#music-generation-api), [Video Generation](#video-generation-api), [Document Creator](#document-creator-api), [Game Maker](#game-maker-api), [Newspaper](#newspaper-api), [Detective](#detective-api), [Personal Radio](#personal-radio-api), [Radio Browser](#radio-browser-api), [RTL-SDR](#rtl-sdr-api), [Noisemaker](#noisemaker-api), [Storymaker](#storymaker-api), [ECalc](#ecalc-api), [Kaggle](#kaggle-api) |
 | [Geräte & Messenger](#geräte--messenger) | [Geräte](#geräte-api-device-registry), [3D Printer](#3d-printer-api), [Bluetooth](#bluetooth-api), [go2rtc](#go2rtc-api), [CYD](#cheap-yellow-display-api), [MeshCore](#meshcore-api), [Native SIP](#native-sip-api), [Realtime Speech](#realtime-speech-api), [Speech Lab](#speech-lab-api), [AgentMail](#agentmail-api), [Notification](#notification-api), [Push (PWA)](#push-api-pwa), [here.now](#herenow-api), [Manus](#manus-api), [OmniRoute](#omniroute-api) |
 | [Konfiguration & Sicherheit](#konfiguration--sicherheit) | [Config](#config-api), [Config Rules](#config-rules-api), [Vault](#vault-api), [Credentials](#credentials-api), [Token](#token-api), [Security](#security-api), [Personality](#personality-api), [Budget](#budget-api), [i18n](#i18n-api), [Setup](#setup-api), [Update](#update-api) |
 | [System & Betrieb](#system--betrieb) | [Dashboard](#dashboard-api), [Container](#container-api), [Backup](#backup-api), [Network Shares](#network-shares-api), [System](#system-api), [Health Check](#health-check), [SSE Events](#sse-events), [Operational Issues](#operational-issues-api) |
-| [Desktop & Arbeitsflächen](#desktop--arbeitsflächen) | [Desktop](#desktop-api), [Desktop Workspace](#desktop-workspace-api), [Desktop Log](#desktop-log-api), [Launchpad](#launchpad-api), [Tresor](#tresor-api), [Virtual Computers](#virtual-computers-api), [System World](#system-world-api), [EvoMap](#evomap-api) |
+| [Desktop & Arbeitsflächen](#desktop--arbeitsflächen) | [Desktop](#desktop-api), [Desktop Workspace](#desktop-workspace-api), [Desktop Log](#desktop-log-api), [Launchpad](#launchpad-api), [Tresor](#tresor-api), [Virtual Computers](#virtual-computers-api), [System World](#system-world-api), [EvoMap](#evomap-api), [FindIt](#findit-api), [Homepage-Vorlagen](#homepage-design-vorlagen-api) |
 | **Abschluss** | [Fehlerbehandlung](#fehlerbehandlung), [Weiterführende Links](#weiterführende-links) |
 
 ---
@@ -1591,6 +1591,75 @@ GET    /api/desktop/noisemaker/tracks
 DELETE /api/desktop/noisemaker/tracks/{id}
 PATCH  /api/desktop/noisemaker/tracks/{id}
 ```
+
+---
+
+### Storymaker API
+
+Die Storymaker-App und ihr KI-Autor. Lesen braucht `desktop:read`, Schreiben `desktop:write`, und jeder Story-Write trägt den aktuellen ETag in `If-Match` (ohne ihn antwortet die API mit 428). Die Agent-Job-Routen brauchen `storymaker.enabled` und `storymaker.agent.enabled`.
+
+```http
+GET    /api/desktop/storymaker/status                     # aktiv, Agent-Zustand, Limits, FFmpeg- und Browser-Zustand, Read-only-Flag
+GET    /api/desktop/storymaker/player                     # das Player-Dokument im Browser
+GET    /api/desktop/storymaker/voices                     # die Stimmen für die Sprecherin
+GET    /api/desktop/storymaker/projects                   # die Projektliste
+POST   /api/desktop/storymaker/projects                   # 201; legt ein Projekt an (Titel, Sprache, Format, fps)
+GET    /api/desktop/storymaker/projects/{id}
+DELETE /api/desktop/storymaker/projects/{id}
+PUT    /api/desktop/storymaker/projects/{id}/story        # If-Match: etag; speichert das Story-Dokument
+GET    /api/desktop/storymaker/projects/{id}/jobs         # die Render-, Sprech- und Musikjobs des Projekts
+GET    /api/desktop/storymaker/projects/{id}/events       # SSE-Stream der Job- und Szenenereignisse
+POST   /api/desktop/storymaker/projects/{id}/render       # startet den Export
+POST   /api/desktop/storymaker/projects/{id}/narration    # erzeugt die Sprecherin
+POST   /api/desktop/storymaker/projects/{id}/narrate      # spricht die fertigen Szenen ein
+POST   /api/desktop/storymaker/projects/{id}/music        # die Hintergrundmusik
+POST   /api/desktop/storymaker/projects/{id}/make-silent    # nimmt die Sprache raus und behält den Text im Bild
+POST   /api/desktop/storymaker/projects/{id}/restore-speech # macht das rückgängig, solange die stille Kopie existiert
+POST   /api/desktop/storymaker/projects/{id}/agent/revise  # bittet den KI-Autor um eine Überarbeitung
+PUT    /api/desktop/storymaker/projects/{id}/scenes/{scene}/code     # der Quelltext einer Code-Szene, höchstens 8 KiB
+GET    /api/desktop/storymaker/projects/{id}/scenes/{scene}/bundle   # das kompilierte Bundle
+GET    /api/desktop/storymaker/projects/{id}/audio/{kind}/{name}     # die exportierten Audiodateien
+POST   /api/desktop/storymaker/agent/jobs                  # startet einen KI-Autor-Job (Thema, Länge, Sprache)
+GET    /api/desktop/storymaker/jobs/{id}                   # ein Job
+POST   /api/desktop/storymaker/jobs/{id}/cancel            # bricht einen laufenden Job ab
+```
+
+Ablehnungen antworten mit `{"error","code"}`: 409 `busy`, solange für das Projekt ein Render-, Sprech- oder Musikjob läuft, 404 `project_not_found`, 400 `invalid_story` mit der Liste der Probleme, 412 `precondition_failed`, wenn sich das Dokument seit dem Laden geändert hat, und 422 für eine nicht dekodierbare Story. Läuft ein Agent-Job, ist das Projekt gesperrt und Speichern, Sprechen und Export werden abgelehnt. Ein unbeaufsichtigter Job ist durch `storymaker.agent.max_daily_jobs` und die Zeichenlimits der Stimmen begrenzt. Siehe [Kapitel 34](34-storymaker.md) und das [Storymaker-Handbuch](../../storymaker.md).
+
+---
+
+### ECalc API
+
+Der Elektronik-Katalog steckt im Binary, deshalb braucht die Route keinen Config-Schalter und liest weder Netzwerk noch Dateien.
+
+```http
+GET  /api/ecalc/catalog?lang=de          # der lokalisierte Katalog; eine unbekannte Sprache fällt auf Englisch zurück
+```
+
+Die Antwort enthält die Rechner, Tabellen, Bauteilcodes und Steckerbelegungen mit Einheiten, Vorgaben und Formeln. Derselbe Katalog speist die Desktop-App ECalc und das Agenten-Tool `ecalc` ([Kapitel 32](32-ecalc.md)).
+
+---
+
+### Kaggle API
+
+Kaggle und seine Notebook-IDE teilen sich einen Dispatcher unterhalb von `/api/kaggle/`. Die Operation ist das letzte Pfadsegment, die Parameter stehen im Body. Zugangsdaten brauchen den Admin-Scope, die übrigen Operationen `desktop:read` oder `desktop:write`, und jeder Schreibzugriff außerhalb des Browsers braucht ein Bearer-Token. Die einzelnen Schalter von `kaggle` (`allow_download`, `allow_create`, `allow_update`, `allow_publish`, `allow_delete`, `allow_submit`, `allow_remote_execute`, `allow_gpu`, `allow_tpu`, `allow_internet`) entscheiden, was der Agent darf.
+
+```http
+GET    /api/kaggle/status                 # Zustand von Workspace, Notebooks und Konto
+GET    /api/kaggle/quotas                 # das restliche GPU-, TPU- und Session-Kontingent
+POST   /api/kaggle/test                   # prüft die Zugangsdaten
+GET    /api/kaggle/projects               # die Projekte des Workspace
+POST   /api/kaggle/operations             # die Katalog-Operationen (Datensätze, Modelle, Wettbewerbe, Foren)
+POST   /api/kaggle/runtime                # die lokale Laufzeit und ihre zustandsbehafteten Jupyter-Notebooks
+POST   /api/kaggle/jobs                   # startet einen Job
+GET    /api/kaggle/jobs                   # die laufenden und fertigen Jobs
+POST   /api/kaggle/jobs/{id}/cancel       # bricht einen Job ab
+POST   /api/kaggle/jobs/{id}/resolve-unknown  # klärt ein unbekanntes Ergebnis auf
+GET    /api/kaggle/events                 # SSE-Stream der Job-Ereignisse
+POST   /api/kaggle/credentials            # nur für Admins; legt das Konto im Vault ab
+```
+
+Siehe [Kaggle](../../kaggle.md) für Einrichtung, Berechtigungen und den Unterschied zwischen lokalem Python und einem Kaggle-Lauf.
 
 ---
 
@@ -3195,6 +3264,42 @@ POST /api/evomap/register
 Registrierungs- und Statusantworten sind bereinigt. EvoMap-Payloads gelten als
 nicht vertrauenswürdige externe Daten; der aktuelle MVP aktiviert keine Publish-,
 Report- oder Bounty-Mutationen.
+
+---
+
+### FindIt API
+
+Inventar für Teile, Geräte und Lagerorte. Lesen braucht `desktop:read`, Befehle und Importe `desktop:write`; `/settings` braucht den Admin-Scope. Jeder Schreibzugriff aus dem Browser braucht eine Same-Origin-Anfrage, sonst antwortet die API mit 403 `forbidden_origin`.
+
+```http
+GET    /api/desktop/findit/status                    # aktiv, Read-only, die Bestände im Inventar
+GET    /api/desktop/findit/catalog                   # die Felder, die Vorlagen und die Lagerorte
+POST   /api/desktop/findit/query                    # eine lesende Suche
+POST   /api/desktop/findit/command                  # ein Schreibbefehl mit einer Request-ID
+POST   /api/desktop/findit/import/preview           # eine lesende CSV-Vorschau
+POST   /api/desktop/findit/import                   # der CSV-Import
+GET    /api/desktop/findit/export?entity=&project_id= # der CSV-Export
+GET    /api/desktop/findit/images/{id}               # das Foto eines Eintrags
+GET    /api/desktop/findit/images/{id}/thumbnail     # sein Vorschaubild
+POST   /api/desktop/findit/settings                 # nur für Admins; speichert die FindIt-Einstellungen
+```
+
+Eine Leseanfrage, die die Policy nicht mehr erlaubt, antwortet mit 403 `policy_changed`; ein abgeschaltetes FindIt mit 403 `findit_disabled`, ein schreibgeschütztes mit 403 `findit_readonly` und ein nicht bereiter Store mit 503 `unavailable`. Siehe [FindIt](../../findit.md).
+
+---
+
+### Homepage-Vorlagen API
+
+Die Design-Vorlagen von Homepage Studio. Katalog und Vorschauen sind nur lesbar; das Auswählen einer Vorlage schreibt ihre `DESIGN.md` in ein Projekt und braucht `desktop:write`.
+
+```http
+GET  /api/homepage/designs                    # der Vorlagenkatalog
+GET  /api/homepage/designs/{id}               # eine Vorlage mit ihrer DESIGN.md
+GET  /api/homepage/designs/{id}/preview?variant=light   # das Vorschaubild (light, sepia, ...)
+POST /api/homepage/designs/select             # bindet eine Vorlage an ein Projekt (design_id, project_id)
+```
+
+Die übrigen Homepage-Routen (die Projekte selbst, die Sites und das Deployment) gehören zum Homepage-Vertrag in [Kapitel 8](08-integrations.md).
 
 ---
 

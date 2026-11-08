@@ -66,6 +66,9 @@ config_debug.yaml    # Debug/testing configuration (optional)
 | `budget` | Cost tracking and limits |
 | `logging` | Log file settings |
 | `auth` | Web UI authentication |
+| `storymaker` | Storymaker video studio and its AI author |
+| `findit` | Inventory of parts, equipment and storage locations |
+| `kaggle` | Kaggle workspace and notebook IDE |
 
 ---
 
@@ -148,6 +151,9 @@ security_proxy:   # Reverse proxy & protection
 egg_mode:         # Cluster worker mode
 firewall:         # Firewall integration
 journal:          # Auto-journal entries
+storymaker:       # Storymaker video studio and AI author
+findit:           # Inventory, storage locations and stock
+kaggle:           # Kaggle workspace and notebook IDE
 ```
 
 ---
@@ -1289,6 +1295,69 @@ local_wikipedia:
 
 Changing `language` or `variant` never starts a download; the status reports that the selection differs from the installed edition. A custom `data_dir` must be absolute and must not be a system directory or AuraGo's data directory itself (saving such a path is refused); it must also be writable by the AuraGo service, e.g. via systemd `ReadWritePaths` (checked on Install: `data_dir_invalid`). There are no Vault keys. See [Local Wikipedia](../../local-wikipedia.md).
 
+### Storymaker — Video Studio and AI Author
+
+`storymaker` controls the **Storymaker** desktop app, which stages illustrated explainer videos and exports them as MP4 with narration, captions and separate audio tracks. It is on by default. The agent that writes a film from a topic needs `storymaker.agent.enabled`.
+
+```yaml
+storymaker:
+    enabled: true
+    agent:
+        enabled: true               # agent jobs from the app and from chat
+        provider: ""                # provider for agent jobs; empty = the main route
+        model: ""                   # model override; empty = the provider's model
+        job_timeout_seconds: 1800   # 120-7200
+        max_length_seconds: 180     # 15-3600
+        max_daily_jobs: 10          # 1-1000
+    render:
+        timeout_seconds: 3600       # 60-14400
+        max_duration_seconds: 900   # 10-3600
+        browser_path: ""            # empty = the system browser, then a pinned download
+        transport: ""               # empty = automatic, or png, webp, raw, screenshot
+    narration:
+        max_daily_chars: 100000     # cloud TTS characters per local day
+        max_job_chars: 20000        # cloud TTS characters per narration job
+```
+
+Cloud voices cost money; local providers are exempt from the character limits. An export needs FFmpeg and a browser. See [Chapter 34](34-storymaker.md) and the [Storymaker guide](../../storymaker.md).
+
+### FindIt — Inventory and Storage Locations
+
+`findit` keeps parts, equipment and storage locations with stock levels and project reservations. It is off by default. The agent may read it only with `agent_access`, and it stays read-only then.
+
+```yaml
+findit:
+  enabled: false
+  agent_access: false
+  readonly: false
+```
+
+See [FindIt](../../findit.md).
+
+### Kaggle — Workspace and Notebook IDE
+
+`kaggle` connects the **Kaggle** desktop app and its notebook IDE to your Kaggle account. Credentials live only in the encrypted Vault, and every write is a separate switch that stays off in the read-only mode.
+
+```yaml
+kaggle:
+  enabled: false
+  read_only: true
+  auth_mode: token
+  allow_download: false
+  allow_create: false
+  allow_update: false
+  allow_publish: false
+  allow_delete: false
+  allow_submit: false
+  allow_remote_execute: false
+  allow_gpu: false
+  allow_tpu: false
+  allow_internet: false
+  allowed_owners: []
+```
+
+See [Kaggle](../../kaggle.md).
+
 ## Compact YAML Reference
 
 The blocks below are available for advanced and headless setups. Most can be configured more easily in the **Web UI under Config → Integrations, Config → Security, and Config → Tools**.
@@ -1354,6 +1423,9 @@ The blocks below are available for advanced and headless setups. Most can be con
 | `detective` | Bounded desktop research cases (effort profiles). | `detective:`<br>`  enabled: true`<br>`  readonly: false`<br>`  profiles:`<br>`    quick: {seconds: 300, tools: 40, iterations: 60, tokens: 0}` |
 | `flows` | EasyDrag visual flows: missions with their own engine ([chapter 11](11-missions.md#flow-missions-easydrag)). Limits: runs 1–32, branches per run 1–16, retention 1–365 days, 10–5000 runs per flow; `ai_provider` empty = main model. Changing a limit needs a restart. Switching `enabled` off turns EasyDrag and the API off at once; published flows keep running until the restart, and a run that is already going can still be stopped. `ai_provider` applies at once. | `flows:`<br>`  enabled: true`<br>`  max_parallel_runs: 8`<br>`  max_parallel_nodes_per_run: 4`<br>`  run_retention_days: 30`<br>`  max_runs_per_flow: 200`<br>`  ai_provider: ""` |
 | `local_wikipedia` | Offline Wikipedia edition (Kiwix ZIM), agent tool and desktop app. | `local_wikipedia:`<br>`  enabled: false`<br>`  agent_access: true`<br>`  language: ""`<br>`  variant: nopic`<br>`  data_dir: ""`<br>`  update_check: true` |
+| `storymaker` | Storymaker video studio and its AI author. | `storymaker:`<br>`  enabled: true`<br>`  agent:`<br>`    enabled: true`<br>`    max_daily_jobs: 10`<br>`  render:`<br>`    timeout_seconds: 3600`<br>`    max_duration_seconds: 900` |
+| `findit` | Inventory, storage locations and stock projects. | `findit:`<br>`  enabled: false`<br>`  agent_access: false`<br>`  readonly: false` |
+| `kaggle` | Kaggle workspace and notebook IDE. | `kaggle:`<br>`  enabled: false`<br>`  read_only: true`<br>`  allow_download: false`<br>`  allow_remote_execute: false` |
 
 ---
 

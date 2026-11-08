@@ -561,6 +561,63 @@ Enable/disable built-in agent tools and set read-only mode. All tools are enable
 
 ---
 
+## `storymaker`
+
+The Storymaker video studio and its AI author. See the [Storymaker guide](storymaker.md) and [chapter 34](manuals/en/34-storymaker.md).
+
+| Key | Default | Description |
+|---|---|---|
+| `enabled` | `true` | Shows the app and answers its API. Off: the app is hidden and the API answers `storymaker_disabled`. |
+| `agent.enabled` | `true` | Allows agent jobs from the app and from chat. |
+| `agent.provider` | `""` | LLM provider for agent jobs. Empty: the main route with its configured failover. A chosen provider is pinned to the job without failover. |
+| `agent.model` | `""` | Model for agent jobs. Empty: the model of the provider. |
+| `agent.job_timeout_seconds` | `1800` | A job that runs longer stops, and its valid scenes stay (120–7200). |
+| `agent.max_length_seconds` | `180` | A longer request is shortened to this length (15–3600). |
+| `agent.max_daily_jobs` | `10` | New films and revisions from the app and chat, plus exports from chat, per day (1–1000). |
+| `render.timeout_seconds` | `3600` | An export that runs longer is stopped (60–14400). |
+| `render.max_duration_seconds` | `900` | The longest video that can be exported (10–3600). |
+| `render.browser_path` | `""` | Absolute path of Chrome or Chromium. Empty: the browser installed on the system, else a pinned download. |
+| `render.transport` | `""` | How frames reach FFmpeg (`png`, `webp`, `raw`, `screenshot`). Empty is the measured default. |
+| `narration.max_daily_chars` | `100000` | Characters that cloud voices may speak per local day (1000–100000000). Local providers are exempt. |
+| `narration.max_job_chars` | `20000` | Characters that cloud voices may speak in one narration job (100–10000000). Local providers are exempt. |
+
+---
+
+## `findit`
+
+Inventory of parts, equipment and storage locations. See [FindIt](findit.md).
+
+| Key | Default | Description |
+|---|---|---|
+| `enabled` | `false` | Shows the app and answers its API. |
+| `agent_access` | `false` | Offers the read-only `findit` tool to the agent. |
+| `readonly` | `false` | The app may be used for lookups only; writes and imports are refused. |
+
+---
+
+## `kaggle`
+
+Kaggle workspace and notebook IDE. See [Kaggle](kaggle.md).
+
+| Key | Default | Description |
+|---|---|---|
+| `enabled` | `false` | Shows the app and answers its API. |
+| `read_only` | `true` | When `true`, every write operation stays blocked. |
+| `auth_mode` | `token` | `token` or an explicitly selected legacy mode. |
+| `allow_download` | `false` | Download datasets, models and competition files. |
+| `allow_create` | `false` | Create datasets, models and notebooks. |
+| `allow_update` | `false` | Update existing datasets, models and notebook versions. |
+| `allow_publish` | `false` | Publish private versions publicly. |
+| `allow_delete` | `false` | Delete datasets and models. |
+| `allow_submit` | `false` | Submit files or notebook versions to a competition. |
+| `allow_remote_execute` | `false` | Run notebooks on Kaggle instead of local Python. |
+| `allow_gpu` | `false` | Request GPU accelerators for remote runs. |
+| `allow_tpu` | `false` | Request TPU accelerators for remote runs. |
+| `allow_internet` | `false` | Allow internet access from remote notebooks. |
+| `allowed_owners` | `[]` | Your own account is always allowed; further accounts require an explicit entry. |
+
+---
+
 # Kosten und LLM-Auswahl
 
 Dieser Abschnitt gibt einen Überblick über die Kostenstruktur beim Betrieb von AuraGo und hilft bei der Auswahl der passenden LLM-Provider und Modelle.

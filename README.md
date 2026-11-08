@@ -24,6 +24,17 @@ Your self-hosted AI agent can SSH into your NAS, talk over mesh radio, build a b
 
 ## Fresh from the workbench
 
+*November 2026*
+
+- **Storymaker.** An illustrated explainer-video studio: stage scenes with cartoon people, props and environments, write the narration, pick a voice and music, then export an MP4 with sound, captions and separate audio tracks. Its AI author writes the film from a topic — in the app or from chat. [Guide](documentation/storymaker.md) · [Chapter 34](documentation/manuals/en/34-storymaker.md)
+- **Aura Drift.** An offline 3D racer with a 2D fallback: deterministic tyre physics, eight tracks and cars, seven modes, live weather, style scoring and eighteen weapons. [Guide](documentation/aura-drift.md) · [Chapter 33](documentation/manuals/en/33-aura-drift.md)
+- **Please Do Not Feed the Universe.** A painted point-and-click adventure with sixteen rooms, LucasArts-style controls, a verb bar and one original song per room. [Chapter 35](documentation/manuals/en/35-goldfish-adventure.md)
+- **Synth Studio, rebuilt.** Five workspace modes with a library drawer, 3D knobs and faders, a master knob with a dB readout, live EQ and filter response curves, vertical ADSR faders, groove and song generators, stem export — plus a Strudel live-coding mode. [Guide](documentation/synth-studio.md) · [Chapter 36](documentation/manuals/en/36-synth-studio.md)
+- **WhatsApp as a first-class channel.** A linked device with owner-only sending, inbound voice notes, images and documents, read receipts, notifications and newspaper delivery. [Setup](documentation/whatsapp_setup.md)
+- **FindIt, ECalc and Kaggle.** An inventory app for parts, equipment and storage locations; an electronics formula collection with schematics, live results and pinouts; and a Kaggle workspace with a stateful notebook IDE. [FindIt](documentation/findit.md) · [ECalc](documentation/manuals/en/32-ecalc.md) · [Kaggle](documentation/kaggle.md)
+- **Homepage Studio templates.** 25 DESIGN.md templates with a preview and a per-site selection. [Chapter 4](documentation/manuals/en/04-webui.md#virtual-desktop)
+- **Persona booster.** The persona gets phases: a stronger base voice plus temporary, signal-driven moods. [Chapter 10](documentation/manuals/en/10-personality.md#persona-booster)
+
 *October 2026*
 
 - **Video Studio.** A multitrack editor with keyframes, speed ramps, `.cube` LUTs, masks, chroma key, a WebGL2 preview and a project manager with versions. FFmpeg export, with optional GPU encoding. Off by default. [Guide](documentation/video-studio.md)
@@ -43,8 +54,8 @@ Your self-hosted AI agent can SSH into your NAS, talk over mesh radio, build a b
 ## The toy box
 
 - **Your home lab, on speaking terms.** Docker, Proxmox VMs and LXCs, TrueNAS, Home Assistant, MQTT, Fritz!Box, AdGuard, Tailscale, SSH and Wake-on-LAN. Inspect services, work with files, switch things on. The **Infra** atlas draws the map: topology, inventory and live power.
-- **A desktop with side quests.** Agent chat, files, terminal, gallery, calendar, radio and a Winamp-style music player. Code Studio for code, Homepage Studio for websites, Game Maker for single-player 2D, 3D and voxel browser games, CYD Creator for ESP32 touch-display apps.
-- **It remembers.** Conversation history, core facts, local embeddings, document RAG, a knowledge graph, notes and a journal. Insights keep their evidence, and memory corrections let you fix what it got wrong. Personality traits, moods and an inner voice shape how it talks.
+- **A desktop with side quests.** Agent chat, files, terminal, gallery, calendar, radio and a Winamp-style music player. Code Studio for code, Homepage Studio for websites, Game Maker for single-player 2D, 3D and voxel browser games, CYD Creator for ESP32 touch-display apps. Storymaker turns a topic into an illustrated explainer video, Synth Studio is the synth and DAW, ECalc the electronics reference, FindIt the inventory.
+- **It remembers.** Conversation history, core facts, local embeddings, document RAG, a knowledge graph, notes and a journal. Insights keep their evidence, and memory corrections let you fix what it got wrong. Personality traits, moods, an inner voice and the persona booster shape how it talks.
 - **Put it on autopilot.** Missions, cron schedules and webhooks start recurring work. **EasyDrag** flows run as missions, and **Looper** runs goal loops with a cost budget. Co-agents tackle subtasks. **Invasion Control** hatches worker “Eggs” on remote “Nests” over SSH or Docker. Yes, those are the actual names.
 - **Give it a computer.** Agent Workspaces provide disposable Firecracker VMs with a shell, files and a visible Chromium browser. The main agent does the thinking; the VM is its workbench.
 - **Give it a voice.** Telegram, WhatsApp, Discord, Rocket.Chat, email, realtime speech and SIP telephony. Speech Lab adds local speech recognition and synthesis.
@@ -57,7 +68,7 @@ Your self-hosted AI agent can SSH into your NAS, talk over mesh radio, build a b
 - **Eyes on the house.** go2rtc cameras with per-camera person detection, zones and alerts that come with photos. Detections can trigger flows and missions.
 - **Plug in the weird stuff.** Klipper/Moonraker and Elegoo 3D printers, an **ESP32 Cheap Yellow Display** for a tiny desk dashboard, **RuView** Wi-Fi sensing (experimental, ESP32 hardware), **Layerling** browser CAD, and Linux **Bluetooth** audio with an app to scan, pair and connect. Extend further with Python Skills, Agent Skills and MCP.
 
-[All integrations](documentation/manuals/en/08-integrations.md) · [Tool catalog](documentation/manuals/en/22-internal-tools.md) · [Game Maker](documentation/game-maker-studio.md) · [Video Studio](documentation/video-studio.md) · [Bookshelf](documentation/bookshelf.md) · [Mailer](documentation/mailer.md) · [Detective](documentation/detective.md) · [MeshCore](documentation/meshcore-en.md) · [Agent Workspaces](documentation/virtual_computers.md) · [Local Wikipedia](documentation/local-wikipedia.md) · [Infra](documentation/infra.md) · [Retro-Net](documentation/retro-net.md) · [Retro Games](documentation/retro-games.md) · [CYD Creator](documentation/cyd-creator.md)
+[All integrations](documentation/manuals/en/08-integrations.md) · [Tool catalog](documentation/manuals/en/22-internal-tools.md) · [Game Maker](documentation/game-maker-studio.md) · [Video Studio](documentation/video-studio.md) · [Storymaker](documentation/storymaker.md) · [Synth Studio](documentation/synth-studio.md) · [Aura Drift](documentation/aura-drift.md) · [FindIt](documentation/findit.md) · [Kaggle](documentation/kaggle.md) · [ECalc](documentation/manuals/en/32-ecalc.md) · [Bookshelf](documentation/bookshelf.md) · [Mailer](documentation/mailer.md) · [Detective](documentation/detective.md) · [MeshCore](documentation/meshcore-en.md) · [Agent Workspaces](documentation/virtual_computers.md) · [Local Wikipedia](documentation/local-wikipedia.md) · [Infra](documentation/infra.md) · [Retro-Net](documentation/retro-net.md) · [Retro Games](documentation/retro-games.md) · [CYD Creator](documentation/cyd-creator.md)
 
 ### Yes, there is an actual desktop
 
@@ -65,7 +76,7 @@ Your self-hosted AI agent can SSH into your NAS, talk over mesh radio, build a b
 
 *Real screenshot. The desktop is experimental. Click any image to inspect it at full size.*
 
-<p align="center"><strong>Around 60 desktop apps · 9 start-menu categories · 3 virtual Spaces · screensavers, animated wallpapers and desktop pets</strong></p>
+<p align="center"><strong>Around 70 desktop apps · 9 start-menu categories · 3 virtual Spaces · screensavers, animated wallpapers and desktop pets</strong></p>
 
 <details>
 <summary>Chat screenshot</summary>
@@ -88,14 +99,14 @@ Your self-hosted AI agent can SSH into your NAS, talk over mesh radio, build a b
 
 | Start-menu category | What it holds | Apps |
 | --- | --- | --- |
-| **Office** | Paperwork, reading and the everyday organizer | Writer · Sheets · Editor · Notes · Calendar · Todo · Calculator · People · Cheater · Tresor · Wikipedia · Bookshelf |
+| **Office** | Paperwork, reading and the everyday organizer | Writer · Sheets · Editor · Notes · Calendar · Todo · Calculator · People · Cheater · Tresor · Wikipedia · Bookshelf · FindIt · Viewer |
 | **Media** | Pictures, music, radio and TV | Gallery · Camera · Music Player · Radio · Personal Radio · RTL-SDR · TeeVee · Noisemaker |
-| **Creative** | Images, video, music, games, websites and CAD you build | Pixel · Video Studio · Synth Studio · Game Maker Studio · Homepage Studio · Layerling · NASSCAD |
-| **AI** | The agent at work: chat, voice, missions, flows, research and news | Agent Chat · Live Speech · Mission Control · Looper · EasyDrag · Detective · Newspaper |
-| **Dev** | Code, shells, remote machines and tiny hardware | Code Studio · Terminal · Quick Connect · Virtual Computers · CYD Creator · Log Viewer |
-| **System** | The machine, the store and your home lab | Files · Settings · Zipper · Launchpad · Software Store · Infra · System World |
+| **Creative** | Images, video, music, games, websites and CAD you build | Pixel · Video Studio · Synth Studio · Storymaker · Game Maker Studio · Homepage Studio · Layerling · OpenSCAD · NASSCAD |
+| **AI** | The agent at work: chat, voice, missions, flows, research and news | Agent Chat · Live Speech · Mission Control · Looper · EasyDrag · Detective · Newspaper · Kaggle |
+| **Dev** | Code, shells, remote machines and tiny hardware | Code Studio · Terminal · Quick Connect · Virtual Computers · CYD Creator · ECalc · Log Viewer |
+| **System** | The machine, the store and your home lab | Files · Settings · Zipper · Launchpad · Software Store · Docker Manager · Infra · System World |
 | **Comms** | People, mail, radios and cameras | Phone · Mailer · MeshCore · Network Cameras · Bluetooth · RuView · HA Switchboard |
-| **Games** | Short breaks, and the desktop pets | Galaxa Deluxe · AuraGolf · Chess · Retro Games · Pet Picker |
+| **Games** | Short breaks, and the desktop pets | Galaxa Deluxe · Aura Drift · Please Do Not Feed the Universe · AuraGolf · Chess · Retro Games · Pet Picker |
 | **Installed** | Managed Docker apps from the Software Store | Homarr · n8n · Node-RED · Open WebUI · code-server · Dozzle · God's Eye View and more |
 
 </details>
@@ -108,13 +119,16 @@ Tools for making things, from code to CAD.
 | --- | --- | --- |
 | **Code Studio** | Container-backed IDE with tty terminals, project insights and a multi-language code graph | [Virtual Desktop](documentation/manuals/en/04-webui.md#virtual-desktop) |
 | **Video Studio** | Multitrack editor with keyframes, LUTs, masks, chroma key, a WebGL2 preview and FFmpeg export. Off by default | [Guide](documentation/video-studio.md) |
-| **Synth Studio** | Five banks of ten presets, a General MIDI bank of 128 sounds, a piano roll and Web MIDI input | [Guide](documentation/synth-studio.md) |
+| **Synth Studio** | Five workspace modes with a library drawer, 3D knobs and faders, a master knob with a dB readout, live EQ curves, a piano roll, Web MIDI input and a Strudel live-coding mode | [Guide](documentation/synth-studio.md) |
+| **Storymaker** | Illustrated explainer videos: stage scenes, write the narration, pick a voice and music, export an MP4, then continue in Video Studio. The AI author writes the film from a topic | [Guide](documentation/storymaker.md) · [Chapter 34](documentation/manuals/en/34-storymaker.md) |
 | **Noisemaker** | AI music studio with a library and player. Local ACE-Step is optional | [ACE-Step](documentation/ace-step-local.md) |
 | **Pixel** | Image editor with filters, crop, resize and optional AI generation | [Virtual Desktop](documentation/manuals/en/04-webui.md#virtual-desktop) |
 | **Game Maker** | Single-player 2D, 3D and voxel browser games with a sprite library | [2D/3D](documentation/game-maker-studio.md) · [Voxel](documentation/game-maker-voxel.md) |
-| **Homepage Studio** | Build, validate and deploy managed website projects | [Virtual Desktop](documentation/manuals/en/04-webui.md#virtual-desktop) |
+| **Homepage Studio** | Build, validate and deploy managed website projects, with 25 DESIGN.md templates | [Virtual Desktop](documentation/manuals/en/04-webui.md#virtual-desktop) |
 | **CYD Creator** | Touch-display apps for ESP32 boards: 60-motif icon library, LVGL animations, serial flasher and OTA | [Guide](documentation/cyd-creator.md) |
 | **Layerling** | Local browser CAD for STL, OBJ, 3MF, STEP and SVG files | [Guide](documentation/layerling.md) |
+| **OpenSCAD** | Parametric 3D modeling with a live preview and STL export | [Virtual Desktop](documentation/manuals/en/04-webui.md#virtual-desktop) |
+| **ECalc** | Electronics formula collection with schematics, live results, E-series values, pinouts and component codes | [Chapter 32](documentation/manuals/en/32-ecalc.md) |
 | **EasyDrag** | Visual flow editor. Flows run as missions | [Chapter 24](documentation/manuals/en/24-easydrag.md) |
 | **Writer** | Native DOCX word processor | [Guide](documentation/autor.md) |
 
@@ -123,11 +137,13 @@ Tools for making things, from code to CAD.
 Take a break. The desktop comes with a small arcade, a chess board and a few places to wander around in. None of it is required for the serious work.
 
 - **Galaxa Deluxe.** Arcade shooter with 50 animated motifs, weapon evolutions, alien attack patterns and a synthwave soundtrack. [Guide](documentation/galaxa-expansion.md)
+- **Aura Drift.** Offline 3D racer with a 2D fallback: eight tracks and cars, seven modes, live weather, style scoring and eighteen weapons. [Guide](documentation/aura-drift.md)
+- **Please Do Not Feed the Universe.** A painted point-and-click adventure about robots, memories, a melancholy ape and three outspoken goldfish. Sixteen rooms, LucasArts-style controls, one original song per room. [Chapter 35](documentation/manuals/en/35-goldfish-adventure.md)
 - **AuraGolf.** 18 low-poly 3D minigolf holes for 1–4 players on one device. [Guide](documentation/minigolf.md)
 - **Chess.** Play against an agent opponent.
 - **Retro Games.** An archive.org player with about 72,500 titles, a 46-game Hall of Fame and favorites. [Guide](documentation/retro-games.md)
 - **Retro-Net.** The Terminal dials public Telnet and SSH BBSes, C64 boards and MUDs. On by default; every connection runs through the AuraGo server. [Guide](documentation/retro-net.md)
-- **System World.** An explorable 3D city. [Guide](documentation/system-world-2.md)
+- **System World.** An explorable 3D city with robots, a hover pack and a walking companion. [Guide](documentation/system-world-2.md)
 - **NASSCAD.** A docking game.
 
 ### AgoDesk — your agent, right on your desktop
@@ -159,6 +175,8 @@ AuraGo comes with **twelve personalities**: a friendly sidekick, a thoughtful ph
 | run it in ten minutes | [Quick start](#quick-start) |
 | connect my home lab | [Integrations](documentation/manuals/en/08-integrations.md) |
 | cut a video | [Video Studio](documentation/video-studio.md) |
+| make an explainer video | [Storymaker](documentation/storymaker.md) |
+| race a car | [Aura Drift](documentation/aura-drift.md) |
 | put the agent on autopilot | [Missions](documentation/manuals/en/11-missions.md) and [EasyDrag flows](documentation/manuals/en/24-easydrag.md) |
 | keep it offline | [Local models](documentation/local_llm_aurago_qwen.md) and [Local Wikipedia](documentation/local-wikipedia.md) |
 | lock it down | [Security introduction](documentation/security_introduction.md) and [Security chapter](documentation/manuals/en/14-security.md) |
@@ -263,7 +281,7 @@ Copy `config_template.yaml` to `config.yaml`. Set a persistent, random 64-charac
 
 [English manual](documentation/manuals/en/README.md) · [Deutsches Handbuch](documentation/manuals/de/README.md) · [Local models](documentation/local_llm_aurago_qwen.md) · [Speech Lab](documentation/s2s_speech_lab.md) · [SIP](documentation/sip_telephony.md) · [Skills](documentation/manuals/en/19-skills.md) · [API](documentation/manuals/en/21-api-reference.md) · [Troubleshooting](documentation/manuals/en/16-troubleshooting.md) · [Release notes](documentation/release-notes-2026-10-runtime-fixes.md)
 
-[Video Studio](documentation/video-studio.md) · [Synth Studio](documentation/synth-studio.md) · [Bookshelf](documentation/bookshelf.md) · [Mailer](documentation/mailer.md) · [Infra](documentation/infra.md) · [RuView](documentation/ruview.md) · [Decisions](documentation/decisions.md) · [LLM router](documentation/llm-router.md) · [Retro-Net](documentation/retro-net.md) · [Retro Games](documentation/retro-games.md) · [Layerling](documentation/layerling.md) · [Tresor](documentation/tresor.md) · [Detective](documentation/detective.md)
+[Video Studio](documentation/video-studio.md) · [Synth Studio](documentation/synth-studio.md) · [Storymaker](documentation/storymaker.md) · [Aura Drift](documentation/aura-drift.md) · [Bookshelf](documentation/bookshelf.md) · [Mailer](documentation/mailer.md) · [Infra](documentation/infra.md) · [RuView](documentation/ruview.md) · [Decisions](documentation/decisions.md) · [LLM router](documentation/llm-router.md) · [Retro-Net](documentation/retro-net.md) · [Retro Games](documentation/retro-games.md) · [Layerling](documentation/layerling.md) · [Tresor](documentation/tresor.md) · [Detective](documentation/detective.md) · [FindIt](documentation/findit.md) · [Kaggle](documentation/kaggle.md) · [Please Do Not Feed the Universe](documentation/goldfish-adventure.md) · [Punk 3D pet](documentation/desktop-punk-pet.md)
 
 [Releases](https://github.com/antibyte/AuraGo/releases) · [Website](https://antibyte.github.io/aurago-web/) · [AgoDesk for Windows and Linux](https://github.com/antibyte/agodesk)
 

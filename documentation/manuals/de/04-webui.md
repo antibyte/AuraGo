@@ -236,7 +236,8 @@ Der Virtual Desktop öffnet Workspace-basierte Apps direkt im AuraGo-Browser-Des
 | App | Zweck |
 |-----|-------|
 | **Files** | Virtuellen Desktop-Workspace durchsuchen und Dateien in der passenden App öffnen |
-| **Code Studio** | Container-basierte IDE mit Dateibaum, Editor, Suche, Terminal und Agent-Kontext |
+| **Code Studio** | Container-basierte IDE mit Dateibaum, Editor, Suche, Terminal und Agent-Kontext. Dazu kommen schreibgeschützte Git-Diff-Tabs (Working Tree oder Index) und eine Visual-Studio-artige untere Leiste mit Problems, Output und Terminal |
+| **CYD Creator** | Apps für Cheap-Yellow-Display-Boards (ESP32/ESP32-S3) entwerfen, coden und bauen: ein Designer, ein Agent, der den Code schreibt, ein Docker-Build, Flashen über Web Serial und Updates über WLAN ([Kapitel 25](25-cyd-creator.md)) |
 | **Terminal** | Workspace-Terminal mit wählbaren CRT-Stilen (Retro-Röhren-Look); mit **Retro-Net** (standardmäßig an) zusätzlich ein Wählerverzeichnis für Telnet-BBS, C64-Boards, MUDs u. a. — siehe unten |
 | **Autor / Tabellen / Notizen / Viewer** | Nativer DOCX-Textprozessor, native Tabellenkalkulation und Rich-Notiz-Editor (Liste, Live-Vorschau, Tags, Rich-Layout) sowie Dateibetrachter |
 | **Pixel** | Ebenen-Bildeditor mit Masken, Mischmodi, Auswahlen, Retuschewerkzeugen, 80 Filtern und Anpassungen, 43 Generatoren, Freistellen (auf dem Gerät oder KI-Modelle auf Abruf), Befehlspalette und OpenRaster-Projekten (`.ora`). Dazu kommt das ältere KI-Panel mit Providern ([Kapitel 31](31-pixel.md)) |
@@ -247,11 +248,13 @@ Der Virtual Desktop öffnet Workspace-basierte Apps direkt im AuraGo-Browser-Des
 | **Zipper** | ZIP-Archive durchsuchen und Dateien in den Workspace extrahieren |
 | **Camera / Gallery / Music Player** | Kamera-Aufnahme, Galerie und Musikwiedergabe |
 | **Radio / TeeVee / Noisemaker** | Retro-Radioempfänger, CRT-Fernseher für Live-Streams (IPTV); Noisemaker: KI-Musikstudio als Werkbank – links die Song-Erstellung (Einfach-Modus mit Genre-Presets oder Eigener Modus mit Stil, Lyrics, Titel und lokalen ACE-Step-Reglern), rechts die Bibliothek (Raster/Liste, Suche, Favoriten, Mehrfachauswahl) und unten eine persistente Player-Leiste mit Warteschlange, Shuffle/Repeat, Visualizer und „Jetzt läuft“-Ansicht. Fenstermenüs (Datei/Bearbeiten/Ansicht/Wiedergabe) und Kontextmenüs decken alle Aktionen ab. |
+| **Synth Studio** | Musik mit synthetischen Instrumenten und MIDI im Browser anordnen und aufnehmen: 120 Werksounds plus eine General-MIDI-Bank, ein Piano-Roll-Editor, ein Strudel-Live-Coding-Modus sowie WAV-, MIDI- und Stem-Exports ([Kapitel 36](36-synth-studio.md)) |
 | **Game Maker Studio** | Isolierte Offline-2D-/3D-Spielentwicklung mit Sprite-Bibliothek und Asset-Browser |
 | **OpenSCAD / 3D Viewer** | Parametrisches 3D-Modellieren mit Vorschau bzw. STL-Betrachter |
 | **Layerling** | Lokaler Browser-CAD-Editor (Projekte als `.lyl`; öffnet STL, OBJ, 3MF, STEP/STP und SVG, exportiert STL, OBJ, 3MF, STEP und PNG). Optional; Agent-Zugriff standardmäßig aus — Details in [Kapitel 8](08-integrations.md#layerling-desktop-cad) |
-| **Homepage Studio** | Verwaltete Website-Projekte bauen, prüfen und deployen |
+| **Homepage Studio** | Verwaltete Website-Projekte bauen, prüfen und deployen. Der Design-Picker bietet 25 mitgelieferte DESIGN.md-Templates mit je einem Vorschaubild, und eine Auswahl gilt für eine Website |
 | **Software Store** | Verwaltete Docker-Apps wie Homarr, n8n, Node-RED, Open WebUI, Arcane, Termix, code-server, Dozzle, Beszel und OliveTin installieren und bedienen |
+| **Docker Manager** | Docker auf diesem Server und auf entfernten Hosts verwalten: Compose-Stacks mit Up, Down, Restart, Pull und Update, Live-Logs und ein Terminal, Live-Ressourcenwerte sowie Ansichten für Images, Volumes und Netzwerke mit einem Aufräum-Assistenten |
 | **Quick Connect** | SSH-/VNC-Verbindungen verwalten |
 | **Network Cameras** | go2rtc-Kamera-Streams ansehen; Personenerkennung mit Ereignissen, Zonen und Scharfschaltung |
 | **Virtual Computers** | Boring-Computers-Maschinen und Workspaces steuern |
@@ -259,14 +262,20 @@ Der Virtual Desktop öffnet Workspace-basierte Apps direkt im AuraGo-Browser-Des
 | **Phone** | SIP-Softphone (Browser-Telefon) |
 | **Live Speech / Agent Chat** | Realtime-Sprachfenster und Desktop-Chat mit dem Agenten |
 | **Mission Control / Looper** | Automatisierte Aufgaben und iterative Agent-Workflows |
+| **Kaggle** | Kaggle-Datasets, Modelle, Notebooks, Wettbewerbe, Benchmarks und Foren erkunden, Notebooks mit lokalem Python bearbeiten oder auf Kaggle ausführen und Ergebnisse in ein Projekt laden ([Kaggle](../../kaggle.md)) |
 | **EasyDrag** | Visueller Editor für Flows: Auslöser und Schritte, die als Missionen laufen ([Kapitel 24](24-easydrag.md)). Nur sichtbar, solange Flows und Missionen eingeschaltet sind |
 | **Calendar / Todo / People / Pet Picker** | Terminplanung, Aufgaben, Kontakte (mit KG-Anreicherung) und Auswahl der animierten Persona-Haustiere (OpenPets) |
+| **FindIt** | Lokales Inventar für Elektronikbauteile, PC-Komponenten, Geräte, Werkzeuge und Verbrauchsmaterial: Artikelspezifikationen, Bestand je Lagerort, Stücklisten für Projekte, CSV-Import/-Export, Fotos und Etiketten ([FindIt](../../findit.md)) |
+| **Wikipedia** | Die auf dieser AuraGo-Instanz installierte Offline-Wikipedia durchsuchen und lesen: Titelvorschläge und Volltextsuche im lokalen Kiwix-Index, ganz ohne Netzwerkzugriff ([Local Wikipedia](../../local-wikipedia.md)) |
 | **Cheater** | Cheat-Sheet-Verwaltung mit Markdown und Anhängen |
 | **Calculator / Settings / System Info / Log Viewer** | Rechner, Desktop-Einstellungen, Systemdiagnose und Live-Logtail |
 | **ECalc** | Elektronik-Formelsammlung: interaktive Rechner mit Schaltplänen, gesetzten Formeln und Live-Ergebnissen, dazu E-Reihen-Werte für Widerstände. Läuft im Browser und braucht keine Einrichtung ([Kapitel 32](32-ecalc.md)) |
 | **Aura Drift** | Offline-3D-Rennspiel mit 2D-Ersatzansicht: deterministische Reifenphysik, acht Strecken und Autos, sieben Modi, synthetisierter Sound und optionale Waffen ([Kapitel 33](33-aura-drift.md)) |
 | **Storymaker** | Erklärvideos: Szenen mit Comicfiguren, Requisiten und Umgebungen inszenieren, den Sprechtext schreiben, Stimme und Musik wählen, die Vorschau ansehen und ein MP4 mit Ton, Untertiteln und getrennten Tonspuren exportieren, danach in Video Studio weiterschneiden (der Export braucht FFmpeg und einen Browser). Der Storymaker-Agent schreibt den Film aus einem Thema, in der App oder aus dem Chat, siehe [Storymaker](../../storymaker.md) |
-| **Galaxa Deluxe / Chess / NASSCAD / Systemwelt** | Arcade-Spiel, Schach (mit Agent-Gegner), Docking-Spiel und begehbare 3D-Systemstadt mit Robotern, Telemetrie und Turm-Stimme |
+| **Galaxa Deluxe / Chess / NASSCAD / Systemwelt** | Arcade-Spiel, Schach (mit Agent-Gegner), Docking-Spiel und begehbare 3D-Systemstadt mit Robotern, Telemetrie und Turm-Stimme. Die Stadt hat emissive Kaikantenlaternen am Wasser, eine Dämmerungsatmosphäre mit Laternenbrummen und einen Begleiter, der eine geschlossene Uferrunde abläuft |
+| **Please Do Not Feed the Universe** | Ein gemaltes Point-and-Click-Adventure über Roboter, Erinnerungen, einen melancholischen Affen und drei aufsässige Goldfische, mit ausgearbeiteten Räumen, Rätseln und Journal ([Kapitel 35](35-goldfish-adventure.md)) |
+| **AuraGolf** | Achtzehn Low-Poly-3D-Minigolf-Löcher für ein bis vier Personen auf demselben Gerät, mit Bestnoten und Übungsmodus ([AuraGolf](../../minigolf.md)) |
+| **Retro Games** | Im Browser spielbare Klassiker von archive.org – MS-DOS, Internet Arcade, Console Living Room, Commodore 64, Amiga, Apple II, ZX Spectrum und Windows 3.x – in einem Desktop-Fenster, mit lokalem Index, Favoriten und einer Hall of Fame ([Retro Games](../../retro-games.md)) |
 | **Newspaper** | Persönliche Tageszeitung: serverseitige Recherche mit geprüften Quellen, Ressorts, Archiv aller Ausgaben und optionaler E-Mail-/Telegram-Zustellung |
 | **Detective** | Gebundene Desktop-Recherchen mit einstellbarer Intensität, belegten Berichten und Export |
 | **Personal Radio** | Eigener Radiosender: Stationen mit Themen- und Musikauswahl, persönliche Audio-Bibliothek, Nachrichten und Sprachbeiträge |
@@ -277,6 +286,8 @@ Der Virtual Desktop öffnet Workspace-basierte Apps direkt im AuraGo-Browser-Des
 | **Tresor** | Browser-verschlüsselter Desktop-Safe: Einträge (Namen, Notizen, Dateien) liegen ausschließlich verschlüsselt in `data/tresor.db`; der Server sieht nur Ciphertext. Passwort plus Wiederherstellungsschlüssel, Versionen, automatisches Speichern von Notizen und Verriegeln beim Schließen |
 | **Launchpad** | Verwaltete URL-Sammlungen als Desktop-App: Links mit Kategorien und Symbolen (Suche im Icon-Katalog, Icon-Download) |
 | **God's Eye View** | Store-App: 3D-Globus auf Cesium-Basis im verwalteten Container. Der Store-Dialog nimmt optionale Provider-Keys (nur Vault) und erlaubte AuraGo-Ursprünge auf; Start/Stop bleibt im Store, das Fenster startet maximiert und erhält Mikrofon-Fähigkeit nur für sich selbst |
+
+Deep Dives zu den neueren Apps: [FindIt](../../findit.md), [Kaggle](../../kaggle.md), [Local Wikipedia](../../local-wikipedia.md), [Synth Studio](../../synth-studio.md), [AuraGolf](../../minigolf.md) und [Retro Games](../../retro-games.md); die Einrichtungsschalter für FindIt, Kaggle und die lokale Wikipedia stehen in [Kapitel 7](07-configuration.md).
 
 #### Homepage Studio: Änderungen in der Vorschau markieren
 
@@ -313,7 +324,7 @@ Webchat und Desktop **Live Speech** teilen sich ein kompaktes animiertes Persona
 
 ### Widgets
 
-Über den Widget-Drawer lassen sich Widgets wie Systemmonitor, Uhr, Wetter und Chat anheften. Das optionale Widget **builtin-meshcore** ist standardmäßig ausgeblendet und zeigt die neuesten MeshCore-Gespräche nur lesend. Weitere optionale Widgets: persistente **Klebezettel** (Papier-Notizen mit Raster-Ausrichtung und gemeinsamer Breite), das read-only **Fritz!Box-Widget** (Verbindungs-/WAN-Status, Traffic, Geräte und Telefonie mit Pager), das opt-in **Drucker-Widget** (Status und Kamerabild des konfigurierten 3D-Druckers) und die wachsende Desktop-Pflanze **Leafy** (gießen, düngen, Ranken schneiden). Der animierte Desktop-Pet (OpenPets) wird über die Desktop-Einstellungen (`pet.enabled`) gesteuert und spiegelt den Agentenzustand in Animationen wider.
+Über den Widget-Drawer lassen sich Widgets wie Systemmonitor, Uhr, Wetter und Chat anheften. Das optionale Widget **builtin-meshcore** ist standardmäßig ausgeblendet und zeigt die neuesten MeshCore-Gespräche nur lesend. Weitere optionale Widgets: persistente **Klebezettel** (Papier-Notizen mit Raster-Ausrichtung und gemeinsamer Breite), das read-only **Fritz!Box-Widget** (Verbindungs-/WAN-Status, Traffic, Geräte und Telefonie mit Pager), das opt-in **Drucker-Widget** (Status und Kamerabild des konfigurierten 3D-Druckers) und die wachsende Desktop-Pflanze **Leafy** (gießen, düngen, Ranken schneiden). Der animierte Desktop-Pet (OpenPets) wird über die Desktop-Einstellungen (`pet.enabled`) gesteuert und spiegelt den Agentenzustand in Animationen wider. Eine zweite Einstellung, `pet.always_on_top`, ist standardmäßig aus: Der Pet liegt dann unterhalb der Fenster-Ebene, und mit eingeschalteter Option hebt sich die Pet-Ebene über die Fenster. Der Pet-Picker bietet außerdem **Punk 3D**, einen 3D-Begleiter mit Skin und dreißig lokal mitgelieferten Mesh2Motion-Bewegungen, der dem Zeiger folgt und auf die Arbeitsereignisse des Agenten reagiert.
 
 ### Hinweise zum Software Store
 
@@ -351,6 +362,7 @@ Er startet nicht, solange der Browser-Tab ausgeblendet ist, ein Fenster im Vollb
 - **Chat:** 13 Themes, darunter Cyberwar, Retro CRT, Dark Sun, Lollipop, Ocean, Papyrus, 8bit, Black Matrix, Sandstorm, ThreeDee und das **Galaxy**-Theme im Orbit-Glass-Stil (violettes/cyan/goldenes Layout mit eigenem Willkommens-Orb).
   - **Dark Sun** zeigt eine totale Sonnenfinsternis über einer Glutebene: eine schwarze Scheibe mit atmender Korona und wanderndem Diamantring, Sterne, Basalt mit glühenden Lavarissen, Glut, die an den Nachrichten vorbei aufsteigt und bei Berührung zu Funken zerplatzt, sowie eine regelmäßige Eruption, die eine Lichtwelle über den Chat schickt. Bei reduzierter Bewegung, schmalen Bildschirmen oder ohne WebGL bleibt eine statische Szene.
   - **Sandstorm** zeigt eine lebendige Wüste: eine tiefstehende Sonne mit Strahlen durch treibenden Staub, drei Dünenkämme über dem Eingabefeld, regelmäßige Staubwände mit Trockengewittern, Sandkörner, die sich auf Nachrichten ablegen, und eine Böe, die dem Zeiger folgt. Auf den Dünen lebt eine Wüstenwelt: Geier kreisen in einer Thermik, Steppenkugeln hüpfen über den Kamm, ein Käfer wühlt sich in den Sand, eine Kamelkarawane zieht vorbei, und gelegentlich bricht ein Sandwurm aus dem Dünenkamm, durchstößt die Sanddecke und taucht wieder ab. Bei reduzierter Bewegung, schmalen Bildschirmen oder ohne WebGL bleibt eine statische Szene.
+  - **Theme-Optik** gibt jedem Theme seinen eigenen optischen Hintergrund: Eine gemeinsame WebGL-Schicht malt das Licht des aktiven Themes hinter die Nachrichten, und sowohl die Web-Chat-Seite als auch das Agent-Chat im Desktop rendern sie. Jedes Theme liefert nur sein eigenes Rezept (Palette, Effekt, Intensität, Tempo und Mischung); das Standard-Theme bleibt eine schlichte Fläche, reduzierte Bewegung zeichnet ein einzelnes Standbild, und ohne WebGL-Kontext bleibt die schlichte Fläche stehen.
 - **Virtual Desktop:** **Fruity** (Apple-inspiriert mit Dock und Topbar) und **Standard** (Windows-/Ubuntu-artige Produktivitätsoberfläche mit Taskbar).
 
 ## Mission Control

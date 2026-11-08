@@ -136,6 +136,9 @@ security_proxy:   # Reverse Proxy & Schutz
 egg_mode:         # Cluster-Worker-Mode
 firewall:         # Firewall-Integration
 journal:          # Auto-Journaleinträge
+storymaker:       # Storymaker-Videostudio und KI-Autor
+findit:           # Inventar, Lagerorte und Bestände
+kaggle:           # Kaggle-Workspace und Notebook-IDE
 ```
 
 ---
@@ -570,6 +573,9 @@ Die folgenden Blöcke können ebenfalls über die Web-UI oder ergänzend in `con
 | `detective` | Gebundene Desktop-Recherchen (Intensitätsprofile) | `detective:`<br>`  enabled: true`<br>`  readonly: false`<br>`  profiles:`<br>`    quick: {seconds: 300, tools: 40, iterations: 60, tokens: 0}` |
 | `flows` | Visuelle EasyDrag-Flows: Missionen mit eigener Engine ([Kapitel 11](11-missions.md#flow-missionen-easydrag)). Grenzen: Läufe 1–32, Zweige pro Lauf 1–16, Aufbewahrung 1–365 Tage, 10–5000 Läufe pro Flow; `ai_provider` leer = Hauptmodell. Änderungen an einer Grenze brauchen einen Neustart. `enabled` aus sperrt EasyDrag und die API sofort; veröffentlichte Flows laufen bis zum Neustart weiter, und einen schon laufenden Lauf kann man weiter stoppen. `ai_provider` gilt sofort. | `flows:`<br>`  enabled: true`<br>`  max_parallel_runs: 8`<br>`  max_parallel_nodes_per_run: 4`<br>`  run_retention_days: 30`<br>`  max_runs_per_flow: 200`<br>`  ai_provider: ""` |
 | `local_wikipedia` | Offline-Wikipedia (Kiwix-ZIM), Agenten-Tool und Desktop-App | `local_wikipedia:`<br>`  enabled: false`<br>`  agent_access: true`<br>`  language: ""`<br>`  variant: nopic`<br>`  data_dir: ""`<br>`  update_check: true` |
+| `storymaker` | Storymaker-Videostudio und KI-Autor | `storymaker:`<br>`  enabled: true`<br>`  agent:`<br>`    enabled: true`<br>`    max_daily_jobs: 10`<br>`  render:`<br>`    timeout_seconds: 3600`<br>`    max_duration_seconds: 900` |
+| `findit` | Inventar, Lagerorte und Bestandsprojekte | `findit:`<br>`  enabled: false`<br>`  agent_access: false`<br>`  readonly: false` |
+| `kaggle` | Kaggle-Workspace und Notebook-IDE | `kaggle:`<br>`  enabled: false`<br>`  read_only: true`<br>`  allow_download: false`<br>`  allow_remote_execute: false` |
 
 > [!NOTE]
 > Für Details zu allen verfügbaren Parametern siehe `config_template.yaml` im Projektverzeichnis.
@@ -860,6 +866,69 @@ AuraGo validiert die Konfiguration beim Start:
 
 ---
 
+### Storymaker – Videostudio und KI-Autor
+
+`storymaker` steuert die Desktop-App **Storymaker**, die illustrierte Erklärvideos inszeniert und als MP4 mit Sprechtext, Untertiteln und getrennten Tonspuren exportiert. Sie ist standardmäßig an. Der Agent, der aus einem Thema einen Film schreibt, braucht `storymaker.agent.enabled`.
+
+```yaml
+storymaker:
+    enabled: true
+    agent:
+        enabled: true               # Agent-Jobs aus der App und aus dem Chat
+        provider: ""                # Provider für Agent-Jobs; leer = die Hauptroute
+        model: ""                   # Modell-Override; leer = das Modell des Providers
+        job_timeout_seconds: 1800   # 120-7200
+        max_length_seconds: 180     # 15-3600
+        max_daily_jobs: 10          # 1-1000
+    render:
+        timeout_seconds: 3600       # 60-14400
+        max_duration_seconds: 900   # 10-3600
+        browser_path: ""            # leer = System-Browser, dann gepinnter Download
+        transport: ""               # leer = automatisch, oder png, webp, raw, screenshot
+    narration:
+        max_daily_chars: 100000     # Cloud-TTS-Zeichen pro lokalem Tag
+        max_job_chars: 20000        # Cloud-TTS-Zeichen pro Sprechauftrag
+```
+
+Cloud-Stimmen kosten Geld; lokale Provider sind von den Zeich limits ausgenommen. Ein Export braucht FFmpeg und einen Browser. Siehe [Kapitel 34](34-storymaker.md) und das [Storymaker-Handbuch](../../storymaker.md).
+
+### FindIt – Inventar und Lagerorte
+
+`findit` verwaltet Teile, Geräte und Lagerorte mit Beständen und Projektreservierungen. Standardmäßig ist es aus. Der Agent darf nur mit `agent_access` lesen und bleibt dabei schreibgeschützt.
+
+```yaml
+findit:
+  enabled: false
+  agent_access: false
+  readonly: false
+```
+
+Siehe [FindIt](../../findit.md).
+
+### Kaggle – Workspace und Notebook-IDE
+
+`kaggle` verbindet die Desktop-App **Kaggle** und ihre Notebook-IDE mit deinem Kaggle-Konto. Zugangsdaten liegen ausschließlich im verschlüsselten Vault, und jeder Schreibzugriff ist ein eigener Schalter, der im Nur-Lese-Modus aus bleibt.
+
+```yaml
+kaggle:
+  enabled: false
+  read_only: true
+  auth_mode: token
+  allow_download: false
+  allow_create: false
+  allow_update: false
+  allow_publish: false
+  allow_delete: false
+  allow_submit: false
+  allow_remote_execute: false
+  allow_gpu: false
+  allow_tpu: false
+  allow_internet: false
+  allowed_owners: []
+```
+
+Siehe [Kaggle](../../kaggle.md).
+
 ## Kompakte YAML-Referenz
 
 Für Headless und GitOps. Alltag bleibt **Menü → Config**. Die Quelle der Wahrheit ist `config_template.yaml`, nicht dieser Kasten.
@@ -878,6 +947,7 @@ Für Headless und GitOps. Alltag bleibt **Menü → Config**. Die Quelle der Wah
 | `llm_router` / `newspaper` / `treg` | Task-Router, Tageszeitung, treg-Katalog |
 | `flows` | EasyDrag-Flows (Missionen mit eigener Engine) |
 | `local_wikipedia` | Offline-Wikipedia (Kiwix-ZIM), Agenten-Tool und Desktop-App |
+| `storymaker` / `findit` / `kaggle` | Videostudio mit KI-Autor, Inventar, Kaggle-Workspace |
 | `mcp` / `mcp_server` / `a2a` | Externe Protokolle |
 | `security_proxy` / `cloudflare_tunnel` / `tailscale` | Öffentlicher Zugang |
 | `egg_mode` / `invasion_control` | Worker und Master |

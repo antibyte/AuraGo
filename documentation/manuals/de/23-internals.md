@@ -4,7 +4,7 @@
   <a href="../../../assets/readme/system-wiring.svg"><img src="../../../assets/readme/system-wiring.svg" width="640" alt="AuraGo-Systemverdrahtung"></a>
 </p>
 
-> 📅 **Stand:** 3. Oktober 2026 (UI-Paket und Recovery korrigiert; der Rest dieses Kapitels ist immer noch ein Architektur-Tiefgang)
+> 📅 **Stand:** 8. November 2026 (UI-Paket und Recovery korrigiert; der Rest dieses Kapitels ist immer noch ein Architektur-Tiefgang)
 >
 > 🎯 **Zielgruppe:** Entwickler, Beitragende und fortgeschrittene Nutzer
 >

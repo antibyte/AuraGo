@@ -20,6 +20,7 @@ Die Illustrationen sind Anleitungszeichnungen, keine UI-Screenshots. Klicke ein 
 
 - **dein Home Lab, auf Sprechbasis.** Docker, Proxmox, TrueNAS, Home Assistant, MQTT, Fritz!Box, AdGuard, Tailscale, SSH und Wake-on-LAN.
 - **Ein Desktop mit Nebenquests.** Chat, Dateien, Terminal, Galerie, Kalender, Radio, Winamp-artiger Player. Dazu Code Studio, Homepage Studio und Game Maker.
+- **Etwas herstellen.** Storymaker macht aus einem Thema ein illustriertes Erklärvideo, Synth Studio ist Synth und DAW, Aura Drift das 3D-Rennspiel, ECalc die Elektronik-Sammlung und FindIt das Inventar.
 - **Er erinnert sich.** Verlauf, Kernfakten, lokale Embeddings, Dokument-RAG, Knowledge Graph, Notizen, Journal. Persönlichkeit ändert den Ton, nicht die Rechte.
 - **Autopilot.** Missionen, Cron, Webhooks, Co-Agenten. **Invasion Control** schlüpft Worker-„Eggs“ auf Remote-„Nests“. Ja, so heißen die wirklich.
 - **Sprache und Funk.** Telegram, Discord, Rocket.Chat, E-Mail, Realtime Speech, SIP, Speech Lab. **MeshCore** für vertrauenswürdige Direktnachrichten und eingeschränkte Kanalantworten.
@@ -132,6 +133,9 @@ Daten liegen bei deiner Installation. **Gehostete Modelle sehen trotzdem ihre Re
 31. [Pixel](31-pixel.md) — Ebenen-Bildeditor mit Masken, 80 Filtern, 43 Generatoren, KI-Freistellen und OpenRaster-Projekten
 32. [ECalc](32-ecalc.md) — Elektronik-Formelsammlung: Rechner mit Schaltplänen, Live-Ergebnissen und E-Reihen-Werten für Widerstände
 33. [Aura Drift](33-aura-drift.md) — 3D-Rennspiel mit 2D-Ersatzansicht: deterministische Reifenphysik, acht Strecken und Autos, sieben Modi, Live-Wetter, Style-Punkte und Waffen
+34. [Storymaker](34-storymaker.md) — Illustrierte Erklärvideos: Szenen inszenieren, Sprechtext schreiben, MP4 mit Untertiteln und Tonspuren exportieren und den Film vom KI-Autor schreiben lassen
+35. [Please Do Not Feed the Universe](35-goldfish-adventure.md) — Gemaltes Point-and-Click-Adventure in sechzehn Räumen, mit Verb-Leiste, LucasArts-Steuerung und einem eigenen Song pro Raum
+36. [Synth Studio](36-synth-studio.md) — Fünf Arbeitsmodi, Library-Drawer, 3D-Knobs und Fader, Live-EQ- und Filterkurven, Stem-Export und ein Strudel-Livecoding-Modus
 
 [FAQ](faq.md) · [Handbuch-Start](../README.md) · [Release Notes](../../release-notes-2026-10-audit-remediation.md)
 
@@ -176,4 +180,4 @@ Die UI spricht **16 Sprachen**. Pick your company in **Config → Personality**.
 
 [![Flaggen der 16 UI-Sprachen](../../../assets/readme/language-flags.webp)](../../../assets/readme/language-flags.webp)
 
-*Stand: 22. Oktober 2026. Die englische Fassung ist [hier](../en/README.md).*
+*Stand: 8. November 2026. Die englische Fassung ist [hier](../en/README.md).*

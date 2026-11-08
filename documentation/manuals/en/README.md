@@ -20,6 +20,7 @@ The drawings are instruction-booklet art, not UI screenshots. Click any image fo
 
 - **Your home lab, on speaking terms.** Docker, Proxmox, TrueNAS, Home Assistant, MQTT, Fritz!Box, AdGuard, Tailscale, SSH and Wake-on-LAN.
 - **A desktop with side quests.** Chat, files, terminal, gallery, calendar, radio, a Winamp-style player. Plus Code Studio, Homepage Studio and Game Maker.
+- **Make something.** Storymaker turns a topic into an illustrated explainer video, Synth Studio is the synth and DAW, Aura Drift the 3D racer, ECalc the electronics reference and FindIt the inventory.
 - **It remembers.** History, core facts, local embeddings, document RAG, a knowledge graph, notes, a journal. Personality changes the tone, not the permissions.
 - **Autopilot.** Missions, cron, webhooks, co-agents. **Invasion Control** hatches worker “Eggs” on remote “Nests”. Yes, those are the actual names.
 - **Voice and radio.** Telegram, Discord, Rocket.Chat, email, realtime speech, SIP, Speech Lab. **MeshCore** for trusted direct messages and restricted channel replies.
@@ -132,6 +133,9 @@ Your data stays with the installation. **Hosted models still see their request i
 31. [Pixel](31-pixel.md) — Layered image editor with masks, 80 filters, 43 generators, AI background removal and OpenRaster projects
 32. [ECalc](32-ecalc.md) — Electronics formula collection: calculators with schematics, live results and E-series values for resistors
 33. [Aura Drift](33-aura-drift.md) — Offline 3D racer with a 2D fallback: deterministic tyre physics, eight tracks and cars, seven modes, live weather, style scoring and weapons
+34. [Storymaker](34-storymaker.md) — Illustrated explainer videos: stage scenes, write the narration, export an MP4 with captions and stems, and let the AI author write the film from a topic
+35. [Please Do Not Feed the Universe](35-goldfish-adventure.md) — A painted point-and-click adventure in sixteen rooms, with a verb bar, LucasArts-style controls and one original song per room
+36. [Synth Studio](36-synth-studio.md) — Five workspace modes, a library drawer, 3D knobs and faders, live EQ and filter response curves, stem export and a Strudel live-coding mode
 
 [FAQ](faq.md) · [Handbook hub](../README.md) · [Release notes: audit remediation](../../release-notes-2026-10-audit-remediation.md)
 
@@ -176,4 +180,4 @@ The UI speaks **16 languages**. Pick your company in **Config → Personality**.
 
 [![Flags for all 16 UI languages](../../../assets/readme/language-flags.webp)](../../../assets/readme/language-flags.webp)
 
-*Updated 19 October 2026. German edition [here](../de/README.md).*
+*Updated 8 November 2026. German edition [here](../de/README.md).*

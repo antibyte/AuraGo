@@ -817,7 +817,7 @@ Die Anwendungsausgabe läuft in `log/aurago.log`, HTTP-Zugriffe in `log/web_acce
 
 ## Update-Historie (Changelog)
 
-Versionsnummern und Feature-Listen gehören in GitHub Releases. Dieses Handbuch beschreibt den Stand vom **3. Oktober 2026**.
+Versionsnummern und Feature-Listen gehören in GitHub Releases. Dieses Handbuch beschreibt den Stand vom **8. November 2026**.
 
 ### Update-Checkliste
 
