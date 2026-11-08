@@ -551,7 +551,7 @@
                 return {
                     kind: 'three', calls: info.render.calls, triangles: info.render.triangles,
                     geometries: info.memory.geometries, textures: info.memory.textures,
-                    particles: fxs ? fxs.particles || 0 : 0, props: ps ? ps.props || 0 : 0,
+                    particles: fxs ? fxs.particles || 0 : 0, ripples: fxs ? fxs.ripples || 0 : 0, rippleTotal: fxs ? fxs.rippleTotal || 0 : 0, aura: fxs ? fxs.aura || 0 : 0, props: ps ? ps.props || 0 : 0,
                     standIns: AD.assets.stats().standIns + (ps && ps.standIns ? ps.standIns : 0),
                     wetness: wetness, chunks: ts ? ts.chunks || 0 : 0, projection: projection, tier: tier
                 };

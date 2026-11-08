@@ -1,6 +1,6 @@
 <!doctype html>
 <!-- Aura Drift dev harness. Never shipped: ui/testdata is outside assets/web-assets.json.
-     Query params: track, car, mode, quality, camera, autostart, seed, w, h. -->
+     Query params: track, car, mode, quality, camera, autostart, seed, reduced, w, h. -->
 <html lang="de">
 <head>
 <meta charset="utf-8">
@@ -23,6 +23,15 @@
     window.BUILD_VERSION = 'dev';
     window.SYSTEM_LANG = 'de';
     const params = new URLSearchParams(location.search);
+    /* Headless browsers report prefers-reduced-motion: reduce. The dev harness can force either
+       side so the ambient effect layers stay reviewable in screenshots. */
+    if (params.has('reduced')) {
+        const force = params.get('reduced') === '1';
+        const native = window.matchMedia.bind(window);
+        window.matchMedia = query => (/prefers-reduced-motion/.test(String(query))
+            ? { matches: force, media: String(query), onchange: null, addEventListener() { }, removeEventListener() { }, addListener() { }, removeListener() { }, dispatchEvent() { return false; } }
+            : native(query));
+    }
     window.AuraDriftHarnessParams = {
         track: params.get('track') || '',
         car: params.get('car') || '',

@@ -3650,8 +3650,16 @@ buttons and menu popovers remain excluded from those gestures.
 - Polish: `aura-drift-fx.js` owns a quiet camera-relative biome mote layer (one `MOTES` profile
   per biome, scaled by the particle tier, disabled by `fx.setReducedMotion` from `render3d.js`)
   and one-shot feedback for near misses, style banks, sectors, cloak changes, bomb ticks and the
-  weather events (a strike adds a ground ring, a gust a few motes, a shift a puff). The mote and
-  rain layers lean with `conditions.state.gust`, wet roads throw headlamp-lit spray, and
+  weather events (a strike adds a ground ring, a gust a broad mote-and-leaf wave plus a ground
+  ring, a shift a puff). The mote and
+  rain layers lean with `conditions.state.gust`, wet roads throw headlamp-lit spray, spawn
+  short-lived ripple rings only where `AD.sampleTrack` finds tarmac, and hard braking above 30
+  units leaves glowing brake dust at the rear wheels.
+  The drift aura is its own presentation layer (`auraEmit`/`stepAura`, meshes `fx-aura-ground` and
+  `fx-aura-shell`): it reads only `driftLevel`, `overdrive`, `slip` and `driftCharge`, tints teal
+  while charging and uses the drift-level palettes otherwise, and follows the yaw rate with its
+  radius. Its ambient and speed layers are gated by reduced motion, so probe screenshots need the
+  harness `?reduced=0` (headless browsers report `prefers-reduced-motion: reduce`).
   `aura-drift-sky.js` crossfades its GLSL weather, leans precipitation, whitens the dome with the
   `uFlash` uniform and lifts the hemisphere light on a strike.
   `AD.SCATTER` (`aura-drift-look.js`) and `AD.furnitureProps` (`aura-drift-props.js`) place the

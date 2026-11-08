@@ -133,6 +133,8 @@ type auraDriftStats struct {
 		Triangles  int    `json:"triangles"`
 		Geometries int    `json:"geometries"`
 		StandIns   int    `json:"standIns"`
+		Ripples    int    `json:"ripples"`
+		Aura       int    `json:"aura"`
 	} `json:"renderer"`
 	Post struct {
 		Available bool   `json:"available"`
@@ -503,6 +505,12 @@ func TestDesktopAuraDriftNightHarbourBrowser(t *testing.T) {
 	}
 	if dir := auraDriftArtifactDir(t, "harbour"); dir != "" {
 		page.MustScreenshot(filepath.Join(dir, "aura-drift-harbour.png"))
+	}
+	/* The drift aura is presentation only, but it has to reach the renderer: overdrive lights it up. */
+	page.MustEval(`()=>{window.AuraDriftApp.debug.give('overdrive');window.AuraDriftApp.debug.fire();}`)
+	auraDriftSleep(page, 400)
+	if auraStats, fresh := auraDriftReadStats(t, page); auraStats.Renderer.Kind == "three" && auraStats.Renderer.Aura != 1 {
+		t.Fatalf("overdrive did not raise the drift aura: %s", fresh)
 	}
 	auraDriftCloseWindows(page)
 	auraDriftNoErrors(t, page)

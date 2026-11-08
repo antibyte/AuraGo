@@ -144,9 +144,9 @@
     ].join('\n');
     const RING_VS = 'varying vec2 vP;\nvoid main() { vP = position.xz * 2.0; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
     const RING_FS = [
-        'uniform vec3 uColor; uniform float uAlpha; uniform float uIn; varying vec2 vP;',
+        'uniform vec3 uColor; uniform float uAlpha; uniform float uIn; uniform float uW; varying vec2 vP;',
         'void main() {',
-        '  float d = length(vP); float w = 0.17;',
+        '  float d = length(vP); float w = uW;',
         '  float a = (smoothstep(uIn - w, uIn, d) * (1.0 - smoothstep(uIn, uIn + w * 0.3, d)) + (1.0 - smoothstep(0.0, uIn, d)) * 0.1) * uAlpha;',
         '  if (a < 0.003) discard; gl_FragColor = vec4(uColor, a);',
         '#include <tonemapping_fragment>',
@@ -183,6 +183,41 @@
         '    col = mix(vec3(2.2, 1.7, 0.8), vec3(1.6, 0.35, 0.05), t);',
         '  }',
         '  gl_FragColor = vec4(col, a * uAlpha);',
+        '#include <tonemapping_fragment>',
+        '#include <colorspace_fragment>',
+        '}'
+    ].join('\n');
+    /* Drift aura: a flat sigil on the road plus a rotating shell around the player's car. Both are
+       pure geometry with a closed-form shader - no textures, no extra draw state per frame. */
+    const AURA_G_VS = 'varying vec2 vP;\nvoid main() { vP = position.xz * 2.0; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
+    const AURA_G_FS = [
+        'uniform vec3 uColor; uniform vec3 uColor2; uniform float uAlpha; uniform float uSpin; varying vec2 vP;',
+        'void main() {',
+        '  float r = length(vP);',
+        '  if (r > 1.0) discard;',
+        '  float ang = atan(vP.y, vP.x);',
+        '  float core = exp(-r * r * 7.0) * 0.5;',
+        '  float edge = exp(-pow((r - 0.9) / 0.035, 2.0)) * 0.8;',
+        '  float dash = pow(max(0.0, sin(ang * 9.0 - uSpin * 2.0)), 3.0);',
+        '  float sweep = exp(-pow((r - 0.66) / 0.05, 2.0)) * (0.25 + 0.75 * dash);',
+        '  float inner = exp(-pow((r - 0.42) / 0.07, 2.0)) * 0.3;',
+        '  float a = (core + edge + sweep + inner) * uAlpha * smoothstep(1.0, 0.9, r);',
+        '  if (a < 0.004) discard;',
+        '  vec3 col = mix(uColor2, uColor, clamp(r * 1.15, 0.0, 1.0));',
+        '  gl_FragColor = vec4(col, a);',
+        '#include <tonemapping_fragment>',
+        '#include <colorspace_fragment>',
+        '}'
+    ].join('\n');
+    const AURA_S_VS = 'varying vec2 vUv;\nvoid main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
+    const AURA_S_FS = [
+        'uniform vec3 uColor; uniform float uAlpha; uniform float uSpin; varying vec2 vUv;',
+        'void main() {',
+        '  float up = vUv.y;',
+        '  float band = pow(max(0.0, sin(vUv.x * 31.4159 - uSpin * 2.4)), 4.0);',
+        '  float a = (pow(up, 2.6) * 0.42 + band * pow(up, 2.0) * 0.8) * uAlpha;',
+        '  if (a < 0.004) discard;',
+        '  gl_FragColor = vec4(uColor * (0.65 + 0.65 * band), a);',
         '#include <tonemapping_fragment>',
         '#include <colorspace_fragment>',
         '}'
@@ -338,7 +373,7 @@
         const rings = [];
         for (let i = 0; i < 12; i++) {
             const mat = new T.ShaderMaterial({
-                uniforms: { uColor: { value: new T.Color() }, uAlpha: { value: 0 }, uIn: { value: 0.8 } }, vertexShader: RING_VS, fragmentShader: RING_FS,
+                uniforms: { uColor: { value: new T.Color() }, uAlpha: { value: 0 }, uIn: { value: 0.8 }, uW: { value: 0.17 } }, vertexShader: RING_VS, fragmentShader: RING_FS,
                 transparent: true, depthWrite: false, blending: T.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3
             });
             const mesh = new T.Mesh(ringGeo, mat);
@@ -356,6 +391,44 @@
         }
         /* A camera-facing ring from the atlas, for blasts in the air. */
         const ringBb = (x, y, z, s0, s1, life, c, a) => spawn(F.RING, 1, x, y, z, 0, 0, 0, life, s0, s1, c, c, a === undefined ? 0.9 : a, 0, 0, 0, 0, 0, 0);
+
+        /* ---- rain ripples: thin flat rings that only ever sit on the wet road --------- */
+        const ripples = [];
+        for (let i = 0; i < 18; i++) {
+            const mat = new T.ShaderMaterial({
+                uniforms: { uColor: { value: new T.Color() }, uAlpha: { value: 0 }, uIn: { value: 0.8 }, uW: { value: 0.05 } }, vertexShader: RING_VS, fragmentShader: RING_FS,
+                transparent: true, depthWrite: false, blending: T.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3
+            });
+            const mesh = new T.Mesh(ringGeo, mat);
+            mesh.visible = false; mesh.renderOrder = 3; mesh.frustumCulled = false;
+            root.add(mesh);
+            ripples.push({ mesh: mesh, mat: mat, on: false, r0: 0, r1: 0, life: 1, age: 0, a: 1 });
+        }
+        let rippleCur = 0, rippleTotal = 0;
+        function ripple(x, z, r1, life, c, a) {
+            const r = ripples[rippleCur]; rippleCur = (rippleCur + 1) % ripples.length; rippleTotal++;
+            r.on = true; r.r0 = 0.06; r.r1 = r1; r.life = life; r.age = 0; r.a = a === undefined ? 0.4 : a;
+            r.mesh.position.set(x, 0.06, z);
+            r.mat.uniforms.uColor.value.setRGB(c[0], c[1], c[2]);
+            r.mesh.visible = true;
+        }
+
+        /* ---- drift aura: a ground sigil and a rotating shell on the player's car -------- */
+        const auraMatG = new T.ShaderMaterial({
+            uniforms: { uColor: { value: new T.Color() }, uColor2: { value: new T.Color() }, uAlpha: { value: 0 }, uSpin: { value: 0 } },
+            vertexShader: AURA_G_VS, fragmentShader: AURA_G_FS, transparent: true, depthWrite: false, blending: T.AdditiveBlending,
+            polygonOffset: true, polygonOffsetFactor: -5, polygonOffsetUnits: -5
+        });
+        const auraGround = new T.Mesh(ringGeo, auraMatG);
+        auraGround.visible = false; auraGround.renderOrder = 4; auraGround.frustumCulled = false; auraGround.name = 'fx-aura-ground';
+        root.add(auraGround);
+        const auraMatS = new T.ShaderMaterial({
+            uniforms: { uColor: { value: new T.Color() }, uAlpha: { value: 0 }, uSpin: { value: 0 } },
+            vertexShader: AURA_S_VS, fragmentShader: AURA_S_FS, transparent: true, depthWrite: false, blending: T.AdditiveBlending, side: T.DoubleSide
+        });
+        const auraShell = new T.Mesh(new T.CylinderGeometry(1, 1, 1, 48, 1, true), auraMatS);
+        auraShell.visible = false; auraShell.renderOrder = 4; auraShell.frustumCulled = false; auraShell.name = 'fx-aura-shell';
+        root.add(auraShell);
 
         /* ---- beams ----------------------------------------------------------- */
         const beams = [];
@@ -431,6 +504,10 @@
         /* ---- state -------------------------------------------------------------- */
         let lastRace = null, time = 0, eyeX = 0, eyeZ = 0, eyeSet = false, night = false;
         let reduced = false, moteAcc = 0;
+        /* Drift aura: target set by the simulation every frame, eased in `update` so the halo never pops. */
+        let auraTarget = 0, auraSeen = -1e9, auraA = 0, auraSpin = 0, auraR = 3.1, auraRT = 3.1;
+        let auraX = 0, auraZ = 0, auraH = 0;
+        const auraC = [0.4, 0.8, 1], auraCT = [0.4, 0.8, 1];
         const cst = [], timers = [], ufos = [];
         const carState = i => cst[i] || (cst[i] = { wl: { has: false }, wr: { has: false }, gear: 1, thr: 0 });
         function use(race) {
@@ -622,6 +699,84 @@
             }
         }
 
+        /* ---- drift aura ------------------------------------------------------------- */
+        /* The aura reads only presentation state (drift level, overdrive, slip) and never writes to
+           the vehicle. It is the payoff for a long drift: a road sigil plus a rotating shell that
+           climbs in colour with the charge level. */
+        function auraEmit(race) {
+            const car = race.cars && race.cars[0], v = car && car.v;
+            if (!v || v.out) { auraTarget = 0; return; }
+            const speed = Math.abs(v.vx), sliding = !v.airborne && speed > 8 && v.slip > 2.0;
+            let lvl = sliding ? Math.max(1, clamp(v.driftLevel, 1, 3)) : 0;
+            if (!v.airborne && v.overdrive > 0) lvl = 4;
+            /* A drift that is still charging gets a dim teal hint, so the halo answers the input early. */
+            const charging = lvl === 0 && !v.airborne && speed > 8 && v.driftCharge > 0.12;
+            if (lvl <= 0 && !charging) { auraTarget = 0; return; }
+            auraTarget = (reduced ? 0.5 : 1) * (lvl > 0 ? 1 : 0.4);
+            auraSeen = time;
+            auraX = v.x; auraZ = v.y; auraH = v.z;
+            const c = lvl === 4 ? OVER_CORE : lvl > 0 ? TURBO[clamp(lvl - 1, 0, 2)] : TEAL;
+            auraCT[0] = c[0]; auraCT[1] = c[1]; auraCT[2] = c[2];
+            auraRT = (lvl === 4 ? 3.6 : lvl > 0 ? 3.1 + 0.35 * (lvl - 1) : 2.7) + 0.7 * Math.min(1, Math.abs(v.r) * 0.45);
+            if (reduced) return;
+            if (rnd() < 24 * dens * (0.4 + 0.6 * auraA)) {
+                const an = rnd() * TAU, d = auraRT * rr(0.5, 0.95);
+                glow(v.x + Math.cos(an) * d, rr(0.15, 0.9), v.y + Math.sin(an) * d, 0, rr(1.2, 3.4), 0,
+                    rr(0.45, 0.95), rr(0.28, 0.55), 0.08, c, c, 0.75, 0.4, rnd() < 0.4 ? F.STAR : F.DOT);
+            }
+        }
+        function stepAura(dt) {
+            const target = time - auraSeen < 0.25 ? auraTarget : 0;
+            auraA += (target - auraA) * (1 - Math.exp(-(target > auraA ? 10 : 5) * dt));
+            if (auraA < 0.004) {
+                if (auraGround.visible) { auraGround.visible = false; auraShell.visible = false; }
+                return;
+            }
+            const k = 1 - Math.exp(-6 * dt);
+            auraR += (auraRT - auraR) * k;
+            for (let i = 0; i < 3; i++) auraC[i] += (auraCT[i] - auraC[i]) * k;
+            if (!reduced) auraSpin += dt * (1.3 + 2.6 * auraA);
+            auraGround.visible = true; auraShell.visible = true;
+            auraGround.position.set(auraX, 0.075, auraZ);
+            auraGround.scale.set(auraR, 1, auraR);
+            const g = auraMatG.uniforms;
+            g.uAlpha.value = auraA * 1.05;
+            g.uSpin.value = auraSpin;
+            g.uColor.value.setRGB(auraC[0], auraC[1], auraC[2]);
+            g.uColor2.value.setRGB(auraC[0] * 0.45 + 0.35, auraC[1] * 0.45 + 0.4, auraC[2] * 0.45 + 0.45);
+            const hr = auraR * 0.78;
+            auraShell.position.set(auraX, auraH + 0.97, auraZ);
+            auraShell.scale.set(hr, 1.9, hr);
+            const s = auraMatS.uniforms;
+            s.uAlpha.value = auraA * 0.6;
+            s.uSpin.value = auraSpin;
+            s.uColor.value.setRGB(auraC[0], auraC[1], auraC[2]);
+        }
+
+        /* ---- weather animations ------------------------------------------------------- */
+        /* A gust crosses the view as one broad wave of the biome's own motes, lifting a few leaves. */
+        function gustSweep(race) {
+            const p = race.cars && race.cars[0] ? race.cars[0].v : null;
+            if (reduced || !eyeSet) { if (p) sparkle(p.x, p.y, ICE1, 6); return; }
+            const m = MOTES[race.track.biomeId] || MOTES.alpine;
+            const an = rnd() * TAU, dx = Math.cos(an), dz = Math.sin(an);
+            const c0 = col(m[1], m[8] ? 1.5 : 1), c1 = col(m[2], m[8] ? 0.8 : 1);
+            for (let k = cnt(54); k > 0; k--) {
+                const ahead = rr(-70, 16), side = rr(-46, 46);
+                spawn(m[0], m[8], eyeX + dx * ahead - dz * side, rr(0.4, 7), eyeZ + dz * ahead + dx * side,
+                    dx * rr(13, 24), rr(-0.6, 1.8), dz * rr(13, 24), rr(0.7, 1.5), m[6] * rr(0.7, 1.5), m[6] * 1.1,
+                    c0, c1, m[8] ? 0.7 : 0.45, 0.3, 0, 0, 0, rr(-1, 1), 0);
+            }
+            const leafy = race.track.biomeId === 'forest' || race.track.biomeId === 'alpine';
+            const leaf = col(leafy ? '#d8c46a' : m[1], 1.1);
+            for (let k = cnt(leafy ? 16 : 8); k > 0; k--) {
+                const ahead = rr(-40, 6), side = rr(-24, 24);
+                bit(leafy ? F.LEAF : F.DOT, eyeX + dx * ahead - dz * side, rr(0.3, 3), eyeZ + dz * ahead + dx * side,
+                    dx * rr(10, 20), rr(0.5, 3), dz * rr(10, 20), rr(1.1, 2.0), rr(0.22, 0.4), leaf, leaf, 2.4, K_FLUTTER, 0.5, leafy ? 0 : 1, 0);
+            }
+            if (p) ring(p.x, 0, p.y, 4, 26, 0.5, ICE1, 0.16);
+        }
+
         /* ---- event dispatch --------------------------------------------------------- */
         function event(evt, race) {
             if (!race || !S) return;
@@ -716,7 +871,7 @@
                 case 'cloak_off': sparkle(ex, ey, PURPLE, 8); break;
                 case 'bomb_tick': if (v) ring(v.x, 0.4, v.y, 0.4, 3.2, 0.28, GOLD, 0.5); break;
                 case 'lightning': { const p = race.cars[0].v; sparkle(p.x, p.y, WHITE, 16); ringBb(p.x, 6, p.y, 2, 26, 0.45, ELEC, 0.45); break; }
-                case 'gust': { const p = race.cars[0].v; sparkle(p.x, p.y, ICE1, 6); break; }
+                case 'gust': gustSweep(race); break;
                 case 'weather': { const p = race.cars[0].v; sparkle(p.x, p.y, ICE0, 10); break; }
                 default: break;
             }
@@ -774,6 +929,19 @@
                         col('#bfe6ff', 1.2), col('#6fa8d8', 0.8), 0.5, 1.2, -3, 0, 0, 0, 0);
                 }
             }
+            /* Rain on the wet road: puddles answer with a thin ripple ring and a small crown. */
+            if (wet > 0.3 && rnd() < wet * dens * dt * 34) {
+                const an = rnd() * TAU, d = 3 + Math.sqrt(rnd()) * 30;
+                const x = eyeX + Math.cos(an) * d, z = eyeZ + Math.sin(an) * d;
+                const sm = AD.sampleTrack(race.track, x, z);
+                if (sm && Math.abs(sm.offset) < sm.halfWidth + 1.5) {
+                    ripple(x, z, rr(1.2, 3.2), rr(0.35, 0.6), col('#bfe6ff', 0.9), rr(0.16, 0.32));
+                    for (let k = N(6 * wet * dens); k > 0; k--) {
+                        bit(F.DROP, x, 0.08, z, rr(-0.7, 0.7), rr(1.4, 3.4), rr(-0.7, 0.7), rr(0.22, 0.38), rr(0.1, 0.2),
+                            col('#dceffc', 1.1), col('#8fc4e8', 0.8), 14, K_DIE, 0.2, 0, 0);
+                    }
+                }
+            }
         }
 
         /* ---- continuous emission ------------------------------------------------------ */
@@ -818,6 +986,14 @@
                         spark(wx - wvx * rr(0, dt), rr(0.1, 0.35), wz - wvz * rr(0, dt), wvx * 0.6 - cp * sd * 0.7 + rx * side * rr(1, 6), rr(1, 5), wvz * 0.6 - sp * sd * 0.7 + rz * side * rr(1, 6), rr(0.22, 0.5), rr(0.28, 0.45), TURBO[lv], TURBO_SOFT[lv]);
                     }
                     if (rnd() < 0.6) glow(wx, 0.3, wz, 0, 0, 0, 0.08, 0.9, 1.6, TURBO[lv], TURBO[lv], 0.55);
+                }
+            }
+            /* Hard braking from speed heats the discs: a small animated glow at the rear wheels. */
+            if (brakeK > 0 && speed > 30 && !reduced) {
+                for (let c = N(16 * dens * w * dt); c > 0; c--) {
+                    const side = rnd() < 0.5 ? -1 : 1;
+                    glow(v.x - cp * g[0] + rx * g[2] * side, v.z + 0.42, v.y - sp * g[0] + rz * g[2] * side,
+                        0, rr(0.2, 1.1), 0, rr(0.18, 0.36), rr(0.24, 0.4), 0.05, HOT, EMBER, 0.55 * brakeK, 0, F.DOT);
                 }
             }
             if (i === 0 && v.driftLevel > 0 && slideK > 0.08 && gnd) addLight(v.x, 0.9, v.y, TURBO[clamp(v.driftLevel - 1, 0, 2)], 12, 1, 12, true);
@@ -1006,8 +1182,8 @@
                 if (p.n > 0) for (const at of [p.pos, p.color, p.misc, p.vel]) { at.clearUpdateRanges(); at.addUpdateRange(0, p.n * at.itemSize); at.needsUpdate = true; }
             }
         }
-        function stepRings(dt) {
-            for (const r of rings) {
+        function stepFlat(list, dt) {
+            for (const r of list) {
                 if (!r.on) continue;
                 r.age += dt;
                 const t = r.age / r.life;
@@ -1017,6 +1193,7 @@
                 r.mat.uniforms.uAlpha.value = r.a * Math.pow(1 - t, 1.3);
             }
         }
+        function stepRings(dt) { stepFlat(rings, dt); stepFlat(ripples, dt); }
 
         const api = {
             event: event,
@@ -1027,6 +1204,7 @@
                 if (race.state !== 'finished' && race.state !== 'running' && race.state !== 'countdown') return;
                 if (dt > 0) {
                     for (let i = 0; i < race.cars.length; i++) carEmit(race, race.cars[i], i, dt);
+                    auraEmit(race);
                     projectileEmit(race, dt);
                     hazardEmit(race, dt);
                     ambientEmit(race, dt);
@@ -1042,6 +1220,7 @@
                 for (let i = timers.length - 1; i >= 0; i--) { timers[i].t -= dt; if (timers[i].t <= 0) { const fn = timers[i].fn; timers.splice(i, 1); fn(); } }
                 stepParticles(dt);
                 stepRings(dt);
+                stepAura(dt);
                 for (const b of beams) b.mat.uniforms.uTime.value = time;
                 applyLights(dt);
                 flushSkid();
@@ -1055,7 +1234,7 @@
                 for (const l of LT) l.on = false;
             },
             stats() {
-                return { particles: S ? S.live : 0, capacity: S ? S.cap : 0, skid: skid ? (skid.full ? skid.cap : skid.filled) : 0, beams: beamN, rings: rings.filter(r => r.on).length, lights: LT.filter(l => l.on).length };
+                return { particles: S ? S.live : 0, capacity: S ? S.cap : 0, skid: skid ? (skid.full ? skid.cap : skid.filled) : 0, beams: beamN, rings: rings.filter(r => r.on).length, ripples: ripples.filter(r => r.on).length, rippleTotal: rippleTotal, aura: auraA > 0.004 ? 1 : 0, lights: LT.filter(l => l.on).length };
             },
             dispose() {
                 for (const l of LT) l.on = false;
@@ -1064,6 +1243,8 @@
                 for (const p of pools) { p.geo.dispose(); p.mat.dispose(); }
                 skid.geo.dispose(); skid.mat.dispose();
                 for (const r of rings) r.mat.dispose();
+                for (const r of ripples) r.mat.dispose();
+                auraMatG.dispose(); auraMatS.dispose(); auraShell.geometry.dispose();
                 for (const b of beams) { b.mesh.geometry.dispose(); b.mat.dispose(); }
                 ringGeo.dispose(); atlas.dispose();
                 root.removeFromParent();

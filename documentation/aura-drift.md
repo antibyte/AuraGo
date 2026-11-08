@@ -233,7 +233,13 @@ weather motion are removed by reduced motion.
   between the two scheduled kinds, leans its precipitation with the gust, whitens the dome on a
   strike and briefly lifts the hemisphere light; the mote layer and the rain in the Canvas 2D view
   lean the same way, wet roads throw headlamp-lit spray and splash sounds, and a strike adds a
-  full-screen flash plus a ground ring.
+  full-screen flash plus a ground ring. Three further layers answer the player's own driving:
+  rain leaves short-lived ripple rings, but only where `AD.sampleTrack` still finds tarmac around
+  the camera; a drifting car carries a teal-to-turbo sigil on the road plus a rotating shell
+  (radius follows the yaw rate, the palette the drift level, OVER_CORE the overdrive); a gust
+  sweeps a broad wave of biome motes with leaves past the camera and hard braking above 30 units
+  leaves glowing brake dust at the rear wheels. On High and Ultra the post pass adds radial
+  speed streaks that fade in above about 32 speed units and thicken under the nitro blur.
 - The 3D view needs WebGL2. Without it the game falls back to the Canvas 2D view.
 - On `auto`, a software GL renderer (the renderer string matches SwiftShader, llvmpipe or
   software) is rejected and the 2D view is used. An explicit graphics tier still accepts it.
@@ -502,7 +508,10 @@ $env:AURAGO_AURA_DRIFT_SURVEY='1'; $env:AURAGO_BROWSER_ARTIFACT_DIR='D:\tmp\agdr
 ```
 
 - `AURAGO_AURA_DRIFT_SCENES` takes a comma-separated filter, for example `biome-alpine,hud`.
-- `AURAGO_AURA_DRIFT_QUALITY` sets the graphics tier for the run.
+- `AURAGO_AURA_DRIFT_QUALITY` sets the graphics tier for the run. Append `&reduced=0` to its
+  value (`high&reduced=0`) to make the harness report `prefers-reduced-motion: no-preference`:
+  headless browsers report `reduce`, which switches off the ambient effect layers (motes, rain
+  ripples, speed streaks).
 - `AURAGO_AURA_DRIFT_CUSTOM` names a file of async JavaScript; `__ARG__` in it is replaced by
   `AURAGO_AURA_DRIFT_ARG`.
 
