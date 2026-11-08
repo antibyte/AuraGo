@@ -292,5 +292,15 @@
   "config.sqlite.mission_history_path_label": "Database voor missiegeschiedenis",
   "config.sqlite.push_path_label": "Database voor pushmeldingen",
   "config.sqlite.launchpad_path_label": "Launchpad-database",
-  "config.sqlite.network_shares_path_label": "Database voor netwerkshares"
+  "config.sqlite.network_shares_path_label": "Database voor netwerkshares",
+  "config.vision.mirage.enabled_label": "Mirage inschakelen",
+  "config.vision.mirage.mode_label": "Analysemodus",
+  "config.vision.mirage.container_name_label": "Containernaam",
+  "config.vision.mirage.container_port_label": "Lokale poort",
+  "config.vision.mirage.image_label": "Basisimage",
+  "config.vision.mirage.data_path_label": "Map voor modelcache",
+  "config.vision.mirage.gpu_label": "GPU-versnelling",
+  "config.vision.mirage.max_objects_label": "Maximumaantal objecten",
+  "config.vision.mirage.max_text_lines_label": "Maximumaantal tekstregels",
+  "config.vision.mirage.language_label": "Herkenningstaal"
 }

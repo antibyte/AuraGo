@@ -549,5 +549,15 @@
   "help.sqlite.mission_history_path": "Fichier SQLite de l'historique d'exécution des missions. Par défaut : ./data/mission_history.db. Déplacez d'abord le fichier avant de changer le chemin ; prend effet après un redémarrage.",
   "help.sqlite.push_path": "Fichier SQLite des abonnements aux notifications push. Par défaut : ./data/push.db. Déplacez d'abord le fichier avant de changer le chemin ; prend effet après un redémarrage.",
   "help.sqlite.launchpad_path": "Fichier SQLite des raccourcis du launchpad. Par défaut : ./data/launchpad.db. Déplacez d'abord le fichier avant de changer le chemin ; prend effet après un redémarrage.",
-  "help.sqlite.network_shares_path": "Fichier SQLite des partages réseau. Par défaut : ./data/network_shares.db. Déplacez d'abord le fichier avant de changer le chemin ; prend effet après un redémarrage."
+  "help.sqlite.network_shares_path": "Fichier SQLite des partages réseau. Par défaut : ./data/network_shares.db. Déplacez d'abord le fichier avant de changer le chemin ; prend effet après un redémarrage.",
+  "help.vision.mirage.enabled": "Active l’analyse locale des images avec Mirage. Utilisée uniquement si aucun fournisseur Vision n’est sélectionné.",
+  "help.vision.mirage.mode": "fallback : uniquement si le modèle principal ne peut pas lire les images ; always : dès qu’aucun fournisseur Vision n’est sélectionné.",
+  "help.vision.mirage.container_name": "Nom du conteneur Docker géré par AuraGo.",
+  "help.vision.mirage.container_port": "Port local de l’hôte pour le service auxiliaire ; par défaut : 8791.",
+  "help.vision.mirage.image": "Image Python de base pour construire le service auxiliaire ; par défaut : python:3.12-slim.",
+  "help.vision.mirage.data_path": "Dossier local des poids du modèle en cache ; par défaut : data/mirage.",
+  "help.vision.mirage.gpu": "Accélération : auto, none, nvidia, amd, intel ou vulkan.",
+  "help.vision.mirage.max_objects": "Nombre maximal d’objets reconnus par image ; par défaut : 20.",
+  "help.vision.mirage.max_text_lines": "Nombre maximal de lignes de texte reconnues par image ; par défaut : 30.",
+  "help.vision.mirage.language": "Langue de reconnaissance. Laisser vide pour utiliser la valeur par défaut du moteur."
 }

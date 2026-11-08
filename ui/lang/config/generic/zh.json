@@ -292,5 +292,15 @@
   "config.sqlite.mission_history_path_label": "任务历史数据库",
   "config.sqlite.push_path_label": "推送通知数据库",
   "config.sqlite.launchpad_path_label": "Launchpad 数据库",
-  "config.sqlite.network_shares_path_label": "网络共享数据库"
+  "config.sqlite.network_shares_path_label": "网络共享数据库",
+  "config.vision.mirage.enabled_label": "启用 Mirage",
+  "config.vision.mirage.mode_label": "分析模式",
+  "config.vision.mirage.container_name_label": "容器名称",
+  "config.vision.mirage.container_port_label": "本地端口",
+  "config.vision.mirage.image_label": "基础镜像",
+  "config.vision.mirage.data_path_label": "模型缓存目录",
+  "config.vision.mirage.gpu_label": "GPU 加速",
+  "config.vision.mirage.max_objects_label": "最大对象数",
+  "config.vision.mirage.max_text_lines_label": "最大文本行数",
+  "config.vision.mirage.language_label": "识别语言"
 }

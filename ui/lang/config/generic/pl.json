@@ -292,5 +292,15 @@
   "config.sqlite.mission_history_path_label": "Baza historii misji",
   "config.sqlite.push_path_label": "Baza powiadomień push",
   "config.sqlite.launchpad_path_label": "Baza Launchpad",
-  "config.sqlite.network_shares_path_label": "Baza udziałów sieciowych"
+  "config.sqlite.network_shares_path_label": "Baza udziałów sieciowych",
+  "config.vision.mirage.enabled_label": "Włącz Mirage",
+  "config.vision.mirage.mode_label": "Tryb analizy",
+  "config.vision.mirage.container_name_label": "Nazwa kontenera",
+  "config.vision.mirage.container_port_label": "Port lokalny",
+  "config.vision.mirage.image_label": "Obraz bazowy",
+  "config.vision.mirage.data_path_label": "Katalog pamięci podręcznej modelu",
+  "config.vision.mirage.gpu_label": "Akceleracja GPU",
+  "config.vision.mirage.max_objects_label": "Maksymalna liczba obiektów",
+  "config.vision.mirage.max_text_lines_label": "Maksymalna liczba wierszy tekstu",
+  "config.vision.mirage.language_label": "Język rozpoznawania"
 }

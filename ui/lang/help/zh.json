@@ -549,5 +549,15 @@
   "help.sqlite.mission_history_path": "用于任务运行历史的 SQLite 文件。默认：./data/mission_history.db。更改路径前请先移动文件；重启后生效。",
   "help.sqlite.push_path": "用于推送通知订阅的 SQLite 文件。默认：./data/push.db。更改路径前请先移动文件；重启后生效。",
   "help.sqlite.launchpad_path": "用于Launchpad 快捷方式的 SQLite 文件。默认：./data/launchpad.db。更改路径前请先移动文件；重启后生效。",
-  "help.sqlite.network_shares_path": "用于网络共享的 SQLite 文件。默认：./data/network_shares.db。更改路径前请先移动文件；重启后生效。"
+  "help.sqlite.network_shares_path": "用于网络共享的 SQLite 文件。默认：./data/network_shares.db。更改路径前请先移动文件；重启后生效。",
+  "help.vision.mirage.enabled": "启用 Mirage 本地图像分析。仅在未选择 Vision 提供商时使用。",
+  "help.vision.mirage.mode": "fallback：仅当主模型无法读取图像时使用；always：只要未选择 Vision 提供商就使用。",
+  "help.vision.mirage.container_name": "AuraGo 管理的 Docker 容器名称。",
+  "help.vision.mirage.container_port": "辅助服务在本机使用的端口；默认值：8791。",
+  "help.vision.mirage.image": "构建辅助服务所用的 Python 基础镜像；默认值：python:3.12-slim。",
+  "help.vision.mirage.data_path": "缓存模型权重的本地目录；默认值：data/mirage。",
+  "help.vision.mirage.gpu": "加速后端：auto、none、nvidia、amd、intel 或 vulkan。",
+  "help.vision.mirage.max_objects": "每张图像可识别的最大对象数；默认值：20。",
+  "help.vision.mirage.max_text_lines": "每张图像可识别的最大文本行数；默认值：30。",
+  "help.vision.mirage.language": "识别语言。留空则使用引擎默认语言。"
 }

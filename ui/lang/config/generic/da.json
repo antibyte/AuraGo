@@ -292,5 +292,15 @@
   "config.vision.mirage_running": "Mirage kører",
   "config.vision.mirage_starting": "Mirage starter (modellen indlæses ved første start)",
   "config.vision.mirage_unavailable": "Mirage-sidecar kan ikke nås",
-  "config.whisper.provider_label": "Udbyder af tale-til-tekst"
+  "config.whisper.provider_label": "Udbyder af tale-til-tekst",
+  "config.vision.mirage.enabled_label": "Aktivér Mirage",
+  "config.vision.mirage.mode_label": "Analysetilstand",
+  "config.vision.mirage.container_name_label": "Containernavn",
+  "config.vision.mirage.container_port_label": "Lokal port",
+  "config.vision.mirage.image_label": "Basisimage",
+  "config.vision.mirage.data_path_label": "Mappe til modelcache",
+  "config.vision.mirage.gpu_label": "GPU-acceleration",
+  "config.vision.mirage.max_objects_label": "Maksimalt antal objekter",
+  "config.vision.mirage.max_text_lines_label": "Maksimalt antal tekstlinjer",
+  "config.vision.mirage.language_label": "Genkendelsessprog"
 }

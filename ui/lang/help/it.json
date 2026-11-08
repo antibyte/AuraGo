@@ -549,5 +549,15 @@
   "help.sqlite.mission_history_path": "File SQLite per la cronologia di esecuzione delle missioni. Predefinito: ./data/mission_history.db. Sposta prima il file prima di cambiare il percorso; ha effetto dopo un riavvio.",
   "help.sqlite.push_path": "File SQLite per le sottoscrizioni alle notifiche push. Predefinito: ./data/push.db. Sposta prima il file prima di cambiare il percorso; ha effetto dopo un riavvio.",
   "help.sqlite.launchpad_path": "File SQLite per le scorciatoie del launchpad. Predefinito: ./data/launchpad.db. Sposta prima il file prima di cambiare il percorso; ha effetto dopo un riavvio.",
-  "help.sqlite.network_shares_path": "File SQLite per le condivisioni di rete. Predefinito: ./data/network_shares.db. Sposta prima il file prima di cambiare il percorso; ha effetto dopo un riavvio."
+  "help.sqlite.network_shares_path": "File SQLite per le condivisioni di rete. Predefinito: ./data/network_shares.db. Sposta prima il file prima di cambiare il percorso; ha effetto dopo un riavvio.",
+  "help.vision.mirage.enabled": "Attiva l’analisi locale delle immagini con Mirage. Usata solo se non è selezionato un fornitore Vision.",
+  "help.vision.mirage.mode": "fallback: solo se il modello principale non legge le immagini; always: ogni volta che non è selezionato un fornitore Vision.",
+  "help.vision.mirage.container_name": "Nome del contenitore Docker gestito da AuraGo.",
+  "help.vision.mirage.container_port": "Porta locale dell’host per il servizio ausiliario; predefinita: 8791.",
+  "help.vision.mirage.image": "Immagine Python di base per costruire il servizio ausiliario; predefinita: python:3.12-slim.",
+  "help.vision.mirage.data_path": "Cartella locale dei pesi del modello in cache; predefinita: data/mirage.",
+  "help.vision.mirage.gpu": "Accelerazione: auto, none, nvidia, amd, intel o vulkan.",
+  "help.vision.mirage.max_objects": "Numero massimo di oggetti riconosciuti per immagine; predefinito: 20.",
+  "help.vision.mirage.max_text_lines": "Numero massimo di righe di testo riconosciute per immagine; predefinito: 30.",
+  "help.vision.mirage.language": "Lingua di riconoscimento. Lascia vuoto per usare quella predefinita del motore."
 }

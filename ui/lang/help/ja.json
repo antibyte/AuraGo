@@ -549,5 +549,15 @@
   "help.sqlite.mission_history_path": "ミッション実行履歴用の SQLite ファイルです。デフォルト: ./data/mission_history.db。パスを変更する前にファイルを移動してください。再起動後に反映されます。",
   "help.sqlite.push_path": "プッシュ通知の購読情報用の SQLite ファイルです。デフォルト: ./data/push.db。パスを変更する前にファイルを移動してください。再起動後に反映されます。",
   "help.sqlite.launchpad_path": "ランチパッドのショートカット用の SQLite ファイルです。デフォルト: ./data/launchpad.db。パスを変更する前にファイルを移動してください。再起動後に反映されます。",
-  "help.sqlite.network_shares_path": "ネットワーク共有用の SQLite ファイルです。デフォルト: ./data/network_shares.db。パスを変更する前にファイルを移動してください。再起動後に反映されます。"
+  "help.sqlite.network_shares_path": "ネットワーク共有用の SQLite ファイルです。デフォルト: ./data/network_shares.db。パスを変更する前にファイルを移動してください。再起動後に反映されます。",
+  "help.vision.mirage.enabled": "Mirage によるローカル画像解析を有効にします。Vision プロバイダーが未選択の場合のみ使用します。",
+  "help.vision.mirage.mode": "fallback: メインモデルが画像を読み取れない場合のみ。always: Vision プロバイダーが未選択の場合は常に使用します。",
+  "help.vision.mirage.container_name": "AuraGo が管理する Docker コンテナの名前です。",
+  "help.vision.mirage.container_port": "補助サービスのローカルホストポート。既定値: 8791。",
+  "help.vision.mirage.image": "補助サービスのビルドに使う Python ベースイメージ。既定値: python:3.12-slim。",
+  "help.vision.mirage.data_path": "モデルの重みをキャッシュするローカルディレクトリ。既定値: data/mirage。",
+  "help.vision.mirage.gpu": "アクセラレーション: auto、none、nvidia、amd、intel、vulkan。",
+  "help.vision.mirage.max_objects": "画像ごとに認識するオブジェクト数の上限。既定値: 20。",
+  "help.vision.mirage.max_text_lines": "画像ごとに認識するテキスト行数の上限。既定値: 30。",
+  "help.vision.mirage.language": "認識に使う言語。空欄の場合はエンジンの既定値を使用します。"
 }

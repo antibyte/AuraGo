@@ -549,5 +549,15 @@
   "help.sqlite.mission_history_path": "SQLite-fil for kjørehistorikken for oppdrag. Standard: ./data/mission_history.db. Flytt filen først før du endrer stien; trer i kraft etter omstart.",
   "help.sqlite.push_path": "SQLite-fil for abonnementene på push-varsler. Standard: ./data/push.db. Flytt filen først før du endrer stien; trer i kraft etter omstart.",
   "help.sqlite.launchpad_path": "SQLite-fil for launchpad-snarveiene. Standard: ./data/launchpad.db. Flytt filen først før du endrer stien; trer i kraft etter omstart.",
-  "help.sqlite.network_shares_path": "SQLite-fil for nettverksdelingene. Standard: ./data/network_shares.db. Flytt filen først før du endrer stien; trer i kraft etter omstart."
+  "help.sqlite.network_shares_path": "SQLite-fil for nettverksdelingene. Standard: ./data/network_shares.db. Flytt filen først før du endrer stien; trer i kraft etter omstart.",
+  "help.vision.mirage.enabled": "Aktiver lokal bildeanalyse med Mirage. Brukes bare når ingen Vision-leverandør er valgt.",
+  "help.vision.mirage.mode": "fallback: bare når hovedmodellen ikke kan lese bilder; always: hver gang ingen Vision-leverandør er valgt.",
+  "help.vision.mirage.container_name": "Navnet på Docker-containeren som AuraGo administrerer.",
+  "help.vision.mirage.container_port": "Lokal vertsport for hjelpetjenesten; standard: 8791.",
+  "help.vision.mirage.image": "Python-basisimage for å bygge hjelpetjenesten; standard: python:3.12-slim.",
+  "help.vision.mirage.data_path": "Lokal mappe for mellomlagrede modellvekter; standard: data/mirage.",
+  "help.vision.mirage.gpu": "Akselerasjon: auto, none, nvidia, amd, intel eller vulkan.",
+  "help.vision.mirage.max_objects": "Maksimalt antall gjenkjente objekter per bilde; standard: 20.",
+  "help.vision.mirage.max_text_lines": "Maksimalt antall gjenkjente tekstlinjer per bilde; standard: 30.",
+  "help.vision.mirage.language": "Språk for gjenkjenning. La feltet stå tomt for å bruke motorens standard."
 }

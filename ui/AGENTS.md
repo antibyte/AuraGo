@@ -780,6 +780,8 @@ New app-scoped prefixes must contain no `ad` substring; verify
   credential save paths and native checkbox semantics.
 - Config topic boundaries are explicit renderer headings/groups or exact selectors
   in `AuraConfigCatalog.presentation`; never infer cards from nested field wrappers.
+  Schema-rendered nested controls need matching `config.<fullPath>_label` and
+  `help.<fullPath>` entries in all sixteen locales, including `vision.mirage.*`.
   Card headings use 18px text, fields 16px, help 14px, with 24px spacing (16px
   compact/mobile). Switches sit beside their label and help. Keep the shared
   blue/slate surfaces, softly tinted blue/cyan card heads and subtle blue-tinted shadows.

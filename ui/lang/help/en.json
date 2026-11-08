@@ -549,5 +549,15 @@
   "help.sqlite.mission_history_path": "SQLite file for the mission run history. Default: ./data/mission_history.db. Move the file first before changing the path; takes effect after a restart.",
   "help.sqlite.push_path": "SQLite file for the push notification subscriptions. Default: ./data/push.db. Move the file first before changing the path; takes effect after a restart.",
   "help.sqlite.launchpad_path": "SQLite file for the launchpad shortcuts. Default: ./data/launchpad.db. Move the file first before changing the path; takes effect after a restart.",
-  "help.sqlite.network_shares_path": "SQLite file for the network shares. Default: ./data/network_shares.db. Move the file first before changing the path; takes effect after a restart."
+  "help.sqlite.network_shares_path": "SQLite file for the network shares. Default: ./data/network_shares.db. Move the file first before changing the path; takes effect after a restart.",
+  "help.vision.mirage.enabled": "Enable local image analysis with Mirage. Used only when no Vision provider is selected.",
+  "help.vision.mirage.mode": "fallback: only when the main model cannot read images; always: whenever no Vision provider is selected.",
+  "help.vision.mirage.container_name": "Name of the Docker container managed by AuraGo.",
+  "help.vision.mirage.container_port": "Local host port of the sidecar; default: 8791.",
+  "help.vision.mirage.image": "Python base image used to build the sidecar; default: python:3.12-slim.",
+  "help.vision.mirage.data_path": "Local directory for cached model weights; default: data/mirage.",
+  "help.vision.mirage.gpu": "Acceleration backend: auto, none, nvidia, amd, intel or vulkan.",
+  "help.vision.mirage.max_objects": "Maximum detected objects per image; default: 20.",
+  "help.vision.mirage.max_text_lines": "Maximum recognized text lines per image; default: 30.",
+  "help.vision.mirage.language": "Recognition language. Leave empty to use the engine default."
 }

@@ -292,5 +292,15 @@
   "config.sqlite.mission_history_path_label": "ミッション履歴データベース",
   "config.sqlite.push_path_label": "プッシュ通知データベース",
   "config.sqlite.launchpad_path_label": "Launchpad データベース",
-  "config.sqlite.network_shares_path_label": "ネットワーク共有データベース"
+  "config.sqlite.network_shares_path_label": "ネットワーク共有データベース",
+  "config.vision.mirage.enabled_label": "Mirage を有効化",
+  "config.vision.mirage.mode_label": "解析モード",
+  "config.vision.mirage.container_name_label": "コンテナ名",
+  "config.vision.mirage.container_port_label": "ローカルポート",
+  "config.vision.mirage.image_label": "ベースイメージ",
+  "config.vision.mirage.data_path_label": "モデルキャッシュの保存先",
+  "config.vision.mirage.gpu_label": "GPU アクセラレーション",
+  "config.vision.mirage.max_objects_label": "オブジェクト数の上限",
+  "config.vision.mirage.max_text_lines_label": "テキスト行数の上限",
+  "config.vision.mirage.language_label": "認識言語"
 }

@@ -549,5 +549,15 @@
   "help.tools.network_ping.enabled": "Zapne nástroj ping, aby agent mohl zkontrolovat, zda hostitelé v síti odpovídají.",
   "help.tools.pdf_extractor.summary_provider": "Starší poskytovatel pro shrnutí textu. Pokud je zapnuté, upřednostňuje se centrální pomocné LLM (sekce LLM).",
   "help.tools.web_capture.enabled": "Zapne webové snímky: agent může otevřít webovou stránku v headless prohlížeči a uložit snímek obrazovky nebo PDF. Soukromé a interní adresy jsou blokovány.",
-  "help.tools.wikipedia.summary_provider": "Starší poskytovatel pro shrnutí článku. Pokud je zapnuté, upřednostňuje se centrální pomocné LLM (sekce LLM)."
+  "help.tools.wikipedia.summary_provider": "Starší poskytovatel pro shrnutí článku. Pokud je zapnuté, upřednostňuje se centrální pomocné LLM (sekce LLM).",
+  "help.vision.mirage.enabled": "Zapne místní analýzu obrázků pomocí Mirage. Použije se pouze bez vybraného poskytovatele Vision.",
+  "help.vision.mirage.mode": "fallback: pouze když hlavní model neumí číst obrázky; always: vždy bez vybraného poskytovatele Vision.",
+  "help.vision.mirage.container_name": "Název kontejneru Docker spravovaného AuraGo.",
+  "help.vision.mirage.container_port": "Místní port hostitele pro pomocnou službu; výchozí: 8791.",
+  "help.vision.mirage.image": "Základní obraz Pythonu pro sestavení pomocné služby; výchozí: python:3.12-slim.",
+  "help.vision.mirage.data_path": "Místní adresář pro uložené váhy modelu; výchozí: data/mirage.",
+  "help.vision.mirage.gpu": "Akcelerace: auto, none, nvidia, amd, intel nebo vulkan.",
+  "help.vision.mirage.max_objects": "Maximální počet rozpoznaných objektů na obrázek; výchozí: 20.",
+  "help.vision.mirage.max_text_lines": "Maximální počet rozpoznaných řádků textu na obrázek; výchozí: 30.",
+  "help.vision.mirage.language": "Jazyk rozpoznávání. Prázdná hodnota použije výchozí jazyk enginu."
 }

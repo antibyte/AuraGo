@@ -292,5 +292,15 @@
   "config.sqlite.mission_history_path_label": "Database for oppdragshistorikk",
   "config.sqlite.push_path_label": "Database for push-varsler",
   "config.sqlite.launchpad_path_label": "Launchpad-database",
-  "config.sqlite.network_shares_path_label": "Database for nettverksdelinger"
+  "config.sqlite.network_shares_path_label": "Database for nettverksdelinger",
+  "config.vision.mirage.enabled_label": "Aktiver Mirage",
+  "config.vision.mirage.mode_label": "Analysemodus",
+  "config.vision.mirage.container_name_label": "Containernavn",
+  "config.vision.mirage.container_port_label": "Lokal port",
+  "config.vision.mirage.image_label": "Basisimage",
+  "config.vision.mirage.data_path_label": "Mappe for modellbuffer",
+  "config.vision.mirage.gpu_label": "GPU-akselerasjon",
+  "config.vision.mirage.max_objects_label": "Maksimalt antall objekter",
+  "config.vision.mirage.max_text_lines_label": "Maksimalt antall tekstlinjer",
+  "config.vision.mirage.language_label": "Gjenkjenningsspråk"
 }
