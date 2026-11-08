@@ -11498,5 +11498,9 @@
   "codeStudio.findInFile": "Hitta i fil",
   "codeStudio.knowledge": "Insikter",
   "codeStudio.replaceInFile": "Ersätt i fil",
-  "codeStudio.nextProblem": "Nästa problem"
+  "codeStudio.nextProblem": "Nästa problem",
+  "synthStudio.master_level": "Masternivå",
+  "synthStudio.eq_curve": "EQ-frekvenssvar",
+  "synthStudio.filter_curve": "Filtrets frekvenssvar",
+  "synthStudio.env_shape": "Envelopform"
 }

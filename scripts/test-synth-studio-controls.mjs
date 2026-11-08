@@ -34,6 +34,20 @@ assert.equal(C.dragValue(0.5, 100, 200, unit, false), 1);
 assert.equal(C.dragValue(0.5, 80, 200, unit, true), 0.6, 'shift drags four times finer');
 assert.equal(C.dragValue(0.9, -1000, 200, unit, false), 0);
 
+// Fader track position: the thumb centre travels (length - thumb); vertical tracks put the minimum at the bottom.
+assert.equal(C.trackFraction(100, 100, 200, 20, false), 0, 'left end of a horizontal fader');
+assert.equal(C.trackFraction(300, 100, 200, 20, false), 1, 'right end clamps');
+assert.equal(C.trackFraction(200, 100, 200, 20, false), 0.5, 'the middle of the travel');
+assert.equal(C.trackFraction(110, 0, 118, 16, true), 1 - (110 - 8) / 102, 'vertical fader measures from the top and flips');
+assert.equal(C.trackFraction(0, 0, 118, 16, true), 1, 'top of a vertical fader is the maximum');
+assert.equal(C.trackFraction(500, 0, 118, 16, true), 0, 'bottom clamps to the minimum');
+assert.equal(C.trackFraction(5, 0, 10, 10, false), 0, 'a track no longer than its thumb cannot divide by zero');
+// A vertical drag moves the value up with the pointer over the thumb travel.
+const sustain = { min: 0, max: 1.2, step: 0.005 };
+assert.equal(C.dragValue(0.6, 51, 102, sustain, false), 1.2, 'half the travel up from the middle reaches the top');
+assert.equal(C.dragValue(0.6, -51, 102, sustain, false), 0, 'and down reaches the bottom');
+assert.equal(C.snap(0.6049, sustain), 0.605);
+
 const kind = (attrs, type = 'range') => C.kindFor({
     type,
     dataset: attrs.dataset || {},
@@ -43,6 +57,7 @@ const kind = (attrs, type = 'range') => C.kindFor({
 assert.equal(kind({ knob: true }), 'knob');
 assert.equal(kind({ has: ['data-track-volume'] }), 'hfader');
 assert.equal(kind({ dataset: { ssKind: 'hfader' } }), 'hfader');
+assert.equal(kind({ dataset: { ssKind: 'vfader' } }), 'vfader', 'designer envelope inputs ask for a vertical fader');
 assert.equal(kind({ knob: true, dataset: { ssPlain: '' } }), null);
 assert.equal(kind({ knob: true }, 'number'), null);
 assert.equal(kind({}), null);

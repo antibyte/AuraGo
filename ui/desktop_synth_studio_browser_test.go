@@ -20,7 +20,7 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 	html = regexp.MustCompile(`(?s)<script\b[^>]*>.*?</script>`).ReplaceAllString(html, "")
 	html = regexp.MustCompile(`\{\{[^}]*\}\}`).ReplaceAllString(html, "")
 	html = strings.Replace(html, "</head>", `<link rel="stylesheet" href="/css/desktop-app-synth-studio.css"><link rel="stylesheet" href="/css/desktop-app-synth-studio-modern.css"><style>body{margin:0}.vd-shell{height:100vh}</style></head>`, 1)
-	scripts := []string{"/synth-shell.js", "/js/desktop/apps/writer-session.js", "/js/vendor/synth-studio/gm-data.js", "/js/desktop/apps/synth-studio-presets.js", "/js/desktop/apps/synth-studio-designer.js", "/js/vendor/synth-studio/tone-midi-2.0.28.bundle.js", "/js/desktop/apps/synth-studio-model.js", "/js/desktop/apps/synth-studio-fx.js", "/js/desktop/apps/synth-studio-music.js", "/js/desktop/apps/synth-studio-voices.js", "/js/desktop/apps/synth-studio-audio.js", "/js/desktop/apps/synth-studio-export.js", "/js/desktop/apps/synth-studio-midi.js", "/js/desktop/apps/synth-studio-storage.js", "/js/desktop/apps/synth-studio-editor.js", "/js/desktop/apps/synth-studio-controls.js", "/js/desktop/apps/synth-studio-workspace.js", "/js/desktop/apps/synth-studio-compose.js", "/js/desktop/apps/synth-studio-performance.js", "/js/desktop/apps/synth-studio-stage.js", "/js/desktop/apps/synth-studio.js", "/testdata/synth-studio-fixture.js"}
+	scripts := []string{"/synth-shell.js", "/js/desktop/apps/writer-session.js", "/js/vendor/synth-studio/gm-data.js", "/js/desktop/apps/synth-studio-presets.js", "/js/desktop/apps/synth-studio-designer.js", "/js/vendor/synth-studio/tone-midi-2.0.28.bundle.js", "/js/desktop/apps/synth-studio-model.js", "/js/desktop/apps/synth-studio-fx.js", "/js/desktop/apps/synth-studio-music.js", "/js/desktop/apps/synth-studio-voices.js", "/js/desktop/apps/synth-studio-audio.js", "/js/desktop/apps/synth-studio-export.js", "/js/desktop/apps/synth-studio-midi.js", "/js/desktop/apps/synth-studio-storage.js", "/js/desktop/apps/synth-studio-editor.js", "/js/desktop/apps/synth-studio-controls.js", "/js/desktop/apps/synth-studio-curves.js", "/js/desktop/apps/synth-studio-workspace.js", "/js/desktop/apps/synth-studio-compose.js", "/js/desktop/apps/synth-studio-performance.js", "/js/desktop/apps/synth-studio-stage.js", "/js/desktop/apps/synth-studio.js", "/testdata/synth-studio-fixture.js"}
 	var tags strings.Builder
 	scripts = append([]string{"/js/desktop/apps/synth-studio-strudel.js"}, scripts...)
 	for _, path := range scripts {
@@ -151,6 +151,26 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 	check("master gesture commits into the project", `()=>synthInstance().project().master.threshold===-20`)
 	page.MustElement("[data-action=undo]").MustClick()
 	check("master gesture is one undo step", `()=>synthInstance().project().master.threshold!==-20`)
+	check("master volume is a hero knob with a dB readout and an LED meter", `()=>{const h=document.querySelector('.ss-master-hero'),e=h.querySelector('[data-master-param=volume]');return h.querySelector('.ss-ctl-knob').getBoundingClientRect().width>=100&&h.querySelector('output').textContent===SynthStudioCurves.formatDb(e.value)&&/dB$/.test(h.querySelector('output').textContent)&&document.querySelectorAll('[data-led-meter] .ss-led-seg').length===16}`)
+	page.MustEval(`()=>{const e=document.querySelector('[data-master-param=volume]');e.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true}));e.value=.4;e.dispatchEvent(new Event('input',{bubbles:true}));window.dispatchEvent(new PointerEvent('pointerup'));}`)
+	check("master volume readout and project follow the knob", `()=>synthInstance().project().master.volume===.4&&document.querySelector('.ss-master-hero output').textContent==='-8.0 dB'`)
+	page.MustElement("[data-action=undo]").MustClick()
+	check("master volume change is one undo step", `()=>synthInstance().project().master.volume!==.4&&document.querySelector('.ss-master-hero output').textContent===SynthStudioCurves.formatDb(synthInstance().project().master.volume)`)
+	check("master EQ curve is drawn in the EQ group", `()=>{const c=document.querySelector('[data-master-panel] [data-curve=eq] .ss-curve-line');return !!c&&c.getAttribute('d').length>100&&!/NaN/.test(c.getAttribute('d'))&&!!c.closest('.ss-master-group').querySelector('[data-master-param=low]')}`)
+	page.MustEval(`()=>{window.eqBefore=document.querySelector('[data-curve=eq] .ss-curve-line').getAttribute('d');const e=document.querySelector('[data-master-param=low]');e.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true}));e.value=e.value==='12'?'-12':'12';e.dispatchEvent(new Event('input',{bubbles:true}));}`)
+	waitForJSBool(t, page, `()=>document.querySelector('[data-curve=eq] .ss-curve-line').getAttribute('d')!==eqBefore`)
+	page.MustEval(`()=>window.dispatchEvent(new PointerEvent('pointerup'))`)
+	page.MustElement("[data-action=undo]").MustClick()
+	check("master EQ curve follows the gains and the undo", `()=>document.querySelector('[data-curve=eq] .ss-curve-line').getAttribute('d')===eqBefore`)
+	if dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); dir != "" {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		page.MustEval(`()=>document.querySelector('[data-master-panel]').scrollIntoView({block:'start'})`)
+		if err := os.WriteFile(filepath.Join(dir, "synth-master.png"), page.MustScreenshot(), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
 	page.MustEval(`()=>{const e=document.querySelector('[data-master-select=echoSync]');e.value='1/16';e.dispatchEvent(new Event('change',{bubbles:true}));}`)
 	check("master sync selection commits", `()=>synthInstance().project().master.echoSync==='1/16'`)
 	page.MustElement("[data-action=undo]").MustClick()
@@ -215,6 +235,43 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 	page.MustEval(`()=>{const p=synthInstance().project(),t=p.tracks.find(track=>track.instrument!=='drums-kit'&&track.instrument!=='gm-drums'&&!track.instrument.startsWith('drum-')&&track.clips.length);if(document.querySelector('.ss-sound-workbench').hidden)document.querySelector('[data-work-tab=sound]').click();synthInstance().editor.select(t.id,t.clips[0].id);window.designTrackId=t.id;window.designInstrument=t.instrument;window.designWave=(SynthStudioPresets.get(t.instrument).patch||{}).wave||'sawtooth';}`)
 	page.MustElement(".ss-inspector [data-action=design]").MustClick()
 	check("designer opens the full parameter surface", `()=>document.querySelectorAll('.ss-designer [data-designer-param]').length>=30&&document.querySelectorAll('.ss-designer-group').length===7&&!SynthStudioPresets.presets.some(p=>p.id==='user-preview')`)
+	check("designer filter curve is drawn and follows type and cutoff", `()=>new Promise(r=>{const g=()=>document.querySelector('[data-designer] [data-curve=filter] .ss-curve-line').getAttribute('d'),before=g(),t=document.querySelector('[data-designer-param=filterType]');t.value='highpass';t.dispatchEvent(new Event('input',{bubbles:true}));requestAnimationFrame(()=>requestAnimationFrame(()=>{const after=g();const m=document.querySelector('[data-curve=filter] .ss-curve-marker'),x1=m.getAttribute('x1');const c=document.querySelector('[data-designer-param=cutoff]');c.value=.2;c.dispatchEvent(new Event('input',{bubbles:true}));requestAnimationFrame(()=>requestAnimationFrame(()=>r(before.length>100&&after!==before&&m.getAttribute('x1')!==x1&&!/NaN/.test(g()))));}));})`)
+	check("designer envelope is four vertical faders with a shape preview", `()=>['attack','decay','sustain','release'].every(k=>{const e=document.querySelector('[data-designer-param='+k+']');return e.dataset.ssCtl==='vfader'&&e.nextElementSibling?.classList.contains('ss-ctl-vfader')&&e.nextElementSibling.getBoundingClientRect().height>=100})&&document.querySelector('[data-designer] [data-curve=adsr] .ss-curve-line').getAttribute('d').length>20`)
+	page.MustEval(`()=>{document.querySelector('[data-designer-param=sustain] + .ss-ctl-vfader').scrollIntoView({block:'center'});window.vfLog={input:0,change:0,project:JSON.stringify(synthInstance().project()),shape:document.querySelector('[data-curve=adsr] .ss-curve-line').getAttribute('d'),start:Number(document.querySelector('[data-designer-param=sustain]').value)};const e=document.querySelector('[data-designer-param=sustain]');e.addEventListener('input',()=>vfLog.input++);e.addEventListener('change',()=>vfLog.change++);}`)
+	vf := page.MustElement("[data-designer-param=sustain] + .ss-ctl-vfader").MustShape().Box()
+	vx, vy := vf.X+vf.Width/2, vf.Y+vf.Height/2
+	vdy := -30.0
+	if page.MustEval(`()=>vfLog.start`).Num() > 0.6 {
+		vdy = 30.0
+	}
+	page.Mouse.MustMoveTo(vx, vy)
+	page.Mouse.MustDown(proto.InputMouseButtonLeft)
+	page.Mouse.MustMoveTo(vx, vy+vdy/2)
+	page.Mouse.MustMoveTo(vx, vy+vdy)
+	page.Mouse.MustUp(proto.InputMouseButtonLeft)
+	check("dragging a vertical fader moves the draft value, one change per drag", `()=>{const e=document.querySelector('[data-designer-param=sustain]');return Math.abs(Number(e.value)-vfLog.start)>.05&&vfLog.input>=2&&vfLog.change===1&&Math.abs(parseFloat(e.nextElementSibling.style.getPropertyValue("--ss-f"))-Number(e.value)/1.2)<.02&&document.querySelector('[data-curve=adsr] .ss-curve-line').getAttribute('d')!==vfLog.shape}`)
+	check("the designer draft is not a project undo step", `()=>JSON.stringify(synthInstance().project())===vfLog.project`)
+	page.MustEval(`()=>document.querySelector('[data-designer-param=sustain] + .ss-ctl-vfader').dispatchEvent(new MouseEvent('dblclick',{bubbles:true}))`)
+	check("double click resets a vertical fader to its default", `()=>Number(document.querySelector('[data-designer-param=sustain]').value)===0.65`)
+	page.MustEval(`()=>{window.relBefore=Number(document.querySelector("[data-designer-param=release]").value)}`)
+	if dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); dir != "" {
+		if err := os.WriteFile(filepath.Join(dir, "synth-designer.png"), page.MustScreenshot(), 0644); err != nil {
+			t.Fatal(err)
+		}
+		page.MustEval(`()=>document.querySelector('[data-curve=filter]').scrollIntoView({block:'start'})`)
+		if err := os.WriteFile(filepath.Join(dir, "synth-designer-filter.png"), page.MustScreenshot(), 0644); err != nil {
+			t.Fatal(err)
+		}
+		page.MustEval(`()=>document.querySelector('[data-designer-param=sustain] + .ss-ctl-vfader').scrollIntoView({block:'center'})`)
+	}
+	page.MustElement("[data-designer-param=release]").MustFocus()
+	for _, kind := range []proto.InputDispatchKeyEventType{proto.InputDispatchKeyEventTypeKeyDown, proto.InputDispatchKeyEventTypeKeyUp} {
+		if err := (proto.InputDispatchKeyEvent{Type: kind, Key: "ArrowUp", Code: "ArrowUp", WindowsVirtualKeyCode: 38}).Call(page); err != nil {
+			t.Fatal(err)
+		}
+	}
+	check("arrow keys move a vertical fader", `()=>Number(document.querySelector("[data-designer-param=release]").value)>relBefore`)
+	check("the mouse wheel moves the focused vertical fader", `()=>{const e=document.querySelector('[data-designer-param=release]'),before=Number(e.value);e.focus();e.nextElementSibling.dispatchEvent(new WheelEvent('wheel',{deltaY:-100,bubbles:true,cancelable:true}));return Number(e.value)>before}`)
 	page.MustEval(`()=>{const e=document.querySelector('[data-designer-param=level]');e.value=1.5;e.dispatchEvent(new Event('input',{bubbles:true}));}`)
 	check("parameter change drives the preview instrument", `()=>SynthStudioPresets.get('user-preview')&&SynthStudioPresets.get('user-preview').patch.level===1.5`)
 	page.MustElement("[data-designer-action=saveAs]").MustClick()

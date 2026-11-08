@@ -11498,5 +11498,9 @@
   "codeStudio.findInFile": "Localizar no ficheiro",
   "codeStudio.knowledge": "Aprendizagens",
   "codeStudio.replaceInFile": "Substituir no ficheiro",
-  "codeStudio.nextProblem": "Problema seguinte"
+  "codeStudio.nextProblem": "Problema seguinte",
+  "synthStudio.master_level": "Nível master",
+  "synthStudio.eq_curve": "Resposta em frequência do EQ",
+  "synthStudio.filter_curve": "Resposta em frequência do filtro",
+  "synthStudio.env_shape": "Forma do envelope"
 }

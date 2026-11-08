@@ -11498,5 +11498,9 @@
   "codeStudio.findInFile": "Hledat v souboru",
   "codeStudio.knowledge": "Poznatky",
   "codeStudio.replaceInFile": "Nahradit v souboru",
-  "codeStudio.nextProblem": "Další problém"
+  "codeStudio.nextProblem": "Další problém",
+  "synthStudio.master_level": "Úroveň master",
+  "synthStudio.eq_curve": "Frekvenční odezva ekvalizéru",
+  "synthStudio.filter_curve": "Frekvenční odezva filtru",
+  "synthStudio.env_shape": "Tvar obálky"
 }

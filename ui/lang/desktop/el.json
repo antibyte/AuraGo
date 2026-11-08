@@ -11498,5 +11498,9 @@
   "codeStudio.findInFile": "Εύρεση στο αρχείο",
   "codeStudio.knowledge": "Συμπεράσματα",
   "codeStudio.replaceInFile": "Αντικατάσταση στο αρχείο",
-  "codeStudio.nextProblem": "Επόμενο πρόβλημα"
+  "codeStudio.nextProblem": "Επόμενο πρόβλημα",
+  "synthStudio.master_level": "Επίπεδο master",
+  "synthStudio.eq_curve": "Απόκριση συχνότητας EQ",
+  "synthStudio.filter_curve": "Απόκριση συχνότητας φίλτρου",
+  "synthStudio.env_shape": "Σχήμα περιβάλλουσας"
 }

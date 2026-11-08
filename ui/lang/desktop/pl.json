@@ -11498,5 +11498,9 @@
   "codeStudio.findInFile": "Znajdź w pliku",
   "codeStudio.knowledge": "Wnioski",
   "codeStudio.replaceInFile": "Zamień w pliku",
-  "codeStudio.nextProblem": "Następny problem"
+  "codeStudio.nextProblem": "Następny problem",
+  "synthStudio.master_level": "Poziom master",
+  "synthStudio.eq_curve": "Charakterystyka częstotliwościowa EQ",
+  "synthStudio.filter_curve": "Charakterystyka częstotliwościowa filtra",
+  "synthStudio.env_shape": "Kształt obwiedni"
 }

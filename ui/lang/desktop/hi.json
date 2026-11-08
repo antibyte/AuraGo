@@ -11498,5 +11498,9 @@
   "codeStudio.findInFile": "फ़ाइल में खोजें",
   "codeStudio.knowledge": "सीख",
   "codeStudio.replaceInFile": "फ़ाइल में बदलें",
-  "codeStudio.nextProblem": "अगली समस्या"
+  "codeStudio.nextProblem": "अगली समस्या",
+  "synthStudio.master_level": "मास्टर स्तर",
+  "synthStudio.eq_curve": "EQ आवृत्ति अनुक्रिया",
+  "synthStudio.filter_curve": "फ़िल्टर आवृत्ति अनुक्रिया",
+  "synthStudio.env_shape": "एनवलप आकार"
 }

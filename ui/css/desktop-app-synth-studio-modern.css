@@ -362,3 +362,80 @@
 [data-scheme="light"] .ss-app .ss-file-actions > :is(button, select), [data-scheme="light"] .ss-app .ss-master-toggle { background-color: #fff; box-shadow: var(--ss-edge), 0 1px 3px rgb(30 45 70 / .18); }
 [data-scheme="light"] .ss-app .ss-scene-pads button { box-shadow: var(--ss-edge), inset 0 -3px 0 color-mix(in srgb, var(--ss-scene-color, var(--ss-muted)) 55%, transparent), 0 3px 6px rgb(30 45 70 / .16); }
 [data-scheme="light"] .ss-app .ss-scene-pads button:not(.active) span { color: color-mix(in srgb, var(--ss-text) 72%, transparent); }
+
+/* ---- master hero: big volume knob with dB readout and a segmented LED meter ---- */
+.ss-app .ss-master-panel .ss-master-fields > .ss-master-hero-row {
+    grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; gap: 22px;
+    padding: 14px 18px; border-radius: 18px;
+    background: radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--ss-accent) 14%, transparent), transparent 70%), var(--ss-glass), var(--ss-card);
+    border: 1px solid var(--ss-card-border); box-shadow: var(--ss-edge), var(--ss-lift);
+}
+.ss-app .ss-master-panel .ss-master-hero-row > .ss-master-hero {
+    position: relative; flex: none; width: auto; padding: 0; gap: 8px; background: none; border: 0; box-shadow: none;
+}
+.ss-app .ss-master-hero > span:first-child { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; }
+.ss-app .ss-master-hero .ss-ctl-knob { width: 116px; height: 116px; }
+.ss-app .ss-master-hero .ss-ctl-cap { inset: 21px; box-shadow: 0 9px 16px rgb(0 0 0 / .55), 0 0 22px color-mix(in srgb, var(--ss-accent) 18%, transparent), inset 0 1px 2px color-mix(in srgb, #fff 45%, transparent), inset 0 -6px 9px rgb(0 0 0 / .4); }
+.ss-app .ss-master-hero .ss-ctl-cap::after { top: 8px; width: 4px; height: 20px; margin-left: -2px; }
+.ss-app .ss-master-hero .ss-ctl-groove, .ss-app .ss-master-hero .ss-ctl-arc { stroke-width: 3.4; }
+.ss-app .ss-master-panel .ss-master-hero output {
+    min-width: 92px; padding: 5px 12px; border-radius: 9px; text-align: center; font-size: 19px; letter-spacing: .5px;
+    background: var(--ss-recess); box-shadow: var(--ss-well-in); text-shadow: 0 0 10px var(--ss-glow);
+}
+.ss-led-meter {
+    --ss-led-green: var(--ss-meter, #3fe0b0); --ss-led-amber: #f0b43c; --ss-led-red: #ff5a4a;
+    display: flex; flex-direction: column-reverse; gap: 3px; width: 16px; height: 128px; flex: none; padding: 5px 4px; border-radius: 8px;
+    background: var(--ss-pill-bg); border: 1px solid color-mix(in srgb, var(--ss-text) 10%, transparent); box-shadow: var(--ss-well-in);
+}
+.ss-led-seg { flex: 1 1 0; display: block; border-radius: 2px; background: color-mix(in srgb, var(--ss-led-c) 14%, var(--ss-recess-deep)); --ss-led-c: var(--ss-led-green); }
+.ss-led-seg[data-tone=a] { --ss-led-c: var(--ss-led-amber); }
+.ss-led-seg[data-tone=r] { --ss-led-c: var(--ss-led-red); }
+.ss-led-seg.is-on { background: var(--ss-led-c); box-shadow: 0 0 6px color-mix(in srgb, var(--ss-led-c) 75%, transparent); }
+[data-scheme="light"] .ss-app .ss-led-seg.is-on { box-shadow: 0 0 4px color-mix(in srgb, var(--ss-led-c) 55%, transparent); }
+
+/* ---- response curves: EQ, filter, envelope (pure SVG read-outs) ---- */
+.ss-curve {
+    display: block; width: 100%; height: 84px; border-radius: 12px; overflow: hidden;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--ss-accent) 7%, var(--ss-recess)), var(--ss-recess)); box-shadow: var(--ss-well-in);
+}
+.ss-curve-grid line { stroke: color-mix(in srgb, var(--ss-text) 9%, transparent); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.ss-curve-grid .ss-curve-zero { stroke: color-mix(in srgb, var(--ss-text) 22%, transparent); }
+.ss-curve-fill { fill: color-mix(in srgb, var(--ss-accent) 18%, transparent); stroke: none; }
+.ss-curve-line {
+    fill: none; stroke: var(--ss-accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round;
+    vector-effect: non-scaling-stroke; filter: drop-shadow(0 0 3px var(--ss-glow));
+}
+.ss-curve-marker { stroke: var(--ss-hot); stroke-width: 1; stroke-dasharray: 3 3; opacity: .85; vector-effect: non-scaling-stroke; }
+.ss-app .ss-master-group > .ss-curve { margin-top: 10px; }
+.ss-app .ss-designer-group > .ss-curve { width: calc(100% - 32px); margin: 0 16px 6px; }
+[data-scheme="light"] .ss-app .ss-curve-line { filter: none; }
+
+/* ---- vertical faders (designer envelope) ---- */
+.ss-ctl-vfader { --ss-tw: 26px; --ss-th: 16px; width: 30px; height: 118px; cursor: ns-resize; }
+.ss-ctl-groove-v {
+    position: absolute; top: 0; bottom: 0; left: 50%; width: 6px; margin-left: -3px; border-radius: 4px;
+    background: var(--ss-groove); box-shadow: inset 0 1px 3px rgb(0 0 0 / .6);
+}
+.ss-ctl-vfader .ss-ctl-fill {
+    left: 50%; top: auto; bottom: 0; width: 6px; margin: 0 0 0 -3px;
+    height: calc(var(--ss-th) / 2 + var(--ss-f, 0) * (100% - var(--ss-th)));
+    background: linear-gradient(0deg, color-mix(in srgb, var(--ss-accent) 60%, transparent), var(--ss-accent));
+}
+.ss-ctl-vfader .ss-ctl-thumb {
+    left: 50%; top: auto; margin: 0 0 0 calc(var(--ss-tw) / -2); width: var(--ss-tw); height: var(--ss-th);
+    bottom: calc(var(--ss-f, 0) * (100% - var(--ss-th)));
+}
+.ss-ctl-vfader .ss-ctl-thumb::after {
+    content: ''; position: absolute; left: 5px; right: 5px; top: 50%; height: 2px; margin-top: -1px; border-radius: 1px;
+    background: var(--ss-accent); box-shadow: 0 0 6px var(--ss-glow);
+}
+.ss-ctl-vfader.is-dragging .ss-ctl-thumb { filter: brightness(1.14); }
+.ss-app .ss-designer-field:has(.ss-ctl-vfader) {
+    display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; padding: 4px 2px; position: relative;
+}
+.ss-app .ss-designer-field:has(.ss-ctl-vfader) > span:first-child { order: 0; font-size: 11px; color: var(--ss-muted); }
+.ss-app .ss-designer-field:has(.ss-ctl-vfader) .ss-ctl-dial { order: 1; }
+.ss-app .ss-designer-field:has(.ss-ctl-vfader) output { order: 2; font: 600 12px/1 var(--vd-mat-mono-font, monospace); color: var(--ss-accent); }
+.ss-app .ss-designer-group[data-group=grp_envelope] > .ss-param-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+[data-scheme="light"] .ss-app .ss-ctl-vfader .ss-ctl-thumb { box-shadow: 0 2px 5px rgb(30 45 70 / .3), inset 0 1px 0 #fff; }
+[data-scheme="light"] .ss-app .ss-ctl-groove-v { box-shadow: inset 0 1px 3px rgb(30 45 70 / .3); }
