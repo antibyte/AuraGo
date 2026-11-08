@@ -33,7 +33,7 @@ func (service taskDecisionService) RoutingSnapshot(cfg *config.Config) agent.Tas
 	return agent.TaskDecisionSnapshot{
 		Available: snapshot.Available, Code: snapshot.Code, Backend: snapshot.Backend,
 		Provider: snapshot.Provider, Model: snapshot.Model, Identity: snapshot.Identity,
-		Evaluate: snapshot.Evaluate, Current: snapshot.Current,
+		Evaluate: snapshot.Evaluate, Current: snapshot.Current, RecordUse: snapshot.RecordUse,
 	}
 }
 

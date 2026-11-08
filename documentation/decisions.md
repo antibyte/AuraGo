@@ -392,6 +392,46 @@ above; the 8192-token scoring budget applies only to the local runtime.
   Question and option IDs are at most 128 bytes (EasyDrag uses its stricter
   32-character lowercase identifier format for stable ports).
 
+## Automatic Helper offloading
+
+When a configured Helper LLM and local Decisions are both enabled, AuraGo
+automatically checks three performance profiles: routing, memory relevance and
+post-turn analysis. There is no additional setting. These checks only use an
+already-ready local runtime; they never install or start one. External Decisions
+and explicitly configured standalone consumers retain their existing controls.
+
+Each profile needs one warmup followed by five complete responses below 900 ms.
+The whole request counts, including admission, metadata, all questions and answer
+validation. Synthetic probes vary their first tokens to avoid qualifying only an
+identical prompt-cache hit. The idle worker checks every 30 seconds and yields
+to interactive Decisions work. Its counters are separate from real requests.
+
+Successful use renews a 15-minute qualification. Runtime/model generation changes
+revoke it; an expired profile waits for another idle test. Slow or failed scoring
+also revokes qualification and waits five minutes before retesting. Production
+calls have the same 900 ms ceiling within their existing operation deadline.
+Unknown, unavailable or unqualified profiles keep the original Helper path.
+
+Routing preserves its assignments, rules, cache, quotas and failure policy. For
+RAG, six memories may be scored together with a sufficiency question: only a
+complete result with a relevance score of at least 8/10 and sufficiency of at
+least 0.85 avoids the Helper's query-expansion batch. Otherwise that batch runs
+within the remaining deadline.
+
+Post-turn analysis combines optional memory salience and personality appraisal
+(signal, target and persona cue) in at most four questions. High-confidence
+answers remove only the corresponding Helper work. Learning extraction,
+activity summaries, mood, profile facts and narrative text retain their existing
+requirements. Accepted appraisal keeps its originating human input and turn
+identity across text-generation failures and cannot update the relationship twice.
+
+The Decisions settings page shows each profile's state, response time, samples,
+offloaded assessments and actual Helper calls avoided. Text-only reductions in
+a still-required Helper batch are not counted as avoided calls. The status and
+Helper statistics APIs expose the same passive data without prompts or secrets.
+These confidence thresholds are uncalibrated heuristics; no monetary saving or
+hardware speed is assumed before measurement on the running installation.
+
 ## Local runtime pins and acceptance
 
 Both model files come from

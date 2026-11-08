@@ -28,9 +28,10 @@ func handleHelperLLMStats(s *Server) http.HandlerFunc {
 		}
 
 		writeJSON(w, map[string]interface{}{
-			"enabled":    enabled,
-			"updated_at": updatedAt,
-			"operations": snapshot.Operations,
+			"enabled":           enabled,
+			"updated_at":        updatedAt,
+			"operations":        snapshot.Operations,
+			"decision_profiles": s.decisionHub().helperStatus(),
 		})
 	}
 }

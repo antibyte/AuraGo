@@ -733,6 +733,17 @@ func isTransientHelperError(err error) bool {
 }
 
 func (m *helperLLMManager) AnalyzeTurn(ctx context.Context, userRequest, assistantReply string, toolNames, toolSummaries []string, personalityInput *helperTurnPersonalityInput, tracker *budget.Tracker, budgetEnabled bool, learningsEnabled ...bool) (helperTurnBatchResult, error) {
+	plan := helperTurnPlan{Memory: true, Activity: true, Learnings: len(learningsEnabled) > 0 && learningsEnabled[0]}
+	return m.analyzeTurn(ctx, userRequest, assistantReply, toolNames, toolSummaries, personalityInput, tracker, budgetEnabled, plan)
+}
+
+func (m *helperLLMManager) analyzeTurn(ctx context.Context, userRequest, assistantReply string, toolNames, toolSummaries []string, personalityInput *helperTurnPersonalityInput, tracker *budget.Tracker, budgetEnabled bool, plan helperTurnPlan) (helperTurnBatchResult, error) {
+	if !plan.Memory && !plan.Activity && !plan.Learnings && personalityInput == nil {
+		if plan.recordUse != nil {
+			plan.recordUse(0, 1)
+		}
+		return helperTurnBatchResult{MemoryAnalysis: emptyHelperMemory()}, nil
+	}
 	if m == nil || m.client == nil || m.model == "" {
 		return helperTurnBatchResult{}, fmt.Errorf("helper llm manager unavailable")
 	}
@@ -770,12 +781,19 @@ func (m *helperLLMManager) AnalyzeTurn(ctx context.Context, userRequest, assista
 		if personalitySection := buildHelperTurnPersonalitySection(personalityInput, divisor); personalitySection != "" {
 			userPrompt += "\n\n=== PERSONALITY CONTEXT ===\n" + personalitySection
 		}
+		if plan.Appraisal != nil {
+			appraisal, _ := json.Marshal(plan.Appraisal)
+			userPrompt += "\n\n" + helperExternalDataBlock("accepted_appraisal", string(appraisal), 1024)
+		}
 
 		return userPrompt
 	}
 	userPrompt := buildPrompt(1)
-	systemPrompt := helperTurnBatchPrompt
-	if len(learningsEnabled) > 0 && learningsEnabled[0] {
+	systemPrompt, promptErr := plan.prompt(personalityInput)
+	if promptErr != nil {
+		return helperTurnBatchResult{}, promptErr
+	}
+	if plan.Learnings {
 		systemPrompt += "\nInside memory_analysis: " + learningExtractionInstructions
 	}
 	cacheKey := m.helperCacheKey("analyze_turn_v3", m.model, systemPrompt+"\n"+userPrompt)
@@ -785,14 +803,20 @@ func (m *helperLLMManager) AnalyzeTurn(ctx context.Context, userRequest, assista
 		budgetCategory: category,
 		retryPrompt:    func() string { return buildPrompt(1) },
 		validate: func(raw string) error {
-			fields := []string{"memory_analysis", "activity_digest"}
+			var fields []string
+			if plan.Memory || plan.Learnings {
+				fields = append(fields, "memory_analysis")
+			}
+			if plan.Activity {
+				fields = append(fields, "activity_digest")
+			}
 			if personalityInput != nil {
 				fields = append(fields, "personality_analysis")
 			}
 			if err := requireHelperFields(raw, fields...); err != nil {
 				return err
 			}
-			_, err := parseHelperTurnBatchResult(raw)
+			_, err := plan.parse(raw, personalityInput)
 			return err
 		},
 	})
@@ -800,17 +824,24 @@ func (m *helperLLMManager) AnalyzeTurn(ctx context.Context, userRequest, assista
 		return helperTurnBatchResult{}, fmt.Errorf("helper turn batch llm call: %w", err)
 	}
 
-	result, err := parseHelperTurnBatchResult(raw)
+	result, err := plan.parse(raw, personalityInput)
 	if err != nil {
 		return helperTurnBatchResult{}, err
 	}
 	// The extracted items are stored only when their quotes occur in the text
 	// the model saw as user_request (groundMemoryAnalysisResult).
 	result.MemoryAnalysis.human = userRequest
-	batchedItems, savedCalls := 2, 1
-	if personalityInput != nil {
-		batchedItems, savedCalls = 3, 2
+	batchedItems := 0
+	if plan.Memory || plan.Learnings {
+		batchedItems++
 	}
+	if plan.Activity {
+		batchedItems++
+	}
+	if personalityInput != nil {
+		batchedItems++
+	}
+	savedCalls := max(0, batchedItems-1)
 	m.observeBatchEfficiency("analyze_turn", batchedItems, savedCalls)
 	return result, nil
 }
@@ -1279,55 +1310,11 @@ func (m *helperLLMManager) AnalyzeRAG(ctx context.Context, userQuery string, can
 		return helperRAGBatchResult{}, fmt.Errorf("missing user query")
 	}
 
-	buildPrompt := func(divisor int) string {
-		var userPrompt strings.Builder
-		userPrompt.WriteString("User request:\n")
-		userPrompt.WriteString(helperExternalDataBlock("user_request", helperSourceText(userQuery, 700, divisor), 700))
-		userPrompt.WriteString("\n\n")
-		if len(candidates) == 0 {
-			userPrompt.WriteString("Memory candidates:\nnone\n")
-		} else {
-			userPrompt.WriteString("Memory candidates:\n")
-			for _, candidate := range candidates {
-				memoryID := strings.TrimSpace(candidate.docID)
-				if memoryID == "" {
-					continue
-				}
-				userPrompt.WriteString("- memory_id: ")
-				userPrompt.WriteString(memoryID)
-				userPrompt.WriteString("\n  content:\n")
-				userPrompt.WriteString(helperExternalDataBlock("memory_candidate", helperSourceText(strings.TrimSpace(candidate.text), 260, divisor), 260))
-				userPrompt.WriteString("\n")
-			}
-		}
-
-		return strings.TrimSpace(userPrompt.String())
-	}
-	userPromptText := buildPrompt(1)
-	expectedIDs := make([]string, 0, len(candidates))
-	for _, candidate := range candidates {
-		if id := strings.TrimSpace(candidate.docID); id != "" {
-			expectedIDs = append(expectedIDs, id)
-		}
-	}
-
+	userPromptText := helperRAGPrompt(userQuery, candidates, 1)
 	cacheKey := m.helperCacheKey("rag_batch", m.model, userPromptText)
 	raw, err := m.requestJSONResponse(ctx, "rag_batch", cacheKey, helperRAGBatchPrompt, userPromptText, 900, helperJSONPolicy{
-		retryPrompt: func() string { return buildPrompt(2) },
-		validate: func(raw string) error {
-			if err := requireHelperFields(raw, "search_query", "search_terms", "candidate_scores"); err != nil {
-				return err
-			}
-			parsed, err := parseHelperRAGBatchResult(raw)
-			if err != nil {
-				return err
-			}
-			ids := make([]string, 0, len(parsed.CandidateScores))
-			for _, item := range parsed.CandidateScores {
-				ids = append(ids, item.MemoryID)
-			}
-			return requireHelperIDs(expectedIDs, ids)
-		},
+		retryPrompt: func() string { return helperRAGPrompt(userQuery, candidates, 2) },
+		validate:    func(raw string) error { return validateHelperRAG(raw, candidates) },
 	})
 	if err != nil {
 		return helperRAGBatchResult{}, fmt.Errorf("helper rag batch llm call: %w", err)

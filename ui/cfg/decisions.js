@@ -171,6 +171,36 @@ function renderDecisionsSection(section) {
     localResult.dataset.decisionsResult = '';
     localResult.setAttribute('role', 'status');
 
+    const helperCard = node('div', 'cfg-group');
+    helperCard.dataset.helperDecisionProfiles = '';
+    node('h3', 'cfg-subheading', tr('helper_title'), helperCard);
+    node('p', 'field-help', tr('helper_help'), helperCard);
+    const helperProfiles = ['router', 'helper_rag', 'helper_turn'];
+    const helperRows = new Map();
+    for (const id of helperProfiles) {
+        const row = node('div', 'field-group', '', helperCard);
+        row.dataset.helperDecisionProfile = id;
+        node('span', 'field-label', tr(id === 'router' ? 'helper_router' : id), row);
+        const state = node('p', 'field-help', '', row);
+        state.setAttribute('role', 'status');
+        helperRows.set(id, state);
+    }
+    const paintHelperProfiles = () => {
+        for (const id of helperProfiles) {
+            const entry = (status?.helper_profiles || []).find(item => item.id === id);
+            const key = entry?.available ? 'consumers_state_active' : ({
+                helper_pending: 'helper_pending', helper_expired: 'helper_pending',
+                helper_testing: 'helper_testing', helper_slow: 'helper_slow', helper_failed: 'helper_failed'
+            }[entry?.code] || 'helper_off');
+            let text = tr(key);
+            if (entry && Number(entry.probe_calls) > 0) text += ' · ' + tr('helper_stats', {
+                ms: Math.round(Number(entry.last_response_ms) || 0), samples: entry.samples || 0,
+                count: entry.offloaded_evaluations || 0, saved: entry.helper_calls_avoided || 0
+            });
+            helperRows.get(id).textContent = text;
+        }
+    };
+
     // Consumers: one opt-in per subsystem. The whole decision_consumers object is saved as one value.
     const consumerRows = [
         ['router', null], ['memory_rerank', 'memory_rerank'], ['appraisal', 'appraisal'], ['salience_gate', 'salience_gate'],
@@ -222,6 +252,7 @@ function renderDecisionsSection(section) {
         }
     }
     const paintConsumers = () => {
+        paintHelperProfiles();
         for (const [id] of consumerRows) {
             const ui = consumerUI[id];
             if (ui.images) ui.images.hidden = !providerMode();

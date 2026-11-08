@@ -824,5 +824,16 @@
   "config.decisions.consumers_name_game_maker_visual": "Game Maker 视觉检查",
   "config.decisions.consumers_desc_game_maker_visual": "检查生成游戏的截图。",
   "config.backup.flow_key_pairing_required": "请一并恢复相互匹配的配置、流程数据库和受密码保护的 Vault。此部分备份会替换其他流程数据的密钥。",
-  "config.backup.flow_keys_skipped": "已跳过流程加密密钥，以确保现有流程数据仍可读取。"
+  "config.backup.flow_keys_skipped": "已跳过流程加密密钥，以确保现有流程数据仍可读取。",
+  "config.decisions.helper_title": "Helper 自动分担",
+  "config.decisions.helper_help": "启用 Helper 和本地 Decisions 后，适合的评估会在通过低于 900 ms 的空闲性能测试后交由本地模型处理。所需文本仍由 Helper 生成。",
+  "config.decisions.helper_router": "任务路由",
+  "config.decisions.helper_rag": "记忆搜索",
+  "config.decisions.helper_turn": "轮次分析",
+  "config.decisions.helper_pending": "等待空闲测试",
+  "config.decisions.helper_testing": "正在进行性能测试",
+  "config.decisions.helper_slow": "响应过慢，由 Helper 处理",
+  "config.decisions.helper_failed": "尚未通过验证，由 Helper 处理",
+  "config.decisions.helper_off": "Helper 或本地 Decisions 尚未就绪",
+  "config.decisions.helper_stats": "上次 {ms} ms · 测量 {samples}/5 · 评估 {count} · 减少的 Helper 调用 {saved}"
 }

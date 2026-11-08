@@ -376,6 +376,12 @@ func launchAsyncPersonalityV2Analysis(
 	if stm == nil || cfg == nil || !runCfg.HumanInput.Valid() || runCfg.HumanInput.SessionID != sessionID || strings.TrimSpace(runCfg.HumanInput.Text) == "" || isMission || isCoAgent {
 		return
 	}
+	submitted := false
+	defer func() {
+		if !submitted && runCfg.helperAppraisal != nil && len(basisSnapshots) > 0 {
+			sideEffectsFromRunConfig(runCfg).Go(func(ctx context.Context) { applyAcceptedHelperAppraisal(ctx, runCfg, basisSnapshots[0], meta, logger) })
+		}
+	}()
 	// A nil tracker is expected with budgeting disabled (run untracked) and a
 	// wiring bug with budgeting enabled (fail closed). IsBlocked is nil-safe.
 	if (runCfg.BudgetTracker == nil && cfg.Budget.Enabled) || runCfg.BudgetTracker.IsBlocked("personality") {
@@ -421,7 +427,14 @@ func launchAsyncPersonalityV2Analysis(
 	}
 	helperEmotionBatchEligible, previousEmotion := resolveHelperEmotionBatchState(cfg, emotionSynthesizer, basis)
 
+	submitted = true
 	sideEffectsFromRunConfig(runCfg).Go(func(parentCtx context.Context) {
+		appraisalApplied := false
+		defer func() {
+			if !appraisalApplied {
+				applyAcceptedHelperAppraisal(parentCtx, runCfg, basis, meta, logger)
+			}
+		}()
 		defer func() {
 			if r := recover(); r != nil {
 				logger.Error("[Personality V2] Panic in async analysis goroutine", "panic", r)
@@ -535,6 +548,9 @@ func launchAsyncPersonalityV2Analysis(
 
 		// Success — reset circuit breaker failure count.
 		result.Basis, result.ObservationID, result.Input = basis, runCfg.HumanInput.TurnID, runCfg.HumanInput
+		if runCfg.helperAppraisal != nil {
+			result.Appraisal = runCfg.helperAppraisal
+		}
 		v2FailCount.Store(0)
 
 		applyPersonalityV2AnalysisResult(
@@ -553,5 +569,6 @@ func launchAsyncPersonalityV2Analysis(
 			successCount,
 			result, v2Ctx,
 		)
+		appraisalApplied = true
 	})
 }

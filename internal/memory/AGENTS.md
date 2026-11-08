@@ -34,6 +34,12 @@ Memory retrieval, hygiene, indexing, and maintenance.
 
 ### Personality evidence
 
+- Automatic Helper offloading changes only which generator supplies optional
+  semantic fields. Keep ingress HumanInput, the original personality basis and
+  observation receipts across partial batches and fallback. A skipped fact
+  extraction must not suppress learning extraction or activity recording.
+  Never persist fields excluded by the agent's per-call analysis plan.
+
 - Only ingress-owned `HumanInput` supplies current human evidence. Missing or
   empty proof never falls back to history, media, snapshots or model JSON.
 - `ApplyPersonalityObservation` atomically commits numeric state, profile

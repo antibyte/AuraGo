@@ -824,5 +824,16 @@
   "config.decisions.consumers_name_game_maker_visual": "Game Maker visuell kontroll",
   "config.decisions.consumers_desc_game_maker_visual": "Kontrollerer skjermbilder av genererte spill.",
   "config.backup.flow_key_pairing_required": "Gjenopprett tilhørende konfigurasjon, flytdatabase og passordbeskyttet Vault sammen. Denne delvise sikkerhetskopien ville erstatte nøkkelen for andre flytdata.",
-  "config.backup.flow_keys_skipped": "Krypteringsnøklene for flyter ble hoppet over slik at eksisterende flytdata fortsatt kan leses."
+  "config.backup.flow_keys_skipped": "Krypteringsnøklene for flyter ble hoppet over slik at eksisterende flytdata fortsatt kan leses.",
+  "config.decisions.helper_title": "Automatisk avlastning av Helper",
+  "config.decisions.helper_help": "Når Helper og lokale Decisions er aktivert, flyttes egnede vurderinger etter en bestått test under 900 ms ved ledig kapasitet. Helper lager fortsatt nødvendig tekst.",
+  "config.decisions.helper_router": "Oppgaveruting",
+  "config.decisions.helper_rag": "Minnesøk",
+  "config.decisions.helper_turn": "Etteranalyse",
+  "config.decisions.helper_pending": "Venter på en test ved ledig kapasitet",
+  "config.decisions.helper_testing": "Ytelsestest pågår",
+  "config.decisions.helper_slow": "For treg; Helper tar over",
+  "config.decisions.helper_failed": "Ikke godkjent; Helper tar over",
+  "config.decisions.helper_off": "Helper eller lokale Decisions er ikke klar",
+  "config.decisions.helper_stats": "Sist {ms} ms · Målinger {samples}/5 · Vurderinger {count} · Unngåtte Helper-kall {saved}"
 }

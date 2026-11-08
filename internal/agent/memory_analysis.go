@@ -242,10 +242,17 @@ func runMemoryAnalysis(
 	if isAmbiguousShortCommand(userMsg) {
 		return
 	}
-	// The batched helper path is not gated: its one call also feeds the
-	// activity digest and the personality analysis.
+	plan, planned := ctx.Value(helperTurnPlanKey{}).(helperTurnPlan)
+	if planned && !plan.Memory && !plan.Learnings {
+		return
+	}
 	embedder, _ := ltm.(memoryQueryEmbedder)
-	if worth, reason := memoryExtractionWorthwhileDecided(ctx, RunConfig{Config: cfg, DecisionConsumers: decisionConsumersFromContext(ctx)}, embedder, userMsg); !worth {
+	if worth, reason := func() (bool, string) {
+		if planned {
+			return true, ""
+		}
+		return memoryExtractionWorthwhileDecided(ctx, RunConfig{Config: cfg, DecisionConsumers: decisionConsumersFromContext(ctx)}, embedder, userMsg)
+	}(); !worth {
 		logger.Info("[Memory Analysis] Salience gate skipped extraction", "reason", reason, "session", sessionID)
 		return
 	}
@@ -331,6 +338,9 @@ func runMemoryAnalysis(
 		result.human = userMsg
 		if learningScope.HumanText != nil {
 			result.human = *learningScope.HumanText
+		}
+		if planned && !plan.Memory {
+			result.Facts, result.Preferences, result.Corrections, result.PendingActions = nil, nil, nil, nil
 		}
 		applyMemoryAnalysisResultWithContext(ctx, cfg, logger, stm, ltm, sessionID, result)
 		applyExtractedLearnings(ctx, cfg, stm, sessionID, userMsg, result.Learnings, learningScope)

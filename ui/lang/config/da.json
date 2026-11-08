@@ -824,5 +824,16 @@
   "config.decisions.consumers_name_game_maker_visual": "Game Maker visuel kontrol",
   "config.decisions.consumers_desc_game_maker_visual": "Kontrollerer skærmbilleder af genererede spil.",
   "config.backup.flow_key_pairing_required": "Gendan den tilhørende konfiguration, flowdatabase og adgangskodebeskyttede Vault sammen. Denne delvise sikkerhedskopi ville erstatte nøglen til andre flowdata.",
-  "config.backup.flow_keys_skipped": "Krypteringsnøglerne til flows blev sprunget over, så eksisterende flowdata fortsat kan læses."
+  "config.backup.flow_keys_skipped": "Krypteringsnøglerne til flows blev sprunget over, så eksisterende flowdata fortsat kan læses.",
+  "config.decisions.helper_title": "Automatisk aflastning af Helper",
+  "config.decisions.helper_help": "Når Helper og lokale Decisions er aktiveret, flyttes egnede vurderinger efter en bestået test under 900 ms i tomgang. Helper skriver fortsat den nødvendige tekst.",
+  "config.decisions.helper_router": "Valg af opgaverute",
+  "config.decisions.helper_rag": "Hukommelsessøgning",
+  "config.decisions.helper_turn": "Efteranalyse",
+  "config.decisions.helper_pending": "Venter på en test i tomgang",
+  "config.decisions.helper_testing": "Ydelsestest kører",
+  "config.decisions.helper_slow": "For langsom; Helper overtager",
+  "config.decisions.helper_failed": "Ikke godkendt; Helper overtager",
+  "config.decisions.helper_off": "Helper eller lokale Decisions er ikke klar",
+  "config.decisions.helper_stats": "Senest {ms} ms · Målinger {samples}/5 · Vurderinger {count} · Sparede Helper-kald {saved}"
 }

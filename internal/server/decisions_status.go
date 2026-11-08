@@ -17,8 +17,9 @@ type consumerStatus struct {
 
 type decisionsStatusResponse struct {
 	decisions.Status
-	Capabilities consumers.Capabilities `json:"capabilities"`
-	Consumers    []consumerStatus       `json:"consumers"`
+	Capabilities   consumers.Capabilities   `json:"capabilities"`
+	Consumers      []consumerStatus         `json:"consumers"`
+	HelperProfiles []consumers.HelperStatus `json:"helper_profiles"`
 }
 
 // decisionsFullStatus adds the passive consumer view to the service status. It
@@ -30,6 +31,7 @@ func (s *Server) decisionsFullStatus() decisionsStatusResponse {
 		return out
 	}
 	hub := s.decisionHub()
+	out.HelperProfiles = hub.helperStatus()
 	settings := cfg.Decisions.Normalize()
 	var generationID, modelEpoch uint64
 	if router, ok := s.Decisions.(*routedDecisions); ok {

@@ -824,5 +824,16 @@
   "config.decisions.consumers_name_game_maker_visual": "Controllo visivo Game Maker",
   "config.decisions.consumers_desc_game_maker_visual": "Controlla gli screenshot dei giochi generati.",
   "config.backup.flow_key_pairing_required": "Ripristina insieme la configurazione, il database dei flussi e il Vault protetto da password corrispondenti. Questo backup parziale sostituirebbe la chiave di altri dati dei flussi.",
-  "config.backup.flow_keys_skipped": "Le chiavi di crittografia dei flussi sono state ignorate per mantenere leggibili i dati esistenti."
+  "config.backup.flow_keys_skipped": "Le chiavi di crittografia dei flussi sono state ignorate per mantenere leggibili i dati esistenti.",
+  "config.decisions.helper_title": "Delega automatica da Helper",
+  "config.decisions.helper_help": "Quando Helper e Decisions locale sono attivi, le valutazioni adatte vengono delegate dopo un test a riposo superato sotto i 900 ms. Helper continua a generare i testi necessari.",
+  "config.decisions.helper_router": "Instradamento delle attività",
+  "config.decisions.helper_rag": "Ricerca in memoria",
+  "config.decisions.helper_turn": "Analisi del turno",
+  "config.decisions.helper_pending": "In attesa di un test a riposo",
+  "config.decisions.helper_testing": "Test delle prestazioni in corso",
+  "config.decisions.helper_slow": "Troppo lento; interviene Helper",
+  "config.decisions.helper_failed": "Non qualificato; interviene Helper",
+  "config.decisions.helper_off": "Helper o Decisions locale non sono pronti",
+  "config.decisions.helper_stats": "Ultima {ms} ms · Misurazioni {samples}/5 · Valutazioni {count} · Chiamate Helper evitate {saved}"
 }

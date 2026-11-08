@@ -824,5 +824,16 @@
   "config.decisions.consumers_name_game_maker_visual": "Game Maker の視覚チェック",
   "config.decisions.consumers_desc_game_maker_visual": "生成されたゲームのスクリーンショットを確認します。",
   "config.backup.flow_key_pairing_required": "対応する設定、フローデータベース、パスワードで保護されたVaultをまとめて復元してください。この部分バックアップでは、別のフローデータの鍵が置き換えられてしまいます。",
-  "config.backup.flow_keys_skipped": "既存のフローデータを引き続き読み取れるように、フローの暗号化鍵をスキップしました。"
+  "config.backup.flow_keys_skipped": "既存のフローデータを引き続き読み取れるように、フローの暗号化鍵をスキップしました。",
+  "config.decisions.helper_title": "Helper の自動負荷分散",
+  "config.decisions.helper_help": "Helper とローカル Decisions が有効な場合、待機中のテストで 900 ms 未満を達成すると、適切な評価を委任します。必要な文章は引き続き Helper が生成します。",
+  "config.decisions.helper_router": "タスクの振り分け",
+  "config.decisions.helper_rag": "メモリ検索",
+  "config.decisions.helper_turn": "ターンの分析",
+  "config.decisions.helper_pending": "待機中のテストを待っています",
+  "config.decisions.helper_testing": "性能テストを実行中",
+  "config.decisions.helper_slow": "応答が遅いため Helper が担当します",
+  "config.decisions.helper_failed": "未認定のため Helper が担当します",
+  "config.decisions.helper_off": "Helper またはローカル Decisions の準備ができていません",
+  "config.decisions.helper_stats": "前回 {ms} ms · 測定 {samples}/5 · 評価 {count} · 削減した Helper 呼び出し {saved}"
 }

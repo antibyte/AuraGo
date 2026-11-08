@@ -234,6 +234,14 @@ func (s *SQLiteMemory) invalidatePersonalityCaches() {
 	s.moodCacheAt = time.Time{}
 }
 
+// ApplyPersonalityObservationTracked reports whether a new receipt was committed.
+func (s *SQLiteMemory) ApplyPersonalityObservationTracked(observation PersonalityObservation) (PersonalitySnapshot, bool, error) {
+	applied := false
+	observation.applied = &applied
+	snapshot, err := s.ApplyPersonalityObservation(observation)
+	return snapshot, applied, err
+}
+
 // ApplyPersonalityObservation is the sole transactional update path for
 // observed affect, dynamics, bounded traits, mood and synthesized emotion.
 func (s *SQLiteMemory) ApplyPersonalityObservation(observation PersonalityObservation) (PersonalitySnapshot, error) {

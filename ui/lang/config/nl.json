@@ -824,5 +824,16 @@
   "config.decisions.consumers_name_game_maker_visual": "Game Maker-visuele controle",
   "config.decisions.consumers_desc_game_maker_visual": "Controleert screenshots van gegenereerde spellen.",
   "config.backup.flow_key_pairing_required": "Herstel de bij elkaar horende configuratie, flowdatabase en met een wachtwoord beveiligde Vault samen. Deze gedeeltelijke back-up zou de sleutel voor andere flowgegevens vervangen.",
-  "config.backup.flow_keys_skipped": "De versleutelingssleutels van flows zijn overgeslagen zodat bestaande flowgegevens leesbaar blijven."
+  "config.backup.flow_keys_skipped": "De versleutelingssleutels van flows zijn overgeslagen zodat bestaande flowgegevens leesbaar blijven.",
+  "config.decisions.helper_title": "Automatische ontlasting van Helper",
+  "config.decisions.helper_help": "Als Helper en lokale Decisions actief zijn, worden geschikte beoordelingen overgenomen na een geslaagde test bij rust onder 900 ms. Helper blijft de benodigde teksten maken.",
+  "config.decisions.helper_router": "Taakroutering",
+  "config.decisions.helper_rag": "Geheugen doorzoeken",
+  "config.decisions.helper_turn": "Beurtanalyse",
+  "config.decisions.helper_pending": "Wacht op een test bij rust",
+  "config.decisions.helper_testing": "Prestatietest wordt uitgevoerd",
+  "config.decisions.helper_slow": "Te langzaam; Helper neemt het over",
+  "config.decisions.helper_failed": "Niet goedgekeurd; Helper neemt het over",
+  "config.decisions.helper_off": "Helper of lokale Decisions is niet gereed",
+  "config.decisions.helper_stats": "Laatste {ms} ms · Metingen {samples}/5 · Beoordelingen {count} · Vermeden Helper-aanroepen {saved}"
 }

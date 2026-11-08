@@ -45,9 +45,10 @@ type Snapshot struct {
 	Caps          Capabilities `json:"capabilities"`
 	ImagesAllowed bool         `json:"images_allowed"`
 
-	Identity [32]byte                                                             `json:"-"`
-	Evaluate func(context.Context, decisions.Request) (decisions.Response, error) `json:"-"`
-	Current  func() bool                                                          `json:"-"`
+	Identity  [32]byte                                                             `json:"-"`
+	Evaluate  func(context.Context, decisions.Request) (decisions.Response, error) `json:"-"`
+	Current   func() bool                                                          `json:"-"`
+	RecordUse func(evaluations, avoidedCalls int)                                  `json:"-"`
 }
 
 type Service interface {

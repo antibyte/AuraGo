@@ -909,6 +909,26 @@ Tools are defined in `internal/tools/`:
 - Automatic entity extraction gets a reserved two-minute window after summaries and before weekly reflection and graph upkeep, preserving the 90-second tail. Recover a missing conversation extraction before file work. Successful summary/KG fallbacks retain sanitized `warning_codes` without failing their completed phase; unresolved halves remain errors. Verify `TestMaintenanceSummaryAndKGRecoverIndependently` and `TestMaintenanceReservesEntityTimeBeforeGraphWork`.
 - Background work that a run starts (turn analysis, activity capture, weekly reflection, proactive history compression) goes through `sideEffectsFromRunConfig(...).Go` with the task context, never a bare `go` with `context.Background()`. `agent.ShutdownSideEffects` is process-terminal and runs after `server.Start` returns, before main's deferred store closes. A cancelled compression neither mutates history nor records a compression failure. Verify `TestProactiveHistoryCompressionDrainsWithSideEffectGroup`.
 
+### Automatic helper decisions
+
+- Use the injected consumer service for qualified local routing, RAG and turn
+  decisions. Do not change the public agent-loop or existing helper-call
+  interfaces. Unknown/expired performance retains the original Helper work.
+- A RAG batch may skip query expansion only with complete scores, a best score
+  of at least 8/10 and sufficient-context probability of at least 0.85. Failed
+  optional scoring consumes the existing RAG deadline, never another full one.
+  Reuse validated Helper cache entries first; cache hits are not avoided calls.
+- Turn decisions combine salience and appraisal (signal, target, persona cue)
+  in at most four questions. Analyze the exact current HumanInput. The per-call
+  plan removes answered fields from generation, validation and cache identity;
+  excluded fields must never be persisted if a model returns them anyway.
+  Learnings, activity prose, mood and narration retain their own requirements.
+- Reuse accepted decisions on Helper fallback without another scoring attempt.
+  Appraisal retains the originating basis and TurnID and is applied once even
+  when text generation fails. Cancellation/session revocation prevents writes.
+- Verify `TestHelperDecisions*` and existing routing, salience, personality,
+  helper batch/recovery, grounding and budget regression tests.
+
 ## Verification
 
 - Insights use the existing post-turn analyzer and current-run evidence ledger.

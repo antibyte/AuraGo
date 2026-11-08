@@ -1142,6 +1142,7 @@ type RunConfig struct {
 	TaskRoutingPreview    bool
 	// RoutingDecisions is supplied by the server; it grants scoring only.
 	RoutingDecisions TaskDecisionService
+	helperAppraisal  *memory.PersonalityAppraisal
 	// DecisionConsumers is supplied by the server; it grants scoring only.
 	DecisionConsumers consumers.Service
 	// TaskRoutingClassifier restricts explicit previews to local/decisions/helper.

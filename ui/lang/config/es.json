@@ -824,5 +824,16 @@
   "config.decisions.consumers_name_game_maker_visual": "Revisión visual de Game Maker",
   "config.decisions.consumers_desc_game_maker_visual": "Revisa capturas de pantalla de los juegos generados.",
   "config.backup.flow_key_pairing_required": "Restaura juntos la configuración, la base de datos de flujos y el Vault protegido con contraseña que correspondan entre sí. Esta copia parcial sustituiría la clave de otros datos de flujos.",
-  "config.backup.flow_keys_skipped": "Se omitieron las claves de cifrado de los flujos para que los datos existentes sigan siendo legibles."
+  "config.backup.flow_keys_skipped": "Se omitieron las claves de cifrado de los flujos para que los datos existentes sigan siendo legibles.",
+  "config.decisions.helper_title": "Descarga automática del Helper",
+  "config.decisions.helper_help": "Con Helper y Decisions local activados, las evaluaciones adecuadas se delegan tras superar una prueba en reposo de menos de 900 ms. Helper sigue generando los textos necesarios.",
+  "config.decisions.helper_router": "Selección de tareas",
+  "config.decisions.helper_rag": "Búsqueda en memoria",
+  "config.decisions.helper_turn": "Análisis del turno",
+  "config.decisions.helper_pending": "Esperando una prueba en reposo",
+  "config.decisions.helper_testing": "Prueba de rendimiento en curso",
+  "config.decisions.helper_slow": "Demasiado lento; se encarga Helper",
+  "config.decisions.helper_failed": "Sin aprobar; se encarga Helper",
+  "config.decisions.helper_off": "Helper o Decisions local no están listos",
+  "config.decisions.helper_stats": "Última {ms} ms · Muestras {samples}/5 · Evaluaciones {count} · Llamadas a Helper evitadas {saved}"
 }

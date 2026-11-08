@@ -824,5 +824,16 @@
   "config.decisions.consumers_name_game_maker_visual": "Kontrola wizualna Game Makera",
   "config.decisions.consumers_desc_game_maker_visual": "Sprawdza zrzuty ekranu wygenerowanych gier.",
   "config.backup.flow_key_pairing_required": "Przywróć razem pasującą konfigurację, bazę danych przepływów i Vault chroniony hasłem. Ta częściowa kopia zapasowa zastąpiłaby klucz do innych danych przepływów.",
-  "config.backup.flow_keys_skipped": "Pominięto klucze szyfrowania przepływów, aby istniejące dane nadal można było odczytać."
+  "config.backup.flow_keys_skipped": "Pominięto klucze szyfrowania przepływów, aby istniejące dane nadal można było odczytać.",
+  "config.decisions.helper_title": "Automatyczne odciążanie Helpera",
+  "config.decisions.helper_help": "Gdy Helper i lokalne Decisions są włączone, odpowiednie oceny są przekazywane po udanym teście bezczynności poniżej 900 ms. Helper nadal tworzy potrzebne teksty.",
+  "config.decisions.helper_router": "Kierowanie zadań",
+  "config.decisions.helper_rag": "Wyszukiwanie w pamięci",
+  "config.decisions.helper_turn": "Analiza tury",
+  "config.decisions.helper_pending": "Oczekiwanie na test bezczynności",
+  "config.decisions.helper_testing": "Trwa test wydajności",
+  "config.decisions.helper_slow": "Zbyt wolno; zadanie przejmuje Helper",
+  "config.decisions.helper_failed": "Brak kwalifikacji; zadanie przejmuje Helper",
+  "config.decisions.helper_off": "Helper lub lokalne Decisions nie są gotowe",
+  "config.decisions.helper_stats": "Ostatnio {ms} ms · Pomiary {samples}/5 · Oceny {count} · Uniknięte wywołania Helpera {saved}"
 }

@@ -824,5 +824,16 @@
   "config.decisions.consumers_name_game_maker_visual": "Verificação visual do Game Maker",
   "config.decisions.consumers_desc_game_maker_visual": "Verifica capturas de tela dos jogos gerados.",
   "config.backup.flow_key_pairing_required": "Restaura em conjunto a configuração, a base de dados dos fluxos e o Vault protegido por palavra-passe correspondentes. Esta cópia de segurança parcial substituiria a chave de outros dados de fluxos.",
-  "config.backup.flow_keys_skipped": "As chaves de encriptação dos fluxos foram ignoradas para manter os dados existentes legíveis."
+  "config.backup.flow_keys_skipped": "As chaves de encriptação dos fluxos foram ignoradas para manter os dados existentes legíveis.",
+  "config.decisions.helper_title": "Distribuição automática do Helper",
+  "config.decisions.helper_help": "Com Helper e Decisions local ativos, as avaliações adequadas são delegadas após um teste em repouso bem-sucedido abaixo de 900 ms. O Helper continua a gerar os textos necessários.",
+  "config.decisions.helper_router": "Encaminhamento de tarefas",
+  "config.decisions.helper_rag": "Pesquisa na memória",
+  "config.decisions.helper_turn": "Análise do turno",
+  "config.decisions.helper_pending": "A aguardar um teste em repouso",
+  "config.decisions.helper_testing": "Teste de desempenho em curso",
+  "config.decisions.helper_slow": "Demasiado lento; o Helper assume",
+  "config.decisions.helper_failed": "Sem aprovação; o Helper assume",
+  "config.decisions.helper_off": "O Helper ou o Decisions local não está pronto",
+  "config.decisions.helper_stats": "Última {ms} ms · Medições {samples}/5 · Avaliações {count} · Chamadas ao Helper evitadas {saved}"
 }

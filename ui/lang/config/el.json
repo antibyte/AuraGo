@@ -824,5 +824,16 @@
   "config.decisions.consumers_name_game_maker_visual": "Οπτικός έλεγχος Game Maker",
   "config.decisions.consumers_desc_game_maker_visual": "Ελέγχει στιγμιότυπα των παραγόμενων παιχνιδιών.",
   "config.backup.flow_key_pairing_required": "Επαναφέρετε μαζί τις αντίστοιχες ρυθμίσεις, τη βάση δεδομένων ροών και το Vault που προστατεύεται με κωδικό. Αυτό το μερικό αντίγραφο θα αντικαθιστούσε το κλειδί για διαφορετικά δεδομένα ροών.",
-  "config.backup.flow_keys_skipped": "Τα κλειδιά κρυπτογράφησης ροών παραλείφθηκαν ώστε τα υπάρχοντα δεδομένα ροών να παραμείνουν αναγνώσιμα."
+  "config.backup.flow_keys_skipped": "Τα κλειδιά κρυπτογράφησης ροών παραλείφθηκαν ώστε τα υπάρχοντα δεδομένα ροών να παραμείνουν αναγνώσιμα.",
+  "config.decisions.helper_title": "Αυτόματη αποφόρτιση Helper",
+  "config.decisions.helper_help": "Όταν είναι ενεργά το Helper και το τοπικό Decisions, οι κατάλληλες αξιολογήσεις μεταφέρονται μετά από επιτυχή δοκιμή αδράνειας κάτω από 900 ms. Το Helper εξακολουθεί να παράγει τα απαραίτητα κείμενα.",
+  "config.decisions.helper_router": "Δρομολόγηση εργασιών",
+  "config.decisions.helper_rag": "Αναζήτηση μνήμης",
+  "config.decisions.helper_turn": "Ανάλυση συνομιλίας",
+  "config.decisions.helper_pending": "Αναμονή για δοκιμή αδράνειας",
+  "config.decisions.helper_testing": "Εκτελείται δοκιμή απόδοσης",
+  "config.decisions.helper_slow": "Πολύ αργό· αναλαμβάνει το Helper",
+  "config.decisions.helper_failed": "Χωρίς έγκριση· αναλαμβάνει το Helper",
+  "config.decisions.helper_off": "Το Helper ή το τοπικό Decisions δεν είναι έτοιμο",
+  "config.decisions.helper_stats": "Τελευταία {ms} ms · Μετρήσεις {samples}/5 · Αξιολογήσεις {count} · Κλήσεις Helper που αποφεύχθηκαν {saved}"
 }

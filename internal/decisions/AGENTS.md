@@ -138,6 +138,17 @@ attestation, request validation, candidate-logit normalization, and status.
   suppress one optional action at p >= 0.85. Off or failing means today's behaviour.
 - New consumers register in `consumers.Registry` with class, modality, a
   `decisions_<id>` budget category and a timeout, and join `consumers.Order` and the config switches.
+- Automatic `helper_rag` and `helper_turn` consumers derive permission from a
+  configured Helper and enabled local Decisions; they have no saved switches.
+  Local routing uses the same performance gate while Helper is configured,
+  retaining its router switches, quota and `routing` budget category.
+- Helper profiles require one warmup and five complete responses below 900 ms.
+  Qualification is generation-bound, expires after 15 minutes without successful
+  use, and retries after five minutes on failure. The shutdown-owned 30-second
+  worker uses the existing idle background slot and never starts a runtime.
+  Measure admission through answer validation across the whole request; late,
+  partial and stale replies cannot enable offloading. Probes and actual avoided
+  Helper requests have separate counters. Status stays passive.
 
 ## Verification
 

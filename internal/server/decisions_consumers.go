@@ -13,6 +13,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/decisions"
 	"aurago/internal/decisions/consumers"
+	"aurago/internal/llm"
 )
 
 // decisionHub serves every Decisions consumer from one place. Snapshots are
@@ -32,6 +33,9 @@ type decisionHub struct {
 	background         *backgroundCall
 	lastBackground     map[consumers.ID]time.Time
 	lastCatalogRefresh time.Time
+	helperProfiles     map[consumers.ID]*helperDecisionProfile
+	helperCancel       context.CancelFunc
+	helperDone         chan struct{}
 }
 
 // backgroundCall is the hub-owned handle of the single admitted background call.
@@ -197,12 +201,17 @@ func (h *decisionHub) imagesAreUnsupported(generationID, modelEpoch uint64) bool
 // switches; for everything else it is the consumer's own entry.
 type consumerPolicy struct {
 	RouterEnabled, RouterFallback bool
+	Helper                        bool
 	Switch                        config.DecisionConsumerSwitch
 }
 
 func policyFor(cfg *config.Config, id consumers.ID) consumerPolicy {
+	helper := llm.IsHelperLLMAvailable(cfg) && cfg.Decisions.Normalize().Backend != config.DecisionsBackendProvider
 	if id == consumers.Router {
-		return consumerPolicy{RouterEnabled: cfg.LLMRouter.Enabled, RouterFallback: cfg.LLMRouter.DecisionsFallback}
+		return consumerPolicy{RouterEnabled: cfg.LLMRouter.Enabled, RouterFallback: cfg.LLMRouter.DecisionsFallback, Helper: helper}
+	}
+	if id == consumers.HelperRAG || id == consumers.HelperTurn {
+		return consumerPolicy{Helper: true, Switch: config.DecisionConsumerSwitch{Enabled: helper}}
 	}
 	return consumerPolicy{Switch: cfg.DecisionConsumers.Switch(string(id))}
 }
@@ -215,6 +224,10 @@ func (p consumerPolicy) on(id consumers.ID) bool {
 }
 
 func (h *decisionHub) Snapshot(cfg *config.Config, id consumers.ID) consumers.Snapshot {
+	return h.snapshot(cfg, id, true)
+}
+
+func (h *decisionHub) snapshot(cfg *config.Config, id consumers.ID, qualified bool) consumers.Snapshot {
 	result := consumers.Snapshot{Consumer: id, Code: "service_not_ready"}
 	s := h.s
 	spec, known := consumers.Registry[id]
@@ -232,6 +245,10 @@ func (h *decisionHub) Snapshot(cfg *config.Config, id consumers.ID) consumers.Sn
 		return result
 	}
 	policy := policyFor(cfg, id)
+	probe := policy.Helper && !qualified
+	if probe {
+		spec.Class, spec.BudgetCategory = consumers.Background, "decisions_helper_probe"
+	}
 	if !policy.on(id) {
 		if id == consumers.Router {
 			result.Code = "router_disabled"
@@ -322,7 +339,7 @@ func (h *decisionHub) Snapshot(cfg *config.Config, id consumers.ID) consumers.Sn
 		}
 	}
 	// The agent checks the router's budget itself, so only other consumers do.
-	if result.Available && id != consumers.Router && s.BudgetTracker != nil && s.BudgetTracker.IsBlocked(spec.BudgetCategory) {
+	if result.Available && (id != consumers.Router || probe) && s.BudgetTracker != nil && s.BudgetTracker.IsBlocked(spec.BudgetCategory) {
 		result.Available, result.Code = false, consumers.CodeBudgetBlocked
 	}
 	if !result.Available {
@@ -361,11 +378,16 @@ func (h *decisionHub) Snapshot(cfg *config.Config, id consumers.ID) consumers.Sn
 			h.record(id, func(st *consumers.Stats) { st.Preempted++; st.LastCode = consumers.CodePreempted })
 			return decisions.Response{}, decisions.NewError(consumers.CodePreempted, err)
 		}
-		h.recordOutcome(id, response, err, external)
+		if !probe {
+			h.recordOutcome(id, response, err, external)
+		}
 		if !result.Current() {
 			return response, decisions.NewError(consumers.CodeConfigurationChanged, context.Canceled)
 		}
 		return response, err
+	}
+	if qualified && policy.Helper {
+		return h.qualifiedHelperSnapshot(result)
 	}
 	return result
 }

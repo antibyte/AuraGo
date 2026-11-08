@@ -824,5 +824,16 @@
   "config.decisions.consumers_name_game_maker_visual": "Game Maker दृश्य जाँच",
   "config.decisions.consumers_desc_game_maker_visual": "बनाए गए गेम के स्क्रीनशॉट जाँचता है।",
   "config.backup.flow_key_pairing_required": "संबंधित कॉन्फ़िगरेशन, फ़्लो डेटाबेस और पासवर्ड से सुरक्षित Vault को एक साथ बहाल करें। यह आंशिक बैकअप दूसरे फ़्लो डेटा की कुंजी बदल देगा।",
-  "config.backup.flow_keys_skipped": "मौजूदा फ़्लो डेटा पढ़ने योग्य बना रहे, इसलिए फ़्लो की एन्क्रिप्शन कुंजियों को छोड़ दिया गया।"
+  "config.backup.flow_keys_skipped": "मौजूदा फ़्लो डेटा पढ़ने योग्य बना रहे, इसलिए फ़्लो की एन्क्रिप्शन कुंजियों को छोड़ दिया गया।",
+  "config.decisions.helper_title": "Helper का स्वचालित कार्य-वितरण",
+  "config.decisions.helper_help": "Helper और स्थानीय Decisions चालू होने पर, निष्क्रिय समय में 900 ms से कम का परीक्षण सफल होने के बाद उपयुक्त मूल्यांकन सौंपे जाते हैं। आवश्यक पाठ Helper ही बनाता है।",
+  "config.decisions.helper_router": "कार्य का चयन",
+  "config.decisions.helper_rag": "स्मृति में खोज",
+  "config.decisions.helper_turn": "संवाद चरण का विश्लेषण",
+  "config.decisions.helper_pending": "निष्क्रिय समय के परीक्षण की प्रतीक्षा",
+  "config.decisions.helper_testing": "प्रदर्शन परीक्षण जारी है",
+  "config.decisions.helper_slow": "बहुत धीमा; Helper काम संभालेगा",
+  "config.decisions.helper_failed": "योग्यता नहीं मिली; Helper काम संभालेगा",
+  "config.decisions.helper_off": "Helper या स्थानीय Decisions तैयार नहीं है",
+  "config.decisions.helper_stats": "अंतिम {ms} ms · माप {samples}/5 · मूल्यांकन {count} · बचाए गए Helper अनुरोध {saved}"
 }

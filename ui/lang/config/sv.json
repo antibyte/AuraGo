@@ -824,5 +824,16 @@
   "config.decisions.consumers_name_game_maker_visual": "Game Maker-visuell kontroll",
   "config.decisions.consumers_desc_game_maker_visual": "Kontrollerar skärmdumpar av genererade spel.",
   "config.backup.flow_key_pairing_required": "Återställ den tillhörande konfigurationen, flödesdatabasen och det lösenordsskyddade Vault tillsammans. Den här partiella säkerhetskopian skulle ersätta nyckeln för andra flödesdata.",
-  "config.backup.flow_keys_skipped": "Flödenas krypteringsnycklar hoppades över så att befintliga flödesdata fortfarande går att läsa."
+  "config.backup.flow_keys_skipped": "Flödenas krypteringsnycklar hoppades över så att befintliga flödesdata fortfarande går att läsa.",
+  "config.decisions.helper_title": "Automatisk avlastning av Helper",
+  "config.decisions.helper_help": "När Helper och lokala Decisions är aktiverade flyttas lämpliga bedömningar efter ett godkänt test under 900 ms vid ledig kapacitet. Helper skapar fortfarande nödvändig text.",
+  "config.decisions.helper_router": "Uppgiftsstyrning",
+  "config.decisions.helper_rag": "Minnessökning",
+  "config.decisions.helper_turn": "Efteranalys",
+  "config.decisions.helper_pending": "Väntar på ett test vid ledig kapacitet",
+  "config.decisions.helper_testing": "Prestandatest pågår",
+  "config.decisions.helper_slow": "För långsam; Helper tar över",
+  "config.decisions.helper_failed": "Inte godkänd; Helper tar över",
+  "config.decisions.helper_off": "Helper eller lokala Decisions är inte redo",
+  "config.decisions.helper_stats": "Senast {ms} ms · Mätningar {samples}/5 · Bedömningar {count} · Undvikna Helper-anrop {saved}"
 }

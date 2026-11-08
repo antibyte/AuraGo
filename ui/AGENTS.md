@@ -1357,6 +1357,12 @@ New app-scoped prefixes must contain no `ad` substring; verify
 
 ## Decisions settings
 
+- Show automatic Helper routing, RAG and turn-analysis profile states from
+  passive status only. Explain local qualification below 900 ms and keep
+  unqualified/slow states visibly on the Helper path. The cards have no switches
+  or inference actions; translate their labels, feedback and counters into all
+  sixteen Config locales. Verify `TestHelperDecisionsConfigBrowser`.
+
 - LLM router settings expose `decisions_fallback`, passive service/model status
   and an explicit Decisions preview. Local preview never invokes either model
   classifier; preview uses saved settings and no production classification cache.

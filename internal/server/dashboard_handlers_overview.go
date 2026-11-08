@@ -945,10 +945,11 @@ func handleDashboardHelperLLM(s *Server) http.HandlerFunc {
 		}
 
 		response := map[string]interface{}{
-			"enabled":    enabled,
-			"updated_at": nil,
-			"totals":     totals,
-			"operations": snapshot.Operations,
+			"enabled":           enabled,
+			"updated_at":        nil,
+			"totals":            totals,
+			"operations":        snapshot.Operations,
+			"decision_profiles": s.decisionHub().helperStatus(),
 		}
 		if !snapshot.UpdatedAt.IsZero() {
 			response["updated_at"] = snapshot.UpdatedAt

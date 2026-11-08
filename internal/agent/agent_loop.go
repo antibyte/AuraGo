@@ -988,42 +988,51 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				if ctx.Err() == nil && (err == nil || len(ranked) > 0) {
 					if useHelperRAGBatch {
 						batchCtx, batchCancel := context.WithTimeout(ctx, helperRAGBatchTimeout)
-						batchResult, batchErr := helperManager.AnalyzeRAG(batchCtx, lastUserMsg, ranked)
-						batchCancel()
-						if batchErr != nil {
-							helperManager.ObserveFallback("rag_batch", batchErr.Error())
-							// Keep the already-ranked vector results. Chaining query expansion,
-							// another embedding search, and a second LLM reranker after an
-							// optional helper timeout made the interactive path progressively
-							// slower while the same provider was unhealthy.
+						if decisionRanked, used := tryHelperRAG(batchCtx, runCfg, helperManager, ranked, lastUserMsg); used {
+							ranked = decisionRanked
+							batchCancel()
 						} else {
-							if helperQuery := strings.TrimSpace(batchResult.SearchQuery); helperQuery != "" && !strings.EqualFold(helperQuery, strings.TrimSpace(lastUserMsg)) {
-								ragQuery = helperQuery
-								extraMemories, extraDocIDs, extraSimilarities, extraErr := searchSimilarWithScores(ctx, longTermMem, ragQuery, 4, "tool_guides", "documentation")
-								if extraErr != nil {
-									s.currentLogger.Warn("[RAG] Additional memory retrieval incomplete", "error", extraErr)
-									RecordRetrievalEventForScope(telemetryScope, "rag_auto_error")
-								}
-								if ctx.Err() == nil && len(extraMemories) > 0 {
-									extraRanked, rankErr := rankMemoryCandidatesWithScoresContext(ctx, extraMemories, extraDocIDs, extraSimilarities, shortTermMem, usedMemoryDocIDs, time.Now())
-									if rankErr != nil {
-										s.currentLogger.Warn("[RAG] Additional memory retrieval skipped", "error", rankErr)
+							var batchResult helperRAGBatchResult
+							batchErr := batchCtx.Err()
+							if batchErr == nil {
+								batchResult, batchErr = helperManager.AnalyzeRAG(batchCtx, lastUserMsg, ranked)
+							}
+							batchCancel()
+							if batchErr != nil {
+								helperManager.ObserveFallback("rag_batch", batchErr.Error())
+								// Keep the already-ranked vector results. Chaining query expansion,
+								// another embedding search, and a second LLM reranker after an
+								// optional helper timeout made the interactive path progressively
+								// slower while the same provider was unhealthy.
+							} else {
+								if helperQuery := strings.TrimSpace(batchResult.SearchQuery); helperQuery != "" && !strings.EqualFold(helperQuery, strings.TrimSpace(lastUserMsg)) {
+									ragQuery = helperQuery
+									extraMemories, extraDocIDs, extraSimilarities, extraErr := searchSimilarWithScores(ctx, longTermMem, ragQuery, 4, "tool_guides", "documentation")
+									if extraErr != nil {
+										s.currentLogger.Warn("[RAG] Additional memory retrieval incomplete", "error", extraErr)
 										RecordRetrievalEventForScope(telemetryScope, "rag_auto_error")
 									}
-									existing := make(map[string]struct{}, len(ranked))
-									for _, item := range ranked {
-										existing[item.docID] = struct{}{}
-									}
-									for _, item := range extraRanked {
-										if _, ok := existing[item.docID]; ok {
-											continue
+									if ctx.Err() == nil && len(extraMemories) > 0 {
+										extraRanked, rankErr := rankMemoryCandidatesWithScoresContext(ctx, extraMemories, extraDocIDs, extraSimilarities, shortTermMem, usedMemoryDocIDs, time.Now())
+										if rankErr != nil {
+											s.currentLogger.Warn("[RAG] Additional memory retrieval skipped", "error", rankErr)
+											RecordRetrievalEventForScope(telemetryScope, "rag_auto_error")
 										}
-										existing[item.docID] = struct{}{}
-										ranked = append(ranked, item)
+										existing := make(map[string]struct{}, len(ranked))
+										for _, item := range ranked {
+											existing[item.docID] = struct{}{}
+										}
+										for _, item := range extraRanked {
+											if _, ok := existing[item.docID]; ok {
+												continue
+											}
+											existing[item.docID] = struct{}{}
+											ranked = append(ranked, item)
+										}
 									}
 								}
+								ranked = applyHelperRAGScores(s.currentLogger, ranked, batchResult)
 							}
-							ranked = applyHelperRAGScores(s.currentLogger, ranked, batchResult)
 						}
 					} else {
 						// LLM re-ranking: blend LLM relevance scores with policy-ranked scores
@@ -2554,9 +2563,22 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				analysisCtx, cancel := context.WithTimeout(taskCtx, 60*time.Second)
 				defer cancel()
 
-				batchResult, err := helperManager.AnalyzeTurn(analysisCtx, userMsg, aResp, activityToolNames, activityToolSummaries, turnPersonalityInput, runCfg.BudgetTracker, cfg.Budget.Enabled, learningPolicy(cfg, true))
+				embedder, _ := longTermMem.(memoryQueryEmbedder)
+				appraisalEligible := turnPersonalityInput != nil && !isAutonomousRun && !flags.IsMission && !flags.IsCoAgent && sid != "maintenance"
+				turnPlan := prepareHelperTurn(analysisCtx, runCfg, userMsg, appraisalEligible, embedder, learningPolicy(cfg, true))
+				analysisUser := userMsg
+				if turnPlan.Selective {
+					analysisUser = runCfg.HumanInput.Text
+					analysisCtx = context.WithValue(analysisCtx, helperTurnPlanKey{}, turnPlan)
+				}
+				fallbackRun := s.runCfg
+				fallbackRun.helperAppraisal = turnPlan.Appraisal
+				batchResult, err := helperManager.analyzeTurn(analysisCtx, analysisUser, aResp, activityToolNames, activityToolSummaries, turnPersonalityInput, runCfg.BudgetTracker, cfg.Budget.Enabled, turnPlan)
 				if err != nil {
 					if analysisCtx.Err() != nil || errors.Is(err, errHelperBudgetUnavailable) {
+						if analysisCtx.Err() == nil {
+							applyAcceptedHelperAppraisal(analysisCtx, fallbackRun, personalityBasis, meta, s.currentLogger)
+						}
 						s.currentLogger.Info("[HelperLLM] Turn analysis skipped by cancellation or budget", "error", err)
 						return
 					}
@@ -2571,7 +2593,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 							cfg,
 							s.currentLogger,
 							client,
-							s.runCfg,
+							fallbackRun,
 							shortTermMem,
 							emotionSynthesizer,
 							recentMsgs,
@@ -2649,7 +2671,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 							cfg,
 							s.currentLogger,
 							client,
-							s.runCfg,
+							fallbackRun,
 							shortTermMem,
 							emotionSynthesizer,
 							recentMsgs,

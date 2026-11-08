@@ -8,6 +8,8 @@ type ID string
 
 const (
 	Router          ID = "router"
+	HelperRAG       ID = "helper_rag"
+	HelperTurn      ID = "helper_turn"
 	MemoryRerank    ID = "memory_rerank"
 	Appraisal       ID = "appraisal"
 	SalienceGate    ID = "salience_gate"
@@ -43,6 +45,8 @@ type Spec struct {
 
 var Registry = map[ID]Spec{
 	Router:          {ID: Router, Class: Interactive, BudgetCategory: "routing", Timeout: 1500 * time.Millisecond},
+	HelperRAG:       {ID: HelperRAG, Class: Interactive, BudgetCategory: "decisions_helper_rag", Timeout: HelperTimeout},
+	HelperTurn:      {ID: HelperTurn, Class: Background, BudgetCategory: "decisions_helper_turn", Timeout: HelperTimeout},
 	MemoryRerank:    {ID: MemoryRerank, Class: Interactive, BudgetCategory: "decisions_memory_rerank", Timeout: 1200 * time.Millisecond},
 	Appraisal:       {ID: Appraisal, Class: Background, BudgetCategory: "decisions_appraisal", Timeout: 10 * time.Second},
 	SalienceGate:    {ID: SalienceGate, Class: Background, BudgetCategory: "decisions_salience_gate", Timeout: 10 * time.Second},

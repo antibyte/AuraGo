@@ -824,5 +824,16 @@
   "config.decisions.consumers_name_game_maker_visual": "Game Maker visual check",
   "config.decisions.consumers_desc_game_maker_visual": "Checks screenshots of generated games.",
   "config.backup.flow_key_pairing_required": "Restore the matching configuration, flow database and password-protected Vault together. This partial backup would replace the key for different flow data.",
-  "config.backup.flow_keys_skipped": "Flow encryption keys were skipped to keep existing flow data readable."
+  "config.backup.flow_keys_skipped": "Flow encryption keys were skipped to keep existing flow data readable.",
+  "config.decisions.helper_title": "Automatic Helper offloading",
+  "config.decisions.helper_help": "When Helper and local Decisions are enabled, eligible assessments are offloaded after an idle test completes below 900 ms. Helper still generates required text.",
+  "config.decisions.helper_router": "Task routing",
+  "config.decisions.helper_rag": "Memory search",
+  "config.decisions.helper_turn": "Turn analysis",
+  "config.decisions.helper_pending": "Waiting for an idle test",
+  "config.decisions.helper_testing": "Performance test running",
+  "config.decisions.helper_slow": "Too slow; Helper handles the work",
+  "config.decisions.helper_failed": "Not qualified; Helper handles the work",
+  "config.decisions.helper_off": "Helper or local Decisions is not ready",
+  "config.decisions.helper_stats": "Last {ms} ms · Samples {samples}/5 · Assessments {count} · Helper calls avoided {saved}"
 }

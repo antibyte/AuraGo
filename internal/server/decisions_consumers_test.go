@@ -483,7 +483,7 @@ func TestDecisionsStatusListsConsumersPassively(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
 		t.Fatal(err)
 	}
-	if got.State != "ready" || got.Capabilities["images"] != "supported" || len(got.Consumers) != 9 {
+	if got.State != "ready" || got.Capabilities["images"] != "supported" || len(got.Consumers) != len(consumers.Order) {
 		t.Fatalf("unexpected body: %s", w.Body.String())
 	}
 	if got.Consumers[0]["id"] != "router" || got.Consumers[4]["id"] != "mail_triage" || got.Consumers[4]["enabled"] != true || got.Consumers[4]["available"] != true {

@@ -27,9 +27,10 @@ type TaskDecisionSnapshot struct {
 	Model     string `json:"model,omitempty"`
 
 	// These fields are internal admission capabilities, never status data.
-	Identity [32]byte                                                             `json:"-"`
-	Evaluate func(context.Context, decisions.Request) (decisions.Response, error) `json:"-"`
-	Current  func() bool                                                          `json:"-"`
+	Identity  [32]byte                                                             `json:"-"`
+	Evaluate  func(context.Context, decisions.Request) (decisions.Response, error) `json:"-"`
+	Current   func() bool                                                          `json:"-"`
+	RecordUse func(evaluations, avoidedCalls int)                                  `json:"-"`
 }
 
 type TaskDecisionStats struct {
@@ -148,6 +149,9 @@ func classifyTaskWithDecisions(ctx context.Context, run RunConfig, snapshot Task
 		}
 		taskRouterState.Unlock()
 		return unknown, reason
+	}
+	if snapshot.RecordUse != nil && run.Config.LLMRouter.HelperFallback && llm.IsHelperLLMAvailable(run.Config) {
+		snapshot.RecordUse(1, 1)
 	}
 	return classification, ""
 }

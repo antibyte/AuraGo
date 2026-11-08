@@ -510,7 +510,18 @@ Server-owned HTTP and cross-component integration contracts.
   persistence. Provider deletion guards include every saved router assignment.
   Verify `TestLLMRouter*`; runtime ownership is `internal/agent/AGENTS.md`.
 
+### Automatic Helper decision profiles
+
+- The decision hub owns generation-bound local Helper qualification and the
+  single shutdown-bound idle worker. Start it with the server lifecycle; cancel
+  and join before Decisions teardown. Configuration/status reads never infer.
+- Existing Decisions status and Helper statistics include `helper_profiles`
+  and `decision_profiles` respectively, with passive readiness, elapsed-time,
+  sample/probe and actual offload/saved-request counters. No prompt text or
+  credentials belong in those views. There are no new configuration switches.
+
 ### Newspaper integration
+
 - `/api/desktop/newspaper/` is admin-scoped and same-origin for session writes. The server owns research, delivery and configured destinations; source pages cannot set recipients or invoke send tools.
 - Newspaper research and capabilities share one resolver for model/guide readiness, network permission, Brave setup, DuckDuckGo, profile feeds and static page reads. DuckDuckGo has no independent toggle. Snapshot permissions and model routing; recheck restrictions before each execution without widening a run. Capabilities expose setup reasons separately from sanitized last-attempt errors; no credentials or provider bodies.
 - Planning, search, extraction and editing are separate bounded stages. Resolve budgets through `newspaper.ResolveBudget`: fixed retains legacy limits; explicit auto scales by requested topics to 400 originals, 128 searches, 64 overviews, 800 candidates, 31 stories and 60 minutes. Keep two planning calls, four reads with one per publisher domain, and two editors. Alternate topics and publishers, retain relevant exact passages and original publication dates, and allow one 24-hour-to-seven-day follow-up. Fixed mode charges overviews against shared pages; auto separates them. Reserve 40% of pages/searches and cross to follow-up by 50% of time without waiting for editors; stop discovery at 80%. Preserve monetary caps, exact evidence, bounded repairs and captured older originals. RSS retrieval pins public IPs at redirects and bounds XML input; all search/feed/overview entries remain leads until guarded original reads. Persist source evidence before editing and counters in optional run JSON. Publish only validated immutable revisions under current write permission.

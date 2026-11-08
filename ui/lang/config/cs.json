@@ -824,5 +824,16 @@
   "config.decisions.consumers_name_game_maker_visual": "Vizuální kontrola Game Makeru",
   "config.decisions.consumers_desc_game_maker_visual": "Kontroluje snímky obrazovky vytvořených her.",
   "config.backup.flow_key_pairing_required": "Obnov společně odpovídající konfiguraci, databázi toků a trezor chráněný heslem. Tato částečná záloha by nahradila klíč pro jiná data toků.",
-  "config.backup.flow_keys_skipped": "Šifrovací klíče toků byly přeskočeny, aby stávající data toků zůstala čitelná."
+  "config.backup.flow_keys_skipped": "Šifrovací klíče toků byly přeskočeny, aby stávající data toků zůstala čitelná.",
+  "config.decisions.helper_title": "Automatické odlehčení Helperu",
+  "config.decisions.helper_help": "Když jsou Helper a místní Decisions zapnuté, vhodná hodnocení se přesunou po úspěšném testu v nečinnosti pod 900 ms. Potřebné texty nadále vytváří Helper.",
+  "config.decisions.helper_router": "Směrování úloh",
+  "config.decisions.helper_rag": "Hledání v paměti",
+  "config.decisions.helper_turn": "Analýza tahu",
+  "config.decisions.helper_pending": "Čeká na test v nečinnosti",
+  "config.decisions.helper_testing": "Probíhá test výkonu",
+  "config.decisions.helper_slow": "Příliš pomalé; práci převezme Helper",
+  "config.decisions.helper_failed": "Neschváleno; práci převezme Helper",
+  "config.decisions.helper_off": "Helper nebo místní Decisions nejsou připravené",
+  "config.decisions.helper_stats": "Naposledy {ms} ms · Měření {samples}/5 · Hodnocení {count} · Ušetřené hovory Helperu {saved}"
 }

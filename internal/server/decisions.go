@@ -94,6 +94,7 @@ func (s *Server) startDecisions(ctx context.Context) {
 	if s.Decisions == nil {
 		return
 	}
+	s.decisionHub().startHelperQualifications(ctx)
 	go func() {
 		if err := s.Decisions.AutoStart(ctx); err != nil && s.Logger != nil {
 			s.Logger.Warn("Decisions auto-start unavailable", "code", decisions.ErrorCode(err))
@@ -220,11 +221,14 @@ func (e *flowCatalogEnv) DecisionAvailability() flows.Availability {
 }
 
 func (s *Server) shutdownDecisions(ctx context.Context) {
+	stopCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	if s.decisionHubInst != nil {
+		s.decisionHubInst.stopHelperQualifications(stopCtx)
+	}
 	if s.Decisions == nil {
 		return
 	}
-	stopCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
 	if err := s.Decisions.Shutdown(stopCtx); err != nil && s.Logger != nil {
 		s.Logger.Warn("Decisions shutdown incomplete", "code", decisions.ErrorCode(err))
 	}
