@@ -3754,7 +3754,8 @@
         stopGravityFall();
         if (!petGravity()) return;
         layer.classList.add('is-falling');
-        if (isModelPet(activePet()) && layer.offsetTop < petRestingY(petScale()) - 1) {
+        const falling = layer.offsetTop < petRestingY(petScale()) - 1;
+        if (isModelPet(activePet()) && falling) {
             modelState = 'falling';
             if (modelPet) modelPet.setState('falling');
         }
@@ -3769,7 +3770,7 @@
                 layer.classList.remove('is-falling');
                 gravityFallFrame = null;
                 gravityVelocity = 0;
-                if (isModelPet(activePet())) {
+                if (isModelPet(activePet()) && falling) {
                     modelState = 'landing';
                     if (modelPet) modelPet.setState('landing');
                     clearReactionTimer();

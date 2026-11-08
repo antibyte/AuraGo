@@ -41,6 +41,8 @@ New app-scoped prefixes must contain no `ad` substring; verify
   `document.body` when `vd-workspace` exists: its isolation prevents window
   z-indices from competing there. `node scripts/test-punk-pet.mjs` checks actual
   hit testing through off/on/off toggles for both renderers in Standard/Fruity.
+  Play the 3D landing motion only after actual descent; grounded bootstrap
+  refreshes and dock width changes must not trigger it. The same test covers both.
 
 - Synth Studio's optional Strudel workbench uses a locally bundled runtime and
   downloadable source archive under `js/vendor/strudel/`. Its evaluator runs in

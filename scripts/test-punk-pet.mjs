@@ -98,6 +98,10 @@ try{
     await evaluate(`until(()=>PetRuntime.inspect3D().state==='idle','drop settles')`);
     await evaluate(`document.querySelector('.vd-pet-layer').style.top='40px';PetRuntime.syncBootstrap({settings:{'pet.gravity':'true','pet.position_y':'0'}});PetRuntime.load()`);
     await evaluate(`until(()=>Math.abs(document.querySelector('.vd-pet-layer').offsetTop-(document.querySelector('.vd-taskbar').getBoundingClientRect().top-416))<1,'dock landing')`);
+    assert.equal(await evaluate('PetRuntime.inspect3D().state'),'landing','A real fall must still play its landing animation');
+    await evaluate(`until(()=>PetRuntime.inspect3D().state==='idle','landing finishes')`);
+    const refreshed=await evaluate(`(async()=>{const states=[];for(let i=0;i<5;i++){PetRuntime.load();await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));states.push(PetRuntime.inspect3D().state);}document.querySelector('.vd-taskbar').style.width='95%';await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));states.push(PetRuntime.inspect3D().state);return states;})()`);
+    assert.deepEqual(refreshed,Array(6).fill('idle'),'Window/bootstrap refreshes and dock width changes must not trigger a landing while grounded');
     await shot('dock');
     const background=await fetch('http://'+new URL(debug).host+'/json/new?about:blank',{method:'PUT'}).then(r=>r.json());
     await fetch('http://'+new URL(debug).host+'/json/activate/'+background.id);
@@ -121,7 +125,7 @@ try{
     await evaluate(`document.querySelector('.vd-pet-sprite canvas').getContext('webgl2').getExtension('WEBGL_lose_context').loseContext()`);
     await evaluate(`until(()=>notifications.length===2&&!PetRuntime.inspect3D(),'context-loss fallback')`);
     assert.deepEqual(errors,[]);
-    console.log(JSON.stringify({passed:true,initial,gazeRange:right-left,checks:['actual skin render','normalized weights','connected T-pose skeleton','30 pinned motions','3D and sprite foreground toggles in Standard and Fruity','desktop pet hit testing','pointer gaze without drift','agent reactions','manual gestures','greeting without position jump','pickup and drop','dock landing','speech bubbles','hidden-tab pause and resume','reduced motion','GPU disposal','late-load cancellation','asset failure fallback','context loss fallback']},null,2));
+    console.log(JSON.stringify({passed:true,initial,gazeRange:right-left,checks:['actual skin render','normalized weights','connected T-pose skeleton','30 pinned motions','3D and sprite foreground toggles in Standard and Fruity','desktop pet hit testing','pointer gaze without drift','agent reactions','manual gestures','greeting without position jump','pickup and drop','real fall and landing','no landing on grounded refresh or dock width change','speech bubbles','hidden-tab pause and resume','reduced motion','GPU disposal','late-load cancellation','asset failure fallback','context loss fallback']},null,2));
 }finally{
     socket?.close();
     if(child.exitCode===null){if(process.platform==='win32'){const stop=spawn('taskkill',['/PID',String(child.pid),'/T','/F'],{windowsHide:true,stdio:'ignore'});await new Promise(r=>stop.once('exit',r));}else child.kill();}
