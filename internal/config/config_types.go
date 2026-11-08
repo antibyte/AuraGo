@@ -1497,6 +1497,18 @@ type Config struct {
 		LegacyAPIKey string `yaml:"api_key"  json:"-"` // legacy/compat
 		LegacyURL    string `yaml:"base_url" json:"-"` // legacy/compat
 		LegacyModel  string `yaml:"model"    json:"-"` // legacy/compat
+		Mirage       struct {
+			Enabled       bool   `yaml:"enabled"        json:"enabled"`
+			Mode          string `yaml:"mode"           json:"mode"`           // "fallback" (default) | "always"
+			ContainerName string `yaml:"container_name" json:"container_name"` // default aurago_mirage
+			ContainerPort int    `yaml:"container_port" json:"container_port"` // host port bound on 127.0.0.1
+			Image         string `yaml:"image"          json:"image"`          // Python base image for the sidecar build
+			DataPath      string `yaml:"data_path"      json:"data_path"`      // weights cache, default data/mirage
+			GPU           string `yaml:"gpu"            json:"gpu"`            // auto | none | nvidia | amd | intel | vulkan
+			MaxObjects    int    `yaml:"max_objects"    json:"max_objects"`
+			MaxTextLines  int    `yaml:"max_text_lines" json:"max_text_lines"`
+			Language      string `yaml:"language"       json:"language"` // empty = engine default
+		} `yaml:"mirage" json:"mirage"`
 	} `yaml:"vision"`
 	FallbackLLM struct {
 		Enabled              bool   `yaml:"enabled"`

@@ -841,6 +841,14 @@ func Load(path string) (*Config, error) {
 	cfg.TTS.Piper.DataPath = "data/piper"
 	cfg.TTS.Piper.Image = "rhasspy/wyoming-piper:latest"
 	cfg.TTS.Piper.Voice = "de_DE-thorsten-high"
+	cfg.Vision.Mirage.Mode = MirageModeFallback
+	cfg.Vision.Mirage.ContainerName = MirageDefaultContainerName
+	cfg.Vision.Mirage.ContainerPort = 8791
+	cfg.Vision.Mirage.Image = "python:3.12-slim"
+	cfg.Vision.Mirage.DataPath = "data/mirage"
+	cfg.Vision.Mirage.GPU = "auto"
+	cfg.Vision.Mirage.MaxObjects = 20
+	cfg.Vision.Mirage.MaxTextLines = 30
 	cfg.TTS.Supertonic.URL = "http://127.0.0.1:7788"
 	cfg.TTS.Supertonic.ContainerName = "aurago-supertonic-tts"
 	cfg.TTS.Supertonic.Image = "ghcr.io/antibyte/aurago-supertonic:latest"

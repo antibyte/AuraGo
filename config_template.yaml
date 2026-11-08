@@ -1055,6 +1055,20 @@ media_registry:
     enabled: true
 vision:
     provider: ""
+    # Optional local vision for weak systems: the Cactus Mirage model in a managed Docker sidecar.
+    # Used only while `provider` is empty. mode: fallback = when the main model cannot read images,
+    # always = whenever provider is empty. gpu: auto | none | nvidia | amd | intel | vulkan (Linux detection).
+    mirage:
+        enabled: false
+        mode: fallback
+        container_name: aurago_mirage
+        container_port: 8791
+        image: python:3.12-slim
+        data_path: data/mirage
+        gpu: auto
+        max_objects: 20
+        max_text_lines: 30
+        language: ""
 web_config:
     enabled: true
 invasion_control:
