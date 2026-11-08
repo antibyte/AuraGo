@@ -40,6 +40,7 @@ var containerProtectedOwners = []string{
 	dockerutil.RustFSOwner,
 	dockerutil.AppOwner,
 	dockerutil.OllamaOwner,
+	dockerutil.MirageOwner,
 	acestep.Owner,
 	dockerutil.HomepageOwner,
 	"go2rtc",
