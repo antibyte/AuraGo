@@ -61,6 +61,7 @@
     function bind(input, dial, kind) {
         let drag = null, wheelTimer = 0;
         const horizontal = kind === 'hfader';
+        const thumb = () => (dial.querySelector('.ss-ctl-thumb') || {}).offsetWidth || 14;
         const set = value => {
             const next = snap(value, spec(input));
             if (next === Number(input.value)) return;
@@ -77,7 +78,7 @@
             fakeDown(event.pointerId);
             if (horizontal) {
                 const rect = dial.getBoundingClientRect(), s = spec(input);
-                const f = clamp((event.clientX - rect.left - 7) / Math.max(1, rect.width - 14), 0, 1);
+                const f = clamp((event.clientX - rect.left - thumb() / 2) / Math.max(1, rect.width - thumb()), 0, 1);
                 set(s.min + f * (s.max - s.min));
             }
             drag = { x: event.clientX, y: event.clientY, value: Number(input.value) };
@@ -86,7 +87,7 @@
         dial.addEventListener('pointermove', event => {
             if (!drag) return;
             const delta = horizontal ? event.clientX - drag.x : drag.y - event.clientY;
-            const pixels = horizontal ? Math.max(40, dial.clientWidth - 14) : 160;
+            const pixels = horizontal ? Math.max(40, dial.clientWidth - thumb()) : 160;
             set(dragValue(drag.value, delta, pixels, spec(input), event.shiftKey));
         });
         dial.addEventListener('pointerup', () => {

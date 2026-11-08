@@ -45,18 +45,18 @@
 }
 .ss-ctl-knob.is-dragging .ss-ctl-cap { filter: brightness(1.12); }
 
-.ss-ctl-hfader { width: 100%; min-width: 64px; height: 24px; cursor: ew-resize; }
+.ss-ctl-hfader { --ss-tw: 14px; --ss-th: 22px; width: 100%; min-width: 64px; height: 24px; cursor: ew-resize; }
 .ss-ctl-groove-h {
     position: absolute; left: 0; right: 0; top: 50%; height: 6px; margin-top: -3px; border-radius: 4px;
     background: var(--ss-groove); box-shadow: inset 0 1px 3px rgb(0 0 0 / .6);
 }
 .ss-ctl-fill {
     position: absolute; left: 0; top: 50%; height: 6px; margin-top: -3px; border-radius: 4px;
-    width: calc(7px + var(--ss-f, 0) * (100% - 14px)); background: var(--ss-accent); box-shadow: 0 0 8px var(--ss-glow);
+    width: calc(var(--ss-tw) / 2 + var(--ss-f, 0) * (100% - var(--ss-tw))); background: var(--ss-accent); box-shadow: 0 0 8px var(--ss-glow);
 }
 .ss-ctl-thumb {
-    position: absolute; top: 50%; width: 14px; height: 22px; margin-top: -11px; border-radius: 5px;
-    left: calc(var(--ss-f, 0) * (100% - 14px));
+    position: absolute; top: 50%; width: var(--ss-tw); height: var(--ss-th); margin-top: calc(var(--ss-th) / -2); border-radius: 5px;
+    left: calc(var(--ss-f, 0) * (100% - var(--ss-tw)));
     background: linear-gradient(180deg, var(--ss-cap-hi), var(--ss-cap-lo));
     box-shadow: 0 3px 6px rgb(0 0 0 / .5), inset 0 1px 0 color-mix(in srgb, #fff 40%, transparent);
 }
@@ -182,7 +182,8 @@
 .ss-app .ss-master-panel .ss-parameter:has(.ss-ctl-knob) { min-width: 0; }
 
 /* ---- track mixer fader ---- */
-.ss-app .ss-track-head .ss-ctl-hfader { margin-top: 4px; }
+.ss-app .ss-track-head .ss-ctl-hfader { --ss-tw: 18px; --ss-th: 26px; height: 28px; margin-top: 4px; }
+.ss-app .ss-track-head .ss-ctl-groove-h, .ss-app .ss-track-head .ss-ctl-fill { height: 8px; margin-top: -4px; }
 
 /* ---- spacing for the empty states and the welcome card ---- */
 .ss-app .ss-welcome { padding: 18px 22px; border-radius: 18px; background: var(--ss-glass), var(--ss-card); box-shadow: var(--ss-edge), var(--ss-lift); }
