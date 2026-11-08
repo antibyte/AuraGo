@@ -270,6 +270,7 @@ function jackpotShot(g, shot) {
 
 // ---------------------------------------------------------------- timers
 export function tickModes(g) {
+    pack(g).hooks?.onTick?.(makeCtx(g));
     if (g.select && g.time >= g.select.until) confirmSelect(g);
     if (g.mode.id) {
         const m = modeDef(g, g.mode.id);
