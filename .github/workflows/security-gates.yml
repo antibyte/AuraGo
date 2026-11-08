@@ -224,10 +224,15 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      - name: Install pinned Cosign through GitHub API
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./scripts/install-ci-cosign.ps1
       - name: Verify native bootstrap reproducibility and automatic installation
         shell: bash
         run: |
+          python scripts/test-prepare-phonon.py
           python scripts/build-release-verifier.py --check
           go test ./internal/releaseverify ./cmd/release-verifier -count=1
           go test ./internal/audit -run 'ReleaseSignature|ReleaseBootstrap|ReleaseVerifier' -count=1
@@ -303,6 +308,8 @@ jobs:
 
       - name: Prepare verified Phonon resources for the AuraGo image
         if: matrix.id == 'aurago'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: python3 scripts/prepare-phonon.py --from-release latest --target linux_amd64
 
       - name: Set up Docker Buildx

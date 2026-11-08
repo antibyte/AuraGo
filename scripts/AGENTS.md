@@ -11,6 +11,7 @@ This folder owns the maintained helpers and the `start.*`, `kill_all.*`, `instal
 ## Local Contracts
 
 - Resolve the repository root from the script location before using project-relative inputs or outputs; invoking an entrypoint from another working directory must not relocate state, locks or artifacts.
+- `install-ci-cosign.ps1` stages the pinned Windows/Linux X64 tool through the GitHub releases API. It uses CI runner paths and exposes only size/SHA-256-verified binaries on `GITHUB_PATH`; it never manages signing keys.
 - Sibling helpers are relative to this folder; `deploy/`, `bin/`, `.env` and source inputs remain relative to the repository root.
 - Source paths may change; release asset names and installed config/notice paths stay stable. The English third-party notices come from `../licences/`.
 - Keep the Bluetooth kit synchronized into root installers/updater and `scripts/install_service_linux.sh` through `sync-bluetooth-kit.sh`.
@@ -50,7 +51,7 @@ Use the existing helper for each job. Check release scripts with harmless fixtur
 - Parse changed PowerShell with `System.Management.Automation.Language.Parser`.
 - Run `node scripts/test-easydrag.mjs` for EasyDrag UI module and pack wire-contract checks.
 - Run `node scripts/test-easydrag-approvals.mjs` for approval DTO, bounds, review-safety and blocked-reason checks.
-- `python scripts/test-prepare-phonon.py` and relevant `go test ./internal/audit` release/install/build contracts.
+- `python scripts/test-prepare-phonon.py` covers archive integrity, API routing, bounds and GitHub/Hugging Face credential separation. Run it with relevant `go test ./internal/audit` release/install/build contracts.
 
 ## Child DOX Index
 

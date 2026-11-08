@@ -234,5 +234,57 @@ class PhononPreparationTests(unittest.TestCase):
                 fetch.assert_not_called()
 
 
+    def test_github_release_routes_api_assets_without_hf_credentials(self):
+        metadata = {"assets": [{"name": "asset name.bin", "id": 17, "size": 3}]}
+        for primary, fallback, github_token in (("github-fixture", "other-fixture", "github-fixture"), ("", "fallback-fixture", "fallback-fixture"), ("", "", "")):
+            with self.subTest(authenticated=bool(github_token)), \
+                    patch.dict(os.environ, {"GH_TOKEN": primary, "GITHUB_TOKEN": fallback}), \
+                    patch.object(prepare.urllib.request, "build_opener") as build:
+                build.return_value.open.side_effect = [io.BytesIO(json.dumps(metadata).encode()), io.BytesIO(b"abc")]
+                self.assertEqual(prepare.fetch("https://github.com/owner/repo/releases/download/v1%2Ftest/asset%20name.bin", 3, "hf-only-fixture"), b"abc")
+                requests = [call.args[0] for call in build.return_value.open.call_args_list]
+                self.assertEqual([request.full_url for request in requests], [
+                    "https://api.github.com/repos/owner/repo/releases/tags/v1%2Ftest",
+                    "https://api.github.com/repos/owner/repo/releases/assets/17"])
+                for request in requests:
+                    self.assertEqual(request.get_header("Authorization"), "Bearer " + github_token if github_token else None)
+                self.assertEqual(requests[1].get_header("Accept"), "application/octet-stream")
+
+    def test_github_release_rejects_invalid_metadata_before_download(self):
+        asset = {"name": "asset.bin", "id": 17, "size": 3}
+        for metadata in ([], {}, {"assets": []}, {"assets": [asset, dict(asset, id=18)]},
+                         {"assets": [dict(asset, id="../other")]}, {"assets": [dict(asset, size=4)]},
+                         {"assets": [dict(asset, size=-1)]}):
+            with self.subTest(metadata=metadata), \
+                    patch.dict(os.environ, {"GH_TOKEN": "", "GITHUB_TOKEN": ""}), \
+                    patch.object(prepare.urllib.request, "build_opener") as build:
+                build.return_value.open.return_value = io.BytesIO(json.dumps(metadata).encode())
+                with self.assertRaises(ValueError):
+                    prepare.fetch("https://github.com/owner/repo/releases/download/v1/asset.bin", 3)
+                self.assertEqual(build.return_value.open.call_count, 1)
+
+    def test_github_asset_body_remains_bounded(self):
+        metadata = {"assets": [{"name": "asset.bin", "id": 17, "size": 3}]}
+        with patch.dict(os.environ, {"GH_TOKEN": "", "GITHUB_TOKEN": ""}), \
+                patch.object(prepare.urllib.request, "build_opener") as build:
+            build.return_value.open.side_effect = [io.BytesIO(json.dumps(metadata).encode()), io.BytesIO(b"abcd")]
+            with self.assertRaisesRegex(ValueError, "exceeds size limit"):
+                prepare.fetch("https://github.com/owner/repo/releases/download/v1/asset.bin", 3)
+
+    def test_huggingface_retains_only_its_own_token(self):
+        with patch.dict(os.environ, {"GH_TOKEN": "github-fixture"}), \
+                patch.object(prepare.urllib.request, "build_opener") as build:
+            build.return_value.open.return_value = io.BytesIO(b"a")
+            self.assertEqual(prepare.fetch("https://huggingface.co/model", 1, "hf-fixture"), b"a")
+            self.assertEqual(build.return_value.open.call_args.args[0].get_header("Authorization"), "Bearer hf-fixture")
+
+    def test_invalid_github_token_is_rejected_without_network(self):
+        with patch.dict(os.environ, {"GH_TOKEN": "fixture\nprivate"}), \
+                patch.object(prepare.urllib.request, "build_opener") as build:
+            with self.assertRaisesRegex(ValueError, "invalid GitHub token format"):
+                prepare.fetch("https://github.com/owner/repo/releases/download/v1/asset.bin", 3)
+            build.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()

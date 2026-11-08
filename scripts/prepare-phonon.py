@@ -12,7 +12,7 @@ import tarfile
 import tempfile
 import urllib.error
 import urllib.request
-from urllib.parse import quote, urlsplit
+from urllib.parse import quote, unquote, urlsplit
 import zipfile
 
 REPO = Path(__file__).resolve().parents[1]
@@ -43,9 +43,34 @@ def verify(data, expected):
 
 
 def fetch(url, limit, token=""):
+    github_asset = False
+    parsed = urlsplit(url)
+    parts = parsed.path.split("/")
+    if parsed.scheme == "https" and parsed.netloc == "github.com" and len(parts) == 7 and parts[3:5] == ["releases", "download"]:
+        owner, repo, tag, name = (unquote(part) for part in (parts[1], parts[2], parts[5], parts[6]))
+        token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN", "")
+        if token and (not token.isascii() or any(character.isspace() for character in token)):
+            raise ValueError("invalid GitHub token format")
+        base = "https://api.github.com/repos/" + quote(owner, safe="") + "/" + quote(repo, safe="")
+        release = json.loads(fetch(base + "/releases/tags/" + quote(tag, safe=""), 4 << 20, token))
+        assets = release.get("assets") if isinstance(release, dict) else None
+        if not isinstance(assets, list):
+            raise ValueError("invalid GitHub release metadata")
+        matches = [asset for asset in assets if isinstance(asset, dict) and asset.get("name") == name]
+        if len(matches) != 1:
+            raise ValueError("no unique GitHub release asset")
+        asset = matches[0]
+        if type(asset.get("id")) is not int or asset["id"] <= 0:
+            raise ValueError("invalid GitHub asset identity")
+        if type(asset.get("size")) is not int or not 0 <= asset["size"] <= limit:
+            raise ValueError("GitHub resource exceeds size limit")
+        url = base + "/releases/assets/" + str(asset["id"])
+        github_asset = True
     if token and (not token.isascii() or any(character.isspace() for character in token)):
         raise ValueError("invalid HF_TOKEN format")
     request = urllib.request.Request(url, headers={"User-Agent": "AuraGo-Phonon-Packager/1"})
+    if github_asset:
+        request.add_header("Accept", "application/octet-stream")
     if token:
         request.add_header("Authorization", "Bearer " + token)
     opener = urllib.request.build_opener(CredentialSafeRedirect())

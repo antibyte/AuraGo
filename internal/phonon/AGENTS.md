@@ -14,6 +14,7 @@ UI owns the state-backed picker and explicit download action.
 - `--from-release latest` uses the manifest-pinned model package URL, size and
   SHA-256, not the latest AuraGo binary release. Explicit tags retain release
   checksum verification; both paths verify the individual model/voice files.
+- Maintainer GitHub release downloads resolve exact API asset IDs, use optional `GH_TOKEN`/`GITHUB_TOKEN`, and retain bounded reads and source pins. Keep `HF_TOKEN` limited to Hugging Face; drop authorization on redirects.
 - Never bundle an HF token or download gated weights on a user's first utterance.
   Release builders require the prepared model and ten bundled voice embeddings.
 - Empty manual voice means a deterministic language/persona default. Unknown,

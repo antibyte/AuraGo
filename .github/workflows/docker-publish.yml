@@ -58,6 +58,7 @@ jobs:
       - name: Prepare verified offline Phonon speech packages
         if: inputs.image != 'gods-eye-view' && inputs.image != 'ziro-designer'
         env:
+          GH_TOKEN: ${{ github.token }}
           PHONON_RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'latest' }}
         run: |
           # Tag publication may precede the upload of its release assets.
@@ -98,8 +99,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install cosign
-        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      - name: Install pinned Cosign through GitHub API
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./scripts/install-ci-cosign.ps1
 
       # Compute image tags:
       #   push a v* tag        → ghcr.io/antibyte/aurago:<exact-tag> + :latest + :sha-<short>
@@ -343,7 +347,11 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      - name: Install pinned Cosign through GitHub API
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./scripts/install-ci-cosign.ps1
       - name: Build and publish versioned notebook image
         id: notebook
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
