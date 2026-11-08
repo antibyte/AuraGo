@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="Music Player">
+  <defs><linearGradient id="case" x2="0" y2="1"><stop stop-color="#69717b"/><stop offset="1" stop-color="#343941"/></linearGradient></defs>
+  <rect x="8" y="12" width="112" height="104" rx="20" fill="#1c2027"/>
+  <rect x="10" y="12" width="108" height="100" rx="18" fill="url(#case)" stroke="#9fa9b3" stroke-width="2"/>
+  <path d="M24 25h56" stroke="#c4cbd0" stroke-width="4" stroke-linecap="round"/>
+  <path d="M91 23h5v5h-5zm10 0h5v5h-5z" fill="#252a31"/>
+  <rect x="21" y="37" width="86" height="38" rx="5" fill="#101b18" stroke="#8c979c" stroke-width="2"/>
+  <path d="M30 64h5V52h-5zm10 0h5V45h-5zm10 0h5V56h-5zm10 0h5V43h-5z" fill="#adf16e"/>
+  <path d="M75 47h23m-23 8h16m-16 8h23" stroke="#79b66d" stroke-width="3"/>
+  <rect x="21" y="84" width="86" height="18" rx="5" fill="#252a31"/>
+  <path d="M31 89v8m4-8v8m10-8 10 4-10 4zm20 0h8v8h-8zm19 0v8m4-8v8m10-8v8" fill="#d8dee1" stroke="#d8dee1" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M26 111h76" stroke="#13171c" stroke-width="3" stroke-linecap="round"/>
+</svg>

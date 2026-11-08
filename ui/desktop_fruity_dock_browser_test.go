@@ -14,6 +14,7 @@ import (
 
 	"aurago/internal/desktop"
 	"github.com/go-rod/rod/lib/input"
+	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/rod/lib/proto"
 )
 
@@ -41,7 +42,10 @@ func TestDesktopFruityDockBrowser(t *testing.T) {
 	mux.HandleFunc("/fixture-apps", func(w http.ResponseWriter, r *http.Request) { json.NewEncoder(w).Encode(desktop.BuiltinApps()) })
 	server := httptest.NewServer(mux)
 	defer server.Close()
-	page := newSmokeBrowser(t).MustPage(server.URL + "/fixture").Timeout(30 * time.Second)
+	browser := newSmokeBrowserWith(t, func(l *launcher.Launcher) {
+		l.Set("blink-settings", "primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4")
+	})
+	page := browser.MustPage(server.URL + "/fixture").Timeout(30 * time.Second)
 	defer page.Close()
 	page.MustSetViewport(1366, 900, 1, false)
 	page.MustWaitLoad()

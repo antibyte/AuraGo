@@ -25,6 +25,8 @@ The Service owns authorization, read-only state, mutation locks and cache invali
   locale keys and tests belong to `../../ui/js/desktop/apps/AGENTS.md`.
   Verify `TestAuraDriftAppRegistration` and `go test ./internal/desktop -run TestBuiltinAppsCarryStartMenuCategories`.
 
+- The WebAmp launcher (`music-player`) declares app-owned `logo_path` `/img/desktop-icons/music-player.svg`; keep it visually distinct from the native `audio-player` and preserve their existing icon aliases.
+
 - FindIt is a built-in optional physical inventory app with app-owned artwork at `/img/findit`. Its backend/storage/agent contract belongs to `../findit/AGENTS.md`; its large component atlas never changes the global Desktop sprite grid.
 
 - ECalc (`ecalc`, category `dev`) is a built-in electronics formula app with no capability gate. Its icon is app-owned artwork, `logo_path` `/img/desktop-icons/ecalc.svg`, and its `Icon` value `ecalc` is deliberately absent from `desktopPreferredIconNames` and every icon theme (as for Synth Studio), so every theme shows the logo; adding a themed `ecalc` icon would replace it. Its catalog route is `GET /api/ecalc/catalog` (`../server/AGENTS.md`). Verify `TestBuiltinECalcApp*` and `go test ./ui -run TestDesktopECalc`.

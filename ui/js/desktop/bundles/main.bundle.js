@@ -401,7 +401,6 @@
         workflow: 'workflow',
         workflows: 'workflow',
         music: 'audio-player',
-        'music-player': 'audio-player',
         'audio-player': 'audio-player',
         player: 'audio-player',
         noisemaker: 'audio',
@@ -797,13 +796,12 @@
     }
     function themeBackedAppIconKey(app) {
         if (!app) return '';
-        for (const key of [appIconKeys[app.id], app.id]) {
-            const candidate = String(key || '').trim();
-            if (candidate && themeIconPath(candidate)) return candidate;
-        }
-        // A generic search/code/heart icon must not hide an app's own artwork.
-        if (!appLogoIconKey(app) && app.icon && themeIconPath(app.icon)) return app.icon;
-        return '';
+        const preferred = appIconKeys[app.id];
+        if (preferred && themeIconPath(preferred)) return preferred;
+        // App-id aliases must not hide explicitly supplied artwork.
+        if (appLogoIconKey(app)) return '';
+        if (themeIconPath(app.id)) return app.id;
+        return app.icon && themeIconPath(app.icon) ? app.icon : '';
     }
     function iconForApp(app) {
         if (!app) return 'apps';

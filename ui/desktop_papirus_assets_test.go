@@ -166,7 +166,7 @@ func TestDesktopUsesExpandedPapirusIconMappings(t *testing.T) {
 		"workflow: 'workflow'",
 		"writer: 'writer'",
 		"launchpad: 'launchpad'",
-		"'music-player': 'audio-player'",
+		"'audio-player': 'audio-player'",
 		"player: 'audio-player'",
 		"Trash: 'trash-empty'",
 		"radio: 'radio'",
