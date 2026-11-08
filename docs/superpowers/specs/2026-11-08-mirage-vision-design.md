@@ -2,6 +2,8 @@
 
 Datum: 2026-11-08 · Status: Entwurf, vom Nutzer im Gespräch freigegeben
 
+> Hinweis: Abweichungen, die beim Kartieren des Codes entstanden sind (Auswahl über `vision.mirage.enabled`/`mode` statt Provider-Eintrag, Formatierung im Sidecar, `image` = Python-Basisimage, `language`-Feld), stehen im Plan `docs/superpowers/plans/2026-11-08-mirage-vision.md` unter „Deviations from the spec“ und gelten vor dem Text unten.
+
 ## Ziel
 
 [Cactus-Compute/mirage](https://huggingface.co/Cactus-Compute/mirage) (51,3M Parameter, `mirage.cact` ca. 22 MB, Apache-2.0) wird eine optionale, lokale Vision-Quelle für Systeme, die kein bildfähiges Hauptmodell und keinen Cloud-Vision-Provider haben. Eine GPU wird automatisch genutzt, wo die Engine es kann.
