@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { createInput } from '../ui/js/desktop/apps/pinball/input.js';
 import { normalizeSettings } from '../ui/js/desktop/apps/pinball/tables.js';
+import { normalizeSettings as normalizeNew } from '../ui/js/desktop/apps/pinball/config.js';
 
 const doc = new EventTarget(), win = new EventTarget();
 let now = 0, playing = true, onButton = false, pads = [], bound = 0;
@@ -29,4 +30,17 @@ pads[0].axes[0] = -.5; input.poll(); assert.equal(input.nudges()[0].x, -.5); inp
 const disconnect = new Event('gamepaddisconnected'); disconnect.gamepad = { index: 0 }; win.dispatchEvent(disconnect); pads = [];
 assert.ok(actions.includes('disconnected')); assert.equal(input.at(40).left, false);
 input.dispose(); assert.equal(key('keydown', 'KeyA', 50).defaultPrevented, false);
+// T18: start action
+{
+    const cfg = normalizeNew(); const acts = []; let play = true;
+    const inp = createInput({}, cfg, { active: () => true, playing: () => play, action: n => acts.push(n), binding: () => {} });
+    key('keydown', 'Digit1', 100); key('keyup', 'Digit1', 102);
+    assert.equal(inp.at(99).start, false); assert.equal(inp.at(101).start, true); assert.equal(inp.at(103).start, false, 'start tap between frames keeps both edges');
+    assert.equal(acts.includes('start'), false, 'start is a game button while playing');
+    play = false; key('keydown', 'Digit1', 110); key('keyup', 'Digit1', 111); assert.deepEqual(acts, ['start'], 'start action when not playing');
+    play = true; const b = Array.from({ length: 17 }, () => ({ value: 0 }));
+    pads = [{ index: 1, connected: true, buttons: b, axes: [0, 0] }];
+    b[8].value = 1; assert.equal(inp.poll().start, true); assert.equal(inp.at(120).start, true, 'pad button 8 maps to start');
+    inp.dispose(); pads = [];
+}
 console.log('Pinball input: sub-frame edges, remapping, native menu keys, analogue nudge, controller disconnect and disposal passed');

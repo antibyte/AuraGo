@@ -1,4 +1,6 @@
-import { clamp } from './tables.js';
+import { clamp } from './config.js';
+
+const TRANSITIONS = ['left', 'right', 'plunger', 'start'];
 
 export function createInput(root, settings, { active, playing, action, binding }) {
     const controller = new AbortController(), held = new Set(), simulated = new Set(), transitions = [], nudges = [];
@@ -17,23 +19,24 @@ export function createInput(root, settings, { active, playing, action, binding }
         if (event.target.closest('input,select,textarea,[contenteditable="true"]')) return;
         const key = Object.keys(config.keys).find(name => config.keys[name] === event.code);
         if (!key) return;
-        if (!playing() && (key !== 'pause' || event.target.closest('button') && ['Space', 'Enter', 'NumpadEnter'].includes(event.code))) return;
+        if (!playing() && key !== 'start' && (key !== 'pause' || event.target.closest('button') && ['Space', 'Enter', 'NumpadEnter'].includes(event.code))) return;
         event.preventDefault();
         if (held.has(key) || event.repeat) return;
         held.add(key);
-        if (['left', 'right', 'plunger'].includes(key)) transitions.push({ key, down: true, time: performance.now() });
+        if (TRANSITIONS.includes(key) && (key !== 'start' || playing())) transitions.push({ key, down: true, time: performance.now() });
+        if (key === 'start' && !playing()) action('start');
         if (key.startsWith('nudge')) nudges.push({ x: key === 'nudgeLeft' ? -1 : key === 'nudgeRight' ? 1 : 0, z: key === 'nudgeUp' ? 1 : 0 });
         else if (['pause', 'camera', 'reset'].includes(key)) action(key);
     });
     listen(document, 'keyup', event => {
         const key = Object.keys(config.keys).find(name => config.keys[name] === event.code);
-        if (key && held.delete(key) && ['left', 'right', 'plunger'].includes(key)) transitions.push({ key, down: false, time: performance.now() });
+        if (key && held.delete(key) && TRANSITIONS.includes(key) && (key !== 'start' || playing())) transitions.push({ key, down: false, time: performance.now() });
     });
     listen(window, 'blur', () => { clear(); action('focusLost'); });
     listen(document, 'visibilitychange', () => { if (document.hidden) { clear(); action('focusLost'); } });
     listen(window, 'gamepaddisconnected', event => { if (event.gamepad.index === padIndex) { padIndex = null; clear(); action('disconnected'); } });
     function poll() {
-        if (!active()) { clear(); return { left: false, right: false, plunger: 0 }; }
+        if (!active()) { clear(); return { left: false, right: false, plunger: 0, start: false }; }
         const pads = navigator.getGamepads?.() || [];
         const pad = [...pads].find(p => p?.connected && (padIndex === null || p.index === padIndex));
         let padValues = {};
@@ -46,7 +49,7 @@ export function createInput(root, settings, { active, playing, action, binding }
                 for (const [name, index] of Object.entries(config.pad)) {
                     padValues[name] = pad.buttons[index]?.value || 0;
                     if (padValues[name] > .6 && !previous[index]) {
-                        if (['pause', 'camera', 'reset'].includes(name)) action(name);
+                        if (['pause', 'camera', 'reset'].includes(name) || name === 'start' && !playing()) action(name);
                         if (name.startsWith('nudge')) nudges.push({ x: name === 'nudgeLeft' ? -1 : name === 'nudgeRight' ? 1 : 0, z: name === 'nudgeUp' ? 1 : 0 });
                     }
                 }
@@ -59,13 +62,13 @@ export function createInput(root, settings, { active, playing, action, binding }
             previous = pad.buttons.map(b => b.value > .6);
         } else if (padIndex !== null) { padIndex = null; clear(); action('disconnected'); }
         sampledPad = padValues;
-        return { left: held.has('left') || padValues.left > .5, right: held.has('right') || padValues.right > .5, plunger: held.has('plunger') ? 1 : clamp(padValues.plunger || 0, 0, 1) };
+        return { left: held.has('left') || padValues.left > .5, right: held.has('right') || padValues.right > .5, plunger: held.has('plunger') ? 1 : clamp(padValues.plunger || 0, 0, 1), start: held.has('start') || padValues.start > .5 };
     }
     function at(time) {
         while (transitions.length && transitions[0].time <= time) {
             const edge = transitions.shift(); if (edge.down) simulated.add(edge.key); else simulated.delete(edge.key);
         }
-        return { left: simulated.has('left') || sampledPad.left > .5, right: simulated.has('right') || sampledPad.right > .5, plunger: simulated.has('plunger') ? 1 : clamp(sampledPad.plunger || 0, 0, 1) };
+        return { left: simulated.has('left') || sampledPad.left > .5, right: simulated.has('right') || sampledPad.right > .5, plunger: simulated.has('plunger') ? 1 : clamp(sampledPad.plunger || 0, 0, 1), start: simulated.has('start') || sampledPad.start > .5 };
     }
     return { poll, at, clear, nudges: () => nudges.splice(0), setSettings(value) { config = value; clear(); }, capture(key, device) { clear(); capture = { key, device }; }, cancelCapture() { capture = null; }, inspect: () => ({ pad: padIndex, capture }), dispose() { controller.abort(); clear(); capture = null; } };
 }
