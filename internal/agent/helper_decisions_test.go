@@ -16,6 +16,60 @@ func helperYesNo(p float64) decisions.Answer {
 	return decisions.Answer{Noul: &p, Probabilities: map[string]float64{"yes": p, "no": 1 - p}}
 }
 
+func TestHelperDecisionsConsumersPreserveTaskDeadline(t *testing.T) {
+	for _, duration := range []time.Duration{2 * time.Second, 100 * time.Millisecond} {
+		for _, mode := range []string{"rag", "turn"} {
+			t.Run(mode+"/"+duration.String(), func(t *testing.T) {
+				var taskDeadline time.Time
+				f := &fakeConsumers{available: true, evaluate: func(ctx context.Context, _ decisions.Request) (decisions.Response, error) {
+					if deadline, ok := ctx.Deadline(); !ok || !deadline.Equal(taskDeadline) {
+						t.Fatal("consumer replaced the task deadline; the qualified snapshot must own its scoring timeout")
+					}
+					if mode == "rag" {
+						response := rerankScoreResponse(9, 2, 5)
+						response.Answers["sufficient"] = helperYesNo(.95)
+						return response, nil
+					}
+					response := appraisalResponse("praise", .95, "agent", .95)
+					response.Answers["cue"] = appraisalAnswer(helperCueOptions, "praise", .95)
+					return response, nil
+				}}
+				run := RunConfig{DecisionConsumers: f}
+				if mode == "turn" {
+					run = newAppraisalFixture(t, "Danke", f).run
+				}
+				ctx, cancel := context.WithTimeout(t.Context(), duration)
+				defer cancel()
+				taskDeadline, _ = ctx.Deadline()
+				if mode == "rag" {
+					if _, used := tryHelperRAG(ctx, run, nil, rerankFixture(), "NAS backup"); !used {
+						t.Fatal("RAG result was discarded")
+					}
+				} else if plan := prepareHelperTurn(ctx, run, "Danke", true, nil, false); plan.Appraisal == nil {
+					t.Fatal("turn result was discarded")
+				}
+			})
+		}
+	}
+}
+
+func TestHelperDecisionsMaskIgnoresUnrequestedLearningsBeforeDecode(t *testing.T) {
+	for _, value := range []string{`"invalid"`, `{"invalid":true}`} {
+		raw := `{"memory_analysis":{"facts":[],"preferences":[],"corrections":[],"pending_actions":[],"learnings":` + value + `},"activity_digest":{"intent":"check"}}`
+		client := &mockChatClient{response: raw}
+		manager := &helperLLMManager{client: client, model: "helper-model"}
+		plan := helperTurnPlan{Selective: true, Memory: true, Activity: true}
+		got, err := manager.analyzeTurn(t.Context(), "Check the NAS", "Checked", nil, nil, nil, nil, false, plan)
+		if err != nil || client.calls != 1 || len(got.MemoryAnalysis.Learnings) != 0 || got.ActivityDigest.Intent != "check" {
+			t.Fatalf("masked analysis: %+v, calls=%d, error=%v", got, client.calls, err)
+		}
+		plan.Learnings = true
+		if _, err := plan.parse(raw, nil); err == nil {
+			t.Fatal("malformed requested learnings were accepted")
+		}
+	}
+}
+
 func TestHelperDecisionsRAGSufficiencyAndFallback(t *testing.T) {
 	for _, tc := range []struct {
 		name          string
