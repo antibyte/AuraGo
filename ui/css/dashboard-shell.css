@@ -158,6 +158,8 @@
     min-width: 0;
     margin-inline: auto;
     padding: var(--pw-space-6) clamp(1rem, 2.5vw, 2rem) var(--pw-space-10);
+    /* The skip link must not land behind the sticky app header. */
+    scroll-margin-top: calc(var(--pw-header-height) + var(--pw-space-3));
 }
 
 /* Sections. Each section is the query container for its grid: main also holds the fixed-position
@@ -173,12 +175,23 @@
     display: none;
 }
 
+/* Long sections keep their title, timestamp and actions in reach. The frosted bar sits directly
+   under the sticky app header (z-index 80) and above the cards; phones opt out in the 640px block. */
 .pw-page[data-workspace-page="dashboard"] .dash-section-header {
+    position: sticky;
+    top: var(--pw-header-height);
+    z-index: 60;
+    align-self: start;
     display: flex;
     flex-wrap: wrap;
     align-items: flex-end;
     justify-content: space-between;
     gap: var(--pw-space-3) var(--pw-space-5);
+    padding-block: var(--pw-space-2);
+    border-bottom: 1px solid var(--pw-mat-divider);
+    background: color-mix(in srgb, var(--pw-canvas) 88%, transparent);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
 }
 
 .pw-page[data-workspace-page="dashboard"] .dash-section-heading {
@@ -244,13 +257,20 @@
     color: var(--pw-muted);
     cursor: pointer;
     transition:
+        background var(--pw-duration-fast) var(--pw-ease),
         border-color var(--pw-duration-fast) var(--pw-ease),
-        color var(--pw-duration-fast) var(--pw-ease);
+        color var(--pw-duration-fast) var(--pw-ease),
+        transform var(--pw-duration-fast) var(--pw-ease);
 }
 
 .pw-page[data-workspace-page="dashboard"] .dash-section-refresh:hover {
     border-color: var(--pw-line-strong);
+    background: var(--pw-surface-elevated);
     color: var(--pw-text);
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-section-refresh:active {
+    transform: scale(0.94);
 }
 
 .pw-page[data-workspace-page="dashboard"] .dash-section-refresh:focus-visible {
@@ -263,7 +283,16 @@
     height: 1.1rem;
 }
 
-.pw-page[data-workspace-page="dashboard"] .dash-section-refresh.is-busy .dash-ic {
+/* Every section refresh sets aria-busy (main.js); a few section modules add .is-busy too. Drive the
+   spinner from the shared attribute so no section is left without visible feedback. */
+.pw-page[data-workspace-page="dashboard"] .dash-section-refresh[aria-busy="true"] {
+    border-color: color-mix(in srgb, var(--pw-accent) 45%, var(--pw-line));
+    color: var(--pw-accent);
+    cursor: progress;
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-section-refresh.is-busy .dash-ic,
+.pw-page[data-workspace-page="dashboard"] .dash-section-refresh[aria-busy="true"] .dash-ic {
     animation: dash-spin 0.9s linear infinite;
 }
 
@@ -325,6 +354,10 @@
 .pw-page[data-workspace-page="dashboard"][data-density="compact"] .dash-section,
 .pw-page[data-workspace-page="dashboard"][data-density="compact"] .dash-grid {
     gap: var(--pw-space-3);
+}
+
+.pw-page[data-workspace-page="dashboard"][data-density="compact"] .dash-section-header {
+    padding-block: var(--pw-space-1);
 }
 
 .pw-page[data-workspace-page="dashboard"][data-density="compact"] .dash-nav-link {
@@ -507,13 +540,20 @@
     font-size: var(--pw-label-size);
     cursor: pointer;
     transition:
+        background var(--pw-duration-fast) var(--pw-ease),
         border-color var(--pw-duration-fast) var(--pw-ease),
-        color var(--pw-duration-fast) var(--pw-ease);
+        color var(--pw-duration-fast) var(--pw-ease),
+        transform var(--pw-duration-fast) var(--pw-ease);
 }
 
 .pw-page[data-workspace-page="dashboard"] .dash-section-action:hover {
     border-color: var(--pw-line-strong);
+    background: var(--pw-surface-elevated);
     color: var(--pw-text);
+}
+
+.pw-page[data-workspace-page="dashboard"] .dash-section-action:active {
+    transform: translateY(1px);
 }
 
 .pw-page[data-workspace-page="dashboard"] .dash-section-action:focus-visible {
@@ -1038,9 +1078,30 @@
     padding-block: var(--pw-space-1);
 }
 
+/* Touch pointers keep the last :hover state until another tap, so hover surfaces belong to real
+   pointers only. Focus and busy states stay untouched. */
+@media (hover: none) {
+    .pw-page[data-workspace-page="dashboard"] .dash-section-refresh:hover,
+    .pw-page[data-workspace-page="dashboard"] .dash-section-action:hover {
+        background: var(--pw-surface);
+    }
+    .pw-page[data-workspace-page="dashboard"] a.ov-attention-row:hover,
+    .pw-page[data-workspace-page="dashboard"] a.ov-activity-row:hover,
+    .pw-page[data-workspace-page="dashboard"] .ov-tile-link:hover {
+        background: transparent;
+    }
+    .pw-page[data-workspace-page="dashboard"] .dash-disclosure-summary:hover {
+        background: var(--pw-surface);
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
     .pw-page[data-workspace-page="dashboard"] .dash-disclosure-summary::before {
         transition: none;
+    }
+    .pw-page[data-workspace-page="dashboard"] .dash-section-refresh:active,
+    .pw-page[data-workspace-page="dashboard"] .dash-section-action:active {
+        transform: none;
     }
 }
 
@@ -1066,5 +1127,14 @@
     }
     .pw-page[data-workspace-page="dashboard"][data-density="compact"] .dash-disclosure-summary {
         min-height: 44px;
+    }
+    /* A two-row section header would eat too much of a phone viewport once pinned. */
+    .pw-page[data-workspace-page="dashboard"] .dash-section-header {
+        position: static;
+        padding-block: 0;
+        border-bottom: 0;
+        background: none;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
     }
 }

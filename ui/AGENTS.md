@@ -323,6 +323,19 @@ New app-scoped prefixes must contain no `ad` substring; verify
   `TestDashboardKPIHelpers`, the `*PutsKPIsFirst` tests and
   `TestDashboardDisclosuresBrowser`.
 
+- Dashboard shell finishing layer: `css/dashboard-shell.css` pins section headers
+  below the sticky app header (`z-index` 60 against the header's 80), unpins them at
+  `<= 640px`, and trims them for compact density; `.dash-content` keeps a skip-link
+  scroll margin. Every section refresh sets `aria-busy` (`main.js`), so the spinner,
+  accent border and `cursor: progress` key off that attribute; a few section modules
+  also add `.is-busy`. `js/dashboard/dash-router.js` calls
+  `scrollTo({ top: 0, left: 0, behavior: 'instant' })` because `enhancements.css`
+  sets `html { scroll-behavior: smooth }`: section switches land immediately, while
+  in-page anchors stay smooth. Hover surfaces are gated by `@media (hover: none)` and
+  press feedback by reduced motion. Verify
+  `TestDashboardPolishKeepsOrientationAndRefreshFeedback`, `go test ./ui -run Dashboard`
+  and a wide/narrow/light/busy visual pass.
+
 - Google Workspace exposes separate Gmail read, send and label-change grants. Revocation applies after saving; enabling additional OAuth scopes may require reconnecting. Label changes default off and readonly overrides them. Verify TestGmailLabelPermissionBrowser and all sixteen locale bundles.
 
 - LDAP Config offers one transport dropdown (LDAPS, StartTLS, plain), preserves the legacy use_tls selection until edited, and retains custom ports when switching modes. All sixteen LDAP locale bundles describe the transport; verify TestLDAPTransportConfigBrowser.

@@ -121,7 +121,9 @@
         closeDrawer();
         active = target;
         if (moveFocus) {
-            window.scrollTo(0, 0);
+            // enhancements.css sets html { scroll-behavior: smooth }. A section switch must land at the
+            // top immediately; 'instant' overrides the CSS without disabling smooth in-page anchors.
+            window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
             const heading = document.getElementById('sec-' + target + '-title');
             if (heading) heading.focus({ preventScroll: true });
         }
