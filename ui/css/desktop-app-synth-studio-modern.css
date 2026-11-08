@@ -1,0 +1,364 @@
+/* Synth Studio modern layer: loaded after desktop-app-synth-studio.css.
+   Colours come from the existing --ss-* tokens, so every desktop theme and the
+   accent colour keep working. Default look = dark teal with an orange record. */
+.ss-app {
+    --ss-lift: 0 10px 24px rgb(0 0 0 / .32), 0 2px 4px rgb(0 0 0 / .3);
+    --ss-edge: inset 0 1px 0 color-mix(in srgb, var(--ss-text) 16%, transparent), inset 0 -1px 0 rgb(0 0 0 / .35);
+    --ss-glass: linear-gradient(180deg, color-mix(in srgb, var(--ss-text) 8%, transparent), color-mix(in srgb, var(--ss-text) 2%, transparent));
+    --ss-glow: color-mix(in srgb, var(--ss-accent) 65%, transparent);
+    --ss-cap-hi: color-mix(in srgb, var(--ss-text) 42%, var(--ss-panel));
+    --ss-cap-lo: color-mix(in srgb, #000 60%, var(--ss-panel));
+    --ss-groove: color-mix(in srgb, #000 50%, var(--ss-panel));
+    --ss-recess: color-mix(in srgb, #000 40%, var(--ss-panel));
+    --ss-recess-deep: color-mix(in srgb, #000 60%, var(--ss-panel));
+    --ss-nest: color-mix(in srgb, #000 14%, var(--ss-card));
+    --ss-round-hi: color-mix(in srgb, var(--ss-text) 22%, var(--ss-panel));
+    --ss-round-lo: color-mix(in srgb, #000 40%, var(--ss-panel));
+    --ss-play-hi: color-mix(in srgb, var(--ss-accent) 34%, #000);
+    --ss-play-lo: color-mix(in srgb, var(--ss-accent) 10%, #000);
+    --ss-play-ink: color-mix(in srgb, var(--ss-accent) 70%, #fff);
+    --ss-hot: #ff9d4a;
+}
+
+/* ---- native range hidden, dial drawn ---- */
+.ss-app input[type=range].ss-ctl-native {
+    position: absolute; width: 1px; height: 1px; min-width: 0; margin: 0; padding: 0;
+    opacity: 0; pointer-events: none; overflow: hidden;
+}
+.ss-ctl-dial { position: relative; display: inline-block; flex: none; user-select: none; touch-action: none; }
+.ss-ctl-native:focus-visible + .ss-ctl-dial { outline: 2px solid var(--ss-accent); outline-offset: 3px; }
+.ss-ctl-native:disabled + .ss-ctl-dial { opacity: .4; pointer-events: none; }
+
+.ss-ctl-knob { width: 60px; height: 60px; cursor: ns-resize; border-radius: 50%; }
+.ss-ctl-knob svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.ss-ctl-groove { fill: none; stroke: var(--ss-groove); stroke-width: 4; stroke-linecap: round; }
+.ss-ctl-arc { fill: none; stroke: var(--ss-accent); stroke-width: 4; stroke-linecap: round; filter: drop-shadow(0 0 3px var(--ss-glow)); }
+.ss-ctl-cap {
+    position: absolute; inset: 11px; border-radius: 50%;
+    background: radial-gradient(circle at 34% 26%, var(--ss-cap-hi), var(--ss-cap-lo) 78%);
+    box-shadow: 0 5px 9px rgb(0 0 0 / .5), inset 0 1px 1px color-mix(in srgb, #fff 45%, transparent), inset 0 -3px 5px rgb(0 0 0 / .4);
+    transform: rotate(var(--ss-a, -135deg));
+}
+.ss-ctl-cap::after {
+    content: ''; position: absolute; left: 50%; top: 4px; width: 3px; height: 10px; margin-left: -1.5px;
+    border-radius: 2px; background: var(--ss-accent); box-shadow: 0 0 6px var(--ss-glow);
+}
+.ss-ctl-knob.is-dragging .ss-ctl-cap { filter: brightness(1.12); }
+
+.ss-ctl-hfader { --ss-tw: 14px; --ss-th: 22px; width: 100%; min-width: 64px; height: 24px; cursor: ew-resize; }
+.ss-ctl-groove-h {
+    position: absolute; left: 0; right: 0; top: 50%; height: 6px; margin-top: -3px; border-radius: 4px;
+    background: var(--ss-groove); box-shadow: inset 0 1px 3px rgb(0 0 0 / .6);
+}
+.ss-ctl-fill {
+    position: absolute; left: 0; top: 50%; height: 6px; margin-top: -3px; border-radius: 4px;
+    width: calc(var(--ss-tw) / 2 + var(--ss-f, 0) * (100% - var(--ss-tw))); background: var(--ss-accent); box-shadow: 0 0 8px var(--ss-glow);
+}
+.ss-ctl-thumb {
+    position: absolute; top: 50%; width: var(--ss-tw); height: var(--ss-th); margin-top: calc(var(--ss-th) / -2); border-radius: 5px;
+    left: calc(var(--ss-f, 0) * (100% - var(--ss-tw)));
+    background: linear-gradient(180deg, var(--ss-cap-hi), var(--ss-cap-lo));
+    box-shadow: 0 3px 6px rgb(0 0 0 / .5), inset 0 1px 0 color-mix(in srgb, #fff 40%, transparent);
+}
+
+/* ---- parameter cells that hold a knob ---- */
+.ss-app :is(.ss-parameter, .ss-designer-field):has(.ss-ctl-knob) {
+    display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center;
+    padding: 10px 6px 8px; border-radius: 14px;
+    background: var(--ss-glass), var(--ss-card); border: 1px solid var(--ss-card-border);
+    box-shadow: var(--ss-edge);
+}
+.ss-app :is(.ss-parameter, .ss-designer-field):has(.ss-ctl-knob) > span:first-child { order: 0; font-size: 11px; color: var(--ss-muted); }
+.ss-app :is(.ss-parameter, .ss-designer-field):has(.ss-ctl-knob) .ss-ctl-dial { order: 1; }
+.ss-app :is(.ss-parameter, .ss-designer-field):has(.ss-ctl-knob) output {
+    order: 2; font: 600 12px/1 var(--vd-mat-mono-font, monospace); color: var(--ss-accent);
+}
+.ss-app .ss-parameter:has(.ss-ctl-knob) [data-reset-param] {
+    order: 3; min-height: 0; padding: 0 6px; font-size: 10px; opacity: 0; color: var(--ss-muted);
+}
+.ss-app .ss-parameter:has(.ss-ctl-knob):hover [data-reset-param],
+.ss-app .ss-parameter:has(.ss-ctl-knob):focus-within [data-reset-param] { opacity: 1; }
+.ss-app .ss-param-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 12px; }
+
+/* ---- mode bar ---- */
+.ss-app .ss-modes {
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 16px;
+    background: var(--ss-bar); border-bottom: 1px solid var(--ss-line); box-shadow: var(--ss-bar-edge);
+}
+.ss-app .ss-modes button {
+    display: inline-flex; align-items: center; gap: 8px; min-height: 38px; padding: 8px 18px;
+    font-size: 14px; font-weight: 600; color: var(--ss-muted); border-radius: 12px;
+    border: 1px solid var(--ss-border); background: var(--ss-glass), var(--ss-card);
+    box-shadow: var(--ss-edge), 0 2px 5px rgb(0 0 0 / .25);
+    transition: color .15s, box-shadow .15s, transform .15s;
+}
+.ss-app .ss-modes button:hover { color: var(--ss-text); }
+.ss-app .ss-modes button[aria-selected=true] {
+    color: var(--ss-text); border-color: color-mix(in srgb, var(--ss-accent) 60%, transparent);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--ss-accent) 24%, transparent), color-mix(in srgb, var(--ss-accent) 8%, transparent));
+    box-shadow: var(--ss-edge), 0 0 14px var(--ss-glow);
+}
+.ss-mode-mark { width: 8px; height: 8px; border-radius: 50%; background: color-mix(in srgb, var(--ss-muted) 60%, transparent); }
+.ss-modes button[aria-selected=true] .ss-mode-mark { background: var(--ss-accent); box-shadow: 0 0 8px var(--ss-glow); }
+.ss-app .ss-workbench-tabs { display: none !important; }
+
+/* ---- layout per mode (replaces the old wide/stacked grid) ---- */
+.ss-app .ss-workspace { display: block !important; position: relative; }
+.ss-app .ss-main { width: 100%; height: 100%; grid-column: auto; }
+.ss-app .ss-editor-host { display: flex !important; flex-direction: column; min-height: 0; grid-template: none; }
+.ss-app[data-mode=arrange] .ss-arrangement { flex: 1 1 0; min-height: 140px; }
+.ss-app[data-mode=arrange] .ss-note-editor { flex: 0 0 var(--ss-workbench-height); max-height: none; }
+.ss-app:not([data-mode=arrange]) .ss-arrangement { display: none; }
+.ss-app :is(.ss-sound-workbench, .ss-performance-workbench, .ss-strudel-workbench) { flex: 1 1 0; max-height: none; min-height: 0; }
+.ss-app[data-mode=mix] .ss-workspace { display: none !important; }
+.ss-app[data-mode=mix] .ss-master-panel { flex: 1; overflow: auto; align-content: start; padding: 20px 24px; gap: 20px 28px; }
+.ss-app .ss-workbench-grip { flex: 0 0 9px; }
+
+/* ---- library drawer ---- */
+.ss-app .ss-splitter-library { display: none !important; }
+.ss-app .ss-library {
+    position: absolute; left: 0; top: 0; bottom: 0; z-index: 20; display: flex !important;
+    width: min(var(--ss-library-width, 280px), 86%); transform: translateX(-102%); visibility: hidden;
+    box-shadow: none; background: var(--ss-glass), var(--ss-side);
+    transition: transform .22s ease, visibility 0s .22s, box-shadow .22s;
+}
+.ss-app.ss-library-open .ss-library { transform: none; visibility: visible; box-shadow: var(--ss-lift); transition-delay: 0s; }
+@media (prefers-reduced-motion: reduce) { .ss-app .ss-library { transition: none; } }
+
+/* The grid and zoom controls belong to the arrangement; the drawer and sound buttons stay. */
+.ss-app:not([data-mode=arrange]) .ss-arrange-tools > :not(button) { display: none; }
+.ss-app:not([data-mode=arrange]) .ss-arrange-tools { justify-content: flex-end; }
+
+/* ---- collapsible sound-design sections ---- */
+.ss-app .ss-designer-group {
+    margin: 0 0 12px; padding: 0; border-radius: 16px; overflow: hidden;
+    background: var(--ss-glass), var(--ss-card); border: 1px solid var(--ss-card-border);
+    box-shadow: var(--ss-edge), var(--ss-lift);
+}
+.ss-app .ss-designer-group > summary {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 12px 16px; cursor: pointer; list-style: none;
+}
+.ss-app .ss-designer-group > summary::-webkit-details-marker { display: none; }
+.ss-app .ss-designer-group > summary h4 { margin: 0; }
+.ss-group-chevron {
+    width: 8px; height: 8px; border-right: 2px solid var(--ss-muted); border-bottom: 2px solid var(--ss-muted);
+    transform: rotate(-45deg); transition: transform .18s;
+}
+.ss-designer-group[open] .ss-group-chevron { transform: rotate(45deg); }
+.ss-app .ss-designer-group > .ss-param-grid { padding: 4px 16px 16px; }
+.ss-app .ss-designer-group > summary:focus-visible { outline: 2px solid var(--ss-accent); outline-offset: -2px; }
+
+/* ---- header and transport ---- */
+.ss-app .ss-header { padding: 12px 18px; gap: 16px; background: var(--ss-glass), var(--ss-bar); }
+.ss-app .ss-brand-mark { box-shadow: 0 0 14px var(--ss-glow), var(--ss-edge); }
+.ss-app .ss-transport { gap: 14px; }
+.ss-app .ss-transport-buttons { display: flex; gap: 10px; align-items: center; }
+.ss-app .ss-transport-buttons button {
+    width: 42px; height: 42px; padding: 0; border-radius: 50%; font-size: 15px;
+    border: 1px solid var(--ss-border);
+    background: radial-gradient(circle at 35% 25%, var(--ss-cap-hi), var(--ss-cap-lo) 80%);
+    box-shadow: 0 4px 9px rgb(0 0 0 / .45), inset 0 1px 1px color-mix(in srgb, #fff 40%, transparent);
+}
+.ss-app .ss-transport-buttons button:active { transform: translateY(1px); box-shadow: 0 1px 3px rgb(0 0 0 / .5), inset 0 2px 4px rgb(0 0 0 / .4); }
+.ss-app .ss-transport-buttons .ss-play { width: 52px; height: 52px; font-size: 19px; color: var(--ss-accent); }
+.ss-app .ss-transport-buttons .ss-play.is-active { box-shadow: 0 0 18px var(--ss-glow), 0 4px 9px rgb(0 0 0 / .45); }
+.ss-app .ss-transport-buttons .ss-record { color: var(--ss-hot); }
+.ss-app .ss-transport-buttons .ss-record.is-recording { box-shadow: 0 0 18px color-mix(in srgb, var(--ss-hot) 70%, transparent); }
+.ss-app .ss-position {
+    font: 700 20px/1 var(--vd-mat-mono-font, monospace); letter-spacing: 1px; padding: 8px 14px; border-radius: 10px;
+    background: var(--ss-recess); box-shadow: var(--ss-well-in); color: var(--ss-accent);
+}
+.ss-app .ss-tempo input { width: 76px; font: 700 18px/1 var(--vd-mat-mono-font, monospace); text-align: center; }
+
+/* ---- inspector and FX cards ---- */
+.ss-app .ss-inspector { padding: 20px 22px; }
+.ss-app .ss-sound-workbench .ss-param-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 14px; }
+.ss-app .ss-fx-slot {
+    margin: 0 0 14px; padding: 12px 14px; border-radius: 16px;
+    background: var(--ss-glass), var(--ss-card); border: 1px solid var(--ss-card-border); box-shadow: var(--ss-edge), var(--ss-lift);
+}
+.ss-app .ss-fx-params { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 12px; margin-top: 10px; }
+.ss-app .ss-master-panel .ss-parameter:has(.ss-ctl-knob) { min-width: 0; }
+
+/* ---- track mixer fader ---- */
+.ss-app .ss-track-head .ss-ctl-hfader { --ss-tw: 18px; --ss-th: 26px; height: 28px; margin-top: 4px; }
+.ss-app .ss-track-head .ss-ctl-groove-h, .ss-app .ss-track-head .ss-ctl-fill { height: 8px; margin-top: -4px; }
+
+/* ---- spacing for the empty states and the welcome card ---- */
+.ss-app .ss-welcome { padding: 18px 22px; border-radius: 18px; background: var(--ss-glass), var(--ss-card); box-shadow: var(--ss-edge), var(--ss-lift); }
+
+/* ---- refinement after comparing with the reference ---- */
+/* Play is a glass cap with a teal ring (not a flat primary fill); Record keeps the orange. */
+.ss-app .ss-transport-buttons button.ss-play {
+    background: radial-gradient(circle at 35% 25%, color-mix(in srgb, var(--ss-accent) 38%, var(--ss-cap-hi)), color-mix(in srgb, var(--ss-accent) 22%, var(--ss-cap-lo)) 82%);
+    color: color-mix(in srgb, var(--ss-accent) 80%, #fff); border-color: color-mix(in srgb, var(--ss-accent) 70%, transparent);
+    box-shadow: 0 0 14px color-mix(in srgb, var(--ss-accent) 45%, transparent), 0 4px 9px rgb(0 0 0 / .45), inset 0 1px 1px color-mix(in srgb, #fff 45%, transparent);
+}
+.ss-app .ss-transport-buttons button.ss-play.is-active { box-shadow: 0 0 22px var(--ss-glow), 0 0 4px var(--ss-accent), 0 4px 9px rgb(0 0 0 / .45); }
+.ss-app .ss-transport-buttons button.ss-record.is-recording {
+    background: radial-gradient(circle at 35% 25%, color-mix(in srgb, var(--ss-hot) 60%, #fff), var(--ss-hot) 85%) !important; color: #3a1700 !important;
+}
+.ss-app .ss-transport-buttons button.ss-record { border-color: color-mix(in srgb, var(--ss-hot) 55%, transparent); }
+/* Sound/Perform/Strudel: the tools strip only keeps its two icon buttons; take it out of the flow's way. */
+.ss-app:not([data-mode=arrange]) .ss-arrange-tools { padding-block: 4px; min-height: 0; border-bottom: 0; background: transparent; }
+.ss-app:not([data-mode=arrange]) .ss-arrange-tools > span { display: none; }
+
+/* ---- sound mode: responsive columns of glass cards ---- */
+.ss-app .ss-insp-card > input { width: 100%; margin-bottom: 14px; }
+.ss-app .ss-insp-card > label {
+    display: flex; flex-direction: column; gap: 6px; color: var(--ss-muted); font-size: 10px; margin-bottom: 14px;
+}
+
+.ss-app .ss-sound-workbench .ss-inspector:not(:has(> .ss-designer)) {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 400px), 1fr));
+    gap: 16px; align-content: start; align-items: start;
+}
+.ss-app .ss-sound-workbench .ss-inspector:not(:has(> .ss-designer)) > :is(.ss-mini-keys, .ss-delete-track, .ss-help, .ss-insp-fx) { grid-column: 1 / -1; }
+.ss-app .ss-sound-workbench .ss-insp-card {
+    min-width: 0; padding: 14px 16px 16px; border-radius: 16px;
+    background: var(--ss-glass), var(--ss-card); border: 1px solid var(--ss-card-border);
+    box-shadow: var(--ss-edge), var(--ss-lift);
+}
+.ss-app .ss-insp-card > h3, .ss-app .ss-insp-card > h4 { margin: 0 0 12px; }
+.ss-app .ss-insp-card .ss-param-grid { margin-bottom: 0; }
+.ss-app .ss-sound-workbench .ss-insp-card .ss-fx-rack,
+.ss-app .ss-sound-workbench .ss-insp-card .ss-fx-rack:empty { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 14px; align-items: start; }
+.ss-app .ss-sound-workbench .ss-insp-fx .ss-fx-slot { margin: 0; background: var(--ss-glass), var(--ss-nest); box-shadow: var(--ss-edge); }
+.ss-app .ss-sound-workbench .ss-insp-fx .ss-fx-add { margin-top: 14px; }
+/* knobs sit directly on the card instead of in a second card */
+.ss-app .ss-sound-workbench :is(.ss-insp-card, .ss-designer-group, .ss-fx-slot) :is(.ss-parameter, .ss-designer-field):has(.ss-ctl-knob) {
+    background: none; border: 0; box-shadow: none; padding: 4px 2px;
+}
+.ss-app .ss-sound-workbench .ss-param-grid { grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 10px 6px; }
+/* sound designer: groups side by side */
+.ss-app .ss-sound-workbench .ss-designer {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 400px), 1fr)); gap: 16px; align-items: start;
+}
+.ss-app .ss-sound-workbench .ss-designer > :not(.ss-designer-group) { grid-column: 1 / -1; margin-block: 0; }
+.ss-app .ss-sound-workbench .ss-designer .ss-designer-group { margin: 0; }
+
+/* ---- header: one glass language for file actions, transport, master and meters ---- */
+.ss-app {
+    --ss-pill-bg: linear-gradient(180deg, color-mix(in srgb, #000 38%, var(--ss-panel)), color-mix(in srgb, #000 24%, var(--ss-panel)));
+    --ss-well-in: inset 0 2px 5px rgb(0 0 0 / .55), inset 0 -1px 0 color-mix(in srgb, var(--ss-text) 8%, transparent);
+}
+.ss-app .ss-transport-buttons {
+    gap: 6px; padding: 5px 9px; border-radius: 999px;
+    background: var(--ss-pill-bg); border: 1px solid color-mix(in srgb, var(--ss-text) 12%, transparent);
+    box-shadow: var(--ss-well-in), 0 1px 0 color-mix(in srgb, var(--ss-text) 10%, transparent);
+}
+.ss-app .ss-transport-buttons button {
+    width: 36px; height: 36px; font-size: 13px;
+    background: radial-gradient(circle at 35% 25%, var(--ss-round-hi), var(--ss-round-lo) 85%);
+    border-color: color-mix(in srgb, var(--ss-text) 14%, transparent);
+}
+/* Play: a round glowing teal ring */
+.ss-app .ss-transport-buttons button.ss-play {
+    width: 50px; height: 50px; font-size: 18px; margin-inline: 2px;
+    color: var(--ss-play-ink); border: 2px solid var(--ss-accent);
+    background: radial-gradient(circle at 50% 38%, var(--ss-play-hi), var(--ss-play-lo) 80%);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ss-accent) 18%, transparent), 0 0 16px var(--ss-glow), inset 0 0 10px color-mix(in srgb, var(--ss-accent) 40%, transparent);
+}
+.ss-app .ss-transport-buttons button.ss-play.is-active {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--ss-accent) 30%, transparent), 0 0 26px var(--ss-glow), inset 0 0 14px color-mix(in srgb, var(--ss-accent) 55%, transparent);
+}
+.ss-app .ss-transport-buttons button.ss-record { border-color: color-mix(in srgb, var(--ss-hot) 60%, transparent); }
+
+.ss-app .ss-file-actions {
+    gap: 4px; padding: 4px 6px; border-radius: 12px;
+    background: var(--ss-pill-bg); border: 1px solid color-mix(in srgb, var(--ss-text) 12%, transparent);
+    box-shadow: var(--ss-well-in);
+}
+.ss-app .ss-file-actions > :is(button, select),
+.ss-app .ss-master-toggle {
+    min-height: 32px; border-radius: 9px; color: var(--ss-text);
+    border: 1px solid color-mix(in srgb, var(--ss-text) 16%, transparent);
+    background: var(--ss-glass), color-mix(in srgb, var(--ss-text) 7%, var(--ss-panel));
+    box-shadow: var(--ss-edge), 0 2px 4px rgb(0 0 0 / .28);
+}
+.ss-app .ss-file-actions > button:hover:not(:disabled),
+.ss-app .ss-master-toggle:hover:not(:disabled) { background: var(--ss-glass), color-mix(in srgb, var(--ss-accent) 16%, var(--ss-panel)); }
+.ss-app .ss-file-actions > select {
+    appearance: none; -webkit-appearance: none; padding: 0 28px 0 12px; cursor: pointer;
+    background:
+        linear-gradient(45deg, transparent 50%, var(--ss-muted) 50%) calc(100% - 15px) 50% / 5px 5px no-repeat,
+        linear-gradient(-45deg, transparent 50%, var(--ss-muted) 50%) calc(100% - 10px) 50% / 5px 5px no-repeat,
+        var(--ss-glass), color-mix(in srgb, var(--ss-text) 7%, var(--ss-panel));
+}
+.ss-app .ss-file-actions > select option { background: var(--ss-panel); color: var(--ss-text); }
+.ss-app .ss-master-toggle { padding: 0 16px; font-weight: 700; letter-spacing: .3px; min-height: 36px; border-radius: 18px; }
+.ss-app .ss-master-toggle[aria-expanded=true] {
+    border-color: color-mix(in srgb, var(--ss-accent) 65%, transparent); box-shadow: var(--ss-edge), 0 0 12px var(--ss-glow);
+}
+
+/* meters sit in recessed wells */
+.ss-app .ss-output-meter {
+    padding: 6px 10px; border-radius: 10px; gap: 8px; color: var(--ss-muted);
+    background: var(--ss-pill-bg); border: 1px solid color-mix(in srgb, var(--ss-text) 10%, transparent); box-shadow: var(--ss-well-in);
+}
+.ss-app .ss-output-meter meter {
+    width: 96px; height: 10px; border: 0; border-radius: 3px;
+    background: var(--ss-recess-deep); box-shadow: inset 0 1px 3px rgb(0 0 0 / .8);
+}
+.ss-app .ss-output-meter meter::-webkit-meter-bar { background: transparent; border: 0; height: 10px; }
+.ss-app .ss-output-meter meter::-webkit-meter-optimum-value,
+.ss-app .ss-output-meter meter::-webkit-meter-suboptimum-value,
+.ss-app .ss-output-meter meter::-webkit-meter-even-less-good-value { border-radius: 3px; box-shadow: 0 0 6px color-mix(in srgb, var(--ss-meter) 55%, transparent); }
+.ss-app .ss-analyser { border-radius: 10px; border-color: color-mix(in srgb, var(--ss-text) 10%, transparent); box-shadow: var(--ss-well-in); }
+
+/* ---- perform mode: macro knobs and raised scene pads ---- */
+.ss-app .ss-macro-controls { display: grid; grid-template-columns: repeat(2, 96px); gap: 8px 12px; align-items: start; }
+.ss-app .ss-macro-controls > :not(label:has(.ss-ctl-knob)) { grid-column: 1 / -1; justify-self: start; }
+.ss-app .ss-macro-controls label:has(.ss-ctl-knob) {
+    flex-direction: column; flex-wrap: nowrap; justify-content: flex-start; align-items: center; gap: 4px; text-align: center;
+    padding: 10px 6px 8px; border-radius: 14px; font-size: 11px; color: var(--ss-muted);
+    background: var(--ss-glass), var(--ss-card); border: 1px solid var(--ss-card-border); box-shadow: var(--ss-edge);
+}
+.ss-app .ss-macro-controls .ss-ctl-dial { order: 1; }
+.ss-app .ss-macro-controls output { order: 2; font: 600 12px/1 var(--vd-mat-mono-font, monospace); color: var(--ss-accent); }
+.ss-app .ss-macro-controls input[type=range].ss-ctl-native { width: 1px; }
+.ss-app .ss-xy { border-radius: 14px; box-shadow: var(--ss-well-in), var(--ss-edge); }
+.ss-app .ss-scene-pads button {
+    border-radius: 12px; border: 1px solid color-mix(in srgb, var(--ss-text) 14%, transparent);
+    background: var(--ss-glass), linear-gradient(180deg, color-mix(in srgb, var(--ss-scene-color, var(--ss-muted)) 24%, var(--ss-panel)), color-mix(in srgb, var(--ss-scene-color, var(--ss-muted)) 8%, var(--ss-panel)));
+    box-shadow: var(--ss-edge), inset 0 -3px 0 color-mix(in srgb, var(--ss-scene-color, var(--ss-muted)) 55%, transparent), 0 4px 8px rgb(0 0 0 / .3);
+    transition: transform .12s, box-shadow .12s;
+}
+.ss-app .ss-scene-pads button:hover:not(:disabled) { transform: translateY(-1px); }
+.ss-app .ss-scene-pads button:active:not(:disabled) { transform: translateY(1px); box-shadow: var(--ss-edge), 0 1px 2px rgb(0 0 0 / .4); }
+.ss-app .ss-scene-pads button.active {
+    background: var(--ss-glass), linear-gradient(180deg, color-mix(in srgb, var(--ss-scene-color, var(--ss-accent)) 92%, #fff), var(--ss-scene-color, var(--ss-accent)));
+    box-shadow: var(--ss-edge), 0 0 16px color-mix(in srgb, var(--ss-scene-color, var(--ss-accent)) 65%, transparent);
+}
+.ss-app .ss-chord-pads button { border-radius: 12px; box-shadow: var(--ss-edge), 0 3px 6px rgb(0 0 0 / .25); }
+@media (prefers-reduced-motion: reduce) { .ss-app .ss-scene-pads button { transition: none; } }
+
+/* ---- light schemes: the dark shading tokens flip to soft paper, lift and glass ---- */
+[data-scheme="light"] .ss-app {
+    --ss-lift: 0 8px 20px rgb(30 45 70 / .13), 0 1px 3px rgb(30 45 70 / .12);
+    --ss-edge: inset 0 1px 0 rgb(255 255 255 / .8), inset 0 -1px 0 rgb(30 45 70 / .08);
+    --ss-glass: linear-gradient(180deg, rgb(255 255 255 / .75), rgb(255 255 255 / .2));
+    --ss-glow: color-mix(in srgb, var(--ss-accent) 45%, transparent);
+    --ss-cap-hi: color-mix(in srgb, #fff 92%, var(--ss-panel));
+    --ss-cap-lo: color-mix(in srgb, var(--ss-text) 32%, var(--ss-panel));
+    --ss-groove: color-mix(in srgb, var(--ss-text) 17%, var(--ss-panel));
+    --ss-recess: color-mix(in srgb, var(--ss-text) 7%, var(--ss-panel));
+    --ss-recess-deep: color-mix(in srgb, var(--ss-text) 15%, var(--ss-panel));
+    --ss-nest: color-mix(in srgb, var(--ss-text) 5%, var(--ss-card));
+    --ss-round-hi: #fff;
+    --ss-round-lo: color-mix(in srgb, var(--ss-text) 14%, var(--ss-panel));
+    --ss-play-hi: color-mix(in srgb, var(--ss-accent) 14%, #fff);
+    --ss-play-lo: color-mix(in srgb, var(--ss-accent) 30%, #fff);
+    --ss-play-ink: var(--ss-accent);
+    --ss-pill-bg: linear-gradient(180deg, color-mix(in srgb, var(--ss-text) 11%, var(--ss-panel)), color-mix(in srgb, var(--ss-text) 5%, var(--ss-panel)));
+    --ss-well-in: inset 0 2px 4px rgb(30 45 70 / .18), inset 0 -1px 0 rgb(255 255 255 / .7);
+}
+[data-scheme="light"] .ss-app .ss-ctl-cap { box-shadow: 0 4px 8px rgb(30 45 70 / .3), inset 0 1px 1px #fff, inset 0 -3px 5px rgb(30 45 70 / .18); }
+[data-scheme="light"] .ss-app .ss-ctl-thumb { box-shadow: 0 2px 5px rgb(30 45 70 / .3), inset 0 1px 0 #fff; }
+[data-scheme="light"] .ss-app .ss-ctl-groove-h, [data-scheme="light"] .ss-app .ss-output-meter meter { box-shadow: inset 0 1px 3px rgb(30 45 70 / .3); }
+[data-scheme="light"] .ss-app .ss-transport-buttons button { box-shadow: 0 2px 5px rgb(30 45 70 / .25), inset 0 1px 1px #fff; }
+[data-scheme="light"] .ss-app .ss-transport-buttons button.ss-play { box-shadow: 0 0 0 3px color-mix(in srgb, var(--ss-accent) 14%, transparent), 0 0 12px var(--ss-glow), inset 0 0 8px color-mix(in srgb, var(--ss-accent) 25%, transparent); }
+[data-scheme="light"] .ss-app .ss-file-actions > :is(button, select), [data-scheme="light"] .ss-app .ss-master-toggle { background-color: #fff; box-shadow: var(--ss-edge), 0 1px 3px rgb(30 45 70 / .18); }
+[data-scheme="light"] .ss-app .ss-scene-pads button { box-shadow: var(--ss-edge), inset 0 -3px 0 color-mix(in srgb, var(--ss-scene-color, var(--ss-muted)) 55%, transparent), 0 3px 6px rgb(30 45 70 / .16); }
+[data-scheme="light"] .ss-app .ss-scene-pads button:not(.active) span { color: color-mix(in srgb, var(--ss-text) 72%, transparent); }

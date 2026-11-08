@@ -19,8 +19,8 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 	html := readDesktopAssetText(t, "desktop.html")
 	html = regexp.MustCompile(`(?s)<script\b[^>]*>.*?</script>`).ReplaceAllString(html, "")
 	html = regexp.MustCompile(`\{\{[^}]*\}\}`).ReplaceAllString(html, "")
-	html = strings.Replace(html, "</head>", `<link rel="stylesheet" href="/css/desktop-app-synth-studio.css"><style>body{margin:0}.vd-shell{height:100vh}</style></head>`, 1)
-	scripts := []string{"/synth-shell.js", "/js/desktop/apps/writer-session.js", "/js/vendor/synth-studio/gm-data.js", "/js/desktop/apps/synth-studio-presets.js", "/js/desktop/apps/synth-studio-designer.js", "/js/vendor/synth-studio/tone-midi-2.0.28.bundle.js", "/js/desktop/apps/synth-studio-model.js", "/js/desktop/apps/synth-studio-fx.js", "/js/desktop/apps/synth-studio-music.js", "/js/desktop/apps/synth-studio-voices.js", "/js/desktop/apps/synth-studio-audio.js", "/js/desktop/apps/synth-studio-export.js", "/js/desktop/apps/synth-studio-midi.js", "/js/desktop/apps/synth-studio-storage.js", "/js/desktop/apps/synth-studio-editor.js", "/js/desktop/apps/synth-studio-workspace.js", "/js/desktop/apps/synth-studio-compose.js", "/js/desktop/apps/synth-studio-performance.js", "/js/desktop/apps/synth-studio-stage.js", "/js/desktop/apps/synth-studio.js", "/testdata/synth-studio-fixture.js"}
+	html = strings.Replace(html, "</head>", `<link rel="stylesheet" href="/css/desktop-app-synth-studio.css"><link rel="stylesheet" href="/css/desktop-app-synth-studio-modern.css"><style>body{margin:0}.vd-shell{height:100vh}</style></head>`, 1)
+	scripts := []string{"/synth-shell.js", "/js/desktop/apps/writer-session.js", "/js/vendor/synth-studio/gm-data.js", "/js/desktop/apps/synth-studio-presets.js", "/js/desktop/apps/synth-studio-designer.js", "/js/vendor/synth-studio/tone-midi-2.0.28.bundle.js", "/js/desktop/apps/synth-studio-model.js", "/js/desktop/apps/synth-studio-fx.js", "/js/desktop/apps/synth-studio-music.js", "/js/desktop/apps/synth-studio-voices.js", "/js/desktop/apps/synth-studio-audio.js", "/js/desktop/apps/synth-studio-export.js", "/js/desktop/apps/synth-studio-midi.js", "/js/desktop/apps/synth-studio-storage.js", "/js/desktop/apps/synth-studio-editor.js", "/js/desktop/apps/synth-studio-controls.js", "/js/desktop/apps/synth-studio-workspace.js", "/js/desktop/apps/synth-studio-compose.js", "/js/desktop/apps/synth-studio-performance.js", "/js/desktop/apps/synth-studio-stage.js", "/js/desktop/apps/synth-studio.js", "/testdata/synth-studio-fixture.js"}
 	var tags strings.Builder
 	scripts = append([]string{"/js/desktop/apps/synth-studio-strudel.js"}, scripts...)
 	for _, path := range scripts {
@@ -62,7 +62,41 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 			t.Fatalf("%s; errors: %s", name, page.MustEval(`()=>JSON.stringify(fixtureErrors)`).Str())
 		}
 	}
+	openLibrary := func() {
+		t.Helper()
+		if !page.MustEval(`()=>document.querySelector('.ss-app').classList.contains('ss-library-open')`).Bool() {
+			page.MustEval(`()=>document.querySelector('[data-action=library]').click()`)
+		}
+		waitForJSBool(t, page, `()=>getComputedStyle(document.querySelector('.ss-library')).visibility==='visible'`)
+	}
+	closeLibrary := func() {
+		t.Helper()
+		if page.MustEval(`()=>document.querySelector('.ss-app').classList.contains('ss-library-open')`).Bool() {
+			page.MustEval(`()=>document.querySelector('[data-action=library]').click()`)
+		}
+		waitForJSBool(t, page, `()=>getComputedStyle(document.querySelector('.ss-library')).visibility==='hidden'`)
+	}
 	check("app starts without errors", `()=>fixtureErrors.length===0 && document.querySelectorAll('.ss-library-item').length===249`)
+	// Regression: a restored Mix mode used to call renderMaster() during the
+	// workspace's first render, before the app had initialised its master
+	// constants, so the window never opened.
+	reopen := func(seed string) {
+		t.Helper()
+		page.MustEval(`async(seed)=>{
+			if(seed==='')localStorage.removeItem('aurago:synth-studio:view:2');else localStorage.setItem('aurago:synth-studio:view:2',seed);
+			const id=[...SynthStudioApp.instances.keys()][0];
+			await synthTest.closeWindow(id);
+		}`, seed)
+		waitForJSBool(t, page, `()=>SynthStudioApp.instances.size===0`)
+		page.MustEval(`()=>{synthTest.openApp('synth-studio')}`)
+		waitForJSBool(t, page, `()=>{const i=synthInstance();return !!i&&!!i.storage&&!!document.querySelector('[data-master-panel]')}`)
+		page.MustEval(`async()=>{await synthInstance().storage.ready;}`)
+	}
+	reopen(`{"panel":"mix"}`)
+	check("restored Mix mode opens without errors", `()=>fixtureErrors.length===0&&!!synthInstance()`)
+	check("restored Mix mode shows the populated master panel", `()=>{const p=document.querySelector('[data-master-panel]');return !p.hidden&&p.querySelectorAll('[data-master-param]').length===14&&document.querySelector('[data-work-tab=mix]').getAttribute('aria-selected')==='true'}`)
+	reopen("")
+	check("stored mode restored for later checks", `()=>fixtureErrors.length===0&&document.querySelector('[data-master-panel]').hidden`)
 	page.MustElement("[data-template=electronic]").MustClick()
 	waitForJSBool(t, page, `()=>synthInstance().project().tracks.length===5`)
 	check("template is sixteen bars and paused", `()=>{const p=synthInstance().project();return p.loop.end===30720&&!document.querySelector('[data-action=play]').classList.contains('is-active')}`)
@@ -83,6 +117,25 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 	check("demo has audible notes", `()=>synthInstance().project().tracks.every(t=>t.clips.some(c=>c.notes.length))`)
 	page.MustElement(".ss-clip").MustClick()
 	check("clip opens notes and FX rack", `()=>document.querySelectorAll('.ss-note').length>0 && document.querySelectorAll('.ss-inspector [data-param]').length===8`)
+	check("range sliders are drawn as knobs", `()=>{const i=[...document.querySelectorAll('.ss-inspector [data-param]')];return i.length===8&&i.every(e=>e.classList.contains('ss-ctl-native')&&e.nextElementSibling?.classList.contains('ss-ctl-knob'))}`)
+	page.MustElement("[data-work-tab=sound]").MustClick()
+	knob := page.MustElement(".ss-inspector [data-param=tone] + .ss-ctl-knob")
+	box := knob.MustShape().Box()
+	cx, cy := box.X+box.Width/2, box.Y+box.Height/2
+	toneBefore := page.MustEval(`()=>synthInstance().project().tracks[0].params.tone`).Num()
+	dy := -60.0
+	if toneBefore > 0.5 {
+		dy = 60.0
+	}
+	page.Mouse.MustMoveTo(cx, cy)
+	page.Mouse.MustDown(proto.InputMouseButtonLeft)
+	page.Mouse.MustMoveTo(cx, cy+dy)
+	page.Mouse.MustUp(proto.InputMouseButtonLeft)
+	check("dragging a knob changes the model", `()=>Math.abs(synthInstance().project().tracks[0].params.tone-`+fmt.Sprint(toneBefore)+`)>.05`)
+	check("the knob shows the new value", `()=>{const i=document.querySelector('.ss-inspector [data-param=tone]');return Math.abs(parseFloat(i.nextElementSibling.style.getPropertyValue('--ss-f'))-Number(i.value))<.02}`)
+	page.MustElement("[data-action=undo]").MustClick()
+	check("a knob drag is one undo step", `()=>Math.abs(synthInstance().project().tracks[0].params.tone-`+fmt.Sprint(toneBefore)+`)<.001`)
+	page.MustElement("[data-work-tab=notes]").MustClick()
 	page.MustEval(`()=>{window.originalTone=synthInstance().project().tracks[0].params.tone;const e=document.querySelector('[data-param=tone]');e.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true}));for(const v of [.2,.4,.65]){e.value=v;e.dispatchEvent(new Event('input',{bubbles:true}));}window.dispatchEvent(new PointerEvent('pointerup'));}`)
 	check("parameter gesture commits", `()=>synthInstance().project().tracks[0].params.tone===.65`)
 	page.MustElement("[data-action=undo]").MustClick()
@@ -147,6 +200,7 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
     }`)
 	page.MustEval(`()=>{const p=synthInstance().project(),t=p.tracks[0];synthInstance().editor.select(t.id,t.clips[0].id);}`)
 	before := page.MustEval(`()=>synthInstance().project().tracks.length`).Int()
+	openLibrary()
 	page.MustElement("[data-category=leads]").MustClick()
 	page.MustElement("[data-library-id=lead-saw] [data-insert]").MustClick()
 	check("instrument creates track", fmt.Sprintf(`()=>synthInstance().project().tracks.length===%d`, before+1))
@@ -154,6 +208,7 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 	check("undo restores track count", fmt.Sprintf(`()=>synthInstance().project().tracks.length===%d`, before))
 	page.MustElement(".ss-app [data-action=redo]").MustClick()
 	check("redo restores instrument", fmt.Sprintf(`()=>synthInstance().project().tracks.length===%d`, before+1))
+	closeLibrary()
 	// The programmable synthesizer: design the selected track's sound, save it
 	// as a browser-local synth and see it applied as the track instrument. The
 	// prompt seam of the fixture answers the name dialog with "Browser song".
@@ -175,6 +230,7 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 	check("designer returns to the sound panel", `()=>!document.querySelector('[data-designer]')&&document.querySelectorAll('.ss-inspector [data-param]').length===8`)
 	// A user synth is a first-class instrument: it can be inserted from the
 	// library like a factory patch, and the pencil opens its saved draft again.
+	openLibrary()
 	page.MustElement("[data-category=user]").MustClick()
 	userID := page.MustEval(`()=>SynthStudioPresets.presets.find(p=>p.category==='user').id`).Str()
 	tracksBeforeUser := page.MustEval(`()=>synthInstance().project().tracks.length`).Int()
@@ -184,9 +240,15 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 	page.MustElement(".ss-app [data-action=undo]").MustClick()
 	waitForJSBool(t, page, fmt.Sprintf(`()=>synthInstance().project().tracks.length===%d`, tracksBeforeUser))
 	check("insert undo removes only the user-synth track", fmt.Sprintf(`()=>synthInstance().project().tracks.filter(t=>t.instrument===%q).length===1`, userID))
+	openLibrary()
 	page.MustElement("[data-library-id=" + userID + "] [data-edit-patch]").MustClick()
 	check("library pencil reopens the saved synth", `()=>!!document.querySelector('[data-designer]')&&document.querySelector('[data-designer-name]').value==='Browser song'&&document.querySelector('[data-designer-param=wave]').value===designWave`)
+	check("inactive designer sections start collapsed", `()=>{const g=n=>document.querySelector('[data-designer] details[data-group='+n+']');return g('grp_oscillator').open&&g('grp_filter').open&&g('grp_envelope').open&&!!g('grp_fm')&&!!g('grp_lfo')}`)
+	page.MustEval(`()=>{const d=document.querySelector('[data-designer] details[data-group=grp_lfo]');window.lfoWasOpen=d.open;d.querySelector('summary').click();}`)
+	check("a section toggles and keeps its state", `()=>new Promise(r=>setTimeout(()=>r(document.querySelector('[data-designer] details[data-group=grp_lfo]').open===!lfoWasOpen),50))`)
 	page.MustElement("[data-designer-action=close]").MustClick()
+	closeLibrary()
+	page.MustElement("[data-work-tab=notes]").MustClick()
 	// The track menu removes a track from the timeline. Reaching the delete
 	// button at the bottom of the sound panel is not a way to delete a track.
 	page.MustEval(`()=>{document.querySelectorAll('[data-track-menu]')[1].click();}`)
@@ -293,7 +355,7 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 						t.Fatal(err)
 					}
 				}
-				check("responsive bounds", `()=>{const a=document.querySelector('.ss-app'),r=a.getBoundingClientRect(),f=document.querySelector('.ss-footer').getBoundingClientRect();return a.scrollWidth<=a.clientWidth+1 && f.bottom<=r.bottom+1 && document.querySelector('.ss-arrangement').clientHeight>=100;}`)
+				check("responsive bounds", `()=>{const a=document.querySelector('.ss-app'),r=a.getBoundingClientRect(),f=document.querySelector('.ss-footer').getBoundingClientRect();return a.scrollWidth<=a.clientWidth+1 && f.bottom<=r.bottom+1 && document.querySelector('.ss-performance-workbench').clientHeight>=100;}`)
 				check("performance pads have touch targets", `()=>[...document.querySelectorAll('.ss-scene-pads button,.ss-chord-pads button')].every(e=>{const r=e.getBoundingClientRect();return r.width>=44&&r.height>=44})`)
 				page.MustElement("[data-work-tab=strudel]").MustClick()
 				check("Strudel editor stays inside the workbench", `()=>{const el=document.querySelector('[data-strudel-code]'),p=el.closest('section'),r=p.getBoundingClientRect();return !p.hidden&&el.clientWidth>120&&r.right<=document.querySelector('.ss-app').getBoundingClientRect().right+1&&p.scrollWidth<=p.clientWidth+1;}`)
@@ -306,39 +368,23 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 			}
 		}
 	}
-	// The wide workbench has to follow the window width on its own. Without an
-	// observer the layout would keep the old mode until a tab was switched.
 	page.MustEval(`()=>{const w=document.querySelector('[data-app-id="synth-studio"]');w.classList.remove('maximized');w.style.width='1500px';w.style.height='800px';w.style.left='8px';w.style.top='8px';}`)
-	waitForJSBool(t, page, `()=>document.querySelector('.ss-app').classList.contains('ss-wide')`)
-	check("wide workbench follows the window width", `()=>document.querySelector('.ss-app').classList.contains('ss-wide')`)
-	// The three separators size the library rail, the sound column and the
-	// workbench band. They keep the size in the local view preferences and a
-	// double click restores the default.
-	dragSeparator := func(selector string, dx, dy int) {
-		t.Helper()
-		page.MustEval(`(selector,dx,dy)=>{
-			const g=document.querySelector(selector);if(!g)return;
-			const r=g.getBoundingClientRect(),x=r.x+r.width/2,y=r.y+r.height/2;
-			const ev=(t,cx,cy)=>new PointerEvent(t,{bubbles:true,cancelable:true,clientX:cx,clientY:cy,button:0,pointerId:1});
-			g.dispatchEvent(ev('pointerdown',x,y));g.dispatchEvent(ev('pointermove',x+dx,y+dy));g.dispatchEvent(ev('pointerup',x+dx,y+dy));
-		}`, selector, dx, dy)
-	}
-	dragSeparator(".ss-splitter-library", 70, 0)
-	libraryWidth := page.MustEval(`()=>Math.round(document.querySelector('.ss-library').getBoundingClientRect().width)`).Int()
-	check("library separator resizes the rail", fmt.Sprintf(`()=>Math.round(document.querySelector('.ss-library').getBoundingClientRect().width)===%d`, libraryWidth))
-	check("library separator keeps its size", `()=>JSON.parse(localStorage.getItem('aurago:synth-studio:view:1')).libraryWidth===`+fmt.Sprint(libraryWidth))
-	dragSeparator(".ss-splitter-panel", -60, 0)
-	panelWidth := page.MustEval(`()=>Math.round(document.querySelector('.ss-sound-workbench').getBoundingClientRect().width)`).Int()
-	check("sound column separator resizes the column", fmt.Sprintf(`()=>Math.round(document.querySelector('.ss-sound-workbench').getBoundingClientRect().width)===%d`, panelWidth))
-	dragSeparator(".ss-workbench-grip", 0, -80)
-	workbenchHeight := page.MustEval(`()=>Math.round(document.querySelector('.ss-note-editor').getBoundingClientRect().height)`).Int()
-	check("workbench separator resizes the lower band", fmt.Sprintf(`()=>Math.round(document.querySelector('.ss-note-editor').getBoundingClientRect().height)===%d`, workbenchHeight))
-	check("sound panel keeps the room it was given", `()=>{const p=document.querySelector('.ss-sound-workbench'),i=document.querySelector('.ss-inspector');return p.getBoundingClientRect().height>=100&&i.scrollHeight>i.clientHeight;}`)
-	page.MustEval(`()=>{['.ss-splitter-library','.ss-splitter-panel','.ss-workbench-grip'].forEach(s=>document.querySelector(s).dispatchEvent(new MouseEvent('dblclick',{bubbles:true,cancelable:true})));}`)
-	check("double click restores the default sizes", `()=>Math.round(document.querySelector('.ss-library').getBoundingClientRect().width)===220&&Math.round(document.querySelector('.ss-sound-workbench').getBoundingClientRect().width)===360`)
+	// Modes: one at a time, the arrangement only in Arrange, the note editor only with a clip.
+	page.MustElement("[data-work-tab=notes]").MustClick()
+	check("arrange shows the arrangement", `()=>document.querySelector('.ss-app').dataset.mode==='arrange'&&getComputedStyle(document.querySelector('.ss-arrangement')).display!=='none'`)
+	page.MustEval(`()=>synthInstance().editor.select('','')`)
+	check("note editor hides without a clip", `()=>document.querySelector('.ss-note-editor').hidden`)
+	page.MustEval(`()=>{const p=synthInstance().project(),t=p.tracks[0];synthInstance().editor.select(t.id,t.clips[0].id)}`)
+	check("note editor opens with a clip", `()=>!document.querySelector('.ss-note-editor').hidden`)
+	page.MustElement("[data-work-tab=sound]").MustClick()
+	check("sound mode hides the arrangement and fills the area", `()=>{const a=document.querySelector('.ss-arrangement');const p=document.querySelector('.ss-sound-workbench');return getComputedStyle(a).display==='none'&&!p.hidden&&p.getBoundingClientRect().width>600}`)
+	page.MustElement("[data-work-tab=mix]").MustClick()
+	check("mixer opens the master panel", `()=>!document.querySelector('[data-master-panel]').hidden&&document.querySelectorAll('[data-master-panel] [data-master-param]').length===14`)
+	page.MustElement("[data-work-tab=notes]").MustClick()
+	check("leaving the mixer closes what it opened", `()=>document.querySelector('[data-master-panel]').hidden`)
+	check("mode is remembered", `()=>JSON.parse(localStorage.getItem('aurago:synth-studio:view:2')).panel==='notes'`)
 	page.MustEval(`()=>{const w=document.querySelector('[data-app-id="synth-studio"]');w.classList.remove('maximized');w.style.width='420px';w.style.height='800px';w.style.left='8px';w.style.top='8px';}`)
-	waitForJSBool(t, page, `()=>!document.querySelector('.ss-app').classList.contains('ss-wide')`)
-	check("wide workbench releases on a narrow window", `()=>!document.querySelector('.ss-app').classList.contains('ss-wide')`)
+	page.MustElement("[data-work-tab=performance]").MustClick()
 	page.MustEval(`()=>{const t=synthInstance().project().tracks[1];synthInstance().editor.select(t.id,t.clips[0].id);window.beforeTouch=JSON.stringify(synthInstance().project());document.querySelector('[data-xy]').scrollIntoView({block:'center'});}`)
 	if err := (proto.EmulationSetTouchEmulationEnabled{Enabled: true}).Call(page); err != nil {
 		t.Fatal(err)
@@ -375,8 +421,25 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 	check("keyboard slider changes sound", `()=>JSON.stringify(synthInstance().project())!==beforeTouch`)
 	page.MustElement("[data-action=undo]").MustClick()
 	check("one undo restores held keyboard gesture", `()=>JSON.stringify(synthInstance().project())===beforeTouch`)
-	page.MustEval(`()=>{const root=document.querySelector('.ss-app');root.classList.add('ss-library-collapsed');root.classList.remove('ss-library-open');document.querySelector('[data-action=library]').click();}`)
-	check("compact library opens after desktop collapse", `()=>getComputedStyle(document.querySelector('.ss-library')).display!=='none'`)
+	check("performance macros are drawn as knobs", `()=>[...document.querySelectorAll('[data-macro]')].length===2&&[...document.querySelectorAll('[data-macro]')].every(e=>e.classList.contains('ss-ctl-native')&&e.nextElementSibling?.classList.contains('ss-ctl-knob'))`)
+	page.MustEval(`()=>document.querySelector('[data-macro=tone] + .ss-ctl-knob').scrollIntoView({block:'center'})`)
+	macroBox := page.MustElement("[data-macro=tone] + .ss-ctl-knob").MustShape().Box()
+	macroX, macroY := macroBox.X+macroBox.Width/2, macroBox.Y+macroBox.Height/2
+	macroDY := -60.0
+	macroBefore := page.MustEval(`()=>synthInstance().project().tracks[1].params.tone`).Num()
+	if macroBefore > 0.5 {
+		macroDY = 60.0
+	}
+	page.Mouse.MustMoveTo(macroX, macroY)
+	page.Mouse.MustDown(proto.InputMouseButtonLeft)
+	page.Mouse.MustMoveTo(macroX, macroY+macroDY)
+	page.Mouse.MustUp(proto.InputMouseButtonLeft)
+	check("dragging a macro knob changes the sound and the readout", `()=>{const e=document.querySelector('[data-macro=tone]');return Math.abs(synthInstance().project().tracks[1].params.tone-`+fmt.Sprint(macroBefore)+`)>.05&&Number(e.parentElement.querySelector('output').textContent)===Number(Number(e.value).toFixed(2))}`)
+	page.MustElement("[data-action=undo]").MustClick()
+	check("a macro knob drag is one undo step", `()=>JSON.stringify(synthInstance().project())===beforeTouch&&Math.abs(parseFloat(document.querySelector('[data-macro=tone] + .ss-ctl-knob').style.getPropertyValue('--ss-f'))-Number(document.querySelector('[data-macro=tone]').value))<.02`)
+	page.MustEval(`()=>{const root=document.querySelector('.ss-app');root.classList.remove('ss-library-open');document.querySelector('[data-action=library]').click();}`)
+	waitForJSBool(t, page, `()=>getComputedStyle(document.querySelector('.ss-library')).visibility==='visible'`)
+	check("library drawer opens", `()=>document.querySelector('.ss-app').classList.contains('ss-library-open')`)
 	check("reduced motion respected", `()=>matchMedia('(prefers-reduced-motion: reduce)').matches&&getComputedStyle(document.querySelector('.ss-xy-dot')).animationName==='none'`)
 	page.MustEval(`()=>document.dispatchEvent(new CustomEvent('aurago:desktop-policy',{detail:{readonly:true}}))`)
 	check("live readonly revocation", `()=>document.querySelector('[data-action=record]').disabled && document.querySelector('[data-action=save]').disabled`)

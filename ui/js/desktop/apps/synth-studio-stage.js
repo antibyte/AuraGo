@@ -25,7 +25,7 @@
         }
         function showValues(values){
             for(const key of ['tone','reverb']){const input=q('[data-macro="'+key+'"]');input.value=values[key];input.parentElement.querySelector('output').textContent=values[key].toFixed(2);}
-            q('.ss-xy-dot').style.left=values.tone*100+'%';q('.ss-xy-dot').style.bottom=values.reverb*100+'%';
+            window.SynthStudioControls?.sync(section);q('.ss-xy-dot').style.left=values.tone*100+'%';q('.ss-xy-dot').style.bottom=values.reverb*100+'%';
         }
         function gestureTime(){return take?audio.elapsed()*options.project().tempo/60*480:audio.currentTick();}
         function begin(control){
