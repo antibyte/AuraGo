@@ -111,7 +111,7 @@
         let tier = 'high', glq = AD.QUALITY.high.gl;
         let size = { w: 960, h: 540, dpr: 1 };
         let applied = { w: 0, h: 0, dpr: 0 };
-        let look = AD.LOOK.alpine, track = null, race = null, lost = false, disposed = false, held = true;
+        let look = AD.LOOK.alpine, track = null, race = null, lost = false, disposed = false, held = true, needsPresent = false;
         let env = null, envKey = '', wetness = 0, time = 0, gen = 0;
         let actors = null, carLights = null, terrain = null, road = null, sky = null, props = null, fx = null, fallback = null;
         let post = null, realPost = null;
@@ -189,9 +189,21 @@
                 applied = { w: size.w, h: size.h, dpr: dpr };
                 renderer.setPixelRatio(dpr);
                 renderer.setSize(size.w, size.h, false);
+                needsPresent = true;
             }
             camera.aspect = size.w / size.h;
             camera.updateProjectionMatrix();
+        }
+
+        /* A reallocated drawing buffer is empty, and the browser composites the empty canvas
+           until the GPU hands over the new frame. That gap is the black play field: it lasts
+           as long as the GPU needs for one frame, which on a slow GPU is a full second.
+           Waiting for the frame here closes the gap - the wait costs exactly the work the
+           player would have seen as black anyway, and the view is never empty. */
+        function presentNow() {
+            if (!needsPresent) return;
+            needsPresent = false;
+            try { renderer.getContext().finish(); } catch (_) { /* the frame is drawn either way */ }
         }
 
         /* ---- look --------------------------------------------------------- */
@@ -507,6 +519,7 @@
                 if (lost || disposed) return;
                 time += dt;
                 drawShowcase(dt, reduced);
+                presentNow();
             },
             render(r, pose, dt, reduced) {
                 if (lost) throw new Error('webgl context lost');
@@ -533,6 +546,7 @@
                 renderer.toneMappingExposure = look.exposure;
                 renderer.info.reset();
                 if (!(realPost && realPost.enabled && realPost.render(dt, r, pose, reduced))) renderer.render(scene, camera);
+                presentNow();
             },
             event(evt) {
                 if (actors) actors.event(evt, race);

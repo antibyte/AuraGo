@@ -259,6 +259,12 @@ weather motion are removed by reduced motion.
   Aura Drift harness unregisters the worker and clears the caches before it loads the app
   modules - then reloads once, because unregistering does not release the page the worker
   already controls.
+- **An empty buffer stays empty until the GPU delivers the frame.** The tier is applied
+  before the render of its frame and a resize repaints at once, but the browser composites
+  the canvas when the frame ends - and the GPU may still be busy. The frame that follows a
+  reallocation therefore waits for the GPU. The wait costs exactly the work the player
+  would have seen as black, and the view is never empty. On a slow GPU that black play
+  field lasted a full second.
 - **A window that comes back paints again at once.** While the tab is hidden or the window is
   inactive the frame loop draws nothing, and the browser may drop the canvas texture in the
   meantime. The first frame back would then composite an empty canvas - a black frame. The view

@@ -3729,6 +3729,11 @@ buttons and menu popovers remain excluded from those gestures.
 - A hidden or inactive window draws nothing, and the browser can drop the canvas texture
   while it is out of sight: the view is repainted when the tab becomes visible and when the
   window becomes active again, so the first frame back cannot be a black canvas.
+- A reallocated drawing buffer is empty until the GPU delivers the next frame, and the
+  browser composites the empty canvas in the meantime - a black play field that lasts as
+  long as the GPU needs for one frame. The frame that follows a reallocation therefore
+  waits for the GPU (`presentNow`, `gl.finish`). The wait costs the work the player would
+  have seen as black; without it a tier change on a slow GPU costs a full second of black.
 - The server answers a request for an older asset set with 409 "Asset version changed.
   Reload this page.". The asset loader reloads the page on that answer - once per conflict,
   at most three times per session, so a server that keeps changing cannot become a reload

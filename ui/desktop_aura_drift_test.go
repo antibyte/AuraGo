@@ -519,9 +519,11 @@ func TestAuraDriftRepaintsWhenTheWindowComesBack(t *testing.T) {
 	}
 }
 
-// The server answers a request for an older asset set with 409 "Asset version
-// changed. Reload this page.". Running on with the old version means the model kit
-// never arrives and the race falls back to stand-ins, so the page reloads itself.
+// A changed asset set reloads the page. The server answers a request for an older
+// asset set with 409 "Asset version changed. Reload this page.". Running on with
+// the old version means the model kit never arrives and the race shows stand-ins,
+// so the asset loader reloads the page - once per conflict, at most three times per
+// session, so a server that keeps changing cannot become a reload loop.
 func TestAuraDriftReloadsWhenTheAssetSetChanged(t *testing.T) {
 	t.Parallel()
 
@@ -539,5 +541,42 @@ func TestAuraDriftReloadsWhenTheAssetSetChanged(t *testing.T) {
 	// A server that keeps changing must not turn into a reload loop.
 	if !strings.Contains(assets, "VERSION_RELOAD_MAX") {
 		t.Fatal("the Aura Drift version reload must be bounded")
+	}
+}
+
+// A reallocated drawing buffer is empty, and the browser composites the empty
+// canvas until the GPU hands over the new frame. That gap is the black play
+// field, and it lasts as long as the GPU needs for one frame. The frame that
+// follows the reallocation therefore has to wait for the GPU.
+func TestAuraDriftWaitsForTheFrameAfterABufferChange(t *testing.T) {
+	t.Parallel()
+
+	renderer := readDesktopAssetText(t, "js/desktop/apps/aura-drift-render3d.js")
+	if !strings.Contains(renderer, "needsPresent = true") {
+		t.Fatal("the three.js renderer must mark the empty drawing buffer after a reallocation")
+	}
+	if !strings.Contains(renderer, "function presentNow()") {
+		t.Fatal("the three.js renderer must present the frame after a reallocation")
+	}
+	if !strings.Contains(renderer, "getContext().finish()") {
+		t.Fatal("the Aura Drift renderer must wait for the GPU after a reallocation, or the browser composites the empty canvas as a black play field")
+	}
+	// The wait belongs to the frame that follows the reallocation, not to the
+	// reallocation itself.
+	size := strings.Index(renderer, "renderer.setSize(size.w, size.h, false)")
+	if size < 0 {
+		t.Fatal("the three.js renderer must hand the size over to the drawing buffer")
+	}
+	present := strings.Index(renderer, "function presentNow()")
+	render := strings.Index(renderer, "render(r, pose, dt, reduced) {")
+	if present < 0 || render < 0 || present > render {
+		t.Fatal("the Aura Drift renderer must wait for the frame after the reallocation")
+	}
+	body := renderer[render:]
+	if end := strings.Index(body[1:], "\n            },"); end > 0 {
+		body = body[:end+1]
+	}
+	if !strings.Contains(body, "presentNow()") {
+		t.Fatal("the Aura Drift render must present the frame after a reallocation")
 	}
 }
