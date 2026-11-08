@@ -1278,6 +1278,9 @@ New app-scoped prefixes must contain no `ad` substring; verify
   hover-capable pointer hardware; touch layouts intentionally hide its arrows.
 - Infra menu browser journeys await the native dialog `close` event before
   opening another popover, so pending focus restoration cannot steal its keys.
+- EasyDrag metadata journeys select active dialogs for native close clicks and
+  await removal of closing overlays; a saved editor remains in the DOM during
+  its 140 ms exit animation and must not become the next click target.
 - Synth Studio library clicks await the sidebar's rendered viewport bounds, not
   visibility alone during its slide-in transition.
 - Artifact upload fixtures consume the complete request body even when capture

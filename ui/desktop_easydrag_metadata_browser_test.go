@@ -24,7 +24,8 @@ func TestDesktopEasyDragMetadataBrowser(t *testing.T) {
 	}
 	closeModal := func() {
 		t.Helper()
-		p.MustElement(`.ed-modal-backdrop:last-child [data-ed-action="close"]`).MustClick()
+		p.MustElement(`.ed-modal-backdrop:last-child:not(.is-closing) [data-ed-action="close"]`).MustClick()
+		s.wait(`()=>!document.querySelector('.ed-modal-backdrop.is-closing')`)
 	}
 	selectValue := func(selector, value string) {
 		t.Helper()
