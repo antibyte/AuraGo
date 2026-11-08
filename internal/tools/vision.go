@@ -156,6 +156,9 @@ func analyzeImageReferenceWithPromptContext(ctx context.Context, imageReference,
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	if UseMirageVision(cfg) {
+		return analyzeWithMirage(ctx, imageReference, cfg)
+	}
 
 	prompt, _ = PrepareVisionPrompt(prompt)
 	apiKey := strings.TrimSpace(cfg.Vision.APIKey)
