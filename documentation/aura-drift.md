@@ -414,7 +414,9 @@ AudioContext, WebGL resources, caches and observers, `isActive` gating, `app_aur
 `aura_drift.*` keys (349 keys) in all sixteen `ui/lang/desktop/*.json` bundles, Standard and
 Fruity chrome, and app-owned icon artwork.
 
-The loader loads 37 app modules plus the three.js runtime (`ui/js/desktop/core/module-loader.js`).
+The loader loads 40 app modules plus the three.js runtime (`ui/js/desktop/core/module-loader.js`).
+FX atlas and shader definitions live in `aura-drift-fx-resources.js`; each FX instance
+creates and disposes its own atlas. The particle update and event mapping stay in `aura-drift-fx.js`.
 `window.AuraDriftApp.stats()` is a read-only per-window diagnostic: race state, time, speed,
 pause, quality, renderer kind and caches, post status and audio status.
 

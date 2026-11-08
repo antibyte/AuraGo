@@ -3607,10 +3607,10 @@ buttons and menu popovers remain excluded from those gestures.
 - `aura-drift-*.js` implements Aura Drift, a first-party offline Virtual Desktop racer:
   a three.js 3D view (default) with a Canvas 2D fallback. The `aura-drift` entry in
   `js/desktop/core/module-loader.js` loads `vendor/aura-drift/three-runtime.js` (three.js
-  0.186.1 IIFE) first, then 37 app modules: core, physics, track, style, conditions, tricks,
+  0.186.1 IIFE) first, then 40 app modules: core, physics, track, style, conditions, tricks,
   features, weapons, projectiles, modes, ai, race, banter, camera, look, assets, cars, scenery,
-  render, terrain, road, sky, props, actors, carlight, fx, post, render3d, hud, hud-fx,
-  audio-bank, engine, audio, music, ui, ui-cards, and last `aura-drift.js`, which exposes
+  render, terrain, road, sky, props, actors, carlight, fx-resources, fx, post, render3d, hud, hud-fx,
+  audio-bank, engine, audio, music, ui, ui-cards, woof-lines, woof, and last `aura-drift.js`, which exposes
   `window.AuraDriftApp = { render, dispose, stats }`. Shared state lives on
   `window.AuraDriftCore` (`CARS` 8, `DRIVERS` 8, `WEAPONS` 18, `TRICKS` 16, `MODES` 7,
   `QUALITY` tiers, `CAMERA_MODES` chase, high, drone, bumper, `CAR_VIEW` body heights).
@@ -3665,6 +3665,10 @@ buttons and menu popovers remain excluded from those gestures.
   rain layers lean with `conditions.state.gust`, wet roads throw headlamp-lit spray, spawn
   short-lived ripple rings only where `AD.sampleTrack` finds tarmac, and hard braking above 30
   units leaves glowing brake dust at the rear wheels.
+  `aura-drift-fx-resources.js` loads before FX and owns the atlas builder, frame IDs and
+  shader definitions. `AD.createFxResources` returns a new atlas per FX instance;
+  `createFx` retains texture/material disposal. Missing resources safely omit optional
+  FX, as when an older loader omits the FX module itself.
   The drift aura is its own presentation layer (`auraEmit`/`stepAura`, meshes `fx-aura-ground` and
   `fx-aura-shell`): it reads only `driftLevel`, `overdrive`, `slip` and `driftCharge`, tints teal
   while charging and uses the drift-level palettes otherwise, and follows the yaw rate with its

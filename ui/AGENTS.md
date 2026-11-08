@@ -59,7 +59,7 @@ New app-scoped prefixes must contain no `ad` substring; verify
 
 - Aura Drift (`aura-drift`, category `games`) is a first-party offline Virtual Desktop racer
   with a three.js 3D view (default) and a Canvas 2D fallback. Its three.js runtime
-  (`js/vendor/aura-drift/`, three.js 0.186.1), 37 lazy-loaded app modules, stylesheet, icon and
+  (`js/vendor/aura-drift/`, three.js 0.186.1), 40 lazy-loaded app modules, stylesheet, icon and
   `aura_drift.*` keys in all sixteen `lang/desktop/*.json` bundles are owned by
   `js/desktop/apps/AGENTS.md`. The 3D models and sound pack are owned by
   `../ui/3d/aura-drift/` (payload) and `../assets/aura-drift/` (model kit and audio sources).
@@ -1282,6 +1282,9 @@ New app-scoped prefixes must contain no `ad` substring; verify
   for shared APIs, including fetch, EventSource and WebSocket URLs. Preserve the
   integration's own gates. `desktop_policy` updates the live shell policy and
   emits `aurago:desktop-policy` without disposing open editors or Tresor drafts.
+- Security Gates runs the existing Desktop JavaScript line-budget and semantic-name
+  checks before the complete Go suite. Aura Drift's FX resource loading/fallback
+  check is `node scripts/test-aura-drift-fx-resources.mjs`.
 
 - Syntax for every rollout JavaScript change:
   `$files = git diff --name-only 0773dfa52e3d21f420f9009c480bdd817e761882 -- '*.js'; foreach ($file in $files) { node --check $file; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE } }`.

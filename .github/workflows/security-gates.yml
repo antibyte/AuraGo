@@ -45,6 +45,9 @@ jobs:
       - name: Verify deterministic UI bundle drift
         run: node scripts/build-ui-bundles.js --check
 
+      - name: Check Aura Drift FX resource loading
+        run: node scripts/test-aura-drift-fx-resources.mjs
+
       - name: Test UI delivery regressions
         run: npm run test:ui-regressions
 
@@ -97,6 +100,9 @@ jobs:
 
       - name: Check embedded resource budget before Go tests
         run: node scripts/check-web-assets.mjs
+
+      - name: Check Desktop module structure before Go tests
+        run: go test ./ui -run '^TestVirtualDesktop(FirstPartyJSFilesStayBelowLineBudget|JSUsesSemanticChunkNames)$' -count=1
 
       - name: Prepare verified prompt baseline vocabulary
         env:

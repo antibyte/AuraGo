@@ -37,6 +37,7 @@ var auraDriftModules = []string{
 	"aura-drift-props.js",
 	"aura-drift-actors.js",
 	"aura-drift-carlight.js",
+	"aura-drift-fx-resources.js",
 	"aura-drift-fx.js",
 	"aura-drift-post.js",
 	"aura-drift-render3d.js",

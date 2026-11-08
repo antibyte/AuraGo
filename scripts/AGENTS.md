@@ -35,6 +35,8 @@ Use the existing helper for each job. Check release scripts with harmless fixtur
 
 - Aura Drift: `node scripts/test-aura-drift-audio.mjs --fast` checks the pack and
   requested-music queue priority; the full run also decodes assets with FFmpeg.
+  `node scripts/test-aura-drift-fx-resources.mjs` checks ordered FX initialization
+  and the optional fallback when a stale loader omits its resource module.
 - Sheets: `build-sheets-vendor.js [--check]` bundles the pinned Univer packages and applies the reviewed formula-progress timer disposal patch without modifying `node_modules`; regenerate engine, worker and manifest together.
 - Storymaker: `build-storymaker-vendor.mjs [--check]` bundles the exact PixiJS/GSAP lock versions and included notices; `build-storymaker-catalog.mjs [--check]` packages retained ImageGen masters offline. `test-storymaker-raster-browser.mjs` owns native renderer, rig-matrix, environment and seek-parity acceptance; see `../assets/storymaker/ASSET-CONTRACT.md`.
 - Storymaker agent references: `storymaker-tests/24-agent-reference.mjs` executes the embedded effects example with GSAP and checks reverse/random/restarted seeks in every aspect. `test-storymaker-raster-browser.mjs --agent-reference --canvas` substitutes that example in the real opaque-origin player, retaining strict CSP and software fallback checks.
