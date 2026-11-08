@@ -287,5 +287,10 @@
   "config.virustotal.api_key_label": "Klíč API",
   "config.virustotal.enabled_label": "VirusTotal povolen",
   "config.vision.provider_label": "Poskytovatel zpracování obrazu",
+  "config.vision.mirage_checking": "Kontrola sidecaru Mirage…",
+  "config.vision.mirage_disabled": "Mirage není zapnutý",
+  "config.vision.mirage_running": "Mirage běží",
+  "config.vision.mirage_starting": "Mirage se spouští (model se načítá při prvním spuštění)",
+  "config.vision.mirage_unavailable": "Sidecar Mirage není dostupný",
   "config.whisper.provider_label": "Poskytovatel převodu řeči na text"
 }

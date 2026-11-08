@@ -287,5 +287,10 @@
   "config.virustotal.api_key_label": "Κλειδί API",
   "config.virustotal.enabled_label": "VirusTotal ενεργοποιημένο",
   "config.vision.provider_label": "Πάροχος όρασης",
+  "config.vision.mirage_checking": "Έλεγχος του sidecar Mirage…",
+  "config.vision.mirage_disabled": "Το Mirage δεν είναι ενεργοποιημένο",
+  "config.vision.mirage_running": "Το Mirage λειτουργεί",
+  "config.vision.mirage_starting": "Το Mirage ξεκινά (το μοντέλο φορτώνεται στην πρώτη εκκίνηση)",
+  "config.vision.mirage_unavailable": "Το sidecar Mirage δεν είναι προσβάσιμο",
   "config.whisper.provider_label": "Πάροχος μετατροπής ομιλίας σε κείμενο"
 }
