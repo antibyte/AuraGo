@@ -14,7 +14,7 @@ Runtime instructions and executable examples delivered to the isolated Storymake
 ## Local Contracts
 
 - Describe implemented APIs only. PixiJS/GSAP stay internal; no raw library, DOM, filesystem or network access is granted.
-- Examples must use real catalog IDs, explicit scene time and existing sandbox/deadline rules. State what is automatic and what is unsupported.
+- Examples must use real catalog IDs, explicit scene time and existing sandbox/deadline rules. State what is automatic (including scene `speaker` lip-sync) and what is unsupported, and guide spatial separation (`spot_overlap` avoidance) and cross-scene continuity.
 - Source writes require the revision returned by get_code. Bundle valid source before activating a code scene. Keep narration and existing unrelated scenes.
 - Normal and compact profiles retain timing/easing controls; compactness must not silently remove supported animation features.
 

@@ -51,10 +51,19 @@ func (s *Studio) Packet(ctx context.Context, compact bool) (map[string]any, erro
 		packet["target_words"] = int(math.Round(float64(job.TargetSeconds) * packetWordsPerSecond))
 		packet["suggested_scenes"] = packetSuggestedScenes(job.TargetSeconds)
 		packet["templates"] = packetTemplates
+		packet["environments"] = deps.Catalog.Names("environment")
 	case PhaseCast:
 		packet["story"] = packetSummary(story)
 		packet["characters"] = deps.Catalog.Names("character")
 		packet["environments"] = deps.Catalog.Names("environment")
+		packet["style_options"] = map[string]any{
+			"rhythms":  []string{"calm", "standard", "lively"},
+			"palettes": deps.Catalog.Names("palette"),
+			"auto_sfx": true,
+		}
+		if !compact {
+			packet["character_looks"] = packetCharacterLooks(deps.Catalog)
+		}
 	case PhaseFill:
 		if err := packetFill(ctx, packet, story, sceneID, job, deps); err != nil {
 			return nil, err
@@ -92,14 +101,18 @@ func (s *Studio) Packet(ctx context.Context, compact bool) (map[string]any, erro
 
 // packetFillExample is the worked example of a fill scene. It names the first cast member of the story and
 // leaves the actor and the gesture out when there is no cast, so it never names a member that does not exist.
-// It has no cue, because a cue names a narration marker of the scene.
 func packetFillExample(cast []CastMember) map[string]any {
-	example := map[string]any{"environment": "env.office", "transition": "wipe"}
-	beats := []any{map[string]any{"do": "show", "item": "prop.lock", "at": "right", "entry": "pop"}}
+	example := map[string]any{
+		"narration":   "Eine {1}Firewall prüft jedes Paket am Eingang.",
+		"environment": "env.office",
+		"transition":  "wipe",
+	}
+	beats := []any{map[string]any{"do": "show", "item": "prop.lock", "at": "right", "entry": "pop", "cue": 1}}
 	if len(cast) > 0 {
 		who := cast[0].ID
-		example["actors"] = []any{map[string]any{"cast": who, "at": "left", "pose": "present"}}
-		beats = append(beats, map[string]any{"do": "gesture", "who": who, "gesture": "point"})
+		example["speaker"] = who
+		example["actors"] = []any{map[string]any{"cast": who, "at": "left", "pose": "present", "expression": "neutral"}}
+		beats = append(beats, map[string]any{"do": "gesture", "who": who, "gesture": "point", "with": "prev"})
 	}
 	example["beats"] = beats
 	return example
@@ -132,6 +145,20 @@ func packetFill(ctx context.Context, packet map[string]any, story *Story, sceneI
 	}
 	if index > 0 {
 		packet["previous_environment"] = story.Scenes[index-1].Environment
+		packet["previous_scene"] = packetPreviousScene(&story.Scenes[index-1])
+		if entries := packetUsedEntries(story.Scenes[:index]); len(entries) > 0 {
+			packet["used_entries"] = entries
+		}
+	}
+	if index+1 < len(story.Scenes) {
+		next := &story.Scenes[index+1]
+		packet["next_scene"] = map[string]any{
+			"id":        next.ID,
+			"narration": clip(StripMarkers(next.Narration), packetNarrationRunes),
+		}
+	}
+	if props := packetSuggestedProps(deps.Catalog, sc.Narration); len(props) > 0 {
+		packet["suggested_props"] = props
 	}
 	packet["cast"] = packetCast(story)
 	packet["environments"] = packetEnvironments(deps.Catalog)
@@ -141,6 +168,107 @@ func packetFill(ctx context.Context, packet map[string]any, story *Story, sceneI
 		packet["note"] = packetNoVoiceNote
 	}
 	return nil
+}
+
+func packetCharacterLooks(cat *Catalog) []map[string]any {
+	if cat == nil {
+		return nil
+	}
+	ids := cat.Names("character")
+	out := make([]map[string]any, 0, len(ids))
+	for _, id := range ids {
+		e, ok := cat.Lookup(id)
+		if !ok {
+			continue
+		}
+		row := map[string]any{"id": e.ID, "name": e.Name}
+		for _, k := range []string{"body", "hair", "outfit", "glasses"} {
+			if v := e.Params[k]; v != "" && v != "none" {
+				row[k] = v
+			}
+		}
+		out = append(out, row)
+	}
+	return out
+}
+
+func packetPreviousScene(sc *Scene) map[string]any {
+	if sc == nil {
+		return nil
+	}
+	actors := make([]map[string]any, 0, len(sc.Actors))
+	for _, a := range sc.Actors {
+		row := map[string]any{"cast": a.Cast}
+		if a.At != nil {
+			row["at"] = a.At.String()
+		}
+		if a.Pose != "" {
+			row["pose"] = a.Pose
+		}
+		if a.Expression != "" {
+			row["expression"] = a.Expression
+		}
+		actors = append(actors, row)
+	}
+	var shown []string
+	for _, p := range sc.Props {
+		if p.Item != "" {
+			shown = append(shown, p.Item)
+		}
+	}
+	for _, b := range sc.Beats {
+		if b.Do == "show" {
+			if b.Item != "" {
+				shown = append(shown, b.Item)
+			} else if b.Text != "" {
+				shown = append(shown, "text:"+clip(b.Text, 24))
+			}
+		}
+	}
+	out := map[string]any{
+		"id":          sc.ID,
+		"environment": sc.Environment,
+		"narration":   clip(StripMarkers(sc.Narration), packetNarrationRunes),
+		"transition":  sc.Transition,
+		"actors":      actors,
+	}
+	if sc.Speaker != "" {
+		out["speaker"] = sc.Speaker
+	}
+	if len(shown) > 0 {
+		out["shown_items"] = shown
+	}
+	return out
+}
+
+func packetUsedEntries(scenes []Scene) []string {
+	var out []string
+	for i := range scenes {
+		for _, b := range scenes[i].Beats {
+			if b.Do == "show" && b.Entry != "" && b.Entry != "none" {
+				out = append(out, b.Entry)
+			}
+		}
+	}
+	if len(out) > 6 {
+		out = out[len(out)-6:]
+	}
+	return out
+}
+
+func packetSuggestedProps(cat *Catalog, narration string) []string {
+	if cat == nil {
+		return nil
+	}
+	hits := cat.Search(StripMarkers(narration), "prop", 6)
+	if len(hits) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(hits))
+	for _, h := range hits {
+		out = append(out, h.ID)
+	}
+	return out
 }
 
 func packetStory(ctx context.Context, deps StudioDeps, projectID string) (*Story, error) {

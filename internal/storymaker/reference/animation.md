@@ -4,9 +4,11 @@ Use storyboard scenes for staged people, dialogue and narrated explanations. Sea
 
 ## Stage and composition
 
-- Scene fields: environment, variant day/night, actors, props, beats, camera, transition and narration. A camera starts with framing wide/medium/close and an optional actor target.
+- Scene fields: environment, variant day/night, speaker, actors, props, beats, camera, transition and narration. A camera starts with framing wide/medium/close and an optional actor target.
+- Set `speaker` to the on-stage actor's cast ID (for example `"speaker":"anna"`) whenever that character speaks the scene narration so their mouth lip-syncs the speech automatically; leave `speaker` as `"narrator"` only for off-screen voiceover.
 - An actor uses its cast member ID; a prop uses its prop.* catalog ID plus a short instance id. Beat who/target/hide/highlight refer to these stage instance IDs, not character asset IDs.
-- Positions are environment spot names. For a custom safe-area position in a tool call, use a string such as "60,40" (x/y percentages 0..100; actor y is the feet). The server converts it into a point. Use scale conservatively and props layer back/front deliberately.
+- Positions are environment spot names. Never place two actors or an actor and a shown prop/text on the exact same spot (`spot_overlap`): put the actor at `"left"` or `"desk"` and the revealed prop or label at `"right"`, `"center"` or `"board"`. For a custom safe-area position in a tool call, use a string such as "60,40" (x/y percentages 0..100; actor y is the feet). The server converts it into a point. Use scale conservatively and props layer back/front deliberately.
+- Use `previous_scene`, `next_scene`, `suggested_props` and `used_entries` from the fill context packet to keep actor positions consistent across scenes in the same environment and to vary `show` entry styles.
 - Check 16:9, 9:16 and 1:1 composition: keep faces and important props within the safe area, text short and labels apart from faces. The agent cannot certify pixel layout; leave layout_unverified for human review.
 
 ## Actions
@@ -41,7 +43,7 @@ Never substitute move for a person's walk. Combine a meaningful gesture with a m
 Example scene payload (cast member anna must exist):
 
 ```json
-{"environment":"env.office","actors":[{"cast":"anna","at":"left","pose":"present"}],"narration":"Eine {1}Verschlüsselung schützt Deine Daten.","beats":[{"do":"show","id":"lock","item":"prop.lock","at":"right","entry":"pop","cue":1},{"do":"gesture","who":"anna","gesture":"point","with":"prev"},{"do":"highlight","target":"lock","style":"pulse","duration":0.8},{"do":"camera","op":"focus","target":"anna","duration":0.8,"ease":"ease-in-out"}]}
+{"environment":"env.office","speaker":"anna","actors":[{"cast":"anna","at":"left","pose":"present","expression":"neutral"}],"narration":"Eine {1}Verschlüsselung schützt Deine Daten.","beats":[{"do":"show","id":"lock","item":"prop.lock","at":"right","entry":"pop","cue":1},{"do":"gesture","who":"anna","gesture":"point","with":"prev"},{"do":"emote","who":"anna","expression":"happy","with":"prev"},{"do":"highlight","target":"lock","style":"pulse","duration":0.8},{"do":"camera","op":"focus","target":"anna","duration":0.8,"ease":"ease-in-out"}]}
 ```
 
 Use custom code only when storyboard controls cannot express the explanation, for example repeated data-flow particles or a bespoke diagram. Read topic code before writing it. Charts/icons/diagrams that report not_supported_yet are not rendered: use actual props/text/shapes or a code scene instead. Validate with storymaker_check and fix errors; do not claim unsupported effects or verified layout.

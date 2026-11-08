@@ -381,6 +381,7 @@ func (s *Studio) evaluateSceneWrite(story Story, sceneID string, fields map[stri
 			ev.errors++
 		}
 	}
+	ev.issues = append(ev.issues, lintSceneStage(&story.Scenes[index], index)...)
 	ev.story = story
 	ev.scene = story.Scenes[index]
 	return ev

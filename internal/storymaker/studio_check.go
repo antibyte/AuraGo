@@ -62,13 +62,17 @@ type checkEnvironmentAnswer struct {
 }
 
 // LintForJob adds what Validate accepts but a finished film must not have: scene_unfilled for a
-// scene with nothing on stage, and over_budget for narration over the house budget of 19 words
-// plus 15 percent.
+// scene with nothing on stage, over_budget for narration over the house budget of 19 words
+// plus 15 percent, fade_between_worlds for a fade across different environments, entry_monotony
+// for three or more consecutive show beats with the same entry style, and spot_overlap when
+// actors or shown items share the same named spot.
 func LintForJob(st *Story) []Issue {
 	if st == nil {
 		return nil
 	}
 	var out []Issue
+	lastEntry := ""
+	entryStreak := 0
 	for i := range st.Scenes {
 		sc := &st.Scenes[i]
 		if !studioSceneFilled(sc) {
@@ -78,7 +82,37 @@ func LintForJob(st *Story) []Issue {
 				Fix:     `Add actors and beats with patch_scene. Example: {"actors":[{"cast":"anna","at":"left","pose":"present"}],"beats":[{"do":"show","text":"Kurz gesagt","at":"right","entry":"pop"}]}`,
 			})
 		}
-		if sc.Kind == "code" || sc.Silent {
+		if i > 0 && sc.Transition == "fade" && sc.Environment != "" && st.Scenes[i-1].Environment != "" && sc.Environment != st.Scenes[i-1].Environment {
+			out = append(out, Issue{
+				Severity: SeverityWarning, SceneID: sc.ID, Path: jp("scenes", i) + "/transition", Code: CodeFadeBetweenWorlds,
+				Message: fmt.Sprintf("Scene %s uses a fade transition between %s and %s.", sc.ID, st.Scenes[i-1].Environment, sc.Environment),
+				Fix:     `Use cut, wipe or slide-left when changing environments. Example: {"transition":"wipe"}`,
+			})
+		}
+		if sc.Kind == "code" {
+			continue
+		}
+		out = append(out, lintSceneStage(sc, i)...)
+		for j := range sc.Beats {
+			b := &sc.Beats[j]
+			if b.Do != "show" || b.Entry == "" || b.Entry == "none" {
+				continue
+			}
+			if b.Entry == lastEntry {
+				entryStreak++
+				if entryStreak == 3 {
+					out = append(out, Issue{
+						Severity: SeverityWarning, SceneID: sc.ID, Path: fmt.Sprintf("%s/beats/%d/entry", jp("scenes", i), j), Code: CodeEntryMonotony,
+						Message: fmt.Sprintf("Three show beats in a row use entry %q.", b.Entry),
+						Fix:     `Vary the entry style across reveals (pop, fade, slide-up, draw or stamp).`,
+					})
+				}
+			} else {
+				lastEntry = b.Entry
+				entryStreak = 1
+			}
+		}
+		if sc.Silent {
 			continue
 		}
 		if words := WordCount(StripMarkers(sc.Narration)); float64(words) > checkHouseWords*checkOverFactor {
@@ -87,6 +121,87 @@ func LintForJob(st *Story) []Issue {
 				Message: fmt.Sprintf("The narration of scene %s has %d words; the budget is about %d.", sc.ID, words, checkHouseWords),
 				Fix:     "Shorten the narration or split the scene.",
 			})
+		}
+	}
+	return out
+}
+
+// lintSceneStage checks whether a scene places two actors or an actor and a prop/text reveal on
+// the exact same named spot at the same time.
+func lintSceneStage(sc *Scene, sceneIndex int) []Issue {
+	if sc == nil || sc.Kind == "code" {
+		return nil
+	}
+	var out []Issue
+	actorSpot := make(map[string]string, len(sc.Actors))
+	spotOwner := make(map[string]string, len(sc.Actors))
+	for j, a := range sc.Actors {
+		if a.Cast == "" || a.At == nil || a.At.Point || a.At.Spot == "" {
+			continue
+		}
+		if prev, busy := spotOwner[a.At.Spot]; busy && prev != a.Cast {
+			out = append(out, Issue{
+				Severity: SeverityWarning, SceneID: sc.ID, Path: fmt.Sprintf("%s/actors/%d/at", jp("scenes", sceneIndex), j), Code: CodeSpotOverlap,
+				Message: fmt.Sprintf("Actors %s and %s both stand at spot %q in scene %s.", prev, a.Cast, a.At.Spot, sc.ID),
+				Fix:     `Place each actor on a separate spot such as "left", "center" or "right".`,
+			})
+		} else {
+			spotOwner[a.At.Spot] = a.Cast
+		}
+		actorSpot[a.Cast] = a.At.Spot
+	}
+	for j, p := range sc.Props {
+		if p.At == nil || p.At.Point || p.At.Spot == "" {
+			continue
+		}
+		if who, busy := spotOwner[p.At.Spot]; busy {
+			out = append(out, Issue{
+				Severity: SeverityWarning, SceneID: sc.ID, Path: fmt.Sprintf("%s/props/%d/at", jp("scenes", sceneIndex), j), Code: CodeSpotOverlap,
+				Message: fmt.Sprintf("Prop %s is placed on spot %q where actor %s stands in scene %s.", p.Item, p.At.Spot, who, sc.ID),
+				Fix:     `Place the prop on a free spot such as "right", "center" or "board" so it does not cover the actor.`,
+			})
+		}
+	}
+	for j, b := range sc.Beats {
+		switch b.Do {
+		case "enter", "walk":
+			if b.Who != "" && b.To != nil && !b.To.Point && b.To.Spot != "" {
+				if old := actorSpot[b.Who]; old != "" && spotOwner[old] == b.Who {
+					delete(spotOwner, old)
+				}
+				actorSpot[b.Who] = b.To.Spot
+				spotOwner[b.To.Spot] = b.Who
+			}
+		case "move":
+			if b.Target != "" && b.To != nil && !b.To.Point && b.To.Spot != "" {
+				if old, ok := actorSpot[b.Target]; ok {
+					if spotOwner[old] == b.Target {
+						delete(spotOwner, old)
+					}
+					actorSpot[b.Target] = b.To.Spot
+					spotOwner[b.To.Spot] = b.Target
+				}
+			}
+		case "exit":
+			if old := actorSpot[b.Who]; old != "" && spotOwner[old] == b.Who {
+				delete(spotOwner, old)
+			}
+			delete(actorSpot, b.Who)
+		case "show":
+			if b.At == nil || b.At.Point || b.At.Spot == "" {
+				continue
+			}
+			if who, busy := spotOwner[b.At.Spot]; busy {
+				label := b.Item
+				if label == "" {
+					label = "text"
+				}
+				out = append(out, Issue{
+					Severity: SeverityWarning, SceneID: sc.ID, Path: fmt.Sprintf("%s/beats/%d/at", jp("scenes", sceneIndex), j), Code: CodeSpotOverlap,
+					Message: fmt.Sprintf("Beat %d shows %s at spot %q where actor %s stands in scene %s.", j, label, b.At.Spot, who, sc.ID),
+					Fix:     `Place shown props and text on a free spot (for example "right" when the actor is at "left") so they do not overlap.`,
+				})
+			}
 		}
 	}
 	return out
@@ -157,7 +272,11 @@ func studioValidateOp(ctx context.Context, s *Studio, _ map[string]any) StudioRe
 	}
 	next := "Fix each issue with storymaker_story operation patch_scene, then call storymaker_check again."
 	if clean {
-		next = "Nothing is left to fix. Answer with one short sentence and stop."
+		if len(report.Advice) > 0 {
+			next = "No blocking issues remain. If any advice item can be improved with patch_scene, patch it now and call storymaker_check again; otherwise answer with one short sentence and stop."
+		} else {
+			next = "Nothing is left to fix. Answer with one short sentence and stop."
+		}
 	}
 	return sceneWriteAnswer(op, "ok", "", map[string]any{
 		"rev":            studioRev(etag),
@@ -188,10 +307,11 @@ func (s *Studio) runCheck(ctx context.Context) (CheckReport, string, error) {
 	if status, statusErr := s.deps.Projects.CodeSceneStatus(ctx, s.job.ProjectID); statusErr == nil {
 		found = append(found, CodeSceneIssues(&story, status)...)
 	}
-	found = append(found, LintForJob(&story)...)
 	summary, state, environment := s.compileForCheck(ctx, etag)
 	found = append(found, checkCompileIssues(summary.Issues)...)
+	found = append(found, LintForJob(&story)...)
 	found = append(found, LintWords(&story, s.job.Language)...)
+	found = dedupeCheckIssues(found)
 	scenes, total := checkTiming(&story, summary)
 	if over := s.checkOverTarget(total); over != nil && !slices.ContainsFunc(found, func(is Issue) bool { return is.Code == over.Code }) {
 		found = append(found, *over)
@@ -207,12 +327,31 @@ func (s *Studio) runCheck(ctx context.Context) (CheckReport, string, error) {
 			report.Environment = append(report.Environment, is)
 		case IssueModelFixable(is):
 			report.Issues = append(report.Issues, is)
-		case IssueAdvisory(is.Code):
+		case IssueAdvisory(is.Code) || is.Severity == SeverityWarning:
 			report.Advice = append(report.Advice, is)
 		}
 	}
 	report.RoundsLeft = max(0, StudioCheckRounds-s.checkRounds)
 	return report, etag, nil
+}
+
+// dedupeCheckIssues removes duplicate findings for the same scene and code (or exact path) when
+// both the static job lint and the browser compile report the same rule.
+func dedupeCheckIssues(list []Issue) []Issue {
+	seen := make(map[string]bool, len(list))
+	out := make([]Issue, 0, len(list))
+	for _, is := range list {
+		key := is.SceneID + "|" + is.Code + "|" + is.Path
+		if is.Code == CodeFadeBetweenWorlds || is.Code == CodeEntryMonotony {
+			key = is.SceneID + "|" + is.Code
+		}
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		out = append(out, is)
+	}
+	return out
 }
 
 // checkCompileIssues keeps the compile findings the model may see. narration_missing is dropped:

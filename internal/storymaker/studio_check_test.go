@@ -88,3 +88,108 @@ func TestStudioCheckFindsUnfilledAndEnvironmentNeverBlocks(t *testing.T) {
 		t.Fatal("an environment item held the check phase open")
 	}
 }
+
+func TestStudioPacketContinuityAndSuggestions(t *testing.T) {
+	ctx := context.Background()
+	studio, _, _ := newStudioWriteRig(t, nil)
+
+	studio.SetPhase(PhaseOutline, "")
+	outlinePacket, err := studio.Packet(ctx, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	envs, _ := outlinePacket["environments"].([]string)
+	if len(envs) == 0 {
+		t.Fatalf("outline packet lacks environments: %v", outlinePacket)
+	}
+
+	studio.SetPhase(PhaseCast, "")
+	castPacket, err := studio.Packet(ctx, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	looks, _ := castPacket["character_looks"].([]map[string]any)
+	styleOpts, _ := castPacket["style_options"].(map[string]any)
+	if len(looks) == 0 || styleOpts == nil {
+		t.Fatalf("cast packet lacks character_looks or style_options: %v", castPacket)
+	}
+
+	studio.SetPhase(PhaseFill, "s1")
+	put := studioWriteCall(t, studio, ToolStory, "put_scene",
+		`{"scene_id":"s1","data":{"environment":"env.office","speaker":"anna","narration":"Eine {1}Firewall schuetzt das Netz mit einem Schloss.","actors":[{"cast":"anna","at":"left","pose":"present","expression":"happy"}],"beats":[{"do":"show","item":"prop.lock","at":"right","entry":"pop","cue":1}]}}`)
+	if put["status"] != "ok" {
+		t.Fatalf("put_scene s1 = %v", put)
+	}
+
+	fillS1, err := studio.Packet(ctx, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	nextS2, _ := fillS1["next_scene"].(map[string]any)
+	suggested, _ := fillS1["suggested_props"].([]string)
+	if nextS2["id"] != "s2" || len(suggested) == 0 {
+		t.Fatalf("fill s1 packet next_scene=%v suggested_props=%v", nextS2, suggested)
+	}
+
+	studio.SetPhase(PhaseFill, "s2")
+	fillS2, err := studio.Packet(ctx, true) // compact mode still carries continuity
+	if err != nil {
+		t.Fatal(err)
+	}
+	prevS1, _ := fillS2["previous_scene"].(map[string]any)
+	usedEntries, _ := fillS2["used_entries"].([]string)
+	example, _ := fillS2["example"].(map[string]any)
+	if prevS1["id"] != "s1" || prevS1["speaker"] != "anna" || len(usedEntries) != 1 || usedEntries[0] != "pop" || example["speaker"] != "anna" {
+		t.Fatalf("fill s2 compact packet prev=%v entries=%v example=%v", prevS1, usedEntries, example)
+	}
+}
+
+func TestStudioCheckFindsStageOverlapMonotonyAndCompileWarnings(t *testing.T) {
+	ctx := context.Background()
+	studio, _, _ := newStudioWriteRig(t, func(context.Context, string) (CompileSummary, error) {
+		return CompileSummary{
+			Available:  true,
+			DurationMS: 8000,
+			Issues: []Issue{
+				{Severity: SeverityWarning, SceneID: "s1", Path: "/scenes/0/beats/0", Code: CodeLineUnread, Message: "Line unread."},
+			},
+		}, nil
+	})
+
+	studio.SetPhase(PhaseFill, "s1")
+	// Actor anna at "left" and show prop.lock also at "left" -> immediate spot_overlap warning on put_scene.
+	putS1 := studioWriteCall(t, studio, ToolStory, "put_scene",
+		`{"scene_id":"s1","data":{"environment":"env.office","actors":[{"cast":"anna","at":"left","pose":"present"}],"beats":[{"do":"show","item":"prop.lock","at":"left","entry":"pop"},{"do":"show","item":"prop.shield","at":"right","entry":"pop"}]}}`)
+	if putS1["status"] != "ok" {
+		t.Fatalf("put_scene s1 = %v", putS1)
+	}
+	warnings, _ := putS1["issues"].([]any)
+	if len(warnings) != 1 || warnings[0].(map[string]any)["code"] != CodeSpotOverlap {
+		t.Fatalf("put_scene s1 warnings = %v, want spot_overlap", warnings)
+	}
+
+	// Walking away before showing at "left" resolves spot_overlap in s2, while fade across environments and 3rd "pop" entry trigger advice.
+	studio.SetPhase(PhaseFill, "s2")
+	putS2 := studioWriteCall(t, studio, ToolStory, "put_scene",
+		`{"scene_id":"s2","data":{"environment":"env.server-room","transition":"fade","actors":[{"cast":"anna","at":"left","pose":"stand"}],"beats":[{"do":"walk","who":"anna","to":"right"},{"do":"show","item":"prop.shield","at":"left","entry":"pop"}]}}`)
+	if putS2["status"] != "ok" {
+		t.Fatalf("put_scene s2 = %v", putS2)
+	}
+	if s2Warn, _ := putS2["issues"].([]any); len(s2Warn) != 0 {
+		t.Fatalf("put_scene s2 warnings = %v, want none after walk", s2Warn)
+	}
+
+	report, err := studio.Check(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	seenCodes := map[string]bool{}
+	for _, adv := range report.Advice {
+		seenCodes[adv.Code] = true
+	}
+	for _, want := range []string{CodeSpotOverlap, CodeFadeBetweenWorlds, CodeEntryMonotony, CodeLineUnread} {
+		if !seenCodes[want] {
+			t.Errorf("advice = %+v, missing %q", report.Advice, want)
+		}
+	}
+}

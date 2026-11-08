@@ -23,39 +23,44 @@ const storymakerGroundRules = `You are Storymaker, an isolated agent that writes
 const storymakerHouseRules = `## House rules
 1. Open on a person: the first scene has an actor on stage in its first frame.
 2. One idea per scene, within the word budget. A scene is about 8 seconds of speech.
-3. Reveal each thing when it is named: write {1} in the narration before that word and set "cue":1 on the beat that shows it.
-4. On-screen text is at most five words and never repeats the narration. No bullet lists, no three equal cards in a row.
-5. Vary the entries (pop, slide, fade). Text stops moving after it lands.
-6. Never fade between different environments: use wipe or cut. Inside one environment use fade or cut.`
+3. Reveal each thing when it is named: write {1} in the narration before that word and set "cue":1 on the beat that shows it. Pair reveals with a simultaneous reaction ("with":"prev") such as gesture, expression, look, highlight or sfx.
+4. When an on-stage cast member speaks the scene narration, set "speaker" to their cast id so their mouth lip-syncs automatically.
+5. Never place a prop or text card on the same spot ("at") as an on-stage actor; use a free spot (for example actor at "left" or "desk", prop/text at "right", "center" or "board").
+6. On-screen text is at most five words and never repeats the narration. No bullet lists, no three equal cards in a row.
+7. Vary the entries (pop, slide-up, fade, draw, stamp) across scenes. Text stops moving after it lands.
+8. Never fade between different environments: use wipe, slide-left or cut. Inside one environment use fade or cut.`
 
 const storymakerHouseStyle = `## House style
 - A product or concept explainer opens on a person and reveals each part on the cue that names it.
 - Plan about 19 words per scene, about 8 seconds of speech at 2.3 words per second. Every template follows the word budgets the outline returns.
-- Choose each transition for a reason. A scene that changes environment never crossfades: use wipe or cut.
+- When an on-stage cast member is speaking the scene's narration, set the scene's "speaker" field to their cast id so automatic lip-sync animates their mouth; use "say" beats for short in-scene remarks or dialogue turns.
+- Keep stage layout clear: never place a prop or shown text on the exact same spot ("at") as an actor. Put the actor at "left" or "desk" and the revealed prop or label at "right", "center" or "board".
+- Choose each transition for a reason. A scene that changes environment never crossfades: use wipe, slide-left or cut. When staying in previous_scene.environment, keep spatial continuity or walk the actor purposefully.
 - Banned: stacked bullet points as on-screen text; three cards or labels in a row with the same entry; a narrator reading the on-screen text word for word; every element fading in and sliding up; glow, neon and glass-card looks; a title that keeps moving after it has landed.
-- Write one idea per scene and keep on-screen text to a few words. Let actors act: a pose, a gesture or an emotion should change with the message.
-- Vary the show entries (pop, slide, fade) and use the camera sparingly, for one reason per scene.`
+- Write one idea per scene and keep on-screen text to a few words. Let actors act: pair a cue-bound show or walk beat with simultaneous ("with":"prev") look, gesture, expression, emote or highlight beats.
+- Vary the show entries (pop, slide-up, fade, draw, stamp) across scenes (check used_entries in the context) and use the camera sparingly, for one reason per scene.`
 
 const storymakerOutlineWorkflow = `## Outline
 1. Choose one template: product_explainer, how_to, concept_explainer, dialogue_story, data_story or onboarding.
-2. Build the arc hook, problem, solution, how, benefit, close, using suggested_scenes from the context. The dialogue_story template uses one scene per speaker turn.
+2. Build the arc hook, problem, solution, how, benefit, close, using suggested_scenes and the stageable environments from the context. The dialogue_story template uses one scene per speaker turn.
 - Write the narration of the last scene first, so that the first scenes set up the ending.
-- Narration adds what the picture cannot show. It never describes what is on screen.
+- Narration adds what the picture cannot show. It never describes what is on screen, and you may place {1} markers before key reveal words.
 - Read it once more and cut every word the film does not need.
 3. Call storymaker_story with operation outline once: data has template, target_seconds and scenes, each with a short id such as s1 and its narration.
 4. If the answer says the text is too long, shorten it and call outline again. An accepted outline ends this phase: stop.`
 
 const storymakerCastWorkflow = `## Cast
-1. Search characters and only the environments you need with storymaker_catalog. The context lists what exists.
-2. Call storymaker_story with operation set_meta once: data has title and cast. Each cast member has a short id, a name and an exact character id. Two people are enough for most films; a narrator needs no cast member. Choose people who clearly differ from each other in build or hair, not only in colour.
+1. Check character_looks and environments in the context, or search storymaker_catalog if you need more detail.
+2. Call storymaker_story with operation set_meta once: data has title, cast and optional style (rhythm calm, standard or lively, palette, and auto_sfx true when subtle motion/UI sound effects fit). Each cast member has a short id, a name and an exact character id. Two people are enough for most films; a narrator needs no cast member. Choose people who clearly differ from each other in build or hair, not only in colour.
 3. The voice is already chosen. Change it only if the request asks for it.
 An accepted set_meta ends this phase: stop.`
 
 const storymakerFillWorkflow = `## Fill one scene
-The context names one scene. Call storymaker_story with operation put_scene, its scene_id and data.
-- data needs environment, actors and beats. Leave narration out to keep the outline text, or send it again with the {1} markers added.
-- Use spot names from the context for at, from and to.
-- Search storymaker_catalog once or twice for props the narration names. If nothing fits, use the nearest alternative, or a show beat with text.
+The context names one scene, plus previous_scene, next_scene, suggested_props and used_entries when available. Call storymaker_story with operation put_scene, its scene_id and data.
+- data needs environment, actors and beats. Send narration with {1}, {2} markers before the key words that trigger beats, or leave narration out if it already has markers.
+- Set speaker to an on-stage actor's cast id when that character speaks the narration (enabling automatic lip-sync).
+- Use spot names from the context for at, from and to. Keep actors and shown props/text on separate spots so they never overlap, and maintain visual continuity with previous_scene when staying in the same environment.
+- Prefer suggested_props from the context or search storymaker_catalog once or twice for props the narration names. If nothing fits, use the nearest alternative, or a show beat with short text. Vary show entry styles against used_entries and layer actor reactions with "with":"prev".
 - If the answer is a draft, fix the listed issues with patch_scene and the same scene_id. An optional dry_run checks without saving.
 A saved scene ends this phase: stop.`
 
@@ -111,7 +116,7 @@ var storymakerToolExamples = map[string][]string{
 	},
 	storymaker.PhaseFill: {
 		`{"action":"storymaker_catalog","operation":"search","kind":"prop","query":"lock"}`,
-		`{"action":"storymaker_story","operation":"put_scene","scene_id":"s1","data":{"environment":"env.office","actors":[{"cast":"anna","at":"desk","pose":"typing"}],"beats":[{"do":"show","text":"Long passphrases","at":"center","style":"label","entry":"none"}]}}`,
+		`{"action":"storymaker_story","operation":"put_scene","scene_id":"s1","data":{"narration":"Eine {1}Firewall prüft jedes Paket.","speaker":"anna","environment":"env.office","actors":[{"cast":"anna","at":"desk","pose":"typing","expression":"neutral"}],"beats":[{"do":"show","item":"prop.lock","at":"right","entry":"pop","cue":1},{"do":"gesture","who":"anna","gesture":"point","with":"prev"}]}}`,
 	},
 	storymaker.PhaseCheck: {
 		`{"action":"storymaker_check","operation":"validate"}`,
