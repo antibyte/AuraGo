@@ -292,5 +292,15 @@
   "config.vision.mirage_running": "Mirage běží",
   "config.vision.mirage_starting": "Mirage se spouští (model se načítá při prvním spuštění)",
   "config.vision.mirage_unavailable": "Sidecar Mirage není dostupný",
-  "config.whisper.provider_label": "Poskytovatel převodu řeči na text"
+  "config.whisper.provider_label": "Poskytovatel převodu řeči na text",
+  "config.vision.mirage.enabled_label": "Zapnout Mirage",
+  "config.vision.mirage.mode_label": "Režim analýzy",
+  "config.vision.mirage.container_name_label": "Název kontejneru",
+  "config.vision.mirage.container_port_label": "Místní port",
+  "config.vision.mirage.image_label": "Základní obraz",
+  "config.vision.mirage.data_path_label": "Adresář mezipaměti modelu",
+  "config.vision.mirage.gpu_label": "Akcelerace GPU",
+  "config.vision.mirage.max_objects_label": "Maximum objektů",
+  "config.vision.mirage.max_text_lines_label": "Maximum řádků textu",
+  "config.vision.mirage.language_label": "Jazyk rozpoznávání"
 }

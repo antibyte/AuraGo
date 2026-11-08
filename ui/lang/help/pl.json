@@ -549,5 +549,15 @@
   "help.sqlite.mission_history_path": "Plik SQLite historii uruchomień misji. Domyślnie: ./data/mission_history.db. Przed zmianą ścieżki najpierw przenieś plik; zmiana działa po restarcie.",
   "help.sqlite.push_path": "Plik SQLite subskrypcji powiadomień push. Domyślnie: ./data/push.db. Przed zmianą ścieżki najpierw przenieś plik; zmiana działa po restarcie.",
   "help.sqlite.launchpad_path": "Plik SQLite skrótów launchpada. Domyślnie: ./data/launchpad.db. Przed zmianą ścieżki najpierw przenieś plik; zmiana działa po restarcie.",
-  "help.sqlite.network_shares_path": "Plik SQLite udziałów sieciowych. Domyślnie: ./data/network_shares.db. Przed zmianą ścieżki najpierw przenieś plik; zmiana działa po restarcie."
+  "help.sqlite.network_shares_path": "Plik SQLite udziałów sieciowych. Domyślnie: ./data/network_shares.db. Przed zmianą ścieżki najpierw przenieś plik; zmiana działa po restarcie.",
+  "help.vision.mirage.enabled": "Włącza lokalną analizę obrazów z Mirage. Używane tylko bez wybranego dostawcy Vision.",
+  "help.vision.mirage.mode": "fallback: tylko gdy model główny nie odczytuje obrazów; always: zawsze, gdy nie wybrano dostawcy Vision.",
+  "help.vision.mirage.container_name": "Nazwa kontenera Docker zarządzanego przez AuraGo.",
+  "help.vision.mirage.container_port": "Lokalny port hosta dla usługi pomocniczej; domyślnie: 8791.",
+  "help.vision.mirage.image": "Bazowy obraz Pythona do budowy usługi pomocniczej; domyślnie: python:3.12-slim.",
+  "help.vision.mirage.data_path": "Lokalny katalog zapisanych wag modelu; domyślnie: data/mirage.",
+  "help.vision.mirage.gpu": "Akceleracja: auto, none, nvidia, amd, intel lub vulkan.",
+  "help.vision.mirage.max_objects": "Maksymalna liczba rozpoznanych obiektów na obraz; domyślnie: 20.",
+  "help.vision.mirage.max_text_lines": "Maksymalna liczba rozpoznanych wierszy tekstu na obraz; domyślnie: 30.",
+  "help.vision.mirage.language": "Język rozpoznawania. Pozostaw puste, aby użyć domyślnego języka silnika."
 }

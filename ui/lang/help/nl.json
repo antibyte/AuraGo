@@ -549,5 +549,15 @@
   "help.sqlite.mission_history_path": "SQLite-bestand voor de uitvoeringsgeschiedenis van missies. Standaard: ./data/mission_history.db. Verplaats het bestand eerst voordat je het pad wijzigt; wordt actief na een herstart.",
   "help.sqlite.push_path": "SQLite-bestand voor de abonnementen op pushmeldingen. Standaard: ./data/push.db. Verplaats het bestand eerst voordat je het pad wijzigt; wordt actief na een herstart.",
   "help.sqlite.launchpad_path": "SQLite-bestand voor de launchpad-snelkoppelingen. Standaard: ./data/launchpad.db. Verplaats het bestand eerst voordat je het pad wijzigt; wordt actief na een herstart.",
-  "help.sqlite.network_shares_path": "SQLite-bestand voor de netwerkshares. Standaard: ./data/network_shares.db. Verplaats het bestand eerst voordat je het pad wijzigt; wordt actief na een herstart."
+  "help.sqlite.network_shares_path": "SQLite-bestand voor de netwerkshares. Standaard: ./data/network_shares.db. Verplaats het bestand eerst voordat je het pad wijzigt; wordt actief na een herstart.",
+  "help.vision.mirage.enabled": "Schakel lokale beeldanalyse met Mirage in. Wordt alleen gebruikt als er geen Vision-provider is geselecteerd.",
+  "help.vision.mirage.mode": "fallback: alleen als het hoofdmodel geen afbeeldingen kan lezen; always: zodra er geen Vision-provider is geselecteerd.",
+  "help.vision.mirage.container_name": "Naam van de Docker-container die AuraGo beheert.",
+  "help.vision.mirage.container_port": "Lokale hostpoort voor de hulpdienst; standaard: 8791.",
+  "help.vision.mirage.image": "Python-basisimage om de hulpdienst te bouwen; standaard: python:3.12-slim.",
+  "help.vision.mirage.data_path": "Lokale map voor gecachte modelgewichten; standaard: data/mirage.",
+  "help.vision.mirage.gpu": "Versnelling: auto, none, nvidia, amd, intel of vulkan.",
+  "help.vision.mirage.max_objects": "Maximumaantal herkende objecten per afbeelding; standaard: 20.",
+  "help.vision.mirage.max_text_lines": "Maximumaantal herkende tekstregels per afbeelding; standaard: 30.",
+  "help.vision.mirage.language": "Taal voor herkenning. Laat leeg om de standaard van de engine te gebruiken."
 }

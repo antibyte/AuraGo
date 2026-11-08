@@ -292,5 +292,15 @@
   "config.vision.mirage_running": "Mirage está en funcionamiento",
   "config.vision.mirage_starting": "Mirage se está iniciando (el modelo se carga en el primer inicio)",
   "config.vision.mirage_unavailable": "No se puede acceder al sidecar de Mirage",
-  "config.whisper.provider_label": "Proveedor de voz a texto"
+  "config.whisper.provider_label": "Proveedor de voz a texto",
+  "config.vision.mirage.enabled_label": "Activar Mirage",
+  "config.vision.mirage.mode_label": "Modo de análisis",
+  "config.vision.mirage.container_name_label": "Nombre del contenedor",
+  "config.vision.mirage.container_port_label": "Puerto local",
+  "config.vision.mirage.image_label": "Imagen base",
+  "config.vision.mirage.data_path_label": "Directorio de caché del modelo",
+  "config.vision.mirage.gpu_label": "Aceleración GPU",
+  "config.vision.mirage.max_objects_label": "Máximo de objetos",
+  "config.vision.mirage.max_text_lines_label": "Máximo de líneas de texto",
+  "config.vision.mirage.language_label": "Idioma de reconocimiento"
 }

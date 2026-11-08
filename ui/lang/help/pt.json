@@ -549,5 +549,15 @@
   "help.sqlite.mission_history_path": "Arquivo SQLite do histórico de execuções de missões. Padrão: ./data/mission_history.db. Mova o arquivo antes de alterar o caminho; entra em vigor após reiniciar.",
   "help.sqlite.push_path": "Arquivo SQLite das assinaturas de notificações push. Padrão: ./data/push.db. Mova o arquivo antes de alterar o caminho; entra em vigor após reiniciar.",
   "help.sqlite.launchpad_path": "Arquivo SQLite dos atalhos do Launchpad. Padrão: ./data/launchpad.db. Mova o arquivo antes de alterar o caminho; entra em vigor após reiniciar.",
-  "help.sqlite.network_shares_path": "Arquivo SQLite dos compartilhamentos de rede. Padrão: ./data/network_shares.db. Mova o arquivo antes de alterar o caminho; entra em vigor após reiniciar."
+  "help.sqlite.network_shares_path": "Arquivo SQLite dos compartilhamentos de rede. Padrão: ./data/network_shares.db. Mova o arquivo antes de alterar o caminho; entra em vigor após reiniciar.",
+  "help.vision.mirage.enabled": "Ativa a análise local de imagens com Mirage. Usada apenas quando não está selecionado um fornecedor Vision.",
+  "help.vision.mirage.mode": "fallback: apenas se o modelo principal não conseguir ler imagens; always: sempre que não estiver selecionado um fornecedor Vision.",
+  "help.vision.mirage.container_name": "Nome do contentor Docker gerido pelo AuraGo.",
+  "help.vision.mirage.container_port": "Porta local do anfitrião para o serviço auxiliar; predefinição: 8791.",
+  "help.vision.mirage.image": "Imagem base Python para construir o serviço auxiliar; predefinição: python:3.12-slim.",
+  "help.vision.mirage.data_path": "Diretório local de pesos do modelo em cache; predefinição: data/mirage.",
+  "help.vision.mirage.gpu": "Aceleração: auto, none, nvidia, amd, intel ou vulkan.",
+  "help.vision.mirage.max_objects": "Máximo de objetos reconhecidos por imagem; predefinição: 20.",
+  "help.vision.mirage.max_text_lines": "Máximo de linhas de texto reconhecidas por imagem; predefinição: 30.",
+  "help.vision.mirage.language": "Idioma de reconhecimento. Deixa vazio para usar o idioma predefinido do motor."
 }

@@ -549,5 +549,15 @@
   "help.tools.network_ping.enabled": "Activa la herramienta ping para que el agente pueda comprobar si responden los hosts de la red.",
   "help.tools.pdf_extractor.summary_provider": "Proveedor heredado para el resumen de texto. Se prefiere el LLM auxiliar central (sección LLM) cuando está activado.",
   "help.tools.web_capture.enabled": "Activa la captura web: el agente puede abrir una página web en un navegador headless y guardar una captura de pantalla o un PDF. Las direcciones privadas e internas están bloqueadas.",
-  "help.tools.wikipedia.summary_provider": "Proveedor heredado para el resumen del artículo. Se prefiere el LLM auxiliar central (sección LLM) cuando está activado."
+  "help.tools.wikipedia.summary_provider": "Proveedor heredado para el resumen del artículo. Se prefiere el LLM auxiliar central (sección LLM) cuando está activado.",
+  "help.vision.mirage.enabled": "Activa el análisis local de imágenes con Mirage. Solo se usa si no hay un proveedor Vision seleccionado.",
+  "help.vision.mirage.mode": "fallback: solo si el modelo principal no puede leer imágenes; always: siempre que no haya un proveedor Vision seleccionado.",
+  "help.vision.mirage.container_name": "Nombre del contenedor Docker gestionado por AuraGo.",
+  "help.vision.mirage.container_port": "Puerto local del equipo para el servicio auxiliar; predeterminado: 8791.",
+  "help.vision.mirage.image": "Imagen base de Python para construir el servicio auxiliar; predeterminada: python:3.12-slim.",
+  "help.vision.mirage.data_path": "Directorio local de pesos del modelo en caché; predeterminado: data/mirage.",
+  "help.vision.mirage.gpu": "Aceleración: auto, none, nvidia, amd, intel o vulkan.",
+  "help.vision.mirage.max_objects": "Máximo de objetos reconocidos por imagen; predeterminado: 20.",
+  "help.vision.mirage.max_text_lines": "Máximo de líneas de texto reconocidas por imagen; predeterminado: 30.",
+  "help.vision.mirage.language": "Idioma de reconocimiento. Déjalo vacío para usar el predeterminado del motor."
 }

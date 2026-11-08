@@ -292,5 +292,15 @@
   "config.sqlite.mission_history_path_label": "मिशन इतिहास डेटाबेस",
   "config.sqlite.push_path_label": "पुश नोटिफ़िकेशन डेटाबेस",
   "config.sqlite.launchpad_path_label": "Launchpad डेटाबेस",
-  "config.sqlite.network_shares_path_label": "नेटवर्क शेयर डेटाबेस"
+  "config.sqlite.network_shares_path_label": "नेटवर्क शेयर डेटाबेस",
+  "config.vision.mirage.enabled_label": "Mirage चालू करें",
+  "config.vision.mirage.mode_label": "विश्लेषण मोड",
+  "config.vision.mirage.container_name_label": "कंटेनर का नाम",
+  "config.vision.mirage.container_port_label": "स्थानीय पोर्ट",
+  "config.vision.mirage.image_label": "आधार इमेज",
+  "config.vision.mirage.data_path_label": "मॉडल कैश फ़ोल्डर",
+  "config.vision.mirage.gpu_label": "GPU त्वरण",
+  "config.vision.mirage.max_objects_label": "अधिकतम वस्तुएँ",
+  "config.vision.mirage.max_text_lines_label": "अधिकतम पाठ पंक्तियाँ",
+  "config.vision.mirage.language_label": "पहचान की भाषा"
 }

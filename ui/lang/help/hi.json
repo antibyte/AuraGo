@@ -549,5 +549,15 @@
   "help.sqlite.mission_history_path": "मिशन रन इतिहास की SQLite फ़ाइल। डिफ़ॉल्ट: ./data/mission_history.db। पथ बदलने से पहले फ़ाइल को स्थानांतरित करें; पुनः आरंभ के बाद लागू होता है।",
   "help.sqlite.push_path": "पुश नोटिफ़िकेशन सदस्यताओं की SQLite फ़ाइल। डिफ़ॉल्ट: ./data/push.db। पथ बदलने से पहले फ़ाइल को स्थानांतरित करें; पुनः आरंभ के बाद लागू होता है।",
   "help.sqlite.launchpad_path": "लॉन्चपैड शॉर्टकट की SQLite फ़ाइल। डिफ़ॉल्ट: ./data/launchpad.db। पथ बदलने से पहले फ़ाइल को स्थानांतरित करें; पुनः आरंभ के बाद लागू होता है।",
-  "help.sqlite.network_shares_path": "नेटवर्क शेयर की SQLite फ़ाइल। डिफ़ॉल्ट: ./data/network_shares.db। पथ बदलने से पहले फ़ाइल को स्थानांतरित करें; पुनः आरंभ के बाद लागू होता है।"
+  "help.sqlite.network_shares_path": "नेटवर्क शेयर की SQLite फ़ाइल। डिफ़ॉल्ट: ./data/network_shares.db। पथ बदलने से पहले फ़ाइल को स्थानांतरित करें; पुनः आरंभ के बाद लागू होता है।",
+  "help.vision.mirage.enabled": "Mirage से स्थानीय चित्र विश्लेषण चालू करें। इसका उपयोग केवल तब होता है जब कोई Vision प्रदाता नहीं चुना गया हो।",
+  "help.vision.mirage.mode": "fallback: केवल जब मुख्य मॉडल चित्र न पढ़ सके; always: जब भी कोई Vision प्रदाता नहीं चुना गया हो।",
+  "help.vision.mirage.container_name": "AuraGo द्वारा प्रबंधित Docker कंटेनर का नाम।",
+  "help.vision.mirage.container_port": "सहायक सेवा के लिए स्थानीय होस्ट पोर्ट; डिफ़ॉल्ट: 8791।",
+  "help.vision.mirage.image": "सहायक सेवा बनाने के लिए Python आधार इमेज; डिफ़ॉल्ट: python:3.12-slim।",
+  "help.vision.mirage.data_path": "कैश किए गए मॉडल भार का स्थानीय फ़ोल्डर; डिफ़ॉल्ट: data/mirage।",
+  "help.vision.mirage.gpu": "त्वरण: auto, none, nvidia, amd, intel या vulkan।",
+  "help.vision.mirage.max_objects": "हर चित्र में पहचानी जाने वाली अधिकतम वस्तुएँ; डिफ़ॉल्ट: 20।",
+  "help.vision.mirage.max_text_lines": "हर चित्र में पहचानी जाने वाली अधिकतम पाठ पंक्तियाँ; डिफ़ॉल्ट: 30।",
+  "help.vision.mirage.language": "पहचान की भाषा। इंजन की डिफ़ॉल्ट भाषा के लिए खाली छोड़ें।"
 }

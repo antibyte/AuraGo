@@ -292,5 +292,15 @@
   "config.sqlite.mission_history_path_label": "Mission history database",
   "config.sqlite.push_path_label": "Push notifications database",
   "config.sqlite.launchpad_path_label": "Launchpad database",
-  "config.sqlite.network_shares_path_label": "Network shares database"
+  "config.sqlite.network_shares_path_label": "Network shares database",
+  "config.vision.mirage.enabled_label": "Enable Mirage",
+  "config.vision.mirage.mode_label": "Analysis mode",
+  "config.vision.mirage.container_name_label": "Container name",
+  "config.vision.mirage.container_port_label": "Local port",
+  "config.vision.mirage.image_label": "Base image",
+  "config.vision.mirage.data_path_label": "Model cache directory",
+  "config.vision.mirage.gpu_label": "GPU acceleration",
+  "config.vision.mirage.max_objects_label": "Maximum objects",
+  "config.vision.mirage.max_text_lines_label": "Maximum text lines",
+  "config.vision.mirage.language_label": "Recognition language"
 }

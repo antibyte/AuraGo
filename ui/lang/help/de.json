@@ -549,5 +549,15 @@
   "help.sqlite.mission_history_path": "SQLite-Datei für den Verlauf der Missionsläufe. Standard: ./data/mission_history.db. Datei vor einer Pfadänderung erst verschieben; wirkt nach einem Neustart.",
   "help.sqlite.push_path": "SQLite-Datei für die Push-Abonnements. Standard: ./data/push.db. Datei vor einer Pfadänderung erst verschieben; wirkt nach einem Neustart.",
   "help.sqlite.launchpad_path": "SQLite-Datei für die Launchpad-Verknüpfungen. Standard: ./data/launchpad.db. Datei vor einer Pfadänderung erst verschieben; wirkt nach einem Neustart.",
-  "help.sqlite.network_shares_path": "SQLite-Datei für die Netzwerkfreigaben. Standard: ./data/network_shares.db. Datei vor einer Pfadänderung erst verschieben; wirkt nach einem Neustart."
+  "help.sqlite.network_shares_path": "SQLite-Datei für die Netzwerkfreigaben. Standard: ./data/network_shares.db. Datei vor einer Pfadänderung erst verschieben; wirkt nach einem Neustart.",
+  "help.vision.mirage.enabled": "Aktiviert die lokale Bildanalyse mit Mirage. Wird nur ohne ausgewählten Vision-Anbieter verwendet.",
+  "help.vision.mirage.mode": "fallback: nur wenn das Hauptmodell keine Bilder lesen kann; always: immer ohne ausgewählten Vision-Anbieter.",
+  "help.vision.mirage.container_name": "Name des von AuraGo verwalteten Docker-Containers.",
+  "help.vision.mirage.container_port": "Lokaler Host-Port des Sidecars; Standard: 8791.",
+  "help.vision.mirage.image": "Python-Basis-Image für den Sidecar-Build; Standard: python:3.12-slim.",
+  "help.vision.mirage.data_path": "Lokales Verzeichnis für zwischengespeicherte Modellgewichte; Standard: data/mirage.",
+  "help.vision.mirage.gpu": "Beschleunigung: auto, none, nvidia, amd, intel oder vulkan.",
+  "help.vision.mirage.max_objects": "Maximale Anzahl erkannter Objekte pro Bild; Standard: 20.",
+  "help.vision.mirage.max_text_lines": "Maximale Anzahl erkannter Textzeilen pro Bild; Standard: 30.",
+  "help.vision.mirage.language": "Sprache der Erkennung. Leer lassen, um den Standard der Engine zu verwenden."
 }
