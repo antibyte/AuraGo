@@ -252,8 +252,11 @@ func TestDesktopLeafyRuntimeBrowser(t *testing.T) {
 	}
 	page.MustEval(`()=>{if(document.querySelector('.vd-modal-backdrop'))throw Error('Opening care passed the touch click into a panel action');}`)
 	page.Timeout(10 * time.Second).MustElement(".vd-leafy-panel [data-action='close']").MustClick()
-	page.Touch.MustStart(&proto.InputTouchPoint{X: touchPot.Get("x").Num(), Y: touchPot.Get("y").Num()}).MustMove(&proto.InputTouchPoint{X: touchPot.Get("x").Num() - 40, Y: touchPot.Get("y").Num() - 20}).MustCancel()
-	page.MustEval(`()=>{if(document.querySelector('.vd-leafy-dragging')||document.querySelector('.vd-leafy-canvas').style.transform)throw Error('Cancelled touch left a drag active')}`)
+	touchPot = page.MustEval(`()=>{const r=document.querySelector('.vd-leafy-pot').getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2}}`)
+	page.Touch.MustStart(&proto.InputTouchPoint{X: touchPot.Get("x").Num(), Y: touchPot.Get("y").Num()}).MustMove(&proto.InputTouchPoint{X: touchPot.Get("x").Num() - 40, Y: touchPot.Get("y").Num() - 20})
+	page.Timeout(5 * time.Second).MustWait(`()=>!!document.querySelector('.vd-leafy-dragging')`)
+	page.Touch.MustCancel()
+	page.Timeout(5 * time.Second).MustWait(`()=>!document.querySelector('.vd-leafy-dragging')&&!document.querySelector('.vd-leafy-canvas').style.transform`)
 	page.MustSetViewport(1920, 1080, 1, false)
 	if err := (proto.EmulationSetTouchEmulationEnabled{Enabled: false}).Call(page); err != nil {
 		t.Fatal(err)
@@ -264,7 +267,7 @@ func TestDesktopLeafyRuntimeBrowser(t *testing.T) {
 	if err := (proto.EmulationSetEmulatedMedia{Features: []*proto.EmulationMediaFeature{{Name: "prefers-reduced-motion", Value: "reduce"}}}).Call(page); err != nil {
 		t.Fatal(err)
 	}
-	page.MustEval(`async()=>{const original=window.setTimeout;window.setTimeout=(fn,delay,...args)=>original(fn,delay===22000?10:delay,...args);document.body.dataset.animations='true';await new Promise(r=>original(r,80));const count=AuraLeafy.active.metrics().frames;await new Promise(r=>original(r,250));if(AuraLeafy.active.metrics().frames!==count)throw Error('Reduced motion drew breeze frames');document.body.dataset.animations='false';window.setTimeout=original;}`)
+	page.MustEval(`async()=>{await new Promise(requestAnimationFrame);await new Promise(requestAnimationFrame);const original=window.setTimeout;window.setTimeout=(fn,delay,...args)=>original(fn,delay===22000?10:delay,...args);document.body.dataset.animations='true';await new Promise(r=>original(r,80));const count=AuraLeafy.active.metrics().frames;await new Promise(r=>original(r,250));if(AuraLeafy.active.metrics().frames!==count)throw Error('Reduced motion drew breeze frames');document.body.dataset.animations='false';window.setTimeout=original;}`)
 	if err := (proto.EmulationSetEmulatedMedia{Features: []*proto.EmulationMediaFeature{{Name: "prefers-reduced-motion", Value: "no-preference"}}}).Call(page); err != nil {
 		t.Fatal(err)
 	}
@@ -276,12 +279,35 @@ func TestDesktopLeafyRuntimeBrowser(t *testing.T) {
 	page.MustEval(`()=>{if(document.querySelector('.vd-leafy-canvas').style.transform)throw Error('Drag left a canvas offset');if(AuraLeafy.active.layout.root.x<preDragRoot.x+40)throw Error('Grip did not move plant');}`)
 	page.MustSetViewport(1366, 768, 2, false)
 	page.MustEval(`()=>{fixtureTheme('fruity-dark');aurora.state.bootstrap.settings['appearance.density']='compact';aurora.applyDesktopSettings();}`)
-	page.MustEval(`async()=>{await new Promise(r=>setTimeout(r,300))}`)
+	page.Timeout(10 * time.Second).MustEval(`async()=>{
+        await document.fonts.ready;
+        window.leafySettle=()=>new Promise(resolve=>{
+            let previous='',stableSince=0;
+            function sample(now){
+                const next=JSON.stringify([AuraLeafy.active.metrics().frames,document.querySelector('.vd-leafy-canvas').getBoundingClientRect()]);
+                if(next!==previous){previous=next;stableSince=now;}
+                // The runtime's resize debounce is 120 ms.
+                if(now-stableSince>=150)resolve();else requestAnimationFrame(sample);
+            }
+            requestAnimationFrame(sample);
+        });
+        await leafySettle();
+    }`)
 	page.MustScreenshot(filepath.Join(dir, "desktop-dpr2.png"))
 	page.MustEval(`()=>{if(document.querySelector('.vd-leafy-panel').hidden)document.querySelector('.vd-leafy-shell').click();}`)
 	page.MustEval(`()=>{
         document.body.dataset.animations='true';
-        window.leafyCutPoint=()=>{const c=document.querySelector('.vd-leafy-canvas'),r=c.getBoundingClientRect();for(const b of AuraLeafy.active.layout.branches)for(let i=2;i<b.points.length;i++){const a=b.points[i-1],p=b.points[i],x=r.x+(a.x+p.x)/2,y=r.bottom-(a.y+p.y)/2;if(x>10&&x<innerWidth-10&&y>50&&y<innerHeight-80&&document.elementFromPoint(x,y)===c)return{x,y};}throw Error('No reachable stem');};
+        window.leafyCutPoint=()=>{
+            const c=document.querySelector('.vd-leafy-canvas'),r=c.getBoundingClientRect();
+            const controls=[...document.querySelectorAll('.vd-leafy-pot,.vd-leafy-move,.vd-leafy-panel')].map(e=>e.getBoundingClientRect()).filter(r=>r.width&&r.height);
+            for(const b of AuraLeafy.active.layout.branches)for(let i=2;i<b.points.length;i++){
+                const a=b.points[i-1],p=b.points[i],x=r.x+(a.x+p.x)/2,y=r.bottom-(a.y+p.y)/2;
+                // Native touch adjustment must not choose a nearby care or drag button.
+                const nearControl=controls.some(r=>x>=r.left-24&&x<=r.right+24&&y>=r.top-24&&y<=r.bottom+24);
+                if(x>10&&x<innerWidth-10&&y>50&&y<innerHeight-80&&document.elementFromPoint(x,y)===c&&!nearControl)return{x,y};
+            }
+            throw Error('No reachable stem outside touch adjustment');
+        };
         window.leafyFetch=window.fetch;window.leafyActionRequests=[];window.leafyHoldCut=true;
         window.fetch=async(url,options)=>{
             if(String(url)==='/api/desktop/plant/actions'){
@@ -313,7 +339,9 @@ func TestDesktopLeafyRuntimeBrowser(t *testing.T) {
         window.leafyBeforeCut=AuraLeafy.active.layout.branches.map(b=>({id:b.id,nodes:b.points.length,parent:b.parent,attach:b.attach}));
         window.leafyHoldCut=false;leafyReleaseCut();
     }`)
-	page.Timeout(10 * time.Second).MustWait(`()=>!!document.querySelector('.vd-leafy-cutting-fall')`)
+	if err := page.Timeout(10 * time.Second).Wait(rod.Eval(`()=>!!document.querySelector('.vd-leafy-cutting-fall')`)); err != nil {
+		t.Fatalf("cutting absent: %s", page.MustEval(`()=>JSON.stringify({metrics:AuraLeafy.active.metrics(),requests:leafyActionRequests,status:document.querySelector('.vd-leafy-status').textContent,motion:matchMedia('(prefers-reduced-motion: reduce)').matches,hidden:document.hidden,errors:[...bootErrors,...fixtureErrors]})`).Str())
+	}
 	page.MustEval(`()=>{
         const action=leafyActionRequests[0],b=AuraLeafy.active.layout.branches.find(b=>b.id===action.branch);
         if(!b||b.points.length!==action.node||!document.querySelector('[data-action="undo_prune"]'))throw Error('Direct click did not commit the pointed cut');
@@ -363,15 +391,17 @@ func TestDesktopLeafyRuntimeBrowser(t *testing.T) {
 	page.MustScreenshot(filepath.Join(dir, "desktop-fallback.png"))
 	page.MustEval(`async()=>{const rev=AuraLeafy.active.metrics().revision;document.querySelector('[data-action="water"]').click();for(let i=0;i<50&&AuraLeafy.active.metrics().revision===rev;i++)await new Promise(r=>setTimeout(r,20));if(AuraLeafy.active.metrics().revision!==rev+1)throw Error('Fallback care failed');}`)
 	page.MustEval(`()=>{document.body.dataset.animations='true';document.querySelector('[data-action="scissors"]').click();}`)
-	point = page.MustEval(`()=>leafyCutPoint()`)
 	if err := (proto.EmulationSetTouchEmulationEnabled{Enabled: true}).Call(page); err != nil {
 		t.Fatal(err)
 	}
+	point = page.Timeout(10 * time.Second).MustEval(`async()=>{await leafySettle();return window.leafyTouchPoint=leafyCutPoint();}`)
 	page.Touch.MustTap(point.Get("x").Num(), point.Get("y").Num())
-	page.Timeout(10 * time.Second).MustWait(`()=>!!document.querySelector('.vd-leafy-cutting-fall')`)
+	if err := page.Timeout(10 * time.Second).Wait(rod.Eval(`()=>!!document.querySelector('.vd-leafy-cutting-fall')`)); err != nil {
+		t.Fatalf("touch cutting absent: %s", page.MustEval(`()=>JSON.stringify({metrics:AuraLeafy.active.metrics(),point:leafyTouchPoint,canvas:document.querySelector('.vd-leafy-canvas').getBoundingClientRect(),requests:leafyActionRequests,status:document.querySelector('.vd-leafy-status').textContent,errors:[...bootErrors,...fixtureErrors]})`).Str())
+	}
 	page.MustEval(`()=>{if(!document.querySelector('.vd-leafy-scissors-cursor').hidden)throw Error('Touch left a floating mouse cursor');leafyFall.currentTime=500;}`)
 	page.MustScreenshot(filepath.Join(dir, "desktop-fallback-cut.png"))
-	undo := page.MustElement("[data-action='undo_prune']").MustShape().Box()
+	undo := page.MustElement("[data-action='undo_prune']").MustScrollIntoView().MustShape().Box()
 	page.Touch.MustTap(undo.X+undo.Width/2, undo.Y+undo.Height/2)
 	page.Timeout(10 * time.Second).MustWait(`()=>!document.querySelector('[data-action="undo_prune"]')&&!document.querySelector('.vd-leafy-cutting-fall')`)
 	if err := (proto.EmulationSetTouchEmulationEnabled{Enabled: false}).Call(page); err != nil {

@@ -127,8 +127,11 @@ jobs:
           - name: General
             run: '.'
             skip: '^TestConfigRefresh(Populated|RealSections)Browser$|^TestDesktop'
-          - name: Desktop A-G
-            run: '^TestDesktop[A-G]'
+          - name: Desktop A-D
+            run: '^TestDesktop[A-D]'
+            skip: '^$'
+          - name: Desktop E-G
+            run: '^TestDesktop[E-G]'
             skip: '^$'
           - name: Desktop H-R
             run: '^TestDesktop[H-R]'
@@ -176,7 +179,7 @@ jobs:
           "$browser" --version
           echo "CHROME_BIN=$browser" >> "$GITHUB_ENV"
       - name: Run UI browser tests
-        run: go test ./ui -p 1 -count=1 -timeout=30m -run '${{ matrix.run }}' -skip '${{ matrix.skip }}'
+        run: go test ./ui -v -p 1 -count=1 -timeout=30m -run '${{ matrix.run }}' -skip '${{ matrix.skip }}'
 
   go-race:
     name: Go race tests

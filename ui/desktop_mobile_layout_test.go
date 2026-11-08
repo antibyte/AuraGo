@@ -156,7 +156,7 @@ func TestVirtualDesktopMobileWorkspaceCanScrollHorizontally(t *testing.T) {
 		"overflow-y: auto;",
 		"-webkit-overflow-scrolling: touch;",
 		"touch-action: pan-x pan-y;",
-		".vd-window.vd-mobile-wide-window > .vd-window-content > *",
+		".vd-window.vd-mobile-wide-window > .vd-window-content > :not(dialog)",
 		"min-width: var(--vd-mobile-workspace-width);",
 		".vd-window.maximized",
 		"width: 100vw !important;",

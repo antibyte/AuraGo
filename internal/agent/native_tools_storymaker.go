@@ -90,7 +90,7 @@ func storymakerStoryTool(phase string, compact bool, names StorymakerNames) open
 		properties["op"] = storymakerEnum("put_scene", "patch_scene")
 	}
 	return tool(storymaker.ToolStory,
-		"Read and change this job's storyboard. Put the payload in data. Positions are a spot name or x,y in 0..100.",
+		"Job storyboard via data; positions: spot or x,y 0..100.",
 		schema(properties, "operation"))
 }
 

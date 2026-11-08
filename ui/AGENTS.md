@@ -560,7 +560,12 @@ New app-scoped prefixes must contain no `ad` substring; verify
   capture phase, including when the new panel lies under the finger. Keyboard
   activation and subsequent independent touch gestures remain available.
   Browser remount checks await the first loaded server revision before checking
-  that biology is unchanged; initial pending state is not a reset.
+  that biology is unchanged; initial pending state is not a reset. Motion checks
+  await native rendering after media changes; pruning checks wait for theme/DPR
+  geometry to settle past the 120ms resize debounce. Native cut targets stay
+  outside a 24px halo around pot/grip controls so Chrome touch adjustment
+  cannot redirect the tap into care. Scroll panel controls into view before
+  computing native touch coordinates.
   Keep desktop selection out of these gestures, persist the local anchor on
   release, and clear drag capture/offsets on cancellation, blur and disposal.
   Pruning uses a 64px scissors cursor and a direct primary click/tap on a stem.
@@ -1239,6 +1244,8 @@ New app-scoped prefixes must contain no `ad` substring; verify
   hover-capable pointer hardware; touch layouts intentionally hide its arrows.
 - Infra menu browser journeys await the native dialog `close` event before
   opening another popover, so pending focus restoration cannot steal its keys.
+- Synth Studio library clicks await the sidebar's rendered viewport bounds, not
+  visibility alone during its slide-in transition.
 - Artifact upload fixtures consume the complete request body even when capture
   is disabled; an early response can abort a large browser upload.
 - Maximized-window resize checks await converged rendered and inline bounds after viewport
@@ -1252,7 +1259,7 @@ New app-scoped prefixes must contain no `ad` substring; verify
   not stale its velocity samples. Scene, coverage and quality assertions retain quality 1.
 - Browser contracts (Chrome or Edge):
   `$env:AURAGO_RUN_BROWSER_SMOKE='1'; $env:AURAGO_BROWSER_ARTIFACT_DIR='../disposable/browser-artifacts'; go test -count=1 ./ui/... -run 'Precision.*Browser|Config.*Browser'`.
-- Browser discovery honors `CHROME_BIN`, then PATH and standard Windows/macOS locations. An explicit override must be executable; it never silently falls back. With `AURAGO_RUN_BROWSER_SMOKE=1`, missing browsers and launch failures fail the test. Security Gates partitions the full UI package into populated-config, config-layout, General and three Desktop name ranges (`A-G`, `H-R`, `S-Z`) with independent timeouts and fail-fast disabled; the audit package checks that each test belongs to exactly one job.
+- Browser discovery honors `CHROME_BIN`, then PATH and standard Windows/macOS locations. An explicit override must be executable; it never silently falls back. With `AURAGO_RUN_BROWSER_SMOKE=1`, missing browsers and launch failures fail the test. Security Gates partitions the full UI package into populated-config, config-layout, General and four Desktop name ranges (`A-D`, `E-G`, `H-R`, `S-Z`) with independent timeouts and fail-fast disabled; the audit package checks that each test belongs to exactly one job.
 - The shared Rod browser helper disables its leakless wrapper on Windows because the wrapper can hang before publishing the child PID; it registers `launcher.Kill` for explicit process cleanup. Linux retains Rod's default leakless behavior.
 - Config refresh browser coverage uses the real lazy renderers with local API
   fixtures, every section at five widths in both themes/densities, plus draft,

@@ -67,7 +67,7 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 		if !page.MustEval(`()=>document.querySelector('.ss-app').classList.contains('ss-library-open')`).Bool() {
 			page.MustEval(`()=>document.querySelector('[data-action=library]').click()`)
 		}
-		waitForJSBool(t, page, `()=>getComputedStyle(document.querySelector('.ss-library')).visibility==='visible'`)
+		waitForJSBool(t, page, `()=>{const e=document.querySelector('.ss-library'),r=e.getBoundingClientRect();return getComputedStyle(e).visibility==='visible'&&r.left>=0&&r.right<=innerWidth}`)
 	}
 	closeLibrary := func() {
 		t.Helper()
