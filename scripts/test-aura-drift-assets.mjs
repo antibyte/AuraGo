@@ -175,7 +175,8 @@ function checkCar(name, rule, json, top) {
   }
   if (top.has('body')) {
     const used = materialNames(json, top.get('body'));
-    for (const material of BODY_MATERIALS) {
+    const required = json.images?.length ? ['paint', 'trim', 'head_light', 'brake_light'] : BODY_MATERIALS;
+    for (const material of required) {
       if (!used.has(material)) fail(`${name}: body mesh lacks material "${material}"`);
     }
     for (const material of used) {
@@ -241,7 +242,9 @@ function checkUVs(name, json) {
   (json.meshes || []).forEach((mesh, index) => {
     for (const primitive of mesh.primitives || []) {
       const has = primitive.attributes.TEXCOORD_0 !== undefined;
-      if (has && !faceMeshes.has(index)) fail(`${name}: mesh "${mesh.name}" has UVs but is not a "face" node (UVs only on face meshes)`);
+      const textured = json.materials?.[primitive.material]?.pbrMetallicRoughness?.baseColorTexture !== undefined;
+      if (has && !faceMeshes.has(index) && !json.images?.length) fail(`${name}: mesh "${mesh.name}" has UVs without retained artwork`);
+      if (textured && !has) fail(`${name}: textured mesh "${mesh.name}" lacks UVs`);
     }
   });
   for (const node of json.nodes || []) {
@@ -287,8 +290,18 @@ for (const name of present) {
 
   const json = parseGLB(name, bytes);
   if (!json) continue;
-  for (const key of ['images', 'textures', 'samplers', 'animations', 'skins']) {
+  for (const key of ['animations', 'skins', ...(rule.kind === 'car' ? [] : ['images', 'textures', 'samplers'])]) {
     if (json[key] && json[key].length) fail(`${name}: must not contain ${key}`);
+  }
+  if (json.images?.length) {
+    if (json.images.length !== 1 || json.textures?.length !== 1) fail(`${name}: expected one shared paint atlas`);
+    for (const image of json.images) {
+      const view = json.bufferViews?.[image.bufferView];
+      if (image.uri || image.mimeType !== 'image/webp' || !view || view.byteLength > 350 * KB) fail(`${name}: paint atlas must be embedded WebP, at most 350 KiB`);
+    }
+    for (const material of json.materials || []) {
+      if (material.pbrMetallicRoughness?.baseColorTexture && material.alphaMode && material.alphaMode !== 'OPAQUE') fail(`${name}: paint mask must not enable transparency`);
+    }
   }
 
   const nodes = json.nodes || [];

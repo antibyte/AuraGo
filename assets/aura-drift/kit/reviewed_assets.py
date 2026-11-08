@@ -1,4 +1,4 @@
-"""Apply reviewed, texture-free reconstruction geometry to native rigs (MIT)."""
+"""Apply reviewed reconstruction geometry and retained UV artwork to native rigs (MIT)."""
 import gzip
 import json
 from pathlib import Path
@@ -22,6 +22,15 @@ def apply(model):
     if model.name.startswith("car-"):
         # Reconstructed window shells have no separate interior behind their glazing.
         MATERIALS["glass"].node_tree.nodes["Principled BSDF"].inputs["Alpha"].default_value = 1.0
+    if "texture" in data:
+        image = bpy.data.images.load(str(SOURCE / data["texture"]), check_existing=False)
+        image.alpha_mode = "CHANNEL_PACKED"
+        for role in ("paint", "paint_accent"):
+            mat = MATERIALS[role]
+            tree = mat.node_tree
+            texture = tree.nodes.new("ShaderNodeTexImage")
+            texture.image = image
+            tree.links.new(texture.outputs["Color"], tree.nodes["Principled BSDF"].inputs["Base Color"])
     objects = {obj.name: obj for obj in model.objects}
     for name, location in data.get("locations", {}).items():
         objects[name].location = to_blender(location)
@@ -35,6 +44,14 @@ def apply(model):
             assert all(0 <= i < len(acc.verts) for face in acc.faces for i in face), node["name"]
             parts.append((material, acc))
         temporary = model.mesh("reviewed_replacement", parts, shade="auto")
+        if any("uvs" in geometry for geometry in node["parts"].values()):
+            uv = temporary.data.uv_layers.new(name="UVMap")
+            coordinates = [uv for _, geometry in sorted(node["parts"].items())
+                for uv in geometry.get("uvs", [(0, 0)] * sum(map(len, geometry["faces"])))]
+            assert len(coordinates) == len(uv.data), node["name"]
+            uv.data.foreach_set("uv", [v for pair in coordinates for v in pair])
+            for attribute in list(temporary.data.color_attributes):
+                temporary.data.color_attributes.remove(attribute)
         target.data = temporary.data
         model.stats[target.name] = model.stats.pop(temporary.name)
         model.objects.remove(temporary)
@@ -44,7 +61,7 @@ def apply(model):
             target.location = to_blender(node["location"])
     if "wheels" in data:
         wheel = data["wheels"]
-        right = wheel_accum(wheel["radius"], wheel["width"], hub=hex_linear(wheel["hub"]), spokes=5, tread_blocks=8)
+        right = wheel_accum(wheel["radius"], wheel["width"], hub=hex_linear(wheel["hub"]), spokes=wheel.get("spokes", 5), tread_blocks=8)
         for side in ("l", "r"):
             geometry = right
             if side == "l":

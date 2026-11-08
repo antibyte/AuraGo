@@ -198,11 +198,13 @@ weather motion are removed by reduced motion.
 
 - Runtime: `ui/js/vendor/aura-drift/three-runtime.js`, a three.js **0.186.1 (r186)** IIFE bundle
   (908 369 bytes, manifest and licence beside it in `ui/js/vendor/aura-drift/`).
-- Models: 20 GLB files, 13 504 184 bytes (12.88 MiB) in total, under `ui/3d/aura-drift/v1`: eight cars, `items`,
+- Models: 20 GLB files, under 11 MiB in total (exact sizes in the manifest), under `ui/3d/aura-drift/v1`: eight cars, `items`,
   `track`, `animals`, `shared` props and eight biome scenery kits. `manifest.json` records
   per-file size, hash and car measurements; `LICENSE.txt` lists the licence. The models are made
-  by `assets/aura-drift/generate.py` (Blender 5.2, deterministic output) and are untextured:
-  chunky low-poly toy shapes, glossy paint through vertex colours and materials. The polish round
+  by `assets/aura-drift/generate.py` (Blender 5.2, deterministic output): chunky toy shapes with
+  glossy paint. All eight reviewed vehicles preserve UV artwork in one compact embedded WebP atlas;
+  its alpha channel masks livery paint without changing opacity. Wheels and movable parts have capped
+  cuts and native pivots. Props retain vertex colours. The polish round
   added six props from `assets/aura-drift/kit/polish_props.py`: a balloon bunch and a camera tower
   beside the stands on every track, plus an alpine waymark, a desert parasol, a harbour signal
   mast and a metro holo arrow in their biomes. The weather round added six more from

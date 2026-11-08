@@ -33,8 +33,7 @@ def make_material(name, base, metallic, roughness, emission=None, strength=0.0, 
     bsdf = tree.nodes["Principled BSDF"]
     rgb = hex_linear(base)
     base_rgba = (rgb[0], rgb[1], rgb[2], 1.0)
-    # With export_image_format NONE the exporter takes baseColorFactor from this socket's own default
-    # value, so it must hold the material colour even when the Mix link below drives the preview.
+    # Keep the material factor even when the vertex-colour Mix drives the preview.
     bsdf.inputs["Base Color"].default_value = base_rgba
     bsdf.inputs["Metallic"].default_value = metallic
     bsdf.inputs["Roughness"].default_value = roughness

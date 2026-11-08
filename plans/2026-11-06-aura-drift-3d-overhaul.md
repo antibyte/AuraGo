@@ -840,7 +840,7 @@ The other 14 languages are properly translated, including jokes, and are not mac
 
 | File | Content | Tri budget | Byte target |
 | --- | --- | --- | --- |
-| `car-vektor.glb` ... `car-bertha.glb` (`car-<id>.glb`, 8) | One car, including reviewed vertex-colour reconstruction | ≤ 30000 each | ≤ 1.25 MiB each |
+| `car-vektor.glb` ... `car-bertha.glb` (`car-<id>.glb`, 8) | One reviewed car, with retained UV paint atlas | ≤ 30000 each | ≤ 1.25 MiB each |
 | `items.glb` | `item-crate`, `item-gnome_mine`, `item-rubber_duck`, `item-rocket`, `item-bratwurst`, `item-boxing_glove`, `item-disco_ball`, `item-harpoon`, `item-air_horn`, `item-frost_grenade` | ≤ 12000 total | ≤ 450 KB |
 | `track.glb` | `track-ramp`, `track-boost_pad`, `track-cone`, `track-hay_bale`, `track-barrel`, `track-tyre_stack`, `track-barrier_segment`, `track-gantry` (children `light_1`..`light_5`), `track-rumble_bars` | ≤ 12000 | ≤ 450 KB |
 | `animals.glb` | `animal-cow`, `animal-sheep`, `animal-penguin`, `animal-crab`, `animal-llama` | ≤ 1800 each | ≤ 320 KB |
@@ -859,7 +859,7 @@ Scenery nodes are named `prop-<name>`. The polish round added six props from `ki
 (desert), `signal_mast` (harbour) and `holo_arrow` (metro). Per-prop tri budget: tag `scatter` ≤ 450,
 default ≤ 1200, `hero` ≤ 4500, `crowd` ≤ 14000. Total pack ≤ 18 MiB (18874368 bytes). Also
 `manifest.json` and `LICENSE.txt` (MIT). The exact node lists live in
-`scripts/test-aura-drift-assets.mjs`; the shipped pack is 20 GLBs / 9 041 340 bytes (8.62 MiB).
+`scripts/test-aura-drift-assets.mjs`; the shipped pack is 20 GLBs / under 11 MiB (exact sizes in the manifest).
 
 ### 3.2 Frames and scale
 - glTF frame: Y up, metres.
@@ -889,7 +889,11 @@ Materials in the `body` mesh (exact names):
 - `head_light` (emissive `#fff2cc`, strength 3)
 - `brake_light` (emissive `#ff2a1a`, strength 2)
 
-At most 7 materials per car. Wheels: one material `tyre`, with rim and hub tone from vertex colour.
+At most 7 materials per car. Reviewed UV bodies use `paint`, `trim` (cut caps), `head_light`,
+`brake_light`; stripes, glazing and chrome artwork remain in the atlas. One embedded 1024-square
+WebP atlas per car (<=350 KiB), with alpha 0.5 for untinted artwork / 1 for livery paint; opaque
+materials, no alpha-driven holes. The runtime applies this mask in `carPaint`, preserving rim
+shading, quality switches and independent cloak/ghost opacity. Wheels: one material `tyre`, with rim and hub tone from vertex colour.
 
 Art: chunky low poly with flat-shaded facets (`face.smooth=False`) on bodies, rounded tyres, a generous bevel on main edges, no recreation of any real or game car. Softeis has a giant cone on the roof. Mähkönig has a gnome driver. Couch is a sofa on wheels with a floor lamp. Bertha is a monster truck.
 
@@ -916,7 +920,8 @@ Tags: `hero`, `tall`, `scatter`, `far`.
 `scripts/test-aura-drift-assets.mjs` (no dependencies; adapted from `scripts/test-desktop-theme-orbit-assets.mjs`) checks:
 - GLB magic, header length, manifest bytes, hash, triangles.
 - Budgets per file and pack, and required nodes and materials per kind.
-- No `images`, `textures`, `samplers`, `animations` or `skins`.
+- No `animations` or `skins`; images/textures/samplers only for the embedded vehicle paint atlas,
+  never external URLs. Other models remain texture-free.
 - Emissive factor non-zero on `head_light`, `brake_light`.
 - Exact file set.
 
@@ -1114,8 +1119,8 @@ Rules:
 - Author in the glTF frame and convert with `to_blender = (x, -z, y)`, like `assets/desktop-theme-orbit/generate.py`. Each builder accumulates verts and faces per material. Clear the whole scene and orphan data before each file.
 - Colour: `Col` float attribute (domain POINT, separate verts per shape) read by a Color Attribute node into Base Color, so the exporter writes `COLOR_0`.
 - Deterministic: `random.Random(fixed seed)`, `mathutils.noise` with fixed offsets, sorted iteration, no time.
-- Export call as in `assets/desktop-theme-orbit/generate.py` `export_glb` (`export_format GLB`, `use_selection`, `export_apply`, `export_yup`, `export_materials EXPORT`, `export_image_format NONE`, `export_normals`, `export_texcoords True`, `export_tangents False`, `export_vertex_color ACTIVE`, extras, cameras, lights, animations, skins and morph off, filtered by supported options).
-- UVs exist only on `face` meshes (0 to 1).
+- Export call in `kit/export.py`: GLB, selection, apply, Y-up, materials, AUTO images (retained WebP), normals, UVs, active vertex colours; tangents, extras, cameras, lights, animations, skins and morph off, filtered by supported options.
+- UVs exist on `face` meshes and reviewed car artwork (0 to 1). Car UVs are per-loop so seams do not split smooth geometry. Wheel/joint cuts use closed Booleans, not triangle-centroid deletion; preparation checks against original boundary counts and removes severed axle scraps.
 - Modules stay under about 400 lines.
 - Preview option: EEVEE 1024x768 warm key light view to a scratch directory, never into the repo.
 

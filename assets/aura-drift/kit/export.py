@@ -34,7 +34,7 @@ def export_glb(model, path):
         "export_apply": True,
         "export_yup": True,
         "export_materials": "EXPORT",
-        "export_image_format": "NONE",
+        "export_image_format": "AUTO",
         "export_normals": True,
         "export_texcoords": True,
         "export_tangents": False,
@@ -126,6 +126,22 @@ def apply_livery(livery):
     for name, code in livery.items():
         material = bpy.data.materials.get(name)
         if material is None:
+            continue
+        tree = material.node_tree
+        texture = next((n for n in tree.nodes if n.type == "TEX_IMAGE"), None)
+        if texture:
+            tint = tree.nodes.new("ShaderNodeMixRGB"); tint.blend_type = "MULTIPLY"
+            tint.inputs[0].default_value = 1
+            tint.inputs[2].default_value = (*hex_linear(code), 1)
+            tree.links.new(texture.outputs["Color"], tint.inputs[1])
+            mask = tree.nodes.new("ShaderNodeMath"); mask.operation = "MULTIPLY_ADD"
+            mask.inputs[1].default_value = 2; mask.inputs[2].default_value = -1
+            tree.links.new(texture.outputs["Alpha"], mask.inputs[0])
+            mix = tree.nodes.new("ShaderNodeMixRGB")
+            tree.links.new(mask.outputs[0], mix.inputs[0])
+            tree.links.new(texture.outputs["Color"], mix.inputs[1])
+            tree.links.new(tint.outputs[0], mix.inputs[2])
+            tree.links.new(mix.outputs[0], tree.nodes["Principled BSDF"].inputs["Base Color"])
             continue
         for node in material.node_tree.nodes:
             if node.type == "MIX":

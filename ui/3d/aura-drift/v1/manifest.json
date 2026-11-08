@@ -2,7 +2,7 @@
   "version": 1,
   "blender": "5.2.2",
   "generator": "assets/aura-drift/generate.py",
-  "totalBytes": 13504184,
+  "totalBytes": 11057256,
   "files": [
     {
       "name": "animals.glb",
@@ -13,58 +13,58 @@
     },
     {
       "name": "car-bertha.glb",
-      "bytes": 897216,
-      "sha256": "018ad8baaf2cd06717dff5e2157e0ecb1018142e3fba414a4a7c7c6cb3d61d7c",
-      "triangles": 18976,
+      "bytes": 538740,
+      "sha256": "88459afb54c3edfe8c298feeb5efd8f1a841cb28a6e9528ba0c70eaede8742ef",
+      "triangles": 9250,
       "kind": "car"
     },
     {
       "name": "car-couch.glb",
-      "bytes": 909668,
-      "sha256": "5fc0f01cf278cebcbb5fbcf1ccbe75eba2d8fc901232605655e93aa40a1fd337",
-      "triangles": 21336,
+      "bytes": 640060,
+      "sha256": "12c7b297924d87289444cbc1e48f3361baadde56c780ab2e503ecabc26b63cba",
+      "triangles": 13744,
       "kind": "car"
     },
     {
       "name": "car-kobalt.glb",
-      "bytes": 781816,
-      "sha256": "82d530b55522e05e054a062b1555d73835253d51cdb0ac759a4e577668eb1e82",
-      "triangles": 19598,
+      "bytes": 596812,
+      "sha256": "ea86577db60a4932cb600a3906096f5d278e5fd71b257ea370a2d052b6763813",
+      "triangles": 14086,
       "kind": "car"
     },
     {
       "name": "car-lumen.glb",
-      "bytes": 1002064,
-      "sha256": "f8aaaa541bdb03243f5dd92c944adc8c0971822bcef66beff4f9f81934fde406",
-      "triangles": 22422,
+      "bytes": 624636,
+      "sha256": "a6d863d764544171f26a146baaeaa735e51269d87c16c81ac3c95f4dc6c7923f",
+      "triangles": 13798,
       "kind": "car"
     },
     {
       "name": "car-maehkoenig.glb",
-      "bytes": 1051456,
-      "sha256": "e953997f2a315954287064ed4cebe3e00b91266a24413e7778bafa88883434b3",
-      "triangles": 23190,
+      "bytes": 678556,
+      "sha256": "ba68ccfda98e9cba814ed7367b2646d5641a8404445f5d5174c6d20a791587e4",
+      "triangles": 14094,
       "kind": "car"
     },
     {
       "name": "car-softeis.glb",
-      "bytes": 452208,
-      "sha256": "5af4445f1e87453bf7f4e9d05519087772a94bab8745ae5d372360f0d0961b23",
-      "triangles": 13937,
+      "bytes": 706992,
+      "sha256": "205951ccc6040232950182730ec1253d224df113d29db5dc351377c12186f44d",
+      "triangles": 15864,
       "kind": "car"
     },
     {
       "name": "car-tundra.glb",
-      "bytes": 1306724,
-      "sha256": "4a6844c16039f49df115cc857c9b9f05885aa668f92ebc9c5428b008267b5a4c",
-      "triangles": 27293,
+      "bytes": 649624,
+      "sha256": "793a7295414e94876acc320d75d4dcb195e86356aa2a6ad39fed03ac241521c1",
+      "triangles": 13969,
       "kind": "car"
     },
     {
       "name": "car-vektor.glb",
-      "bytes": 1073268,
-      "sha256": "eba336a88d916bd0ace67591af84e0a8f90b8152203cb1dd25e3d4ffd9706171",
-      "triangles": 23616,
+      "bytes": 592072,
+      "sha256": "2f2bab50ad7047931f9532e6ee4e8e1721982c03aac7a48f2c075efcf4da5831",
+      "triangles": 13254,
       "kind": "car"
     },
     {
@@ -159,13 +159,13 @@
       "length": 3.0,
       "width": 1.8,
       "height": 1.62,
-      "wheelRadius": 0.452,
-      "wheelbase": 2.149
+      "wheelRadius": 0.445,
+      "wheelbase": 2.08
     },
     "kobalt": {
       "file": "car-kobalt.glb",
       "length": 4.82,
-      "width": 2.476,
+      "width": 2.53,
       "height": 1.89,
       "wheelRadius": 0.52,
       "wheelbase": 2.844
@@ -205,7 +205,7 @@
     "vektor": {
       "file": "car-vektor.glb",
       "length": 4.605,
-      "width": 2.211,
+      "width": 2.282,
       "height": 1.869,
       "wheelRadius": 0.5,
       "wheelbase": 2.634

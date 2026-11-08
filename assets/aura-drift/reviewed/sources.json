@@ -245,6 +245,14 @@
       "image_sha256": "05f2c6f91679639d977b9840303c32cf613ffd0e7190f3d98ef4a96cf08a413a",
       "model_sha256": "5af3457ef870dfdaeb1bfadda9d3e6129b59f75eefc180060c1e81db35bbf109",
       "target_faces": 1000
+    },
+    {
+      "id": "car-softeis",
+      "group": "car-softeis",
+      "node": "body",
+      "request_id": "fba051508fd55e0fd6917d4c4f8c347c",
+      "image_sha256": "89436392c0c638e3419ab1cf1e8d4216f70469e7583d7b6e1c88af03374a3571",
+      "model_sha256": "a06242f06b203e91f71c6d2464e09c3372dd9f7a811dc019e4cfa6a0dae588e4"
     }
   ]
 }

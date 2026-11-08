@@ -60,13 +60,25 @@
         return lum < 0.3 ? '#ffa01e' : hex;
     };
 
-    AD.carPaint = function (T, hex, gl, vertexColors, ghost, rim) {
-        const base = { color: hex, vertexColors: vertexColors, roughness: gl.clearcoat ? 0.28 : 0.3, metalness: gl.clearcoat ? 0.35 : 0.25 };
+    AD.carPaint = function (T, hex, gl, vertexColors, ghost, rim, map) {
+        const base = { color: hex, vertexColors: vertexColors, map: map || null, roughness: gl.clearcoat ? 0.28 : 0.3, metalness: gl.clearcoat ? 0.35 : 0.25 };
         const m = gl.clearcoat
             ? new T.MeshPhysicalMaterial(Object.assign(base, { clearcoat: 1, clearcoatRoughness: 0.08 }))
             : new T.MeshStandardMaterial(base);
         m.envMapIntensity = gl.clearcoat ? 1.0 : 1.35;
         if (ghost) { m.transparent = true; m.opacity = 0.35; m.depthWrite = false; } else if (rim && AD.carShade) AD.carShade(m, rim);
+        if (map) {
+            // Atlas alpha masks livery paint; windows, trim and artwork stay opaque and untinted.
+            const shade = m.onBeforeCompile, key = m.customProgramCacheKey();
+            m.onBeforeCompile = shader => {
+                shade(shader);
+                shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', [
+                    'vec4 agTexel = texture2D(map, vMapUv);',
+                    'diffuseColor.rgb = mix(agTexel.rgb, diffuseColor.rgb * agTexel.rgb, clamp((agTexel.a - 0.5) * 2.0, 0.0, 1.0));'
+                ].join('\n'));
+            };
+            m.customProgramCacheKey = () => key + '/paint-atlas';
+        }
         return m;
     };
 

@@ -28,8 +28,9 @@ SCENERY = ["alpine", "desert", "harbour", "salt", "forest", "industry", "glacier
 
 LICENSE_TEXT = """AuraGo Aura Drift model pack
 
-Original work for AuraGo; every mesh is generated from code by assets/aura-drift/generate.py.
-No third-party content (no scans, textures, meshes or fonts) was used.
+Original AuraGo designs, rebuilt by assets/aura-drift/generate.py from procedural code
+and retained NC AI reconstructions of original ImageGen concepts. Vehicle UV artwork
+and preparation provenance are retained in assets/aura-drift/reviewed/.
 
 Copyright (c) 2026 AuraGo contributors
 

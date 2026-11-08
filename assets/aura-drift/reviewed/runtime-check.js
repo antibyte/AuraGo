@@ -1,10 +1,43 @@
 async () => {
     const AD = window.AuraDriftCore, T = window.AuraDriftThree;
     await AD.assets.loadCore();
+    // Exercise the real shader: the packed alpha channel must tint paint, never cut holes.
+    const renderer = new T.WebGLRenderer({alpha:true,preserveDrawingBuffer:true});
+    renderer.setSize(16,16);
+    const scene = new T.Scene(), camera = new T.OrthographicCamera(-1,1,1,-1,.1,10);
+    camera.position.z=2;
+    scene.add(new T.AmbientLight(0xffffff,2));
+    const plane = new T.Mesh(new T.PlaneGeometry(2,2)); scene.add(plane);
+    const textures = [], mats = [];
+    function pixel(hex, alpha, ghost=false) {
+        const map = new T.DataTexture(new Uint8Array([100,140,180,alpha]),1,1);
+        map.colorSpace=T.SRGBColorSpace; map.needsUpdate=true; textures.push(map);
+        const mat=AD.carPaint(T,hex,AD.QUALITY.high.gl,false,ghost,AD.carRimFor(AD.LOOK.alpine),map);
+        mats.push(mat); plane.material=mat; renderer.render(scene,camera);
+        const data=new Uint8Array(4), gl=renderer.getContext();
+        gl.readPixels(8,8,1,1,gl.RGBA,gl.UNSIGNED_BYTE,data);
+        return Array.from(data);
+    }
+    const unpaintedA=pixel('#ff0000',128), unpaintedB=pixel('#0000ff',128);
+    const paintedA=pixel('#ff0000',255), paintedB=pixel('#0000ff',255), ghost=pixel('#ff0000',128,true);
+    if (unpaintedA.some((v,i)=>Math.abs(v-unpaintedB[i])>3) || unpaintedA[3]!==255) throw new Error('Unpainted artwork tinted or transparent');
+    if (paintedA[0]<paintedB[0]+30 || paintedB[2]<paintedA[2]+30) throw new Error('Paint atlas did not change livery');
+    if (ghost[3]<80 || ghost[3]>100) throw new Error('Paint mask changed ghost opacity');
+    for (const m of mats) m.dispose(); for (const t of textures) t.dispose();
+    plane.geometry.dispose(); renderer.dispose(); renderer.forceContextLoss();
     const verification = [];
     for (const car of AD.CARS) {
         if (AD.assets.isStandIn(AD.assets.car(car.id))) throw new Error(car.id + ': stand-in');
         const rig = AD.createCarRig(T, car, {livery:0,gl:AD.QUALITY.high.gl});
+        const maps=[];
+        rig.fxRoot.traverse(o=>{if(o.isMesh && o.userData.srcName==='paint') {
+            if(!o.material.map || !o.geometry.attributes.uv || o.material.map.image.width!==1024 || o.material.map.image.height!==1024) throw new Error(car.id+': missing retained UV artwork');
+            maps.push(o.material.map);
+        }});
+        for(const tier of ['low','high']) {
+            rig.setGl(AD.QUALITY[tier].gl);
+            rig.fxRoot.traverse(o=>{if(o.isMesh && o.userData.srcName==='paint' && !maps.includes(o.material.map)) throw new Error(car.id+': lost atlas on quality change');});
+        }
         if (rig.wheels.length !== 4) throw new Error(car.id + ': wheel count');
         const before = rig.wheels.map(w => w.node.quaternion.clone());
         const transforms = {};
@@ -48,5 +81,6 @@ async () => {
     await AuraDriftApp.debug.start({mode:'quick',carId:'maehkoenig',trackId:'alpenpass'});
     AuraDriftApp.debug.autopilot(true,{skill:1});
     AuraDriftApp.debug.fastForward(12,{renderEvery:30});
-    window.__log = {assetStats:AD.assets.stats(),verification};
+    window.__log = {assetStats:AD.assets.stats(),verification,shader:{unpaintedA,unpaintedB,paintedA,paintedB,ghost}};
+    window.__steps = [async()=>{}];
 }

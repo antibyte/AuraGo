@@ -11,7 +11,7 @@ Own the Blender 5.2 generator of the Aura Drift model pack and its pure-Python k
   alpine snow gauge, desert anemometer, harbour storm lantern, glacier drift fence). The shared
   builders return `toy.Parts`, the scenery builders fill a `Piece`.
   `runtime-entry.mjs` belongs to the three.js vendor bundle, not to the kit.
-- Runtime payload: `ui/3d/aura-drift/v1/` (20 GLBs, 13 504 184 bytes, `manifest.json`, `LICENSE.txt`).
+- Runtime payload: `ui/3d/aura-drift/v1/` (20 GLBs, under 11 MiB, `manifest.json`, `LICENSE.txt`; exact bytes in the manifest).
   Written only by `generate.py`, the manifest only by `--only manifest` (a partial `--only` run
   emits a partial manifest, so regenerate the whole pack before shipping). Adding a prop means adding
   its node to `scripts/test-aura-drift-assets.mjs`, its tags to `kit/meta_*.py`, and its placement
@@ -25,12 +25,10 @@ Own the Blender 5.2 generator of the Aura Drift model pack and its pure-Python k
   The eight race songs (`music/<biome>-song.ogg`) are YuE2 Studio generations (licence terms NOT verified, open item),
   recorded in `audio/yue2-songs.json` and re-encoded from FLAC masters with `build-aura-drift-audio.mjs --songs <dir>`.
 - Check: `scripts/test-aura-drift-assets.mjs`.
-- Softeis retains reviewed concept geometry in `kit/softeis_mesh.json.gz`: local glTF-frame
-  vertices, faces, normalized vertex colours, part pivots, attachment anchors and source provenance.
-  `kit/car_softeis.py` rebuilds it offline through `core.Model`; wheels use `cars_common.wheel_accum`
-  so the shared wheel instancer and procedural steering remain unchanged. The `cone` child pivots
-  at its roof joint. Textures are baked into vertex colours; no API or image files are build inputs.
-- The other seven cars and twenty selected scenery/shared props retain reviewed reconstructions
+- Softeis retains its native rig scaffold in `kit/softeis_mesh.json.gz`; its body and cone are
+  replaced by the reviewed UV reconstruction, as with the other cars. Wheels use
+  `cars_common.wheel_accum`; the `cone` child pivots at its roof joint.
+- All eight cars and twenty selected scenery/shared props retain reviewed reconstructions
   in `reviewed/`; `kit/reviewed_assets.py` applies them after each procedural builder. Preserve
   native node names, hierarchy, livery/light materials, audience children and placement bounds.
   Window shells use opaque glazing because the reconstructions contain no separate interior.
@@ -39,16 +37,18 @@ Own the Blender 5.2 generator of the Aura Drift model pack and its pure-Python k
 
 ## Local Contracts
 - Contract source: section 3 (GLB asset contract) of `plans/2026-11-06-aura-drift-3d-overhaul.md`.
-- Authored in the glTF frame (Y up, metres, nose +X, right +Z); no textures, no images, UVs only on `face` meshes.
+- Authored in the glTF frame (Y up, metres, nose +X, right +Z). Cars embed one retained UV/WebP
+  paint atlas (1024 square, <=350 KiB, opaque, alpha used only as a livery mask); other models
+  remain texture-free, with UVs only on `face` meshes.
 - Deterministic: seeded `core.rng_for`, no time, sorted iteration. Two runs must give equal SHA-256.
 - Every module is MIT licensed, starts with a docstring and stays under about 400 lines.
 - Group modules (`car_<id>.py`, `items.py`, `track_parts.py`, `animals.py`, `shared_props.py`, `scenery_<biome>.py`)
   expose `build() -> core.Model` and are discovered by `generate.py`; parallel authors never edit `generate.py`
   or the manifest.
-- Car body materials are exactly `paint`, `paint_accent`, `trim`, `glass`, `chrome`, `head_light`, `brake_light`;
-  wheels use `tyre`.
-- The retained Softeis geometry welds UV seams and uses angle-limited smoothing; its seven body
-  materials and neutral part transforms retain the ordinary livery, lights and animation contract.
+- Procedural car body roles are `paint`, `paint_accent`, `trim`, `glass`, `chrome`, `head_light`,
+  `brake_light`; reviewed bodies use `paint`, `trim`, `head_light`, `brake_light`. Wheels use `tyre`.
+- Reviewed cars retain welded geometry with per-loop UV seams, angle-limited smoothing and
+  neutral part transforms; livery, lights and animation keep their native contract.
 - Budgets live in the validator (cars 30000 triangles and 1.25 MiB, shared.glb 1.75 MiB, scenery
   kits 1.1 MiB each, pack 18 MiB; per-prop 450/1200/4500/14000 triangles by tag). Check after each build.
 

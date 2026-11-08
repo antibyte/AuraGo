@@ -2,25 +2,22 @@
 
 Blender 5.2 generator for the Aura Drift model pack (`ui/3d/aura-drift/v1`): eight cars, items,
 track pieces, animals, shared props and eight scenery kits. Rebuilt offline from procedural sources
-and retained reviewed vertex-colour geometry, MIT licensed, no runtime textures.
+and retained reviewed geometry and vehicle UV artwork, MIT licensed.
 Contract: section 3 of `plans/2026-11-06-aura-drift-3d-overhaul.md`.
 Art direction: an original stylised **toy diorama at golden hour**: chunky low poly, glossy paint,
 bevelled silhouettes, flat-shaded facets, oversized wheels.
 
-Softeis uses the reviewed NC AI reconstruction of an original Aura Drift ImageGen concept.
-`kit/softeis_mesh.json.gz` retains the body/cone geometry, normalized vertex colours and pivots;
-`kit/car_softeis.py` rebuilds it with the native six-spoke wheels, seven body material groups and
-light/exhaust/weapon anchors. Its colours work with all four liveries. The roof cone and wheel
-nodes are driven by the existing game physics; no baked animation or external API is needed.
-
-The other seven vehicles and twenty selected environment objects use the same reviewed concept
+All eight vehicles and twenty selected environment objects use the reviewed NC AI concept
 workflow. `reviewed/sources.json` records each concept/reconstruction hash and request ID;
-`reviewed/<group>.json.gz` retains texture-free mesh data. `kit/reviewed_assets.py` replaces listed
+`reviewed/<group>.json.gz` retains mesh data and per-loop car UVs. `kit/reviewed_assets.py` replaces listed
 meshes after the procedural build, preserving the native scene hierarchy and animated audience.
-Cars retain circular native wheels, livery materials and light anchors. The mower's driver/blade,
-sofa's lamp/cushion and desert windmill rotor have independent joint origins. Window shells are
-opaque because these reconstructions contain no interior. Colour boundaries are locally refined
-to preserve the artwork without textures; the whole pack still has an 18 MiB limit.
+Cars retain circular native wheels, livery paint and light anchors. Each car embeds one 1024-square
+WebP atlas: RGB artwork, alpha 0.5 for untinted detail and 1 for livery paint. Alpha never cuts holes
+or changes cloak/ghost opacity. This preserves window edges, stripes and trim without triangle-colour
+approximation. The mower's driver/blade, sofa's lamp/cushion, Softeis cone and windmill rotor keep
+independent joints. Closed Boolean cuts replace the old triangle-centroid wheel deletion; loose axle
+scraps are discarded and lights touch the surface. The whole pack still has an 18 MiB limit.
+`kit/softeis_mesh.json.gz` remains the Softeis rig scaffold; its body/cone are replaced through the shared loader.
 
 Selected scenery replacements (large, frequently visible silhouettes):
 
@@ -37,7 +34,10 @@ Selected scenery replacements (large, frequently visible silhouettes):
 | metro | food truck, metro entrance |
 
 The grandstand keeps its native interior seating so its animated spectators remain seated correctly.
-Run `python assets/aura-drift/reviewed/check.py` before regenerating to verify all 27 retained inputs.
+Run `python assets/aura-drift/reviewed/check.py` before regenerating to verify all 28 retained inputs.
+Re-preparation, when hash-matched original API files are available, uses
+`blender --background --factory-startup --python <abs>/reviewed/prepare_cars.py -- --sources <abs folder>`
+and installed FFmpeg. Ordinary offline builds use only the retained JSON/WebP files.
 
 ## Commands
 
@@ -133,19 +133,20 @@ car.anchor("anchor_weapon", (x, y, z)); car.anchor_pair("anchor_head", (x, y, z>
 model = car.finish()                             # body + 4 wheels + 7 anchors, returns core.Model
 ```
 
-Body materials (exact names, at most 7): `paint` and `paint_accent` (white base; the runtime tints them,
+Procedural body materials (exact names, at most 7): `paint` and `paint_accent` (white base; the runtime tints them,
 the preview uses red and cream), `trim` (dark plastic), `glass` (alpha 0.62), `chrome`, `head_light` and
 `brake_light` (emissive). Wheels use only `tyre`; rim, tread, stripe and hub tones come from vertex colour.
 `finish()` bakes a height-based ambient occlusion into `paint`, `paint_accent` and `trim` vertex colours
 (`default_ao`, pass `ao=` to change it) and prints per-material triangle counts, use them to find fat parts.
+Reviewed bodies use `paint` for the masked atlas, `trim` for cut caps and both emissive light roles.
 
 Wheels (`wheel_accum`, about 1100 triangles): rounded tyre, chevron lugs, cream sidewall stripe, dished rim,
 five spokes, hub cap in the car's accent colour, lug nuts. `finish()` builds the right wheel and its mirror
 once and instances them for the rear axle (the GLB stores two meshes). Tweak with `car.wheel_kwargs =
 {"spokes": 6, "tread_blocks": 15}`. Wheel nodes: origin at the wheel centre, axle along Z.
 
-Budgets: at most 30000 triangles and 1.25 MiB per car. Reviewed cars retain extra geometry at painted
-colour boundaries; reuse wheel meshes and keep small hidden details simple.
+Budgets: at most 30000 triangles and 1.25 MiB per car; one embedded WebP atlas, at most 350 KiB.
+Reuse wheel meshes and keep small hidden details simple.
 
 ### Writing a new car
 

@@ -77,7 +77,7 @@
             for (const [list, hex] of [[paintMeshes, paintHex], [accentMeshes, accentHex]]) {
                 if (!list.length) continue;
                 const old = list[0].material;
-                const mat = own(AD.carPaint(T, hex, gl, !!list[0].geometry.attributes.color, rig.ghost, opts.rim));
+                const mat = own(AD.carPaint(T, hex, gl, !!list[0].geometry.attributes.color, rig.ghost, opts.rim, old.map));
                 for (const o of list) o.material = mat;
                 if (old && owned.indexOf(old) >= 0) { old.dispose(); owned.splice(owned.indexOf(old), 1); }
             }
