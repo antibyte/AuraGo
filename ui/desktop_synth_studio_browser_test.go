@@ -162,6 +162,15 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 	page.MustEval(`()=>window.dispatchEvent(new PointerEvent('pointerup'))`)
 	page.MustElement("[data-action=undo]").MustClick()
 	check("master EQ curve follows the gains and the undo", `()=>document.querySelector('[data-curve=eq] .ss-curve-line').getAttribute('d')===eqBefore`)
+	if dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); dir != "" {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		page.MustEval(`()=>document.querySelector('[data-master-panel]').scrollIntoView({block:'start'})`)
+		if err := os.WriteFile(filepath.Join(dir, "synth-master.png"), page.MustScreenshot(), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
 	page.MustEval(`()=>{const e=document.querySelector('[data-master-select=echoSync]');e.value='1/16';e.dispatchEvent(new Event('change',{bubbles:true}));}`)
 	check("master sync selection commits", `()=>synthInstance().project().master.echoSync==='1/16'`)
 	page.MustElement("[data-action=undo]").MustClick()
@@ -245,6 +254,16 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 	page.MustEval(`()=>document.querySelector('[data-designer-param=sustain] + .ss-ctl-vfader').dispatchEvent(new MouseEvent('dblclick',{bubbles:true}))`)
 	check("double click resets a vertical fader to its default", `()=>Number(document.querySelector('[data-designer-param=sustain]').value)===0.65`)
 	page.MustEval(`()=>{window.relBefore=Number(document.querySelector("[data-designer-param=release]").value)}`)
+	if dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); dir != "" {
+		if err := os.WriteFile(filepath.Join(dir, "synth-designer.png"), page.MustScreenshot(), 0644); err != nil {
+			t.Fatal(err)
+		}
+		page.MustEval(`()=>document.querySelector('[data-curve=filter]').scrollIntoView({block:'start'})`)
+		if err := os.WriteFile(filepath.Join(dir, "synth-designer-filter.png"), page.MustScreenshot(), 0644); err != nil {
+			t.Fatal(err)
+		}
+		page.MustEval(`()=>document.querySelector('[data-designer-param=sustain] + .ss-ctl-vfader').scrollIntoView({block:'center'})`)
+	}
 	page.MustElement("[data-designer-param=release]").MustFocus()
 	for _, kind := range []proto.InputDispatchKeyEventType{proto.InputDispatchKeyEventTypeKeyDown, proto.InputDispatchKeyEventTypeKeyUp} {
 		if err := (proto.InputDispatchKeyEvent{Type: kind, Key: "ArrowUp", Code: "ArrowUp", WindowsVirtualKeyCode: 38}).Call(page); err != nil {

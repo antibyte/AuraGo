@@ -113,6 +113,13 @@ displayed and, as before, dragging a sound or volume control previews it
 immediately and commits one undo step; Escape or pointer cancellation restores the
 previous sound.
 
+The envelope section of the sound designer uses four vertical faders (attack,
+decay, sustain, release) next to a small envelope shape. A vertical fader behaves
+like the other controls: drag or click the track, mouse wheel and arrow keys while
+it has focus, and a double click returns it to the patch default. The designer
+edits a browser-local draft, so a fader drag changes the draft and the preview but
+never creates a project undo step.
+
 The sections of the sound design (oscillators, filter, envelope and so on) are
 collapsible. Sections that are not active for the selected sound start closed.
 Open and closed states are kept only while that editor stays open.
@@ -322,6 +329,19 @@ time when the tempo changes. The analyser in the transport shows the master
 output and is visual feedback only; musical timing does not depend on its
 refresh rate.
 
+In the master strip the output level is a large knob with a decibel read-out
+(20 x log10 of the gain, `-inf` at zero) and a 16 segment LED meter beside it
+(green, amber, red over 48 dB). The meter reads the same analyser peak, runs only
+while the strip is open and never alters the audio. The EQ group shows the
+frequency response of the three bands, and the sound designer shows the response
+of the voice filter (type, cutoff, resonance) with a cutoff marker. The curves are
+pure SVG computed in `synth-studio-curves.js` from the same filter types,
+frequencies and cutoff mapping the audio engine uses, and repaint at most once per
+animation frame while an input moves. Per-section power switches are intentionally
+absent: the project and patch formats have no bypass flag for the inserts or the
+designer sections; the only real off state is the existing "Off" choice of the FM
+operators.
+
 The sound engine gained a per-voice LFO that can target pitch, amplitude, the
 voice filter or the pulse width, continuous pulse-width modulation, selectable
 filter types, a bipolar filter envelope that can close the filter, pink and brown
@@ -374,6 +394,8 @@ Run `node scripts/test-synth-studio-model.js`,
 `node scripts/test-synth-studio-designer.mjs`,
 `node scripts/test-synth-studio-recording.mjs`,
 `node scripts/test-synth-studio-storage.mjs`,
+`node scripts/test-synth-studio-controls.mjs`,
+`node scripts/test-synth-studio-curves.mjs`,
 `node scripts/test-synth-studio-registration.mjs`, UI bundle
 generation/checks, and focused Desktop/server tests after changes. Browser
 checks require `AURAGO_RUN_BROWSER_SMOKE=1`; `AURAGO_BROWSER_ARTIFACT_DIR` collects
