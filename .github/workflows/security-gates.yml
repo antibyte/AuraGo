@@ -42,6 +42,9 @@ jobs:
           node --check scripts/build-codemirror.js
           node --check scripts/build-ui-bundles.js
 
+      - name: Verify deterministic UI bundle drift
+        run: node scripts/build-ui-bundles.js --check
+
       - name: Test UI delivery regressions
         run: npm run test:ui-regressions
 
@@ -112,9 +115,6 @@ jobs:
 
       - name: Run complete Go vet analysis
         run: go vet ./...
-
-      - name: Verify deterministic UI bundle drift
-        run: node scripts/build-ui-bundles.js --check
 
   ui-browser:
     name: UI browser tests (${{ matrix.name }})
