@@ -3542,11 +3542,13 @@
         modelAbort = null;
         if (modelPet) modelPet.dispose();
         modelPet = null;
+        if (spriteEl) spriteEl.classList.remove('is-3d-loading');
     }
 
     function loadModelPet() {
         if (modelAbort || !spriteEl) return;
         const host = spriteEl;
+        host.classList.add('is-3d-loading');
         const epoch = ++modelEpoch;
         modelAbort = new AbortController();
         const signal = modelAbort.signal;
@@ -3565,6 +3567,7 @@
                 if (signal.aborted || epoch !== modelEpoch || host !== spriteEl) { controller.dispose(); return; }
                 modelPet = controller;
                 controller.setState(modelState);
+                host.classList.remove('is-3d-loading');
             }).catch(failed);
     }
 
@@ -4220,7 +4223,7 @@
     function startDragMotionLoop() {
         if (!drag) return;
         const tick = now => {
-            if (!drag) return;
+            if (!drag || drag.released) return;
             stepDragPhysics(now);
             drag.frame = window.requestAnimationFrame(tick);
         };
@@ -4259,6 +4262,7 @@
                 return;
             }
             state.frame = window.requestAnimationFrame(tick);
+            if (drag) drag.settleFrame = state.frame;
         };
         state.frame = window.requestAnimationFrame(tick);
         if (drag) drag.settleFrame = state.frame;
@@ -4271,6 +4275,67 @@
         }
     }
 
+    function cancelPetDrag() {
+        if (!drag) return;
+        const pointerId = drag.pointerId;
+        cancelDragSettle();
+        stopDragMotionLoop();
+        drag = null;
+        if (!layer) return;
+        if (layer.hasPointerCapture(pointerId)) layer.releasePointerCapture(pointerId);
+        layer.classList.remove('dragging');
+        layer.style.transform = '';
+        setSpriteState('idle');
+        scheduleAmbientAnimation();
+        applyPosition();
+    }
+
+    function movePetDrag(event) {
+        if (!drag || drag.released || drag.pointerId !== event.pointerId) return;
+        if (event.buttons === 0) { cancelPetDrag(); return; }
+        drag.pointerX = event.clientX;
+        drag.pointerY = event.clientY;
+        if (!drag.moved && Math.hypot(drag.pointerX - drag.startPointerX, drag.pointerY - drag.startPointerY) > 6) {
+            drag.moved = true;
+            layer.classList.add('dragging');
+            startDragMotionLoop();
+        }
+    }
+
+    function releasePetDrag(event) {
+        if (!drag || drag.released || drag.pointerId !== event.pointerId) return;
+        drag.released = true;
+        stopDragMotionLoop();
+        if (layer.hasPointerCapture(event.pointerId)) layer.releasePointerCapture(event.pointerId);
+        layer.classList.remove('dragging');
+        if (drag.isModel && !drag.moved) {
+            drag = null;
+            react('waving');
+            if (petGravity()) startGravityFall();
+            return;
+        }
+        if (modelPet) modelPet.setState('landing');
+        const x = layer.offsetLeft;
+        const y = layer.offsetTop;
+        settleDragTilt(() => {
+            cancelDragSettle();
+            drag = null;
+            setSpriteState('idle');
+            scheduleAmbientAnimation();
+            saveSetting('pet.position_x', String(x));
+            if (petGravity()) {
+                // Gravity pulls the dropped pet back down onto the dock bar.
+                gravityVelocity = 0;
+                startGravityFall();
+                return;
+            }
+            saveSetting('pet.position_y', String(y));
+        });
+    }
+
+    function cancelPointerDrag(event) {
+        if (drag && !drag.released && drag.pointerId === event.pointerId) cancelPetDrag();
+    }
 
     function wireDrag() {
         if (!layer) return;
@@ -4281,7 +4346,7 @@
         });
         spriteEl.addEventListener('dblclick', () => { if (modelPet) performModelAction('dancing'); });
         layer.addEventListener('pointerdown', event => {
-            if (event.button !== 0) return;
+            if (event.button !== 0 || (drag && !drag.released)) return;
             clearAmbientTimers();
             cancelDragSettle();
             stopDragMotionLoop();
@@ -4290,6 +4355,7 @@
             drag = {
                 isModel: isModelPet(activePet()),
                 moved: !isModelPet(activePet()),
+                released: false,
                 startPointerX: event.clientX,
                 startPointerY: event.clientY,
                 pointerId: event.pointerId,
@@ -4304,56 +4370,7 @@
                 settleFrame: null
             };
             layer.setPointerCapture(event.pointerId);
-            layer.classList.add('dragging');
-            if (drag.moved) { applyDragHangPosition(); startDragMotionLoop(); }
-        });
-        layer.addEventListener('pointermove', event => {
-            if (!drag || drag.pointerId !== event.pointerId) return;
-            drag.pointerX = event.clientX;
-            drag.pointerY = event.clientY;
-            if (!drag.moved && Math.hypot(drag.pointerX - drag.startPointerX, drag.pointerY - drag.startPointerY) > 6) {
-                drag.moved = true;
-                startDragMotionLoop();
-            }
-        });
-        layer.addEventListener('pointerup', event => {
-            if (!drag || drag.pointerId !== event.pointerId) return;
-            layer.releasePointerCapture(event.pointerId);
-            layer.classList.remove('dragging');
-            if (drag.isModel && !drag.moved) {
-                drag = null;
-                react('waving');
-                return;
-            }
-            if (modelPet) modelPet.setState('landing');
-            const x = layer.offsetLeft;
-            const y = layer.offsetTop;
-            settleDragTilt(() => {
-                cancelDragSettle();
-                drag = null;
-                setSpriteState('idle');
-                scheduleAmbientAnimation();
-                saveSetting('pet.position_x', String(x));
-                if (petGravity()) {
-                    // Gravity pulls the dropped pet back down onto the dock bar.
-                    gravityVelocity = 0;
-                    startGravityFall();
-                    return;
-                }
-                saveSetting('pet.position_y', String(y));
-            });
-        });
-        layer.addEventListener('pointercancel', event => {
-            if (!drag || drag.pointerId !== event.pointerId) return;
-            layer.releasePointerCapture(event.pointerId);
-            layer.classList.remove('dragging');
-            cancelDragSettle();
-            stopDragMotionLoop();
-            drag = null;
-            if (layer) layer.style.transform = '';
-            setSpriteState('idle');
-            scheduleAmbientAnimation();
-            applyPosition();
+            if (drag.moved) { layer.classList.add('dragging'); applyDragHangPosition(); startDragMotionLoop(); }
         });
         layer.addEventListener('contextmenu', event => {
             event.preventDefault();
@@ -4450,7 +4467,14 @@
         if (typeof window.addEventListener !== 'function') return;
         if (petRuntimeInitialized) return;
         petRuntimeInitialized = true;
+        // Track releases outside the pet even when native pointer capture is lost.
+        window.addEventListener('pointermove', movePetDrag, true);
+        window.addEventListener('pointerup', releasePetDrag, true);
+        window.addEventListener('pointercancel', cancelPointerDrag, true);
+        window.addEventListener('lostpointercapture', cancelPointerDrag, true);
+        window.addEventListener('blur', cancelPetDrag);
         const refreshMotion = () => {
+            if (document.hidden) cancelPetDrag();
             if (!isModelPet(activePet())) return;
             const ambientActive = !!ambientReturnTimer || !!ambientMoveFrame;
             clearAmbientTimers();

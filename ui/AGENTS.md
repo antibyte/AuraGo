@@ -31,7 +31,8 @@ New app-scoped prefixes must contain no `ad` substring; verify
   Aura Drift Three.js bundle. Its fixed model/motion URLs are under `3d/pets/punk/`;
   no imported pet can choose model URLs. Keep gaze, animation crossfades, drag,
   reduced motion, hidden-tab suspension, stale-load cancellation and GPU disposal.
-  Loading/WebGL failure retains its OpenPets fallback. Source and licensing
+  Hide the sprite and disable its pointer input while 3D loads; loading/WebGL
+  failure restores its OpenPets fallback. Source and licensing
   ownership: `../assets/desktop-pets/AGENTS.md`. Verify `node scripts/test-punk-pet.mjs`
   and existing `go test ./ui -run 'DesktopPet|DesktopChat.*Pet'` checks.
 
@@ -43,6 +44,9 @@ New app-scoped prefixes must contain no `ad` substring; verify
   hit testing through off/on/off toggles for both renderers in Standard/Fruity.
   Play the 3D landing motion only after actual descent; grounded bootstrap
   refreshes and dock width changes must not trigger it. The same test covers both.
+  A 3D click greets; dragging starts only after pointer movement. Lost capture,
+  missing button release, blur and hidden tabs cancel the gesture. Stop drag
+  physics before release settling so a late frame cannot restore the hang pose.
 
 - Synth Studio's optional Strudel workbench uses a locally bundled runtime and
   downloadable source archive under `js/vendor/strudel/`. Its evaluator runs in

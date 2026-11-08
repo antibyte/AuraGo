@@ -12,7 +12,7 @@ Authoring sources and reproducible animation assets for the optional real-time P
 
 ## Local Contracts
 
-- Add `aurago-punk-3d` as a separate bundled pet; preserve the existing sprite Punk and active selection. Its ordinary OpenPets sheet is the picker/loading/WebGL-failure fallback.
+- Add `aurago-punk-3d` as a separate bundled pet; preserve the existing sprite Punk and active selection. Its ordinary OpenPets sheet is the picker/WebGL-failure fallback; keep it hidden and noninteractive while the 3D model is loading.
 - Model and motion URLs are fixed, version-bound local resource URLs, never supplied by an imported pet manifest. No cloud service is required at runtime.
 - Preserve normalized skinning, packed textures and the original editable source. Runtime model budget: 60,000 triangles, 71 deform joints, textures at most 1024 square.
 - Bake the A-pose mesh into a T-bind pose before retargeting. The runtime deform

@@ -26,7 +26,7 @@ for(const item of pack.clips){const source=readFileSync(resolve(root,'assets/des
 const browser=[process.env.CHROME_BIN,process.env.PROGRAMFILES&&resolve(process.env.PROGRAMFILES,'Google/Chrome/Application/chrome.exe'),process.env['PROGRAMFILES(X86)']&&resolve(process.env['PROGRAMFILES(X86)'],'Microsoft/Edge/Application/msedge.exe'),'/usr/bin/google-chrome','/usr/bin/chromium'].filter(Boolean).find(existsSync);
 assert.ok(browser,'Chrome/Edge is required for the real WebGL pet test');
 const labels=JSON.parse(readFileSync(resolve(ui,'lang/desktop/de.json'),'utf8'));
-const html=`<!doctype html><html lang="de"><head><meta charset="utf-8"><link rel="stylesheet" href="/css/desktop-shell.bundle.css"><style>body{margin:0;background:#252331;color:white;font:16px system-ui}.vd-taskbar{position:fixed;bottom:0;width:100%;height:48px;background:#131219}#title{padding:20px}button{margin:8px}#test-window{position:absolute;inset:0;background:#252331;pointer-events:auto}</style></head><body class="desktop-body" data-animations="true" data-theme="standard" data-scheme="dark"><main class="vd-shell"><section class="vd-workspace" id="vd-workspace"><div class="vd-window-layer" id="test-window-layer"><div id="test-window"></div></div></section></main><div id="title">AuraGo · Punk 3D · Mesh2Motion</div><div class="vd-taskbar"></div><script>
+const html=`<!doctype html><html lang="de"><head><meta charset="utf-8"><link rel="stylesheet" href="/css/desktop-shell.bundle.css"><style>body{margin:0;background:#252331;color:white;font:16px system-ui}.vd-taskbar{position:fixed;bottom:0;width:100%;height:48px;background:#131219}#title{padding:20px}button{margin:8px}#test-window{position:absolute;inset:0;background:#252331;pointer-events:auto}</style></head><body class="desktop-body" data-animations="true" data-theme="standard" data-scheme="dark"><main class="vd-shell"><section class="vd-workspace" id="vd-workspace"><div class="vd-window-layer" id="test-window-layer"><div id="test-window"></div></div></section></main><div id="title">AuraGo Â· Punk 3D Â· Mesh2Motion</div><div class="vd-taskbar"></div><script>
 window.I18N=${JSON.stringify(labels)};window.BUILD_VERSION='pet-test';
 window.state={bootstrap:{pets:[{id:'aurago-punk-3d',display_name:'Punk 3D',subcategory:'3d',spritesheet:'spritesheet.webp'},{id:'aurago-punk',display_name:'Punk',spritesheet:'spritesheet.webp'}],active_pet_id:'aurago-punk-3d',settings:{'pet.enabled':'true','pet.scale':'2','pet.position_x':'350','pet.position_y':'240','pet.gravity':'false'}}};
 window.settingValue=k=>state.bootstrap.settings[k];window.t=k=>I18N[k]||k;window.shellLayout=()=> 'taskbar';window.notifications=[];window.showDesktopNotification=x=>notifications.push(x);window.showContextMenu=(x,y,items)=>window.menuItems=items;window.openApp=()=>{};
@@ -90,12 +90,32 @@ try{
     assert.equal(await evaluate(`document.querySelector('.vd-pet-bubble').hidden`),false);
     const rect=await evaluate(`(()=>{const r=document.querySelector('.vd-pet-sprite').getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+r.height*.55,left:document.querySelector('.vd-pet-layer').offsetLeft,top:document.querySelector('.vd-pet-layer').offsetTop};})()`);
     const mouse=(type,x,y,down=false)=>call('Input.dispatchMouseEvent',{type,x,y,button:type==='mouseMoved'?'none':'left',buttons:down?1:0,clickCount:type==='mouseMoved'?0:1});
-    await mouse('mousePressed',rect.x,rect.y,true);await mouse('mouseReleased',rect.x,rect.y);
+    const inputChecks={};
+    await mouse('mousePressed',rect.x,rect.y,true);
+    inputChecks.clickDoesNotStartDrag=await evaluate(`!document.querySelector('.vd-pet-layer').classList.contains('dragging')&&PetRuntime.inspect3D().state!=='dragging'`);
+    await mouse('mouseMoved',rect.x+2,rect.y+2,true);await mouse('mouseReleased',rect.x+2,rect.y+2);
     assert.deepEqual(await evaluate(`({left:document.querySelector('.vd-pet-layer').offsetLeft,top:document.querySelector('.vd-pet-layer').offsetTop})`),{left:rect.left,top:rect.top},'A greeting click must not move the pet');
     await mouse('mousePressed',rect.x,rect.y,true);await mouse('mouseMoved',rect.x+90,rect.y-120,true);
     await evaluate(`until(()=>PetRuntime.inspect3D().state==='dragging','pickup animation')`);await shot('drag');
     await mouse('mouseReleased',rect.x+90,rect.y-120);
     await evaluate(`until(()=>PetRuntime.inspect3D().state==='idle','drop settles')`);
+    const beginDrag=async reason=>{
+        await evaluate(`document.querySelector('.vd-pet-layer').getAnimations().forEach(a=>a.finish())`);
+        const point=await evaluate(`(()=>{const layer=document.querySelector('.vd-pet-layer');layer.addEventListener('pointerdown',e=>window.gesturePointer=e.pointerId,{once:true});const r=document.querySelector('.vd-pet-sprite').getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+r.height*.3};})()`);
+        await mouse('mousePressed',point.x,point.y,true);await mouse('mouseMoved',point.x+40,point.y-40,true);
+        await evaluate(`until(()=>PetRuntime.inspect3D().state==='dragging','drag starts '+${JSON.stringify(reason)})`);return point;
+    };
+    for(const reason of ['captureLoss','outsideRelease','blur','missingRelease']){
+        const point=await beginDrag(reason);
+        if(reason==='captureLoss')await evaluate(`document.querySelector('.vd-pet-layer').dispatchEvent(new PointerEvent('lostpointercapture',{pointerId:gesturePointer,bubbles:true}))`);
+        if(reason==='outsideRelease'){await evaluate(`document.querySelector('.vd-pet-layer').releasePointerCapture(gesturePointer)`);await mouse('mouseReleased',20,20);}
+        if(reason==='blur')await evaluate(`window.dispatchEvent(new Event('blur'))`);
+        if(reason==='missingRelease')await mouse('mouseMoved',point.x+42,point.y-42);
+        await evaluate(`new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))`);
+        inputChecks[reason]=await evaluate(`PetRuntime.inspect3D().state!=='dragging'&&!document.querySelector('.vd-pet-layer').classList.contains('dragging')`);
+        await mouse('mouseReleased',point.x+42,point.y-42);
+        await evaluate(`until(()=>PetRuntime.inspect3D().state==='idle','cancelled drag settles')`);
+    }
     await evaluate(`document.querySelector('.vd-pet-layer').style.top='40px';PetRuntime.syncBootstrap({settings:{'pet.gravity':'true','pet.position_y':'0'}});PetRuntime.load()`);
     await evaluate(`until(()=>Math.abs(document.querySelector('.vd-pet-layer').offsetTop-(document.querySelector('.vd-taskbar').getBoundingClientRect().top-416))<1,'dock landing')`);
     assert.equal(await evaluate('PetRuntime.inspect3D().state'),'landing','A real fall must still play its landing animation');
@@ -117,15 +137,20 @@ try{
     await evaluate(`document.getElementById('test-window-layer').hidden=false;`);
     await checkLayering();
     delay=400;
-    await evaluate(`changePet('aurago-punk-3d');changePet('aurago-punk');`);await new Promise(r=>setTimeout(r,600));assert.equal(await evaluate('document.querySelectorAll(".vd-pet-sprite canvas").length'),0,'Late load must not revive a removed pet');
+    await evaluate(`changePet('aurago-punk-3d');`);
+    await evaluate(`new Promise(r=>requestAnimationFrame(r))`);
+    inputChecks.loadingHidesSprite=await evaluate(`getComputedStyle(document.querySelector('.vd-pet-sprite')).backgroundImage==='none'&&getComputedStyle(document.querySelector('.vd-pet-sprite')).pointerEvents==='none'`);
+    await evaluate(`changePet('aurago-punk');`);await new Promise(r=>setTimeout(r,600));assert.equal(await evaluate('document.querySelectorAll(".vd-pet-sprite canvas").length'),0,'Late load must not revive a removed pet');
     delay=0;fail=true;
     await evaluate(`changePet('aurago-punk-3d')`);await evaluate(`until(()=>notifications.length===1,'sprite fallback')`);
     assert.equal(await evaluate('document.querySelectorAll(".vd-pet-sprite canvas").length'),0);
+    assert.equal(await evaluate(`getComputedStyle(document.querySelector('.vd-pet-sprite')).backgroundImage!=='none'&&getComputedStyle(document.querySelector('.vd-pet-sprite')).pointerEvents==='auto'`),true,'The sprite fallback must remain visible and interactive after failure');
     fail=false;await evaluate(`PetRuntime.load();`);await evaluate(`until(()=>PetRuntime.inspect3D()?.frames>2,'retry after failure')`);
     await evaluate(`document.querySelector('.vd-pet-sprite canvas').getContext('webgl2').getExtension('WEBGL_lose_context').loseContext()`);
     await evaluate(`until(()=>notifications.length===2&&!PetRuntime.inspect3D(),'context-loss fallback')`);
     assert.deepEqual(errors,[]);
-    console.log(JSON.stringify({passed:true,initial,gazeRange:right-left,checks:['actual skin render','normalized weights','connected T-pose skeleton','30 pinned motions','3D and sprite foreground toggles in Standard and Fruity','desktop pet hit testing','pointer gaze without drift','agent reactions','manual gestures','greeting without position jump','pickup and drop','real fall and landing','no landing on grounded refresh or dock width change','speech bubbles','hidden-tab pause and resume','reduced motion','GPU disposal','late-load cancellation','asset failure fallback','context loss fallback']},null,2));
+    assert.deepEqual(inputChecks,{clickDoesNotStartDrag:true,captureLoss:true,outsideRelease:true,blur:true,missingRelease:true,loadingHidesSprite:true});
+    console.log(JSON.stringify({passed:true,initial,inputChecks,gazeRange:right-left,checks:['actual skin render','normalized weights','connected T-pose skeleton','30 pinned motions','3D and sprite foreground toggles in Standard and Fruity','desktop pet hit testing','pointer gaze without drift','agent reactions','manual gestures','greeting without position jump','pickup and drop','real fall and landing','no landing on grounded refresh or dock width change','speech bubbles','hidden-tab pause and resume','reduced motion','GPU disposal','late-load cancellation','asset failure fallback','context loss fallback']},null,2));
 }finally{
     socket?.close();
     if(child.exitCode===null){if(process.platform==='win32'){const stop=spawn('taskkill',['/PID',String(child.pid),'/T','/F'],{windowsHide:true,stdio:'ignore'});await new Promise(r=>stop.once('exit',r));}else child.kill();}

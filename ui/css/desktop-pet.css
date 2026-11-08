@@ -52,9 +52,14 @@
     cursor: grabbing;
 }
 
+.vd-pet-sprite.is-3d-loading,
 .vd-pet-sprite.is-3d-ready {
     animation: none !important;
     background-image: none !important;
+}
+
+.vd-pet-sprite.is-3d-loading {
+    pointer-events: none;
 }
 
 .vd-pet-sprite.is-3d-ready canvas {
