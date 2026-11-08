@@ -252,6 +252,13 @@ weather motion are removed by reduced motion.
   observer runs after the animation frame), and the renderer reallocates the buffer only
   when the size really changed. Without this, every tier change of a race costs one
   black frame.
+- **The dev server must deliver the files on disk.** A dev build carries no version, so its
+  service worker cache key (`?v=dev`) never rotates: a cache-first worker pins the scripts of
+  the first visit, and every later edit stays invisible in the browser - the old code keeps
+  running and its bugs with it. The dev worker therefore goes to the network first, and the
+  Aura Drift harness unregisters the worker and clears the caches before it loads the app
+  modules - then reloads once, because unregistering does not release the page the worker
+  already controls.
 - A broken gauge stays a gauge problem: the HUD is caught and emptied, the race keeps its
   3D view instead of dropping to the Canvas 2D view.
 
@@ -545,6 +552,12 @@ http://127.0.0.1:8791/harness?track=alpenpass&autostart=1
 
 Query parameters: `track`, `car`, `mode`, `quality`, `camera`, `autostart=1`, `seed`. Use it for
 real-screen play; it is not shipped (`ui/testdata` is outside the web asset set).
+
+The harness unregisters a service worker and clears the caches before it loads the app modules,
+and reloads once if it found something. Without that step the browser keeps the scripts of the
+first visit: the worker answers a `?v=dev` request from its cache, the files on disk never
+arrive, and a fixed build keeps its old behaviour. One reload of the harness URL is therefore
+enough to pick up a new build - and the first reload after an edit may show the reload itself.
 
 Ownership: `ui/js/desktop/apps/AGENTS.md` (app modules and contracts), `ui/AGENTS.md`
 (asset and locale rules), `internal/desktop/AGENTS.md` (catalog entry), `assets/aura-drift/AGENTS.md`
