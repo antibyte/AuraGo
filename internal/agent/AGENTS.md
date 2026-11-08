@@ -922,6 +922,8 @@ Tools are defined in `internal/tools/`:
   in at most four questions. Analyze the exact current HumanInput. The per-call
   plan removes answered fields from generation, validation and cache identity;
   excluded fields must never be persisted if a model returns them anyway.
+  Strip unrequested nested fields before typed decoding, including `learnings`
+  when fact extraction remains enabled.
   Learnings, activity prose, mood and narration retain their own requirements.
 - Reuse accepted decisions on Helper fallback without another scoring attempt.
   Appraisal retains the originating basis and TurnID and is applied once even

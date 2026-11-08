@@ -68,8 +68,6 @@ func tryHelperRAG(ctx context.Context, run RunConfig, manager *helperLLMManager,
 	}
 	head := candidates[:min(len(candidates), rerankDecisionMax)]
 	request := helperRAGRequest(query, head)
-	ctx, cancel := context.WithTimeout(ctx, consumers.HelperTimeout)
-	defer cancel()
 	response, err := snapshot.Evaluate(ctx, request)
 	if err != nil || ctx.Err() != nil || !snapshot.Current() || consumers.ValidateHelperResponse(request, response) != nil {
 		return nil, false
@@ -133,10 +131,8 @@ func prepareHelperTurn(ctx context.Context, run RunConfig, message string, perso
 		return plan
 	}
 	request := helperTurnDecisionRequest(message, gray, appraisal)
-	callCtx, cancel := context.WithTimeout(ctx, consumers.HelperTimeout)
-	defer cancel()
-	response, err := snapshot.Evaluate(callCtx, request)
-	if err != nil || callCtx.Err() != nil || !snapshot.Current() || consumers.ValidateHelperResponse(request, response) != nil {
+	response, err := snapshot.Evaluate(ctx, request)
+	if err != nil || ctx.Err() != nil || !snapshot.Current() || consumers.ValidateHelperResponse(request, response) != nil {
 		return fallback
 	}
 	used := 0
@@ -264,25 +260,24 @@ func (p helperTurnPlan) parse(raw string, personality *helperTurnPersonalityInpu
 	if err := json.Unmarshal([]byte(trimJSONResponse(raw)), &fields); err != nil {
 		return result, err
 	}
-	if p.Learnings {
-		var required map[string]json.RawMessage
-		if err := json.Unmarshal(fields["memory_analysis"], &required); err != nil {
+	if p.Memory || p.Learnings {
+		var memoryFields map[string]json.RawMessage
+		if err := json.Unmarshal(fields["memory_analysis"], &memoryFields); err != nil {
 			return result, err
 		}
-		if v := strings.TrimSpace(string(required["learnings"])); v == "" || v == "null" {
-			return result, fmt.Errorf("learning extraction requires an explicit array")
-		}
-	}
-	if !p.Memory {
 		if p.Learnings {
-			var memoryFields map[string]json.RawMessage
-			if err := json.Unmarshal(fields["memory_analysis"], &memoryFields); err != nil {
-				return result, err
+			if v := strings.TrimSpace(string(memoryFields["learnings"])); v == "" || v == "null" {
+				return result, fmt.Errorf("learning extraction requires an explicit array")
 			}
-			fields["memory_analysis"], _ = json.Marshal(map[string]json.RawMessage{"learnings": memoryFields["learnings"]})
 		} else {
-			delete(fields, "memory_analysis")
+			delete(memoryFields, "learnings")
 		}
+		if !p.Memory {
+			memoryFields = map[string]json.RawMessage{"learnings": memoryFields["learnings"]}
+		}
+		fields["memory_analysis"], _ = json.Marshal(memoryFields)
+	} else {
+		delete(fields, "memory_analysis")
 	}
 	if !p.Activity {
 		delete(fields, "activity_digest")

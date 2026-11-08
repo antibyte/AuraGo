@@ -149,6 +149,9 @@ attestation, request validation, candidate-logit normalization, and status.
   Measure admission through answer validation across the whole request; late,
   partial and stale replies cannot enable offloading. Probes and actual avoided
   Helper requests have separate counters. Status stays passive.
+- Qualified Helper snapshots own the 900 ms scoring deadline. Callers pass their
+  remaining task context without duplicating that timeout; shorter task deadlines
+  and explicit cancellation must not revoke performance qualification.
 
 ## Verification
 

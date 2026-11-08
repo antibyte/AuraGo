@@ -13,6 +13,7 @@ const (
 	RustFSDataVolumeName       = "aurago_rustfs_data"
 	RustFSCredentialVolumeName = "aurago_rustfs_credentials"
 	OllamaOwner                = "ollama"
+	MirageOwner                = "mirage"
 	// LocalLLMOwner is the canonical owner value for AuraGo-Qwen resources.
 	LocalLLMOwner = "local-llm"
 

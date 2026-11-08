@@ -80,6 +80,22 @@ self.addEventListener('fetch', event => {
         return;
     }
 
+    /* A dev build carries no version: its files change with every edit and the
+       cache key (?v=dev) never rotates. Serving them from the cache would pin the
+       scripts of the very first visit, so an edit would never reach the browser.
+       A dev build therefore always goes to the network and falls back to the cache
+       only when the network is gone. A release build keeps the cache-first path:
+       its ?v=<build> key rotates with every release. */
+    if (SERVICE_WORKER_BUILD === 'dev') {
+        event.respondWith(
+            fetch(request).catch(async () => {
+                const cached = await caches.open(STATIC_CACHE).then(cache => cache.match(request));
+                return cached || new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
+            })
+        );
+        return;
+    }
+
     event.respondWith(
         caches.open(STATIC_CACHE).then(async cache => {
             const key = cacheKeyFor(request);

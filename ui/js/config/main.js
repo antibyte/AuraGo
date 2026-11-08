@@ -2136,6 +2136,9 @@ async function renderSection(key) {
 
     const integrationActions = window.AuraConfigIntegrationActions;
     if (integrationActions) html += integrationActions.render(key);
+    if (key === 'vision') {
+        html += cfgStatusBanner.html('mirage-status-banner', 'checking', { detail: t('config.vision.mirage_checking') });
+    }
 
     // MeshCentral connection tester
     if (key === 'meshcentral') {
@@ -2178,6 +2181,7 @@ async function renderSection(key) {
     }
     _initArrayChipFields();
     if (integrationActions) integrationActions.bind(key);
+    if (key === 'vision') mirageCheckStatus();
 
     // ── Embeddings: multimodal_format visibility depends on multimodal toggle ──
     if (key === 'embeddings') {
@@ -2232,6 +2236,15 @@ function syncEmbeddingsRuntimeVisibility(localGranite) {
 }
 
 let embeddingsRuntimeRefreshTimer = 0;
+
+function mirageCheckStatus() {
+    return cfgStatusBanner.check('mirage-status-banner', () => fetch('/api/mirage/status'), body => {
+        if (body.status === 'disabled') return { state: 'off', detail: t('config.vision.mirage_disabled') };
+        if (body.status === 'running') return { state: 'connected', detail: t('config.vision.mirage_running') + (body.backend ? ' (' + body.backend + ')' : '') };
+        if (body.status === 'starting') return { state: 'degraded', detail: t('config.vision.mirage_starting') };
+        return { state: 'error', detail: t('config.vision.mirage_unavailable') };
+    }, { checkingDetail: t('config.vision.mirage_checking') });
+}
 
 async function refreshOllamaEmbeddingStatus() {
     const element = document.getElementById('ollama-embedding-status');

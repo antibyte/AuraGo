@@ -1791,6 +1791,13 @@ func Start(opts StartOptions) error {
 		if cfg.TTS.Piper.Enabled {
 			go tools.EnsurePiperRunning(cfg, logger)
 		}
+		if cfg.Vision.Mirage.Enabled {
+			go func() {
+				if err := tools.EnsureMirageRunning(cfg, logger, false); err != nil {
+					logger.Warn("[Mirage] Sidecar start failed", "error", err)
+				}
+			}()
+		}
 		if strings.EqualFold(strings.TrimSpace(cfg.TTS.Provider), "supertonic") && cfg.TTS.Supertonic.AutoStart {
 			go tools.EnsureSupertonicRunning(cfg, logger)
 		}

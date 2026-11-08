@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"aurago/internal/agent"
 	"aurago/internal/decisions"
 	"aurago/internal/decisions/consumers"
 )
@@ -164,6 +165,49 @@ func TestHelperDecisionsCallerCancellationDoesNotRevoke(t *testing.T) {
 	}
 	if !h.Snapshot(s.Cfg, consumers.HelperTurn).Available {
 		t.Fatal("caller cancellation revoked performance qualification")
+	}
+}
+
+func TestHelperDecisionsOwnDeadlineRevokesButTaskDeadlineDoesNot(t *testing.T) {
+	for _, id := range []consumers.ID{consumers.HelperRAG, consumers.HelperTurn} {
+		for _, taskExpires := range []bool{false, true} {
+			name := string(id) + "/scoring_timeout"
+			if taskExpires {
+				name = string(id) + "/task_timeout"
+			}
+			t.Run(name, func(t *testing.T) {
+				s, p := helperProbeFixture(t)
+				h := s.decisionHub()
+				h.qualifyHelperProfile(t.Context(), id)
+				snap := h.Snapshot(s.Cfg, id)
+				if !snap.Available {
+					t.Fatal("fixture did not qualify")
+				}
+				p.hook = func(ctx context.Context) { <-ctx.Done() }
+				duration := 2 * time.Second
+				p.latency = consumers.HelperTimeout
+				if taskExpires {
+					duration, p.latency = 20*time.Millisecond, 20*time.Millisecond
+				}
+				ctx, cancel := context.WithTimeout(t.Context(), duration)
+				defer cancel()
+				_, err := snap.Evaluate(ctx, agent.HelperQualificationRequest(id))
+				if taskExpires {
+					if decisions.ErrorCode(err) != decisions.CodeCancelled || !h.Snapshot(s.Cfg, id).Available {
+						t.Fatalf("task timeout revoked qualification: %v", err)
+					}
+					return
+				}
+				if decisions.ErrorCode(err) != decisions.CodeRuntimeScoreTimeout || ctx.Err() != nil || h.Snapshot(s.Cfg, id).Available {
+					t.Fatalf("scoring timeout did not revoke qualification independently of the task: %v", err)
+				}
+				before := p.calls.Load()
+				h.qualifyHelperProfile(t.Context(), id)
+				if p.calls.Load() != before {
+					t.Fatal("scoring timeout bypassed qualification cooldown")
+				}
+			})
+		}
 	}
 }
 

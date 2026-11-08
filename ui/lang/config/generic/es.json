@@ -287,5 +287,10 @@
   "config.virustotal.api_key_label": "Clave de API",
   "config.virustotal.enabled_label": "VirusTotal activado",
   "config.vision.provider_label": "Proveedor de visión",
+  "config.vision.mirage_checking": "Comprobando el sidecar de Mirage…",
+  "config.vision.mirage_disabled": "Mirage no está activado",
+  "config.vision.mirage_running": "Mirage está en funcionamiento",
+  "config.vision.mirage_starting": "Mirage se está iniciando (el modelo se carga en el primer inicio)",
+  "config.vision.mirage_unavailable": "No se puede acceder al sidecar de Mirage",
   "config.whisper.provider_label": "Proveedor de voz a texto"
 }

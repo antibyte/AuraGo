@@ -1498,6 +1498,15 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				go tools.EnsurePiperRunning(newCfg, s.Logger)
 			}
 
+			// Start or reconcile the Mirage vision sidecar when it was just enabled or its settings changed
+			if newCfg.Docker.Enabled && newCfg.Vision.Mirage.Enabled && (!oldCfg.Vision.Mirage.Enabled || mirageInputsChanged(&oldCfg, newCfg)) {
+				go func() {
+					if err := tools.EnsureMirageRunning(newCfg, s.Logger, true); err != nil {
+						s.Logger.Warn("[Mirage] Sidecar start failed", "error", err)
+					}
+				}()
+			}
+
 			newSupertonicAutoStart := strings.EqualFold(strings.TrimSpace(newCfg.TTS.Provider), "supertonic") && newCfg.TTS.Supertonic.AutoStart
 			oldSupertonicAutoStart := strings.EqualFold(strings.TrimSpace(oldCfg.TTS.Provider), "supertonic") && oldCfg.TTS.Supertonic.AutoStart
 			supertonicSidecarChanged := newCfg.TTS.Supertonic.ContainerName != oldCfg.TTS.Supertonic.ContainerName ||

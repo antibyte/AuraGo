@@ -3726,6 +3726,13 @@ buttons and menu popovers remain excluded from those gestures.
   content overflow and feeds the resize loop. A failing HUD is caught and emptied,
   never left to the frame loop, which would read the error as a dead renderer and
   drop the race to the 2D view.
+- The dev server must deliver the files on disk. A dev build carries no version, so
+  its service worker cache key (`?v=dev`) never rotates and a cache-first worker pins
+  the scripts of the very first visit: later edits never reach the browser and the old
+  code keeps running. The dev worker therefore goes to the network first, and the Aura
+  Drift harness unregisters the worker and clears the caches before it loads the app
+  modules, then reloads once - unregistering does not release the page the worker
+  already controls.
 - All DOM classes use the `agdrift-` prefix: the original `ad-` prefix was hidden by
   AdGuard/EasyList `[class^="ad-"]` rules, leaving a running but invisible app with no console
   error. Never reintroduce a prefix containing `ad`; verify

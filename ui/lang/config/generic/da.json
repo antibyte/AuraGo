@@ -287,5 +287,10 @@
   "config.virustotal.api_key_label": "API-nøgle",
   "config.virustotal.enabled_label": "VirusTotal aktiveret",
   "config.vision.provider_label": "Vision-udbyder",
+  "config.vision.mirage_checking": "Kontrollerer Mirage-sidecar…",
+  "config.vision.mirage_disabled": "Mirage er ikke aktiveret",
+  "config.vision.mirage_running": "Mirage kører",
+  "config.vision.mirage_starting": "Mirage starter (modellen indlæses ved første start)",
+  "config.vision.mirage_unavailable": "Mirage-sidecar kan ikke nås",
   "config.whisper.provider_label": "Udbyder af tale-til-tekst"
 }

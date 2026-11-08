@@ -1,0 +1,868 @@
+{
+ "scene": {
+  "setting": "computer screen",
+  "background": "dark software interface",
+  "lighting": "screen glow",
+  "style": "screenshot"
+ },
+ "objects": [
+  {
+   "id": 1,
+   "name": "text label",
+   "bbox": [
+    20,
+    27,
+    95,
+    52
+   ],
+   "score": 0.348,
+   "mask": [
+    27,
+    25,
+    25,
+    28,
+    24,
+    40,
+    24,
+    51,
+    27,
+    55,
+    82,
+    55,
+    90,
+    52,
+    90,
+    39,
+    74,
+    26
+   ],
+   "position": "left",
+   "description": {
+    "color": "white"
+   }
+  },
+  {
+   "id": 1,
+   "name": "text label",
+   "bbox": [
+    177,
+    69,
+    222,
+    89
+   ],
+   "score": 0.317,
+   "mask": [
+    184,
+    70,
+    181,
+    74,
+    180,
+    85,
+    184,
+    90,
+    215,
+    91,
+    219,
+    85,
+    217,
+    74,
+    215,
+    70
+   ],
+   "position": "left",
+   "description": {
+    "color": "white"
+   }
+  },
+  {
+   "id": 1,
+   "name": "text label",
+   "bbox": [
+    16,
+    153,
+    40,
+    188
+   ],
+   "score": 0.327,
+   "mask": [
+    20,
+    151,
+    18,
+    153,
+    17,
+    165,
+    17,
+    187,
+    20,
+    192,
+    35,
+    193,
+    39,
+    187,
+    38,
+    153,
+    35,
+    149
+   ],
+   "position": "left",
+   "description": {
+    "color": "white"
+   }
+  },
+  {
+   "id": 1,
+   "name": "text label",
+   "bbox": [
+    243,
+    148,
+    282,
+    178
+   ],
+   "score": 0.317,
+   "mask": [
+    246,
+    148,
+    243,
+    153,
+    242,
+    165,
+    242,
+    176,
+    246,
+    181,
+    277,
+    179,
+    279,
+    176,
+    281,
+    165,
+    277,
+    156,
+    270,
+    152
+   ],
+   "position": "left",
+   "description": {
+    "color": "white"
+   }
+  },
+  {
+   "id": 1,
+   "name": "text label",
+   "bbox": [
+    402,
+    106,
+    439,
+    130
+   ],
+   "score": 0.308,
+   "mask": [
+    410,
+    107,
+    402,
+    110,
+    400,
+    119,
+    400,
+    131,
+    402,
+    134,
+    410,
+    136,
+    426,
+    135,
+    435,
+    131,
+    437,
+    119,
+    434,
+    110,
+    426,
+    106
+   ],
+   "position": "left",
+   "description": {
+    "color": "white"
+   }
+  },
+  {
+   "id": 1,
+   "name": "text label",
+   "bbox": [
+    708,
+    102,
+    779,
+    130
+   ],
+   "score": 0.406,
+   "mask": [
+    715,
+    102,
+    711,
+    108,
+    711,
+    119,
+    715,
+    125,
+    770,
+    125,
+    777,
+    120,
+    774,
+    108,
+    770,
+    104
+   ],
+   "position": "left",
+   "description": {
+    "color": "white"
+   }
+  },
+  {
+   "id": 1,
+   "name": "text label",
+   "bbox": [
+    777,
+    105,
+    821,
+    125
+   ],
+   "score": 0.331,
+   "mask": [
+    785,
+    104,
+    777,
+    108,
+    775,
+    119,
+    777,
+    123,
+    785,
+    125,
+    809,
+    125,
+    816,
+    125,
+    820,
+    119,
+    820,
+    108,
+    816,
+    103
+   ],
+   "position": "left",
+   "description": {
+    "color": "white"
+   }
+  },
+  {
+   "id": 1,
+   "name": "text label",
+   "bbox": [
+    53,
+    178,
+    123,
+    198
+   ],
+   "score": 0.31,
+   "mask": [
+    59,
+    182,
+    55,
+    187,
+    59,
+    193,
+    113,
+    192,
+    121,
+    190,
+    122,
+    187,
+    121,
+    185,
+    113,
+    183
+   ],
+   "position": "left",
+   "description": {
+    "color": "white"
+   }
+  },
+  {
+   "id": 1,
+   "name": "text label",
+   "bbox": [
+    68,
+    323,
+    139,
+    378
+   ],
+   "score": 0.35,
+   "mask": [
+    74,
+    319,
+    71,
+    324,
+    71,
+    369,
+    74,
+    373,
+    113,
+    374,
+    121,
+    372,
+    129,
+    365,
+    133,
+    358,
+    134,
+    347,
+    138,
+    324,
+    137,
+    322,
+    129,
+    319
+   ],
+   "position": "left",
+   "description": {
+    "color": "white"
+   }
+  },
+  {
+   "id": 1,
+   "name": "text label",
+   "bbox": [
+    182,
+    275,
+    233,
+    305
+   ],
+   "score": 0.334,
+   "mask": [
+    199,
+    277,
+    191,
+    281,
+    184,
+    290,
+    185,
+    301,
+    191,
+    305,
+    223,
+    305,
+    232,
+    301,
+    234,
+    290,
+    230,
+    280,
+    223,
+    275,
+    215,
+    275
+   ],
+   "position": "left",
+   "description": {
+    "color": "white"
+   }
+  },
+  {
+   "id": 1,
+   "name": "text label",
+   "bbox": [
+    14,
+    951,
+    39,
+    986
+   ],
+   "score": 0.38,
+   "mask": [
+    20,
+    955,
+    16,
+    960,
+    16,
+    983,
+    20,
+    988,
+    27,
+    989,
+    35,
+    985,
+    38,
+    972,
+    37,
+    960,
+    27,
+    955
+   ],
+   "position": "left",
+   "description": {
+    "color": "white"
+   }
+  },
+  {
+   "id": 1,
+   "name": "text label",
+   "bbox": [
+    99,
+    957,
+    170,
+    988
+   ],
+   "score": 0.367,
+   "mask": [
+    105,
+    956,
+    102,
+    960,
+    102,
+    972,
+    102,
+    983,
+    105,
+    988,
+    168,
+    988,
+    171,
+    983,
+    171,
+    960,
+    168,
+    956
+   ],
+   "position": "left",
+   "description": {
+    "color": "white"
+   }
+  },
+  {
+   "id": 2,
+   "name": "menu bar",
+   "bbox": [
+    9,
+    20,
+    907,
+    959
+   ],
+   "score": 0.779,
+   "mask": [
+    12,
+    23,
+    8,
+    28,
+    8,
+    51,
+    8,
+    483,
+    8,
+    926,
+    8,
+    949,
+    12,
+    954,
+    152,
+    954,
+    184,
+    950,
+    246,
+    947,
+    395,
+    953,
+    652,
+    947,
+    707,
+    954,
+    887,
+    954,
+    902,
+    953,
+    905,
+    949,
+    906,
+    926,
+    905,
+    119,
+    904,
+    28,
+    902,
+    26,
+    887,
+    23
+   ],
+   "position": "top",
+   "description": {
+    "color": "dark"
+   }
+  },
+  {
+   "id": 3,
+   "name": "software window",
+   "bbox": [
+    6,
+    12,
+    991,
+    974
+   ],
+   "score": 0.875,
+   "mask": [
+    12,
+    12,
+    8,
+    17,
+    8,
+    74,
+    8,
+    926,
+    9,
+    972,
+    12,
+    976,
+    988,
+    976,
+    991,
+    972,
+    992,
+    926,
+    992,
+    472,
+    992,
+    17,
+    988,
+    12,
+    902,
+    14,
+    871,
+    12,
+    496,
+    14
+   ],
+   "position": "center",
+   "description": {
+    "color": "dark",
+    "state": "open"
+   }
+  },
+  {
+   "id": 4,
+   "name": "button",
+   "bbox": [
+    228,
+    59,
+    885,
+    918
+   ],
+   "score": 0.524,
+   "mask": [
+    230,
+    58,
+    227,
+    62,
+    227,
+    108,
+    227,
+    881,
+    230,
+    891,
+    238,
+    892,
+    246,
+    901,
+    256,
+    903,
+    230,
+    907,
+    228,
+    915,
+    230,
+    918,
+    848,
+    919,
+    879,
+    919,
+    881,
+    915,
+    882,
+    778,
+    879,
+    767,
+    882,
+    756,
+    883,
+    710,
+    883,
+    62,
+    879,
+    57
+   ],
+   "position": "left",
+   "description": {
+    "color": "dark"
+   }
+  }
+ ],
+ "regions": [],
+ "text": [
+  {
+   "string": "Datei",
+   "bbox": [
+    22,
+    68,
+    54,
+    90
+   ],
+   "score": 0.475
+  },
+  {
+   "string": "Code Studio",
+   "bbox": [
+    24,
+    27,
+    93,
+    52
+   ],
+   "score": 0.552
+  },
+  {
+   "string": "Bearbeiten",
+   "bbox": [
+    64,
+    68,
+    113,
+    90
+   ],
+   "score": 0.539
+  },
+  {
+   "string": "Ansicht",
+   "bbox": [
+    129,
+    69,
+    163,
+    90
+   ],
+   "score": 0.524
+  },
+  {
+   "string": "Ausfuhren",
+   "bbox": [
+    176,
+    70,
+    223,
+    90
+   ],
+   "score": 0.535
+  },
+  {
+   "string": "Fenster",
+   "bbox": [
+    236,
+    71,
+    272,
+    91
+   ],
+   "score": 0.416
+  },
+  {
+   "string": "B",
+   "bbox": [
+    85,
+    104,
+    108,
+    128
+   ],
+   "score": 0.304
+  },
+  {
+   "string": "main go",
+   "bbox": [
+    243,
+    147,
+    283,
+    174
+   ],
+   "score": 0.404
+  },
+  {
+   "string": "Austuhren",
+   "bbox": [
+    719,
+    102,
+    768,
+    128
+   ],
+   "score": 0.312
+  },
+  {
+   "string": "PerE-Mall",
+   "bbox": [
+    830,
+    104,
+    883,
+    126
+   ],
+   "score": 0.398
+  },
+  {
+   "string": "Q",
+   "bbox": [
+    19,
+    209,
+    38,
+    234
+   ],
+   "score": 0.322
+  },
+  {
+   "string": "Arbeitsbereich",
+   "bbox": [
+    55,
+    176,
+    122,
+    199
+   ],
+   "score": 0.578
+  },
+  {
+   "string": "main.go",
+   "bbox": [
+    314,
+    185,
+    350,
+    204
+   ],
+   "score": 0.31
+  },
+  {
+   "string": "D",
+   "bbox": [
+    19,
+    308,
+    39,
+    333
+   ],
+   "score": 0.347
+  },
+  {
+   "string": "main.go",
+   "bbox": [
+    73,
+    279,
+    120,
+    302
+   ],
+   "score": 0.567
+  },
+  {
+   "string": "READMEmd",
+   "bbox": [
+    69,
+    336,
+    137,
+    363
+   ],
+   "score": 0.631
+  },
+  {
+   "string": "OG",
+   "bbox": [
+    183,
+    275,
+    232,
+    302
+   ],
+   "score": 0.556
+  },
+  {
+   "string": "Func mainO",
+   "bbox": [
+    271,
+    283,
+    334,
+    305
+   ],
+   "score": 0.422
+  },
+  {
+   "string": "PROBLEMEd",
+   "bbox": [
+    244,
+    663,
+    303,
+    686
+   ],
+   "score": 0.427
+  },
+  {
+   "string": "AUsGABE",
+   "bbox": [
+    321,
+    665,
+    359,
+    685
+   ],
+   "score": 0.352
+  },
+  {
+   "string": "TERMINAL",
+   "bbox": [
+    373,
+    665,
+    415,
+    685
+   ],
+   "score": 0.497
+  },
+  {
+   "string": "/workspace/main.go",
+   "bbox": [
+    258,
+    727,
+    342,
+    749
+   ],
+   "score": 0.425
+  },
+  {
+   "string": "1Fehler, O Warnunger",
+   "bbox": [
+    89,
+    898,
+    164,
+    920
+   ],
+   "score": 0.346
+  },
+  {
+   "string": "Code Studio",
+   "bbox": [
+    101,
+    957,
+    169,
+    984
+   ],
+   "score": 0.409
+  }
+ ],
+ "relations": [
+  {
+   "subject": 2,
+   "predicate": "part_of",
+   "object": 3
+  },
+  {
+   "subject": 4,
+   "predicate": "part_of",
+   "object": 3
+  },
+  {
+   "subject": 1,
+   "predicate": "part_of",
+   "object": 3
+  }
+ ],
+ "events": [],
+ "reasoning": "lang: en | dark software window with menu bar, buttons, and text labels | software windows contain menus, buttons, and labels | text labels name functions | cannot read the labels or know the software"
+}

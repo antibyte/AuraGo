@@ -32,6 +32,7 @@ func ManagedSidecarContainerNames(cfg *config.Config) []string {
 		}
 	}
 	add(gotenbergContainerName, ollamaManagedContainerName, ollamaEmbContainerName, piperContainerName)
+	add(config.MirageDefaultContainerName, cfg.Vision.Mirage.ContainerName)
 	add(defaultSupertonicContainerName, cfg.TTS.Supertonic.ContainerName)
 	add(ansibleContainerName, cfg.Ansible.ContainerName)
 	add(browserAutomationContainerName, cfg.BrowserAutomation.ContainerName)
