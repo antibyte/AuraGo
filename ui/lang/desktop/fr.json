@@ -11492,5 +11492,7 @@
   "codeStudio.knowledge": "Enseignements",
   "codeStudio.replaceInFile": "Remplacer dans le fichier",
   "codeStudio.nextProblem": "Problème suivant",
-  "synthStudio.master_level": "Niveau master"
+  "synthStudio.master_level": "Niveau master",
+  "synthStudio.eq_curve": "Réponse en fréquence de l'égaliseur",
+  "synthStudio.filter_curve": "Réponse en fréquence du filtre"
 }

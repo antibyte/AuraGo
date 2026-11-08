@@ -11492,5 +11492,7 @@
   "codeStudio.knowledge": "Conoscenze acquisite",
   "codeStudio.replaceInFile": "Sostituisci nel file",
   "codeStudio.nextProblem": "Problema successivo",
-  "synthStudio.master_level": "Livello master"
+  "synthStudio.master_level": "Livello master",
+  "synthStudio.eq_curve": "Risposta in frequenza dell'EQ",
+  "synthStudio.filter_curve": "Risposta in frequenza del filtro"
 }

@@ -11492,5 +11492,7 @@
   "codeStudio.knowledge": "见解",
   "codeStudio.replaceInFile": "在文件中替换",
   "codeStudio.nextProblem": "下一个问题",
-  "synthStudio.master_level": "主输出电平"
+  "synthStudio.master_level": "主输出电平",
+  "synthStudio.eq_curve": "均衡器频率响应",
+  "synthStudio.filter_curve": "滤波器频率响应"
 }

@@ -11492,5 +11492,7 @@
   "codeStudio.knowledge": "Indsigter",
   "codeStudio.replaceInFile": "Erstat i fil",
   "codeStudio.nextProblem": "Næste problem",
-  "synthStudio.master_level": "Masterniveau"
+  "synthStudio.master_level": "Masterniveau",
+  "synthStudio.eq_curve": "EQ-frekvensrespons",
+  "synthStudio.filter_curve": "Filterets frekvensrespons"
 }

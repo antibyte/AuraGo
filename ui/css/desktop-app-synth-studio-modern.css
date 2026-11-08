@@ -392,3 +392,20 @@
 .ss-led-seg[data-tone=r] { --ss-led-c: var(--ss-led-red); }
 .ss-led-seg.is-on { background: var(--ss-led-c); box-shadow: 0 0 6px color-mix(in srgb, var(--ss-led-c) 75%, transparent); }
 [data-scheme="light"] .ss-app .ss-led-seg.is-on { box-shadow: 0 0 4px color-mix(in srgb, var(--ss-led-c) 55%, transparent); }
+
+/* ---- response curves: EQ, filter, envelope (pure SVG read-outs) ---- */
+.ss-curve {
+    display: block; width: 100%; height: 84px; border-radius: 12px; overflow: hidden;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--ss-accent) 7%, var(--ss-recess)), var(--ss-recess)); box-shadow: var(--ss-well-in);
+}
+.ss-curve-grid line { stroke: color-mix(in srgb, var(--ss-text) 9%, transparent); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.ss-curve-grid .ss-curve-zero { stroke: color-mix(in srgb, var(--ss-text) 22%, transparent); }
+.ss-curve-fill { fill: color-mix(in srgb, var(--ss-accent) 18%, transparent); stroke: none; }
+.ss-curve-line {
+    fill: none; stroke: var(--ss-accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round;
+    vector-effect: non-scaling-stroke; filter: drop-shadow(0 0 3px var(--ss-glow));
+}
+.ss-curve-marker { stroke: var(--ss-hot); stroke-width: 1; stroke-dasharray: 3 3; opacity: .85; vector-effect: non-scaling-stroke; }
+.ss-app .ss-master-group > .ss-curve { margin-top: 10px; }
+.ss-app .ss-designer-group > .ss-curve { width: calc(100% - 32px); margin: 0 16px 6px; }
+[data-scheme="light"] .ss-app .ss-curve-line { filter: none; }

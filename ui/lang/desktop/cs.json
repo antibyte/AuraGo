@@ -11492,5 +11492,7 @@
   "codeStudio.knowledge": "Poznatky",
   "codeStudio.replaceInFile": "Nahradit v souboru",
   "codeStudio.nextProblem": "Další problém",
-  "synthStudio.master_level": "Úroveň master"
+  "synthStudio.master_level": "Úroveň master",
+  "synthStudio.eq_curve": "Frekvenční odezva ekvalizéru",
+  "synthStudio.filter_curve": "Frekvenční odezva filtru"
 }

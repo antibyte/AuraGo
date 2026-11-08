@@ -11492,5 +11492,7 @@
   "codeStudio.knowledge": "Συμπεράσματα",
   "codeStudio.replaceInFile": "Αντικατάσταση στο αρχείο",
   "codeStudio.nextProblem": "Επόμενο πρόβλημα",
-  "synthStudio.master_level": "Επίπεδο master"
+  "synthStudio.master_level": "Επίπεδο master",
+  "synthStudio.eq_curve": "Απόκριση συχνότητας EQ",
+  "synthStudio.filter_curve": "Απόκριση συχνότητας φίλτρου"
 }

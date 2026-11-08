@@ -206,12 +206,20 @@
         const MASTER_GROUPS=[
             {label:'fx_output',fields:[['volume','volume',0,1.5,.01],['width','fx_width',0,2,.01]]},
             {label:'fx_compressor',cols:3,fields:[['threshold','fx_threshold',-60,0,.5],['ratio','fx_ratio',1,20,.1],['knee','fx_knee',0,40,.5],['attack','attack',0,1,.001],['release','release',0,1,.01]]},
-            {label:'fx_eq3',fields:[['low','fx_low',-18,18,.5],['mid','fx_mid',-18,18,.5],['high','fx_high',-18,18,.5]]},
+            {label:'fx_eq3',curve:'eq',fields:[['low','fx_low',-18,18,.5],['mid','fx_mid',-18,18,.5],['high','fx_high',-18,18,.5]]},
             {label:'fx_send',cols:3,fields:[['plateSize','fx_size',0,1,.01],['plateDecay','fx_decay',0,1,.01],['echoTime','fx_time',.01,2,.005],['echoFeedback','fx_feedback',0,.85,.01]],select:'echoSync'}
         ];
         const ECHO_DIVISIONS=['off','1/4','1/8','1/8T','1/16','1/16T'];
         // The master volume reads in dB; every other control keeps its plain number.
         const masterReadout=(key,value)=>key==='volume'?K.formatDb(value):Number(value).toFixed(2);
+        // The EQ curve reads the live input values, so a drag redraws it before the
+        // gesture commits; one repaint per frame however fast the input events come.
+        function paintEq(){
+            const panel=find('[data-master-panel]'),svg=panel?.querySelector('[data-curve=eq]');if(!svg)return;
+            const v=key=>Number(panel.querySelector('[data-master-param='+key+']')?.value)||0;
+            K.paintEq(svg,v('low'),v('mid'),v('high'));
+        }
+        const scheduleEq=K.scheduler(paintEq);
         function renderMaster(){
             const panel=find('[data-master-panel]');if(!panel)return;
             const defaults=M.MASTER_DEFAULTS||{},m={...defaults,...(project().master||{})};
@@ -220,9 +228,10 @@
             const options=ECHO_DIVISIONS.map(value=>'<option value="'+value+'"'+(value===sync?' selected':'')+'>'+esc(value==='off'?tr('fx_off'):value)+'</option>').join('');
             panel.innerHTML=MASTER_GROUPS.map(group=>{
                 const select=group.select?('<label class="ss-parameter ss-master-select"><span>'+esc(tr('fx_echo_sync'))+'</span><select data-master-select="'+group.select+'" aria-label="'+esc(tr('fx_echo_sync'))+'">'+options+'</select></label>'):'';
-                return '<div class="ss-master-group"><h4>'+esc(tr(group.label))+'</h4><div class="ss-master-fields" style="--ss-master-cols:'+(group.cols||2)+'">'+group.fields.map(field).join('')+select+'</div></div>';
+                return '<div class="ss-master-group"><h4>'+esc(tr(group.label))+'</h4><div class="ss-master-fields" style="--ss-master-cols:'+(group.cols||2)+'">'+group.fields.map(field).join('')+select+'</div>'+(group.curve==='eq'?K.eqMarkup(esc(tr('eq_curve'))):'')+'</div>';
             }).join('');
             panel.querySelectorAll('input,select').forEach(el=>el.disabled=blocked());
+            paintEq();
         }
 
         function controlTarget(el) {
@@ -237,7 +246,8 @@
             if(['pan','volume'].includes(c.key))t[c.key]=c.value;else t.params[c.key]=c.value;}
         function previewParameter(el) {
             const c=controlTarget(el);if(!c||(!c.master&&!c.id))return;
-            if(!c.master&&stage?.preview(c)){const out=el.parentElement.querySelector('output');if(out)out.textContent=c.value.toFixed(2);return;}            if(blocked())return;
+            if(!c.master&&stage?.preview(c)){const out=el.parentElement.querySelector('output');if(out)out.textContent=c.value.toFixed(2);return;}            if(c.master&&['low','mid','high'].includes(c.key))scheduleEq();
+            if(blocked())return;
             const p={...project(),master:{...(project().master||{})},tracks:project().tracks.map(t=>({...t,params:{...t.params},fx:t.fx?{...t.fx,inserts:t.fx.inserts.map(insert=>({...insert}))}:undefined}))};setParameter(p,c);audio.updateTracks(p);
             const out=el.parentElement.querySelector('output');if(out)out.textContent=c.master?masterReadout(c.key,c.value):Number(c.value).toFixed(2);
         }

@@ -299,6 +299,20 @@
             return test ? test(state.patch) : true;
         }
 
+        // Read-out curves (pure SVG, see synth-studio-curves.js) live inside their
+        // group. They are feedback only and follow the draft patch.
+        const curves = root.SynthStudioCurves;
+        function curveMarkup(group) {
+            if (!curves) return "";
+            return group.labelKey === "grp_filter" ? curves.filterMarkup(esc(tr("filter_curve"))) : "";
+        }
+        function paintCurves() {
+            if (!curves) return;
+            const p = state.patch;
+            curves.paintFilter(host.querySelector("[data-curve=filter]"), p.filterType, p.cutoff, p.filterQ);
+        }
+        const schedulePaint = curves ? curves.scheduler(paintCurves) : () => {};
+
         function fieldMarkup(field) {
             const value = readField(state.patch, field.key);
             const label = esc(tr(field.labelKey));
@@ -316,7 +330,7 @@
         }
         function render() {
             const disabled = options.blocked && options.blocked();
-            const groups = FIELD_GROUPS.map(group => `<details class="ss-designer-group" data-group="${esc(group.labelKey)}"${groupOpen(group) ? " open" : ""}><summary><h4>${esc(tr(group.labelKey))}</h4><span class="ss-group-chevron" aria-hidden="true"></span></summary><div class="ss-param-grid">${group.fields.map(fieldMarkup).join("")}</div></details>`).join("");
+            const groups = FIELD_GROUPS.map(group => `<details class="ss-designer-group" data-group="${esc(group.labelKey)}"${groupOpen(group) ? " open" : ""}><summary><h4>${esc(tr(group.labelKey))}</h4><span class="ss-group-chevron" aria-hidden="true"></span></summary>${curveMarkup(group)}<div class="ss-param-grid">${group.fields.map(fieldMarkup).join("")}</div></details>`).join("");
             const keys = [60, 62, 64, 65, 67, 69, 71, 72];
             host.innerHTML = `<section class="ss-designer" data-designer>` +
                 `<header class="ss-designer-head"><h3>${esc(tr("designer"))}</h3>` +
@@ -331,6 +345,7 @@
                 `<button type="button" data-designer-action="reset">${esc(tr("designer_reset"))}</button>` +
                 `<button type="button" data-designer-action="close">${esc(tr("designer_close"))}</button>` +
                 `</footer></section>`;
+            paintCurves();
         }
         render();
 
@@ -351,6 +366,7 @@
             writeField(state.patch, field.key, value);
             const output = control.parentElement.querySelector("output");
             if (output) output.textContent = Number(value).toFixed(2);
+            schedulePaint();
             commit();
         });
         listen(host, "change", event => {
@@ -359,6 +375,7 @@
             const field = FIELD_GROUPS.flatMap(group => group.fields).find(item => item.key === control.dataset.designerParam);
             if (!field || field.type !== "select") return;
             writeField(state.patch, field.key, control.value);
+            schedulePaint();
             commit();
         });
         listen(host, "input", event => {
