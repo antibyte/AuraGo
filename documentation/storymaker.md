@@ -1,9 +1,14 @@
 # Storymaker
 
-Storymaker is the Virtual Desktop app for short explainer videos. You stage scenes with cartoon people, props and
+The built-in illustration library contains twelve fixed characters, twelve day/night environments and eighty props. PixiJS renders textured bitmap artwork with separate background depth layers; GSAP evaluates animation at the requested video frame. Existing projects automatically use the new artwork with their existing asset IDs, timing and movement names. Images and both runtime libraries ship locally; preview and export need no image-generation provider or CDN.
+
+The renderer prefers WebGL and falls back to Pixi's Canvas renderer. Characters combine a thirteen-bone rig with facial, hand and seated replacement drawings. Source images, prompts, production steps and validation limits are documented in `assets/storymaker/ASSET-CONTRACT.md`.
+
+Storymaker is the Virtual Desktop app for short explainer videos. You stage scenes with illustrated people, props and
 environments from a built-in catalog, write the narration, pick a voice and music, watch a live preview and export an MP4 with
-sound, captions, subtitle files and separate audio tracks. A finished export can continue in Video Studio. This page describes
-phases 1 and 2 and the agent core. The asset generator comes in a later phase.
+sound, captions, subtitle files and separate audio tracks. A finished export can continue in Video Studio.
+
+For CPU-only export, prefer a current installed Chrome. The provisioned older Chromium also works, but renders these textured images more slowly; allow a larger export timeout for long films. Physical GPU speed depends on the machine. The `raw` transport is an existing profiling alternative when PNG encoding limits throughput; compare it on the target machine before changing the default.
 
 ## Switch it on
 

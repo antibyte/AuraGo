@@ -869,7 +869,7 @@ func TestStorymakerPlayerHostPage(t *testing.T) {
 		t.Fatalf("player = %d %s", w.Code, w.Body.String())
 	}
 	origin := "http://aurago.example:8443"
-	wantCSP := "sandbox allow-scripts; default-src 'none'; script-src " + origin + "/js/storymaker/ blob:; worker-src blob:; img-src blob: data:; font-src blob: data:; connect-src 'none'; style-src " + origin + "/css/storymaker-player.css; form-action 'none'; base-uri 'none'; object-src 'none'; frame-ancestors 'self'"
+	wantCSP := "sandbox allow-scripts; default-src 'none'; script-src " + origin + "/js/storymaker/ " + origin + "/js/vendor/storymaker/runtime.js blob:; worker-src blob:; img-src blob: data:; font-src blob: data:; connect-src 'none'; style-src " + origin + "/css/storymaker-player.css; form-action 'none'; base-uri 'none'; object-src 'none'; frame-ancestors 'self'"
 	h := w.Header()
 	if h.Get("Content-Security-Policy") != wantCSP {
 		t.Errorf("CSP =\n%s\nwant\n%s", h.Get("Content-Security-Policy"), wantCSP)

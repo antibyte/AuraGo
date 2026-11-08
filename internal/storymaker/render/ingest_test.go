@@ -203,7 +203,7 @@ func TestIngestSinkFailureWithoutRecoveryIsFatalAndWithRecoveryRestarts(t *testi
 }
 
 func TestMaxFrameBytes(t *testing.T) {
-	if got := MaxFrameBytes(IngestConfig{Width: 1920, Height: 1080, Transport: TransportPNG}); got != 4<<20 {
+	if got := MaxFrameBytes(IngestConfig{Width: 1920, Height: 1080, Transport: TransportPNG}); got != 1920*1080*4+1920*1080*4/100+(64<<10) {
 		t.Errorf("1080p png = %d", got)
 	}
 	if got := MaxFrameBytes(IngestConfig{Width: 1920, Height: 1080, Transport: TransportRaw}); got != 1920*1080*4 {
@@ -214,6 +214,11 @@ func TestMaxFrameBytes(t *testing.T) {
 	}
 	if got := MaxFrameBytes(IngestConfig{Width: 3840, Height: 2160, Transport: TransportWebP}); got != 16<<20 {
 		t.Errorf("4K webp = %d", got)
+	}
+	for _, transport := range []string{TransportPNG, TransportScreenshot} {
+		if got := MaxFrameBytes(IngestConfig{Width: 1080, Height: 1920, Transport: transport}); got < 1080*1920*4+1920 {
+			t.Errorf("%s cannot hold an incompressible portrait PNG: %d", transport, got)
+		}
 	}
 }
 

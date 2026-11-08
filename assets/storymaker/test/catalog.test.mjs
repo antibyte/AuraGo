@@ -5,13 +5,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
-import fs from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildOutputs, sameOutput, versionOf } from '../lib/catalog.mjs';
 import { validateOutputs } from '../lib/validate.mjs';
 import { NAMES, LANGS, localeTables, nameKey } from '../lib/names.mjs';
+import { RASTER_NAMES } from '../lib/raster-names.mjs';
+import { buildRasterOutputs } from '../lib/raster-catalog.mjs';
+import { validateRasterOutputs } from '../lib/raster-validate.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 
@@ -73,7 +75,7 @@ test('the validator catches missing ids, bad path data, unknown tokens and a sta
 test('locale rows have 16 real translations for every entry and palette', () => {
   const { manifest } = buildOutputs();
   const ids = [...manifest.entries.map((e) => e.id), ...manifest.palettes.map((p) => p.id)];
-  assert.deepEqual(Object.keys(NAMES).sort(), ids.sort());
+  assert.deepEqual(Object.keys(NAMES).filter(id => !Object.hasOwn(RASTER_NAMES, id)).sort(), ids.sort());
   for (const row of Object.values(NAMES)) assert.equal(row.length, LANGS.length);
 });
 
@@ -131,19 +133,12 @@ test('the sfx entries follow the frozen shape', () => {
   }
 });
 
-test('--check fails when one byte of a copied WAV changes', () => {
-  const wav = path.join(root, 'ui', 'img', 'storymaker', 'sfx', 'pop_1.wav');
-  const original = fs.readFileSync(wav);
-  const changed = Buffer.from(original);
+test('the raster build validator refuses one changed byte of a copied WAV without mutating delivery files', () => {
+  const built = buildRasterOutputs();
+  const changed = Buffer.from(built.files.get('sfx/pop_1.wav'));
   changed[changed.length - 1] ^= 1;
-  fs.writeFileSync(wav, changed);
-  try {
-    const r = spawnSync(process.execPath, [path.join(root, 'scripts', 'build-storymaker-catalog.mjs'), '--check'], { cwd: root, encoding: 'utf8' });
-    assert.equal(r.status, 1, r.stdout + r.stderr);
-    assert.match(r.stderr, /differs: .*pop_1\.wav/);
-  } finally {
-    fs.writeFileSync(wav, original);
-  }
+  built.files.set('sfx/pop_1.wav', changed);
+  assert.ok(validateRasterOutputs(built).some(p => p.includes('Incorrect inventory: sfx/pop_1.wav')));
 });
 
 test('node scripts/build-storymaker-catalog.mjs --check is green on the committed outputs', () => {

@@ -8,7 +8,7 @@
     'use strict';
 
     const S = window.StorymakerParts = window.StorymakerParts || {};
-    const KEY_RE = /^(catalog|font|bundle):(\S{1,230})$/;
+    const KEY_RE = /^(catalog|font|bundle|texture):(\S{1,230})$/;
     const FONT_FILE_RE = /^\/fonts\/(qr\/)?[A-Za-z0-9_.-]+$/;
 
     function createAssets(api) {
@@ -20,6 +20,7 @@
             const paths = new Set();
             if (raw.rig && typeof raw.rig.file === 'string') paths.add(raw.rig.file);
             (raw.entries || []).forEach(entry => { if (entry && typeof entry.file === 'string') paths.add(entry.file); });
+            (raw.files || []).forEach(file => { if (file && typeof file.path === 'string') paths.add(file.path); });
             return paths;
         }
 
@@ -30,7 +31,7 @@
                     if (raw && raw.glyphs && typeof raw.glyphs.file === 'string') raw.glyph_data = await api.catalogJSON(raw.glyphs.file);
                     return raw;
                 }).then(raw => {
-                    if (!raw || raw.schema !== 'storymaker-catalog/1' || !Array.isArray(raw.entries)) throw S.errors.normalize({ message: 'The catalog has an unknown format.' });
+                    if (!raw || !['storymaker-catalog/1', 'storymaker-catalog/2'].includes(raw.schema) || !Array.isArray(raw.entries)) throw S.errors.normalize({ message: 'The catalog has an unknown format.' });
                     if (current && current.raw.version !== raw.version) cache.clear();
                     current = { raw, index: S.model.indexCatalog(raw), paths: allowedPaths(raw) };
                     return current;
@@ -104,6 +105,10 @@
                     if (m[1] === 'catalog') {
                         if (!paths.has(m[2])) { missing.push(key); return; }
                         assets[key] = await cached(key, () => api.catalogJSON(m[2]));
+                    } else if (m[1] === 'texture') {
+                        const file = (raw.files || []).find(file => file.path === m[2] && ['image/png','image/webp','image/jpeg'].includes(file.type));
+                        if (!file || !paths.has(m[2])) { missing.push(key); return; }
+                        assets[key] = await cached(key, () => api.textureBuffer(file));
                     } else if (m[1] === 'font') {
                         const parts = /^([^/]+)\/(\d{3})$/.exec(m[2]);
                         const face = parts && (fontFaces(raw, parts[1]).find(font => String(font.weight) === parts[2]) || (parts[2] === '400' && glyphFace(raw, parts[1])));

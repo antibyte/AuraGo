@@ -30,7 +30,7 @@ func loadMini(t testing.TB) *Catalog {
 
 func TestLoadCatalogMini(t *testing.T) {
 	c := loadMini(t)
-	if c.Version() != "mini00000000" || c.Schema != CatalogSchema || c.Stage.Width != 1920 || c.Rig.ID != "rig.human/1" {
+	if c.Version() != "mini00000000" || c.Schema != "storymaker-catalog/1" || c.Stage.Width != 1920 || c.Rig.ID != "rig.human/1" {
 		t.Fatalf("header: %q %q %+v %+v", c.Version(), c.Schema, c.Stage, c.Rig)
 	}
 	if e, ok := c.Lookup("prop.lock"); !ok || e.Kind != "prop" || e.File != "props/lock.json" || e.NameKey != "storymaker.catalog.prop_lock" {

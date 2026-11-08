@@ -2,6 +2,7 @@ package render
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -477,6 +478,9 @@ func (run *renderRun) execute(ctx context.Context) (Output, error) {
 	h.SetPrefixHash(HashPrefix(prefix))
 	workers := ChooseWorkers(run.transport, run.st.LogicalCPUs, run.st.FreeMemoryMB, run.width, run.height, parallelChunk,
 		storyUsesCJK(&run.plan.Story, r.deps.Catalog.Glyphs()), codeSceneCount(&run.plan.Story))
+	if r.deps.Catalog.Schema == storymaker.CatalogSchema {
+		workers = BoundRasterWorkers(workers, run.st.FreeMemoryMB, r.deps.Catalog.DeliveryFiles())
+	}
 	run.ingest = NewIngest(IngestConfig{Width: run.width, Height: run.height, Transport: run.transport, FrameLimit: run.frameLimit})
 	listener, err := StartListener(prefix, snap, PageParams{Width: run.width, Height: run.height, FPS: run.fps, Transport: run.transport, FrameLimit: run.frameLimit, FrameDeadlineMS: frameDeadlineMS, Workers: workers, Chunk: parallelChunk, PreRoll: renderPreRoll, Token: token, AudioInfo: run.plan.AudioJSON},
 		Hooks{Report: run.onReport, Frame: run.onFrame, Error: run.onPageError, Start: run.onStart})
@@ -828,7 +832,18 @@ func (run *renderRun) snapshot() (*Snapshot, error) {
 	if snap.PlayerBundle, err = read("js/storymaker/player.bundle.js"); err != nil {
 		return nil, err
 	}
+	snap.VendorBundle, err = read("js/vendor/storymaker/runtime.js")
+	if err != nil && cat.Schema == storymaker.CatalogSchema {
+		return nil, err
+	}
 	files := map[string]bool{"catalog.json": true}
+	delivery := map[string]storymaker.CatalogFile{}
+	for _, file := range cat.DeliveryFiles() {
+		if file.Type != "audio/wav" {
+			files[file.Path] = true
+			delivery[file.Path] = file
+		}
+	}
 	if cat.Rig.File != "" {
 		files[cat.Rig.File] = true
 	}
@@ -841,11 +856,29 @@ func (run *renderRun) snapshot() (*Snapshot, error) {
 		}
 	}
 	for rel := range files {
+		if rel == "catalog.json" && cat.Schema == storymaker.CatalogSchema {
+			snap.CatalogFiles[rel] = cat.ManifestJSON()
+			if len(snap.CatalogFiles[rel]) == 0 {
+				return nil, fmt.Errorf("the verified catalog manifest is unavailable")
+			}
+			continue
+		}
 		clean := path.Clean(rel)
 		if clean != rel || !fs.ValidPath(clean) || strings.HasPrefix(clean, "/") {
 			return nil, fmt.Errorf("the catalog names an unsafe file %q", rel)
 		}
-		if snap.CatalogFiles[rel], err = read("img/storymaker/" + rel); err != nil {
+		if meta, ok := delivery[rel]; ok {
+			file, openErr := ui.Open("img/storymaker/" + rel)
+			if openErr != nil {
+				return nil, fmt.Errorf("read catalog dependency %s: %w", rel, openErr)
+			}
+			data, readErr := io.ReadAll(io.LimitReader(file, meta.Bytes+1))
+			closeErr := file.Close()
+			if readErr != nil || closeErr != nil || int64(len(data)) != meta.Bytes || fmt.Sprintf("%x", sha256.Sum256(data)) != meta.SHA256 {
+				return nil, fmt.Errorf("catalog dependency %s changed before the render snapshot", rel)
+			}
+			snap.CatalogFiles[rel] = data
+		} else if snap.CatalogFiles[rel], err = read("img/storymaker/" + rel); err != nil {
 			return nil, err
 		}
 	}

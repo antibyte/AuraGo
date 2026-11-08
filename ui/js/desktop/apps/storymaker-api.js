@@ -218,7 +218,30 @@
                 if (text.length > MAX_JSON_BYTES) throw S.errors.normalize({ message: 'The catalog file is too large.' });
                 return JSON.parse(text);
             },
-            // maxBytes is the byte limit of a fallback face; the default stays 8 MiB
+            // Read catalog bytes within their declared bound; the worker verifies integrity and dimensions.
+            async textureBuffer(file) {
+                if (!file || typeof file.path !== 'string' || !/^[A-Za-z0-9_./-]+$/.test(file.path) || file.path.split('/').some(s => !s || s === '.' || s === '..') || !Number.isSafeInteger(file.bytes) || file.bytes < 1 || file.bytes > 8 * 1048576) throw S.errors.normalize({ message: 'Invalid texture dependency.' });
+                const response = await request('GET', CATALOG_BASE + file.path, { raw: true });
+                const reader = response.body.getReader(), chunks = [];
+                let length = 0;
+                try {
+                    for (;;) {
+                        const part = await reader.read();
+                        if (part.done) break;
+                        length += part.value.byteLength;
+                        if (length > file.bytes) throw S.errors.normalize({ message: 'The texture exceeds its size limit.' });
+                        chunks.push(part.value);
+                    }
+                } catch (err) { await reader.cancel().catch(() => {}); throw err; }
+                finally { reader.releaseLock(); }
+                const bytes = new Uint8Array(length);
+                let offset = 0;
+                for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+                const buffer = bytes.buffer;
+                if (buffer.byteLength !== file.bytes) throw S.errors.normalize({ message: 'The texture has an invalid size.' });
+                return buffer;
+            },
+            // maxBytes is the byte limit of a fallback face; the default stays 8 MiB.
             async fontBuffer(file, maxBytes) {
                 const response = await request('GET', String(file), { raw: true });
                 const buffer = await response.arrayBuffer();

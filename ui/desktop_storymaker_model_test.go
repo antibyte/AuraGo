@@ -415,7 +415,7 @@ eq(M.sceneIndexOfIssue({ scene_id: 's2', path: '' }, story), 1, 'scene of an iss
 
 // catalog and edits
 const catalog = M.indexCatalog(JSON.parse(fs.readFileSync(catalogFile, 'utf8')));
-eq(M.entriesOf(catalog, 'character').length, 4, 'four characters');
+eq(M.entriesOf(catalog, 'character').length, 12, 'twelve characters');
 const draft = M.cloneStory(story);
 eq(M.addScene(draft, 0, {}), 1, 'a scene after the first');
 eq(draft.scenes.map(s => s.id), ['s1', 's4', 's2', 's3'], 'scene ids');

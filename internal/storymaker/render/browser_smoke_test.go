@@ -615,11 +615,12 @@ func (s *pageEndSpy) end(t *testing.T) (workers, restarts int) {
 	return doc.Workers, doc.Restarts
 }
 
-// newParallelFixture is a real-browser fixture on a stated CPU count, with no memory bound.
+// newParallelFixture gives the stated CPU count enough memory to exercise the pool.
 func newParallelFixture(t *testing.T, chrome string, cpus int, observer func(int, string, []byte)) (*runFixture, *pageEndSpy) {
 	t.Helper()
 	fx := newRealFixture(t, chrome)
 	fx.settings.LogicalCPUs = cpus
+	fx.settings.FreeMemoryMB = 16384
 	fx.settings.TimeoutSeconds = 600
 	fx.deps.FrameObserver = observer
 	spy := &pageEndSpy{}

@@ -108,6 +108,11 @@ func (s *Server) newStorymakerRuntime(dataDir string) (*storymakerRuntime, error
 	if err != nil {
 		return nil, fmt.Errorf("the Storymaker catalog could not be loaded: %w", err)
 	}
+	if catalog.Schema == storymaker.CatalogSchema {
+		if err := catalog.VerifyFiles(ui, "img/storymaker"); err != nil {
+			return nil, fmt.Errorf("the Storymaker artwork failed verification: %w", err)
+		}
+	}
 	dir := storymakerDir(dataDir)
 	logger := s.Logger
 	if logger == nil {

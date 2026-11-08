@@ -14,7 +14,7 @@
         maxBundles: 400, maxBundleChars: 262144, maxFrame: 100000000, thumbMin: 16, thumbMax: 1920, maxKey: 240, maxReq: 64
     };
     var TYPES = ['load', 'assets', 'seek', 'play', 'pause', 'thumb', 'reset'];
-    var KEY_RE = /^(catalog|font|bundle):[^\s]{1,230}$/;
+    var KEY_RE = /^(catalog|font|bundle|texture):[^\s]{1,230}$/;
     var ID_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
 
     function isObject(v) { return v !== null && typeof v === 'object' && !Array.isArray(v); }
@@ -100,6 +100,12 @@
                 if (msg.assets !== undefined) {
                     if (!isObject(msg.assets) || Object.keys(msg.assets).length > CAPS.maxAssetKeys) return 'load.assets is invalid or too large';
                     for (k in msg.assets) if (!KEY_RE.test(k)) return 'load.assets has a bad key';
+                    var textureBytes = 0;
+                    for (k in msg.assets) if (k.indexOf('texture:') === 0) {
+                        if (!isBuffer(msg.assets[k]) || msg.assets[k].byteLength > 8 * 1048576) return 'load.assets has an invalid texture';
+                        textureBytes += msg.assets[k].byteLength;
+                    }
+                    if (textureBytes > 256 * 1048576) return 'load.assets textures exceed their budget';
                 }
                 if (msg.fonts !== undefined) {
                     if (!Array.isArray(msg.fonts) || msg.fonts.length > CAPS.maxFonts) return 'load.fonts is invalid or too large';
@@ -133,13 +139,17 @@
                 if (!okReq(msg.req)) return 'assets.req is invalid';
                 if (!isObject(msg.assets) || Object.keys(msg.assets).length > CAPS.maxAssetKeys) return 'assets.assets is invalid or too large';
                 for (k in msg.assets) if (!KEY_RE.test(k)) return 'assets.assets has a bad key';
+                var imageTotal = 0;
                 for (k in msg.assets) {
+                    if (k.indexOf('texture:') === 0 && (!isBuffer(msg.assets[k]) || msg.assets[k].byteLength > 8 * 1048576)) return 'assets.assets has an invalid texture';
+                    if (k.indexOf('texture:') === 0) imageTotal += msg.assets[k].byteLength;
                     if (k.indexOf('font:') !== 0) continue;
                     if (!isBuffer(msg.assets[k])) return 'assets.assets has a bad font';
                     if (msg.assets[k].byteLength > fontLimit(k.slice(5).replace(/\/\d+$/, ''), heldFaces)) return 'assets.assets has an oversized font';
                     total += msg.assets[k].byteLength;
                 }
                 if (heldBytes + total > CAPS.maxFontTotal) return 'assets.assets is too large';
+                if (imageTotal > 256 * 1048576) return 'assets.assets textures exceed their budget';
                 if (msg.missing !== undefined) {
                     if (!Array.isArray(msg.missing) || msg.missing.length > CAPS.maxAssetKeys) return 'assets.missing is invalid';
                     for (i = 0; i < msg.missing.length; i++) if (typeof msg.missing[i] !== 'string' || msg.missing[i].length > CAPS.maxKey) return 'assets.missing has a bad key';

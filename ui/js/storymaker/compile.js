@@ -181,6 +181,10 @@
 
             // fonts in use
             scene.entities.forEach(function (e) {
+                if (e.type === 'actor') {
+                    var character = cat.byId[e.character];
+                    if (character && character.file) needs['catalog:' + character.file] = true;
+                }
                 if (e.type !== 'text' && e.type !== 'bubble') return;
                 var style = cat.textStyles[e.style] || cat.textStyles.title || {};
                 var name = !style.font || style.font === 'default' ? styleFont : style.font;
@@ -222,7 +226,7 @@
             var subtitleKey = fontKey(cat, subtitleFont, subtitle.weight || 400) || fontKey(cat, 'default', subtitle.weight || 400);
             if (subtitleKey) needs[subtitleKey] = true;
         }
-        return { timeline: timeline, report: report, schedule: schedule, needs: Object.keys(needs).sort() };
+        return { timeline: timeline, report: report, schedule: schedule, needs: SM.textures.expand(catalog, Object.keys(needs).sort()) };
     }
 
     // overlappingNarration(timeline) = pairs of narration events whose windows overlap (an empty list is the goal).

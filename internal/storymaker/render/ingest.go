@@ -78,18 +78,18 @@ type Ingest struct {
 // NewIngest returns an idle ingest: every frame is refused until Start.
 func NewIngest(cfg IngestConfig) *Ingest { return &Ingest{cfg: cfg} }
 
-// MaxFrameBytes is the largest body the listener reads for one frame: 4 MiB for a 1080p PNG or
-// WebP (scaled by pixels for other canvases), exactly width x height x 4 for raw RGBA.
+// MaxFrameBytes bounds encoded frames by canvas size. PNG may contain incompressible illustrated pixels.
 func MaxFrameBytes(cfg IngestConfig) int64 {
 	if cfg.Transport == TransportRaw {
 		return int64(cfg.Width) * int64(cfg.Height) * 4
 	}
 	const base = 4 << 20
 	pixels := int64(cfg.Width) * int64(cfg.Height)
-	if scaled := base * pixels / (1920 * 1080); scaled > base {
-		return scaled
+	limit := max(int64(base), base*pixels/(1920*1080))
+	if cfg.Transport == TransportPNG || cfg.Transport == TransportScreenshot {
+		limit = max(limit, pixels*4+pixels*4/100+(64<<10))
 	}
-	return base
+	return limit
 }
 
 // Start moves to the running state with the number of frames the validated report announced. recoverFn

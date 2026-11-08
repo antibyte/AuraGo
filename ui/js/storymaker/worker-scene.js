@@ -38,14 +38,21 @@
         this.files = {};
         this.canvases = {};
         this.fontsLoaded = {};
+        this.fontFaces = [];
+        this.graphicsGeneration = 0;
+        this.bitmaps = {};
+        this.textureData = {};
+        this.renderers = {};
     }
 
     Runtime.prototype.handle = async function (msg) {
         switch (msg.type) {
             case 'build': {
+                await this.handle({ type: 'dispose' });
                 var fn = this.scope.__smScene;
                 if (typeof fn !== 'function') throw fail('code_error', 'The scene bundle did not register a scene function (export default function scene(api)).');
                 this.opts = msg.opts;
+                this.catalog = msg.opts.catalog;
                 var built;
                 try { built = SM.codescene.build(fn, msg.opts); } catch (err) { throw sceneError(err, 'Scene "' + msg.opts.sceneId + '"'); }
                 this.built = built;
@@ -53,8 +60,9 @@
             }
             case 'assets': {
                 var assets = msg.assets || {}, k;
+                for (k in assets) if (k.indexOf('texture:') === 0) this.textureData[k] = assets[k];
                 for (k in assets) if (k.indexOf('catalog:') === 0) this.files[k.slice(8)] = assets[k];
-                var fonts = msg.fonts || [], env = this.env;
+                var fonts = msg.fonts || [], env = this.env, generation = this.graphicsGeneration;
                 for (var i = 0; i < fonts.length; i++) {
                     var f = fonts[i];
                     if (!f || !f.data) continue;
@@ -65,7 +73,9 @@
                         if (f.unicode_range) desc.unicodeRange = f.unicode_range;
                         var face = new env.FontFace(f.family, f.data, desc);
                         await face.load();
+                        if (generation !== this.graphicsGeneration) throw new Error('Scene was disposed');
                         env.fonts.add(face);
+                        this.fontFaces.push(face);
                         this.fontsLoaded[key] = true;
                     } catch (err) {
                         throw fail('readiness', 'Font "' + f.family + '" could not be loaded: ' + (err && err.message || err));
@@ -73,22 +83,48 @@
                 }
                 return { payload: {} };
             }
+            case 'prepare_frame':
+                return this.handle({ type: 'frame', t: msg.t, width: msg.width, prepareOnly: true });
             case 'frame': {
                 if (!this.built) throw fail('code_error', 'frame before build');
                 var o = this.opts, width = msg.width > 0 ? Math.round(msg.width) : o.width;
                 var height = msg.width > 0 ? Math.round(msg.width * o.height / o.width) : o.height;
                 var key2 = width + 'x' + height;
-                if (!this.canvases[key2]) { var c = this.env.makeCanvas(width, height); this.canvases[key2] = { canvas: c, ctx: c.getContext('2d') }; }
+                if (!this.canvases[key2]) {
+                    var keys = Object.keys(this.canvases);
+                    if (keys.length >= 3) { this.canvases[keys[0]].canvas.width = 1; this.canvases[keys[0]].canvas.height = 1; delete this.canvases[keys[0]]; }
+                    var c = this.env.makeCanvas(width, height); this.canvases[key2] = { canvas: c, ctx: c.getContext('2d') };
+                }
                 var main = this.canvases[key2];
+                delete this.canvases[key2]; this.canvases[key2] = main;
                 var tl = { aspect: o.aspect, fps: o.fps, palette: o.palette, cat: SM.scene.indexCatalog(o.catalog), fontFamilies: o.families || {}, fontChain: o.fontChain, style: { font: o.styleFont || 'default' }, safe: o.safe };
-                var rc = SM.render.makeContext(tl, { rig: this.files[o.catalog && o.catalog.rig && o.catalog.rig.file] || null, props: this.files, envs: this.files }, width, height);
+                var raster = this.catalog && this.catalog.schema === 'storymaker-catalog/2' ? await SM.raster.get(this, width, height) : null;
+                var rc = SM.render.makeContext(tl, { raster: raster, bitmaps: this.bitmaps, rig: this.files[o.catalog && o.catalog.rig && o.catalog.rig.file] || null, props: this.files, envs: this.files }, width, height);
+                rc.sceneId = o.sceneId;
+                if (raster) await SM.raster.prepare(this, [{ scene: this.built, t: msg.t }], rc);
+                if (msg.prepareOnly) return { payload: {} };
                 rc.sceneId = o.sceneId;
                 this.built.stages = this.built.stages || {};
                 try { SM.codescene.drawFrame(this.built, msg.t, main.ctx, rc); } catch (err) { throw sceneError(err, 'Scene "' + o.sceneId + '" at ' + msg.t.toFixed(2) + ' s'); }
                 var bitmap = typeof main.canvas.transferToImageBitmap === 'function' ? main.canvas.transferToImageBitmap() : main.canvas;
                 return { payload: { bitmap: bitmap, width: width, height: height }, transfer: typeof main.canvas.transferToImageBitmap === 'function' ? [bitmap] : [] };
             }
+            case 'release_graphics':
+                this.graphicsGeneration++;
+                Object.keys(this.renderers).forEach(function (k) { this.renderers[k].dispose(); }, this);
+                this.renderers = {};
+                SM.textures.dispose(this.bitmaps);
+                Object.keys(this.canvases).forEach(function (k) { this.canvases[k].canvas.width = this.canvases[k].canvas.height = 1; }, this);
+                this.canvases = {};
+                return { payload: {} };
             case 'dispose':
+                await this.handle({ type: 'release_graphics' });
+                SM.timeline.dispose(this.built);
+                this.fontFaces.forEach(function (face) { if (this.env.fonts && this.env.fonts.delete) this.env.fonts.delete(face); }, this);
+                this.fontFaces = [];
+                this.fontsLoaded = {};
+                this.textureData = {};
+                this.files = {};
                 this.built = null;
                 this.canvases = {};
                 return { payload: {} };

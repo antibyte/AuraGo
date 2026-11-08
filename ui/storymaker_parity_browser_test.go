@@ -22,11 +22,11 @@ import (
 	"github.com/go-rod/rod"
 )
 
-// Storymaker visual parity (part R): the real starter catalog (ui/img/storymaker, rendered by part D's own SVG renderer for its
-// review sheets) is rendered by the real player through the real render page (contract section 7, png transport) in the
+// Storymaker visual parity: the installed bitmap catalog (ui/img/storymaker) is rendered by the shared player through
+// the real render page (contract section 7, png transport) in the
 // installed Chrome, and chosen frames are written as PNG files to look at: the cast sheet in 16:9, firewall.json in 16:9, 9:16
 // and 1:1. The test asserts only what a machine can judge (frame size, the story reports no error, no pixel is the unresolved
-// token colour #ff00ff, the frames are not flat); the comparison with D's sheets is a human look at the PNGs.
+// token colour #ff00ff, the frames are not flat); artwork quality is a human look at the PNGs.
 //
 //	AURAGO_RUN_BROWSER_SMOKE=1 AURAGO_STORYMAKER_PARITY_DIR=<dir> go test ./ui -run TestStorymakerParityBrowser -count=1 -timeout 20m
 //
@@ -92,6 +92,7 @@ func runStorymakerParity(t *testing.T, browser *rod.Browser, job storymakerParit
 	const prefix = "/fedcba9876543210fedcba9876543210"
 	res := storymakerParityResult{frames: map[string][]byte{}}
 	var catalog struct {
+		Files []smRasterFile `json:"files"`
 		Fonts []struct {
 			Name, Family, File string
 			Weight             int
@@ -99,6 +100,10 @@ func runStorymakerParity(t *testing.T, browser *rod.Browser, job storymakerParit
 	}
 	if err := json.Unmarshal(storymakerFile(t, "img/storymaker/catalog.json"), &catalog); err != nil {
 		t.Fatalf("catalog.json: %v", err)
+	}
+	listed := map[string]string{"catalog.json": "application/json"}
+	for _, file := range catalog.Files {
+		listed[file.Path] = file.Type
 	}
 	storyJSON := parityStory(t, job.story, job.aspect)
 	var mu sync.Mutex
@@ -150,11 +155,11 @@ func runStorymakerParity(t *testing.T, browser *rod.Browser, job storymakerParit
 	})
 	handle("/catalog/", func(w http.ResponseWriter, r *http.Request) {
 		rel := strings.TrimPrefix(r.URL.Path, prefix+"/catalog/")
-		if strings.Contains(rel, "..") || !strings.HasSuffix(rel, ".json") {
+		if strings.Contains(rel, "..") || listed[rel] == "" {
 			http.NotFound(w, r)
 			return
 		}
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Type", listed[rel])
 		_, _ = w.Write(storymakerFile(t, "img/storymaker/"+path.Clean(rel)))
 	})
 	handle("/fonts/", func(w http.ResponseWriter, r *http.Request) {
@@ -169,6 +174,10 @@ func runStorymakerParity(t *testing.T, browser *rod.Browser, job storymakerParit
 		}
 		w.Header().Set("Content-Type", "font/woff2")
 		_, _ = w.Write(storymakerFile(t, "fonts/"+name))
+	})
+	handle("/js/vendor/storymaker/runtime.js", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
+		_, _ = w.Write(storymakerFile(t, "js/vendor/storymaker/runtime.js"))
 	})
 	for _, bundle := range []string{"host", "player"} {
 		file := bundle + ".bundle.js"

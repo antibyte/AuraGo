@@ -251,6 +251,7 @@ Server-owned HTTP and cross-component integration contracts.
 
 ### Storymaker export and handoff
 
+- Startup verifies the catalog v2 delivery inventory, exact hashes, byte sizes and encoded image dimensions before exposing the runtime. The opaque player CSP permits only the existing player path and exact local `js/vendor/storymaker/runtime.js` path, with `connect-src 'none'` retained. Asset bounds and source ownership belong to `../../assets/storymaker/ASSET-CONTRACT.md`.
 - Parallel render: `storymakerSettings` passes `LogicalCPUs` (`runtime.NumCPU()`) and `FreeMemoryMB` (gopsutil `mem.VirtualMemory().Available >> 20`, capped by `render.BoundMemoryToCgroup` over `/sys/fs/cgroup`, 0 when unknown) to the render runner. `render.ChooseWorkers` decides the worker count; the handlers do not.
 - The Video Studio handoff adds no Storymaker route. The app calls the existing `/api/desktop/video-studio` routes, so their scopes, read-only checks and `max_asset_size_mb` hold. `source_path` passes `OpenPreviewFile` before anything is copied into the Video Studio project.
 - Verify `go test ./internal/server -run Storymaker -count=1 -timeout 20m` and `AURAGO_RUN_BROWSER_SMOKE=1 go test ./internal/server -run '^TestStorymakerAppRealServerBrowser$' -count=1 -timeout 15m`.

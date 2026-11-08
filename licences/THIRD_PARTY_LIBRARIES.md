@@ -193,6 +193,9 @@ Browser packages and SHA-256 checksums are recorded in `ui/js/vendor/manifest.js
 
 | Asset / component | Path | License | Project |
 |---|---|---|---|
+| PixiJS 8.22.0 | `ui/js/vendor/storymaker/runtime.js` | MIT; verbatim notice in adjacent `LICENSES.txt` | https://github.com/pixijs/pixijs |
+| GSAP 3.15.1 | `ui/js/vendor/storymaker/runtime.js` | Standard No Charge License; see adjacent `LICENSES.txt` and restrictions in `THIRD_PARTY_NOTICES.md` | https://gsap.com/community/standard-license/ |
+| @pixi/colord 2.9.6 | Included in the Storymaker PixiJS runtime | MIT; upstream text retained in `storymaker-colord-LICENSE.txt` and the generated runtime `LICENSES.txt` | https://github.com/pixijs/colord |
 | three.js 0.186.1 | `ui/js/vendor/three.min.js` | MIT | https://threejs.org / https://github.com/mrdoob/three.js |
 | GLTFLoader | `ui/js/vendor/GLTFLoader.min.js` | MIT | three.js examples |
 | STLLoader | `ui/js/vendor/STLLoader.min.js` | MIT | three.js examples |

@@ -14,6 +14,20 @@ integration sources, build inputs and version/hash records ship in
 `ui/js/vendor/strudel/LICENSES.md`, `sources.zip` and `manifest.json`.
 Upstream: https://codeberg.org/uzu/strudel. No external sample banks are bundled.
 
+## Storymaker renderer
+
+Storymaker locally bundles PixiJS 8.22.0 (MIT, Copyright PixiJS contributors)
+and GSAP 3.15.1 (Copyright 2008–2026 GreenSock, all rights reserved).
+The upstream notices accompany `ui/js/vendor/storymaker/runtime.js` in
+`ui/js/vendor/storymaker/LICENSES.txt`; the pinned versions and bundle hash are
+recorded in its `manifest.json`.
+
+GSAP uses its Standard No Charge License, not MIT. Its terms and FAQ are at
+https://gsap.com/community/standard-license/ and restrict directly competing
+visual animation builders. Storymaker is a niche explainer-film tool, rather
+than a website animation builder. Preserve these terms when reusing the runtime
+for a different product.
+
 ## Bounded PDF parser
 
 `internal/pdftext/parser` derives from ledongthuc/pdf revision `6c8c28e0e8a0`,

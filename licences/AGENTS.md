@@ -57,6 +57,8 @@ This folder owns `UEBERSICHT.md`, `THIRD_PARTY_NOTICES.md`, `THIRD_PARTY_LIBRARI
 
 ## Verification
 
+Storymaker browser dependencies are reproduced by `node scripts/build-storymaker-vendor.mjs --check`; it verifies exact pinned versions and gathers notices for actually bundled packages. The retained `storymaker-colord-LICENSE.txt` supplies the upstream MIT text omitted from its npm tarball. GSAP keeps its Standard No Charge License; preserve its visual-tool restrictions when changing the product scope.
+
 Compare new direct dependencies and Store catalog entries with `UEBERSICHT.md` when those files change.
 
 Modules linked into the binary: `go list -deps -f '{{with .Module}}{{.Path}} {{.Version}}{{end}}' ./cmd/aurago | sort -u`.

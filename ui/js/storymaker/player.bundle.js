@@ -2,6 +2,118 @@
 // Source files are listed in scripts/build-ui-bundles.js.
 
 ;
+/* ui/js/storymaker/textures.js */
+// Storymaker texture trust boundary: catalog-only paths, bounded bytes, hashes and decoded dimensions.
+(function (root) {
+    'use strict';
+    var SM = root.StorymakerCore || (root.StorymakerCore = {});
+    var LIMIT = 8 * 1048576, TOTAL = 256 * 1048576;
+    var K = [0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+        0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+        0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+        0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+        0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+        0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+        0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+        0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
+    function rotate(v, n) { return (v >>> n) | (v << (32 - n)); }
+    function sha256(input) {
+        var bytes = new Uint8Array(input), length = Math.ceil((bytes.length + 9) / 64) * 64;
+        var padded = new Uint8Array(length); padded.set(bytes); padded[bytes.length] = 128;
+        var view = new DataView(padded.buffer), w = new Uint32Array(64);
+        view.setUint32(length - 8, Math.floor(bytes.length / 0x20000000));
+        view.setUint32(length - 4, (bytes.length * 8) >>> 0);
+        var h = new Uint32Array([0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19]);
+        for (var at = 0; at < length; at += 64) {
+            var i;
+            for (i = 0; i < 16; i++) w[i] = view.getUint32(at + i * 4);
+            for (i = 16; i < 64; i++) {
+                var x = w[i - 15], y = w[i - 2];
+                w[i] = w[i - 16] + (rotate(x, 7) ^ rotate(x, 18) ^ (x >>> 3)) + w[i - 7] + (rotate(y, 17) ^ rotate(y, 19) ^ (y >>> 10));
+            }
+            var a=h[0],b=h[1],c=h[2],d=h[3],e=h[4],f=h[5],g=h[6],j=h[7];
+            for (i = 0; i < 64; i++) {
+                var t = (j + (rotate(e,6)^rotate(e,11)^rotate(e,25)) + ((e&f)^(~e&g)) + K[i] + w[i]) | 0;
+                var s = ((rotate(a,2)^rotate(a,13)^rotate(a,22)) + ((a&b)^(a&c)^(b&c))) | 0;
+                j=g;g=f;f=e;e=(d+t)|0;d=c;c=b;b=a;a=(t+s)|0;
+            }
+            h[0]+=a;h[1]+=b;h[2]+=c;h[3]+=d;h[4]+=e;h[5]+=f;h[6]+=g;h[7]+=j;
+        }
+        return Array.from(h, function (v) { return v.toString(16).padStart(8, '0'); }).join('');
+    }
+    function safePath(p) { return typeof p === 'string' && /^[A-Za-z0-9_./-]{1,230}$/.test(p) && p[0] !== '/' && p.split('/').every(function (s) { return s && s !== '.' && s !== '..'; }); }
+    function imageSize(data, type) {
+        var b = new Uint8Array(data), v = new DataView(data);
+        if (type === 'image/png' && b.length >= 33 && v.getUint32(0) === 0x89504e47 && v.getUint32(4) === 0x0d0a1a0a && v.getUint32(12) === 0x49484452) return [v.getUint32(16),v.getUint32(20)];
+        if (type === 'image/webp' && b.length >= 30 && v.getUint32(0) === 0x52494646 && v.getUint32(8) === 0x57454250 && v.getUint32(4,true)+8 === b.length) {
+            var tag = v.getUint32(12);
+            if (tag === 0x56503858) return [1+b[24]+b[25]*256+b[26]*65536,1+b[27]+b[28]*256+b[29]*65536];
+            if (tag === 0x5650384c && b[20] === 0x2f) return [1+(b[21]|((b[22]&63)<<8)),1+((b[22]>>>6)|(b[23]<<2)|((b[24]&15)<<10))];
+            if (tag === 0x56503820 && b[23] === 0x9d && b[24] === 1 && b[25] === 0x2a) return [v.getUint16(26,true)&16383,v.getUint16(28,true)&16383];
+        }
+        if (type === 'image/jpeg' && b.length > 4 && b[0] === 255 && b[1] === 216) {
+            for (var at=2;at+4<b.length;) {
+                if(b[at++]!==255) break;
+                while(at<b.length&&b[at]===255)at++;
+                var marker=b[at++];if(marker===217||marker===218)break;
+                var length=v.getUint16(at);if(length<2||at+length>b.length)break;
+                if([192,193,194,195,197,198,199,201,202,203,205,206,207].indexOf(marker)>=0&&length>=7)return [v.getUint16(at+5),v.getUint16(at+3)];
+                at+=length;
+            }
+        }
+        throw new Error('Invalid encoded image header');
+    }
+    function index(catalog) {
+        var files = Object.create(null), total = 0;
+        (catalog.files || []).forEach(function (f) {
+            if (!safePath(f.path) || f.path === 'catalog.json' || files[f.path] || !Number.isInteger(f.bytes) || f.bytes < 1 || f.bytes > LIMIT || !/^[a-f0-9]{64}$/.test(f.sha256)) throw new Error('Invalid catalog dependency');
+            if (['image/png','image/webp','image/jpeg','application/json','audio/wav'].indexOf(f.type) < 0) throw new Error('Invalid catalog media type');
+            total += f.bytes; files[f.path] = f;
+            var background = f.path.indexOf('textures/environments/') === 0 && f.path.split('/').pop().indexOf('foreground-') !== 0;
+            var maxW = background ? 3840 : 2048, maxH = background ? 2160 : 2048;
+            if (f.path.indexOf('thumbs/') === 0) { maxW = 256; maxH = 256; }
+            if (f.type.indexOf('image/') === 0 && (!Number.isInteger(f.width) || !Number.isInteger(f.height) || f.width < 1 || f.height < 1 || f.width > maxW || f.height > maxH)) throw new Error('Invalid catalog image dimensions');
+            if (f.type.indexOf('image/') !== 0 && (f.width || f.height)) throw new Error('Non-image dependency has dimensions');
+        });
+        if (total > TOTAL || Object.keys(files).length > 2000) throw new Error('Catalog exceeds its delivery budget');
+        return files;
+    }
+    function expand(catalog, needs) {
+        if (!catalog || catalog.schema !== 'storymaker-catalog/2') return needs;
+        var set = new Set(needs), byFile = Object.create(null), files = index(catalog);
+        (catalog.entries || []).forEach(function (e) { if (e.file) byFile[e.file] = e; });
+        Array.from(set).forEach(function (key) {
+            var e = key.indexOf('catalog:') === 0 && byFile[key.slice(8)];
+            if (e) (e.resources || []).forEach(function (p) {
+                if (!files[p]) throw new Error('Unlisted catalog resource');
+                set.add((files[p].type.indexOf('image/') === 0 ? 'texture:' : 'catalog:') + p);
+            });
+        });
+        return Array.from(set).sort();
+    }
+    async function decode(catalog, assets, into, current) {
+        var files = index(catalog), fresh = [];
+        try {
+            for (var key of Object.keys(assets)) {
+                if (key.indexOf('texture:') !== 0) continue;
+                var p = key.slice(8), meta = files[p], data = assets[key];
+                if (!meta || meta.type.indexOf('image/') !== 0 || Object.prototype.toString.call(data) !== '[object ArrayBuffer]' || data.byteLength !== meta.bytes || sha256(data) !== meta.sha256) throw new Error('Texture failed integrity verification: ' + p);
+                if (into[p]) continue;
+                var size = imageSize(data,meta.type);
+                if (size[0] !== meta.width || size[1] !== meta.height) throw new Error('Encoded texture dimensions differ: ' + p);
+                var bitmap = await root.createImageBitmap(new root.Blob([data], { type: meta.type }));
+                if (current && !current()) { bitmap.close(); throw new Error('Project was disposed'); }
+                if (bitmap.width !== meta.width || bitmap.height !== meta.height) { bitmap.close(); throw new Error('Texture dimensions differ: ' + p); }
+                fresh.push([p, bitmap]);
+            }
+            fresh.forEach(function (v) { into[v[0]] = v[1]; });
+        } catch (err) { fresh.forEach(function (v) { v[1].close(); }); throw err; }
+    }
+    function dispose(bitmaps) { Object.keys(bitmaps).forEach(function (p) { bitmaps[p].close(); delete bitmaps[p]; }); }
+    SM.textures = { sha256: sha256, safePath: safePath, imageSize: imageSize, index: index, expand: expand, decode: decode, dispose: dispose, limit: LIMIT };
+})(typeof globalThis !== 'undefined' ? globalThis : self);
+
+;
 /* ui/js/storymaker/ease.js */
 // Storymaker player: the six easing functions of the story schema (linear, ease-in, ease-out, ease-in-out, back-out,
 // bounce-out). Pure and deterministic. Classic script, its own IIFE scope; it publishes StorymakerCore.ease.
@@ -421,6 +533,21 @@
     function evalSeg(seg, t) {
         if (t >= seg.t1) return seg.to;
         if (!(seg.t1 > seg.t0)) return seg.to;
+        var vendor = root.StorymakerVendor;
+        if (vendor && vendor.gsap) {
+            if (!seg.animation) {
+                var a = seg.log ? Math.log(seg.from) : seg.from;
+                var b = seg.log ? Math.log(seg.to) : seg.to;
+                seg.value = { v: a };
+                seg.animation = vendor.gsap.timeline({ paused: true }).fromTo(seg.value, { v: a }, {
+                    v: b, duration: 1, ease: function (u) { return SM.ease(seg.ease, u); },
+                    immediateRender: false, lazy: false
+                }, 0);
+                vendor.gsap.ticker.sleep();
+            }
+            seg.animation.totalTime(Math.max(0, (t - seg.t0) / (seg.t1 - seg.t0)), true);
+            return seg.log ? Math.exp(seg.value.v) : seg.value.v;
+        }
         var s = SM.ease(seg.ease, (t - seg.t0) / (seg.t1 - seg.t0));
         return seg.log ? seg.from * Math.pow(seg.to / seg.from, s) : lerp(seg.from, seg.to, s);
     }
@@ -445,6 +572,7 @@
         this.segs.sort(function (a, b) { return a.t0 - b.t0 || a.order - b.order; });
         for (var k = 0; k < this.segs.length; k++) {
             var seg = this.segs[k];
+            if (seg.animation) { seg.animation.kill(); seg.animation = null; }
             if (seg.from === undefined || seg.from === null) {
                 seg.from = k === 0 ? this.init : evalSeg(this.segs[k - 1], seg.t0);
             }
@@ -468,6 +596,19 @@
         for (var i = 0; i < this.segs.length; i++) if (this.segs[i].t1 > end) end = this.segs[i].t1;
         return end;
     };
+
+    Track.prototype.dispose = function () {
+        this.segs.forEach(function (seg) { if (seg.animation) { seg.animation.kill(); seg.animation = null; } });
+    };
+
+    function dispose(sceneOrTimeline) {
+        if (!sceneOrTimeline) return;
+        (sceneOrTimeline.scenes || [sceneOrTimeline]).forEach(function (scene) {
+            (scene.entities || []).concat([scene.camera || {}]).forEach(function (entity) {
+                Object.keys(entity).forEach(function (key) { if (entity[key] instanceof Track) entity[key].dispose(); });
+            });
+        });
+    }
 
     function StepTrack(init) {
         this.init = init;
@@ -522,7 +663,7 @@
         return best;
     };
 
-    SM.timeline = { Track: Track, StepTrack: StepTrack, Intervals: Intervals, lerp: lerp, clamp: clamp };
+    SM.timeline = { Track: Track, StepTrack: StepTrack, Intervals: Intervals, lerp: lerp, clamp: clamp, dispose: dispose };
 })(typeof globalThis !== 'undefined' ? globalThis : self);
 
 ;
@@ -3185,6 +3326,10 @@
 
             // fonts in use
             scene.entities.forEach(function (e) {
+                if (e.type === 'actor') {
+                    var character = cat.byId[e.character];
+                    if (character && character.file) needs['catalog:' + character.file] = true;
+                }
                 if (e.type !== 'text' && e.type !== 'bubble') return;
                 var style = cat.textStyles[e.style] || cat.textStyles.title || {};
                 var name = !style.font || style.font === 'default' ? styleFont : style.font;
@@ -3226,7 +3371,7 @@
             var subtitleKey = fontKey(cat, subtitleFont, subtitle.weight || 400) || fontKey(cat, 'default', subtitle.weight || 400);
             if (subtitleKey) needs[subtitleKey] = true;
         }
-        return { timeline: timeline, report: report, schedule: schedule, needs: Object.keys(needs).sort() };
+        return { timeline: timeline, report: report, schedule: schedule, needs: SM.textures.expand(catalog, Object.keys(needs).sort()) };
     }
 
     // overlappingNarration(timeline) = pairs of narration events whose windows overlap (an empty list is the goal).
@@ -3409,6 +3554,7 @@
         var view = walking ? 'profile' : (st.look === 'camera' ? 'front' : (poseB.view || 'three_quarter'));
         var expr = cat.expressions[st.expression] || cat.expressions.neutral || {};
         return {
+            expression: st.expression,
             view: view, offsets: rg.addBones(bones, cd.bones, gd.bones), hands: handsOut, expr: expr,
             mouth: st.mouth || null, blink: ((t + st.phase * 3) % 3.6) < 0.12,
             offsetY: drop + (cd.offset_y || 0) + (gd.offset_y || 0)
@@ -3558,6 +3704,7 @@
 
     // drawScene(ctx, sc, t, rc): a storyboard or code-scene-like object {env, variant, camera, entities, stages}.
     function drawScene(ctx, sc, t, rc) {
+        if (rc.assets.raster) return rc.assets.raster.draw(ctx, sc, t, rc);
         var stage = stageFor(sc, rc);
         var cam = SM.camera.at(sc.camera, t), win = stage.cameraWindow(cam), bw = stage.baseWindow(), Mv = stage.matrix(win);
         drawBackdrop(ctx, rc);
@@ -3641,8 +3788,325 @@
     SM.render = {
         renderFrame: renderFrame, drawScene: drawScene, rigState: rigState, makeContext: makeContext, familyOf: familyOf,
         drawBackdrop: drawBackdrop, drawText: drawText, stageFor: stageFor, pulseOf: pulseOf
+        , drawShapeEntity: drawShapeEntity, drawBubble: drawBubble, drawHighlight: drawHighlight
     };
     SM.renderFrame = renderFrame;
+})(typeof globalThis !== 'undefined' ? globalThis : self);
+
+;
+/* ui/js/storymaker/raster-rig.js */
+// Sprite attachment pivots and deterministic two-bone foot placement; the compiler still owns the walk interval.
+(function (root) {
+    'use strict';
+    var SM = root.StorymakerCore || (root.StorymakerCore = {});
+    var RAD = Math.PI / 180;
+    function slotMatrix(world, slot) {
+        var R = SM.rig, m = slot.pivot ? R.mul(world, R.translate(slot.pivot[0], slot.pivot[1])) : world;
+        return slot.upright ? R.mul(m, R.rotate(-Math.atan2(m[1], m[0]) / RAD)) : m;
+    }
+    function solve(rig, body, view, offsets, upper, lower, targetX, targetY, second) {
+        var R = SM.rig, worlds = R.boneMatrices(rig, view, body, offsets), origin = worlds[upper], joint = worlds[lower];
+        var first = Math.hypot(joint[4] - origin[4], joint[5] - origin[5]);
+        var dx = targetX - origin[4], dy = targetY - origin[5], distance = Math.hypot(dx, dy);
+        distance = Math.max(Math.abs(first - second) + 0.001, Math.min(first + second - 0.001, distance));
+        var heading = Math.atan2(-dx, dy), bend = Math.acos(Math.max(-1, Math.min(1, (distance * distance + first * first - second * second) / (2 * distance * first))));
+        var a = heading - bend, kneeX = origin[4] - Math.sin(a) * first, kneeY = origin[5] + Math.cos(a) * first;
+        var b = Math.atan2(-(targetX - kneeX), targetY - kneeY), angles = R.boneAngles(rig, view, body, offsets);
+        var parent = worlds[R.index(rig).byName[upper].parent], parentAngle = parent ? Math.atan2(parent[1], parent[0]) / RAD : 0;
+        offsets[upper] = a / RAD - parentAngle - (angles[upper] - (offsets[upper] || 0));
+        offsets[lower] = (b - a) / RAD - (angles[lower] - (offsets[lower] || 0));
+    }
+    function adjust(pose, state, entity, time, rc, stage) {
+        var R = SM.rig, rig = rc.assets.rig, body = R.bodyOf(rig, state.params.body);
+        var worlds = R.boneMatrices(rig, pose.view, body, pose.offsets);
+        var upper = Math.hypot(worlds.lower_leg_r[4] - worlds.upper_leg_r[4], worlds.lower_leg_r[5] - worlds.upper_leg_r[5]);
+        var seated = function (name) { return name === 'sit' || name === 'typing'; };
+        var seatWeight = (seated(state.pose.a) ? 1 - state.pose.u : 0) + (seated(state.pose.b) ? state.pose.u : 0);
+        pose.offsetY -= seatWeight * ((rig.seat_drop || 215) - upper);
+        var idle = rc.cat.cycles.idle;
+        var idleY = idle ? R.sampleKeys(idle.keys, R.cyclePhase(idle, time + state.phase)).offset_y || 0 : 0;
+        if (state.walkTime === null || state.walkTime === undefined || !entity) { pose.offsetY -= idleY; return; }
+        var interval = entity.walks.active(time), cycle = rc.cat.cycles.walk;
+        if (!interval || !cycle) return;
+        var x0 = entity.x.at(interval.t0), y0 = entity.y.at(interval.t0), x1 = entity.x.at(interval.t1), y1 = entity.y.at(interval.t1);
+        var total = Math.hypot(x1 - x0, y1 - y0);
+        if (total < 0.001) return;
+        var scale = R.scaleFor(rig, SM.stage.DESIGN_H, stage.depthScale(state.y, state.depth), state.scale, body);
+        var startScale = R.scaleFor(rig, SM.stage.DESIGN_H, stage.depthScale(y0, state.depth), entity.scale.at(interval.t0) * (entity.baseScale || 1), body);
+        if (!(scale > 0.000001) || !(startScale > 0.000001)) return;
+        var lower = R.index(rig).byName.lower_leg_r.length || 205, stride = (upper + lower) * 0.7 * startScale;
+        var travelled = Math.hypot(state.x - x0, state.y - y0), turns = travelled / stride, phase = turns - Math.floor(turns);
+        var oldCycle = R.sampleKeys(cycle.keys, R.cyclePhase(cycle, state.walkTime)), gait = R.sampleKeys(cycle.keys, phase), subtract = {};
+        Object.keys(oldCycle.bones || {}).forEach(function (bone) { subtract[bone] = -oldCycle.bones[bone]; });
+        var standing = SM.render.rigState(Object.assign({}, state, { walkTime: null }), time, rc, rig);
+        standing.offsetY -= idleY + seatWeight * ((rig.seat_drop || 215) - upper);
+        var weight = Math.max(0, Math.min(1, (time - interval.t0) / 0.12, (interval.t1 - time) / 0.12));
+        weight = weight * weight * (3 - 2 * weight);
+        pose.offsets = R.lerpBones(standing.offsets, R.addBones(pose.offsets, subtract, gait.bones), weight);
+        pose.offsetY = standing.offsetY * (1 - weight) + (pose.offsetY - (oldCycle.offset_y || 0) + 24 + 6 * Math.cos(phase * Math.PI * 4)) * weight;
+        var facing = state.facing < 0 ? -1 : 1;
+        ['r', 'l'].forEach(function (side, index) {
+            var offset = index * 0.5, turn = turns + offset, localPhase = turn - Math.floor(turn), base = Math.floor(turn) - offset;
+            var anchor = (base + 0.275) * stride, lift = 0;
+            if (localPhase > 0.55) {
+                var swing = (localPhase - 0.55) / 0.45, smooth = swing * swing * (3 - 2 * swing);
+                anchor = travelled + (-0.275 + smooth * 0.55) * stride;
+                lift = Math.sin(swing * Math.PI) * 65;
+            }
+            var along = anchor - travelled;
+            var x = along * (x1 - x0) / total / scale * facing;
+            var y = along * (y1 - y0) / total / scale - 20 - pose.offsetY - lift;
+            var a = 'upper_leg_' + side, b = 'lower_leg_' + side, priorA = standing.offsets[a] || 0, priorB = standing.offsets[b] || 0;
+            solve(rig, body, pose.view, pose.offsets, a, b, x, y, lower);
+            pose.offsets[a] = priorA * (1 - weight) + pose.offsets[a] * weight;
+            pose.offsets[b] = priorB * (1 - weight) + pose.offsets[b] * weight;
+        });
+        pose.planted = true;
+    }
+    SM.rasterRig = { slotMatrix: slotMatrix, adjust: adjust };
+})(typeof globalThis !== 'undefined' ? globalThis : self);
+
+;
+/* ui/js/storymaker/raster.js */
+// Persistent Pixi scene graph for catalog v2; the existing compiler, text layout and frame clock remain authoritative.
+(function (root) {
+    'use strict';
+    var SM = root.StorymakerCore || (root.StorymakerCore = {});
+    var V = function () { return root.StorymakerVendor; };
+    var RG = function () { return SM.rig; };
+    function softwareGL(gl) {
+        try {
+            var info = gl.getExtension('WEBGL_debug_renderer_info');
+            return !!info && /swiftshader|llvmpipe|softpipe|swrast|basic render driver/i.test(gl.getParameter(info.UNMASKED_RENDERER_WEBGL));
+        } catch (_) { return false; }
+    }
+    function matrix(values) { return new (V().Matrix)(values[0], values[1], values[2], values[3], values[4], values[5]); }
+    function dimensions(entry, part, state, stage) {
+        var vb = part.viewbox || [0, 0, 100, 100], anchor = entry.anchor || { x: 0.5, y: 1 };
+        var scale = (entry.size && entry.size.h || 0.15) * SM.stage.DESIGN_H * stage.depthScale(state.y, state.depth) * state.scale / vb[3];
+        return RG().mul(RG().translate(state.x, state.y), RG().mul(RG().rotate(state.rot), RG().mul([scale,0,0,scale,0,0], RG().translate(-(vb[0] + anchor.x * vb[2]), -(vb[1] + anchor.y * vb[3])))));
+    }
+    function character(owner, state, time, rc, entity, scene) {
+        var entry = rc.cat.byId[state.character], descriptor = entry && owner.files[entry.file];
+        if (!descriptor) throw new Error('Missing character artwork: ' + state.character);
+        var rigState = SM.render.rigState(state, time, rc, rc.assets.rig);
+        SM.rasterRig.adjust(rigState, state, entity, time, rc, SM.render.stageFor(scene, rc));
+        var slots = descriptor.views && descriptor.views[rigState.view];
+        if (!slots) throw new Error('Missing character view: ' + rigState.view);
+        var seated = state.walkTime === null && state.pose && state.pose.u >= 0.999 && (state.pose.b === 'sit' || state.pose.b === 'typing') && descriptor.seated && descriptor.seated[rigState.view];
+        if (seated) slots = slots.filter(function (slot) { return !/leg|shoe/.test(slot.name); }).map(function (slot) { return slot.name === 'hips' ? seated : slot; });
+        if (seated || !rigState.planted && state.walkTime !== null && state.walkTime !== undefined) {
+            var worlds = RG().boneMatrices(rc.assets.rig,rigState.view,RG().bodyOf(rc.assets.rig,state.params.body),rigState.offsets), floor = -Infinity;
+            slots.filter(function (slot) { return seated ? slot === seated : slot.name === 'shoe_l' || slot.name === 'shoe_r'; }).forEach(function (slot) {
+                var m = SM.rasterRig.slotMatrix(worlds[slot.bone], slot), b = slot.box;
+                [b[0],b[0]+b[2]].forEach(function (x) { [b[1],b[1]+b[3]].forEach(function (y) { floor = Math.max(floor,m[1]*x+m[3]*y+m[5]); }); });
+            });
+            if (Number.isFinite(floor)) rigState.offsetY = -floor;
+        }
+        return { descriptor: descriptor, state: rigState, slots: slots };
+    }
+    function slotImage(slot, state) {
+        if (slot.variants) {
+            var pick = slot.kind === 'head' ? (state.blink ? 'blink' : state.mouth && state.mouth !== 'rest' ? 'mouth.'+state.mouth : state.expression || 'neutral')
+                : slot.kind === 'mouth' ? (state.mouth || state.expr.mouth || 'rest')
+                : slot.kind === 'eyes' ? (state.blink ? 'blink' : state.expr.eyes || 'neutral')
+                : slot.kind === 'brows' ? state.expr.brows || 'neutral'
+                : slot.kind === 'hand' ? state.hands[slot.side] || 'open' : 'default';
+            return slot.variants[pick] || slot.variants.default || slot.variants.rest || slot.variants.neutral;
+        }
+        return slot.image;
+    }
+    function required(owner, draws, rc) {
+        var wanted = new Set();
+        draws.forEach(function (draw) {
+            var sc = draw.scene;
+            if (sc.kind === 'code') return;
+            var environment = sc.env && owner.files[sc.env.file];
+            if (environment) (environment.variants && environment.variants[sc.variant] || environment.layers || []).forEach(function (layer) { if (layer.image) wanted.add(layer.image.file); });
+            (sc.entities || []).forEach(function (entity) {
+                var state = SM.scene.evalEntity(entity, draw.t);
+                if (!(state.alpha > 0)) return;
+                if (state.type === 'actor') {
+                    var actor = character(owner,state,draw.t,rc,entity,sc);
+                    actor.slots.forEach(function (slot) { var image=slotImage(slot,actor.state); if(image)wanted.add(image.file); });
+                }
+                if (state.type === 'prop') {
+                    var entry = rc.cat.byId[state.item], prop = entry && owner.files[entry.file];
+                    if (prop && prop.image) wanted.add(prop.image.file);
+                }
+            });
+        });
+        return wanted;
+    }
+    async function prepare(owner, draws, rc) {
+        var generation = owner.graphicsGeneration;
+        var wanted = required(owner, draws, rc), meta = SM.textures.index(owner.catalog), budget = 0, assets = {};
+        var active = new Set(draws.map(function (draw) { return draw.scene.id || rc.sceneId || 'code'; }));
+        Object.keys(owner.renderers).forEach(function (k) { owner.renderers[k].prune(active); });
+        wanted.forEach(function (p) {
+            if (!meta[p]) throw new Error('Unlisted scene texture');
+            budget += meta[p].width * meta[p].height * 4;
+            if (!owner.bitmaps[p]) assets['texture:' + p] = owner.textureData['texture:' + p];
+        });
+        if (budget > 512 * 1048576) throw new Error('The active scene exceeds the 512 MiB texture budget');
+        Object.keys(owner.bitmaps).forEach(function (p) {
+            if (wanted.has(p)) return;
+            Object.keys(owner.renderers).forEach(function (k) { owner.renderers[k].dropTexture(p); });
+            owner.bitmaps[p].close(); delete owner.bitmaps[p];
+        });
+        await SM.textures.decode(owner.catalog, assets, owner.bitmaps, function () { return owner.graphicsGeneration === generation; });
+        if (generation !== owner.graphicsGeneration) throw new Error('Project was disposed');
+        var drawer = rc.assets.raster;
+        if (drawer && (!drawer.ready || Object.keys(assets).length)) {
+            var sink = { setTransform: function () {}, drawImage: function () {} };
+            draws.forEach(function (draw) {
+                if (draw.scene.kind === 'code') return;
+                var scene = Object.assign({}, draw.scene, { id: draw.scene.id || rc.sceneId || 'code', variant: draw.scene.variant || 'day' });
+                drawer.draw(sink, scene, draw.t, rc);
+            });
+            if (drawer.renderer.gl) drawer.renderer.gl.finish();
+            drawer.ready = true;
+        }
+    }
+    function Drawer(owner, renderer, canvas) {
+        this.owner = owner; this.renderer = renderer; this.canvas = canvas;
+        this.metadata = SM.textures.index(owner.catalog);
+        this.root = new (V().Container)(); this.nodes = new Map(); this.textures = new Map(); this.used = new Set();
+        this.overlay = owner.env.makeCanvas(canvas.width, canvas.height);
+        this.overlayContext = this.overlay.getContext('2d');
+        this.overlayTexture = new (V().Texture)({ source: new (V().CanvasSource)({ resource: this.overlay, autoGarbageCollect: false }) });
+        this.overlaySprite = new (V().Sprite)(this.overlayTexture);
+        this.root.addChild(this.overlaySprite);
+    }
+    Drawer.prototype.texture = function (image) {
+        var key = image.file + ':' + (image.rect || []).join(',');
+        if (!this.textures.has(key)) {
+            var meta = this.metadata[image.file], rect = image.rect;
+            if (!meta || rect && (rect.length !== 4 || rect.some(function (n) { return !Number.isInteger(n); }) || rect[0] < 0 || rect[1] < 0 || rect[2] < 1 || rect[3] < 1 || rect[0] + rect[2] > meta.width || rect[1] + rect[3] > meta.height)) throw new Error('Invalid atlas region');
+            var sourceKey = image.file + ':source', source = this.textures.get(sourceKey);
+            if (!source) {
+                var bitmap = this.owner.bitmaps[image.file];
+                if (!bitmap) throw new Error('Texture is not ready: ' + image.file);
+                source = new (V().ImageSource)({ resource: bitmap, autoGarbageCollect: false });
+                this.textures.set(sourceKey, source);
+            }
+            var r = image.rect;
+            this.textures.set(key, new (V().Texture)({ source: source, frame: r ? new (V().Rectangle)(r[0],r[1],r[2],r[3]) : undefined }));
+        }
+        return this.textures.get(key);
+    };
+    Drawer.prototype.dropTexture = function (file) {
+        var self = this;
+        Array.from(this.textures.keys()).filter(function (k) { return k.indexOf(file + ':') === 0 && k !== file + ':source'; }).forEach(function (k) { self.textures.get(k).destroy(false); self.textures.delete(k); });
+        var source = this.textures.get(file + ':source');
+        if (source) { source.destroy(); this.textures.delete(file + ':source'); }
+    };
+    Drawer.prototype.prune = function (active) {
+        var self = this;
+        this.nodes.forEach(function (node, key) { if (!active.has(key.split(':')[0])) { node.destroy(); self.nodes.delete(key); } });
+    };
+    Drawer.prototype.sprite = function (key, image, transform, box, alpha, z) {
+        var sprite = this.nodes.get(key);
+        if (!sprite) { sprite = new (V().Sprite)(); this.nodes.set(key, sprite); this.root.addChild(sprite); }
+        this.used.add(key); sprite.visible = true; sprite.texture = this.texture(image);
+        var r = image.rect, width = r ? r[2] : sprite.texture.width, height = r ? r[3] : sprite.texture.height;
+        var local = [box[2] / width, 0, 0, box[3] / height, box[0], box[1]];
+        sprite.setFromMatrix(matrix(RG().mul(transform, local))); sprite.alpha = alpha; sprite.zIndex = z;
+        return sprite;
+    };
+    Drawer.prototype.draw = function (ctx, sc, time, rc) {
+        var self = this, stage = SM.render.stageFor(sc, rc), cam = SM.camera.at(sc.camera, time);
+        var win = stage.cameraWindow(cam), base = stage.baseWindow(), camera = stage.matrix(win), z = 0;
+        this.used.clear(); this.root.sortableChildren = true;
+        this.renderer.background.color = rc.palette.bg;
+        var environment = sc.env && this.owner.files[sc.env.file];
+        var layers = environment && (environment.variants && environment.variants[sc.variant] || environment.layers) || [];
+        function background(layer, i) {
+            var factor = layer.parallax === undefined ? 1 : layer.parallax;
+            var m = RG().mul(camera, RG().translate((1-factor)*(win.x-base.x), (1-factor)*(win.y-base.y)));
+            self.sprite(sc.id + ':env:' + i, layer.image, m, layer.box || [0,0,1920,1080], 1, z++);
+        }
+        layers.forEach(function (layer, i) { if (!layer.foreground) background(layer, i); });
+        var states = sc.entities.map(function (e, i) { var s = SM.scene.evalEntity(e, time); s.k = i; s.entity = e; s.scale *= SM.render.pulseOf(s); return s; });
+        function prop(state) {
+            var entry = rc.cat.byId[state.item], part = entry && self.owner.files[entry.file];
+            if (!part || !part.image) throw new Error('Missing prop artwork: ' + state.item);
+            self.sprite(sc.id + ':' + state.id, part.image, RG().mul(camera, dimensions(entry, part, state, stage)), part.viewbox || [0,0,100,100], state.alpha, z++);
+        }
+        states.filter(function (s) { return s.type === 'prop' && s.layer === 'back' && s.alpha > 0; }).forEach(prop);
+        states.filter(function (s) { return s.type === 'actor' && s.alpha > 0; }).sort(function (a,b) { return a.y-b.y || a.k-b.k; }).forEach(function (s) {
+            var actor = character(self.owner, s, time, rc, s.entity, sc), rig = rc.assets.rig, body = RG().bodyOf(rig, s.params.body);
+            var scale = RG().scaleFor(rig, SM.stage.DESIGN_H, stage.depthScale(s.y,s.depth), s.scale, body);
+            var m = RG().mul(camera, RG().mul(RG().translate(s.x,s.y), [scale*(s.facing<0?-1:1),0,0,scale,0,0]));
+            var shadowKey = sc.id+':'+s.id+':shadow', shadow = self.nodes.get(shadowKey);
+            if (!shadow) {
+                shadow = new (V().Graphics)().ellipse(0,0,160,28).fill({ color: 0x000000, alpha: 0.13 });
+                self.nodes.set(shadowKey,shadow); self.root.addChild(shadow);
+            }
+            self.used.add(shadowKey); shadow.visible = true; shadow.setFromMatrix(matrix(m)); shadow.alpha = s.alpha; shadow.zIndex = z++;
+            m = RG().mul(camera, RG().mul(RG().translate(s.x,s.y), RG().mul(RG().rotate(s.rot), [scale*(s.facing<0?-1:1),0,0,scale,0,0])));
+            m = RG().mul(m, RG().translate(0, actor.state.offsetY));
+            var worlds = RG().boneMatrices(rig, actor.state.view, body, actor.state.offsets);
+            actor.slots.forEach(function (slot, i) {
+                var image = slotImage(slot, actor.state);
+                if (image) self.sprite(sc.id+':'+s.id+':'+i, image, RG().mul(m, SM.rasterRig.slotMatrix(worlds[slot.bone], slot)), image.box || slot.box, s.alpha, z++);
+            });
+        });
+        layers.forEach(function (layer, i) { if (layer.foreground) background(layer, i); });
+        states.filter(function (s) { return s.type === 'prop' && s.layer !== 'back' && s.alpha > 0; }).forEach(prop);
+        this.nodes.forEach(function (node, key) { node.visible = self.used.has(key); });
+        var overlay = this.overlayContext;
+        var visibleOverlay = states.filter(function (s) { return s.alpha > 0 && (s.type === 'shape' || s.type === 'text' && s.text || s.type === 'bubble' && s.lines && s.lines.length || s.highlight && s.highlight.style !== 'pulse'); });
+        var owners = new Set(visibleOverlay.filter(function (s) { return s.type === 'bubble'; }).map(function (s) { return s.owner; }));
+        var inputs = visibleOverlay.concat(states.filter(function (s) { return owners.has(s.id); })).map(function (s) { var plain = Object.assign({}, s); delete plain.entity; return plain; });
+        var overlayKey = visibleOverlay.length ? JSON.stringify([sc.id, cam, inputs]) : '';
+        if (this.overlayKey !== overlayKey) {
+            // Reset backing pixels only when contents change; transparent CanvasSource uploads must invalidate old pixels.
+            this.overlay.width = rc.W;
+            states.filter(function (s) { return s.type === 'shape' && s.alpha > 0; }).forEach(function (s) { SM.render.drawShapeEntity(overlay,s,rc,camera); });
+            states.filter(function (s) { return s.type === 'text'; }).forEach(function (s) { SM.render.drawText(overlay,s,rc,stage,base); });
+            states.filter(function (s) { return s.type === 'bubble'; }).forEach(function (s) { SM.render.drawBubble(overlay,s,states,rc,stage,win); });
+            states.forEach(function (s) { SM.render.drawHighlight(overlay,s,rc,stage,base,camera); });
+            this.overlayTexture.source.update(); this.overlayKey = overlayKey;
+        }
+        this.overlaySprite.zIndex = z;
+        this.renderer.render({ container: this.root });
+        ctx.setTransform(1,0,0,1,0,0); ctx.globalAlpha = 1; ctx.drawImage(this.canvas,0,0);
+    };
+    Drawer.prototype.dispose = function () {
+        this.root.destroy({ children: true });
+        Array.from(this.textures.keys()).filter(function (k) { return k.endsWith(':source'); }).forEach(function (k) { this.dropTexture(k.slice(0,-7)); }, this);
+        this.overlayTexture.destroy(true); this.renderer.destroy(); this.nodes.clear();
+        this.overlay.width = this.overlay.height = this.canvas.width = this.canvas.height = 1;
+    };
+    async function get(owner, width, height) {
+        var generation = owner.graphicsGeneration;
+        var key = width + 'x' + height;
+        var existing = owner.renderers[key];
+        if (existing && existing.renderer.gl && existing.renderer.gl.isContextLost()) { existing.dispose(); delete owner.renderers[key]; }
+        if (owner.renderers[key]) return owner.renderers[key];
+        if (!V()) throw new Error('The local Storymaker renderer is unavailable');
+        V().DOMAdapter.set(typeof root.document === 'undefined' ? V().WebWorkerAdapter : V().BrowserAdapter);
+        var canvas = owner.env.makeCanvas(width,height), renderer;
+        var options = { canvas: canvas, width: width, height: height, resolution: 1, antialias: true,
+            clearBeforeRender: true, backgroundAlpha: 1, textureGCActive: false, renderableGCActive: false };
+        try {
+            renderer = new (V().WebGLRenderer)(); await renderer.init(options);
+            if (SM.raster.softwareGL(renderer.gl)) throw new Error('Software WebGL uses the faster Canvas renderer');
+        }
+        catch (err) {
+            if (renderer) { try { renderer.destroy(); } catch (_) {} }
+            if (generation !== owner.graphicsGeneration) throw new Error('Project was disposed');
+            canvas = owner.env.makeCanvas(width,height); options.canvas = canvas;
+            renderer = new (V().CanvasRenderer)(); await renderer.init(options);
+        }
+        if (generation !== owner.graphicsGeneration) { renderer.destroy(); throw new Error('Project was disposed'); }
+        var sizes = Object.keys(owner.renderers);
+        if (sizes.length >= 3) { owner.renderers[sizes[0]].dispose(); delete owner.renderers[sizes[0]]; }
+        owner.renderers[key] = new Drawer(owner,renderer,canvas);
+        return owner.renderers[key];
+    }
+    SM.raster = { get: get, prepare: prepare, required: required, softwareGL: softwareGL };
 })(typeof globalThis !== 'undefined' ? globalThis : self);
 
 ;
@@ -3805,6 +4269,7 @@
             if (entry.kind === 'character') {
                 var pose = nameOf(cat.poses, o.pose, 'pose', 'stand');
                 if (rigFile) state.needs['catalog:' + rigFile] = true;
+                if (entry.file) state.needs['catalog:' + entry.file] = true;
                 var facing = o.facing === 'left' ? -1 : (o.facing === 'right' ? 1 : (pos.face === 'left' ? -1 : (pos.face === 'right' ? 1 : (pos.x <= stage.focusX ? 1 : -1))));
                 var a = S.createActor({ id: nextId('actor'), cast: id, character: id, params: entry.params || {}, x: pos.x, y: pos.y, scale: o.scale, facing: facing, pose: pose, expression: 'neutral', phase: state.counter * 0.37 });
                 return actorHandle(addEntity(a));
@@ -3878,7 +4343,7 @@
         var motionEnd = SM.camera.end(cam);
         state.entities.forEach(function (e) { var end = S.entityEnd(e); if (end > motionEnd) motionEnd = end; });
         var duration = state.duration !== null ? state.duration : Math.min(MAX_DURATION, Math.max(1, motionEnd + 0.5));
-        return { duration: duration, explicit: state.duration !== null, entities: state.entities, camera: cam, onFrame: state.onFrame, needs: Object.keys(state.needs).sort(), issues: state.issues, stage: stage };
+        return { duration: duration, explicit: state.duration !== null, entities: state.entities, camera: cam, onFrame: state.onFrame, needs: SM.textures.expand(opts.catalog, Object.keys(state.needs).sort()), issues: state.issues, stage: stage };
     }
 
     // ---- the restricted 2D facade passed to api.onFrame(fn)
@@ -4018,21 +4483,30 @@
         this.canvases = {};
         this.main = null;
         this.fontsLoaded = {};
+        this.fontFaces = [];
+        this.bitmaps = {};
+        this.textureData = {};
+        this.renderers = {};
+        this.graphicsGeneration = 0;
     }
 
     Runtime.prototype.canvas = function (name, w, h) {
         var key = name + ':' + w + 'x' + h;
         if (!this.canvases[key]) {
+            var keys = Object.keys(this.canvases);
+            if (keys.length >= 9) { this.canvases[keys[0]].canvas.width = 1; this.canvases[keys[0]].canvas.height = 1; delete this.canvases[keys[0]]; }
             var canvas = this.env.makeCanvas(w, h);
             this.canvases[key] = { canvas: canvas, ctx: canvas.getContext('2d') };
         }
-        return this.canvases[key];
+        var result = this.canvases[key]; delete this.canvases[key]; this.canvases[key] = result;
+        return result;
     };
 
     Runtime.prototype.missingNeeds = function () {
         var self = this, out = [];
         (this.needs || []).forEach(function (key) {
             if (key.indexOf('catalog:') === 0) { if (!self.files[key.slice(8)]) out.push(key); }
+            else if (key.indexOf('texture:') === 0) { if (!self.textureData[key]) out.push(key); }
             else if (key.indexOf('font:') === 0) { if (!self.fontsLoaded[key.slice(5)]) out.push(key); }
         });
         return out;
@@ -4045,6 +4519,8 @@
                 return { payload: { plan: plan } };
             }
             case 'compile': {
+                this.disposeGraphics();
+                this.catalog = msg.catalog;
                 var out = SM.compile(msg.story, msg.audioInfo || {}, msg.catalog, msg.opts);
                 this.timeline = out.timeline;
                 this.needs = out.needs;
@@ -4053,8 +4529,9 @@
             }
             case 'assets': {
                 var assets = msg.assets || {}, k;
+                for (k in assets) if (k.indexOf('texture:') === 0) this.textureData[k] = assets[k];
                 for (k in assets) if (k.indexOf('catalog:') === 0) this.files[k.slice(8)] = assets[k];
-                var fonts = msg.fonts || [], env = this.env;
+                var fonts = msg.fonts || [], env = this.env, generation = this.graphicsGeneration;
                 for (var i = 0; i < fonts.length; i++) {
                     var f = fonts[i];
                     if (!f || !f.data) continue;
@@ -4065,7 +4542,9 @@
                         if (f.unicode_range) desc.unicodeRange = f.unicode_range;
                         var face = new env.FontFace(f.family, f.data, desc);
                         await face.load();
+                        if (generation !== this.graphicsGeneration) throw new Error('Project was disposed');
                         env.fonts.add(face);
+                        this.fontFaces.push(face);
                         this.fontsLoaded[key] = true;
                     } catch (err) {
                         throw fail('readiness', 'Font "' + f.family + '" (' + f.weight + ') could not be loaded: ' + (err && err.message || err));
@@ -4073,29 +4552,42 @@
                 }
                 return { payload: { missing: this.missingNeeds() } };
             }
+            case 'prepare_frame':
+                return this.handle({ type: 'render', n: msg.n, width: msg.width, prepareOnly: true });
             case 'render': {
-                if (!this.timeline) throw fail('code_error', 'render before compile');
-                var tl = this.timeline, width = msg.width > 0 ? Math.round(msg.width) : tl.width;
-                var height = msg.width > 0 ? Math.round(msg.width * tl.height / tl.width) : tl.height;
-                var main = this.canvas('main', width, height), self = this;
-                var assetsObj = {
-                    rig: this.files[tl.rigFile] || null, props: this.files, envs: this.files,
-                    codeFrames: msg.codeFrames || {}, codeErrors: msg.codeErrors || {},
-                    canvas: function (name, w, h) { return self.canvas(name, w, h); }
-                };
-                SM.renderFrame(tl, msg.n, main.ctx, assetsObj, { width: width === tl.width ? 0 : width });
-                if (msg.png) {   // the parallel path of the render page: the PNG is encoded here, so the host main thread stays free
-                    var blob = await main.canvas.convertToBlob({ type: 'image/png' });
-                    var painted = msg.codeFrames || {};
-                    for (var cid in painted) if (painted[cid] && typeof painted[cid].close === 'function') painted[cid].close();
-                    return { payload: { blob: blob, width: width, height: height } };
+                try {
+                    if (!this.timeline) throw fail('code_error', 'render before compile');
+                    var tl = this.timeline, width = msg.width > 0 ? Math.round(msg.width) : tl.width;
+                    var height = msg.width > 0 ? Math.round(msg.width * tl.height / tl.width) : tl.height;
+                    var main = this.canvas('main', width, height), self = this;
+                    var raster = this.catalog && this.catalog.schema === 'storymaker-catalog/2'
+                        ? await SM.raster.get(this, width, height) : null;
+                    var assetsObj = {
+                        raster: raster, bitmaps: this.bitmaps,
+                        rig: this.files[tl.rigFile] || null, props: this.files, envs: this.files,
+                        codeFrames: msg.codeFrames || {}, codeErrors: msg.codeErrors || {},
+                        canvas: function (name, w, h) { return self.canvas(name, w, h); }
+                    };
+                    if (raster) {
+                        var rc = SM.render.makeContext(tl, assetsObj, width, height);
+                        var draws = SM.schedule.framePlan(tl.schedule, msg.n).layers.map(function (layer) { return { scene: tl.scenes[layer.i], t: layer.f / tl.fps }; });
+                        await SM.raster.prepare(this, draws, rc);
+                    }
+                    if (msg.prepareOnly) return { payload: {} };
+                    SM.renderFrame(tl, msg.n, main.ctx, assetsObj, { width: width === tl.width ? 0 : width });
+                    if (msg.png) {   // the parallel path of the render page: the PNG is encoded here, so the host main thread stays free
+                        var blob = await main.canvas.convertToBlob({ type: 'image/png' });
+                        return { payload: { blob: blob, width: width, height: height } };
+                    }
+                    var bitmap = typeof main.canvas.transferToImageBitmap === 'function' ? main.canvas.transferToImageBitmap() : main.canvas;
+                    return { payload: { bitmap: bitmap, width: width, height: height }, transfer: typeof main.canvas.transferToImageBitmap === 'function' ? [bitmap] : [] };
+                } finally {
+                    var frames = msg.codeFrames || {};
+                    for (var id in frames) if (frames[id] && typeof frames[id].close === 'function') frames[id].close();
                 }
-                var bitmap = typeof main.canvas.transferToImageBitmap === 'function' ? main.canvas.transferToImageBitmap() : main.canvas;
-                var frames = msg.codeFrames || {};
-                for (var id in frames) if (frames[id] && typeof frames[id].close === 'function') frames[id].close();
-                return { payload: { bitmap: bitmap, width: width, height: height }, transfer: typeof main.canvas.transferToImageBitmap === 'function' ? [bitmap] : [] };
             }
             case 'dispose':
+                this.disposeGraphics();
                 this.timeline = null;
                 this.files = {};
                 this.canvases = {};
@@ -4103,6 +4595,20 @@
             default:
                 throw fail('code_error', 'unknown message type "' + msg.type + '"');
         }
+    };
+
+    Runtime.prototype.disposeGraphics = function () {
+        this.graphicsGeneration++;
+        SM.timeline.dispose(this.timeline);
+        Object.keys(this.renderers).forEach(function (k) { this.renderers[k].dispose(); }, this);
+        this.renderers = {};
+        SM.textures.dispose(this.bitmaps);
+        Object.keys(this.canvases).forEach(function (k) { this.canvases[k].canvas.width = this.canvases[k].canvas.height = 1; }, this);
+        this.canvases = {};
+        this.textureData = {};
+        this.fontFaces.forEach(function (face) { if (this.env.fonts && this.env.fonts.delete) this.env.fonts.delete(face); }, this);
+        this.fontFaces = [];
+        this.fontsLoaded = {};
     };
 
     SM.workerPlayer = { Runtime: Runtime, fail: fail };
@@ -4150,14 +4656,21 @@
         this.files = {};
         this.canvases = {};
         this.fontsLoaded = {};
+        this.fontFaces = [];
+        this.graphicsGeneration = 0;
+        this.bitmaps = {};
+        this.textureData = {};
+        this.renderers = {};
     }
 
     Runtime.prototype.handle = async function (msg) {
         switch (msg.type) {
             case 'build': {
+                await this.handle({ type: 'dispose' });
                 var fn = this.scope.__smScene;
                 if (typeof fn !== 'function') throw fail('code_error', 'The scene bundle did not register a scene function (export default function scene(api)).');
                 this.opts = msg.opts;
+                this.catalog = msg.opts.catalog;
                 var built;
                 try { built = SM.codescene.build(fn, msg.opts); } catch (err) { throw sceneError(err, 'Scene "' + msg.opts.sceneId + '"'); }
                 this.built = built;
@@ -4165,8 +4678,9 @@
             }
             case 'assets': {
                 var assets = msg.assets || {}, k;
+                for (k in assets) if (k.indexOf('texture:') === 0) this.textureData[k] = assets[k];
                 for (k in assets) if (k.indexOf('catalog:') === 0) this.files[k.slice(8)] = assets[k];
-                var fonts = msg.fonts || [], env = this.env;
+                var fonts = msg.fonts || [], env = this.env, generation = this.graphicsGeneration;
                 for (var i = 0; i < fonts.length; i++) {
                     var f = fonts[i];
                     if (!f || !f.data) continue;
@@ -4177,7 +4691,9 @@
                         if (f.unicode_range) desc.unicodeRange = f.unicode_range;
                         var face = new env.FontFace(f.family, f.data, desc);
                         await face.load();
+                        if (generation !== this.graphicsGeneration) throw new Error('Scene was disposed');
                         env.fonts.add(face);
+                        this.fontFaces.push(face);
                         this.fontsLoaded[key] = true;
                     } catch (err) {
                         throw fail('readiness', 'Font "' + f.family + '" could not be loaded: ' + (err && err.message || err));
@@ -4185,22 +4701,48 @@
                 }
                 return { payload: {} };
             }
+            case 'prepare_frame':
+                return this.handle({ type: 'frame', t: msg.t, width: msg.width, prepareOnly: true });
             case 'frame': {
                 if (!this.built) throw fail('code_error', 'frame before build');
                 var o = this.opts, width = msg.width > 0 ? Math.round(msg.width) : o.width;
                 var height = msg.width > 0 ? Math.round(msg.width * o.height / o.width) : o.height;
                 var key2 = width + 'x' + height;
-                if (!this.canvases[key2]) { var c = this.env.makeCanvas(width, height); this.canvases[key2] = { canvas: c, ctx: c.getContext('2d') }; }
+                if (!this.canvases[key2]) {
+                    var keys = Object.keys(this.canvases);
+                    if (keys.length >= 3) { this.canvases[keys[0]].canvas.width = 1; this.canvases[keys[0]].canvas.height = 1; delete this.canvases[keys[0]]; }
+                    var c = this.env.makeCanvas(width, height); this.canvases[key2] = { canvas: c, ctx: c.getContext('2d') };
+                }
                 var main = this.canvases[key2];
+                delete this.canvases[key2]; this.canvases[key2] = main;
                 var tl = { aspect: o.aspect, fps: o.fps, palette: o.palette, cat: SM.scene.indexCatalog(o.catalog), fontFamilies: o.families || {}, fontChain: o.fontChain, style: { font: o.styleFont || 'default' }, safe: o.safe };
-                var rc = SM.render.makeContext(tl, { rig: this.files[o.catalog && o.catalog.rig && o.catalog.rig.file] || null, props: this.files, envs: this.files }, width, height);
+                var raster = this.catalog && this.catalog.schema === 'storymaker-catalog/2' ? await SM.raster.get(this, width, height) : null;
+                var rc = SM.render.makeContext(tl, { raster: raster, bitmaps: this.bitmaps, rig: this.files[o.catalog && o.catalog.rig && o.catalog.rig.file] || null, props: this.files, envs: this.files }, width, height);
+                rc.sceneId = o.sceneId;
+                if (raster) await SM.raster.prepare(this, [{ scene: this.built, t: msg.t }], rc);
+                if (msg.prepareOnly) return { payload: {} };
                 rc.sceneId = o.sceneId;
                 this.built.stages = this.built.stages || {};
                 try { SM.codescene.drawFrame(this.built, msg.t, main.ctx, rc); } catch (err) { throw sceneError(err, 'Scene "' + o.sceneId + '" at ' + msg.t.toFixed(2) + ' s'); }
                 var bitmap = typeof main.canvas.transferToImageBitmap === 'function' ? main.canvas.transferToImageBitmap() : main.canvas;
                 return { payload: { bitmap: bitmap, width: width, height: height }, transfer: typeof main.canvas.transferToImageBitmap === 'function' ? [bitmap] : [] };
             }
+            case 'release_graphics':
+                this.graphicsGeneration++;
+                Object.keys(this.renderers).forEach(function (k) { this.renderers[k].dispose(); }, this);
+                this.renderers = {};
+                SM.textures.dispose(this.bitmaps);
+                Object.keys(this.canvases).forEach(function (k) { this.canvases[k].canvas.width = this.canvases[k].canvas.height = 1; }, this);
+                this.canvases = {};
+                return { payload: {} };
             case 'dispose':
+                await this.handle({ type: 'release_graphics' });
+                SM.timeline.dispose(this.built);
+                this.fontFaces.forEach(function (face) { if (this.env.fonts && this.env.fonts.delete) this.env.fonts.delete(face); }, this);
+                this.fontFaces = [];
+                this.fontsLoaded = {};
+                this.textureData = {};
+                this.files = {};
                 this.built = null;
                 this.canvases = {};
                 return { payload: {} };

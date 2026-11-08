@@ -41,6 +41,8 @@
         async function post(path, body, headers) {
             var url = base + path;
             if (token) url += (path.indexOf('?') >= 0 ? '&' : '?') + 't=' + encodeURIComponent(token);
+            // DevTools cannot account for Blob-backed POST sizes; use bytes so its payload limits can evict frames.
+            if (path.indexOf('/frame?') === 0 && body && typeof body.arrayBuffer === 'function') body = await body.arrayBuffer();
             var res = await doFetch(url, { method: 'POST', headers: headers, body: body, cache: 'no-store' });
             var text = '';
             try { text = await res.text(); } catch (e) { text = ''; }
@@ -121,6 +123,28 @@
                         var res = await doFetch(assetsBase + rel, { cache: 'no-store' });
                         if (!res.ok) throw H.fail('readiness', 'Asset ' + rel + ' answered ' + res.status);
                         assets[key] = await res.json();
+                    } else if (key.indexOf('texture:') === 0) {
+                        var imagePath = key.slice(8);
+                        var image = (catalog.files || []).find(function (f) { return f.path === imagePath && ['image/png','image/webp','image/jpeg'].indexOf(f.type) >= 0; });
+                        if (!image || !/^[A-Za-z0-9_./-]+$/.test(imagePath) || imagePath.split('/').some(function (s) { return !s || s === '.' || s === '..'; }) || image.bytes < 1 || image.bytes > 8 * 1048576) throw H.fail('readiness', 'Invalid texture dependency');
+                        var imageResponse = await doFetch(assetsBase + imagePath, { cache: 'no-store' });
+                        if (!imageResponse.ok) throw H.fail('readiness', 'Texture could not be fetched');
+                        var imageReader = imageResponse.body.getReader(), imageParts = [], imageLength = 0;
+                        try {
+                            for (;;) {
+                                var nextImagePart = await imageReader.read();
+                                if (nextImagePart.done) break;
+                                imageLength += nextImagePart.value.byteLength;
+                                if (imageLength > image.bytes) throw H.fail('readiness', 'Texture exceeds its size limit');
+                                imageParts.push(nextImagePart.value);
+                            }
+                        } catch (imageError) { await imageReader.cancel().catch(function () {}); throw imageError; }
+                        finally { imageReader.releaseLock(); }
+                        var combinedImage = new Uint8Array(imageLength), imageOffset = 0;
+                        imageParts.forEach(function (part) { combinedImage.set(part,imageOffset); imageOffset += part.byteLength; });
+                        var imageBytes = combinedImage.buffer;
+                        if (imageBytes.byteLength !== image.bytes) throw H.fail('readiness', 'Texture size differs');
+                        assets[key] = imageBytes;
                     } else if (key.indexOf('font:') === 0) {
                         if (fontByKey[key]) assets[key] = await fetchFont(key); else missing.push(key);
                     }

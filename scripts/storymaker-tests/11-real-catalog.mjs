@@ -3,7 +3,7 @@
 // the narrow aspects, text colours on dark environments, the camera's actor reach), and a spread of frames of firewall.json and
 // of the cast sheet (internal/storymaker/testdata/player/castsheet.json) that must draw without an unresolved token.
 import assert from 'node:assert/strict';
-import { plain, realCatalog, realFiles, realAssets, renderAssets, playerStory, story, FakeCanvas } from '../storymaker-test-support.mjs';
+import { plain, legacyCatalog as realCatalog, legacyFiles as realFiles, legacyAssets as realAssets, renderAssets, playerStory, story, FakeCanvas } from '../storymaker-test-support.mjs';
 import { readJSON as readFixture, REAL as REAL_DIR } from '../storymaker-test-support.mjs';
 import { t } from '../storymaker-test-context.mjs';
 

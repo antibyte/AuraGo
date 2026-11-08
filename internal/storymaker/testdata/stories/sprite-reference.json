@@ -1,0 +1,275 @@
+{
+  "schema": "storymaker/1",
+  "title": "Sicher vernetzt",
+  "format": {
+    "aspect": "16:9",
+    "fps": 30
+  },
+  "style": {
+    "palette": "sunny",
+    "font": "default",
+    "captions": true
+  },
+  "voice": null,
+  "music": null,
+  "cast": [
+    {
+      "id": "anna",
+      "character": "char.office-woman-1"
+    },
+    {
+      "id": "ben",
+      "character": "char.office-man-1"
+    }
+  ],
+  "scenes": [
+    {
+      "id": "office",
+      "environment": "env.office",
+      "duration": 20.5,
+      "narration": "Unsere Geräte arbeiten zusammen. Sichere Verbindungen schützen unsere Daten.",
+      "speaker": "anna",
+      "actors": [
+        {
+          "cast": "anna",
+          "at": "left"
+        },
+        {
+          "cast": "ben",
+          "at": "right",
+          "pose": "sit"
+        }
+      ],
+      "props": [
+        {
+          "id": "chair",
+          "item": "prop.chair",
+          "at": "right",
+          "layer": "back"
+        }
+      ],
+      "beats": [
+        {
+          "do": "walk",
+          "who": "anna",
+          "to": "center",
+          "duration": 2
+        },
+        {
+          "do": "look",
+          "who": "ben",
+          "target": "anna",
+          "with": "prev"
+        },
+        {
+          "do": "gesture",
+          "who": "anna",
+          "gesture": "wave",
+          "duration": 1
+        },
+        {
+          "do": "show",
+          "id": "laptop",
+          "item": "prop.laptop",
+          "at": {
+            "x": 22,
+            "y": 35
+          },
+          "entry": "fade"
+        },
+        {
+          "do": "show",
+          "id": "phone",
+          "item": "prop.phone",
+          "at": {
+            "x": 35,
+            "y": 35
+          },
+          "with": "prev",
+          "entry": "fade"
+        },
+        {
+          "do": "show",
+          "id": "monitor",
+          "item": "prop.monitor",
+          "at": {
+            "x": 65,
+            "y": 35
+          },
+          "with": "prev",
+          "entry": "fade"
+        },
+        {
+          "do": "gesture",
+          "who": "anna",
+          "gesture": "point",
+          "target": "laptop",
+          "duration": 1.5
+        },
+        {
+          "do": "camera",
+          "op": "zoom",
+          "amount": 1.3,
+          "duration": 1
+        },
+        {
+          "do": "hide",
+          "target": "laptop"
+        },
+        {
+          "do": "hide",
+          "with": "prev",
+          "target": "phone"
+        },
+        {
+          "do": "hide",
+          "with": "prev",
+          "target": "monitor"
+        },
+        {
+          "do": "show",
+          "id": "server",
+          "item": "prop.server",
+          "at": {
+            "x": 22,
+            "y": 35
+          },
+          "entry": "fade"
+        },
+        {
+          "do": "show",
+          "id": "router",
+          "item": "prop.router",
+          "at": {
+            "x": 35,
+            "y": 35
+          },
+          "with": "prev",
+          "entry": "fade"
+        },
+        {
+          "do": "show",
+          "id": "cloud",
+          "item": "prop.cloud",
+          "at": {
+            "x": 65,
+            "y": 35
+          },
+          "with": "prev",
+          "entry": "fade"
+        },
+        {
+          "do": "gesture",
+          "who": "anna",
+          "gesture": "present",
+          "duration": 1.5
+        },
+        {
+          "do": "look",
+          "who": "anna",
+          "target": "camera"
+        },
+        {
+          "do": "camera",
+          "op": "pan",
+          "to": "center",
+          "duration": 1
+        },
+        {
+          "do": "hide",
+          "target": "server"
+        },
+        {
+          "do": "hide",
+          "with": "prev",
+          "target": "router"
+        },
+        {
+          "do": "hide",
+          "with": "prev",
+          "target": "cloud"
+        },
+        {
+          "do": "show",
+          "item": "prop.database",
+          "at": {
+            "x": 22,
+            "y": 35
+          },
+          "entry": "fade"
+        },
+        {
+          "do": "show",
+          "item": "prop.document",
+          "at": {
+            "x": 35,
+            "y": 35
+          },
+          "with": "prev",
+          "entry": "fade"
+        },
+        {
+          "do": "show",
+          "item": "prop.lock",
+          "at": {
+            "x": 65,
+            "y": 35
+          },
+          "with": "prev",
+          "entry": "fade"
+        },
+        {
+          "do": "emote",
+          "who": "anna",
+          "expression": "happy"
+        },
+        {
+          "do": "pose",
+          "who": "ben",
+          "pose": "typing",
+          "duration": 0.5
+        }
+      ]
+    },
+    {
+      "id": "evening",
+      "environment": "env.office",
+      "variant": "night",
+      "duration": 5,
+      "transition": "fade",
+      "narration": "Auch am Abend bleiben unsere Daten geschützt.",
+      "speaker": "ben",
+      "actors": [
+        {
+          "cast": "anna",
+          "at": "left",
+          "pose": "present"
+        },
+        {
+          "cast": "ben",
+          "at": "right"
+        }
+      ],
+      "beats": [
+        {
+          "do": "look",
+          "who": "ben",
+          "target": "camera"
+        },
+        {
+          "do": "emote",
+          "who": "ben",
+          "expression": "happy"
+        }
+      ]
+    },
+    {
+      "id": "s3",
+      "kind": "code",
+      "duration": 5,
+      "silent": true,
+      "narration": "",
+      "transition": "cut"
+    }
+  ]
+}

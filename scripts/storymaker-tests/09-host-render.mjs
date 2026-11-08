@@ -78,7 +78,7 @@ async function runRender(opts = {}) {
         if (prop === 'getImageData') return (x, y, w, h) => ({ data: new Uint8ClampedArray(w * h * 4) });
         return target[prop];
     } });
-    canvas.toBlob = (cb, type, quality) => cb({ __blob: true, type, quality });
+    canvas.toBlob = (cb, type, quality) => cb({ __blob: true, type, quality, ...(opts.frameBuffer ? { arrayBuffer: async () => opts.frameBuffer } : {}) });
     const win = { document: { body: { style: {} }, documentElement: { style: {} } }, requestAnimationFrame: fn => setTimeout(fn, 0) };
     canvas.style = {};
     const workers = opts.workers || [];
@@ -90,6 +90,13 @@ async function runRender(opts = {}) {
     const status = await H.mountRender({ canvas, base: RBASE, fetch: server.fetch, window: win, env });
     return { server, status: plain(status), win, canvas, workers, frames: server.posts.filter(p => p.path.startsWith('/frame?n=')) };
 }
+
+check('render mode: image Blob frames are posted as byte buffers with unchanged bytes and simple headers',async()=>{
+    const bytes=Uint8Array.from([137,80,78,71]).buffer;
+    const r=await runRender({story:minimal,frameBuffer:bytes});
+    assert.equal(r.status.phase,'done');assert.ok(r.frames.length>0);
+    for(const frame of r.frames){assert.equal(frame.body,bytes);assert.equal(frame.headers['Content-Type'],'text/plain');}
+});
 
 check('render mode: boot.json, report, then every frame in order (png)', async () => {
     const r = await runRender({ transport: 'png' });

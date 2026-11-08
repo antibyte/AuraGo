@@ -11,16 +11,20 @@ catalog index are `../../../internal/storymaker/AGENTS.md`, the generated catalo
   `npm run build:ui` from the part lists in `scripts/storymaker-bundle-parts.js`; never edit a bundle by hand, `npm run check:ui`
   fails when one is stale. Every part keeps its own IIFE scope; the shared parts (`schedule.js`) sit in both bundles.
 - The player CSS `../../css/storymaker-player.css` is the only stylesheet of the player host page and is named in its CSP.
-- Workers are blob workers: one prelude line (`self.__SM_ROLE__ = "player" | "scene"; importScripts("<base>/js/storymaker/player.bundle.js");`)
+- Workers are blob workers: one prelude line sets the role and imports the local `js/vendor/storymaker/runtime.js` followed by `js/storymaker/player.bundle.js`
   plus, for a scene worker, the scene bundle text. A line number inside a worker minus one is a line of the scene bundle.
 
 ## Rules
 
+- Catalog v2 uses persistent PixiJS 8.22.0 scene graphs (`raster.js`, `raster-rig.js`), hardware WebGL first and a fresh Pixi CanvasRenderer when unavailable or a known CPU rasterizer is reported. `timeline.js` evaluates numeric channels through paused GSAP 3.15.1 timelines. The locally bundled vendor has inert timers/tickers and a fixed clock; only explicit `frame / fps` sampling advances a frame. No animation callbacks may mutate story state. The legacy renderer remains for v1 fixtures.
+- `textures.js` verifies catalog-only `texture:<path>` buffers, hashes, encoded and decoded image dimensions. Original bytes remain cached in the host; each worker gets its own copy and textures. The limits and schemas are owned by `../../../assets/storymaker/ASSET-CONTRACT.md`.
+- `prepare_frame` decodes and warms trusted renderer resources under the asset deadline; it never runs a scene's `onFrame`. Actual frame callbacks retain their frame deadline. Code-scene v2 builds are serial; inactive scene workers are terminated and rebuilt deterministically when seeking back. A project reset releases renderers, fonts, bitmaps, raw buffers and GSAP timelines; generation checks discard late asynchronous loads.
+- Planted walking solves two-bone leg contact from compiled walk distance, with horizontal ankle-pivoted shoes and entry/exit blending. Sitting uses body-specific lowering and replacement drawings. Text wrapping, captions, speech, compiler timing and the restricted code-scene API retain their existing owners.
 - No `innerHTML`, `insertAdjacentHTML`, template string with data, `eval` or `Function` anywhere under `ui/js/storymaker`
   (`TestStorymakerSourcesAreSafeAndSmall` and `scripts/storymaker-tests/10-static-guards.mjs`). Story text is drawn on a canvas.
 - Determinism: time is the frame number; no `Date`, `Math.random` or wall-clock reads in a render path (`determinism.js` shadows them
   in the code-scene realm); the same story twice renders the same frames. Do not pin pixel hashes of one version in tests.
-- Deadlines: scene build 2 s, frame 250 ms (the first three frames after a load 4 s), compile 10 s, assets 20 s. A worker that
+- Deadlines: scene build 2 s, app code frame 250 ms (the first three frames after a load 4 s; exports use the boot frame deadline), trusted v2 raster painting 4 s, compile 10 s, assets 20 s. A worker that
   overruns is terminated and reported (`deadline`); a code-scene frame error kills only that scene's worker and shows a placeholder.
 - The app protocol (contract section 8) accepts only messages from `window.parent`, in a fixed schema with caps, and posts to the
   origin of `data-sm-base`. `load` resets everything; the first `time` message after a compile is the "ready to play" signal.
@@ -52,6 +56,7 @@ catalog index are `../../../internal/storymaker/AGENTS.md`, the generated catalo
 
 ## Verify
 
+- `node scripts/test-storymaker-raster-browser.mjs --canvas` / `--webgl --loss`: native opaque-origin/CSP checks, three formats, real code scenes, arbitrary seeks and fresh reloads. `--matrix` and `--environments` produce review sheets under ignored UI reports. Vendor build/check: `node scripts/build-storymaker-vendor.mjs [--check]`.
 - `npm run test:storymaker` (Node, vm based, about 8 s), `npm run build:ui`, `npm run check:ui`, `node scripts/build-storymaker-ranges.mjs --check`.
 - Browser (`AURAGO_RUN_BROWSER_SMOKE=1`, installed Chrome): `go test ./ui -run 'TestStorymaker(PlayerGate|RenderMode|FirewallRender|RenderScreenshot)Browser' -count=1`
   for the opaque-origin gate (workers, OffscreenCanvas, FontFace, ImageBitmap transfer, blocked fetch and importScripts) and the render

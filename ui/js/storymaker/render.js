@@ -116,6 +116,7 @@
         var view = walking ? 'profile' : (st.look === 'camera' ? 'front' : (poseB.view || 'three_quarter'));
         var expr = cat.expressions[st.expression] || cat.expressions.neutral || {};
         return {
+            expression: st.expression,
             view: view, offsets: rg.addBones(bones, cd.bones, gd.bones), hands: handsOut, expr: expr,
             mouth: st.mouth || null, blink: ((t + st.phase * 3) % 3.6) < 0.12,
             offsetY: drop + (cd.offset_y || 0) + (gd.offset_y || 0)
@@ -265,6 +266,7 @@
 
     // drawScene(ctx, sc, t, rc): a storyboard or code-scene-like object {env, variant, camera, entities, stages}.
     function drawScene(ctx, sc, t, rc) {
+        if (rc.assets.raster) return rc.assets.raster.draw(ctx, sc, t, rc);
         var stage = stageFor(sc, rc);
         var cam = SM.camera.at(sc.camera, t), win = stage.cameraWindow(cam), bw = stage.baseWindow(), Mv = stage.matrix(win);
         drawBackdrop(ctx, rc);
@@ -348,6 +350,7 @@
     SM.render = {
         renderFrame: renderFrame, drawScene: drawScene, rigState: rigState, makeContext: makeContext, familyOf: familyOf,
         drawBackdrop: drawBackdrop, drawText: drawText, stageFor: stageFor, pulseOf: pulseOf
+        , drawShapeEntity: drawShapeEntity, drawBubble: drawBubble, drawHighlight: drawHighlight
     };
     SM.renderFrame = renderFrame;
 })(typeof globalThis !== 'undefined' ? globalThis : self);

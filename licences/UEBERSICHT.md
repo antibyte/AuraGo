@@ -131,6 +131,7 @@ AuraGo-eigene Oberflächen ohne Fremdcode stehen hier nicht.
 | System World, Tiefsee, Galaxy, Wissensgraph | three.js 0.186.1; RuView zusätzlich three 0.160.0 | MIT |
 | Wissensgraph | 3d-force-graph 1.80.1, force-graph 1.52.0 | MIT |
 | Game Maker | Phaser 4.2.1 | MIT |
+| Storymaker | PixiJS 8.22.0, GSAP 3.15.1 | PixiJS: MIT. GSAP: Standard No Charge License mit Einschränkungen für direkt mit Webflow konkurrierende visuelle Animationswerkzeuge; siehe `THIRD_PARTY_NOTICES.md` und `ui/js/vendor/storymaker/LICENSES.txt`. |
 | Game Maker 3D | Google Draco | Apache-2.0 |
 | Diagramme | Chart.js 4.5.1, Mermaid 12 | MIT |
 | Personas | Rive Canvas 2.43.1 | MIT. Die `.riv`-Dateien sind eigene AuraGo-Assets. |

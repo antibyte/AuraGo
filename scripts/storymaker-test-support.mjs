@@ -6,6 +6,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { createHash } from 'node:crypto';
 import { storymakerHostParts, storymakerPlayerParts } from './storymaker-bundle-parts.js';
+import { buildOutputs } from '../assets/storymaker/lib/catalog.mjs';
 
 export const root = path.resolve(import.meta.dirname, '..');
 export const read = file => fs.readFileSync(path.join(root, file), 'utf8');
@@ -27,20 +28,28 @@ export const story = name => readJSON('internal/storymaker/testdata/stories/' + 
 // stories that only the player tests use (the cast sheet that the parity browser test renders)
 export const playerStory = name => readJSON('internal/storymaker/testdata/player/' + name + '.json');
 
-// The real starter catalog (ui/img/storymaker, part D): the manifest, the rig, every prop and every environment file.
+// Preserve full v1 compatibility checks independently of the delivered v2 bitmap catalog.
 export const REAL = 'ui/img/storymaker/';
+let legacyBuilt;
+const legacy = () => legacyBuilt || (legacyBuilt = buildOutputs());
+export const legacyCatalog = () => plain(legacy().manifest);
 export const realCatalog = () => readJSON(REAL + 'catalog.json');
 let realCache = null;
-export function realFiles() {
+export function legacyFiles() {
     if (!realCache) {
-        const cat = realCatalog(), props = {}, envs = {};
+        const cat = legacyCatalog(), props = {}, envs = {};
         for (const e of cat.entries) {
-            if (e.kind === 'prop') props[e.file] = readJSON(REAL + e.file);
-            else if (e.kind === 'environment') envs[e.file] = readJSON(REAL + e.file);
+            if (e.kind === 'prop') props[e.file] = JSON.parse(legacy().files.get(e.file));
+            else if (e.kind === 'environment') envs[e.file] = JSON.parse(legacy().files.get(e.file));
         }
-        realCache = { rig: readJSON(REAL + cat.rig.file), props, envs };
+        realCache = { rig: legacy().rig, props, envs };
     }
     return realCache;
+}
+export function realFiles() {
+    const cat=realCatalog(),props={},envs={};
+    for(const e of cat.entries){if(e.kind==='prop')props[e.file]=readJSON(REAL+e.file);else if(e.kind==='environment')envs[e.file]=readJSON(REAL+e.file);}
+    return {rig:readJSON(REAL+cat.rig.file),props,envs};
 }
 
 // ---- recording 2D context ---------------------------------------------------------------------------------------
@@ -173,6 +182,7 @@ export function renderAssets(extra = {}, files = miniFiles()) {
 
 // Render assets of the real starter catalog.
 export const realAssets = (extra = {}) => renderAssets(extra, realFiles());
+export const legacyAssets = (extra = {}) => renderAssets(extra, legacyFiles());
 
 // ---- in-process worker --------------------------------------------------------------------------------------------
 

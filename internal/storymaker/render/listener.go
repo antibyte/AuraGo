@@ -57,6 +57,7 @@ type Snapshot struct {
 	CodeBundles  map[string][]byte
 	HostBundle   []byte
 	PlayerBundle []byte
+	VendorBundle []byte
 }
 
 // PageParams are the values the boot document carries.
@@ -265,6 +266,8 @@ func (l *Listener) serve(w http.ResponseWriter, r *http.Request) {
 		serveBytes(w, r, "text/javascript; charset=utf-8", l.snap.HostBundle)
 	case rest == "js/storymaker/player.bundle.js":
 		serveBytes(w, r, "text/javascript; charset=utf-8", l.snap.PlayerBundle)
+	case rest == "js/vendor/storymaker/runtime.js":
+		serveBytes(w, r, "text/javascript; charset=utf-8", l.snap.VendorBundle)
 	case rest == "report":
 		l.report(w, r)
 	case rest == "start":
@@ -415,7 +418,16 @@ func (l *Listener) catalogFile(w http.ResponseWriter, r *http.Request, rel strin
 		notFound(w)
 		return
 	}
-	serveBytes(w, r, "application/json; charset=utf-8", data)
+	contentType := "application/json; charset=utf-8"
+	switch path.Ext(rel) {
+	case ".png":
+		contentType = "image/png"
+	case ".webp":
+		contentType = "image/webp"
+	case ".jpg", ".jpeg":
+		contentType = "image/jpeg"
+	}
+	serveBytes(w, r, contentType, data)
 }
 
 func (l *Listener) font(w http.ResponseWriter, r *http.Request, file string) {

@@ -2,9 +2,11 @@
 // Order of every row: cs da de el en es fr hi it ja nl no pl pt sv zh
 // The build script writes them to ui/lang/storymaker_catalog/<lang>.json as storymaker.catalog.<id with "." -> "_">.
 
+import { RASTER_NAMES } from './raster-names.mjs';
 export const LANGS = ['cs', 'da', 'de', 'el', 'en', 'es', 'fr', 'hi', 'it', 'ja', 'nl', 'no', 'pl', 'pt', 'sv', 'zh'];
 
 export const NAMES = {
+  ...RASTER_NAMES,
   // characters
   'char.office-woman-1': ['Kancelářská pracovnice', 'Kontoransat (kvinde)', 'Büroangestellte', 'Υπάλληλος γραφείου (γυναίκα)', 'Office woman', 'Oficinista (mujer)', 'Employée de bureau', 'ऑफिस कर्मचारी (महिला)', 'Impiegata', 'オフィスの女性', 'Kantoormedewerkster', 'Kontordame', 'Pracownica biurowa', 'Funcionária de escritório', 'Kontorsanställd (kvinna)', '办公室女职员'],
   'char.office-man-1': ['Kancelářský pracovník', 'Kontoransat (mand)', 'Büroangestellter', 'Υπάλληλος γραφείου (άνδρας)', 'Office man', 'Oficinista (hombre)', 'Employé de bureau', 'ऑफिस कर्मचारी (पुरुष)', 'Impiegato', 'オフィスの男性', 'Kantoormedewerker', 'Kontormann', 'Pracownik biurowy', 'Funcionário de escritório', 'Kontorsanställd (man)', '办公室男职员'],

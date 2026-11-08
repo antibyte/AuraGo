@@ -70,6 +70,7 @@ test('--check fails when glyphs.json differs', () => {
     copy('scripts/build-storymaker-catalog.mjs');
     copy('assets/storymaker/lib');
     copy('assets/storymaker/sfx');
+    copy('assets/storymaker/masters');
     copy('ui/img/storymaker');
     copy('ui/lang/storymaker_catalog');
     for (const f of GLYPH_FACES) copy('ui' + f.file);

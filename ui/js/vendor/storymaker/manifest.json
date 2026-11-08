@@ -1,0 +1,8 @@
+{
+  "versions": {
+    "pixi.js": "8.22.0",
+    "gsap": "3.15.1"
+  },
+  "bytes": 606771,
+  "sha256": "d8b33ea3ec90b50294a5a064d7c1cb8ed2df8de553fe2660f1ab2ecb7c4b61c4"
+}

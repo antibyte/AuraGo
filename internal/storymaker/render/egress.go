@@ -140,7 +140,9 @@ func (g *egressGuard) blockPatterns() []map[string]any {
 
 // blockOutside installs the native block list on one target session.
 func (g *egressGuard) blockOutside(c sessionClient) error {
-	if err := (proto.NetworkEnable{}).Call(c); err != nil {
+	// The guard reads URLs only; never mirror multi-megabyte frames into DevTools events or caches.
+	bufferLimit, postLimit := 64<<10, 1
+	if err := (proto.NetworkEnable{MaxTotalBufferSize: &bufferLimit, MaxResourceBufferSize: &bufferLimit, MaxPostDataSize: &postLimit}).Call(c); err != nil {
 		return err
 	}
 	_, err := c.Call(c.ctx, "", "Network.setBlockedURLs", map[string]any{"urlPatterns": g.blockPatterns()})

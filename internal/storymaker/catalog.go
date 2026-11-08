@@ -11,7 +11,7 @@ import (
 )
 
 // CatalogSchema is the schema string of catalog.json.
-const CatalogSchema = "storymaker-catalog/1"
+const CatalogSchema = "storymaker-catalog/2"
 
 const maxCatalogBytes = 16 << 20
 
@@ -188,9 +188,11 @@ type Catalog struct {
 	Fonts    []Font
 	Palettes []Palette
 
-	version string
-	entries []Entry
-	byID    map[string]int
+	version  string
+	entries  []Entry
+	byID     map[string]int
+	files    []CatalogFile
+	manifest []byte
 
 	glyphs     *Glyphs // nil when the manifest names no glyphs file
 	glyphsFile string
@@ -205,6 +207,7 @@ type catalogFile struct {
 	Fonts    []Font            `json:"fonts"`
 	Palettes []Palette         `json:"palettes"`
 	Entries  []json.RawMessage `json:"entries"`
+	Files    []CatalogFile     `json:"files"`
 }
 
 var paletteTokenNames = []string{"bg", "bg2", "fg", "accent", "accent2", "text", "outline"}
@@ -235,7 +238,7 @@ func LoadCatalog(fsys fs.FS, path string) (*Catalog, error) {
 
 	var problems []string
 	bad := func(format string, args ...any) { problems = append(problems, fmt.Sprintf(format, args...)) }
-	if m.Schema != CatalogSchema {
+	if m.Schema != CatalogSchema && m.Schema != "storymaker-catalog/1" {
 		bad("schema is %q, want %q", m.Schema, CatalogSchema)
 	}
 	if strings.TrimSpace(m.Version) == "" || len(m.Version) > 64 {
@@ -247,7 +250,7 @@ func LoadCatalog(fsys fs.FS, path string) (*Catalog, error) {
 	if m.Rig.ID == "" || !safeRelPath(m.Rig.File) {
 		bad("rig needs an id and a relative file path")
 	}
-	c := &Catalog{Schema: m.Schema, Stage: m.Stage, Rig: m.Rig, version: m.Version, byID: map[string]int{}}
+	c := &Catalog{Schema: m.Schema, Stage: m.Stage, Rig: m.Rig, version: m.Version, byID: map[string]int{}, files: m.Files, manifest: data}
 
 	hasDefaultFont := false
 	for i, ft := range m.Fonts {
@@ -314,6 +317,7 @@ func LoadCatalog(fsys fs.FS, path string) (*Catalog, error) {
 	if m.Glyphs != nil {
 		c.loadGlyphs(fsys, path, m.Glyphs.File, bad)
 	}
+	c.checkFiles(bad)
 
 	if len(problems) > 0 {
 		shown := problems
@@ -376,8 +380,8 @@ func (c *Catalog) checkEntry(e *Entry, raw json.RawMessage, i int, bad func(stri
 		fail("name_key must be %s", catalogNameKey(e.ID))
 	}
 	// An sfx entry has no image, so its thumb is empty.
-	if e.Kind != "sfx" && (!safeRelPath(e.Thumb) || !strings.HasSuffix(e.Thumb, ".svg")) {
-		fail("thumb must be a relative .svg path")
+	if e.Kind != "sfx" && (!safeRelPath(e.Thumb) || (c.Schema == "storymaker-catalog/1" && !strings.HasSuffix(e.Thumb, ".svg")) || (c.Schema == CatalogSchema && !strings.HasSuffix(e.Thumb, ".png") && !strings.HasSuffix(e.Thumb, ".webp"))) {
+		fail("thumb must name a relative catalog image")
 	}
 	if len(e.UsageExample) == 0 || e.UsageExample[0] != '{' {
 		fail("usage_example must be an object")
@@ -562,6 +566,9 @@ func validSpotName(s string) bool {
 // thumbnails (relative to dir) and the font files (absolute /fonts/ paths relative to the root
 // of fsys). fsys is the ui tree and dir the catalog directory in it ("img/storymaker").
 func (c *Catalog) VerifyFiles(fsys fs.FS, dir string) error {
+	if c.Schema == CatalogSchema {
+		return c.verifyDelivery(fsys, dir)
+	}
 	var missing []string
 	check := func(p string) {
 		if !fs.ValidPath(p) {

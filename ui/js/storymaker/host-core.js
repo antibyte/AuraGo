@@ -113,7 +113,7 @@
     // blobWorker(base, role, sceneText): one blob per worker = prelude + (scene bundle text). The prelude is exactly one
     // line, so a line number inside the blob minus one is a line of the scene bundle.
     function blobWorker(base, role, sceneText) {
-        var prelude = 'self.__SM_ROLE__ = ' + JSON.stringify(role) + '; importScripts(' + JSON.stringify(base + '/js/storymaker/player.bundle.js') + ');\n';
+        var prelude = 'self.__SM_ROLE__ = ' + JSON.stringify(role) + '; importScripts(' + JSON.stringify(base + '/js/vendor/storymaker/runtime.js') + ', ' + JSON.stringify(base + '/js/storymaker/player.bundle.js') + ');\n';
         var url = root.URL.createObjectURL(new root.Blob([prelude + (sceneText || '')], { type: 'text/javascript' }));
         var worker = new root.Worker(url);
         var revoke = function () { try { root.URL.revokeObjectURL(url); } catch (e) { /* ignore */ } };
@@ -125,8 +125,11 @@
         return new Promise(function (resolve, reject) {
             if (root.StorymakerCore && root.StorymakerCore.workerPlayer) { resolve(root.StorymakerCore); return; }
             var s = root.document.createElement('script');
-            s.src = base + '/js/storymaker/player.bundle.js';
-            s.onload = function () { resolve(root.StorymakerCore); };
+            s.src = base + (root.StorymakerVendor ? '/js/storymaker/player.bundle.js' : '/js/vendor/storymaker/runtime.js');
+            s.onload = function () {
+                if (!root.StorymakerCore) loadCoreScript(base).then(resolve, reject);
+                else resolve(root.StorymakerCore);
+            };
             s.onerror = function () { reject(fail('readiness', 'The player bundle could not be loaded.')); };
             root.document.head.appendChild(s);
         });
@@ -177,9 +180,13 @@
         this.loadId++;
         var self = this;
         if (this.player) { this.player.kill(fail('cancelled', 'disposed')); this.player = null; }
+        if (this.runtime && this.runtime.disposeGraphics) this.runtime.disposeGraphics();
         Object.keys(this.sceneChannels).forEach(function (id) { self.sceneChannels[id].kill(fail('cancelled', 'disposed')); });
         this.sceneChannels = {};
         this.runtime = null;
+        this.codeSources = {};
+        this.sceneAssets = {};
+        this.activeCode = [];
         this.schedule = null;
         this.mode = 'idle';
         this.chain = Promise.resolve();
@@ -216,6 +223,7 @@
 
     Engine.prototype.buildScene = async function (id, p) {
         var env = this.env, bundle = p.msg.code_bundles && p.msg.code_bundles[id];
+        var generation = this.loadId;
         if (typeof bundle !== 'string' || !bundle) return { error: fail('code_error', 'No bundle for code scene "' + id + '". Save the scene again to rebuild it.') };
         var channel;
         try {
@@ -230,6 +238,7 @@
             await channel.hello(env.limits.sceneBuildDeadlineMs);
             var left = Math.max(50, env.limits.sceneBuildDeadlineMs - (env.now() - started));
             var reply = await channel.call({ type: 'build', opts: opts }, left);
+            if (generation !== this.loadId) { channel.kill(fail('cancelled', 'superseded')); return { error: fail('cancelled', 'superseded') }; }
             this.sceneChannels[id] = channel;
             return { duration: reply.duration, explicit: reply.explicit === true, needs: reply.needs || [], issues: reply.issues || [] };
         } catch (err) {
@@ -248,6 +257,7 @@
         this.dead = false;
         this.codeErrors = {};
         this.rendered = 0;
+        this.rasterCatalog = msg.catalog && msg.catalog.schema === 'storymaker-catalog/2';
         await this.startPlayer();
         if (id !== this.loadId) throw fail('cancelled', 'superseded');
         var fmt = msg.format || {};
@@ -258,15 +268,15 @@
         var planReply = await this.send({ type: 'plan', story: story, catalog: msg.catalog, audioInfo: msg.audio_info || {}, opts: sizeOpts }, env.limits.compileDeadlineMs);
         var plan = planReply.plan;
         var codeScenes = {}, sceneIssues = [], sceneNeeds = {}, codeIds = Object.keys(plan.scenes).filter(function (k) { return plan.scenes[k].kind === 'code'; });
-        await Promise.all(codeIds.map(async function (cid) {
+        for (var cid of codeIds) {
             if (msg.shared_code_scenes) {   // a helper engine of the parallel path: the main engine built the scene, this one only takes its duration
                 codeScenes[cid] = msg.shared_code_scenes[cid] || {};
-                return;
+                continue;
             }
             if (self.mode === 'fallback') {
                 codeScenes[cid] = {};
                 self.codeErrors[cid] = 'Code scenes are not previewed in this browser. Export renders them.';
-                return;
+                continue;
             }
             var built = await self.buildScene(cid, { msg: msg, plan: plan });
             if (built.error) {
@@ -277,8 +287,13 @@
                 codeScenes[cid] = { duration: built.duration, explicit: built.explicit };
                 sceneNeeds[cid] = built.needs;
                 built.issues.forEach(function (i) { sceneIssues.push(i); });
+                self.codeSources[cid] = { msg: msg, plan: plan };
+                if (this.rasterCatalog) {
+                    self.sceneChannels[cid].kill(fail('cancelled', 'inactive scene'));
+                    delete self.sceneChannels[cid];
+                }
             }
-        }));
+        }
         if (id !== this.loadId) throw fail('cancelled', 'superseded');
 
         this.codeScenesInfo = codeScenes;
@@ -333,20 +348,16 @@
         if (id !== this.loadId) throw fail('cancelled', 'superseded');
         var fonts = Object.keys(fontsHave).filter(function (k) { return all[k]; }).map(function (k) { return fontsHave[k]; });
         var catalogAssets = {};
-        wanted.forEach(function (k) { if (k.indexOf('catalog:') === 0) catalogAssets[k] = have[k]; });
+        wanted.forEach(function (k) { if (k.indexOf('catalog:') === 0 || k.indexOf('texture:') === 0) catalogAssets[k] = have[k]; });
         var reply = await this.send({ type: 'assets', assets: catalogAssets, fonts: fonts }, env.limits.assetsDeadlineMs);
         if (reply.missing && reply.missing.length) throw fail('readiness', 'Missing assets: ' + reply.missing.join(', '));
         await Promise.all(Object.keys(sceneNeeds).map(function (cid) {
-            var channel = self.sceneChannels[cid];
-            if (!channel || channel.dead) return null;
             var sceneAssets = {};
-            sceneNeeds[cid].forEach(function (k) { if (k.indexOf('catalog:') === 0) sceneAssets[k] = have[k]; });
+            sceneNeeds[cid].forEach(function (k) { if (k.indexOf('catalog:') === 0 || k.indexOf('texture:') === 0) sceneAssets[k] = have[k]; });
             var sceneFonts = sceneNeeds[cid].filter(function (k) { return k.indexOf('font:') === 0 && fontsHave[k]; }).map(function (k) { return fontsHave[k]; });
-            return channel.call({ type: 'assets', assets: sceneAssets, fonts: sceneFonts }, env.limits.assetsDeadlineMs).catch(function (err) {
-                var e = asError(err, 'readiness');
-                self.codeErrors[cid] = e.message;
-                env.onError({ code: e.code, message: e.message, scene_id: cid });
-            });
+            self.sceneAssets[cid] = { type: 'assets', assets: sceneAssets, fonts: sceneFonts };
+            var channel = self.sceneChannels[cid];
+            if (channel && !channel.dead) return channel.call(self.sceneAssets[cid], env.limits.assetsDeadlineMs);
         }));
     };
 
@@ -366,13 +377,34 @@
         var warm = this.rendered < env.limits.warmupFrames;
         var ms = warm ? env.limits.warmupDeadlineMs : env.limits.frameDeadlineMs;
         var codeFrames = {}, transfer = [], self = this;
+        var activeCode = plan.layers.map(function (layer) { return self.schedule.scenes[layer.i]; }).filter(function (sc) { return sc.kind === 'code'; }).map(function (sc) { return sc.id; });
+        for (var previous of this.activeCode || []) {
+            var prior = this.sceneChannels[previous];
+            if (this.rasterCatalog && activeCode.indexOf(previous) < 0 && prior) { prior.kill(fail('cancelled', 'inactive scene')); delete this.sceneChannels[previous]; }
+        }
+        this.activeCode = activeCode;
         var width = opts.width > 0 ? opts.width : 0;
         for (var i = 0; i < plan.layers.length; i++) {
             var layer = plan.layers[i], sc = this.schedule.scenes[layer.i];
             if (sc.kind !== 'code') continue;
+            if (!this.sceneChannels[sc.id] && this.codeSources[sc.id] && !this.codeErrors[sc.id]) {
+                try {
+                    var rebuilt = await this.buildScene(sc.id, this.codeSources[sc.id]);
+                    if (rebuilt.error) throw rebuilt.error;
+                    if (rebuilt.duration !== this.codeScenesInfo[sc.id].duration) throw fail('code_error', 'Code scene duration changed after reload.');
+                    await this.sceneChannels[sc.id].call(this.sceneAssets[sc.id], env.limits.assetsDeadlineMs);
+                } catch (activationError) {
+                    var ae = asError(activationError, 'readiness');
+                    if (ae.code === 'cancelled') throw ae;
+                    if (this.sceneChannels[sc.id]) this.sceneChannels[sc.id].kill(ae);
+                    this.codeErrors[sc.id] = ae.message;
+                    env.onError({ code: ae.code, message: ae.message, scene_id: sc.id });
+                }
+            }
             var channel = this.sceneChannels[sc.id];
             if (!channel || channel.dead) continue;
             try {
+                if (this.rasterCatalog) await channel.call({ type: 'prepare_frame', t: layer.f / this.schedule.fps, width: width }, env.limits.assetsDeadlineMs);
                 var reply = await channel.call({ type: 'frame', t: layer.f / this.schedule.fps, width: width }, ms);
                 codeFrames[sc.id] = reply.bitmap;
                 if (typeof root.ImageBitmap === 'function' && reply.bitmap instanceof root.ImageBitmap) transfer.push(reply.bitmap);
@@ -385,11 +417,14 @@
             }
         }
         try {
-            var out = await this.send({ type: 'render', n: n, width: width, codeFrames: codeFrames, codeErrors: this.codeErrors, png: !!opts.png }, ms, transfer);
+            if (this.rasterCatalog) await this.send({ type: 'prepare_frame', n: n, width: width }, env.limits.assetsDeadlineMs);
+            var paintDeadline = this.rasterCatalog ? env.limits.warmupDeadlineMs : ms;
+            var out = await this.send({ type: 'render', n: n, width: width, codeFrames: codeFrames, codeErrors: this.codeErrors, png: !!opts.png }, paintDeadline, transfer);
             this.rendered++;
             return opts.png ? out.blob : out.bitmap;
         } catch (err) {
             var pe = asError(err);
+            Object.keys(codeFrames).forEach(function (id) { if (codeFrames[id] && typeof codeFrames[id].close === 'function') codeFrames[id].close(); });
             if (pe.code === 'deadline') { this.dead = true; Object.keys(this.sceneChannels).forEach(function (k) { self.sceneChannels[k].kill(pe); }); }
             throw pe;
         }

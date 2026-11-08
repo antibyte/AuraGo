@@ -1,8 +1,8 @@
-// Builds the Storymaker starter catalog from the code-authored generators in assets/storymaker/.
+// Packs the Storymaker image masters, shared motion data and localised catalog names without network access.
 //
 //   node scripts/build-storymaker-catalog.mjs                  write ui/img/storymaker/** and ui/lang/storymaker_catalog/*.json
 //   node scripts/build-storymaker-catalog.mjs --check          exit 1 when a committed output differs from the generators
-//   node scripts/build-storymaker-catalog.mjs --review <dir>   render the review sheets (SVG + PNG through headless Chrome)
+//   node scripts/build-storymaker-catalog.mjs --review <dir>   render real PNG previews through headless Chrome
 //                                                              optional: --chrome <path-to-chrome>
 //
 // The build is deterministic: no clocks, no randomness outside seeded generators, LF line endings.
@@ -11,15 +11,15 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { buildOutputs, sameOutput } from '../assets/storymaker/lib/catalog.mjs';
+import { sameOutput } from '../assets/storymaker/lib/catalog.mjs';
+import { buildRasterOutputs as buildOutputs } from '../assets/storymaker/lib/raster-catalog.mjs';
 import { localeTables, LANGS } from '../assets/storymaker/lib/names.mjs';
-import { validateOutputs } from '../assets/storymaker/lib/validate.mjs';
-import { castSheet, varietySheet, envPropSheet } from '../assets/storymaker/lib/review.mjs';
+import { validateRasterOutputs as validateOutputs } from '../assets/storymaker/lib/raster-validate.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = path.join(root, 'ui', 'img', 'storymaker');
 const langDir = path.join(root, 'ui', 'lang', 'storymaker_catalog');
-const SUBDIRS = ['rig', 'props', 'environments', 'sfx', 'thumbs'];
+const SUBDIRS = ['rig', 'characters', 'textures', 'props', 'environments', 'sfx', 'thumbs'];
 
 
 function expectedFiles() {
@@ -92,20 +92,9 @@ function findChrome(explicit) {
 }
 
 function review(dir, chromeArg) {
-  fs.mkdirSync(dir, { recursive: true });
-  const { built } = expectedFiles();
-  const sheets = [['cast-sheet', castSheet(built.rig)], ['variety-sheet', varietySheet(built.rig)], ['env-prop-sheet', envPropSheet(built.rig)]];
-  const chrome = findChrome(chromeArg);
-  for (const [name, sheet] of sheets) {
-    const svgPath = path.resolve(dir, `${name}.svg`);
-    fs.writeFileSync(svgPath, sheet.svg, 'utf8');
-    console.log(`wrote ${svgPath} (${sheet.width} x ${sheet.height})`);
-    if (!chrome) continue;
-    const png = path.resolve(dir, `${name}.png`);
-    const r = spawnSync(chrome, ['--headless=new', '--disable-gpu', '--hide-scrollbars', '--force-device-scale-factor=1', `--window-size=${sheet.width},${sheet.height}`, `--screenshot=${png}`, `file:///${svgPath.replace(/\\/g, '/')}`], { stdio: 'ignore' });
-    console.log(r.status === 0 && fs.existsSync(png) ? `wrote ${png}` : `chrome failed for ${name}`);
-  }
-  if (!chrome) console.log('no Chrome found: pass --chrome <path> or set CHROME_PATH to also render PNGs');
+  const chrome=findChrome(chromeArg);
+  const result=spawnSync(process.execPath,[path.join(root,'scripts/test-storymaker-raster-browser.mjs'),'--review',dir],{stdio:'inherit',windowsHide:true,env:{...process.env,...(chrome?{CHROME_BIN:chrome}:{})}});
+  if(result.status!==0)process.exit(result.status||1);
 }
 
 const args = process.argv.slice(2);

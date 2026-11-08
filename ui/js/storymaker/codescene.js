@@ -156,6 +156,7 @@
             if (entry.kind === 'character') {
                 var pose = nameOf(cat.poses, o.pose, 'pose', 'stand');
                 if (rigFile) state.needs['catalog:' + rigFile] = true;
+                if (entry.file) state.needs['catalog:' + entry.file] = true;
                 var facing = o.facing === 'left' ? -1 : (o.facing === 'right' ? 1 : (pos.face === 'left' ? -1 : (pos.face === 'right' ? 1 : (pos.x <= stage.focusX ? 1 : -1))));
                 var a = S.createActor({ id: nextId('actor'), cast: id, character: id, params: entry.params || {}, x: pos.x, y: pos.y, scale: o.scale, facing: facing, pose: pose, expression: 'neutral', phase: state.counter * 0.37 });
                 return actorHandle(addEntity(a));
@@ -229,7 +230,7 @@
         var motionEnd = SM.camera.end(cam);
         state.entities.forEach(function (e) { var end = S.entityEnd(e); if (end > motionEnd) motionEnd = end; });
         var duration = state.duration !== null ? state.duration : Math.min(MAX_DURATION, Math.max(1, motionEnd + 0.5));
-        return { duration: duration, explicit: state.duration !== null, entities: state.entities, camera: cam, onFrame: state.onFrame, needs: Object.keys(state.needs).sort(), issues: state.issues, stage: stage };
+        return { duration: duration, explicit: state.duration !== null, entities: state.entities, camera: cam, onFrame: state.onFrame, needs: SM.textures.expand(opts.catalog, Object.keys(state.needs).sort()), issues: state.issues, stage: stage };
     }
 
     // ---- the restricted 2D facade passed to api.onFrame(fn)

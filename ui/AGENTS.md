@@ -1345,6 +1345,7 @@ New app-scoped prefixes must contain no `ad` substring; verify
 
 ## Child DOX Index
 
+- `js/storymaker/AGENTS.md` and `../assets/storymaker/AGENTS.md` — Shared PixiJS/GSAP player, catalog v2 ImageGen masters, texture transport and deterministic bitmap production. Delivered payloads live in `img/storymaker/` and `js/vendor/storymaker/`.
 - `js/desktop/apps/goldfish-adventure/AGENTS.md` — Authored adventure content,
   bounded browser saves, scene animation, localization and lifecycle checks.
 

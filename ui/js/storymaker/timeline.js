@@ -11,6 +11,21 @@
     function evalSeg(seg, t) {
         if (t >= seg.t1) return seg.to;
         if (!(seg.t1 > seg.t0)) return seg.to;
+        var vendor = root.StorymakerVendor;
+        if (vendor && vendor.gsap) {
+            if (!seg.animation) {
+                var a = seg.log ? Math.log(seg.from) : seg.from;
+                var b = seg.log ? Math.log(seg.to) : seg.to;
+                seg.value = { v: a };
+                seg.animation = vendor.gsap.timeline({ paused: true }).fromTo(seg.value, { v: a }, {
+                    v: b, duration: 1, ease: function (u) { return SM.ease(seg.ease, u); },
+                    immediateRender: false, lazy: false
+                }, 0);
+                vendor.gsap.ticker.sleep();
+            }
+            seg.animation.totalTime(Math.max(0, (t - seg.t0) / (seg.t1 - seg.t0)), true);
+            return seg.log ? Math.exp(seg.value.v) : seg.value.v;
+        }
         var s = SM.ease(seg.ease, (t - seg.t0) / (seg.t1 - seg.t0));
         return seg.log ? seg.from * Math.pow(seg.to / seg.from, s) : lerp(seg.from, seg.to, s);
     }
@@ -35,6 +50,7 @@
         this.segs.sort(function (a, b) { return a.t0 - b.t0 || a.order - b.order; });
         for (var k = 0; k < this.segs.length; k++) {
             var seg = this.segs[k];
+            if (seg.animation) { seg.animation.kill(); seg.animation = null; }
             if (seg.from === undefined || seg.from === null) {
                 seg.from = k === 0 ? this.init : evalSeg(this.segs[k - 1], seg.t0);
             }
@@ -58,6 +74,19 @@
         for (var i = 0; i < this.segs.length; i++) if (this.segs[i].t1 > end) end = this.segs[i].t1;
         return end;
     };
+
+    Track.prototype.dispose = function () {
+        this.segs.forEach(function (seg) { if (seg.animation) { seg.animation.kill(); seg.animation = null; } });
+    };
+
+    function dispose(sceneOrTimeline) {
+        if (!sceneOrTimeline) return;
+        (sceneOrTimeline.scenes || [sceneOrTimeline]).forEach(function (scene) {
+            (scene.entities || []).concat([scene.camera || {}]).forEach(function (entity) {
+                Object.keys(entity).forEach(function (key) { if (entity[key] instanceof Track) entity[key].dispose(); });
+            });
+        });
+    }
 
     function StepTrack(init) {
         this.init = init;
@@ -112,5 +141,5 @@
         return best;
     };
 
-    SM.timeline = { Track: Track, StepTrack: StepTrack, Intervals: Intervals, lerp: lerp, clamp: clamp };
+    SM.timeline = { Track: Track, StepTrack: StepTrack, Intervals: Intervals, lerp: lerp, clamp: clamp, dispose: dispose };
 })(typeof globalThis !== 'undefined' ? globalThis : self);

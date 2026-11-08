@@ -34,7 +34,7 @@ import (
 // importScripts the absolute bundle URL, that OffscreenCanvas, Path2D and FontFace work in them, that an ImageBitmap travels
 // to the parent, that a frame is not blank, the compile report, and that a code scene cannot fetch.
 
-const storymakerPlayerCSP = "sandbox allow-scripts; default-src 'none'; script-src %[1]s/js/storymaker/ blob:; worker-src blob:; img-src blob: data:; font-src blob: data:; connect-src 'none'; style-src %[1]s/css/storymaker-player.css; form-action 'none'; base-uri 'none'; object-src 'none'; frame-ancestors 'self'"
+const storymakerPlayerCSP = "sandbox allow-scripts; default-src 'none'; script-src %[1]s/js/storymaker/ %[1]s/js/vendor/storymaker/runtime.js blob:; worker-src blob:; img-src blob: data:; font-src blob: data:; connect-src 'none'; style-src %[1]s/css/storymaker-player.css; form-action 'none'; base-uri 'none'; object-src 'none'; frame-ancestors 'self'"
 
 const storymakerRenderCSP = "sandbox allow-scripts; default-src 'none'; script-src %[1]s/js/ blob:; worker-src blob:; img-src blob: data:; font-src blob: data:; connect-src %[1]s/; form-action 'none'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'"
 
@@ -167,6 +167,10 @@ func newStorymakerGateServer(t *testing.T) *storymakerGateServer {
 		}
 		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
 		_, _ = w.Write(storymakerFile(t, "js/storymaker/"+name))
+	})
+	mux.HandleFunc("/js/vendor/storymaker/runtime.js", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
+		_, _ = w.Write(storymakerFile(t, "js/vendor/storymaker/runtime.js"))
 	})
 	mux.HandleFunc("/css/storymaker-player.css", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/css; charset=utf-8")
@@ -505,6 +509,10 @@ func runStorymakerRenderPage(t *testing.T, browser *rod.Browser, transport, stor
 	handle("/js/storymaker/player.bundle.js", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
 		_, _ = w.Write(storymakerFile(t, "js/storymaker/player.bundle.js"))
+	})
+	handle("/js/vendor/storymaker/runtime.js", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
+		_, _ = w.Write(storymakerFile(t, "js/vendor/storymaker/runtime.js"))
 	})
 	handle("/scenes/s3.js", func(w http.ResponseWriter, r *http.Request) {
 		// bundled the way the Go side does it (contract section 4): esbuild IIFE with globalName __smSceneModule

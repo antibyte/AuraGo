@@ -22,7 +22,7 @@ var storymakerPlayerHostPattern = regexp.MustCompile(`^[A-Za-z0-9.\-]+(:[0-9]{1,
 // StorymakerPlayerCSP is the Content-Security-Policy of the player host page for an origin (spec
 // "User interface", Player iframe).
 func StorymakerPlayerCSP(origin string) string {
-	return "sandbox allow-scripts; default-src 'none'; script-src " + origin + "/js/storymaker/ blob:; worker-src blob:; " +
+	return "sandbox allow-scripts; default-src 'none'; script-src " + origin + "/js/storymaker/ " + origin + "/js/vendor/storymaker/runtime.js blob:; worker-src blob:; " +
 		"img-src blob: data:; font-src blob: data:; connect-src 'none'; style-src " + origin + "/css/storymaker-player.css; " +
 		"form-action 'none'; base-uri 'none'; object-src 'none'; frame-ancestors 'self'"
 }
