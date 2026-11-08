@@ -193,3 +193,37 @@
 /* Sound/Perform/Strudel: the tools strip only keeps its two icon buttons; take it out of the flow's way. */
 .ss-app:not([data-mode=arrange]) .ss-arrange-tools { padding-block: 4px; min-height: 0; border-bottom: 0; background: transparent; }
 .ss-app:not([data-mode=arrange]) .ss-arrange-tools > span { display: none; }
+
+/* ---- sound mode: responsive columns of glass cards ---- */
+.ss-app .ss-insp-card > input { width: 100%; margin-bottom: 14px; }
+.ss-app .ss-insp-card > label {
+    display: flex; flex-direction: column; gap: 6px; color: var(--ss-muted); font-size: 10px; margin-bottom: 14px;
+}
+
+.ss-app .ss-sound-workbench .ss-inspector:not(:has(> .ss-designer)) {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 400px), 1fr));
+    gap: 16px; align-content: start; align-items: start;
+}
+.ss-app .ss-sound-workbench .ss-inspector:not(:has(> .ss-designer)) > :is(.ss-mini-keys, .ss-delete-track, .ss-help, .ss-insp-fx) { grid-column: 1 / -1; }
+.ss-app .ss-sound-workbench .ss-insp-card {
+    min-width: 0; padding: 14px 16px 16px; border-radius: 16px;
+    background: var(--ss-glass), var(--ss-card); border: 1px solid var(--ss-card-border);
+    box-shadow: var(--ss-edge), var(--ss-lift);
+}
+.ss-app .ss-insp-card > h3, .ss-app .ss-insp-card > h4 { margin: 0 0 12px; }
+.ss-app .ss-insp-card .ss-param-grid { margin-bottom: 0; }
+.ss-app .ss-sound-workbench .ss-insp-card .ss-fx-rack,
+.ss-app .ss-sound-workbench .ss-insp-card .ss-fx-rack:empty { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 14px; align-items: start; }
+.ss-app .ss-sound-workbench .ss-insp-fx .ss-fx-slot { margin: 0; background: var(--ss-glass), color-mix(in srgb, #000 14%, var(--ss-card)); box-shadow: var(--ss-edge); }
+.ss-app .ss-sound-workbench .ss-insp-fx .ss-fx-add { margin-top: 14px; }
+/* knobs sit directly on the card instead of in a second card */
+.ss-app .ss-sound-workbench :is(.ss-insp-card, .ss-designer-group, .ss-fx-slot) :is(.ss-parameter, .ss-designer-field):has(.ss-ctl-knob) {
+    background: none; border: 0; box-shadow: none; padding: 4px 2px;
+}
+.ss-app .ss-sound-workbench .ss-param-grid { grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 10px 6px; }
+/* sound designer: groups side by side */
+.ss-app .ss-sound-workbench .ss-designer {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 400px), 1fr)); gap: 16px; align-items: start;
+}
+.ss-app .ss-sound-workbench .ss-designer > :not(.ss-designer-group) { grid-column: 1 / -1; margin-block: 0; }
+.ss-app .ss-sound-workbench .ss-designer .ss-designer-group { margin: 0; }
