@@ -89,6 +89,15 @@ for (const [i, widget] of state.bootstrap.widgets.entries()) {
 	if !page.MustEval(`()=>!window.saved && document.querySelector('[data-widget-id="custom"]').offsetLeft===768`).Bool() {
 		t.Fatal("controls and readonly state must prevent widget dragging")
 	}
+	// A pinned widget keeps its place: the drag is refused and no position is stored.
+	page.MustEval(`()=>layout.state.bootstrap.readonly=false`)
+	page.MustEval(`()=>{const w=layout.state.bootstrap.widgets.find(w=>w.id==='builtin-sysmon');w.config=Object.assign({},w.config,{pinned:true});layout.updateWidgetCard(document.querySelector('[data-widget-id="builtin-sysmon"]'),w,0);const c=document.querySelector('[data-widget-id="builtin-sysmon"]');window.pinnedBefore={x:c.offsetLeft,y:c.offsetTop};window.saved=null;}`)
+	pinStart := page.MustEval(`()=>{const r=document.querySelector('[data-widget-id="builtin-sysmon"]').getBoundingClientRect();return {x:r.left+16,y:r.top+16};}`)
+	pinX, pinY := pinStart.Get("x").Num(), pinStart.Get("y").Num()
+	page.Mouse.MustMoveTo(pinX, pinY).MustDown(proto.InputMouseButtonLeft).MustMoveTo(pinX+140, pinY+140).MustUp(proto.InputMouseButtonLeft)
+	if !page.MustEval(`()=>{const c=document.querySelector('[data-widget-id="builtin-sysmon"]');return !window.saved && c.offsetLeft===window.pinnedBefore.x && c.offsetTop===window.pinnedBefore.y && c.classList.contains('vd-widget-pinned') && !!c.querySelector('.vd-widget-pin')}`).Bool() {
+		t.Fatal("a pinned widget must keep its position and show a pin badge")
+	}
 	if !page.MustEval(`()=>{document.querySelector('#vd-workspace').style.width='300px';layout.state.bootstrap.widgets.forEach((w,i)=>layout.updateWidgetCard(document.querySelector('[data-widget-id="'+w.id+'"]'),w,i));return [...document.querySelectorAll('.vd-widget')].every(c=>c.offsetWidth===284 && c.offsetLeft===8 && c.offsetLeft+c.offsetWidth<=300)}`).Bool() {
 		t.Fatal("all widgets must fit a narrow workspace with the same width")
 	}

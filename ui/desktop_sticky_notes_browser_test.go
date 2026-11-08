@@ -152,10 +152,13 @@ func TestDesktopStickyNotesBrowser(t *testing.T) {
 	page.MustElement(".vd-sticky-editor [type=submit]").MustClick()
 	waitForJSBool(t, page, `()=>document.querySelectorAll('.vd-sticky-note').length===6`)
 	page.MustEval(`()=>document.querySelector('[data-widget-id="'+noteId+'"] .vd-sticky-menu').click()`)
-	if got := page.MustElement(`.vd-context-menu:not(.vd-context-menu-closing) [data-context-action="3"]`).MustText(); !strings.Contains(got, "Diese Notiz löschen") {
+	if got := page.MustElement(`.vd-context-menu:not(.vd-context-menu-closing) [data-context-action="2"]`).MustText(); !strings.Contains(got, "anheften") {
+		t.Fatalf("note menu pin label: %q", got)
+	}
+	if got := page.MustElement(`.vd-context-menu:not(.vd-context-menu-closing) [data-context-action="4"]`).MustText(); !strings.Contains(got, "Diese Notiz löschen") {
 		t.Fatalf("note menu deletion label: %q", got)
 	}
-	page.MustElement(`.vd-context-menu:not(.vd-context-menu-closing) [data-context-action="3"]`).MustClick()
+	page.MustElement(`.vd-context-menu:not(.vd-context-menu-closing) [data-context-action="4"]`).MustClick()
 	if !page.MustEval(`()=>document.querySelector('.vd-modal').textContent.includes(t('desktop.sticky_delete_msg'))`).Bool() {
 		t.Fatal("note menu must explain what is deleted")
 	}

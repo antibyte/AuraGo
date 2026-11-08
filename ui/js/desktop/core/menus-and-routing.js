@@ -597,6 +597,7 @@
         event.preventDefault();
         if (widget.type === 'sticky-note') return showStickyNoteMenu(event.clientX, event.clientY, widget);
         const autoSize = widgetShouldAutoSize(widget);
+        const pinned = widgetIsPinned(widget);
         showContextMenu(event.clientX, event.clientY, [
             { label: t('desktop.context_open'), icon: 'folder-open', fallback: 'O', action: () => widget.app_id && openApp(widget.app_id) },
             {
@@ -605,6 +606,13 @@
                 fallback: autoSize ? '\u2713' : '\u2610',
                 disabled: desktopReadonly(),
                 action: () => toggleWidgetAutoSize(widget)
+            },
+            {
+                label: pinned ? t('desktop.widget_unpin') : t('desktop.widget_pin'),
+                icon: pinned ? 'check-square' : 'square',
+                fallback: pinned ? '\u2713' : '\u2610',
+                disabled: desktopReadonly(),
+                action: () => toggleWidgetPinned(widget)
             },
             { label: t('desktop.widget_remove_from_desktop'), icon: 'x', fallback: 'X', action: () => setWidgetVisible(widget.id, false) },
             { separator: true },
@@ -1115,6 +1123,9 @@
                 const builtinBadge = isBuiltin
                     ? `<span class="vd-wm-badge vd-wm-badge-builtin">${esc(t('desktop.widget_builtin'))}</span>`
                     : '';
+                const pinnedBadge = widgetIsPinned(widget)
+                    ? `<span class="vd-wm-badge vd-wm-badge-pinned">${esc(t('desktop.widget_pinned'))}</span>`
+                    : '';
                 const actions = [];
                 if (isOnDesktop) {
                     actions.push(`<button type="button" class="vd-wm-btn vd-wm-btn-remove" data-action="hide" data-id="${esc(widget.id)}">${esc(t('desktop.widget_remove_from_desktop'))}</button>`);
@@ -1131,7 +1142,7 @@
                         ${iconMarkup(iconKey, widgetDisplayTitle(widget), 'vd-sprite-file', 24)}
                         <div class="vd-wm-card-info">
                             <div class="vd-wm-card-title">${esc(widgetDisplayTitle(widget))}</div>
-                            <div class="vd-wm-card-badges">${statusBadge}${builtinBadge}</div>
+                            <div class="vd-wm-card-badges">${statusBadge}${builtinBadge}${pinnedBadge}</div>
                         </div>
                     </div>
                     <div class="vd-wm-card-actions">${actions.join('')}</div>

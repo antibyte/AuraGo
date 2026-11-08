@@ -582,6 +582,17 @@ New app-scoped prefixes must contain no `ad` substring; verify
   read-only gates, escaped text, retryable drafts and existing widget dragging.
   Verify with `TestDesktopStickyNotesBrowser` and the widget persistence tests.
 
+- Desktop widgets can be pinned so they keep their place. The flag lives in
+  `widget.config.pinned` (the `auto_size` pattern, no schema change); the shell
+  reads it through `widgetIsPinned`. A pinned widget refuses the drag in
+  `wireDraggableWidget`, never stores a new position in `persistWidgetBounds`,
+  and shows the `.vd-widget-pin` badge on its card. The context menu (widgets and
+  sticky notes) toggles it like the auto-size toggle, gated by `desktopReadonly()`;
+  the widget manager marks pinned cards. The badge is a child element, never a
+  pseudo-element: the standard and fruity skins paint the widget gloss on
+  `.vd-widget::after`. Keep all 16 `lang/desktop` locales covered.
+  Verify with `TestDesktopWidgetPinContract`, `TestDesktopWidgetPinTranslations`,
+  `TestWidgetPinConfigPersistsAcrossRestart` and `TestDesktopWidgetLayoutBrowser`.
 - Leafy is an opt-in installation-wide plant. Its foreground runtime in
   `js/desktop/leafy/` belongs to the widget cleanup scope; never simulate biology
   from frames or client time. Mount foliage inside `vd-workspace`, above icons

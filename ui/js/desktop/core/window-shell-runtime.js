@@ -581,6 +581,7 @@
         }
         handle.addEventListener('pointerdown', event => {
             if (desktopReadonly()) return;
+            if (widgetIsPinned(card._widgetData || widget)) return;
             if (event.button !== 0 || isWidgetInteractiveTarget(event.target)) return;
             const touchDrag = isTouchLikePointer(event);
             drag = {
@@ -691,7 +692,27 @@
         }
     }
 
+    async function toggleWidgetPinned(widget) {
+        if (!widget || !widget.id || desktopReadonly()) return;
+        const nextPinned = !widgetIsPinned(widget);
+        const extras = { config: Object.assign(widgetConfig(widget), { pinned: nextPinned }) };
+        if (nextPinned) {
+            // Freeze the position the widget is standing on right now, not the one from the last record.
+            const card = document.querySelector('.vd-widget[data-widget-id="' + cssSel(widget.id) + '"]');
+            if (card) {
+                extras.x = parseInt(card.style.left, 10) || widget.x || 0;
+                extras.y = parseInt(card.style.top, 10) || widget.y || 0;
+            }
+        }
+        try {
+            await persistWidgetRecord(widget, extras);
+        } catch (_) {
+            showDesktopNotification({ title: t('desktop.notification'), message: t('desktop.widget_update_failed') });
+        }
+    }
+
     async function persistWidgetBounds(widget, card) {
+        if (widgetIsPinned(widget)) return;
         const updated = Object.assign({}, widget, {
             x: parseInt(card.style.left, 10) || 0,
             y: parseInt(card.style.top, 10) || 0,

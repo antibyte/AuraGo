@@ -1199,6 +1199,35 @@
         return !(configured === false || configured === 0 || String(configured).toLowerCase() === 'false');
     }
 
+    // Pinned widgets keep their place: they refuse to be dragged and never store a new position.
+    function widgetIsPinned(widget) {
+        if (!widget) return false;
+        const configPinned = widget.config && widget.config.pinned;
+        const configured = widget.pinned !== undefined
+            ? widget.pinned
+            : (widget.pin !== undefined ? widget.pin : configPinned);
+        return configured === true || configured === 1 || String(configured).toLowerCase() === 'true';
+    }
+
+    function widgetPinBadgeHTML() {
+        // A hand-built glyph, like the widget charts: it must render in every theme and before the
+        // icon manifests are loaded, so it never depends on the sprite sheet or a theme asset.
+        return `<span class="vd-widget-pin" aria-hidden="true"><svg class="vd-widget-pin-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M3.2 3.2h9.6l-2.3 3.2h-5L3.2 3.2Z"/><path d="M8 6.4v7"/></svg></span>`;
+    }
+
+    // The badge is a real child element, never a pseudo-element: the standard and fruity skins already
+    // paint the widget gloss on .vd-widget::after.
+    function updateWidgetPinBadge(card, pinned) {
+        if (!card) return;
+        const badge = card.querySelector(':scope > .vd-widget-pin');
+        if (!pinned) {
+            if (badge) badge.remove();
+            return;
+        }
+        if (badge) return;
+        card.insertAdjacentHTML('beforeend', widgetPinBadgeHTML());
+    }
+
     function scheduleWidgetAutoSize(card, widget) { if (!card || !widgetShouldAutoSize(widget)) return; card.dataset.widgetAutoSize = 'true'; applyWidgetAutoSize(card, card._widgetLastResizePayload || {}); }
     function applyWidgetAutoSize(card, payload) { if (!card || card.dataset.widgetAutoSize !== 'true') return; const data = payload && typeof payload === 'object' ? payload : {}; const frameWrap = card.querySelector('.vd-widget-frame-wrap'); const reportedFrameHeight = Number(data.height || data.h || 0); if (frameWrap && reportedFrameHeight > 0) { const frameHeight = clampWidgetFrameHeight(card, reportedFrameHeight + WIDGET_FRAME_SCROLLBAR_BUFFER); setWidgetPixelVar(card, '--vd-widget-frame-height', frameHeight); setWidgetPixelVar(frameWrap, '--vd-widget-frame-height', frameHeight); } const measuredContentHeight = widgetMeasuredContentHeight(card, data); const renderedScrollHeight = reportedFrameHeight > 0 ? 0 : Math.ceil(card.scrollHeight || 0); const desiredHeight = Math.max(WIDGET_MIN_HEIGHT, Math.ceil(Number(data.cardHeight || data.card_height || 0)), measuredContentHeight, renderedScrollHeight); setWidgetPixelVar(card, '--vd-widget-auto-height', clampWidgetHeight(card, desiredHeight, WIDGET_MIN_HEIGHT)); }
     function widgetMeasuredContentHeight(card, data) { if (!card) return 0; let bottom = 0; const frameWrap = card.querySelector('.vd-widget-frame-wrap'); if (frameWrap) bottom = Math.max(bottom, widgetElementBottom(card, frameWrap)); ['.vd-widget-builtin', '.vd-widget-body', '.vd-quickchat-response'].forEach(selector => { const target = card.querySelector(selector); if (target) bottom = Math.max(bottom, widgetElementBottom(card, target)); }); const requestedCardHeight = Number(data.cardHeight || data.card_height || 0); return Math.ceil(Math.max(bottom, requestedCardHeight, 0) + WIDGET_AUTO_SIZE_PADDING); }
@@ -1677,16 +1706,20 @@
             card._widgetRuntimeReady = false;
         }
         card._widgetData = widget;
-        card.className = 'vd-widget' + (autoSize ? ' vd-widget-auto' : '') + (widget.id === 'builtin-quickchat' ? ' vd-widget-quickchat' : '');
+        const pinned = widgetIsPinned(widget);
+        card.className = 'vd-widget' + (autoSize ? ' vd-widget-auto' : '') + (widget.id === 'builtin-quickchat' ? ' vd-widget-quickchat' : '') + (pinned ? ' vd-widget-pinned' : '');
         card.dataset.widgetId = widget.id || '';
         card.dataset.appId = widget.app_id || '';
         card.dataset.widgetDefaultWidth = String(bounds.w);
         if (autoSize) card.dataset.widgetAutoSize = 'true';
         else delete card.dataset.widgetAutoSize;
+        if (pinned) card.dataset.widgetPinned = 'true';
+        else delete card.dataset.widgetPinned;
         card.title = widgetDisplayTitle(widget);
         card.style.left = bounds.x + 'px';
         card.style.top = bounds.y + 'px';
         card.style.width = bounds.w + 'px';
+        updateWidgetPinBadge(card, pinned);
         return changed;
     }
 

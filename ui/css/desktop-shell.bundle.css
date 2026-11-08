@@ -5745,6 +5745,37 @@
         box-shadow var(--ds-motion-duration-base) var(--ds-motion-ease-standard);
 }
 
+/* Pinned widgets stay where they are: they refuse the drag cursor and wear a pin badge.
+   The badge is a child element, because the standard and fruity skins already paint the
+   widget gloss onto .vd-widget::after. */
+.vd-widget.vd-widget-pinned {
+    cursor: default;
+}
+
+.vd-widget-pin {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--vd-coral, #ff8066) 22%, transparent);
+    color: var(--vd-coral, #ff8066);
+    pointer-events: none;
+}
+
+.vd-widget-pin-icon {
+    display: block;
+    width: 10px;
+    height: 10px;
+    flex: 0 0 auto;
+    color: inherit;
+}
+
 
 
 .vd-widget[data-widget-auto-size="true"] {
@@ -6049,6 +6080,11 @@
 .vd-wm-badge-builtin {
     background: rgba(242, 184, 75, 0.18);
     color: var(--vd-amber);
+}
+
+.vd-wm-badge-pinned {
+    background: color-mix(in srgb, var(--vd-coral, #ff8066) 18%, transparent);
+    color: var(--vd-coral, #ff8066);
 }
 
 .vd-wm-badge-user {

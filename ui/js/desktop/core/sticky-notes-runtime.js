@@ -20,6 +20,14 @@
         card.dataset.widgetId = widget.id;
         card.removeAttribute('title');
         delete card.dataset.widgetAutoSize;
+        const pinned = widgetIsPinned(widget);
+        if (pinned) {
+            card.classList.add('vd-widget-pinned');
+            card.dataset.widgetPinned = 'true';
+        } else {
+            card.classList.remove('vd-widget-pinned');
+            delete card.dataset.widgetPinned;
+        }
         const config = widgetConfig(widget);
         const text = typeof config.text === 'string' ? config.text : '';
         card.querySelector('.vd-sticky-text').textContent = text || t('desktop.sticky_placeholder');
@@ -40,14 +48,23 @@
         card.style.top = pos.y + 'px';
         card.style.width = size + 'px';
         card.style.height = '220px';
+        updateWidgetPinBadge(card, pinned);
         return false;
     }
 
     function showStickyNoteMenu(x, y, widget) {
         const readonly = desktopReadonly();
+        const pinned = widgetIsPinned(widget);
         showContextMenu(x, y, [
             { label: t('desktop.edit'), icon: 'edit', fallback: 'E', disabled: readonly, action: () => editStickyNote(widget) },
             { label: t('desktop.fm.duplicate'), icon: 'copy', fallback: '+', disabled: readonly, action: () => editStickyNote(null, x + 24, y + 24, widgetConfig(widget).text) },
+            {
+                label: pinned ? t('desktop.widget_unpin') : t('desktop.widget_pin'),
+                icon: pinned ? 'check-square' : 'square',
+                fallback: pinned ? '\u2713' : '\u2610',
+                disabled: readonly,
+                action: () => toggleWidgetPinned(widget)
+            },
             { separator: true },
             { label: t('desktop.sticky_delete'), icon: 'trash', fallback: 'X', danger: true, disabled: readonly, action: async () => {
                 if (desktopReadonly() || !await confirmDialog(t('desktop.notes_delete_confirm'), t('desktop.sticky_delete_msg'))) return;

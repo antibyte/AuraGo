@@ -1468,6 +1468,35 @@
         return !(configured === false || configured === 0 || String(configured).toLowerCase() === 'false');
     }
 
+    // Pinned widgets keep their place: they refuse to be dragged and never store a new position.
+    function widgetIsPinned(widget) {
+        if (!widget) return false;
+        const configPinned = widget.config && widget.config.pinned;
+        const configured = widget.pinned !== undefined
+            ? widget.pinned
+            : (widget.pin !== undefined ? widget.pin : configPinned);
+        return configured === true || configured === 1 || String(configured).toLowerCase() === 'true';
+    }
+
+    function widgetPinBadgeHTML() {
+        // A hand-built glyph, like the widget charts: it must render in every theme and before the
+        // icon manifests are loaded, so it never depends on the sprite sheet or a theme asset.
+        return `<span class="vd-widget-pin" aria-hidden="true"><svg class="vd-widget-pin-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M3.2 3.2h9.6l-2.3 3.2h-5L3.2 3.2Z"/><path d="M8 6.4v7"/></svg></span>`;
+    }
+
+    // The badge is a real child element, never a pseudo-element: the standard and fruity skins already
+    // paint the widget gloss on .vd-widget::after.
+    function updateWidgetPinBadge(card, pinned) {
+        if (!card) return;
+        const badge = card.querySelector(':scope > .vd-widget-pin');
+        if (!pinned) {
+            if (badge) badge.remove();
+            return;
+        }
+        if (badge) return;
+        card.insertAdjacentHTML('beforeend', widgetPinBadgeHTML());
+    }
+
     function scheduleWidgetAutoSize(card, widget) { if (!card || !widgetShouldAutoSize(widget)) return; card.dataset.widgetAutoSize = 'true'; applyWidgetAutoSize(card, card._widgetLastResizePayload || {}); }
     function applyWidgetAutoSize(card, payload) { if (!card || card.dataset.widgetAutoSize !== 'true') return; const data = payload && typeof payload === 'object' ? payload : {}; const frameWrap = card.querySelector('.vd-widget-frame-wrap'); const reportedFrameHeight = Number(data.height || data.h || 0); if (frameWrap && reportedFrameHeight > 0) { const frameHeight = clampWidgetFrameHeight(card, reportedFrameHeight + WIDGET_FRAME_SCROLLBAR_BUFFER); setWidgetPixelVar(card, '--vd-widget-frame-height', frameHeight); setWidgetPixelVar(frameWrap, '--vd-widget-frame-height', frameHeight); } const measuredContentHeight = widgetMeasuredContentHeight(card, data); const renderedScrollHeight = reportedFrameHeight > 0 ? 0 : Math.ceil(card.scrollHeight || 0); const desiredHeight = Math.max(WIDGET_MIN_HEIGHT, Math.ceil(Number(data.cardHeight || data.card_height || 0)), measuredContentHeight, renderedScrollHeight); setWidgetPixelVar(card, '--vd-widget-auto-height', clampWidgetHeight(card, desiredHeight, WIDGET_MIN_HEIGHT)); }
     function widgetMeasuredContentHeight(card, data) { if (!card) return 0; let bottom = 0; const frameWrap = card.querySelector('.vd-widget-frame-wrap'); if (frameWrap) bottom = Math.max(bottom, widgetElementBottom(card, frameWrap)); ['.vd-widget-builtin', '.vd-widget-body', '.vd-quickchat-response'].forEach(selector => { const target = card.querySelector(selector); if (target) bottom = Math.max(bottom, widgetElementBottom(card, target)); }); const requestedCardHeight = Number(data.cardHeight || data.card_height || 0); return Math.ceil(Math.max(bottom, requestedCardHeight, 0) + WIDGET_AUTO_SIZE_PADDING); }
@@ -1946,16 +1975,20 @@
             card._widgetRuntimeReady = false;
         }
         card._widgetData = widget;
-        card.className = 'vd-widget' + (autoSize ? ' vd-widget-auto' : '') + (widget.id === 'builtin-quickchat' ? ' vd-widget-quickchat' : '');
+        const pinned = widgetIsPinned(widget);
+        card.className = 'vd-widget' + (autoSize ? ' vd-widget-auto' : '') + (widget.id === 'builtin-quickchat' ? ' vd-widget-quickchat' : '') + (pinned ? ' vd-widget-pinned' : '');
         card.dataset.widgetId = widget.id || '';
         card.dataset.appId = widget.app_id || '';
         card.dataset.widgetDefaultWidth = String(bounds.w);
         if (autoSize) card.dataset.widgetAutoSize = 'true';
         else delete card.dataset.widgetAutoSize;
+        if (pinned) card.dataset.widgetPinned = 'true';
+        else delete card.dataset.widgetPinned;
         card.title = widgetDisplayTitle(widget);
         card.style.left = bounds.x + 'px';
         card.style.top = bounds.y + 'px';
         card.style.width = bounds.w + 'px';
+        updateWidgetPinBadge(card, pinned);
         return changed;
     }
 
@@ -6686,6 +6719,7 @@
         }
         handle.addEventListener('pointerdown', event => {
             if (desktopReadonly()) return;
+            if (widgetIsPinned(card._widgetData || widget)) return;
             if (event.button !== 0 || isWidgetInteractiveTarget(event.target)) return;
             const touchDrag = isTouchLikePointer(event);
             drag = {
@@ -6796,7 +6830,27 @@
         }
     }
 
+    async function toggleWidgetPinned(widget) {
+        if (!widget || !widget.id || desktopReadonly()) return;
+        const nextPinned = !widgetIsPinned(widget);
+        const extras = { config: Object.assign(widgetConfig(widget), { pinned: nextPinned }) };
+        if (nextPinned) {
+            // Freeze the position the widget is standing on right now, not the one from the last record.
+            const card = document.querySelector('.vd-widget[data-widget-id="' + cssSel(widget.id) + '"]');
+            if (card) {
+                extras.x = parseInt(card.style.left, 10) || widget.x || 0;
+                extras.y = parseInt(card.style.top, 10) || widget.y || 0;
+            }
+        }
+        try {
+            await persistWidgetRecord(widget, extras);
+        } catch (_) {
+            showDesktopNotification({ title: t('desktop.notification'), message: t('desktop.widget_update_failed') });
+        }
+    }
+
     async function persistWidgetBounds(widget, card) {
+        if (widgetIsPinned(widget)) return;
         const updated = Object.assign({}, widget, {
             x: parseInt(card.style.left, 10) || 0,
             y: parseInt(card.style.top, 10) || 0,
@@ -13894,6 +13948,14 @@ function updateTaskbarSystemButtonsForMobile() {
         card.dataset.widgetId = widget.id;
         card.removeAttribute('title');
         delete card.dataset.widgetAutoSize;
+        const pinned = widgetIsPinned(widget);
+        if (pinned) {
+            card.classList.add('vd-widget-pinned');
+            card.dataset.widgetPinned = 'true';
+        } else {
+            card.classList.remove('vd-widget-pinned');
+            delete card.dataset.widgetPinned;
+        }
         const config = widgetConfig(widget);
         const text = typeof config.text === 'string' ? config.text : '';
         card.querySelector('.vd-sticky-text').textContent = text || t('desktop.sticky_placeholder');
@@ -13914,14 +13976,23 @@ function updateTaskbarSystemButtonsForMobile() {
         card.style.top = pos.y + 'px';
         card.style.width = size + 'px';
         card.style.height = '220px';
+        updateWidgetPinBadge(card, pinned);
         return false;
     }
 
     function showStickyNoteMenu(x, y, widget) {
         const readonly = desktopReadonly();
+        const pinned = widgetIsPinned(widget);
         showContextMenu(x, y, [
             { label: t('desktop.edit'), icon: 'edit', fallback: 'E', disabled: readonly, action: () => editStickyNote(widget) },
             { label: t('desktop.fm.duplicate'), icon: 'copy', fallback: '+', disabled: readonly, action: () => editStickyNote(null, x + 24, y + 24, widgetConfig(widget).text) },
+            {
+                label: pinned ? t('desktop.widget_unpin') : t('desktop.widget_pin'),
+                icon: pinned ? 'check-square' : 'square',
+                fallback: pinned ? '\u2713' : '\u2610',
+                disabled: readonly,
+                action: () => toggleWidgetPinned(widget)
+            },
             { separator: true },
             { label: t('desktop.sticky_delete'), icon: 'trash', fallback: 'X', danger: true, disabled: readonly, action: async () => {
                 if (desktopReadonly() || !await confirmDialog(t('desktop.notes_delete_confirm'), t('desktop.sticky_delete_msg'))) return;
@@ -18099,6 +18170,7 @@ function updateTaskbarSystemButtonsForMobile() {
         event.preventDefault();
         if (widget.type === 'sticky-note') return showStickyNoteMenu(event.clientX, event.clientY, widget);
         const autoSize = widgetShouldAutoSize(widget);
+        const pinned = widgetIsPinned(widget);
         showContextMenu(event.clientX, event.clientY, [
             { label: t('desktop.context_open'), icon: 'folder-open', fallback: 'O', action: () => widget.app_id && openApp(widget.app_id) },
             {
@@ -18107,6 +18179,13 @@ function updateTaskbarSystemButtonsForMobile() {
                 fallback: autoSize ? '\u2713' : '\u2610',
                 disabled: desktopReadonly(),
                 action: () => toggleWidgetAutoSize(widget)
+            },
+            {
+                label: pinned ? t('desktop.widget_unpin') : t('desktop.widget_pin'),
+                icon: pinned ? 'check-square' : 'square',
+                fallback: pinned ? '\u2713' : '\u2610',
+                disabled: desktopReadonly(),
+                action: () => toggleWidgetPinned(widget)
             },
             { label: t('desktop.widget_remove_from_desktop'), icon: 'x', fallback: 'X', action: () => setWidgetVisible(widget.id, false) },
             { separator: true },
@@ -18617,6 +18696,9 @@ function updateTaskbarSystemButtonsForMobile() {
                 const builtinBadge = isBuiltin
                     ? `<span class="vd-wm-badge vd-wm-badge-builtin">${esc(t('desktop.widget_builtin'))}</span>`
                     : '';
+                const pinnedBadge = widgetIsPinned(widget)
+                    ? `<span class="vd-wm-badge vd-wm-badge-pinned">${esc(t('desktop.widget_pinned'))}</span>`
+                    : '';
                 const actions = [];
                 if (isOnDesktop) {
                     actions.push(`<button type="button" class="vd-wm-btn vd-wm-btn-remove" data-action="hide" data-id="${esc(widget.id)}">${esc(t('desktop.widget_remove_from_desktop'))}</button>`);
@@ -18633,7 +18715,7 @@ function updateTaskbarSystemButtonsForMobile() {
                         ${iconMarkup(iconKey, widgetDisplayTitle(widget), 'vd-sprite-file', 24)}
                         <div class="vd-wm-card-info">
                             <div class="vd-wm-card-title">${esc(widgetDisplayTitle(widget))}</div>
-                            <div class="vd-wm-card-badges">${statusBadge}${builtinBadge}</div>
+                            <div class="vd-wm-card-badges">${statusBadge}${builtinBadge}${pinnedBadge}</div>
                         </div>
                     </div>
                     <div class="vd-wm-card-actions">${actions.join('')}</div>
