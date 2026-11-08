@@ -1033,6 +1033,7 @@ Expected: build FAIL (`UseMirageVision undefined`).
 
 Create `internal/tools/vision_mirage.go`:
 
+{% raw %}
 ```go
 package tools
 
@@ -1138,6 +1139,7 @@ func analyzeWithMirage(ctx context.Context, imageReference string, cfg *config.C
 	return parsed.Choices[0].Message.Content, 0, 0, nil
 }
 ```
+{% endraw %}
 
 If `llm.ResolveConfigProviderCapabilities` has a different signature than `(cfg) caps` with an `.Image` field, open `internal/llm/model_capabilities.go:65` and `internal/server/multimodal_ingest.go:219-237` and adapt the one-line hook; the tests stub it.
 
@@ -1447,6 +1449,7 @@ Expected: build FAIL (`mirageImageTag undefined`, ...).
 
 Create `internal/tools/mirage_sidecar.go`. Copy the `dockerutil` import path from `internal/tools/ollama_container.go`.
 
+{% raw %}
 ```go
 package tools
 
@@ -1807,6 +1810,7 @@ func MirageStatus(t MirageStatusTarget) MirageHealth {
 	return MirageHealth{Status: "stopped"}
 }
 ```
+{% endraw %}
 
 Notes for the engineer:
 - `mirageBuildBackoff` reuses `go2RTCBuildBackoff` (see `go2rtc_build_backoff.go`); it is used as a zero-value field on `Go2RTCManager` (`go2rtc.go:152`). Confirm that no constructor initialises it; if it needs one, mirror what the go2rtc manager constructor does.
