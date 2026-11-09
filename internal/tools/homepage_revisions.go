@@ -397,7 +397,7 @@ func HomepageSaveRevision(cfg HomepageConfig, db *sql.DB, projectDir, message, r
 	if err := sanitizeProjectDir(projectDir); err != nil {
 		return ErrorJSON(err.Error())
 	}
-	current, skipped, err := enumerateProjectFiles(homepageLocalRoot(cfg, projectDir), logger, true)
+	observed, _, err := enumerateProjectFiles(homepageLocalRoot(cfg, projectDir), logger, false)
 	if err != nil {
 		return ErrorJSONf("enumerate project files: %v", err)
 	}
@@ -410,10 +410,18 @@ func HomepageSaveRevision(cfg HomepageConfig, db *sql.DB, projectDir, message, r
 			return ErrorJSON(err.Error())
 		}
 	}
+	const noChanges = `{"status":"ok","message":"no changes since last revision","revision_id":null}`
+	if delta := computeDelta(baseline, observed); len(delta.Added)+len(delta.Modified)+len(delta.Deleted) == 0 {
+		return noChanges
+	}
+	current, skipped, err := enumerateProjectFiles(homepageLocalRoot(cfg, projectDir), logger, true)
+	if err != nil {
+		return ErrorJSONf("enumerate project files: %v", err)
+	}
 	delta := computeDelta(baseline, current)
 	changed := len(delta.Added) + len(delta.Modified) + len(delta.Deleted)
 	if changed == 0 {
-		return `{"status":"ok","message":"no changes since last revision","revision_id":null}`
+		return noChanges
 	}
 	var projectID interface{}
 	var pid int64

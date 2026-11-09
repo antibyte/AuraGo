@@ -394,6 +394,7 @@ None.
 ### Managed Homepage mutation ledger
 
 - Reconciliation, current file-state snapshots and artifact manifests use hash-only inventories: stream the complete SHA-256 and inspect only the binary prefix, without retaining or redacting bodies. Revision/diff/restore consumers request bounded content and keep every credential exclusion. Verify `TestHomepageInventory*` and `BenchmarkHomepageInventory`.
+- Revision saves compare hash-only metadata with the latest baseline before requesting content. Unchanged saves retain their existing no-change response without building or redacting bodies; changed saves still perform the complete content pass and recalculate the delta. Verify `TestHomepageRevisionPreflight*` and `BenchmarkHomepageSaveUnchangedRevision`.
 
 - Homepage registry records use the internal-store warning policy. Bound Homepage files use project-source isolation with critical/boundary content escaped. Shared file-write/text-edit review separates file bytes from control metadata; runtime, deploy, execution and permission gates remain independent. See `../security/AGENTS.md`.
 

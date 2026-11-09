@@ -82,6 +82,78 @@ func TestHomepageInventoryRevisionStillExcludesCredentials(t *testing.T) {
 	}
 }
 
+func TestHomepageRevisionPreflightDetectsSensitiveEditsWithPreservedMetadata(t *testing.T) {
+	db := newHomepageLedgerTestDB(t)
+	cfg := HomepageConfig{WorkspacePath: t.TempDir()}
+	dir := filepath.Join(cfg.WorkspacePath, "site")
+	if err := os.Mkdir(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	credential := []byte("TEST_API_KEY=\"" + strings.Repeat("aB9", 16) + "\"\n")
+	path := filepath.Join(dir, "index.js")
+	if err := os.WriteFile(path, bytes.Repeat([]byte{'x'}, len(credential)), 0600); err != nil {
+		t.Fatal(err)
+	}
+	first := SaveHomepageRevisionAndState(cfg, db, "site", "Initial", "test", "test", nil, nil)
+	if first.RevisionID <= 0 || len(first.Warnings) > 0 {
+		t.Fatal("initial revision failed")
+	}
+	unchanged := decodeLedgerTestJSON(t, HomepageSaveRevision(cfg, db, "site", "Unchanged", "test", nil))
+	if unchanged["status"] != "ok" || unchanged["revision_id"] != nil {
+		t.Fatal("unchanged save did not retain the no-change response")
+	}
+	var revisions int
+	if err := db.QueryRow("SELECT COUNT(*) FROM homepage_revisions").Scan(&revisions); err != nil || revisions != 1 {
+		t.Fatal("unchanged save created a revision", err)
+	}
+	before, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, credential, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(path, before.ModTime(), before.ModTime()); err != nil {
+		t.Fatal(err)
+	}
+	saved := SaveHomepageRevisionAndState(cfg, db, "site", "Changed", "test", "test", nil, nil)
+	if saved.RevisionID <= first.RevisionID || len(saved.Warnings) > 0 {
+		t.Fatal("hash preflight missed a timestamp-preserving edit")
+	}
+	var content, hash string
+	if err := db.QueryRow("SELECT content_after, content_hash_after FROM homepage_revision_files WHERE revision_id = ?", saved.RevisionID).Scan(&content, &hash); err != nil || content != "" || hash != hashContent(credential) {
+		t.Fatal("changed revision retained credential content or lost its hash", err)
+	}
+}
+
+func BenchmarkHomepageSaveUnchangedRevision(b *testing.B) {
+	db, err := InitHomepageRegistryDB(filepath.Join(b.TempDir(), "homepage.db"))
+	if err != nil {
+		b.Fatal(err)
+	}
+	b.Cleanup(func() { _ = db.Close() })
+	cfg := HomepageConfig{WorkspacePath: b.TempDir()}
+	dir := filepath.Join(cfg.WorkspacePath, "site")
+	if err := os.Mkdir(dir, 0700); err != nil {
+		b.Fatal(err)
+	}
+	data := bytes.Repeat([]byte("The public page describes a quiet garden with trees and flowers.\n"), 4096)
+	if err := os.WriteFile(filepath.Join(dir, "index.html"), data, 0600); err != nil {
+		b.Fatal(err)
+	}
+	initial := SaveHomepageRevisionAndState(cfg, db, "site", "Initial", "test", "test", nil, nil)
+	if initial.RevisionID <= 0 || len(initial.Warnings) > 0 {
+		b.Fatal("initial revision failed")
+	}
+	b.ReportAllocs()
+	b.SetBytes(int64(len(data)))
+	for b.Loop() {
+		if result := HomepageSaveRevision(cfg, db, "site", "Unchanged", "test", nil); !strings.Contains(result, `"revision_id":null`) {
+			b.Fatal("unchanged save did not retain the no-change response")
+		}
+	}
+}
+
 func BenchmarkHomepageInventory(b *testing.B) {
 	for _, mode := range []struct {
 		name     string
