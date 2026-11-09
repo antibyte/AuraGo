@@ -200,7 +200,8 @@
     const AURA_S_FS = [
         'uniform vec3 uColor; uniform float uAlpha; uniform float uSpin; varying vec2 vUv;',
         'void main() {',
-        '  float up = vUv.y;',
+        // MSAA can extrapolate UVs at silhouette edges; fractional powers require non-negative input.
+        '  float up = clamp(vUv.y, 0.0, 1.0);',
         '  float band = pow(max(0.0, sin(vUv.x * 31.4159 - uSpin * 2.4)), 4.0);',
         '  float a = (pow(up, 2.6) * 0.42 + band * pow(up, 2.0) * 0.8) * uAlpha;',
         '  if (a < 0.004) discard;',

@@ -3628,8 +3628,7 @@ buttons and menu popovers remain excluded from those gestures.
 - Steering contract: the chase camera rotates with the car heading, so holding right moves the
   car right on screen in every mode. The 2D fallback rotates the world (`AD.screenRotation`).
   The earlier fault was a fixed north-up camera, not the physics. Guard:
-  `scripts/test-aura-drift-camera.mjs`. The browser steering test in plan section 5.2 is not
-  written yet.
+  `scripts/test-aura-drift-camera.mjs` and `TestDesktopAuraDriftSteeringBrowser`.
 - 3D: `aura-drift-render3d.js` owns the renderer and requires WebGL2. On `auto`, a software GL
   renderer (SwiftShader, llvmpipe, software) returns to the 2D view; an explicit tier still
   accepts it. `webglcontextlost` switches the window to 2D. Models are the 20 GLBs in
@@ -3722,10 +3721,11 @@ buttons and menu popovers remain excluded from those gestures.
   step even when rendering is skipped; RAF and debug batches share the result transition.
   GTAO tiers use 1024 m terrain tiles with unchanged near/far sample spacing;
   near-track classification uses the actual tile's half-diagonal.
-- The WebGL context preserves its drawing buffer between frames: while drift FX or
-  shader work delays the next draw, compositing retains the completed scene beneath
-  the independent HUD. `TestDesktopAuraDriftKeepsLastFrameBrowser` verifies retained
-  pixels after compositing.
+- Clamp the drift aura shell's UV height to [0,1] before fractional powers. Ultra's
+  MSAA can interpolate beyond silhouette edges; negative heights produce NaNs that
+  spread through HDR bloom and black out the scene. `TestDesktopAuraDriftAuraShaderBoundsBrowser`
+  uses hardware GL when available because SwiftShader can hide this undefined math.
+  `TestDesktopAuraDriftSteeringFrameBrowser` checks visible left/right drifts on High and Ultra.
 - The frame buffer is the contract that keeps the screen alive: a tier change and a
   resize both reallocate the WebGL drawing buffer, and the browser composites
   whatever the buffer holds. The quality governor therefore changes the tier
