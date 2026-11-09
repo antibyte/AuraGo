@@ -1,0 +1,89 @@
+{
+  "schema": "storymaker/1",
+  "title": "Wie eine Firewall dein Netz schützt",
+  "format": { "aspect": "16:9", "fps": 30 },
+  "style": { "palette": "calm", "font": "default", "captions": true, "rhythm": "standard" },
+  "cast": [
+    { "id": "anna", "name": "Anna", "character": "char.office-woman-1" },
+    { "id": "ben", "name": "Ben", "character": "char.it-tech-1" }
+  ],
+  "scenes": [
+    {
+      "id": "s1", "environment": "env.office", "variant": "day",
+      "narration": "Jede Sekunde erreichen dein Netz {1}tausende Datenpakete.",
+      "speaker": "anna",
+      "actors": [{ "cast": "anna", "at": "left", "pose": "present", "facing": "auto", "expression": "neutral" }],
+      "beats": [
+        { "do": "show", "item": "prop.laptop", "at": "center", "entry": "pop", "id": "laptop", "cue": 1 },
+        { "do": "gesture", "who": "anna", "gesture": "wave", "with": "prev" }
+      ],
+      "transition": "cut", "duration": "auto", "camera": { "framing": "medium" }
+    },
+    {
+      "id": "s2", "environment": "env.office", "variant": "day",
+      "narration": "Die meisten sind harmlos, doch manche tragen {1}Schadcode.",
+      "speaker": "ben",
+      "actors": [{ "cast": "ben", "at": "right", "pose": "think", "facing": "auto", "expression": "worried" }],
+      "beats": [
+        { "do": "show", "item": "prop.warning", "at": "center", "entry": "fade", "id": "warning", "cue": 1 },
+        { "do": "gesture", "who": "ben", "gesture": "shrug", "with": "prev" }
+      ],
+      "transition": "cut", "duration": "auto", "camera": { "framing": "wide" }
+    },
+    {
+      "id": "s3", "environment": "env.server-room", "variant": "day",
+      "narration": "Hier greift die {1}Firewall und prüft jedes Paket am Eingang.",
+      "speaker": "anna",
+      "actors": [{ "cast": "anna", "at": "left", "pose": "stand", "facing": "auto", "expression": "determined" }],
+      "beats": [
+        { "do": "show", "item": "prop.firewall", "at": "center", "entry": "slide", "id": "firewall", "cue": 1 },
+        { "do": "gesture", "who": "anna", "gesture": "present", "with": "prev" }
+      ],
+      "transition": "wipe", "duration": "auto", "camera": { "framing": "medium" }
+    },
+    {
+      "id": "s4", "environment": "env.server-room", "variant": "day",
+      "narration": "Sie folgt deinen {1}Regeln: diese Pakete dürfen durch, jene nicht.",
+      "speaker": "ben",
+      "actors": [{ "cast": "ben", "at": "right", "pose": "present", "facing": "auto", "expression": "neutral" }],
+      "beats": [
+        { "do": "show", "item": "prop.folder", "at": "center", "entry": "pop", "id": "rules", "cue": 1 },
+        { "do": "gesture", "who": "ben", "gesture": "point", "with": "prev" }
+      ],
+      "transition": "cut", "duration": "auto", "camera": { "framing": "wide" }
+    },
+    {
+      "id": "s5", "environment": "env.home-office", "variant": "day",
+      "narration": "Ohne Erlaubnis wird ein Paket {1}abgewiesen.",
+      "speaker": "anna",
+      "actors": [{ "cast": "anna", "at": "left", "pose": "think", "facing": "auto", "expression": "neutral" }],
+      "beats": [
+        { "do": "show", "item": "prop.shield", "at": "center", "entry": "fade", "id": "shield", "cue": 1 },
+        { "do": "gesture", "who": "anna", "gesture": "thumbs-up", "with": "prev" }
+      ],
+      "transition": "wipe", "duration": "auto", "camera": { "framing": "wide" }
+    },
+    {
+      "id": "s6", "environment": "env.home-office", "variant": "day",
+      "narration": "Dein Gerät bleibt {1}geschützt, ganz ohne Mühe.",
+      "speaker": "ben",
+      "actors": [{ "cast": "ben", "at": "right", "pose": "stand", "facing": "auto", "expression": "happy" }],
+      "beats": [
+        { "do": "show", "item": "prop.hard-drive", "at": "center", "entry": "slide", "id": "drive", "cue": 1 },
+        { "do": "gesture", "who": "ben", "gesture": "celebrate", "with": "prev" }
+      ],
+      "transition": "cut", "duration": "auto", "camera": { "framing": "medium" }
+    },
+    {
+      "id": "s7", "environment": "env.living-room", "variant": "day",
+      "narration": "Ein Tor, das {1}rund um die Uhr wacht.",
+      "speaker": "anna",
+      "actors": [{ "cast": "anna", "at": "left", "pose": "stand", "facing": "auto", "expression": "happy" }],
+      "beats": [
+        { "do": "show", "item": "prop.clock", "at": "center", "entry": "pop", "id": "clock", "cue": 1 },
+        { "do": "gesture", "who": "anna", "gesture": "present", "with": "prev" }
+      ],
+      "transition": "wipe", "duration": "auto", "camera": { "framing": "wide" }
+    }
+  ]
+}
