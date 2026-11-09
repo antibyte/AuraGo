@@ -31,7 +31,7 @@ func TestHomepageRevisionRetainsSupportedDocument(t *testing.T) {
 		if err := os.WriteFile(filepath.Join(dir, "index.html"), data, 0600); err != nil {
 			t.Fatal(err)
 		}
-		files, _, err := enumerateProjectFiles(dir, slogDiscard())
+		files, _, err := enumerateProjectFiles(dir, slogDiscard(), true)
 		if err != nil || len(files) != 1 {
 			t.Fatalf("enumerate supported document: %v %d", err, len(files))
 		}

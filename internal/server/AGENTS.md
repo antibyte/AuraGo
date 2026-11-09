@@ -1295,6 +1295,8 @@ None.
 
 ### Homepage ledger execution and observation
 
+- Background local reconciliation uses the tools-owned hash-only file inventory. Content retention and credential checks belong to revision creation, not unchanged-file observation; see `../tools/AGENTS.md`.
+
 - Server/configuration Caddy lifecycle uses managed wrappers with a system reason. Draft/unverified attempts may have intent/outcome events; successful deployment records remain verification gated.
 - Start reconciliation independently of startup enablement; each pass reads current config under CfgMu. Recover unfinished intents once before new work.
 - Skip archived and remote-only sites in the local reconciliation pass. Missing

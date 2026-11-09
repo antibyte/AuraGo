@@ -102,6 +102,8 @@ type workspaceIndexedFile struct {
 	modTime        time.Time
 	hash           string
 	lines          []string
+	contentBytes   int64
+	readable       bool
 	indexedContent bool
 	accessCount    int
 }
@@ -302,7 +304,7 @@ func (s *WorkspaceSearchService) Start(ctx context.Context) error {
 			case <-runCtx.Done():
 				return
 			case <-ticker.C:
-				if err := s.Rescan(runCtx); err != nil && !errors.Is(err, context.Canceled) {
+				if err := s.rescan(runCtx, false); err != nil && !errors.Is(err, context.Canceled) {
 					s.logger.Warn("workspace search poll scan failed", "err", err)
 				}
 			}
@@ -380,6 +382,10 @@ func (s *WorkspaceSearchService) ReadyWithin(timeout time.Duration) bool {
 
 // Rescan rebuilds the in-memory index from the configured workspace.
 func (s *WorkspaceSearchService) Rescan(ctx context.Context) error {
+	return s.rescan(ctx, true)
+}
+
+func (s *WorkspaceSearchService) rescan(ctx context.Context, force bool) error {
 	if s == nil {
 		return nil
 	}
@@ -396,7 +402,13 @@ func (s *WorkspaceSearchService) Rescan(ctx context.Context) error {
 	defer s.scanMu.Unlock()
 
 	start := time.Now()
-	next, err := s.scanWorkspace(ctx)
+	var previous map[string]*workspaceIndexedFile
+	if !force {
+		s.mu.RLock()
+		previous = s.index.files
+		s.mu.RUnlock()
+	}
+	next, err := s.scanWorkspace(ctx, previous)
 	if err != nil {
 		s.mu.Lock()
 		s.status.LastError = err.Error()
@@ -930,7 +942,7 @@ func (s *WorkspaceSearchService) snapshot() workspaceSearchIndex {
 	}
 }
 
-func (s *WorkspaceSearchService) scanWorkspace(ctx context.Context) (workspaceSearchIndex, error) {
+func (s *WorkspaceSearchService) scanWorkspace(ctx context.Context, previous map[string]*workspaceIndexedFile) (workspaceSearchIndex, error) {
 	rootEval, err := filepath.EvalSymlinks(s.root)
 	if err != nil {
 		rootEval = s.root
@@ -986,15 +998,17 @@ func (s *WorkspaceSearchService) scanWorkspace(ctx context.Context) (workspaceSe
 				return nil
 			}
 		}
-		if looksLikeBinaryWorkspaceFile(path) {
+		binary, readErr := looksLikeBinaryWorkspaceFile(path)
+		if binary {
 			return nil
 		}
 
 		file := &workspaceIndexedFile{
-			path:    rel,
-			absPath: path,
-			size:    info.Size(),
-			modTime: info.ModTime().UTC(),
+			path:     rel,
+			absPath:  path,
+			size:     info.Size(),
+			modTime:  info.ModTime().UTC(),
+			readable: readErr == nil,
 		}
 		next.files[rel] = file
 		next.orderedPaths = append(next.orderedPaths, rel)
@@ -1020,6 +1034,19 @@ func (s *WorkspaceSearchService) scanWorkspace(ctx context.Context) (workspaceSe
 		if file.size > maxFileSize || next.indexedContentBytes >= maxIndexSize {
 			continue
 		}
+		// shortcut: polling uses size and mtime; explicit rescans reread timestamp-preserving edits.
+		if cached := previous[file.path]; file.readable && cached != nil && cached.indexedContent && cached.size == file.size && cached.modTime.Equal(file.modTime) {
+			if cached.contentBytes+next.indexedContentBytes > maxIndexSize {
+				continue
+			}
+			file.lines = cached.lines
+			file.hash = cached.hash
+			file.contentBytes = cached.contentBytes
+			file.indexedContent = true
+			next.contentFiles++
+			next.indexedContentBytes += file.contentBytes
+			continue
+		}
 		data, err := os.ReadFile(file.absPath)
 		if err != nil || workspaceDataLooksBinary(data) || !utf8.Valid(data) {
 			continue
@@ -1029,9 +1056,10 @@ func (s *WorkspaceSearchService) scanWorkspace(ctx context.Context) (workspaceSe
 		}
 		file.lines = splitWorkspaceLines(string(data))
 		file.hash = workspaceContentHash(data)
+		file.contentBytes = int64(len(data))
 		file.indexedContent = true
 		next.contentFiles++
-		next.indexedContentBytes += int64(len(data))
+		next.indexedContentBytes += file.contentBytes
 	}
 	return next, nil
 }
@@ -1052,18 +1080,18 @@ func splitWorkspaceLines(content string) []string {
 	return lines
 }
 
-func looksLikeBinaryWorkspaceFile(path string) bool {
+func looksLikeBinaryWorkspaceFile(path string) (bool, error) {
 	f, err := os.Open(path)
 	if err != nil {
-		return false
+		return false, err
 	}
 	defer f.Close()
 	buf := make([]byte, workspaceSearchBinarySampleBytes)
 	n, err := f.Read(buf)
 	if err != nil && !errors.Is(err, io.EOF) {
-		return false
+		return false, err
 	}
-	return workspaceDataLooksBinary(buf[:n])
+	return workspaceDataLooksBinary(buf[:n]), nil
 }
 
 func workspaceDataLooksBinary(data []byte) bool {

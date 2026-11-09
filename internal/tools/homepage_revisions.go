@@ -66,8 +66,9 @@ type revisionDelta struct {
 // enumerateProjectFiles lists the regular files of a project. Symlinks and
 // special files are skipped instead of failing the inventory: their target is
 // outside the project and must never enter a revision. The skipped relative
-// paths are returned so the caller can record them.
-func enumerateProjectFiles(basePath string, logger *slog.Logger) ([]fileEntry, []string, error) {
+// paths are returned so the caller can record them. Only revision consumers
+// request content; hash-only inventories never retain or redact file bodies.
+func enumerateProjectFiles(basePath string, logger *slog.Logger, includeContent bool) ([]fileEntry, []string, error) {
 	root, err := os.OpenRoot(basePath)
 	if err != nil {
 		return nil, nil, err
@@ -76,6 +77,10 @@ func enumerateProjectFiles(basePath string, logger *slog.Logger) ([]fileEntry, [
 	var entries []fileEntry
 	var skipped []string
 	contentBytes := 0
+	prefixLimit := int64(8000)
+	if includeContent {
+		prefixLimit = maxRevisionFileSize + 1
+	}
 	err = filepath.Walk(basePath, func(p string, info os.FileInfo, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
@@ -111,7 +116,7 @@ func enumerateProjectFiles(basePath string, logger *slog.Logger) ([]fileEntry, [
 			return err
 		}
 		h := sha256.New()
-		prefix, err := io.ReadAll(io.LimitReader(io.TeeReader(f, h), maxRevisionFileSize+1))
+		prefix, err := io.ReadAll(io.LimitReader(io.TeeReader(f, h), prefixLimit))
 		if err == nil {
 			_, err = io.Copy(h, f)
 		}
@@ -122,14 +127,17 @@ func enumerateProjectFiles(basePath string, logger *slog.Logger) ([]fileEntry, [
 		if closeErr != nil {
 			return closeErr
 		}
-		data := prefix
-		contentBytes += len(prefix)
 		if len(entries) >= 10000 {
 			return fmt.Errorf("project exceeds the 10000-file revision inventory limit")
 		}
 		binary := isBinaryContent(prefix)
-		if contentBytes > 64*1024*1024 || len(prefix) > maxRevisionFileSize || security.Scrub(security.RedactSensitiveInfo(string(prefix))) != string(prefix) {
-			data = nil
+		var data []byte
+		if includeContent {
+			data = prefix
+			contentBytes += len(prefix)
+			if contentBytes > 64*1024*1024 || len(prefix) > maxRevisionFileSize || security.Scrub(security.RedactSensitiveInfo(string(prefix))) != string(prefix) {
+				data = nil
+			}
 		}
 		entries = append(entries, fileEntry{Path: rel, Data: data, Size: info.Size(), Hash: hex.EncodeToString(h.Sum(nil)), IsBinary: binary, ModTime: info.ModTime(), Mode: info.Mode().Perm()})
 		return nil
@@ -208,7 +216,7 @@ func computeUnifiedDelta(db *sql.DB, projectDir, basePath string, baseRevID int6
 	if err != nil {
 		return nil, err
 	}
-	currentFiles, _, err := enumerateProjectFiles(basePath, logger)
+	currentFiles, _, err := enumerateProjectFiles(basePath, logger, true)
 	if err != nil {
 		return nil, err
 	}
@@ -389,7 +397,7 @@ func HomepageSaveRevision(cfg HomepageConfig, db *sql.DB, projectDir, message, r
 	if err := sanitizeProjectDir(projectDir); err != nil {
 		return ErrorJSON(err.Error())
 	}
-	current, skipped, err := enumerateProjectFiles(homepageLocalRoot(cfg, projectDir), logger)
+	current, skipped, err := enumerateProjectFiles(homepageLocalRoot(cfg, projectDir), logger, true)
 	if err != nil {
 		return ErrorJSONf("enumerate project files: %v", err)
 	}
@@ -620,7 +628,7 @@ func HomepageRestoreRevision(cfg HomepageConfig, db *sql.DB, revisionID int64, p
 	if err != nil {
 		return ErrorJSON(err.Error())
 	}
-	current, _, err := enumerateProjectFiles(homepageLocalRoot(cfg, rev.ProjectDir), logger)
+	current, _, err := enumerateProjectFiles(homepageLocalRoot(cfg, rev.ProjectDir), logger, true)
 	if err != nil {
 		return ErrorJSON(err.Error())
 	}

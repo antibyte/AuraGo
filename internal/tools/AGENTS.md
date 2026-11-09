@@ -393,6 +393,8 @@ None.
 
 ### Managed Homepage mutation ledger
 
+- Reconciliation, current file-state snapshots and artifact manifests use hash-only inventories: stream the complete SHA-256 and inspect only the binary prefix, without retaining or redacting bodies. Revision/diff/restore consumers request bounded content and keep every credential exclusion. Verify `TestHomepageInventory*` and `BenchmarkHomepageInventory`.
+
 - Homepage registry records use the internal-store warning policy. Bound Homepage files use project-source isolation with critical/boundary content escaped. Shared file-write/text-edit review separates file bytes from control metadata; runtime, deploy, execution and permission gates remain independent. See `../security/AGENTS.md`.
 
 - Local publication serves a filtered private snapshot from `.aurago/published`, mounted read-only at `/srv`; source edits are previews only until another explicit publish. Native editors cannot modify managed `.aurago` paths/state. Persist the snapshot and index hash for restart; invalid saved state or a changed index fails closed. Prepare before replacing Caddy and restore the previous container/configuration on activation failure. Keep retained snapshots for reviewed cleanup, never automatic source deletion.

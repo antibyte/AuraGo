@@ -270,7 +270,7 @@ func SnapshotHomepageFileState(cfg HomepageConfig, db *sql.DB, projectID int64, 
 		return err
 	}
 	basePath := homepageLocalRoot(cfg, canonical)
-	files, _, err := enumerateProjectFiles(basePath, logger)
+	files, _, err := enumerateProjectFiles(basePath, logger, false)
 	if err != nil {
 		return fmt.Errorf("enumerate project files: %w", err)
 	}
@@ -639,7 +639,7 @@ func BuildHomepageArtifactManifest(cfg HomepageConfig, projectID int64, projectD
 		return HomepageArtifactManifest{}, err
 	}
 	root := filepath.Join(homepageLocalRoot(cfg, canonical), filepath.FromSlash(buildDir))
-	files, _, err := enumerateProjectFiles(root, nil)
+	files, _, err := enumerateProjectFiles(root, nil, false)
 	if err != nil {
 		return HomepageArtifactManifest{}, err
 	}
@@ -714,7 +714,7 @@ func ReconcileHomepageProject(cfg HomepageConfig, db *sql.DB, projectDir string,
 		// history without treating an unavailable directory as deleted content.
 		return recordHomepageReconciledState(cfg, db, proj, "", "local_changed", "Project location is not a directory")
 	}
-	current, _, err := enumerateProjectFiles(localRoot, logger)
+	current, _, err := enumerateProjectFiles(localRoot, logger, false)
 	if err != nil {
 		return HomepageProjectState{}, err
 	}

@@ -39,7 +39,7 @@ func TestHomepageRevisionSkipsSymlinkEntries(t *testing.T) {
 		t.Skipf("symlinks are not available on this host: %v", err)
 	}
 
-	entries, skipped, err := enumerateProjectFiles(projectPath, nil)
+	entries, skipped, err := enumerateProjectFiles(projectPath, nil, true)
 	if err != nil {
 		t.Fatalf("enumerateProjectFiles failed: %v", err)
 	}

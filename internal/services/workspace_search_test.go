@@ -14,7 +14,7 @@ import (
 	"aurago/internal/config"
 )
 
-func newWorkspaceSearchTestService(t *testing.T, maxFileSizeMB int) (*WorkspaceSearchService, *config.Config) {
+func newWorkspaceSearchTestService(t testing.TB, maxFileSizeMB int) (*WorkspaceSearchService, *config.Config) {
 	t.Helper()
 
 	root := t.TempDir()
@@ -61,7 +61,7 @@ func newWorkspaceSearchTestService(t *testing.T, maxFileSizeMB int) (*WorkspaceS
 	return svc, cfg
 }
 
-func writeWorkspaceSearchFixture(t *testing.T, workspaceDir, rel, content string) {
+func writeWorkspaceSearchFixture(t testing.TB, workspaceDir, rel, content string) {
 	t.Helper()
 	path := filepath.Join(workspaceDir, filepath.FromSlash(rel))
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {

@@ -114,6 +114,9 @@ Stopping development does not imply stopping a separate Caddy deployment.
 The reconciler starts with the server even if Homepage is initially disabled.
 Each pass checks current configuration under its lock. It runs at startup and
 every 15 minutes; local state is additionally observed before mutations.
+Observation streams file hashes and metadata without retaining file contents or
+building revision previews. Changed files still pass the complete revision
+credential checks before any content is stored.
 Missing project directories and legacy entries that name individual files remain
 in inventory as unavailable, with `local_changed` and a location explanation.
 Reconciliation preserves their revisions and last known file state, records each

@@ -26,6 +26,8 @@ Background services and workspace search.
 - The native `workspace_search` tool exposes `find`, `grep`, `glob`, `recent`, `rescan`, and `status`. Keep legacy `file_search` JSON shapes compatible when delegating to the resident index.
 - Legacy file-search fallback resolves its glob under the configured workspace, including sibling `skills` and `tools`, never under the install root.
 - Do not persist file content for workspace search. Only frecency/access metadata belongs in `data/workspace_search.db`.
+- Background polls reuse immutable text for readable regular files with unchanged size and modification time. Recheck excludes, rooted paths, binary prefixes and both content budgets on every poll; never mutate an older published index while reusing text.
+- Initial scans and explicit `rescan` operations reread contents, including edits that preserve size and modification time. Verify `TestWorkspaceSearchPoll*`, `TestWorkspaceSearchRescanDetectsPreservedMetadata` and `BenchmarkWorkspaceSearchUnchangedPoll`.
 
 ## Desktop invocation ownership
 
