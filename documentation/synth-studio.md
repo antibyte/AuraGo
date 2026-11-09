@@ -89,8 +89,8 @@ demo-local, so the pattern library keeps its concise factory vocabulary.
 
 ## Modes and controls
 
-The transport stays visible above a mode bar with five modes; only the active mode
-is shown:
+The transport stays visible above a mode bar with five modes, drawn as tabs with an LED bar under the selected
+mode; only the active mode is shown:
 
 - **Arrange** - the arrangement with tracks and clips. The note editor (piano roll
   or percussion grid) appears under the arrangement only while a clip is selected.
@@ -105,7 +105,8 @@ The sound library is a drawer that slides in from the side. It is closed by
 default; open and close it with the library button in the header. The active mode
 and the drawer state are remembered in this browser.
 
-Range sliders are drawn as 3D knobs, and the track volume as a horizontal fader.
+Range sliders are drawn as knobs with a phosphor ring and a grooved cap, and the track
+volume as a horizontal fader.
 Drag a knob up or down to change it; hold Shift for fine steps. While a knob has
 keyboard focus the mouse wheel changes it and the arrow keys move it in steps.
 A double click triggers the row's Reset button where the row has one. Values are
@@ -113,17 +114,18 @@ displayed and, as before, dragging a sound or volume control previews it
 immediately and commits one undo step; Escape or pointer cancellation restores the
 previous sound.
 
-Perform and Strudel use the same glass-card look. Perform groups its controls into
-cards: scenes (eight raised pads with an LED, lit and glowing while active, dashed
-while queued, empty slots as faint outlines), the XY pad with Tone/Reverb knobs,
-the take recorder, Live FX, the automation editor and the composer (harmony,
-chord pads, one card per generator with its sliders drawn as knobs). Take buttons
-that do not apply (Stop, Use take, Discard) are hidden until a take exists. Strudel is a
-toolbar (Run / Update, Stop, a status light for idle, loading, playing and error,
-then Examples, Open, Download and the guide links) above a code editor with a line
-gutter, a glow focus ring and no wrapping; the editor fills the mode area. All
-data-* hooks and behaviour are unchanged; the layout is CSS in
-`desktop-app-synth-studio-modern.css`.
+Perform and Strudel use the graphite receiver front panel of the RTL-SDR app. Perform
+groups its controls into flat plates, each with an uppercase title and a coloured LED
+dot: scenes (eight raised keys whose LED and ring take the scene colour while active
+and blink amber while queued; empty slots as faint outlines), the XY pad with
+Tone/Reverb knobs, the take recorder, Live FX, the automation editor and the composer
+(harmony, chord pads, one plate per generator with its sliders drawn as knobs). Take
+buttons that do not apply (Stop, Use take, Discard) are hidden until a take exists.
+Strudel is a toolbar (Run / Update, Stop, a status light for idle, loading, playing and
+error, then Examples, Open, Download and the guide links) above a phosphor-teal code
+editor with a line gutter, a focus ring around the frame and no wrapping; the editor
+fills the mode area. All data-* hooks and behaviour are unchanged; the layout and the
+graphite skin are CSS in `desktop-app-synth-studio-modern.css`.
 
 The envelope section of the sound designer uses four vertical faders (attack,
 decay, sustain, release) next to a small envelope shape. A vertical fader behaves
@@ -136,7 +138,8 @@ The sections of the sound design (oscillators, filter, envelope and so on) are
 collapsible. Sections that are not active for the selected sound start closed.
 Open and closed states are kept only while that editor stays open.
 
-Dark and light desktop schemes use graphite and aluminium surfaces respectively.
+The graphite look is fixed: it is the same under every desktop theme and in the light
+scheme, as in the RTL-SDR app.
 A guided tour in the footer walks through the main areas and can be skipped at any
 point. The workbench height can be changed with the keyboard-operable separator
 above the note editor. Electronic, Chill and Retro templates start paused; each is
@@ -186,22 +189,21 @@ deliberately not editable through this surface.
 ## Colour and visual identity
 
 The app owns a spectrum of eight hues (`--ss-color-0` … `--ss-color-7`). Each hue
-is mixed with the current text colour, so one token set stays legible on the dark
-and on the light desktop scheme. The spectrum is applied consistently rather than
+is mixed with the graphite text colour of this skin, so the set stays legible on the
+fixed graphite surfaces. The spectrum is applied consistently rather than
 decoratively: track colours and the matching clip headers, the arrangement track
 names, the piano-roll spine, library category and tag chips, the eight scene and
 chord pads, the effect-insert markers and the master
 strip group headings each take one hue from it.
 
 Piano-roll notes carry their own pitch hue, so a chord reads as a colour block and
-a percussion lane as a row of distinct colours. Notes darken on the light scheme to
-keep their contrast against the lighter grid. The arrangement itself keeps a neutral
+a percussion lane as a row of distinct colours. The arrangement itself keeps a neutral
 grid, so the clip colours stay the only saturated element on the timeline.
 
-The app accent (`--ss-accent`) is the mint signal colour of the playhead, focus
+The app accent (`--ss-accent`) is the phosphor-teal signal colour of the playhead, focus
 rings and analyser; the Desktop accent stays reserved for the surrounding shell.
-The output meter and the analyser read the `--ss-meter` token and therefore follow
-the active scheme. On windows of at most 540 pixels the email-export button
+The output meter and the analyser read the `--ss-meter` token, which this skin pins to
+the same phosphor teal. On windows of at most 540 pixels the email-export button
 collapses to an envelope glyph so no toolbar action is pushed out of reach.
 
 Mix changes preserve the audio clock. Structural edits are queued at the next
@@ -341,13 +343,13 @@ time when the tempo changes. The analyser in the transport shows the master
 output and is visual feedback only; musical timing does not depend on its
 refresh rate.
 
-In the master strip the output level is a large knob with a decibel read-out
+In the master strip the output level is a large VFO-style tuning knob with a decibel read-out
 (20 x log10 of the gain, `-inf` at zero) and a 16 segment LED meter beside it
-(green, amber, red over 48 dB). The meter reads the same analyser peak, runs only
+(phosphor, amber, red over 48 dB). The meter reads the same analyser peak, runs only
 while the strip is open and never alters the audio. The EQ group shows the
 frequency response of the three bands, and the sound designer shows the response
-of the voice filter (type, cutoff, resonance) with a cutoff marker. The curves are
-pure SVG computed in `synth-studio-curves.js` from the same filter types,
+of the voice filter (type, cutoff, resonance) with a cutoff marker. The curves sit on
+scope screens and are pure SVG computed in `synth-studio-curves.js` from the same filter types,
 frequencies and cutoff mapping the audio engine uses, and repaint at most once per
 animation frame while an input moves. Per-section power switches are intentionally
 absent: the project and patch formats have no bypass flag for the inserts or the

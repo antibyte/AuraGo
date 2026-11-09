@@ -1,24 +1,88 @@
 /* Synth Studio modern layer: loaded after desktop-app-synth-studio.css.
-   Colours come from the existing --ss-* tokens, so every desktop theme and the
-   accent colour keep working. Default look = dark teal with an orange record. */
-.ss-app {
-    --ss-lift: 0 10px 24px rgb(0 0 0 / .32), 0 2px 4px rgb(0 0 0 / .3);
-    --ss-edge: inset 0 1px 0 color-mix(in srgb, var(--ss-text) 16%, transparent), inset 0 -1px 0 rgb(0 0 0 / .35);
-    --ss-glass: linear-gradient(180deg, color-mix(in srgb, var(--ss-text) 8%, transparent), color-mix(in srgb, var(--ss-text) 2%, transparent));
-    --ss-glow: color-mix(in srgb, var(--ss-accent) 65%, transparent);
-    --ss-cap-hi: color-mix(in srgb, var(--ss-text) 42%, var(--ss-panel));
-    --ss-cap-lo: color-mix(in srgb, #000 60%, var(--ss-panel));
-    --ss-groove: color-mix(in srgb, #000 50%, var(--ss-panel));
-    --ss-recess: color-mix(in srgb, #000 40%, var(--ss-panel));
-    --ss-recess-deep: color-mix(in srgb, #000 60%, var(--ss-panel));
-    --ss-nest: color-mix(in srgb, #000 14%, var(--ss-card));
-    --ss-round-hi: color-mix(in srgb, var(--ss-text) 22%, var(--ss-panel));
-    --ss-round-lo: color-mix(in srgb, #000 40%, var(--ss-panel));
-    --ss-play-hi: color-mix(in srgb, var(--ss-accent) 34%, #000);
-    --ss-play-lo: color-mix(in srgb, var(--ss-accent) 10%, #000);
-    --ss-play-ink: color-mix(in srgb, var(--ss-accent) 70%, #fff);
-    --ss-hot: #ff9d4a;
+   Theme-independent RTL-SDR-style panel skin: the same graphite communications-receiver
+   look as the RTL-SDR app (desktop-app-rtl-sdr.css), so it follows no desktop theme and has
+   no light variant. Every --vd-mat-* material token the base layer reads is pinned below. */
+@font-face { font-family: 'SS Labels'; src: url('/fonts/BarlowCondensed-SemiBold.ttf') format('truetype'); font-weight: 600; font-display: swap; }
+@font-face { font-family: 'SS Labels Wide'; src: url('/fonts/RobotoCondensed-Variable.ttf') format('truetype'); font-weight: 100 900; font-display: swap; }
+@font-face { font-family: 'SS Display'; src: url('/fonts/ShareTechMono-Regular.ttf') format('truetype'); font-weight: 400; font-display: swap; }
+
+/* ---- token pin: palette, base tokens, materials, shading ---- */
+.ss-app, [data-scheme] .ss-app {
+    --ss-phosphor: #86f3df; --ss-phosphor-dim: #58a99d; --ss-ghost: rgba(134, 243, 223, .08); --ss-phosphor-glow: rgba(134, 243, 223, .5);
+    --ss-amber: #ffb454; --ss-red: #ff6355; --ss-green: #7dea9c;
+    --ss-ink: #e1e6eb; --ss-ink-soft: #a9b3bc; --ss-ink-faint: #8a96a1;
+    --ss-rim: rgba(255, 255, 255, .07); --ss-cut: rgba(0, 0, 0, .6); --ss-well-bg: #0b0e11;
+    --ss-label-font: 'SS Labels', 'SS Labels Wide', 'Arial Narrow', system-ui, sans-serif;
+    --ss-mono-font: 'SS Display', 'Geist Mono', ui-monospace, Consolas, monospace;
+    --ss-key: linear-gradient(180deg, #3b4148 0%, #2b3036 52%, #22262b 100%);
+    --ss-key-hover: linear-gradient(180deg, #444b53 0%, #32383e 52%, #292d33 100%);
+    --ss-key-shadow: inset 0 1px 0 rgba(255, 255, 255, .13), inset 0 -2px 0 rgba(0, 0, 0, .32), 0 1px 0 rgba(255, 255, 255, .05), 0 2px 4px rgba(0, 0, 0, .55);
+    --ss-key-sel: linear-gradient(180deg, #2c3137, #24282d);
+    --ss-key-pressed: inset 0 2px 4px rgba(0, 0, 0, .6), inset 0 0 0 1px rgba(134, 243, 223, .16), 0 1px 0 rgba(255, 255, 255, .05);
+    --ss-key-radius: 5px;
+    --ss-primary-grad: linear-gradient(180deg, #a5f7e6 0%, #6fd9c4 55%, #56c2ad 100%);
+    --ss-primary-shadow: inset 0 1px 0 rgba(255, 255, 255, .55), inset 0 -2px 0 rgba(0, 0, 0, .18), 0 2px 4px rgba(0, 0, 0, .55);
+    --ss-screen: radial-gradient(130% 80% at 50% -10%, #0c2026 0%, #060d11 55%, #03070a 100%);
+    --ss-scope-bg: #02060a;
+
+    --ss-bg: #15171a; --ss-panel: #24282d; --ss-text: #e1e6eb; --ss-muted: #a9b3bc; --ss-border: rgba(255, 255, 255, .09);
+    --ss-accent: #86f3df; --ss-meter: #86f3df; --ss-hot: #ff6355; --ss-danger: #ff6355;
+
+    --vd-mat-canvas: transparent; --vd-mat-bar: transparent; --vd-mat-bar-edge: 0 1px 0 var(--ss-rim);
+    --vd-mat-side: linear-gradient(180deg, #24282d, #1b1e22); --vd-mat-side-color: #1d2024; --vd-mat-side-edge: inset -1px 0 0 var(--ss-rim);
+    --vd-mat-well: #0e1114; --vd-mat-well-color: #0e1114; --vd-mat-well-shadow: inset 0 2px 5px rgba(0, 0, 0, .7), 0 1px 0 rgba(255, 255, 255, .07);
+    --vd-mat-card: linear-gradient(180deg, rgba(255, 255, 255, .04), rgba(255, 255, 255, .012)), #202428; --vd-mat-card-color: #202428;
+    --vd-mat-card-border: rgba(0, 0, 0, .55); --vd-mat-card-radius: 9px; --vd-mat-card-shadow: inset 0 1px 0 rgba(255, 255, 255, .07), 0 1px 0 rgba(255, 255, 255, .03);
+    --vd-mat-field: var(--ss-well-bg); --vd-mat-field-border: #000; --vd-mat-field-radius: 5px; --vd-mat-field-shadow: inset 0 2px 5px rgba(0, 0, 0, .7), 0 1px 0 rgba(255, 255, 255, .07);
+    --vd-mat-divider: var(--ss-cut); --vd-mat-hover: rgba(255, 255, 255, .04);
+    --vd-mat-btn: var(--ss-key); --vd-mat-btn-border: #08090a; --vd-mat-btn-radius: var(--ss-key-radius); --vd-mat-btn-shadow: var(--ss-key-shadow);
+    --vd-mat-btn-text: var(--ss-ink); --vd-mat-btn-hover: var(--ss-key-hover);
+    --vd-mat-selected: var(--ss-key-sel); --vd-mat-selected-text: #f3fffc; --vd-mat-selected-edge: var(--ss-key-pressed);
+    --vd-mat-primary: var(--ss-primary-grad); --vd-mat-primary-text: #06231d; --vd-mat-primary-border: #0d3b33;
+    --vd-mat-primary-hover: var(--ss-primary-grad); --vd-mat-primary-shadow: var(--ss-primary-shadow);
+    --vd-mat-heading-font: var(--ss-label-font); --vd-mat-heading-weight: 600; --vd-mat-heading-tracking: .15em; --vd-mat-heading-transform: uppercase; --vd-mat-heading-color: var(--ss-ink);
+    --vd-mat-label-font: var(--ss-label-font); --vd-mat-label-tracking: .15em; --vd-mat-label-transform: uppercase; --vd-mat-label-color: var(--ss-ink-soft);
+    --vd-mat-mono-font: var(--ss-mono-font); --vd-mat-glow: 0 0 7px var(--ss-phosphor-glow);
+
+    --ss-lift: 0 1px 2px rgba(0, 0, 0, .35);
+    --ss-edge: inset 0 1px 0 rgba(255, 255, 255, .07), 0 1px 0 rgba(255, 255, 255, .03);
+    --ss-glass: linear-gradient(180deg, rgba(255, 255, 255, .04), rgba(255, 255, 255, .012));
+    --ss-glow: var(--ss-phosphor-glow);
+    --ss-cap-hi: #525961; --ss-cap-lo: #1a1c1f; --ss-groove: #0c0e10; --ss-recess: #0b0e11; --ss-recess-deep: #06090b; --ss-nest: rgba(0, 0, 0, .2);
+    --ss-round-hi: #3b4148; --ss-round-lo: #22262b; --ss-play-hi: #2c3137; --ss-play-lo: #24282d; --ss-play-ink: var(--ss-phosphor);
+    --ss-pill-bg: transparent;
+    --ss-well-in: inset 0 2px 5px rgba(0, 0, 0, .7), 0 1px 0 rgba(255, 255, 255, .07);
+
+    color: var(--ss-ink); color-scheme: dark;
+    background:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 .13 0 0 0 0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E"),
+        radial-gradient(120% 70% at 50% 0%, #30353b 0%, transparent 70%),
+        linear-gradient(180deg, #24282d 0%, #1b1e22 45%, #15171a 100%);
 }
+body[data-theme="fruity"] .ss-app { --ss-key-radius: 7px; }
+.vd-window[data-app-id="synth-studio"] > .vd-window-content { background: #15171a; }
+.ss-app :is(button, a, input, select, textarea, canvas, summary):focus-visible { outline: 2px solid var(--ss-phosphor); outline-offset: 2px; }
+.ss-app select option { background: #1b1e22; color: var(--ss-ink); }
+
+/* ---- keys: every raised button ---- */
+.ss-app :is(:is(.ss-file-actions, .ss-history, .ss-transport-buttons, .ss-library-tabs, .ss-categories, .ss-library-tags, .ss-welcome, .ss-track-buttons, .ss-tour-actions, .ss-chord-pads, .ss-scene-pads, .ss-stage, .ss-compose, .ss-add-lane, .ss-midi-panel, .ss-modes, .ss-macro-controls, .ss-take-controls, .ss-performance-fx, .ss-automation-fields, .ss-generator-actions, .ss-preview, .ss-strudel-tools, .ss-designer-actions, .ss-editor-header, .ss-fx-slot header, .ss-track-menu) button, .ss-master-toggle, .ss-tour-button, .ss-midi-toggle, .ss-delete-track, .ss-design-open, .ss-fx-add) {
+    color: var(--ss-ink); border: 1px solid #08090a; border-radius: var(--ss-key-radius);
+    background: var(--ss-key); box-shadow: var(--ss-key-shadow); --ss-hover-bg: var(--ss-key);
+    font-family: var(--ss-label-font); font-weight: 600; line-height: 1; letter-spacing: .09em; text-transform: uppercase;
+    transition: transform .08s ease-out, box-shadow .08s ease-out, filter .15s, color .15s;
+}
+.ss-app :is(:is(.ss-file-actions, .ss-history, .ss-transport-buttons, .ss-library-tabs, .ss-categories, .ss-library-tags, .ss-welcome, .ss-track-buttons, .ss-tour-actions, .ss-chord-pads, .ss-scene-pads, .ss-stage, .ss-compose, .ss-add-lane, .ss-midi-panel, .ss-modes, .ss-macro-controls, .ss-take-controls, .ss-performance-fx, .ss-automation-fields, .ss-generator-actions, .ss-preview, .ss-strudel-tools, .ss-designer-actions, .ss-editor-header, .ss-fx-slot header, .ss-track-menu) button, .ss-master-toggle, .ss-tour-button, .ss-midi-toggle, .ss-delete-track, .ss-design-open, .ss-fx-add):hover:not(:disabled) { filter: brightness(1.14); }
+.ss-app :is(:is(.ss-file-actions, .ss-history, .ss-transport-buttons, .ss-library-tabs, .ss-categories, .ss-library-tags, .ss-welcome, .ss-track-buttons, .ss-tour-actions, .ss-chord-pads, .ss-scene-pads, .ss-stage, .ss-compose, .ss-add-lane, .ss-midi-panel, .ss-modes, .ss-macro-controls, .ss-take-controls, .ss-performance-fx, .ss-automation-fields, .ss-generator-actions, .ss-preview, .ss-strudel-tools, .ss-designer-actions, .ss-editor-header, .ss-fx-slot header, .ss-track-menu) button, .ss-master-toggle, .ss-tour-button, .ss-midi-toggle, .ss-delete-track, .ss-design-open, .ss-fx-add):active:not(:disabled) {
+    transform: translateY(1px); filter: none; box-shadow: inset 0 2px 5px rgba(0, 0, 0, .7), 0 1px 0 rgba(255, 255, 255, .05);
+}
+.ss-app :is(:is(.ss-file-actions, .ss-history, .ss-transport-buttons, .ss-library-tabs, .ss-categories, .ss-library-tags, .ss-welcome, .ss-track-buttons, .ss-tour-actions, .ss-chord-pads, .ss-scene-pads, .ss-stage, .ss-compose, .ss-add-lane, .ss-midi-panel, .ss-modes, .ss-macro-controls, .ss-take-controls, .ss-performance-fx, .ss-automation-fields, .ss-generator-actions, .ss-preview, .ss-strudel-tools, .ss-designer-actions, .ss-editor-header, .ss-fx-slot header, .ss-track-menu) button, .ss-master-toggle, .ss-tour-button, .ss-midi-toggle, .ss-delete-track, .ss-design-open, .ss-fx-add):disabled { opacity: .42; filter: none; transform: none; }
+.ss-app :is(:is(.ss-file-actions, .ss-history, .ss-transport-buttons, .ss-library-tabs, .ss-categories, .ss-library-tags, .ss-welcome, .ss-track-buttons, .ss-tour-actions, .ss-chord-pads, .ss-scene-pads, .ss-stage, .ss-compose, .ss-add-lane, .ss-midi-panel, .ss-modes, .ss-macro-controls, .ss-take-controls, .ss-performance-fx, .ss-automation-fields, .ss-generator-actions, .ss-preview, .ss-strudel-tools, .ss-designer-actions, .ss-editor-header, .ss-fx-slot header, .ss-track-menu) button, .ss-master-toggle, .ss-tour-button, .ss-midi-toggle, .ss-delete-track, .ss-design-open, .ss-fx-add):is([aria-pressed=true], [aria-selected=true], [aria-expanded=true], .active) {
+    color: #f3fffc; background: var(--ss-key-sel); box-shadow: var(--ss-key-pressed); --ss-hover-bg: var(--ss-key-sel);
+}
+.ss-app .ss-editor-header button { min-height: 28px; padding: 0 10px; }
+.ss-app .ss-editor-header button:is([aria-pressed=true], [aria-selected=true], .active) { color: var(--ss-phosphor); }
+.ss-app .ss-track-menu button { text-align: left; }
+.ss-app .ss-track-menu button.is-danger { color: var(--ss-red); }
 
 /* ---- native range hidden, dial drawn ---- */
 .ss-app input[type=range].ss-ctl-native {
@@ -26,53 +90,66 @@
     opacity: 0; pointer-events: none; overflow: hidden;
 }
 .ss-ctl-dial { position: relative; display: inline-block; flex: none; user-select: none; touch-action: none; }
-.ss-ctl-native:focus-visible + .ss-ctl-dial { outline: 2px solid var(--ss-accent); outline-offset: 3px; }
+.ss-ctl-native:focus-visible + .ss-ctl-dial { outline: 2px solid var(--ss-phosphor); outline-offset: 3px; }
 .ss-ctl-native:disabled + .ss-ctl-dial { opacity: .4; pointer-events: none; }
 
 .ss-ctl-knob { width: 60px; height: 60px; cursor: ns-resize; border-radius: 50%; }
 .ss-ctl-knob svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.ss-ctl-groove { fill: none; stroke: var(--ss-groove); stroke-width: 4; stroke-linecap: round; }
-.ss-ctl-arc { fill: none; stroke: var(--ss-accent); stroke-width: 4; stroke-linecap: round; filter: drop-shadow(0 0 3px var(--ss-glow)); }
+.ss-ctl-groove { fill: none; stroke: rgba(255, 255, 255, .1); stroke-width: 4; stroke-linecap: round; }
+.ss-ctl-arc { fill: none; stroke: var(--ss-phosphor); stroke-width: 4; stroke-linecap: round; filter: drop-shadow(0 0 3px var(--ss-phosphor-glow)); }
 .ss-ctl-cap {
     position: absolute; inset: 11px; border-radius: 50%;
-    background: radial-gradient(circle at 34% 26%, var(--ss-cap-hi), var(--ss-cap-lo) 78%);
-    box-shadow: 0 5px 9px rgb(0 0 0 / .5), inset 0 1px 1px color-mix(in srgb, #fff 45%, transparent), inset 0 -3px 5px rgb(0 0 0 / .4);
+    background: radial-gradient(circle at 36% 26%, var(--ss-cap-hi), #2c3035 56%, var(--ss-cap-lo));
+    box-shadow: 0 4px 6px rgba(0, 0, 0, .75), 0 0 0 1px #08090a, inset 0 1px 1px rgba(255, 255, 255, .24), inset 0 -2px 3px rgba(0, 0, 0, .5);
     transform: rotate(var(--ss-a, -135deg));
+}
+.ss-ctl-cap::before {
+    content: ''; position: absolute; inset: 0; border-radius: 50%;
+    background: repeating-conic-gradient(rgba(255, 255, 255, .09) 0 4deg, transparent 4deg 12deg);
+    -webkit-mask: radial-gradient(farthest-side, transparent 66%, #000 68%); mask: radial-gradient(farthest-side, transparent 66%, #000 68%);
 }
 .ss-ctl-cap::after {
     content: ''; position: absolute; left: 50%; top: 4px; width: 3px; height: 10px; margin-left: -1.5px;
-    border-radius: 2px; background: var(--ss-accent); box-shadow: 0 0 6px var(--ss-glow);
+    border-radius: 2px; background: var(--ss-phosphor); box-shadow: 0 0 5px var(--ss-phosphor-glow);
 }
 .ss-ctl-knob.is-dragging .ss-ctl-cap { filter: brightness(1.12); }
 
 .ss-ctl-hfader { --ss-tw: 14px; --ss-th: 22px; width: 100%; min-width: 64px; height: 24px; cursor: ew-resize; }
 .ss-ctl-groove-h {
     position: absolute; left: 0; right: 0; top: 50%; height: 6px; margin-top: -3px; border-radius: 4px;
-    background: var(--ss-groove); box-shadow: inset 0 1px 3px rgb(0 0 0 / .6);
+    background: var(--ss-groove); box-shadow: inset 0 1px 1px #000, 0 1px 0 rgba(255, 255, 255, .07);
 }
 .ss-ctl-fill {
     position: absolute; left: 0; top: 50%; height: 6px; margin-top: -3px; border-radius: 4px;
-    width: calc(var(--ss-tw) / 2 + var(--ss-f, 0) * (100% - var(--ss-tw))); background: var(--ss-accent); box-shadow: 0 0 8px var(--ss-glow);
+    width: calc(var(--ss-tw) / 2 + var(--ss-f, 0) * (100% - var(--ss-tw)));
+    background: linear-gradient(90deg, var(--ss-phosphor-dim), var(--ss-phosphor)); box-shadow: 0 0 8px var(--ss-glow);
 }
 .ss-ctl-thumb {
     position: absolute; top: 50%; width: var(--ss-tw); height: var(--ss-th); margin-top: calc(var(--ss-th) / -2); border-radius: 5px;
     left: calc(var(--ss-f, 0) * (100% - var(--ss-tw)));
-    background: linear-gradient(180deg, var(--ss-cap-hi), var(--ss-cap-lo));
-    box-shadow: 0 3px 6px rgb(0 0 0 / .5), inset 0 1px 0 color-mix(in srgb, #fff 40%, transparent);
+    background: var(--ss-key); border: 1px solid #08090a; box-shadow: var(--ss-key-shadow);
+}
+.ss-ctl-hfader .ss-ctl-thumb::after {
+    content: ''; position: absolute; top: 4px; bottom: 4px; left: 50%; width: 2px; margin-left: -1px; border-radius: 1px;
+    background: var(--ss-phosphor); box-shadow: 0 0 6px var(--ss-glow);
 }
 
 /* ---- parameter cells that hold a knob ---- */
 .ss-app :is(.ss-parameter, .ss-designer-field):has(.ss-ctl-knob) {
     display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center;
-    padding: 10px 6px 8px; border-radius: 14px;
-    background: var(--ss-glass), var(--ss-card); border: 1px solid var(--ss-card-border);
-    box-shadow: var(--ss-edge);
+    padding: 10px 6px 8px; border-radius: 7px;
+    background: var(--ss-nest); border: 1px solid var(--ss-card-border);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04);
 }
-.ss-app :is(.ss-parameter, .ss-designer-field):has(.ss-ctl-knob) > span:first-child { order: 0; font-size: 11px; color: var(--ss-muted); }
+.ss-app :is(.ss-parameter, .ss-designer-field) > span:first-child {
+    font: 600 10.5px/1.15 var(--ss-label-font); letter-spacing: .13em; text-transform: uppercase; color: var(--ss-ink-soft);
+}
+.ss-app :is(.ss-parameter, .ss-designer-field):has(.ss-ctl-knob) > span:first-child { order: 0; overflow-wrap: anywhere; }
 .ss-app :is(.ss-parameter, .ss-designer-field):has(.ss-ctl-knob) .ss-ctl-dial { order: 1; }
 .ss-app :is(.ss-parameter, .ss-designer-field):has(.ss-ctl-knob) output {
-    order: 2; font: 600 12px/1 var(--vd-mat-mono-font, monospace); color: var(--ss-accent);
+    order: 2; font: 11px/1.2 var(--ss-mono-font); color: var(--ss-phosphor-dim);
 }
+.ss-app :is(.ss-parameter, .ss-designer-field):has(.ss-ctl-knob.is-dragging) output { color: var(--ss-phosphor); }
 .ss-app .ss-parameter:has(.ss-ctl-knob) [data-reset-param] {
     order: 3; min-height: 0; padding: 0 6px; font-size: 10px; opacity: 0; color: var(--ss-muted);
 }
@@ -80,26 +157,23 @@
 .ss-app .ss-parameter:has(.ss-ctl-knob):focus-within [data-reset-param] { opacity: 1; }
 .ss-app .ss-param-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 12px; }
 
-/* ---- mode bar ---- */
+/* ---- mode bar: keys with a tab LED ---- */
 .ss-app .ss-modes {
-    display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 16px;
-    background: var(--ss-bar); border-bottom: 1px solid var(--ss-line); box-shadow: var(--ss-bar-edge);
+    display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 10px 16px;
+    background: transparent; border-bottom: 1px solid var(--ss-cut); box-shadow: 0 1px 0 var(--ss-rim);
 }
-.ss-app .ss-modes button {
-    display: inline-flex; align-items: center; gap: 8px; min-height: 38px; padding: 8px 18px;
-    font-size: 14px; font-weight: 600; color: var(--ss-muted); border-radius: 12px;
-    border: 1px solid var(--ss-border); background: var(--ss-glass), var(--ss-card);
-    box-shadow: var(--ss-edge), 0 2px 5px rgb(0 0 0 / .25);
-    transition: color .15s, box-shadow .15s, transform .15s;
+.ss-app .ss-modes button { display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 0 14px 5px; font-size: 13px; }
+.ss-app :is(.ss-modes, .ss-library-tabs) button { position: relative; color: var(--ss-ink-soft); }
+.ss-app .ss-library-tabs button { padding-bottom: 8px; }
+.ss-app :is(.ss-modes, .ss-library-tabs) button::after {
+    content: ''; position: absolute; right: 9px; bottom: 5px; left: 9px; height: 3px; border-radius: 2px;
+    background: #121417; box-shadow: inset 0 1px 1px #000; transition: background .15s, box-shadow .15s;
 }
-.ss-app .ss-modes button:hover { color: var(--ss-text); }
-.ss-app .ss-modes button[aria-selected=true] {
-    color: var(--ss-text); border-color: color-mix(in srgb, var(--ss-accent) 60%, transparent);
-    background: linear-gradient(180deg, color-mix(in srgb, var(--ss-accent) 24%, transparent), color-mix(in srgb, var(--ss-accent) 8%, transparent));
-    box-shadow: var(--ss-edge), 0 0 14px var(--ss-glow);
+.ss-app :is(.ss-modes button[aria-selected=true], .ss-library-tabs button[aria-pressed=true])::after {
+    background: radial-gradient(circle at 35% 30%, #e9fffa, var(--ss-phosphor) 50%, #2aa893);
+    box-shadow: 0 0 7px var(--ss-phosphor-glow), 0 0 0 1px rgba(0, 0, 0, .6);
 }
-.ss-mode-mark { width: 8px; height: 8px; border-radius: 50%; background: color-mix(in srgb, var(--ss-muted) 60%, transparent); }
-.ss-modes button[aria-selected=true] .ss-mode-mark { background: var(--ss-accent); box-shadow: 0 0 8px var(--ss-glow); }
+.ss-mode-mark { display: none; }
 .ss-app .ss-workbench-tabs { display: none !important; }
 
 /* ---- layout per mode (replaces the old wide/stacked grid) ---- */
@@ -122,19 +196,38 @@
     box-shadow: none; background: var(--ss-glass), var(--ss-side);
     transition: transform .22s ease, visibility 0s .22s, box-shadow .22s;
 }
-.ss-app.ss-library-open .ss-library { transform: none; visibility: visible; box-shadow: var(--ss-lift); transition-delay: 0s; }
+.ss-app.ss-library-open .ss-library { transform: none; visibility: visible; box-shadow: 12px 0 25px rgba(0, 0, 0, .45); transition-delay: 0s; }
 @media (prefers-reduced-motion: reduce) { .ss-app .ss-library { transition: none; } }
 
 /* The grid and zoom controls belong to the arrangement; the drawer and sound buttons stay. */
 .ss-app:not([data-mode=arrange]) .ss-arrange-tools > :not(button) { display: none; }
 .ss-app:not([data-mode=arrange]) .ss-arrange-tools { justify-content: flex-end; }
 
-/* ---- collapsible sound-design sections ---- */
-.ss-app .ss-designer-group {
-    margin: 0 0 12px; padding: 0; border-radius: 16px; overflow: hidden;
-    background: var(--ss-glass), var(--ss-card); border: 1px solid var(--ss-card-border);
-    box-shadow: var(--ss-edge), var(--ss-lift);
+/* ---- plates: every card ---- */
+.ss-app :is(.ss-designer-group, .ss-fx-slot, .ss-welcome, .ss-insp-card, .ss-master-hero-row, .ss-preview, .ss-stage-scenes, .ss-macro, .ss-take-controls, .ss-performance-fx, .ss-automation-editor, .ss-compose .ss-harmony, .ss-compose details, .ss-compose .ss-generator-actions, .ss-strudel-tools) {
+    border-radius: 9px; background: var(--ss-card); border: 1px solid var(--ss-card-border); box-shadow: var(--ss-edge);
 }
+
+/* ---- card titles + LED dots ---- */
+.ss-app :is(.ss-inspector h3, .ss-inspector h4, .ss-designer-group h4, .ss-master-group h4, .ss-stage-heading strong, .ss-take-controls strong, .ss-performance-fx strong, .ss-automation-editor summary, .ss-compose summary) {
+    font: 600 13px/1.2 var(--ss-label-font); letter-spacing: .15em; text-transform: uppercase; color: var(--ss-ink-soft);
+}
+.ss-app :is(.ss-inspector h3, .ss-inspector h4, .ss-designer-group h4, .ss-master-group h4)::before,
+.ss-app .ss-designer .ss-designer-group h4::before {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--ss-dot, var(--ss-group-color, var(--ss-phosphor)));
+    box-shadow: 0 0 6px color-mix(in srgb, var(--ss-dot, var(--ss-group-color, var(--ss-phosphor))) 70%, transparent);
+}
+.ss-app .ss-designer .ss-designer-group:nth-child(1) { --ss-dot: var(--ss-color-0); }
+.ss-app .ss-designer .ss-designer-group:nth-child(2) { --ss-dot: var(--ss-color-1); }
+.ss-app .ss-designer .ss-designer-group:nth-child(3) { --ss-dot: var(--ss-color-2); }
+.ss-app .ss-designer .ss-designer-group:nth-child(4) { --ss-dot: var(--ss-color-3); }
+.ss-app .ss-designer .ss-designer-group:nth-child(5) { --ss-dot: var(--ss-color-4); }
+.ss-app .ss-designer .ss-designer-group:nth-child(6) { --ss-dot: var(--ss-color-5); }
+.ss-app .ss-designer .ss-designer-group:nth-child(7) { --ss-dot: var(--ss-color-6); }
+
+/* ---- collapsible sound-design sections ---- */
+.ss-app .ss-designer-group { margin: 0 0 12px; padding: 0; overflow: hidden; }
 .ss-app .ss-designer-group > summary {
     display: flex; align-items: center; justify-content: space-between; gap: 8px;
     padding: 12px 16px; cursor: pointer; list-style: none;
@@ -147,37 +240,106 @@
 }
 .ss-designer-group[open] .ss-group-chevron { transform: rotate(45deg); }
 .ss-app .ss-designer-group > .ss-param-grid { padding: 4px 16px 16px; }
-.ss-app .ss-designer-group > summary:focus-visible { outline: 2px solid var(--ss-accent); outline-offset: -2px; }
+.ss-app .ss-designer-group > summary:focus-visible { outline-offset: -2px; }
 
-/* ---- header and transport ---- */
-.ss-app .ss-header { padding: 12px 18px; gap: 16px; background: var(--ss-glass), var(--ss-bar); }
-.ss-app .ss-brand-mark { box-shadow: 0 0 14px var(--ss-glow), var(--ss-edge); }
-.ss-app .ss-transport { gap: 14px; }
-.ss-app .ss-transport-buttons { display: flex; gap: 10px; align-items: center; }
-.ss-app .ss-transport-buttons button {
-    width: 42px; height: 42px; padding: 0; border-radius: 50%; font-size: 15px;
-    border: 1px solid var(--ss-border);
-    background: radial-gradient(circle at 35% 25%, var(--ss-cap-hi), var(--ss-cap-lo) 80%);
-    box-shadow: 0 4px 9px rgb(0 0 0 / .45), inset 0 1px 1px color-mix(in srgb, #fff 40%, transparent);
+/* ---- header (= sdr-header + sdr-brand) ---- */
+.ss-app .ss-header { padding: 9px 16px; gap: 16px; background: transparent; border-bottom: 1px solid var(--ss-cut); box-shadow: 0 1px 0 var(--ss-rim); }
+.ss-app .ss-brand-mark {
+    border: 0; border-radius: 50%; color: var(--ss-phosphor); text-shadow: 0 0 4px var(--ss-phosphor-glow);
+    background: radial-gradient(circle at 35% 28%, #30363c, #121417 72%); box-shadow: inset 0 1px 1px rgba(255, 255, 255, .14), 0 1px 3px #000;
 }
-.ss-app .ss-transport-buttons button:active { transform: translateY(1px); box-shadow: 0 1px 3px rgb(0 0 0 / .5), inset 0 2px 4px rgb(0 0 0 / .4); }
-.ss-app .ss-transport-buttons .ss-play { width: 52px; height: 52px; font-size: 19px; color: var(--ss-accent); }
-.ss-app .ss-transport-buttons .ss-play.is-active { box-shadow: 0 0 18px var(--ss-glow), 0 4px 9px rgb(0 0 0 / .45); }
-.ss-app .ss-transport-buttons .ss-record { color: var(--ss-hot); }
-.ss-app .ss-transport-buttons .ss-record.is-recording { box-shadow: 0 0 18px color-mix(in srgb, var(--ss-hot) 70%, transparent); }
+.ss-app .ss-brand strong { font: 600 19px/1 var(--ss-label-font); letter-spacing: .22em; text-transform: uppercase; text-shadow: 0 1px 0 #000; color: var(--ss-ink); }
+.ss-app .ss-project-name { font-size: 10px !important; font-family: var(--ss-label-font); font-weight: 600; line-height: 1; letter-spacing: .17em; text-transform: uppercase; color: var(--ss-ink-faint); }
+.ss-app .ss-project-name:hover:not(:disabled) { background: transparent; color: var(--ss-ink-soft); }
+.ss-app .ss-file-actions { gap: 6px; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.ss-app .ss-file-actions > :is(button, select) { min-height: 32px; }
+.ss-app .ss-file-actions > select, .ss-app .ss-strudel-tools select {
+    appearance: none; -webkit-appearance: none; padding: 0 28px 0 12px; cursor: pointer; color: var(--ss-ink);
+    border: 1px solid #08090a; border-radius: var(--ss-key-radius); box-shadow: var(--ss-key-shadow);
+    font-family: var(--ss-label-font); font-weight: 600; letter-spacing: .09em; text-transform: uppercase;
+    background:
+        linear-gradient(45deg, transparent 50%, var(--ss-ink-soft) 50%) calc(100% - 15px) 50% / 5px 5px no-repeat,
+        linear-gradient(-45deg, transparent 50%, var(--ss-ink-soft) 50%) calc(100% - 10px) 50% / 5px 5px no-repeat,
+        var(--ss-key);
+}
+.ss-app .ss-file-actions > select:hover:not(:disabled), .ss-app .ss-strudel-tools select:hover:not(:disabled) { filter: brightness(1.14); }
+.ss-app .ss-master-toggle { padding: 0 16px; min-height: 36px; }
+
+/* ---- transport ---- */
+.ss-app .ss-transport { gap: 14px; background: transparent; border-bottom: 1px solid var(--ss-cut); box-shadow: 0 1px 0 var(--ss-rim); }
+.ss-app .ss-transport-buttons { display: flex; gap: 6px; align-items: center; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
+.ss-app .ss-transport-buttons button { width: 40px; height: 36px; padding: 0; font-size: 15px; color: var(--ss-ink); }
+.ss-app .ss-transport-buttons button.ss-play { width: 56px; color: var(--ss-phosphor); background: var(--ss-key); }
+.ss-app .ss-transport-buttons button.ss-play.is-active {
+    color: var(--ss-green); text-shadow: 0 0 6px rgba(125, 234, 156, .7); background: var(--ss-key-sel);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, .6), inset 0 0 0 1px rgba(125, 234, 156, .35), 0 0 14px rgba(125, 234, 156, .16);
+}
+.ss-app .ss-transport-buttons button.ss-record { color: var(--ss-red); }
+.ss-app .ss-transport-buttons button.ss-record.is-recording {
+    background: var(--ss-key-sel) !important; color: var(--ss-red) !important; text-shadow: 0 0 6px rgba(255, 99, 85, .8);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, .6), inset 0 0 0 1px rgba(255, 99, 85, .5), 0 0 14px rgba(255, 99, 85, .25);
+}
 .ss-app .ss-position {
-    font: 700 20px/1 var(--vd-mat-mono-font, monospace); letter-spacing: 1px; padding: 8px 14px; border-radius: 10px;
-    background: var(--ss-recess); box-shadow: var(--ss-well-in); color: var(--ss-accent);
+    margin: 4px; padding: 6px 12px; border: 1px solid #000; border-radius: 6px; background: var(--ss-screen);
+    box-shadow: 0 0 0 3px #0c0e10, 0 0 0 4px rgba(255, 255, 255, .1), inset 0 0 18px rgba(0, 0, 0, .85), inset 0 2px 6px #000;
+    font: 24px/1 var(--ss-mono-font); letter-spacing: 0; color: var(--ss-phosphor); filter: drop-shadow(0 0 .1em rgba(134, 243, 223, .42));
 }
-.ss-app .ss-tempo input { width: 76px; font: 700 18px/1 var(--vd-mat-mono-font, monospace); text-align: center; }
+.ss-app .ss-transport label, .ss-app .ss-transport .ss-tempo span { font: 600 10.5px/1 var(--ss-label-font); letter-spacing: .18em; text-transform: uppercase; color: var(--ss-ink-faint); }
+.ss-app .ss-tempo input { width: 76px; font-family: var(--ss-mono-font); font-weight: 400; color: var(--ss-phosphor); text-align: center; }
+.ss-app .ss-loop-range input { font-family: var(--ss-mono-font); }
+.ss-app .ss-time-signature { font: 13px var(--ss-mono-font); color: var(--ss-phosphor-dim); }
+.ss-app .ss-analyser {
+    border: 0; border-radius: 6px; background: var(--ss-scope-bg);
+    box-shadow: inset 0 0 0 1px rgba(134, 243, 223, .16), inset 0 0 22px #000;
+    outline: 1px solid rgba(134, 243, 223, .16); outline-offset: -1px; /* the canvas paints over an inset shadow */
+}
+
+/* toggle keys with an LED: metronome, loop, macro and generator switches */
+.ss-app :is(.ss-transport > label, .ss-macro-controls label, .ss-generator-controls label):has(> input[type=checkbox]) {
+    position: relative; flex-direction: row; align-items: center; gap: 8px; min-height: 34px; padding: 0 12px;
+    border: 1px solid #08090a; border-radius: var(--ss-key-radius); background: var(--ss-key); box-shadow: var(--ss-key-shadow);
+    color: var(--ss-ink); font: 600 12px/1 var(--ss-label-font); letter-spacing: .09em; text-transform: uppercase; white-space: nowrap; cursor: pointer; user-select: none;
+    transition: transform .08s ease-out, box-shadow .08s ease-out, filter .15s, color .15s;
+}
+.ss-app :is(.ss-transport > label, .ss-macro-controls label, .ss-generator-controls label):has(> input[type=checkbox]):hover { filter: brightness(1.14); }
+.ss-app :is(.ss-transport > label, .ss-macro-controls label, .ss-generator-controls label):has(> input[type=checkbox]:active) { transform: translateY(1px); filter: none; box-shadow: inset 0 2px 5px rgba(0, 0, 0, .7), 0 1px 0 rgba(255, 255, 255, .05); }
+.ss-app :is(.ss-transport > label, .ss-macro-controls label, .ss-generator-controls label):has(> input[type=checkbox]:checked) { color: #f3fffc; background: var(--ss-key-sel); box-shadow: var(--ss-key-pressed); }
+.ss-app :is(.ss-transport > label, .ss-macro-controls label, .ss-generator-controls label):has(> input[type=checkbox]:focus-visible) { outline: 2px solid var(--ss-phosphor); outline-offset: 2px; }
+.ss-app :is(.ss-transport > label, .ss-macro-controls label, .ss-generator-controls label):has(> input[type=checkbox]) > input[type=checkbox] {
+    appearance: none; -webkit-appearance: none; flex: none; width: 7px; height: 7px; margin: 0; padding: 0; border: 0; border-radius: 50%; outline: 0; cursor: inherit;
+    background: #14171a; box-shadow: inset 0 1px 2px #000, 0 0 0 1px rgba(0, 0, 0, .6), 0 1px 0 rgba(255, 255, 255, .08);
+    transition: background .15s, box-shadow .15s;
+}
+.ss-app :is(.ss-transport > label, .ss-macro-controls label, .ss-generator-controls label):has(> input[type=checkbox]) > input[type=checkbox]:checked {
+    background: radial-gradient(circle at 35% 30%, #e9fffa, var(--ss-phosphor) 50%, #2aa893); box-shadow: 0 0 7px var(--ss-phosphor-glow), 0 0 0 1px rgba(0, 0, 0, .6);
+}
+
+/* ---- output meter: segmented phosphor bar ---- */
+.ss-app .ss-output-meter {
+    padding: 0; gap: 8px; color: var(--ss-ink-faint); background: none; border: 0; box-shadow: none;
+    font: 600 10.5px/1 var(--ss-label-font); letter-spacing: .18em; text-transform: uppercase;
+}
+.ss-app .ss-output-meter meter {
+    width: 96px; height: 12px; border: 0; border-radius: 0; overflow: visible; box-shadow: none;
+    background: repeating-linear-gradient(90deg, var(--ss-ghost) 0 5px, transparent 5px 8px);
+}
+.ss-app .ss-output-meter meter::-webkit-meter-bar { height: 12px; border: 0; background: transparent; }
+.ss-app .ss-output-meter meter::-webkit-meter-optimum-value,
+.ss-app .ss-output-meter meter::-webkit-meter-suboptimum-value,
+.ss-app .ss-output-meter meter::-webkit-meter-even-less-good-value {
+    border-radius: 0; box-shadow: none; filter: drop-shadow(0 0 4px rgba(134, 243, 223, .45));
+    background: linear-gradient(90deg, var(--ss-phosphor) 0 64%, var(--ss-amber) 64% 85%, var(--ss-red) 85%) left / 96px 100% no-repeat;
+    -webkit-mask: repeating-linear-gradient(90deg, #000 0 5px, transparent 5px 8px); mask: repeating-linear-gradient(90deg, #000 0 5px, transparent 5px 8px);
+}
+.ss-app .ss-output-meter meter::-moz-meter-bar {
+    border-radius: 0; background: linear-gradient(90deg, var(--ss-phosphor) 0 64%, var(--ss-amber) 64% 85%, var(--ss-red) 85%) left / 96px 100% no-repeat;
+}
+.ss-app .is-clipping [data-clip-light] { color: var(--ss-red); text-shadow: 0 0 8px rgba(255, 99, 85, .6); }
 
 /* ---- inspector and FX cards ---- */
 .ss-app .ss-inspector { padding: 20px 22px; }
 .ss-app .ss-sound-workbench .ss-param-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 14px; }
-.ss-app .ss-fx-slot {
-    margin: 0 0 14px; padding: 12px 14px; border-radius: 16px;
-    background: var(--ss-glass), var(--ss-card); border: 1px solid var(--ss-card-border); box-shadow: var(--ss-edge), var(--ss-lift);
-}
+.ss-app .ss-fx-slot { margin: 0 0 14px; padding: 12px 14px; border-left: 3px solid var(--ss-fx-color, var(--ss-card-border)); }
 .ss-app .ss-fx-params { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 12px; margin-top: 10px; }
 .ss-app .ss-master-panel .ss-parameter:has(.ss-ctl-knob) { min-width: 0; }
 
@@ -186,28 +348,17 @@
 .ss-app .ss-track-head .ss-ctl-groove-h, .ss-app .ss-track-head .ss-ctl-fill { height: 8px; margin-top: -4px; }
 
 /* ---- spacing for the empty states and the welcome card ---- */
-.ss-app .ss-welcome { padding: 18px 22px; border-radius: 18px; background: var(--ss-glass), var(--ss-card); box-shadow: var(--ss-edge), var(--ss-lift); }
+.ss-app .ss-welcome { padding: 18px 22px; }
 
-/* ---- refinement after comparing with the reference ---- */
-/* Play is a glass cap with a teal ring (not a flat primary fill); Record keeps the orange. */
-.ss-app .ss-transport-buttons button.ss-play {
-    background: radial-gradient(circle at 35% 25%, color-mix(in srgb, var(--ss-accent) 38%, var(--ss-cap-hi)), color-mix(in srgb, var(--ss-accent) 22%, var(--ss-cap-lo)) 82%);
-    color: color-mix(in srgb, var(--ss-accent) 80%, #fff); border-color: color-mix(in srgb, var(--ss-accent) 70%, transparent);
-    box-shadow: 0 0 14px color-mix(in srgb, var(--ss-accent) 45%, transparent), 0 4px 9px rgb(0 0 0 / .45), inset 0 1px 1px color-mix(in srgb, #fff 45%, transparent);
-}
-.ss-app .ss-transport-buttons button.ss-play.is-active { box-shadow: 0 0 22px var(--ss-glow), 0 0 4px var(--ss-accent), 0 4px 9px rgb(0 0 0 / .45); }
-.ss-app .ss-transport-buttons button.ss-record.is-recording {
-    background: radial-gradient(circle at 35% 25%, color-mix(in srgb, var(--ss-hot) 60%, #fff), var(--ss-hot) 85%) !important; color: #3a1700 !important;
-}
-.ss-app .ss-transport-buttons button.ss-record { border-color: color-mix(in srgb, var(--ss-hot) 55%, transparent); }
 /* Sound/Perform/Strudel: the tools strip only keeps its two icon buttons; take it out of the flow's way. */
 .ss-app:not([data-mode=arrange]) .ss-arrange-tools { padding-block: 4px; min-height: 0; border-bottom: 0; background: transparent; }
 .ss-app:not([data-mode=arrange]) .ss-arrange-tools > span { display: none; }
 
-/* ---- sound mode: responsive columns of glass cards ---- */
+/* ---- sound mode: responsive columns of plates ---- */
 .ss-app .ss-insp-card > input { width: 100%; margin-bottom: 14px; }
 .ss-app .ss-insp-card > label {
-    display: flex; flex-direction: column; gap: 6px; color: var(--ss-muted); font-size: 10px; margin-bottom: 14px;
+    display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px;
+    color: var(--ss-ink-soft); font: 600 10.5px/1.15 var(--ss-label-font); letter-spacing: .13em; text-transform: uppercase;
 }
 
 .ss-app .ss-sound-workbench .ss-inspector:not(:has(> .ss-designer)) {
@@ -215,16 +366,12 @@
     gap: 16px; align-content: start; align-items: start;
 }
 .ss-app .ss-sound-workbench .ss-inspector:not(:has(> .ss-designer)) > :is(.ss-mini-keys, .ss-delete-track, .ss-help, .ss-insp-fx) { grid-column: 1 / -1; }
-.ss-app .ss-sound-workbench .ss-insp-card {
-    min-width: 0; padding: 14px 16px 16px; border-radius: 16px;
-    background: var(--ss-glass), var(--ss-card); border: 1px solid var(--ss-card-border);
-    box-shadow: var(--ss-edge), var(--ss-lift);
-}
+.ss-app .ss-sound-workbench .ss-insp-card { min-width: 0; padding: 14px 16px 16px; }
 .ss-app .ss-insp-card > h3, .ss-app .ss-insp-card > h4 { margin: 0 0 12px; }
 .ss-app .ss-insp-card .ss-param-grid { margin-bottom: 0; }
 .ss-app .ss-sound-workbench .ss-insp-card .ss-fx-rack,
 .ss-app .ss-sound-workbench .ss-insp-card .ss-fx-rack:empty { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 14px; align-items: start; }
-.ss-app .ss-sound-workbench .ss-insp-fx .ss-fx-slot { margin: 0; background: var(--ss-glass), var(--ss-nest); box-shadow: var(--ss-edge); }
+.ss-app .ss-sound-workbench .ss-insp-fx .ss-fx-slot { margin: 0; border-radius: 7px; background: var(--ss-nest); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04); }
 .ss-app .ss-sound-workbench .ss-insp-fx .ss-fx-add { margin-top: 14px; }
 /* knobs sit directly on the card instead of in a second card */
 .ss-app .ss-sound-workbench :is(.ss-insp-card, .ss-designer-group, .ss-fx-slot) :is(.ss-parameter, .ss-designer-field):has(.ss-ctl-knob) {
@@ -238,213 +385,70 @@
 .ss-app .ss-sound-workbench .ss-designer > :not(.ss-designer-group) { grid-column: 1 / -1; margin-block: 0; }
 .ss-app .ss-sound-workbench .ss-designer .ss-designer-group { margin: 0; }
 
-/* ---- header: one glass language for file actions, transport, master and meters ---- */
-.ss-app {
-    --ss-pill-bg: linear-gradient(180deg, color-mix(in srgb, #000 38%, var(--ss-panel)), color-mix(in srgb, #000 24%, var(--ss-panel)));
-    --ss-well-in: inset 0 2px 5px rgb(0 0 0 / .55), inset 0 -1px 0 color-mix(in srgb, var(--ss-text) 8%, transparent);
-}
-.ss-app .ss-transport-buttons {
-    gap: 6px; padding: 5px 9px; border-radius: 999px;
-    background: var(--ss-pill-bg); border: 1px solid color-mix(in srgb, var(--ss-text) 12%, transparent);
-    box-shadow: var(--ss-well-in), 0 1px 0 color-mix(in srgb, var(--ss-text) 10%, transparent);
-}
-.ss-app .ss-transport-buttons button {
-    width: 36px; height: 36px; font-size: 13px;
-    background: radial-gradient(circle at 35% 25%, var(--ss-round-hi), var(--ss-round-lo) 85%);
-    border-color: color-mix(in srgb, var(--ss-text) 14%, transparent);
-}
-/* Play: a round glowing teal ring */
-.ss-app .ss-transport-buttons button.ss-play {
-    width: 50px; height: 50px; font-size: 18px; margin-inline: 2px;
-    color: var(--ss-play-ink); border: 2px solid var(--ss-accent);
-    background: radial-gradient(circle at 50% 38%, var(--ss-play-hi), var(--ss-play-lo) 80%);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ss-accent) 18%, transparent), 0 0 16px var(--ss-glow), inset 0 0 10px color-mix(in srgb, var(--ss-accent) 40%, transparent);
-}
-.ss-app .ss-transport-buttons button.ss-play.is-active {
-    box-shadow: 0 0 0 4px color-mix(in srgb, var(--ss-accent) 30%, transparent), 0 0 26px var(--ss-glow), inset 0 0 14px color-mix(in srgb, var(--ss-accent) 55%, transparent);
-}
-.ss-app .ss-transport-buttons button.ss-record { border-color: color-mix(in srgb, var(--ss-hot) 60%, transparent); }
-
-.ss-app .ss-file-actions {
-    gap: 4px; padding: 4px 6px; border-radius: 12px;
-    background: var(--ss-pill-bg); border: 1px solid color-mix(in srgb, var(--ss-text) 12%, transparent);
-    box-shadow: var(--ss-well-in);
-}
-.ss-app .ss-file-actions > :is(button, select),
-.ss-app .ss-master-toggle {
-    min-height: 32px; border-radius: 9px; color: var(--ss-text);
-    border: 1px solid color-mix(in srgb, var(--ss-text) 16%, transparent);
-    background: var(--ss-glass), color-mix(in srgb, var(--ss-text) 7%, var(--ss-panel));
-    box-shadow: var(--ss-edge), 0 2px 4px rgb(0 0 0 / .28);
-}
-.ss-app .ss-file-actions > button:hover:not(:disabled),
-.ss-app .ss-master-toggle:hover:not(:disabled) { background: var(--ss-glass), color-mix(in srgb, var(--ss-accent) 16%, var(--ss-panel)); }
-.ss-app .ss-file-actions > select {
-    appearance: none; -webkit-appearance: none; padding: 0 28px 0 12px; cursor: pointer;
-    background:
-        linear-gradient(45deg, transparent 50%, var(--ss-muted) 50%) calc(100% - 15px) 50% / 5px 5px no-repeat,
-        linear-gradient(-45deg, transparent 50%, var(--ss-muted) 50%) calc(100% - 10px) 50% / 5px 5px no-repeat,
-        var(--ss-glass), color-mix(in srgb, var(--ss-text) 7%, var(--ss-panel));
-}
-.ss-app .ss-file-actions > select option { background: var(--ss-panel); color: var(--ss-text); }
-.ss-app .ss-master-toggle { padding: 0 16px; font-weight: 700; letter-spacing: .3px; min-height: 36px; border-radius: 18px; }
-.ss-app .ss-master-toggle[aria-expanded=true] {
-    border-color: color-mix(in srgb, var(--ss-accent) 65%, transparent); box-shadow: var(--ss-edge), 0 0 12px var(--ss-glow);
-}
-
-/* meters sit in recessed wells */
-.ss-app .ss-output-meter {
-    padding: 6px 10px; border-radius: 10px; gap: 8px; color: var(--ss-muted);
-    background: var(--ss-pill-bg); border: 1px solid color-mix(in srgb, var(--ss-text) 10%, transparent); box-shadow: var(--ss-well-in);
-}
-.ss-app .ss-output-meter meter {
-    width: 96px; height: 10px; border: 0; border-radius: 3px;
-    background: var(--ss-recess-deep); box-shadow: inset 0 1px 3px rgb(0 0 0 / .8);
-}
-.ss-app .ss-output-meter meter::-webkit-meter-bar { background: transparent; border: 0; height: 10px; }
-.ss-app .ss-output-meter meter::-webkit-meter-optimum-value,
-.ss-app .ss-output-meter meter::-webkit-meter-suboptimum-value,
-.ss-app .ss-output-meter meter::-webkit-meter-even-less-good-value { border-radius: 3px; box-shadow: 0 0 6px color-mix(in srgb, var(--ss-meter) 55%, transparent); }
-.ss-app .ss-analyser { border-radius: 10px; border-color: color-mix(in srgb, var(--ss-text) 10%, transparent); box-shadow: var(--ss-well-in); }
-
-/* ---- perform mode: macro knobs and raised scene pads ---- */
-.ss-app .ss-macro-controls { display: grid; grid-template-columns: repeat(2, 96px); gap: 8px 12px; align-items: start; }
+/* ---- perform mode: macro knobs and scene pads ---- */
+.ss-app .ss-macro-controls { display: grid; grid-template-columns: repeat(2, 112px); gap: 12px; align-items: start; }
 .ss-app .ss-macro-controls > :not(label:has(.ss-ctl-knob)) { grid-column: 1 / -1; justify-self: start; }
-.ss-app .ss-macro-controls label:has(.ss-ctl-knob) {
+.ss-app :is(.ss-macro-controls, .ss-generator-controls) label:has(.ss-ctl-knob) {
     flex-direction: column; flex-wrap: nowrap; justify-content: flex-start; align-items: center; gap: 4px; text-align: center;
-    padding: 10px 6px 8px; border-radius: 14px; font-size: 11px; color: var(--ss-muted);
-    background: var(--ss-glass), var(--ss-card); border: 1px solid var(--ss-card-border); box-shadow: var(--ss-edge);
+    padding: 12px 8px 10px; border-radius: 7px;
+    font: 600 10.5px/1.15 var(--ss-label-font); letter-spacing: .13em; text-transform: uppercase; color: var(--ss-ink-soft);
+    background: var(--ss-nest); border: 1px solid var(--ss-card-border); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04);
 }
-.ss-app .ss-macro-controls .ss-ctl-dial { order: 1; }
-.ss-app .ss-macro-controls output { order: 2; font: 600 12px/1 var(--vd-mat-mono-font, monospace); color: var(--ss-accent); }
+.ss-app :is(.ss-macro-controls, .ss-generator-controls) .ss-ctl-dial { order: 1; }
+.ss-app :is(.ss-macro-controls, .ss-generator-controls) output { order: 2; font: 11px/1.2 var(--ss-mono-font); color: var(--ss-phosphor-dim); }
 .ss-app .ss-macro-controls input[type=range].ss-ctl-native { width: 1px; }
-.ss-app .ss-xy { border-radius: 14px; box-shadow: var(--ss-well-in), var(--ss-edge); }
-.ss-app .ss-scene-pads button {
-    border-radius: 12px; border: 1px solid color-mix(in srgb, var(--ss-text) 14%, transparent);
-    background: var(--ss-glass), linear-gradient(180deg, color-mix(in srgb, var(--ss-scene-color, var(--ss-muted)) 24%, var(--ss-panel)), color-mix(in srgb, var(--ss-scene-color, var(--ss-muted)) 8%, var(--ss-panel)));
-    box-shadow: var(--ss-edge), inset 0 -3px 0 color-mix(in srgb, var(--ss-scene-color, var(--ss-muted)) 55%, transparent), 0 4px 8px rgb(0 0 0 / .3);
-    transition: transform .12s, box-shadow .12s;
+.ss-app .ss-xy {
+    width: 100%; height: auto; min-height: 176px; aspect-ratio: 4 / 3; flex: none; border: 0; border-radius: 6px;
+    background:
+        linear-gradient(90deg, transparent 49.6%, rgba(134, 243, 223, .2) 50%, transparent 50.4%),
+        linear-gradient(0deg, transparent 49.6%, rgba(134, 243, 223, .2) 50%, transparent 50.4%),
+        var(--ss-scope-bg);
+    box-shadow: inset 0 0 0 1px rgba(134, 243, 223, .16), inset 0 0 22px #000;
 }
-.ss-app .ss-scene-pads button:hover:not(:disabled) { transform: translateY(-1px); }
-.ss-app .ss-scene-pads button:active:not(:disabled) { transform: translateY(1px); box-shadow: var(--ss-edge), 0 1px 2px rgb(0 0 0 / .4); }
-.ss-app .ss-scene-pads button.active {
-    background: var(--ss-glass), linear-gradient(180deg, color-mix(in srgb, var(--ss-scene-color, var(--ss-accent)) 92%, #fff), var(--ss-scene-color, var(--ss-accent)));
-    box-shadow: var(--ss-edge), 0 0 16px color-mix(in srgb, var(--ss-scene-color, var(--ss-accent)) 65%, transparent);
-}
-.ss-app .ss-chord-pads button { border-radius: 12px; box-shadow: var(--ss-edge), 0 3px 6px rgb(0 0 0 / .25); }
-@media (prefers-reduced-motion: reduce) { .ss-app .ss-scene-pads button { transition: none; } }
+.ss-app .ss-xy-dot { background: var(--ss-phosphor); box-shadow: 0 0 0 5px rgba(134, 243, 223, .16), 0 0 14px var(--ss-phosphor-glow); }
+.ss-app .ss-macro-controls .ss-ctl-knob { width: 76px; height: 76px; }
+.ss-app .ss-macro-controls .ss-ctl-cap { inset: 14px; }
+.ss-app .ss-macro-controls .ss-ctl-cap::after { top: 5px; height: 13px; }
+.ss-app .ss-macro-controls output { font-size: 12px; }
 
-/* ---- light schemes: the dark shading tokens flip to soft paper, lift and glass ---- */
-[data-scheme="light"] .ss-app {
-    --ss-lift: 0 8px 20px rgb(30 45 70 / .13), 0 1px 3px rgb(30 45 70 / .12);
-    --ss-edge: inset 0 1px 0 rgb(255 255 255 / .8), inset 0 -1px 0 rgb(30 45 70 / .08);
-    --ss-glass: linear-gradient(180deg, rgb(255 255 255 / .75), rgb(255 255 255 / .2));
-    --ss-glow: color-mix(in srgb, var(--ss-accent) 45%, transparent);
-    --ss-cap-hi: color-mix(in srgb, #fff 92%, var(--ss-panel));
-    --ss-cap-lo: color-mix(in srgb, var(--ss-text) 32%, var(--ss-panel));
-    --ss-groove: color-mix(in srgb, var(--ss-text) 17%, var(--ss-panel));
-    --ss-recess: color-mix(in srgb, var(--ss-text) 7%, var(--ss-panel));
-    --ss-recess-deep: color-mix(in srgb, var(--ss-text) 15%, var(--ss-panel));
-    --ss-nest: color-mix(in srgb, var(--ss-text) 5%, var(--ss-card));
-    --ss-round-hi: #fff;
-    --ss-round-lo: color-mix(in srgb, var(--ss-text) 14%, var(--ss-panel));
-    --ss-play-hi: color-mix(in srgb, var(--ss-accent) 14%, #fff);
-    --ss-play-lo: color-mix(in srgb, var(--ss-accent) 30%, #fff);
-    --ss-play-ink: var(--ss-accent);
-    --ss-pill-bg: linear-gradient(180deg, color-mix(in srgb, var(--ss-text) 11%, var(--ss-panel)), color-mix(in srgb, var(--ss-text) 5%, var(--ss-panel)));
-    --ss-well-in: inset 0 2px 4px rgb(30 45 70 / .18), inset 0 -1px 0 rgb(255 255 255 / .7);
+/* scene + chord pads: keys with an LED, pressed + lit when active */
+.ss-app .ss-scene-pads, .ss-app .ss-chord-pads { gap: 12px; margin: 14px 0 0; }
+.ss-app .ss-chord-pads { margin: 0; }
+.ss-app :is(.ss-scene-pads, .ss-chord-pads) button {
+    position: relative; min-height: 92px; padding: 22px 8px 10px; gap: 6px; align-items: center; justify-content: center; text-align: center;
+    border-radius: 7px; letter-spacing: .04em; text-transform: none;
 }
-[data-scheme="light"] .ss-app .ss-ctl-cap { box-shadow: 0 4px 8px rgb(30 45 70 / .3), inset 0 1px 1px #fff, inset 0 -3px 5px rgb(30 45 70 / .18); }
-[data-scheme="light"] .ss-app .ss-ctl-thumb { box-shadow: 0 2px 5px rgb(30 45 70 / .3), inset 0 1px 0 #fff; }
-[data-scheme="light"] .ss-app .ss-ctl-groove-h, [data-scheme="light"] .ss-app .ss-output-meter meter { box-shadow: inset 0 1px 3px rgb(30 45 70 / .3); }
-[data-scheme="light"] .ss-app .ss-transport-buttons button { box-shadow: 0 2px 5px rgb(30 45 70 / .25), inset 0 1px 1px #fff; }
-[data-scheme="light"] .ss-app .ss-transport-buttons button.ss-play { box-shadow: 0 0 0 3px color-mix(in srgb, var(--ss-accent) 14%, transparent), 0 0 12px var(--ss-glow), inset 0 0 8px color-mix(in srgb, var(--ss-accent) 25%, transparent); }
-[data-scheme="light"] .ss-app .ss-file-actions > :is(button, select), [data-scheme="light"] .ss-app .ss-master-toggle { background-color: #fff; box-shadow: var(--ss-edge), 0 1px 3px rgb(30 45 70 / .18); }
-[data-scheme="light"] .ss-app .ss-scene-pads button { box-shadow: var(--ss-edge), inset 0 -3px 0 color-mix(in srgb, var(--ss-scene-color, var(--ss-muted)) 55%, transparent), 0 3px 6px rgb(30 45 70 / .16); }
-[data-scheme="light"] .ss-app .ss-scene-pads button:not(.active) span { color: color-mix(in srgb, var(--ss-text) 72%, transparent); }
+.ss-app .ss-chord-pads button { --ss-scene-color: var(--ss-chord-color, var(--ss-accent)); }
+.ss-app :is(.ss-scene-pads, .ss-chord-pads) button::before {
+    content: ''; position: absolute; top: 10px; left: 12px; width: 7px; height: 7px; border-radius: 50%;
+    background: color-mix(in srgb, var(--ss-scene-color, var(--ss-muted)) 25%, #000); box-shadow: inset 0 1px 2px #000, 0 0 0 1px rgba(0, 0, 0, .6);
+    transition: background .15s, box-shadow .15s;
+}
+.ss-app :is(.ss-scene-pads, .ss-chord-pads) strong { font-size: 15px; max-width: 100%; text-transform: none; letter-spacing: .02em; }
+.ss-app .ss-scene-pads span, .ss-app .ss-chord-pads span { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; opacity: .8; }
+.ss-app .ss-scene-pads button.active, .ss-app .ss-chord-pads button[aria-pressed=true] {
+    color: #f3fffc; border-color: #08090a; background: var(--ss-key-sel); --ss-hover-bg: var(--ss-key-sel);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, .6), inset 0 0 0 1px color-mix(in srgb, var(--ss-scene-color) 70%, transparent), 0 1px 0 rgba(255, 255, 255, .05);
+}
+.ss-app :is(.ss-scene-pads button.active, .ss-chord-pads button[aria-pressed=true])::before {
+    background: radial-gradient(circle at 35% 30%, #fff, var(--ss-scene-color) 55%, color-mix(in srgb, var(--ss-scene-color) 60%, #000));
+    box-shadow: 0 0 8px var(--ss-scene-color), 0 0 0 1px rgba(0, 0, 0, .6);
+}
+.ss-app :is(.ss-scene-pads button.active, .ss-chord-pads button[aria-pressed=true]) strong {
+    color: var(--ss-scene-color); text-shadow: 0 0 8px color-mix(in srgb, var(--ss-scene-color) 70%, transparent);
+}
+.ss-app .ss-scene-pads button.queued { border: 1px dashed var(--ss-amber); }
+.ss-app .ss-scene-pads button.queued::before { background: var(--ss-amber); box-shadow: 0 0 8px var(--ss-amber); animation: ss-blink 1.2s steps(2, jump-none) infinite; }
+.ss-app .ss-scene-pads button.is-selected { outline: 2px solid color-mix(in srgb, var(--ss-text) 70%, transparent); outline-offset: 3px; }
+.ss-app .ss-scene-pads button:not([data-scene]) {
+    background: transparent; box-shadow: none; border: 1px dashed rgba(255, 255, 255, .13); opacity: .75; min-height: 76px;
+}
+.ss-app .ss-scene-pads button:not([data-scene])::before { display: none; }
+.ss-app .ss-scene-pads button:not([data-scene]) span { visibility: hidden; }
+.ss-app .ss-scene-pads button:not([data-scene]) strong { color: var(--ss-ink-faint); }
 
-/* ---- master hero: big volume knob with dB readout and a segmented LED meter ---- */
-.ss-app .ss-master-panel .ss-master-fields > .ss-master-hero-row {
-    grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; gap: 22px;
-    padding: 14px 18px; border-radius: 18px;
-    background: radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--ss-accent) 14%, transparent), transparent 70%), var(--ss-glass), var(--ss-card);
-    border: 1px solid var(--ss-card-border); box-shadow: var(--ss-edge), var(--ss-lift);
-}
-.ss-app .ss-master-panel .ss-master-hero-row > .ss-master-hero {
-    position: relative; flex: none; width: auto; padding: 0; gap: 8px; background: none; border: 0; box-shadow: none;
-}
-.ss-app .ss-master-hero > span:first-child { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; }
-.ss-app .ss-master-hero .ss-ctl-knob { width: 116px; height: 116px; }
-.ss-app .ss-master-hero .ss-ctl-cap { inset: 21px; box-shadow: 0 9px 16px rgb(0 0 0 / .55), 0 0 22px color-mix(in srgb, var(--ss-accent) 18%, transparent), inset 0 1px 2px color-mix(in srgb, #fff 45%, transparent), inset 0 -6px 9px rgb(0 0 0 / .4); }
-.ss-app .ss-master-hero .ss-ctl-cap::after { top: 8px; width: 4px; height: 20px; margin-left: -2px; }
-.ss-app .ss-master-hero .ss-ctl-groove, .ss-app .ss-master-hero .ss-ctl-arc { stroke-width: 3.4; }
-.ss-app .ss-master-panel .ss-master-hero output {
-    min-width: 92px; padding: 5px 12px; border-radius: 9px; text-align: center; font-size: 19px; letter-spacing: .5px;
-    background: var(--ss-recess); box-shadow: var(--ss-well-in); text-shadow: 0 0 10px var(--ss-glow);
-}
-.ss-led-meter {
-    --ss-led-green: var(--ss-meter, #3fe0b0); --ss-led-amber: #f0b43c; --ss-led-red: #ff5a4a;
-    display: flex; flex-direction: column-reverse; gap: 3px; width: 16px; height: 128px; flex: none; padding: 5px 4px; border-radius: 8px;
-    background: var(--ss-pill-bg); border: 1px solid color-mix(in srgb, var(--ss-text) 10%, transparent); box-shadow: var(--ss-well-in);
-}
-.ss-led-seg { flex: 1 1 0; display: block; border-radius: 2px; background: color-mix(in srgb, var(--ss-led-c) 14%, var(--ss-recess-deep)); --ss-led-c: var(--ss-led-green); }
-.ss-led-seg[data-tone=a] { --ss-led-c: var(--ss-led-amber); }
-.ss-led-seg[data-tone=r] { --ss-led-c: var(--ss-led-red); }
-.ss-led-seg.is-on { background: var(--ss-led-c); box-shadow: 0 0 6px color-mix(in srgb, var(--ss-led-c) 75%, transparent); }
-[data-scheme="light"] .ss-app .ss-led-seg.is-on { box-shadow: 0 0 4px color-mix(in srgb, var(--ss-led-c) 55%, transparent); }
-
-/* ---- response curves: EQ, filter, envelope (pure SVG read-outs) ---- */
-.ss-curve {
-    display: block; width: 100%; height: 84px; border-radius: 12px; overflow: hidden;
-    background: linear-gradient(180deg, color-mix(in srgb, var(--ss-accent) 7%, var(--ss-recess)), var(--ss-recess)); box-shadow: var(--ss-well-in);
-}
-.ss-curve-grid line { stroke: color-mix(in srgb, var(--ss-text) 9%, transparent); stroke-width: 1; vector-effect: non-scaling-stroke; }
-.ss-curve-grid .ss-curve-zero { stroke: color-mix(in srgb, var(--ss-text) 22%, transparent); }
-.ss-curve-fill { fill: color-mix(in srgb, var(--ss-accent) 18%, transparent); stroke: none; }
-.ss-curve-line {
-    fill: none; stroke: var(--ss-accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round;
-    vector-effect: non-scaling-stroke; filter: drop-shadow(0 0 3px var(--ss-glow));
-}
-.ss-curve-marker { stroke: var(--ss-hot); stroke-width: 1; stroke-dasharray: 3 3; opacity: .85; vector-effect: non-scaling-stroke; }
-.ss-app .ss-master-group > .ss-curve { margin-top: 10px; }
-.ss-app .ss-designer-group > .ss-curve { width: calc(100% - 32px); margin: 0 16px 6px; }
-[data-scheme="light"] .ss-app .ss-curve-line { filter: none; }
-
-/* ---- vertical faders (designer envelope) ---- */
-.ss-ctl-vfader { --ss-tw: 26px; --ss-th: 16px; width: 30px; height: 118px; cursor: ns-resize; }
-.ss-ctl-groove-v {
-    position: absolute; top: 0; bottom: 0; left: 50%; width: 6px; margin-left: -3px; border-radius: 4px;
-    background: var(--ss-groove); box-shadow: inset 0 1px 3px rgb(0 0 0 / .6);
-}
-.ss-ctl-vfader .ss-ctl-fill {
-    left: 50%; top: auto; bottom: 0; width: 6px; margin: 0 0 0 -3px;
-    height: calc(var(--ss-th) / 2 + var(--ss-f, 0) * (100% - var(--ss-th)));
-    background: linear-gradient(0deg, color-mix(in srgb, var(--ss-accent) 60%, transparent), var(--ss-accent));
-}
-.ss-ctl-vfader .ss-ctl-thumb {
-    left: 50%; top: auto; margin: 0 0 0 calc(var(--ss-tw) / -2); width: var(--ss-tw); height: var(--ss-th);
-    bottom: calc(var(--ss-f, 0) * (100% - var(--ss-th)));
-}
-.ss-ctl-vfader .ss-ctl-thumb::after {
-    content: ''; position: absolute; left: 5px; right: 5px; top: 50%; height: 2px; margin-top: -1px; border-radius: 1px;
-    background: var(--ss-accent); box-shadow: 0 0 6px var(--ss-glow);
-}
-.ss-ctl-vfader.is-dragging .ss-ctl-thumb { filter: brightness(1.14); }
-.ss-app .ss-designer-field:has(.ss-ctl-vfader) {
-    display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; padding: 4px 2px; position: relative;
-}
-.ss-app .ss-designer-field:has(.ss-ctl-vfader) > span:first-child { order: 0; font-size: 11px; color: var(--ss-muted); }
-.ss-app .ss-designer-field:has(.ss-ctl-vfader) .ss-ctl-dial { order: 1; }
-.ss-app .ss-designer-field:has(.ss-ctl-vfader) output { order: 2; font: 600 12px/1 var(--vd-mat-mono-font, monospace); color: var(--ss-accent); }
-.ss-app .ss-designer-group[data-group=grp_envelope] > .ss-param-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-[data-scheme="light"] .ss-app .ss-ctl-vfader .ss-ctl-thumb { box-shadow: 0 2px 5px rgb(30 45 70 / .3), inset 0 1px 0 #fff; }
-[data-scheme="light"] .ss-app .ss-ctl-groove-v { box-shadow: inset 0 1px 3px rgb(30 45 70 / .3); }
-
-/* ==== Perform + Strudel: glass cards, raised pads, code editor ==== */
-.ss-app :is(.ss-stage-scenes, .ss-macro, .ss-take-controls, .ss-performance-fx, .ss-automation-editor, .ss-compose .ss-harmony, .ss-compose details, .ss-compose .ss-generator-actions, .ss-strudel-tools) {
-    padding: 16px 20px; border-radius: 18px; margin: 0;
-    background: var(--ss-glass), var(--ss-card); border: 1px solid var(--ss-card-border); box-shadow: var(--ss-edge), var(--ss-lift);
-}
+/* ==== Perform + Strudel: plates, keys, code screen ==== */
+.ss-app :is(.ss-stage-scenes, .ss-macro, .ss-take-controls, .ss-performance-fx, .ss-automation-editor, .ss-compose .ss-harmony, .ss-compose details, .ss-compose .ss-generator-actions, .ss-strudel-tools) { padding: 16px 20px; margin: 0; }
 .ss-app .ss-performance-workbench { padding: 20px 24px 32px; }
 .ss-app .ss-stage {
     display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: stretch;
@@ -456,172 +460,243 @@
 .ss-app .ss-performance-fx { grid-column: 2; grid-row: 3; }
 .ss-app .ss-automation-editor { grid-column: 1 / -1; }
 
-/* card titles */
 .ss-app .ss-stage-heading { gap: 10px; }
-.ss-app :is(.ss-stage-heading strong, .ss-take-controls strong, .ss-performance-fx strong) {
-    margin: 0 auto 0 0; font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--ss-muted);
-}
+.ss-app :is(.ss-stage-heading strong, .ss-take-controls strong, .ss-performance-fx strong) { margin: 0 auto 0 0; }
 .ss-app :is(.ss-take-controls, .ss-performance-fx) { gap: 10px; align-content: start; }
 .ss-app :is(.ss-take-controls, .ss-performance-fx) > strong { flex: 1 0 100%; }
 
-/* raised buttons */
-.ss-app :is(.ss-stage-heading, .ss-macro-controls, .ss-take-controls, .ss-performance-fx, .ss-automation-fields, .ss-generator-actions, .ss-preview) button {
-    min-height: 38px; padding: 0 16px; border-radius: 11px; font-size: 13px; font-weight: 600; color: var(--ss-text);
-    background: var(--ss-glass), var(--ss-card); border: 1px solid var(--ss-card-border);
-    box-shadow: var(--ss-edge), 0 2px 5px rgb(0 0 0 / .25); transition: transform .12s, box-shadow .12s, filter .12s;
-}
-.ss-app :is(.ss-stage-heading, .ss-macro-controls, .ss-take-controls, .ss-performance-fx, .ss-automation-fields, .ss-generator-actions, .ss-preview) button:hover:not(:disabled) { filter: brightness(1.12); transform: translateY(-1px); }
-.ss-app :is(.ss-stage-heading, .ss-macro-controls, .ss-take-controls, .ss-performance-fx, .ss-automation-fields, .ss-generator-actions, .ss-preview) button:active:not(:disabled) { transform: translateY(1px); box-shadow: var(--ss-edge); }
-.ss-app :is(.ss-stage, .ss-compose) button:disabled:not([data-scene]) { opacity: .45; }
+.ss-app :is(.ss-stage-heading, .ss-macro-controls, .ss-take-controls, .ss-performance-fx, .ss-automation-fields, .ss-generator-actions, .ss-preview) button { min-height: 38px; padding: 0 16px; font-size: 13px; }
 .ss-app .ss-stage-heading button { min-height: 32px; padding: 0 12px; font-size: 12px; }
 
-/* scene pads: big raised keys with an LED, lit + glowing when active */
-.ss-app .ss-scene-pads, .ss-app .ss-chord-pads { gap: 12px; margin: 14px 0 0; }
-.ss-app .ss-chord-pads { margin: 0; }
-.ss-app :is(.ss-scene-pads, .ss-chord-pads) button {
-    position: relative; min-height: 92px; padding: 22px 8px 10px; gap: 6px; align-items: center; justify-content: center; text-align: center; border-radius: 16px;
+/* live FX + take */
+.ss-app .ss-take-controls [data-stage=takeRecord] { min-height: 44px; padding: 0 20px 0 16px; }
+.ss-app .ss-take-controls [data-stage=takeRecord]::before {
+    content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 9px; border-radius: 50%; vertical-align: 0;
+    background: var(--ss-red); box-shadow: 0 0 8px var(--ss-red), 0 0 0 1px rgba(0, 0, 0, .6);
 }
-.ss-app :is(.ss-scene-pads, .ss-chord-pads) button::before {
-    content: ''; position: absolute; top: 10px; left: 12px; width: 8px; height: 8px; border-radius: 50%;
-    background: color-mix(in srgb, var(--ss-scene-color, var(--ss-chord-color, var(--ss-muted))) 35%, var(--ss-recess-deep)); box-shadow: inset 0 1px 2px rgb(0 0 0 / .5);
-}
-.ss-app .ss-chord-pads button { --ss-scene-color: var(--ss-chord-color, var(--ss-accent)); }
-.ss-app :is(.ss-scene-pads, .ss-chord-pads) strong { font-size: 15px; max-width: 100%; }
-.ss-app .ss-scene-pads span, .ss-app .ss-chord-pads span { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; opacity: .8; }
-.ss-app .ss-scene-pads button.active, .ss-app .ss-chord-pads button[aria-pressed=true] {
-    color: var(--ss-bg); border-color: color-mix(in srgb, var(--ss-scene-color) 80%, #fff);
-    background: var(--ss-glass), linear-gradient(180deg, color-mix(in srgb, var(--ss-scene-color) 88%, #fff), var(--ss-scene-color));
-    box-shadow: var(--ss-edge), 0 0 26px color-mix(in srgb, var(--ss-scene-color) 70%, transparent), 0 0 4px var(--ss-scene-color);
-}
-.ss-app :is(.ss-scene-pads button.active, .ss-chord-pads button[aria-pressed=true]) strong { color: inherit; }
-.ss-app :is(.ss-scene-pads button.active, .ss-chord-pads button[aria-pressed=true])::before { background: #fff; box-shadow: 0 0 9px #fff, 0 0 14px var(--ss-scene-color); }
-.ss-app .ss-scene-pads button.queued { border: 2px dashed var(--ss-scene-color); }
-.ss-app .ss-scene-pads button.queued::before { background: var(--ss-hot); box-shadow: 0 0 8px var(--ss-hot); }
-.ss-app .ss-scene-pads button.is-selected { outline: 2px solid color-mix(in srgb, var(--ss-text) 70%, transparent); outline-offset: 3px; }
-.ss-app .ss-scene-pads button:not([data-scene]) {
-    background: transparent; box-shadow: none; border: 1px dashed color-mix(in srgb, var(--ss-text) 24%, transparent); opacity: .75; min-height: 76px;
-}
-.ss-app .ss-scene-pads button:not([data-scene])::before { display: none; }
-.ss-app .ss-scene-pads button:not([data-scene]) span { visibility: hidden; }
-.ss-app .ss-scene-pads button:not([data-scene]) strong { color: var(--ss-muted); }
-
-/* macro: XY pad + knobs */
-.ss-app .ss-xy { width: 100%; height: auto; min-height: 176px; aspect-ratio: 4 / 3; flex: none; border-radius: 16px; }
-.ss-app .ss-macro-controls { grid-template-columns: repeat(2, 112px); gap: 12px; }
-.ss-app .ss-macro-controls .ss-ctl-knob { width: 76px; height: 76px; }
-.ss-app .ss-macro-controls .ss-ctl-cap { inset: 14px; }
-.ss-app .ss-macro-controls .ss-ctl-cap::after { top: 5px; height: 13px; }
-.ss-app .ss-macro-controls label:has(.ss-ctl-knob) { padding: 12px 8px 10px; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
-.ss-app .ss-macro-controls output { font-size: 13px; }
-.ss-app :is(.ss-macro-controls, .ss-generator-controls) label:has(> input[type=checkbox]) {
-    flex-direction: row; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; font-size: 12px; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--ss-text); cursor: pointer;
-    background: var(--ss-pill-bg); border: 1px solid color-mix(in srgb, var(--ss-text) 12%, transparent); box-shadow: var(--ss-well-in);
-}
-.ss-app :is(.ss-macro-controls, .ss-generator-controls) label:has(> input[type=checkbox]:checked) { border-color: color-mix(in srgb, var(--ss-accent) 60%, transparent); color: var(--ss-accent); box-shadow: var(--ss-well-in), 0 0 12px var(--ss-glow); }
-
-/* take + live FX */
-.ss-app .ss-take-controls [data-stage=takeRecord] { min-height: 44px; padding: 0 20px 0 16px; color: var(--ss-hot); border-color: color-mix(in srgb, var(--ss-hot) 55%, transparent); }
-.ss-app .ss-take-controls [data-stage=takeRecord]::before { content: ''; display: inline-block; width: 11px; height: 11px; margin-right: 9px; border-radius: 50%; vertical-align: -1px; background: var(--ss-hot); box-shadow: 0 0 9px var(--ss-hot); }
 .ss-app .ss-take-controls :is([data-stage=takeStop], [data-stage=takeAdopt], [data-stage=takeDiscard]):disabled { display: none; }
-.ss-app .ss-take-controls [data-stage=takeAdopt] { color: var(--ss-play-ink); border-color: color-mix(in srgb, var(--ss-accent) 60%, transparent); background: linear-gradient(180deg, var(--ss-play-hi), var(--ss-play-lo)); box-shadow: var(--ss-edge), 0 0 12px var(--ss-glow); }
+.ss-app .ss-take-controls [data-stage=takeAdopt] { color: #06231d; border-color: #0d3b33; background: var(--ss-primary-grad); box-shadow: var(--ss-primary-shadow); --ss-hover-bg: var(--ss-primary-grad); }
 .ss-app [data-take-status] {
-    flex: 1 1 120px; min-width: 0; padding: 9px 14px; border-radius: 10px; font: 600 12px/1.2 var(--vd-mat-mono-font, monospace); color: var(--ss-accent);
-    background: var(--ss-recess); box-shadow: var(--ss-well-in); text-align: center; text-shadow: 0 0 8px var(--ss-glow);
+    flex: 1 1 120px; min-width: 0; padding: 9px 14px; border: 1px solid #000; border-radius: 6px; text-align: center;
+    font: 12px/1.2 var(--ss-mono-font); color: var(--ss-phosphor); background: var(--ss-screen);
+    box-shadow: inset 0 0 14px rgba(0, 0, 0, .85), 0 1px 0 rgba(255, 255, 255, .07); text-shadow: 0 0 8px var(--ss-phosphor-glow);
 }
-.ss-app .ss-performance-fx button { flex: 1 1 130px; min-height: 58px; font-size: 14px; border-radius: 14px; border-color: color-mix(in srgb, var(--ss-accent) 40%, transparent); background: var(--ss-glass), linear-gradient(180deg, color-mix(in srgb, var(--ss-accent) 20%, var(--ss-panel)), color-mix(in srgb, var(--ss-accent) 6%, var(--ss-panel))); box-shadow: var(--ss-edge), inset 0 -3px 0 color-mix(in srgb, var(--ss-accent) 50%, transparent), 0 4px 8px rgb(0 0 0 / .3); }
+.ss-app .ss-performance-fx button { flex: 1 1 130px; min-height: 58px; font-size: 14px; }
 
 /* automation editor */
-.ss-app .ss-automation-editor summary { font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--ss-muted); list-style: none; display: flex; align-items: center; gap: 10px; }
+.ss-app .ss-automation-editor summary { list-style: none; display: flex; align-items: center; gap: 10px; }
 .ss-app .ss-automation-editor summary::-webkit-details-marker { display: none; }
 .ss-app .ss-automation-editor summary::before, .ss-app .ss-compose summary::before {
-    content: ''; width: 7px; height: 7px; border-right: 2px solid var(--ss-accent); border-bottom: 2px solid var(--ss-accent); transform: rotate(-45deg); transition: transform .15s;
+    content: ''; width: 7px; height: 7px; border-right: 2px solid var(--ss-phosphor); border-bottom: 2px solid var(--ss-phosphor); transform: rotate(-45deg); transition: transform .15s;
 }
 .ss-app .ss-automation-editor[open] summary::before, .ss-app .ss-compose details[open] > summary::before { transform: rotate(45deg); }
 .ss-app .ss-automation-fields { gap: 14px; margin: 16px 0 0; }
 .ss-app .ss-automation-fields select { width: auto; min-width: 150px; }
-.ss-app .ss-automation-fields label { gap: 8px; font-size: 12px; color: var(--ss-muted); }
+.ss-app .ss-automation-fields label, .ss-app .ss-compose label {
+    gap: 8px; color: var(--ss-ink-soft); font: 600 11px/1.2 var(--ss-label-font); letter-spacing: .13em; text-transform: uppercase;
+}
 
 /* compose: harmony, pads, generators */
 .ss-app .ss-compose { display: grid; gap: 16px; }
 .ss-app .ss-compose .ss-harmony { gap: 18px; }
-.ss-app .ss-compose label { color: var(--ss-muted); font-size: 12px; }
-.ss-app .ss-compose details { border-block-start: 1px solid var(--ss-card-border); }
-.ss-app .ss-compose summary { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--ss-muted); list-style: none; }
+.ss-app .ss-compose summary { display: flex; align-items: center; gap: 10px; margin: 0; list-style: none; }
 .ss-app .ss-compose summary::-webkit-details-marker { display: none; }
-.ss-app .ss-compose details[open] > summary { margin-bottom: 16px; color: var(--ss-text); }
+.ss-app .ss-compose details[open] > summary { margin-bottom: 16px; color: var(--ss-ink); }
 .ss-app .ss-generator-controls { gap: 14px; align-items: flex-start; }
-.ss-app .ss-generator-controls > label:has(.ss-ctl-knob) {
-    flex-direction: column; flex-wrap: nowrap; justify-content: flex-start; align-items: center; gap: 4px; width: 104px; padding: 12px 6px 10px; border-radius: 14px; text-align: center;
-    font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
-    background: var(--ss-glass), var(--ss-card); border: 1px solid var(--ss-card-border); box-shadow: var(--ss-edge);
-}
-.ss-app .ss-generator-controls .ss-ctl-dial { order: 1; }
-.ss-app .ss-generator-controls output { order: 2; font: 600 13px/1 var(--vd-mat-mono-font, monospace); color: var(--ss-accent); }
+.ss-app .ss-generator-controls > label:has(.ss-ctl-knob) { width: 104px; padding: 12px 6px 10px; }
 .ss-app .ss-generator-controls .ss-ctl-knob { width: 68px; height: 68px; }
 .ss-app .ss-generator-controls .ss-ctl-cap { inset: 12px; }
 .ss-app .ss-generator-controls .ss-ctl-cap::after { top: 4px; height: 11px; }
 .ss-app .ss-generator-actions { gap: 16px; }
-.ss-app .ss-compose [data-compose=generate], .ss-app .ss-compose [data-compose=apply] {
-    min-height: 44px; padding: 0 22px; color: var(--ss-play-ink); border-color: color-mix(in srgb, var(--ss-accent) 60%, transparent);
-    background: linear-gradient(180deg, var(--ss-play-hi), var(--ss-play-lo)); box-shadow: var(--ss-edge), 0 0 14px var(--ss-glow);
+.ss-app .ss-compose :is([data-compose=generate], [data-compose=apply]) {
+    min-height: 44px; padding: 0 22px; color: #06231d; border-color: #0d3b33;
+    background: var(--ss-primary-grad); box-shadow: var(--ss-primary-shadow); --ss-hover-bg: var(--ss-primary-grad);
 }
-.ss-app .ss-preview { padding: 16px 20px; margin: 0; border-radius: 18px; background: var(--ss-glass), var(--ss-card); border-color: color-mix(in srgb, var(--ss-accent) 55%, transparent); box-shadow: var(--ss-edge), 0 0 16px var(--ss-glow); }
+.ss-app .ss-preview { padding: 16px 20px; margin: 0; box-shadow: var(--ss-edge), 0 0 0 1px rgba(134, 243, 223, .25); }
 .ss-app .ss-preview[hidden] { display: none; }
 
-/* ---- Strudel: toolbar + code editor ---- */
+/* ---- Strudel: toolbar + code screen ---- */
 .ss-app .ss-strudel-workbench { display: flex; flex-direction: column; gap: 16px; padding: 20px 24px 22px; }
 .ss-app .ss-strudel-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 16px; flex: none; }
-.ss-app .ss-strudel-tools button, .ss-app .ss-strudel-tools select {
-    min-height: 40px; padding: 0 16px; border-radius: 12px; font-size: 13px; font-weight: 600; color: var(--ss-text); width: auto; flex: none;
-    background: var(--ss-glass), var(--ss-card); border: 1px solid var(--ss-card-border); box-shadow: var(--ss-edge), 0 2px 5px rgb(0 0 0 / .25);
-}
-.ss-app .ss-strudel-tools button:hover:not(:disabled) { filter: brightness(1.12); }
-.ss-app .ss-strudel-tools button:disabled { opacity: .45; }
+.ss-app .ss-strudel-tools button, .ss-app .ss-strudel-tools select { min-height: 40px; padding: 0 16px; font-size: 13px; width: auto; flex: none; }
+.ss-app .ss-strudel-tools select { padding-right: 28px; }
+.ss-app .ss-strudel-tools button:disabled { opacity: .42; }
 .ss-app .ss-strudel-tools [data-strudel-run] {
-    min-width: 132px; min-height: 44px; color: var(--ss-play-ink); border-color: color-mix(in srgb, var(--ss-accent) 65%, transparent);
-    background: linear-gradient(180deg, var(--ss-play-hi), var(--ss-play-lo)); box-shadow: var(--ss-edge), 0 0 16px var(--ss-glow);
+    min-width: 132px; min-height: 44px; color: #06231d; border-color: #0d3b33;
+    background: var(--ss-primary-grad); box-shadow: var(--ss-primary-shadow); --ss-hover-bg: var(--ss-primary-grad);
 }
 .ss-app .ss-strudel-tools [data-strudel-run]::before { content: ''; display: inline-block; margin-right: 9px; vertical-align: -1px; border-left: 11px solid currentColor; border-top: 7px solid transparent; border-bottom: 7px solid transparent; }
 .ss-app .ss-strudel-tools [data-strudel-stop] { min-height: 44px; }
-.ss-app .ss-strudel-tools [data-strudel-stop]::before { content: ''; display: inline-block; width: 10px; height: 10px; margin-right: 9px; border-radius: 2px; background: var(--ss-hot); box-shadow: 0 0 8px var(--ss-hot); }
+.ss-app .ss-strudel-tools [data-strudel-stop]::before { content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 9px; border-radius: 1px; background: var(--ss-red); box-shadow: 0 0 8px var(--ss-red), 0 0 0 1px rgba(0, 0, 0, .6); }
 .ss-app .ss-strudel-tools output {
-    display: flex; align-items: center; gap: 10px; flex: 1 1 220px; min-width: 0; padding: 10px 14px; border-radius: 12px; font: 600 12px/1.45 var(--vd-mat-mono-font, monospace);
-    color: var(--ss-muted); white-space: pre-wrap; overflow-wrap: anywhere; background: var(--ss-recess); box-shadow: var(--ss-well-in);
+    display: flex; align-items: center; gap: 10px; flex: 1 1 220px; min-width: 0; padding: 10px 14px; border: 1px solid #000; border-radius: 5px;
+    font: 12px/1.45 var(--ss-mono-font); color: var(--ss-ink-faint); white-space: pre-wrap; overflow-wrap: anywhere;
+    background: var(--ss-well-bg); box-shadow: var(--ss-well-in);
 }
-.ss-app .ss-strudel-tools output::before { content: ''; flex: none; width: 9px; height: 9px; border-radius: 50%; background: color-mix(in srgb, var(--ss-muted) 55%, transparent); }
-.ss-app .ss-strudel-tools output[data-strudel-state=loading] { color: #f0b43c; }
-.ss-app .ss-strudel-tools output[data-strudel-state=loading]::before { background: #f0b43c; box-shadow: 0 0 9px #f0b43c; }
-.ss-app .ss-strudel-tools output:is([data-strudel-state=playing], [data-strudel-state=sound]) { color: var(--ss-accent); }
-.ss-app .ss-strudel-tools output:is([data-strudel-state=playing], [data-strudel-state=sound])::before { background: var(--ss-accent); box-shadow: 0 0 9px var(--ss-accent); }
-.ss-app .ss-strudel-tools output:is([data-strudel-state=error], [data-strudel-state=draft_error]) { color: var(--ss-danger, #ff5a4a); }
-.ss-app .ss-strudel-tools output:is([data-strudel-state=error], [data-strudel-state=draft_error])::before { background: var(--ss-danger, #ff5a4a); box-shadow: 0 0 9px var(--ss-danger, #ff5a4a); }
-.ss-app .ss-strudel-tools a { font-size: 12px; font-weight: 600; color: var(--ss-accent); text-decoration: none; padding: 4px 2px; }
+.ss-app .ss-strudel-tools output::before { content: ''; flex: none; width: 7px; height: 7px; border-radius: 50%; background: #14171a; box-shadow: inset 0 1px 2px #000, 0 0 0 1px rgba(0, 0, 0, .6); }
+.ss-app .ss-strudel-tools output[data-strudel-state=loading] { color: var(--ss-amber); }
+.ss-app .ss-strudel-tools output[data-strudel-state=loading]::before { background: var(--ss-amber); box-shadow: 0 0 8px var(--ss-amber); }
+.ss-app .ss-strudel-tools output:is([data-strudel-state=playing], [data-strudel-state=sound]) { color: var(--ss-phosphor); }
+.ss-app .ss-strudel-tools output:is([data-strudel-state=playing], [data-strudel-state=sound])::before { background: var(--ss-phosphor); box-shadow: 0 0 8px var(--ss-phosphor-glow); }
+.ss-app .ss-strudel-tools output:is([data-strudel-state=error], [data-strudel-state=draft_error]) { color: var(--ss-red); }
+.ss-app .ss-strudel-tools output:is([data-strudel-state=error], [data-strudel-state=draft_error])::before { background: var(--ss-red); box-shadow: 0 0 8px var(--ss-red); }
+.ss-app .ss-strudel-tools a { font-size: 12px; font-weight: 600; color: var(--ss-phosphor); text-decoration: none; padding: 4px 2px; }
 .ss-app .ss-strudel-tools a:hover { text-decoration: underline; }
 .ss-app .ss-strudel-tools select + button { margin-left: 0; }
 .ss-app .ss-strudel-editor {
-    display: flex; flex: 1 1 0; min-height: 200px; border-radius: 18px; overflow: hidden;
-    background: linear-gradient(180deg, color-mix(in srgb, var(--ss-accent) 5%, var(--ss-recess-deep)), var(--ss-recess-deep));
-    border: 1px solid color-mix(in srgb, var(--ss-text) 12%, transparent); box-shadow: var(--ss-well-in);
-    transition: border-color .15s, box-shadow .15s;
+    display: flex; flex: 1 1 0; min-height: 200px; margin: 5px; overflow: hidden;
+    border: 1px solid #000; border-radius: 11px; background: var(--ss-screen);
+    box-shadow: 0 0 0 4px #0c0e10, 0 0 0 5px rgba(255, 255, 255, .1), 0 3px 9px 4px rgba(0, 0, 0, .55), inset 0 0 34px rgba(0, 0, 0, .85), inset 0 2px 8px #000;
+    transition: box-shadow .15s;
 }
-.ss-app .ss-strudel-editor:focus-within { border-color: color-mix(in srgb, var(--ss-accent) 65%, transparent); box-shadow: var(--ss-well-in), 0 0 0 1px color-mix(in srgb, var(--ss-accent) 40%, transparent), 0 0 24px var(--ss-glow); }
-.ss-app .ss-strudel-gutter, .ss-app .ss-strudel-editor textarea { font: 13px/21px var(--vd-mat-mono-font, ui-monospace, Consolas, monospace); tab-size: 2; }
+.ss-app .ss-strudel-editor:focus-within {
+    box-shadow: 0 0 0 4px #0c0e10, 0 0 0 6px var(--ss-phosphor), 0 3px 9px 4px rgba(0, 0, 0, .55), inset 0 0 34px rgba(0, 0, 0, .85), inset 0 2px 8px #000;
+}
+.ss-app .ss-strudel-gutter, .ss-app .ss-strudel-editor textarea { font: 13px/21px var(--ss-mono-font); tab-size: 2; }
 .ss-app .ss-strudel-gutter {
     flex: none; min-width: 48px; padding: 16px 12px 16px 14px; overflow: hidden; text-align: right; white-space: pre; user-select: none; pointer-events: none;
-    color: color-mix(in srgb, var(--ss-muted) 70%, transparent); background: color-mix(in srgb, var(--ss-text) 5%, transparent); border-right: 1px solid color-mix(in srgb, var(--ss-text) 10%, transparent);
+    color: var(--ss-phosphor-dim); background: rgba(134, 243, 223, .04); border-right: 1px solid rgba(134, 243, 223, .18);
 }
 .ss-app .ss-strudel-editor textarea {
     flex: 1 1 0; width: auto; min-width: 0; min-height: 0; margin: 0; padding: 16px 18px; resize: none; white-space: pre; overflow: auto;
-    border: 0; border-radius: 0; outline: none; box-shadow: none; background: transparent; color: var(--ss-text); caret-color: var(--ss-accent);
+    border: 0; border-radius: 0; outline: none; box-shadow: none; background: transparent; color: #c9fbf1; caret-color: var(--ss-phosphor);
 }
-.ss-app .ss-strudel-editor textarea::selection { background: color-mix(in srgb, var(--ss-accent) 35%, transparent); }
+.ss-app .ss-strudel-editor textarea:focus-visible { outline: none; }
+.ss-app .ss-strudel-editor textarea::selection { background: rgba(134, 243, 223, .25); }
 .ss-app .ss-strudel-workbench p.ss-strudel-hint { flex: none; margin: 0; padding: 0 6px; font-size: 12px; color: var(--ss-muted); }
-.ss-app .ss-strudel-workbench iframe { flex: none; border-radius: 14px; background: var(--ss-recess); box-shadow: var(--ss-well-in); }
+.ss-app .ss-strudel-workbench iframe { flex: none; border-radius: 7px; background: var(--ss-recess); box-shadow: var(--ss-well-in); }
+
+/* ---- master hero: VFO knob with dB readout and a segmented LED meter ---- */
+.ss-app .ss-master-panel .ss-master-fields > .ss-master-hero-row {
+    grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; gap: 22px; padding: 14px 18px;
+}
+.ss-app .ss-master-panel .ss-master-hero-row > .ss-master-hero {
+    position: relative; flex: none; width: auto; padding: 0; gap: 8px; background: none; border: 0; box-shadow: none;
+}
+.ss-app .ss-master-hero > span:first-child { font: 600 10.5px/1 var(--ss-label-font); letter-spacing: .13em; text-transform: uppercase; }
+.ss-app .ss-master-hero .ss-ctl-knob { width: 116px; height: 116px; }
+.ss-app .ss-master-hero .ss-ctl-cap {
+    inset: 21px; background: repeating-conic-gradient(#3d434a 0 1.6deg, #15171a 1.6deg 4.5deg);
+    box-shadow: 0 10px 16px rgba(0, 0, 0, .7), 0 2px 3px #000, 0 0 0 1px #000, inset 0 2px 2px rgba(255, 255, 255, .16), inset 0 -5px 8px rgba(0, 0, 0, .6);
+}
+.ss-app .ss-master-hero .ss-ctl-cap::before {
+    inset: 11px; -webkit-mask: none; mask: none;
+    background: conic-gradient(from 20deg, #565d65, #8a929a 9%, #4b5158 20%, #787f87 31%, #42474d 45%, #838b93 58%, #4d5359 70%, #7c848c 83%, #565d65);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, .4), inset 0 -2px 4px rgba(0, 0, 0, .55), 0 2px 5px rgba(0, 0, 0, .8), 0 0 0 1px #0a0b0c;
+}
+.ss-app .ss-master-hero .ss-ctl-cap::after { top: 5px; width: 4px; height: 12px; margin-left: -2px; }
+.ss-app .ss-master-hero .ss-ctl-groove, .ss-app .ss-master-hero .ss-ctl-arc { stroke-width: 3.4; }
+.ss-app .ss-master-panel .ss-master-hero output {
+    min-width: 92px; padding: 6px 12px; border: 1px solid #000; border-radius: 6px; text-align: center; background: var(--ss-screen);
+    box-shadow: 0 0 0 3px #0c0e10, 0 0 0 4px rgba(255, 255, 255, .1), inset 0 0 18px rgba(0, 0, 0, .85), inset 0 2px 6px #000;
+    font: 19px/1 var(--ss-mono-font); letter-spacing: 0; color: var(--ss-phosphor); text-shadow: 0 0 8px var(--ss-phosphor-glow);
+}
+.ss-led-meter {
+    --ss-led-green: var(--ss-phosphor); --ss-led-amber: var(--ss-amber); --ss-led-red: var(--ss-red);
+    display: flex; flex-direction: column-reverse; gap: 3px; width: 16px; height: 128px; flex: none; padding: 5px 4px; border-radius: 5px;
+    background: var(--ss-well-bg); border: 1px solid #000; box-shadow: var(--ss-well-in);
+}
+.ss-led-seg { flex: 1 1 0; display: block; border-radius: 2px; background: color-mix(in srgb, var(--ss-led-c) 12%, var(--ss-recess-deep)); --ss-led-c: var(--ss-led-green); }
+.ss-led-seg[data-tone=a] { --ss-led-c: var(--ss-led-amber); }
+.ss-led-seg[data-tone=r] { --ss-led-c: var(--ss-led-red); }
+.ss-led-seg.is-on { background: var(--ss-led-c); box-shadow: 0 0 6px color-mix(in srgb, var(--ss-led-c) 75%, transparent); }
+
+/* ---- response curves: EQ, filter, envelope (pure SVG read-outs) ---- */
+.ss-curve {
+    display: block; width: 100%; height: 84px; border-radius: 6px; overflow: hidden;
+    background: var(--ss-scope-bg); box-shadow: inset 0 0 0 1px rgba(134, 243, 223, .16), inset 0 0 22px #000;
+}
+.ss-curve-grid line { stroke: rgba(134, 243, 223, .08); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.ss-curve-grid .ss-curve-zero { stroke: rgba(134, 243, 223, .2); }
+.ss-curve-fill { fill: var(--ss-ghost); stroke: none; }
+.ss-curve-line {
+    fill: none; stroke: var(--ss-phosphor); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round;
+    vector-effect: non-scaling-stroke; filter: drop-shadow(0 0 3px var(--ss-phosphor-glow));
+}
+.ss-curve-marker { stroke: var(--ss-amber); stroke-width: 1; stroke-dasharray: 3 3; opacity: .85; vector-effect: non-scaling-stroke; }
+.ss-app .ss-master-group > .ss-curve { margin-top: 10px; }
+.ss-app .ss-designer-group > .ss-curve { width: calc(100% - 32px); margin: 0 16px 6px; }
+
+/* ---- vertical faders (designer envelope) ---- */
+.ss-ctl-vfader { --ss-tw: 26px; --ss-th: 16px; width: 30px; height: 118px; cursor: ns-resize; }
+.ss-ctl-groove-v {
+    position: absolute; top: 0; bottom: 0; left: 50%; width: 6px; margin-left: -3px; border-radius: 4px;
+    background: var(--ss-groove); box-shadow: inset 0 1px 1px #000, 0 1px 0 rgba(255, 255, 255, .07);
+}
+.ss-ctl-vfader .ss-ctl-fill {
+    left: 50%; top: auto; bottom: 0; width: 6px; margin: 0 0 0 -3px;
+    height: calc(var(--ss-th) / 2 + var(--ss-f, 0) * (100% - var(--ss-th)));
+    background: linear-gradient(0deg, var(--ss-phosphor-dim), var(--ss-phosphor));
+}
+.ss-ctl-vfader .ss-ctl-thumb {
+    left: 50%; top: auto; margin: 0 0 0 calc(var(--ss-tw) / -2); width: var(--ss-tw); height: var(--ss-th);
+    bottom: calc(var(--ss-f, 0) * (100% - var(--ss-th)));
+}
+.ss-ctl-vfader .ss-ctl-thumb::after {
+    content: ''; position: absolute; left: 5px; right: 5px; top: 50%; height: 2px; margin-top: -1px; border-radius: 1px;
+    background: var(--ss-phosphor); box-shadow: 0 0 6px var(--ss-glow);
+}
+.ss-ctl-vfader.is-dragging .ss-ctl-thumb { filter: brightness(1.14); }
+.ss-app .ss-designer-field:has(.ss-ctl-vfader) {
+    display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; padding: 4px 2px; position: relative;
+}
+.ss-app .ss-designer-field:has(.ss-ctl-vfader) > span:first-child { order: 0; }
+.ss-app .ss-designer-field:has(.ss-ctl-vfader) .ss-ctl-dial { order: 1; }
+.ss-app .ss-designer-field:has(.ss-ctl-vfader) output { order: 2; font: 11px/1.2 var(--ss-mono-font); color: var(--ss-phosphor-dim); }
+.ss-app .ss-designer-group[data-group=grp_envelope] > .ss-param-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+/* ---- arrangement, note editor, library, footer ---- */
+.ss-app .ss-ruler { background: #1b1e22; }
+.ss-app .ss-ruler-grid span { color: var(--ss-ink-faint); }
+.ss-app :is(.ss-arrangement, .ss-note-editor) { border-top: 1px solid var(--ss-cut); }
+.ss-app .ss-arrange-tools label, .ss-app .ss-editor-header label { font-family: var(--ss-label-font); font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--ss-ink-soft); }
+.ss-app .ss-playhead { background: var(--ss-phosphor); box-shadow: 0 0 10px var(--ss-phosphor-glow); }
+.ss-app .ss-playhead:before { background: var(--ss-phosphor); }
+/* the dark note hues hold on every desktop scheme */
+[data-scheme] .ss-app .ss-note { background: hsl(var(--ss-note-hue, 160) 74% 56%); border-color: hsl(var(--ss-note-hue, 160) 82% 68%); }
+[data-scheme] .ss-app .ss-note.is-selected { background: hsl(var(--ss-note-hue, 160) 90% 64%); }
+
+.ss-app .ss-library-item {
+    margin-bottom: 4px; padding: 5px 4px; border: 1px solid rgba(0, 0, 0, .6); border-radius: 6px;
+    background: linear-gradient(180deg, #2c3137, #23272c); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 1px 2px rgba(0, 0, 0, .5);
+    transition: filter .15s, box-shadow .15s;
+}
+.ss-app .ss-library-item:hover { background: linear-gradient(180deg, #2c3137, #23272c); filter: brightness(1.12); }
+.ss-app .ss-library-item.is-selected {
+    border-left: 1px solid rgba(0, 0, 0, .6); background: linear-gradient(180deg, #24292e, #1e2226);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, .6), inset 0 0 0 1px rgba(134, 243, 223, .28);
+}
+.ss-app :is(.ss-categories, .ss-library-tags) button::before {
+    content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 6px; border-radius: 50%; vertical-align: middle;
+    background: color-mix(in srgb, var(--ss-cat-color, var(--ss-tag-color, var(--ss-muted))) 25%, #000); box-shadow: inset 0 1px 2px #000, 0 0 0 1px rgba(0, 0, 0, .6);
+}
+.ss-app :is(.ss-categories, .ss-library-tags) button[aria-pressed=true]::before {
+    background: var(--ss-cat-color, var(--ss-tag-color, var(--ss-phosphor)));
+    box-shadow: 0 0 6px var(--ss-cat-color, var(--ss-tag-color, var(--ss-phosphor))), 0 0 0 1px rgba(0, 0, 0, .6);
+}
+.ss-app .ss-footer {
+    border-top: 1px solid var(--ss-cut); background: transparent; box-shadow: inset 0 1px 0 var(--ss-rim);
+    color: var(--ss-ink-faint); font: 600 11.5px/1.2 var(--ss-label-font); letter-spacing: .07em;
+}
+.ss-app .ss-midi-led {
+    width: 7px; height: 7px; background: #14171a; box-shadow: inset 0 1px 2px #000, 0 0 0 1px rgba(0, 0, 0, .6), 0 1px 0 rgba(255, 255, 255, .08);
+    transition: background .15s, box-shadow .15s;
+}
+.ss-app .ss-midi-led.is-on { background: radial-gradient(circle at 35% 30%, #e9fffa, var(--ss-phosphor) 50%, #2aa893); box-shadow: 0 0 7px var(--ss-phosphor-glow), 0 0 0 1px rgba(0, 0, 0, .6); }
+.ss-app .ss-notice {
+    color: #ffd9a6; font-size: 12.5px; border-bottom: 1px solid var(--ss-cut);
+    background: linear-gradient(90deg, rgba(255, 180, 84, .16), rgba(255, 180, 84, .05)); box-shadow: inset 3px 0 0 var(--ss-amber);
+}
+
+@keyframes ss-blink { 50% { opacity: .35; } }
 
 @container (max-width: 860px) {
     .ss-app .ss-stage { grid-template-columns: minmax(0, 1fr); }
     .ss-app .ss-macro, .ss-app .ss-take-controls, .ss-app .ss-performance-fx { grid-column: 1; grid-row: auto; }
     .ss-app :is(.ss-scene-pads, .ss-chord-pads) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@container (max-width: 760px) {
+    .ss-app .ss-position { font-size: 18px; }
 }
 @container (max-width: 560px) {
     .ss-app .ss-performance-workbench, .ss-app .ss-strudel-workbench { padding: 14px; }
@@ -629,13 +704,13 @@
     .ss-app .ss-xy { min-height: 150px; }
     .ss-app :is(.ss-scene-pads, .ss-chord-pads) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .ss-app .ss-strudel-tools a { margin-left: 0; }
+    .ss-app .ss-brand strong { font-size: 14px; letter-spacing: .16em; }
+    .ss-app .ss-transport-buttons button { width: 34px; }
+    .ss-app .ss-transport-buttons button.ss-play { width: 48px; }
 }
-@media (prefers-reduced-motion: reduce) { .ss-app :is(.ss-stage, .ss-compose) button, .ss-app .ss-strudel-editor { transition: none; } }
 
-/* light schemes: softer lifts and glows */
-[data-scheme="light"] .ss-app :is(.ss-stage-heading, .ss-macro-controls, .ss-take-controls, .ss-performance-fx, .ss-automation-fields, .ss-generator-actions, .ss-preview) button { box-shadow: var(--ss-edge), 0 1px 3px rgb(30 45 70 / .18); }
-[data-scheme="light"] .ss-app .ss-scene-pads button.active, [data-scheme="light"] .ss-app .ss-chord-pads button[aria-pressed=true] { color: #fff; box-shadow: var(--ss-edge), 0 0 18px color-mix(in srgb, var(--ss-scene-color) 55%, transparent), 0 3px 8px rgb(30 45 70 / .2); }
-[data-scheme="light"] .ss-app .ss-scene-pads button:not([data-scene]) { box-shadow: none; }
-[data-scheme="light"] .ss-app .ss-strudel-tools :is(button, select) { box-shadow: var(--ss-edge), 0 1px 3px rgb(30 45 70 / .18); }
-[data-scheme="light"] .ss-app .ss-strudel-gutter { background: color-mix(in srgb, var(--ss-text) 4%, transparent); }
-[data-scheme="light"] .ss-app [data-take-status], [data-scheme="light"] .ss-app .ss-take-controls [data-stage=takeAdopt] { text-shadow: none; }
+/* ---- motion ---- */
+@media (prefers-reduced-motion: reduce) {
+    .ss-app *, .ss-app *::before, .ss-app *::after { transition: none !important; animation: none !important; }
+}
+body[data-animations="false"] .ss-app :is(*, *::before, *::after) { transition: none !important; animation: none !important; }
