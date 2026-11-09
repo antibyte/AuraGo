@@ -70,7 +70,7 @@ type LayoutOptions struct {
 // block an outcome.
 func IssueLayout(code string) bool {
 	switch code {
-	case CodeCaptionOverlap, CodePropTooSmall, CodeOffscreen, CodeActorPropOverlap, CodeSceneStatic:
+	case CodeCaptionOverlap, CodePropTooSmall, CodeOffscreen, CodeActorPropOverlap, CodeSceneStatic, CodeScenesLookAlike:
 		return true
 	}
 	return false

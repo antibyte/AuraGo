@@ -91,6 +91,9 @@ const (
 	CodeSceneStatic      = "scene_static"
 )
 
+// CodeScenesLookAlike is the layout finding of the stills: three or more consecutive scenes show nearly the same picture.
+const CodeScenesLookAlike = "scenes_look_alike"
+
 // Issue is one validation finding. Path is a JSON Pointer (RFC 6901) from the story root.
 type Issue struct {
 	Severity  string   `json:"severity"`
