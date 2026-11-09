@@ -51,11 +51,11 @@ For custom diagrams and effects it can read and write the existing restricted co
 
 | Outcome | What it means |
 | --- | --- |
-| Your story is ready. Please watch it once. | Scenes, assets and timing were checked. Overlaps and text fit were not checked automatically. |
+| Your story is ready. Please watch it once. | Scenes, assets and timing were checked, and the layout too when the browser ran the compile check. |
 | Your story is partly done. | Some scenes still need work, and valid scenes are saved. The revise field is prefilled to finish them. A timeout or a model error ends here too. |
 | The agent could not write this story. | No outline was saved. The card names the kind of failure in one line. |
 
-Watch every film once: nothing checks yet whether a prop covers a face or a text overflows. A film may run a little longer than asked, which is listed and is not a failure. Without a browser the compile check is skipped and reported as `compile_unverified`. The job still finishes.
+Watch every film once: when the compile check runs, the layout run flags captions over an actor's feet, props that are too small, boxes outside the frame and an actor that hides a prop or a text. A film reads `ready` only when no check is left open. Scenes that look alike (three or more in a row) are flagged as `scenes_look_alike`. The job card links the contact sheet of the last check. A film may run a little longer than asked, which is listed and is not a failure. Without a browser the compile check is skipped and reported as `compile_unverified`. The job still finishes.
 
 **No voice.** A job on a box with no ready voice still finishes. The narration text stays in the story, and each scene gets a short on-screen text. To export, either install a voice and press **Generate narration**, or press **Export without voice**. That button marks the scenes silent, gives each a reading time and turns speech bubbles into on-screen text. **Restore speech** undoes it while its copy, `story.before-silent.json`, exists. From chat, `render` with `silent: true` does the same and says that speech was removed.
 

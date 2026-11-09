@@ -537,7 +537,7 @@ Create and follow explainer videos in the Storymaker desktop app. An isolated ag
 | `instruction` | string | `revise`: the change to make (1–2000 characters) |
 | `silent` | boolean | `render`: export without speech when no voice is ready; the app can restore the speech |
 
-A `ready` result means scenes, assets, timing and the layout of every scene were checked and nothing is left open — the film can be exported with `render`. A `ready_unverified` result means something is left open (see the open checks), for example a code scene whose layout is never measured — ask the user to watch the film once. This tool has no music option; the app's Music tab offers it.
+A `ready` result means scenes, assets, timing and the layout of every scene were checked and nothing is left open — the film can be exported with `render`. A `ready_unverified` result means something is left open (see the open checks), for example a code scene whose layout is never measured — ask the user to watch the film once. A layout or look-alike finding that is still open at the end keeps the result at `ready_unverified`. This tool has no music option; the app's Music tab offers it.
 
 ### `question_user`
 Ask the user a targeted question and wait for a response. Useful for unclear requirements or when a decision is needed.

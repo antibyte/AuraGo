@@ -96,11 +96,11 @@ geprüft; ein Treffer bekommt eine optionale Korrekturrunde und blockiert das Er
 
 | Ergebnis | Was es bedeutet |
 | --- | --- |
-| Deine Geschichte ist fertig. Bitte sieh sie dir einmal an. | Szenen, Requisiten und Timing wurden geprüft. Überlappungen und passender Text wurden nicht automatisch geprüft. |
+| Deine Geschichte ist fertig. Bitte sieh sie dir einmal an. | Szenen, Requisiten, Timing und, wenn der Browser die Kompilierprüfung ausgeführt hat, das Layout wurden geprüft. |
 | Deine Geschichte ist teilweise fertig. | Manche Szenen brauchen noch Arbeit, und gültige Szenen sind gespeichert. Das Überarbeiten-Feld ist vorbefüllt, um sie fertigzustellen. Ein Timeout oder ein Modellfehler endet hier ebenfalls. |
 | Der Agent konnte diese Geschichte nicht schreiben. | Es wurde keine Dramaturgie gespeichert. Die Karte nennt die Art des Fehlers in einer Zeile. |
 
-Sieh dir jeden Film einmal an: noch prüft nichts, ob eine Requisite ein Gesicht verdeckt oder ein Text überläuft. Ein
+Sieh dir jeden Film einmal an. Wenn die Kompilierprüfung läuft, meldet die Layout-Prüfung Untertitel über den Füßen einer Figur, zu kleine Requisiten, Teile außerhalb des Bildes und eine Figur, die eine Requisite oder einen Text verdeckt. Ein Film gilt nur dann als `ready`, wenn kein Prüfpunkt offen ist. Szenen, die einander ähneln (drei oder mehr hintereinander), werden als `scenes_look_alike` gemeldet. Die Ergebniskarte verlinkt den Kontaktbogen der letzten Prüfung. Ein
 Film kann etwas länger laufen als gewünscht; das wird aufgeführt und ist kein Fehler. Ohne Browser wird die
 Kompilierprüfung übersprungen und als `compile_unverified` gemeldet; der Auftrag läuft trotzdem fertig. Die
 Ergebniskarte einer Überarbeitung listet die Szenen, die sich geändert haben, die geblieben sind und die entfernt
