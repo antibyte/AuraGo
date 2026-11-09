@@ -354,7 +354,7 @@
             const key = CHECK_KEYS[check.code] || 'storymaker.agent.check_unknown';
             return el('li', { class: 'stm-agent-check', dataset: { stm: 'agent-check', code: String(check.code || '') } },
                 check.scene_id ? el('code', { text: String(check.scene_id) }) : null,
-                el('span', { text: t(key) + (check.code === 'compile_unverified' && COMPILE_REASON_KEYS[check.detail] ? ' ' + t(COMPILE_REASON_KEYS[check.detail]) : '') }));
+                el('span', { text: t(key) + (check.code === 'compile_unverified' && Object.prototype.hasOwnProperty.call(COMPILE_REASON_KEYS, check.detail) ? ' ' + t(COMPILE_REASON_KEYS[check.detail]) : '') }));
         }
 
         function outcomeText(outcome, checks) {

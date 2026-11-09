@@ -689,6 +689,9 @@ func (j *storymakerAgentJob) ensureBrowser(ctx context.Context) {
 	}
 	if status.Ready {
 		j.browserReady = true
+		if j.studio != nil {
+			j.studio.ForgetCompile() // an "unavailable" compile kept for this story version must not hide the ready browser
+		}
 		return
 	}
 	j.logger.Warn("[Storymaker] The browser for the agent's compile check is not ready", "job_id", j.job.ID, "source", status.Source, "can_download", status.CanDownload, "issue", status.Issue)

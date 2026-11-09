@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"math"
-	"regexp"
 	"slices"
 )
 
@@ -385,19 +384,27 @@ func checkCompileIssues(list []Issue) []Issue {
 // CompileReasonNone is the reason code when no compile check is wired in, or when the reason text is not a code.
 const CompileReasonNone = "no_compile"
 
-var compileReasonPattern = regexp.MustCompile(`^[a-z][a-z_]{0,39}$`)
-
-// compileReasonCode is the closed code of why a compile check was unavailable (browser_unavailable, compile_timeout,
-// browser_crashed, compile_setup, no_compile), or "" when it ran. The render package gives its own code; any other text
-// counts as no_compile, so free text never leaves this function.
+// compileReasonCode is the closed code of why a compile check was unavailable: browser_unavailable, compile_timeout,
+// browser_crashed, compile_setup or no_compile; it is "" when the check ran. The render package gives the first four as
+// the reason of its summary. Every other text, free text and any other code-like word alike, counts as no_compile, so
+// nothing but these five values leaves this function.
 func compileReasonCode(summary CompileSummary, state string) string {
 	if state != "unavailable" {
 		return ""
 	}
-	if compileReasonPattern.MatchString(summary.Reason) {
+	switch summary.Reason {
+	case "browser_unavailable", "compile_timeout", "browser_crashed", "compile_setup":
 		return summary.Reason
 	}
 	return CompileReasonNone
+}
+
+// ForgetCompile drops the compile result kept for the story version. A result of "unavailable" would otherwise hide a
+// browser that became ready for the same version: the server calls this when the browser turns ready.
+func (s *Studio) ForgetCompile() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.compileETag, s.compileSummary = "", CompileSummary{}
 }
 
 // compileForCheck returns the compile result of this story version. A result is kept per etag,

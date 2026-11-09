@@ -11,6 +11,10 @@ func TestCompileReasonCodeIsClosed(t *testing.T) {
 	}{
 		{"browser_unavailable", "unavailable", "browser_unavailable"},
 		{"compile_timeout", "unavailable", "compile_timeout"},
+		{"browser_crashed", "unavailable", "browser_crashed"},
+		{"compile_setup", "unavailable", "compile_setup"},
+		{"stale_story", "unavailable", CompileReasonNone}, // code-like words of other origins are not reasons either
+		{"invalid_story", "unavailable", CompileReasonNone},
 		{"no browser in tests", "unavailable", CompileReasonNone},
 		{"The pinned Chromium could not be downloaded: C:\\Users\\x", "unavailable", CompileReasonNone},
 		{"", "unavailable", CompileReasonNone},
@@ -20,6 +24,37 @@ func TestCompileReasonCodeIsClosed(t *testing.T) {
 		if got := compileReasonCode(CompileSummary{Reason: tc.reason}, tc.state); got != tc.want {
 			t.Errorf("compileReasonCode(%q, %q) = %q, want %q", tc.reason, tc.state, got, tc.want)
 		}
+	}
+}
+
+// A compile that was unavailable is kept for the story version, so a second check does not ask again. When the browser
+// becomes ready the server calls ForgetCompile, and the next check compiles for the same version.
+func TestStudioCheckForgetCompileLetsAReadyBrowserBeSeenForTheSameStory(t *testing.T) {
+	calls := 0
+	studio, _, _ := newStudioWriteRig(t, func(context.Context, string) (CompileSummary, error) {
+		calls++
+		if calls == 1 {
+			return CompileSummary{Available: false, Reason: "browser_unavailable"}, nil
+		}
+		return CompileSummary{Available: true}, nil
+	})
+	check := func() CheckReport {
+		t.Helper()
+		report, err := studio.Check(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+		return report
+	}
+	if report := check(); report.Compile != "unavailable" {
+		t.Fatalf("first check: compile %q, want unavailable", report.Compile)
+	}
+	if report := check(); report.Compile != "unavailable" || calls != 1 {
+		t.Fatalf("second check of the same story: compile %q after %d compiles, want the cached unavailable after 1", report.Compile, calls)
+	}
+	studio.ForgetCompile()
+	if report := check(); report.Compile != "ok" || report.CompileReason != "" || calls != 2 {
+		t.Fatalf("after ForgetCompile: compile %q reason %q after %d compiles, want ok after 2", report.Compile, report.CompileReason, calls)
 	}
 }
 
