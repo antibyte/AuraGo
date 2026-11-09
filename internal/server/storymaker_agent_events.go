@@ -25,6 +25,7 @@ const (
 	agentEventModel   = "model"
 	agentEventUsage   = "usage"
 	agentEventCheck   = "check"
+	agentEventBrowser = "browser"
 	agentEventOutcome = "outcome"
 )
 

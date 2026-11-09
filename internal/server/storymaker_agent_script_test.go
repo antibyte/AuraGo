@@ -382,6 +382,16 @@ func smScriptRunHappyJob(t *testing.T, model string, textMode bool) {
 	if job.Agent.TextMode != textMode {
 		t.Fatalf("agent.text_mode = %v, want %v", job.Agent.TextMode, textMode)
 	}
+	// The check could not run a browser, so the open checks carry the reason, closed.
+	var compileCheck *storymaker.AgentCheck
+	for i := range job.Agent.OpenChecks {
+		if job.Agent.OpenChecks[i].Code == "compile_unverified" {
+			compileCheck = &job.Agent.OpenChecks[i]
+		}
+	}
+	if compileCheck == nil || compileCheck.Detail != "browser_unavailable" {
+		t.Fatalf("compile_unverified must carry the reason browser_unavailable: %+v", job.Agent.OpenChecks)
+	}
 
 	st := smScriptStory(t, env)
 	smScriptRequireFilled(t, st, "s1", "s2")

@@ -156,6 +156,9 @@ type storymakerAgentJob struct {
 	summary    string
 	before     *storymaker.Story
 
+	browserReady    bool // the browser for the compile check answered ready
+	browserAttempts int  // Ensure calls of this job, at most storymakerBrowserMaxAttempts
+
 	mu   sync.Mutex
 	info storymaker.AgentJobInfo
 }
@@ -652,11 +655,51 @@ func (j *storymakerAgentJob) keepAnswer(answer string) {
 	j.summary = answer
 }
 
+// storymakerBrowserMaxAttempts is how often one job asks for the browser: the first check round and one later round.
+const storymakerBrowserMaxAttempts = 2
+
+// ensureBrowser makes the browser for the compile check ready, downloading the pinned Chromium when only that is left, as
+// the export does. It is bound by render.timeout_seconds. A read-only desktop gets no download, a stopped job logs nothing,
+// and a failure is logged with the browser's own status text (which can name paths, so it never goes into an event or the
+// job document). The job then goes on, and the check reports compile_unverified with the reason code.
+func (j *storymakerAgentJob) ensureBrowser(ctx context.Context) {
+	if j.browserReady || j.browserAttempts >= storymakerBrowserMaxAttempts || ctx.Err() != nil || j.rt.browsers == nil {
+		return
+	}
+	if j.deps.ReadOnly != nil && j.deps.ReadOnly() {
+		return
+	}
+	j.browserAttempts++
+	cfg := j.route.cfg
+	limit := time.Duration(cfg.Storymaker.Render.TimeoutSeconds) * time.Second
+	if limit <= 0 {
+		limit = time.Hour
+	}
+	setup, cancel := context.WithTimeout(ctx, limit)
+	defer cancel()
+	last := time.Now()
+	status, _ := j.rt.browsers.Ensure(setup, cfg.Storymaker.Render.BrowserPath, func(done, total int64) {
+		if total > 0 && time.Since(last) >= 2*time.Second {
+			last = time.Now()
+			j.emit(agentEventBrowser, map[string]any{"done": done, "total": total})
+		}
+	})
+	if ctx.Err() != nil {
+		return // a stopped job is no download failure
+	}
+	if status.Ready {
+		j.browserReady = true
+		return
+	}
+	j.logger.Warn("[Storymaker] The browser for the agent's compile check is not ready", "job_id", j.job.ID, "source", status.Source, "can_download", status.CanDownload, "issue", status.Issue)
+}
+
 // runCheckRound is the check step: one model loop, only if the report asks for one. Advice gets one chance per job.
 func (j *storymakerAgentJob) runCheckRound(ctx context.Context) {
 	if ctx.Err() != nil {
 		return
 	}
+	j.ensureBrowser(ctx)
 	report, err := j.check(ctx)
 	if err != nil {
 		j.logger.Warn("[Storymaker] The agent check failed", "job_id", j.job.ID, "error", err)
