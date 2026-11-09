@@ -88,6 +88,7 @@ func (s *Server) getDesktopStoreService(ctx context.Context) (*desktopstore.Serv
 		Launchpad:        launchpadAdapter,
 		Secrets:          s.Vault,
 		NativeManaged:    newDesktopStoreNativeRuntime(desktopSvc),
+		LLMRelay:         storeLLMRelayProvider{s: s},
 		Logger:           s.Logger,
 		CompanionSettle:  desktopstore.DefaultCompanionSettle,
 		CompanionRecheck: desktopstore.DefaultCompanionRecheck,
