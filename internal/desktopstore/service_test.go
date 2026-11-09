@@ -37,6 +37,7 @@ func TestDefaultCatalogContainsInitialApps(t *testing.T) {
 		"adguard-home":        {image: "adguard/adguardhome", port: 3000, icon: "network", runtime: RuntimeContainerWebApp},
 		"excalidraw":          {image: "excalidraw/excalidraw:latest", port: 80, icon: "editor", runtime: RuntimeContainerWebApp},
 		"uptime-kuma":         {image: "ghcr.io/louislam/uptime-kuma:2", port: 3001, icon: "monitor", runtime: RuntimeContainerWebApp},
+		"node64":              {image: "ghcr.io/ipv64net/node64@sha256:d741185370b837a5af3d0e006293176821e254ec71f16fa1e389d10ec0abc196", port: 8080, icon: "monitor", runtime: RuntimeContainerWebApp},
 		"olivetin":            {image: "ghcr.io/olivetin/olivetin:latest", port: 1337, icon: "olivetin", runtime: RuntimeContainerWebApp},
 		"bytestash":           {image: "ghcr.io/jordan-dalby/bytestash:latest", port: 5000, icon: "code", runtime: RuntimeContainerWebApp},
 		"it-tools":            {image: "ghcr.io/corentinth/it-tools:latest", port: 80, icon: "tools", runtime: RuntimeContainerWebApp},

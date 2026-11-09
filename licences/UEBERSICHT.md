@@ -179,6 +179,7 @@ Quelle: `internal/desktopstore/catalog.go`.
 | AdGuard Home | `adguard/adguardhome` | GPL-3.0 |
 | Excalidraw | `excalidraw/excalidraw:latest` | MIT |
 | Uptime Kuma | `ghcr.io/louislam/uptime-kuma:2` | MIT |
+| Node64 | `ghcr.io/ipv64net/node64@sha256:d741185370b837a5af3d0e006293176821e254ec71f16fa1e389d10ec0abc196` (1.4.0) | Apache-2.0 |
 | Stirling PDF | `ghcr.io/stirling-tools/stirling-pdf:latest` | MIT für den Community-Code. `app/proprietary/` und `app/saas/` haben eigene Lizenzen. |
 | QuakeJS | `docker.io/awakenedpower/quakejs-rootless:latest` | GPL-2.0-Engine, Spieldaten gesondert |
 | RomM | `ghcr.io/rommapp/romm:latest` | AGPL-3.0 |

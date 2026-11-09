@@ -238,6 +238,46 @@ func DefaultCatalog() []CatalogEntry {
 			},
 		},
 		{
+			// Node64 1.4.0 (ipv64.net, Apache-2.0), digest of the
+			// amd64/arm64/armv7 index. Live-verified on 2026-11-09 (Docker
+			// Desktop 29.9.2, linux/amd64 engine, image digest
+			// sha256:d741185370b837a5af3d0e006293176821e254ec71f16fa1e389d10ec0abc196):
+			// the image runs as 65532 and became healthy about 2 s after start
+			// with exactly the hardening below. The first start creates the
+			// admin from NODE64_ADMIN_USER/NODE64_ADMIN_PASSWORD (no /setup
+			// wizard; the 64-hex password logs in, a wrong one gets 401). It
+			// sends X-Frame-Options: DENY and frame-ancestors 'none', so it
+			// opens in its own tab. Only the web port is published; the DNS
+			// filter and proxy modules (53/80/443) are not exposed by the Store.
+			ID:          "node64",
+			Category:    "system",
+			Name:        "Node64",
+			Description: "Homelab monitoring from ipv64.net with health checks and status pages, plus reverse proxy, DNS filter, DynDNS and honeypot modules. It opens in its own browser tab; log in as admin with the password from the Store credentials. Only the web UI port is published (the DNS filter and proxy modules need ports 53, 80 and 443 and are not exposed by the Store). ICMP ping checks are unavailable in the sandboxed container; TCP and HTTP checks work.",
+			Image:       "ghcr.io/ipv64net/node64@sha256:d741185370b837a5af3d0e006293176821e254ec71f16fa1e389d10ec0abc196",
+			Icon:        "monitor",
+			LogoSlug:    "node64",
+			LogoURL:     "",
+			PrimaryPort: PortSpec{ID: "web", Name: "Web UI", ContainerPort: 8080, Protocol: "tcp"},
+			Volumes: []VolumeTemplate{
+				{NameSuffix: "data", ContainerPath: "/data"},
+			},
+			Env: []string{
+				"NODE64_LOG_LEVEL=info",
+				"NODE64_ADMIN_USER=admin",
+			},
+			GeneratedSecrets: []GeneratedSecret{
+				{Key: "admin_password", Env: "NODE64_ADMIN_PASSWORD", Label: "Admin password (user: admin)", Expose: true},
+			},
+			Hardening: &ContainerHardening{
+				CapDrop:        []string{"ALL"},
+				ReadonlyRootfs: true,
+				Tmpfs:          map[string]string{"/tmp": ""},
+			},
+			Metadata: map[string]string{
+				"open_external": "true",
+			},
+		},
+		{
 			ID:          "stirling-pdf",
 			Category:    "office",
 			Name:        "Stirling PDF",

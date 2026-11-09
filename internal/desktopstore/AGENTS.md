@@ -161,6 +161,33 @@ Store app configuration, runtime, assets, and publication.
   tests skip without a Python 3 on PATH) and the server `StoreLLMRelay` tests.
   See `documentation/deeptutor.md`.
 
+### Node64
+
+- `node64` (category `system`, icon `monitor`) is pinned to the digest of
+  `ghcr.io/ipv64net/node64:1.4.0` (amd64/arm64/armv7 index). Web port 8080 is
+  the only published port; the DNS filter and proxy modules (53/80/443) are not
+  exposed, there is no Docker-socket bind and no companion. Data is the named
+  volume `data` at `/data` (already owned by the image user 65532, so a fresh
+  volume works). The UI sends `X-Frame-Options: DENY` and `frame-ancestors
+  'none'`, so the catalog sets `Metadata open_external` and the Desktop opens
+  the app in its own tab; do not add iframe workarounds.
+- The admin is created on the first start from `NODE64_ADMIN_USER=admin` and the
+  generated secret `admin_password` (`NODE64_ADMIN_PASSWORD`, Vault key
+  `desktop_store_node64_admin_password`, `Expose: true` so the Store credentials
+  button shows it; the 64-hex value satisfies Node64's 10-character minimum).
+  A restart on the existing volume logged no admin creation; the Vault value
+  stays the same across Updates.
+- Hardening is the probed set from "Store Container Hardening" (`node64` in
+  `verifiedCatalogHardening`). Re-probe with the exact flags when the digest
+  changes. ICMP ping checks cannot run without capabilities; TCP and HTTP checks
+  work (stated in the description and `documentation/node64.md`).
+- Live check on 2026-11-09 (Docker Desktop 29.9.2, linux/amd64) with the exact
+  catalog env and hardening: healthy after about 2 s, log line "admin user
+  created from environment", `GET /` redirects to `/login` (no `/setup`
+  wizard), the form login with the generated password returns 303 `/`, a wrong
+  password 401, the password never appears in the container log. Verify
+  `TestNode64*`, `TestCatalogHardening*` and `TestDefaultCatalogContainsInitialApps`.
+
 ### God's Eye View Store Contract
 
 - `internal/desktopstore/gods_eye.go` owns app-specific setup for catalog ID
@@ -260,8 +287,11 @@ Store app configuration, runtime, assets, and publication.
 - `arcane/socket-proxy`, `dozzle/socket-proxy` and `beszel/socket-proxy` are
   opted in (`CapDrop: ALL`). Each was probed in its own setup: Arcane's and
   Dozzle's on their private networks, Beszel's on its loopback host port (F-S3
-  probe; the digests are in the catalog comments). Every other image keeps
-  Docker's default capabilities.
+  probe; the digests are in the catalog comments). `node64` is opted in with
+  `CapDrop: ALL`, `ReadonlyRootfs` and `Tmpfs {"/tmp": ""}` (probed on
+  2026-11-09, Docker Desktop 29.9.2 linux/amd64, digest in the catalog comment;
+  an empty tmpfs option string is what `--tmpfs /tmp` sends and yields Docker's
+  default `noexec` tmpfs). Every other image keeps Docker's default capabilities.
 - Verify `TestCatalogHardening*`, `TestDockerCreatePayload*Hardening*`,
   `TestInstallArcaneAppliesOnlyVerifiedHardening` and
   `TestInstallMonitoringProxiesApplyOnlyVerifiedHardening`.

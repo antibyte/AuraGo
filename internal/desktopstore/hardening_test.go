@@ -17,6 +17,10 @@ var verifiedCatalogHardening = map[string]ContainerHardening{
 	// F-S3 probe on aurago-test; date and digest are in the catalog comments.
 	"beszel/socket-proxy": {CapDrop: []string{"ALL"}},
 	"dozzle/socket-proxy": {CapDrop: []string{"ALL"}},
+	// Probed on 2026-11-09 (Docker Desktop 29.9.2, linux/amd64) against image
+	// digest sha256:d741185370b837a5af3d0e006293176821e254ec71f16fa1e389d10ec0abc196
+	// with --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges.
+	"node64": {CapDrop: []string{"ALL"}, ReadonlyRootfs: true, Tmpfs: map[string]string{"/tmp": ""}},
 }
 
 func TestDockerCreatePayloadAppliesOptInHardening(t *testing.T) {
