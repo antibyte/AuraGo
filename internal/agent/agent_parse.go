@@ -156,10 +156,10 @@ func DispatchToolCallResult(ctx context.Context, tc *ToolCall, dc *DispatchConte
 	// LLM Guardian: pre-execution security check
 	if llmGuardian != nil {
 		subject := guardianSubjectCall(*tc)
-		regexLevel := guardian.ScanForInjection(toolCallScanText(subject)).Level
+		sourceWrite := subject.Action == "homepage_file" && subject.Operation == "write_file"
 		// Build guardian context: prefer the triggering user message over tc.Content
 		guardianCtx := userContext
-		if guardianCtx == "" && dc.AuthorizingUserIntent == nil {
+		if guardianCtx == "" && dc.AuthorizingUserIntent == nil && !sourceWrite {
 			guardianCtx = subject.Content
 		}
 		if len(guardianCtx) > 300 {
@@ -172,10 +172,28 @@ func DispatchToolCallResult(ctx context.Context, tc *ToolCall, dc *DispatchConte
 			Operation:  subject.Action,
 			Parameters: toolCallParams(subject),
 			Context:    guardianCtx,
-			RegexLevel: regexLevel,
 		}
-		if llmGuardian.ShouldCheck(check) {
+		sourceLevel := security.ThreatNone
+		if sourceWrite {
+			var sourceScan, controlScan security.ScanResult
+			check, sourceScan, controlScan = homepageSourceGuardianCheck(check, subject.Content, guardian)
+			sourceLevel = sourceScan.Level
+			if sourceScan.Incomplete || controlScan.Incomplete || controlScan.Level >= security.ThreatHigh {
+				tc.GuardianBlocked, tc.GuardianBlockReason = true, "quarantine"
+				return ToolDispatchResult{Status: ToolResultDenied, Output: formatGuardianBlockedMessage(tc.Action, guardianQuarantineNotice, 0, false, false), IsError: true}
+			}
+		} else {
+			check.RegexLevel = guardian.ScanForInjection(toolCallScanText(subject)).Level
+		}
+		trigger := check
+		if sourceLevel > trigger.RegexLevel {
+			trigger.RegexLevel = sourceLevel
+		}
+		if llmGuardian.ShouldCheck(trigger) {
 			result := llmGuardian.EvaluateWithFailSafe(ctx, check)
+			if sourceLevel >= security.ThreatHigh && result.Decision == security.DecisionAllow && (ctx.Err() != nil || strings.HasPrefix(result.Reason, "fail-safe:")) {
+				result.Decision = security.DecisionQuarantine
+			}
 			if result.Decision == security.DecisionBlock {
 				logger.Warn("[LLM Guardian] Blocked tool call",
 					"tool", tc.Action, "reason", result.Reason, "risk", result.RiskScore)

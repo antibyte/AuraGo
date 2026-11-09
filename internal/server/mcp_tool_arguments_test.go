@@ -45,6 +45,9 @@ func TestMCPHomepageSourceArgumentReview(t *testing.T) {
 				if !strings.Contains(body, "homepage_file") || !strings.Contains(body, "<external_data>") || !strings.Contains(body, "write_file") {
 					t.Errorf("review lost typed operation or data boundary")
 				}
+				if strings.Contains(body, "REGEX_FLAG: high") || strings.Contains(body, "REGEX_FLAG: critical") {
+					t.Error("source-data finding became an action instruction flag")
+				}
 				w.Header().Set("Content-Type", "application/json")
 				_ = json.NewEncoder(w).Encode(openai.ChatCompletionResponse{Choices: []openai.ChatCompletionChoice{{
 					FinishReason: openai.FinishReason(tc.finish), Message: openai.ChatCompletionMessage{Role: "assistant", Content: tc.verdict},

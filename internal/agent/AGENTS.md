@@ -43,6 +43,8 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   dispatch boundary. Verify `TestArchivedOutputDispatchGuardianParity` and
   `TestInjectionGuardCanonicalWrappersRetainExternalSource`.
 
+- Bound `homepage_file.write_file` reviews separate control metadata from verbatim source bytes. Scan the complete source locally; show bounded source data and its findings to the tool Guardian, with the full source in the cache identity. Only metadata severity sets the action's regex flag. Source findings still trigger configured review; incomplete scans, hostile metadata and fail-safe allows cannot resolve a high source finding. Source text never supplies reviewer instructions or approval. Keep native path, scope, readonly and action-policy checks. Verify `TestHomepageSourceGuardianCheckSeparatesStoredData` and the existing Guardian/alias dispatch regressions.
+
 - Web/mail results pass `ProtectExternal` before first model use, including summary helpers,
   browser envelopes and both output-vault read APIs. Archived source comes from stored
   tool name and operation, including mixed Google Workspace operations. Legacy
