@@ -23,8 +23,10 @@ for(const path of listed)await fs.access(root+'/'+path);
 for(const t of manifest.tables)for(const key of ['underlay','backglass','preview'])assert.ok(listed.has(t[key]),t.id+': '+key+' not in manifest');
 
 // CC0 audio provenance.
-assert.equal(manifest.audio.length,13);
-for(const id of ['clack','rubber','scoop','knock'])assert.ok(manifest.audio.some(a=>a.path==='audio/'+id+'.ogg'),'audio '+id);
+assert.equal(manifest.audio.length,29);
+for(const id of ['drift-impact-metal-2','golf-roll-hard-1','drift-scrape-metal-1','golf-win-moon-1'])assert.ok(manifest.audio.some(a=>a.path==='audio/'+id+'.ogg'),'audio '+id);
+assert.ok(manifest.audio.some(a=>a.pack==='aura-drift')&&manifest.audio.some(a=>a.pack==='minigolf'),'both CC0 packs');
+assert.ok(manifest.audio.reduce((n,a)=>n+a.bytes,0)<1024*1024,'audio payload');
 for(const entry of manifest.audio){
     assert.equal(entry.license,'CC0-1.0');assert.ok(entry.source&&entry.sha256,entry.path);
     assert.ok(manifest.sources.some(s=>s.id===entry.source),'source record for '+entry.path);

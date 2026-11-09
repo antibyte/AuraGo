@@ -1,4 +1,4 @@
-// Deep Sea Leviathan: ambient sonar, 84 BPM, D dorian. Two bars per chord in the calm sections. Pure data.
+// Deep Sea Leviathan: dark underwater sonar, 80 BPM, D dorian. Two bars per chord in the calm sections. Pure data.
 import { midi, drum as D, melody as M, arp, chord, over, rep, pat, transpose, stingerSet } from './notation.js';
 
 const CH = {
@@ -12,6 +12,7 @@ const CH = {
 };
 const bars8 = (...names) => names.map((n) => CH[n]);
 const calm = bars8('Dm', 'Dm', 'G', 'G', 'Em', 'Em', 'C', 'C');
+const dark = bars8('Dm', 'Dm', 'Bb', 'Bb', 'Dm', 'Dm', 'A', 'A');
 const tense = bars8('Dm', 'Dm', 'Bb', 'Bb', 'C', 'C', 'A', 'A');
 const perBar = bars8('Dm', 'G', 'Em', 'C', 'Dm', 'G', 'Em', 'C');
 const stairs = bars8('Dm', 'Em', 'F', 'G', 'Dm', 'Em', 'F', 'G');
@@ -23,6 +24,7 @@ const BASS = {
     drive: (r) => Array.from({ length: 16 }, (_, i) => [i, i % 4 === 3 ? r + 12 : r, 1, i % 4 === 0 ? 0.95 : 0.7])
 };
 const KIT = {
+    deep: { kick: D('X...............', { vel: 0.55 }), tom: M('.:8 D2:3 .:5', { vel: 0.7 }) },
     heart: { kick: D('X.......o.......', { vel: 0.55 }), shaker: D('....o.......g...', { vel: 0.7 }) },
     ticks: { kick: D('X.......o.......', { vel: 0.5 }), shaker: D('o...o...o...o...', { vel: 0.6 }), hat: D('..............g.', { vel: 0.7 }) },
     mode: { kick: D('X..X..X.X.......', { vel: 0.8 }), tom: D('.....g..g.....X.', { note: 45, vel: 0.9 }), shaker: D('o.o.o.o.o.o.o.o.', { vel: 0.7 }) },
@@ -76,11 +78,12 @@ const huntBell = [].concat(BELL.hunt, BELL.hunt);
 
 const patterns = {
     attractA: section({ ping: PING.slow, kit: 'heart', bell: BELL.calm, bellVel: 0.45 }),
-    attractB: section({ ping: PING.slow, kit: 'heart', bell: BELL.calm, bellVel: 0.5, call: BELL.call, callVel: 0.5 }),
-    mainA: section({ ping: PING.slow, kit: 'heart' }),
-    mainB: section({ ping: PING.steady, kit: 'ticks', bell: BELL.calm }),
-    mainC: section({ chords: perBar, padPerBar: true, dronePerBar: true, ping: PING.steady, kit: 'ticks', bell: BELL.calm, call: BELL.call }),
-    mainD: section({ bass: 'pulse', ping: PING.steady, kit: 'ticks', bell: BELL.calm, bellVel: 0.75, call: BELL.call, arp: '0.1.2.3.' }),
+    attractB: section({ ping: PING.slow, kit: 'heart', bell: BELL.calm, bellVel: 0.5 }),
+    // The main bed stays dark: drone, pad, sonar pings with long echoes and a sparse heartbeat on a dark progression. No hats, bells, flute or arp.
+    mainA: section({ chords: dark, ping: PING.steady, kit: 'deep' }),
+    mainB: section({ chords: dark, ping: PING.steady, kit: 'deep' }),
+    mainC: section({ chords: dark, padPerBar: true, dronePerBar: true, ping: PING.steady, kit: 'deep' }),
+    mainD: section({ chords: dark, bass: 'pulse', ping: PING.steady, kit: 'deep' }),
     modeA: section({ chords: tense, bass: 'eighths', ping: PING.steady, kit: 'mode' }),
     modeB: section({ chords: tense, bass: 'eighths', ping: PING.fast, kit: 'mode', bell: tenseBell, call: BELL.call }),
     mbA: section({ chords: tense, bass: 'drive', ping: PING.fast, kit: 'mb', bell: huntBell, bellVel: 0.7, arp: '0123210301232103' }),
@@ -131,22 +134,23 @@ Object.assign(patterns, ST.patterns);
 
 export default {
     id: 'leviathan',
-    bpm: 84,
+    bpm: 80,
     swing: 0,
     reverb: 2.2,
+    // Level-matched to the other tables (main ~ -22 LUFS); dark: low cutoffs, deep sub drone, long sonar echo, quiet arp.
     instruments: {
-        drone: { type: 'subDrone', gain: 0.55 },
-        pad: { type: 'pad', gain: 0.5, send: 0.8, cutoff: 800, attack: 1.4, release: 1.5 },
-        bass: { type: 'sawBass', gain: 0.55, cutoff: 650, sub: 0.9 },
-        ping: { type: 'ping', gain: 0.5, send: 0.5, echo: 0.536, feedback: 0.5 },
-        bell: { type: 'pluck', gain: 0.5, send: 0.75, bright: 3500, ring: 0.2 },
-        call: { type: 'flute', gain: 0.4, send: 0.9, vibrato: 16 },
-        arpb: { type: 'squareArp', gain: 0.2, send: 0.7, cutoff: 1400 },
-        kick: { type: 'kick', gain: 0.65, pitch: 110, low: 40 },
-        snare: { type: 'snare', gain: 0.4, send: 0.5, tone: 140 },
-        hat: { type: 'hat', gain: 0.22, cutoff: 9000 },
-        tom: { type: 'tom', gain: 0.65, send: 0.45, decay: 0.5 },
-        shaker: { type: 'shaker', gain: 0.35, cutoff: 4200 }
+        drone: { type: 'subDrone', gain: 1.0 },
+        pad: { type: 'pad', gain: 0.8, send: 0.85, cutoff: 600, attack: 1.6, release: 1.8 },
+        bass: { type: 'sawBass', gain: 0.85, cutoff: 480, sub: 1.0 },
+        ping: { type: 'ping', gain: 1.0, send: 0.7, echo: 0.5625, feedback: 0.64 },
+        bell: { type: 'pluck', gain: 0.6, send: 0.8, bright: 2200, ring: 0.25 },
+        call: { type: 'flute', gain: 0.5, send: 0.95, vibrato: 16 },
+        arpb: { type: 'squareArp', gain: 0.1, send: 0.8, cutoff: 700 },
+        kick: { type: 'kick', gain: 0.9, pitch: 100, low: 38 },
+        snare: { type: 'snare', gain: 0.45, send: 0.5, tone: 140 },
+        hat: { type: 'hat', gain: 0.1, cutoff: 6500 },
+        tom: { type: 'tom', gain: 0.9, send: 0.5, decay: 0.6 },
+        shaker: { type: 'shaker', gain: 0.18, cutoff: 3200 }
     },
     patterns,
     sections: {

@@ -9,7 +9,7 @@ import leviathan from '../ui/js/desktop/apps/pinball/audio/songs/leviathan.js';
 import temple from '../ui/js/desktop/apps/pinball/audio/songs/temple.js';
 
 const SONGS = { neon, leviathan, temple };
-const BPM = { neon: 112, leviathan: 84, temple: 100 };
+const BPM = { neon: 112, leviathan: 80, temple: 100 };
 let passed = 0;
 function test(name, fn) { fn(); passed++; console.log('ok   ' + name); }
 const barsOf = (song, s) => song.sections[s].reduce((n, p) => n + song.patterns[p].bars, 0);

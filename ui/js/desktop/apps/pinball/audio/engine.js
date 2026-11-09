@@ -1,16 +1,28 @@
 // AuraPinball audio engine: AudioContext lifecycle, buses, limiter, shared reverb, sample loader, noise pool, ambience beds.
 // Nothing here touches AudioContext at import time (Node can import it).
 import { ASSET_ROOT } from '../config.js';
+import { SAMPLE_NAMES, LOOPS, makeLoop } from './samples.js';
 
-export const SAMPLE_NAMES = Object.freeze([
-    'flipper', 'bumper', 'sling', 'target', 'launch', 'drain', 'lock', 'jackpot', 'bonus', 'clack', 'rubber', 'scoop', 'knock'
-]);
+export { SAMPLE_NAMES };
+// The effects bus is trimmed up so mechanical hits stand above the music bed at the default sliders; the limiter catches peaks.
+export const EFFECTS_TRIM = 3.2;
 export const REVERB_SECONDS = Object.freeze({ neon: 1.2, leviathan: 2.2, temple: 1.2 });
 
 // Perceptual volume curve; a true zero stays exactly zero.
 export function volumeGain(v) {
     const x = Number.isFinite(+v) ? Math.min(1, Math.max(0, +v)) : 0;
     return x <= 0.001 ? 0 : x * x;
+}
+
+// Bus gain for a slider value: perceptual curve, plus the fixed trim on the effects bus.
+export function busGain(key, v) { return volumeGain(v) * (key === 'effects' ? EFFECTS_TRIM : 1); }
+
+// Soft ceiling after the limiter: linear below 0.7, then a tanh knee that never exceeds CEILING (-1.1 dBFS).
+export const CEILING = .88;
+export function ceilingCurve(n = 2049) {
+    const c = new Float32Array(n), knee = .7, room = CEILING - knee;
+    for (let i = 0; i < n; i++) { const x = (i / (n - 1)) * 2 - 1, a = Math.abs(x); c[i] = Math.sign(x) * (a <= knee ? a : knee + room * Math.tanh((a - knee) / room)); }
+    return c;
 }
 
 function mulberry(seed) {
@@ -21,12 +33,12 @@ function mulberry(seed) {
 export function createEngine({ tableId = 'neon', assetURL = path => path, assetRoot = ASSET_ROOT, settings = {}, AudioContextCtor = null, fetchImpl = null } = {}) {
     let ctx = null, disposed = false, reduced = !!settings.reduced, vols = { effects: settings.effects ?? .65, music: settings.music ?? .5, ambience: settings.ambience ?? .3 };
     let buses = null, reverbSend = null, reverbWet = null, ambienceStop = null, suspendedByUs = false;
-    const buffers = new Map(), noises = new Map(), pending = new Map(), life = new AbortController();
+    const buffers = new Map(), loops = new Map(), noises = new Map(), pending = new Map(), life = new AbortController();
 
     function Ctor() { return AudioContextCtor || globalThis.AudioContext || globalThis.webkitAudioContext || null; }
     function apply(bus, key) {
         if (!bus) return;
-        const g = volumeGain(vols[key]), t = ctx.currentTime;
+        const g = busGain(key, vols[key]), t = ctx.currentTime;
         bus.gain.cancelScheduledValues(t);
         if (g === 0) bus.gain.setValueAtTime(0, t); else bus.gain.setTargetAtTime(g, t, .03);
     }
@@ -51,18 +63,27 @@ export function createEngine({ tableId = 'neon', assetURL = path => path, assetR
         if (!AC) return false;
         try { ctx = new AC({ latencyHint: 'interactive' }); } catch { try { ctx = new AC(); } catch { return false; } }
         const limiter = ctx.createDynamicsCompressor();
-        limiter.threshold.value = -4; limiter.knee.value = 4; limiter.ratio.value = 14; limiter.attack.value = .002; limiter.release.value = .12;
-        const master = ctx.createGain(); master.gain.value = 1;
-        master.connect(limiter); limiter.connect(ctx.destination);
+        limiter.threshold.value = -7; limiter.knee.value = 5; limiter.ratio.value = 16; limiter.attack.value = .002; limiter.release.value = .12;
+        const master = ctx.createGain(); master.gain.value = .92;
+        const shaper = ctx.createWaveShaper(); shaper.curve = ceilingCurve(); shaper.oversample = '2x';
+        master.connect(limiter); limiter.connect(shaper); shaper.connect(ctx.destination);
         const effects = ctx.createGain(), music = ctx.createGain(), ambience = ctx.createGain();
-        for (const b of [effects, music, ambience]) { b.gain.value = 0; b.connect(master); }
+        const duck = ctx.createGain(); duck.connect(master); // music passes through this so mechanical hits can duck it without touching the music bus automation
+        for (const b of [effects, music, ambience]) { b.gain.value = 0; b.connect(b === music ? duck : master); }
         const convolver = ctx.createConvolver(); convolver.buffer = impulse(REVERB_SECONDS[tableId] || 1.2);
         reverbSend = ctx.createGain(); reverbSend.gain.value = 1;
         reverbWet = ctx.createGain(); reverbWet.gain.value = reduced ? 0 : .55;
         reverbSend.connect(convolver); convolver.connect(reverbWet); reverbWet.connect(master);
-        buses = { master, effects, music, ambience, limiter };
+        buses = { master, effects, music, ambience, limiter, duck };
         applyAll();
         return true;
+    }
+
+    // Brief music dip under a mechanical hit so it stays clear of the bed; hits in quick succession just hold the dip.
+    function duckMusic(db = -4, hold = .12) {
+        if (!ctx || !buses || disposed || reduced) return;
+        const g = buses.duck.gain, t = ctx.currentTime;
+        g.cancelScheduledValues(t); g.setTargetAtTime(Math.pow(10, db / 20), t, .006); g.setTargetAtTime(1, t + hold, .14);
     }
 
     // Pooled loopable noise (white / pink / brown), 2 s, mono, generated once per context.
@@ -81,6 +102,17 @@ export function createEngine({ tableId = 'neon', assetURL = path => path, assetR
         const f = Math.min(256, n >> 3);
         for (let i = 0; i < f; i++) { const k = (i + 1) / f; d[n - f + i] = d[n - f + i] * (1 - k) + d[i] * k; }
         noises.set(kind, buf);
+        return buf;
+    }
+
+    // Seamless roll loop (crossfaded region of a loaded recording), cached per context; null until the sample is loaded.
+    function loop(kind) {
+        if (loops.has(kind)) return loops.get(kind);
+        const def = LOOPS[kind], src = def && buffers.get(def.s);
+        if (!src || !ctx) return null;
+        const data = makeLoop(src.getChannelData(0), src.sampleRate, def.off, def.dur, def.xf), buf = ctx.createBuffer(1, data.length, src.sampleRate);
+        buf.getChannelData(0).set(data);
+        loops.set(kind, buf);
         return buf;
     }
 
@@ -176,13 +208,13 @@ export function createEngine({ tableId = 'neon', assetURL = path => path, assetR
         if (disposed) return;
         disposed = true; life.abort(); stopAmbience();
         if (ctx) { try { ctx.close(); } catch { /* ignore */ } }
-        buffers.clear(); noises.clear(); pending.clear();
+        buffers.clear(); loops.clear(); noises.clear(); pending.clear();
     }
     function inspect() { return { unlocked: !!ctx && ctx.state === 'running', state: ctx ? ctx.state : 'none', buffers: buffers.size, ambience: !!ambienceStop, suspendedByUs }; }
 
     return {
         get ctx() { return ctx; }, get buses() { return buses; }, get reverbSend() { return reverbSend; }, get time() { return ctx ? ctx.currentTime : 0; },
-        unlock, resume, suspend, setSettings, loadSamples, buffer: name => buffers.get(name) || null, noise,
+        unlock, resume, suspend, setSettings, duckMusic, loadSamples, buffer: name => buffers.get(name) || null, loop, noise,
         startAmbience, stopAmbience, dispose, inspect, tableId, signal: life.signal
     };
 }

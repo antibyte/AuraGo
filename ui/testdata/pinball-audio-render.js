@@ -5,10 +5,11 @@
 // a fake music timer, so everything is scheduled ahead of startRendering().
 // API: window.pinballAudioNames() -> [{name, group, seconds}], window.renderPinballAudio(filter?) -> [{name, group, seconds, peak, rms, nan, wavBase64}]
 // filter: undefined | string (RegExp source tested against the name) | array of exact names.
-import { createEngine, volumeGain } from '/js/desktop/apps/pinball/audio/engine.js';
+import { createEngine, busGain, SAMPLE_NAMES } from '/js/desktop/apps/pinball/audio/engine.js';
 import { createSfx, soundFor, cueSoundFor } from '/js/desktop/apps/pinball/audio/sfx.js';
 import { createMusic, stingerLength } from '/js/desktop/apps/pinball/audio/music.js';
 import { RECIPES, RECIPE_NAMES } from '/js/desktop/apps/pinball/audio/recipes.js';
+import { TAKES } from '/js/desktop/apps/pinball/audio/samples.js';
 import neon from '/js/desktop/apps/pinball/audio/songs/neon.js';
 import leviathan from '/js/desktop/apps/pinball/audio/songs/leviathan.js';
 import temple from '/js/desktop/apps/pinball/audio/songs/temple.js';
@@ -18,7 +19,7 @@ const RATE = 44100, STEP = 0.025;
 const SONGS = { neon, leviathan, temple };
 const TABLES = Object.keys(SONGS);
 const VOLUMES = { effects: 0.65, music: 0.5, ambience: 0.3 };
-const SAMPLE_COUNT = 13;
+const SAMPLE_COUNT = SAMPLE_NAMES.length;
 
 // ---- shared state of the running job ----
 const clock = { now: 0 };
@@ -69,6 +70,8 @@ function wrapContext(real) {
     });
 }
 
+function seeded(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+
 // Runs one job: build the context + engine, let `build` schedule things, drive the virtual clock, render.
 async function runJob(spec) {
     const length = Math.ceil(spec.seconds * RATE);
@@ -84,16 +87,18 @@ async function runJob(spec) {
     // The live engine eases the bus gains in with setTargetAtTime; offline renders start at t=0, so set them directly.
     for (const key of Object.keys(VOLUMES)) {
         const g = engine.buses[key].gain;
-        g.cancelScheduledValues(0); g.setValueAtTime(volumeGain(VOLUMES[key]), 0);
+        g.cancelScheduledValues(0); g.setValueAtTime(busGain(key, VOLUMES[key]), 0);
     }
-    const realSet = globalThis.setTimeout, realClear = globalThis.clearTimeout;
+    // Per-hit variation uses Math.random in the game; renders pin it so a render is reproducible (take jobs force one take, no variation).
+    const realRandom = Math.random, realSet = globalThis.setTimeout, realClear = globalThis.clearTimeout;
+    Math.random = spec.random ? spec.random() : seeded(4242);
     globalThis.setTimeout = (fn, ms) => { const e = { at: clock.now + (ms || 0) / 1000, fn, id: ++idCounter }; queue.push(e); return e.id; };
     globalThis.clearTimeout = id => { const i = queue.findIndex(e => e.id === id); if (i >= 0) queue.splice(i, 1); };
     try {
         const sfx = createSfx(engine);
         spec.build({ engine, sfx, ctx: proxy, at });
         drive(spec.seconds);
-    } finally { globalThis.setTimeout = realSet; globalThis.clearTimeout = realClear; }
+    } finally { globalThis.setTimeout = realSet; globalThis.clearTimeout = realClear; Math.random = realRandom; }
     const buffer = await offline.startRendering();
     return buffer;
 }
@@ -193,6 +198,14 @@ function catalog() {
     for (const recipe of RECIPE_NAMES) { // anything a future recipe adds still gets rendered
         if (seen.has(recipe)) continue;
         add('sfx-' + recipe, 'sfx', Math.min(2.5, RECIPES[recipe].dur + 0.8), ({ sfx, at: sched }) => sched(0.02, () => sfx.play(snd(recipe))));
+    }
+    for (const recipe of Object.keys(TAKES)) { // one job per take of a role: 'take-<recipe>-<index>' (only recipes named like their role)
+        if (!SFX_CASES[recipe] || !RECIPES[recipe]) continue;
+        const n = TAKES[recipe].length;
+        for (let i = 0; i < n; i++) {
+            const s = SFX_CASES[recipe];
+            jobs.push({ name: `take-${recipe}-${i}`, group: 'take', seconds: Math.min(2.5, Math.max(0.5, RECIPES[recipe].dur + 0.8)), build: ({ sfx, at: sched }) => sched(0.02, () => sfx.play(s)), random: () => () => (i + 0.5) / n });
+        }
     }
     add('sfx-magnetHum', 'sfx', 2.5, ({ sfx, at: sched }) => { sched(0.1, () => sfx.event({ type: 'magnet', state: 'grab', id: 'm1' })); sched(1.8, () => sfx.event({ type: 'magnet', state: 'release', id: 'm1' })); });
     const balls = { field: { mode: 'free', speed: 1.5, x: 0 }, plastic: { mode: 'path', pathKind: 'ramp', speed: 1.5, x: 0 }, wire: { mode: 'path', pathKind: 'wire', speed: 1.5, x: 0 }, tube: { mode: 'path', pathKind: 'tube', speed: 1.5, x: 0 } };

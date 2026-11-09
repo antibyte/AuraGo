@@ -67,191 +67,525 @@
       "sha256": "93a072ec6efab2ad28004f717dc547eb5615ef19c0cd29b1d5378afceaaf01e5"
     },
     {
-      "path": "audio/flipper.ogg",
-      "bytes": 4613,
-      "sha256": "a7c9b2679596809ca76471cf12f757b5d952675cb1038bd23728d5b234fa4a26"
+      "path": "audio/drift-impact-metal-1.ogg",
+      "bytes": 9054,
+      "sha256": "3e78b6eb6bfcde66277782d764e7257e51f58d8176c76981c516d70f3311a7f4"
     },
     {
-      "path": "audio/bumper.ogg",
-      "bytes": 5349,
-      "sha256": "c6431e4f2397efd074893ae5ee6f5de1f84ea5b412a1bb2cafe599c14b1e50f0"
+      "path": "audio/drift-impact-metal-2.ogg",
+      "bytes": 6844,
+      "sha256": "3da63747f91d5ea8c0944df7a5ec1f89b93a32d31e1a6910c7d705f529d9103f"
     },
     {
-      "path": "audio/sling.ogg",
-      "bytes": 4691,
-      "sha256": "8076986de70127d765c84ddf10a52d9fdc29a0a73d2a97bd5d3046a6a5be33e9"
+      "path": "audio/drift-impact-metal-3.ogg",
+      "bytes": 8535,
+      "sha256": "6b3af5f28b091c15041e298f2c3ccdce3cbaa8765ee98bb0b270f1f15182fb6b"
     },
     {
-      "path": "audio/target.ogg",
+      "path": "audio/drift-impact-light-3.ogg",
+      "bytes": 5927,
+      "sha256": "ff272bcfd6a92f9f42276e59d10bf4cc3c0b8d985af612d1237d7eccb333a3cb"
+    },
+    {
+      "path": "audio/drift-impact-heavy-1.ogg",
+      "bytes": 8723,
+      "sha256": "b624e7b31a30abe98c2415ad183089facac9c2f5d9ba413fc44ea36e8d2aaf38"
+    },
+    {
+      "path": "audio/drift-prop-cone-1.ogg",
+      "bytes": 11834,
+      "sha256": "abb571c3a52e6dcc8d9903c5017b9ee0e78fee12c9633bc5eff9c5cd0edb5534"
+    },
+    {
+      "path": "audio/drift-prop-cone-2.ogg",
+      "bytes": 7786,
+      "sha256": "a4a4046ea6697c4fb129e27cb2c0724b27a04b8122618d88288cc6139efce8bd"
+    },
+    {
+      "path": "audio/drift-prop-cone-3.ogg",
+      "bytes": 6978,
+      "sha256": "de734f412a2e86f1accc2fc5ceaa9b614011f9f4e3cc3b49b1f8d38dcc927422"
+    },
+    {
+      "path": "audio/drift-crate-break-1.ogg",
+      "bytes": 8398,
+      "sha256": "1dc3f1cbb0015a598ca366aca9a0814a160fdcf56b3492c7d76afa1df10c615e"
+    },
+    {
+      "path": "audio/drift-crate-break-2.ogg",
+      "bytes": 8027,
+      "sha256": "acada30ddfaf38c95f5b58e0093e96d015fe20e47d016130a6d46712b7e58308"
+    },
+    {
+      "path": "audio/drift-prop-barrel-1.ogg",
+      "bytes": 9605,
+      "sha256": "0da7c432ece7143e7d95599950976dadc8d575e3261d7ca21479b2eb997213ea"
+    },
+    {
+      "path": "audio/drift-prop-barrel-2.ogg",
+      "bytes": 7001,
+      "sha256": "e1c801816bc9998c72df25a3d446fd933f0547f8a7c0ccc95d62fb8b4faabac7"
+    },
+    {
+      "path": "audio/drift-scrape-metal-1.ogg",
+      "bytes": 19071,
+      "sha256": "086929220d780e8af5c81d1356f8e78139aa4a9875c6cb582db59f7afbfe0c4c"
+    },
+    {
+      "path": "audio/golf-impact-wood-medium-1.ogg",
       "bytes": 4937,
       "sha256": "767035ee3ab22a8838c0da01de816eaeffe8ffc6dd916a223ae51475b67ef8b6"
     },
     {
-      "path": "audio/launch.ogg",
-      "bytes": 5138,
-      "sha256": "6411613c6a3bec4dc15e7ae59425dbcbadbfd17dfc3c578abdbb01e1d58d5fb4"
+      "path": "audio/golf-impact-wood-medium-2.ogg",
+      "bytes": 4927,
+      "sha256": "677a7462f005486ba450ffa1f7992542fb2904363bd4c941e729d78693ed0232"
     },
     {
-      "path": "audio/drain.ogg",
-      "bytes": 4856,
-      "sha256": "514a042ea3f249e7f035b71d8aba56a9439e42302e35d5f6b1b94746321e857d"
+      "path": "audio/golf-impact-wood-medium-3.ogg",
+      "bytes": 4928,
+      "sha256": "9799ba518602b722c0e71daf42e5b838cfc778ee214127f033baad8d8f289ad9"
     },
     {
-      "path": "audio/lock.ogg",
-      "bytes": 5776,
-      "sha256": "5e0fa0ca0c6b1ac52a4f940a82f562f5224d7152c07cc23146872ad6ce7da66a"
+      "path": "audio/golf-impact-stone-3.ogg",
+      "bytes": 9015,
+      "sha256": "1478bee01d6d4fc20aba676c7c22980a0575d6276c59a785051af3a9e7f43688"
     },
     {
-      "path": "audio/jackpot.ogg",
-      "bytes": 27007,
-      "sha256": "52293ebd29c7fedb72118fffebb12bf8df94ea220fcc373892a6089411392531"
-    },
-    {
-      "path": "audio/bonus.ogg",
-      "bytes": 13424,
-      "sha256": "7625138d6857238c460b0fac1094d440ca6f2ace59bd7f93b98ab29fc071d274"
-    },
-    {
-      "path": "audio/clack.ogg",
-      "bytes": 5315,
-      "sha256": "ba3c2a026eec7659615772e94753cb89dd3968a7df75015567c802769947f6d8"
-    },
-    {
-      "path": "audio/rubber.ogg",
-      "bytes": 4169,
-      "sha256": "6c24ee5e05fb0a1bcd16bca191bf4dab4bde15b7259887385b6c70de16dae10e"
-    },
-    {
-      "path": "audio/scoop.ogg",
+      "path": "audio/golf-cup-rim-1.ogg",
       "bytes": 7866,
       "sha256": "f57109188b19f7990dfe349af20861c5f40d341e3c52f56513946e21d6396c54"
     },
     {
-      "path": "audio/knock.ogg",
-      "bytes": 4500,
-      "sha256": "a6580143df6c64ab48cfc6ea5bf33d7f7b61478ca1c708a64a8d493e46ff7960"
+      "path": "audio/golf-cup-rim-2.ogg",
+      "bytes": 8716,
+      "sha256": "2483bf8d5a1e9f1264441f350743869ff7c82acd62892927218d48be98a3e3bb"
+    },
+    {
+      "path": "audio/golf-cup-rim-3.ogg",
+      "bytes": 7344,
+      "sha256": "a58ef0d47bfc31658b9c93727331411c0fe4df8db4803427e076be75569bbbdd"
+    },
+    {
+      "path": "audio/golf-impact-metal-light-1.ogg",
+      "bytes": 5776,
+      "sha256": "5e0fa0ca0c6b1ac52a4f940a82f562f5224d7152c07cc23146872ad6ce7da66a"
+    },
+    {
+      "path": "audio/golf-impact-metal-light-2.ogg",
+      "bytes": 5315,
+      "sha256": "ba3c2a026eec7659615772e94753cb89dd3968a7df75015567c802769947f6d8"
+    },
+    {
+      "path": "audio/golf-impact-metal-light-3.ogg",
+      "bytes": 5158,
+      "sha256": "fbef16bec6e1fa19bb77b140acf87ca6715300335960309ba5cf4790a185d794"
+    },
+    {
+      "path": "audio/golf-impact-soft-light-1.ogg",
+      "bytes": 4169,
+      "sha256": "6c24ee5e05fb0a1bcd16bca191bf4dab4bde15b7259887385b6c70de16dae10e"
+    },
+    {
+      "path": "audio/golf-cup-rattle-1.ogg",
+      "bytes": 4856,
+      "sha256": "514a042ea3f249e7f035b71d8aba56a9439e42302e35d5f6b1b94746321e857d"
+    },
+    {
+      "path": "audio/golf-roll-hard-1.ogg",
+      "bytes": 25161,
+      "sha256": "c630e015cf500c7a0682ec42759ed6f066339fac5e34e13eb75a7ceb7bb88cb2"
+    },
+    {
+      "path": "audio/golf-roll-soft-1.ogg",
+      "bytes": 13980,
+      "sha256": "482e91d4fe3d5289ac6db84eaca2fdda990f6afa350dadd359948270b1de1f00"
+    },
+    {
+      "path": "audio/golf-win-moon-1.ogg",
+      "bytes": 27007,
+      "sha256": "52293ebd29c7fedb72118fffebb12bf8df94ea220fcc373892a6089411392531"
+    },
+    {
+      "path": "audio/golf-win-temple-1.ogg",
+      "bytes": 13424,
+      "sha256": "7625138d6857238c460b0fac1094d440ca6f2ace59bd7f93b98ab29fc071d274"
     }
   ],
   "audio": [
     {
-      "path": "audio/flipper.ogg",
-      "bytes": 4613,
-      "sha256": "a7c9b2679596809ca76471cf12f757b5d952675cb1038bd23728d5b234fa4a26",
-      "seconds": 0.165,
-      "source": "kenney-impact",
-      "member": "Audio/impactMetal_heavy_000.ogg",
+      "path": "audio/drift-impact-metal-1.ogg",
+      "bytes": 9054,
+      "sha256": "3e78b6eb6bfcde66277782d764e7257e51f58d8176c76981c516d70f3311a7f4",
+      "seconds": 0.841837,
+      "channels": 1,
+      "pack": "aura-drift",
+      "packPath": "sfx/impact-metal-1.ogg",
+      "source": "oga-wood-metal",
+      "member": "metal_close_01.ogg",
       "license": "CC0-1.0"
     },
     {
-      "path": "audio/bumper.ogg",
-      "bytes": 5349,
-      "sha256": "c6431e4f2397efd074893ae5ee6f5de1f84ea5b412a1bb2cafe599c14b1e50f0",
-      "seconds": 0.269,
-      "source": "kenney-impact",
-      "member": "Audio/impactMetal_medium_000.ogg",
+      "path": "audio/drift-impact-metal-2.ogg",
+      "bytes": 6844,
+      "sha256": "3da63747f91d5ea8c0944df7a5ec1f89b93a32d31e1a6910c7d705f529d9103f",
+      "seconds": 0.400091,
+      "channels": 1,
+      "pack": "aura-drift",
+      "packPath": "sfx/impact-metal-2.ogg",
+      "source": "oga-wood-metal",
+      "member": "metal_sheet_04.ogg",
       "license": "CC0-1.0"
     },
     {
-      "path": "audio/sling.ogg",
-      "bytes": 4691,
-      "sha256": "8076986de70127d765c84ddf10a52d9fdc29a0a73d2a97bd5d3046a6a5be33e9",
-      "seconds": 0.527,
-      "source": "kenney-impact",
-      "member": "Audio/impactSoft_heavy_000.ogg",
+      "path": "audio/drift-impact-metal-3.ogg",
+      "bytes": 8535,
+      "sha256": "6b3af5f28b091c15041e298f2c3ccdce3cbaa8765ee98bb0b270f1f15182fb6b",
+      "seconds": 0.59322,
+      "channels": 1,
+      "pack": "aura-drift",
+      "packPath": "sfx/impact-metal-3.ogg",
+      "source": "oga-wood-metal",
+      "member": "metal_sheet_06.ogg",
       "license": "CC0-1.0"
     },
     {
-      "path": "audio/target.ogg",
+      "path": "audio/drift-impact-light-3.ogg",
+      "bytes": 5927,
+      "sha256": "ff272bcfd6a92f9f42276e59d10bf4cc3c0b8d985af612d1237d7eccb333a3cb",
+      "seconds": 0.403152,
+      "channels": 1,
+      "pack": "aura-drift",
+      "packPath": "sfx/impact-light-3.ogg",
+      "source": "oga-breaking-falling",
+      "member": "bfh1_wood_hit_03.ogg",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "audio/drift-impact-heavy-1.ogg",
+      "bytes": 8723,
+      "sha256": "b624e7b31a30abe98c2415ad183089facac9c2f5d9ba413fc44ea36e8d2aaf38",
+      "seconds": 0.729297,
+      "channels": 1,
+      "pack": "aura-drift",
+      "packPath": "sfx/impact-heavy-1.ogg",
+      "source": "oga-breaking-falling",
+      "member": "bfh1_hit_01.ogg",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "audio/drift-prop-cone-1.ogg",
+      "bytes": 11834,
+      "sha256": "abb571c3a52e6dcc8d9903c5017b9ee0e78fee12c9633bc5eff9c5cd0edb5534",
+      "seconds": 0.928753,
+      "channels": 1,
+      "pack": "aura-drift",
+      "packPath": "sfx/prop-cone-1.ogg",
+      "source": "oga-wood-metal",
+      "member": "misc_07.ogg",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "audio/drift-prop-cone-2.ogg",
+      "bytes": 7786,
+      "sha256": "a4a4046ea6697c4fb129e27cb2c0724b27a04b8122618d88288cc6139efce8bd",
+      "seconds": 0.472925,
+      "channels": 1,
+      "pack": "aura-drift",
+      "packPath": "sfx/prop-cone-2.ogg",
+      "source": "oga-wood-metal",
+      "member": "misc_15.ogg",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "audio/drift-prop-cone-3.ogg",
+      "bytes": 6978,
+      "sha256": "de734f412a2e86f1accc2fc5ceaa9b614011f9f4e3cc3b49b1f8d38dcc927422",
+      "seconds": 0.367007,
+      "channels": 1,
+      "pack": "aura-drift",
+      "packPath": "sfx/prop-cone-3.ogg",
+      "source": "oga-wood-metal",
+      "member": "misc_08.ogg",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "audio/drift-crate-break-1.ogg",
+      "bytes": 8398,
+      "sha256": "1dc3f1cbb0015a598ca366aca9a0814a160fdcf56b3492c7d76afa1df10c615e",
+      "seconds": 0.545737,
+      "channels": 1,
+      "pack": "aura-drift",
+      "packPath": "sfx/crate-break-1.ogg",
+      "source": "oga-wood-metal",
+      "member": "wood_breaking_01.ogg",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "audio/drift-crate-break-2.ogg",
+      "bytes": 8027,
+      "sha256": "acada30ddfaf38c95f5b58e0093e96d015fe20e47d016130a6d46712b7e58308",
+      "seconds": 0.568503,
+      "channels": 1,
+      "pack": "aura-drift",
+      "packPath": "sfx/crate-break-2.ogg",
+      "source": "oga-wood-metal",
+      "member": "wood_breaking_02.ogg",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "audio/drift-prop-barrel-1.ogg",
+      "bytes": 9605,
+      "sha256": "0da7c432ece7143e7d95599950976dadc8d575e3261d7ca21479b2eb997213ea",
+      "seconds": 0.794807,
+      "channels": 1,
+      "pack": "aura-drift",
+      "packPath": "sfx/prop-barrel-1.ogg",
+      "source": "oga-breaking-falling",
+      "member": "bfh1_hit_02.ogg",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "audio/drift-prop-barrel-2.ogg",
+      "bytes": 7001,
+      "sha256": "e1c801816bc9998c72df25a3d446fd933f0547f8a7c0ccc95d62fb8b4faabac7",
+      "seconds": 0.389252,
+      "channels": 1,
+      "pack": "aura-drift",
+      "packPath": "sfx/prop-barrel-2.ogg",
+      "source": "oga-breaking-falling",
+      "member": "bfh1_hit_08.ogg",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "audio/drift-scrape-metal-1.ogg",
+      "bytes": 19071,
+      "sha256": "086929220d780e8af5c81d1356f8e78139aa4a9875c6cb582db59f7afbfe0c4c",
+      "seconds": 1.702313,
+      "channels": 1,
+      "pack": "aura-drift",
+      "packPath": "sfx/scrape-metal-1.ogg",
+      "source": "bsb-0543",
+      "member": "0543.ogg",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "audio/golf-impact-wood-medium-1.ogg",
       "bytes": 4937,
       "sha256": "767035ee3ab22a8838c0da01de816eaeffe8ffc6dd916a223ae51475b67ef8b6",
       "seconds": 0.33,
+      "pack": "minigolf",
+      "packPath": "sfx/impact-wood-medium-1.ogg",
       "source": "kenney-impact",
       "member": "Audio/impactWood_medium_000.ogg",
       "license": "CC0-1.0"
     },
     {
-      "path": "audio/launch.ogg",
-      "bytes": 5138,
-      "sha256": "6411613c6a3bec4dc15e7ae59425dbcbadbfd17dfc3c578abdbb01e1d58d5fb4",
-      "seconds": 0.356,
+      "path": "audio/golf-impact-wood-medium-2.ogg",
+      "bytes": 4927,
+      "sha256": "677a7462f005486ba450ffa1f7992542fb2904363bd4c941e729d78693ed0232",
+      "seconds": 0.33,
+      "pack": "minigolf",
+      "packPath": "sfx/impact-wood-medium-2.ogg",
       "source": "kenney-impact",
-      "member": "Audio/impactMetal_heavy_001.ogg",
+      "member": "Audio/impactWood_medium_001.ogg",
       "license": "CC0-1.0"
     },
     {
-      "path": "audio/drain.ogg",
-      "bytes": 4856,
-      "sha256": "514a042ea3f249e7f035b71d8aba56a9439e42302e35d5f6b1b94746321e857d",
-      "seconds": 0.156,
+      "path": "audio/golf-impact-wood-medium-3.ogg",
+      "bytes": 4928,
+      "sha256": "9799ba518602b722c0e71daf42e5b838cfc778ee214127f033baad8d8f289ad9",
+      "seconds": 0.33,
+      "pack": "minigolf",
+      "packPath": "sfx/impact-wood-medium-3.ogg",
       "source": "kenney-impact",
-      "member": "Audio/impactTin_medium_000.ogg",
+      "member": "Audio/impactWood_medium_002.ogg",
       "license": "CC0-1.0"
     },
     {
-      "path": "audio/lock.ogg",
-      "bytes": 5776,
-      "sha256": "5e0fa0ca0c6b1ac52a4f940a82f562f5224d7152c07cc23146872ad6ce7da66a",
-      "seconds": 0.373,
+      "path": "audio/golf-impact-stone-3.ogg",
+      "bytes": 9015,
+      "sha256": "1478bee01d6d4fc20aba676c7c22980a0575d6276c59a785051af3a9e7f43688",
+      "seconds": 0.779,
+      "pack": "minigolf",
+      "packPath": "sfx/impact-stone-3.ogg",
       "source": "kenney-impact",
-      "member": "Audio/impactMetal_light_000.ogg",
+      "member": "Audio/impactPlank_medium_002.ogg",
       "license": "CC0-1.0"
     },
     {
-      "path": "audio/jackpot.ogg",
-      "bytes": 27007,
-      "sha256": "52293ebd29c7fedb72118fffebb12bf8df94ea220fcc373892a6089411392531",
-      "seconds": 1.758,
-      "source": "kenney-jingles",
-      "member": "Audio/8-Bit jingles/jingles_NES00.ogg",
-      "license": "CC0-1.0"
-    },
-    {
-      "path": "audio/bonus.ogg",
-      "bytes": 13424,
-      "sha256": "7625138d6857238c460b0fac1094d440ca6f2ace59bd7f93b98ab29fc071d274",
-      "seconds": 1.324,
-      "source": "kenney-jingles",
-      "member": "Audio/Pizzicato jingles/jingles_PIZZI07.ogg",
-      "license": "CC0-1.0"
-    },
-    {
-      "path": "audio/clack.ogg",
-      "bytes": 5315,
-      "sha256": "ba3c2a026eec7659615772e94753cb89dd3968a7df75015567c802769947f6d8",
-      "seconds": 0.249,
-      "source": "kenney-impact",
-      "member": "Audio/impactMetal_light_001.ogg",
-      "license": "CC0-1.0"
-    },
-    {
-      "path": "audio/rubber.ogg",
-      "bytes": 4169,
-      "sha256": "6c24ee5e05fb0a1bcd16bca191bf4dab4bde15b7259887385b6c70de16dae10e",
-      "seconds": 0.115,
-      "source": "kenney-impact",
-      "member": "Audio/impactSoft_medium_000.ogg",
-      "license": "CC0-1.0"
-    },
-    {
-      "path": "audio/scoop.ogg",
+      "path": "audio/golf-cup-rim-1.ogg",
       "bytes": 7866,
       "sha256": "f57109188b19f7990dfe349af20861c5f40d341e3c52f56513946e21d6396c54",
       "seconds": 0.542,
+      "pack": "minigolf",
+      "packPath": "sfx/cup-rim-1.ogg",
       "source": "kenney-impact",
       "member": "Audio/impactPlate_light_000.ogg",
       "license": "CC0-1.0"
     },
     {
-      "path": "audio/knock.ogg",
-      "bytes": 4500,
-      "sha256": "a6580143df6c64ab48cfc6ea5bf33d7f7b61478ca1c708a64a8d493e46ff7960",
-      "seconds": 0.31,
+      "path": "audio/golf-cup-rim-2.ogg",
+      "bytes": 8716,
+      "sha256": "2483bf8d5a1e9f1264441f350743869ff7c82acd62892927218d48be98a3e3bb",
+      "seconds": 0.655,
+      "pack": "minigolf",
+      "packPath": "sfx/cup-rim-2.ogg",
       "source": "kenney-impact",
-      "member": "Audio/impactWood_heavy_000.ogg",
+      "member": "Audio/impactPlate_light_001.ogg",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "audio/golf-cup-rim-3.ogg",
+      "bytes": 7344,
+      "sha256": "a58ef0d47bfc31658b9c93727331411c0fe4df8db4803427e076be75569bbbdd",
+      "seconds": 0.489,
+      "pack": "minigolf",
+      "packPath": "sfx/cup-rim-3.ogg",
+      "source": "kenney-impact",
+      "member": "Audio/impactPlate_light_002.ogg",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "audio/golf-impact-metal-light-1.ogg",
+      "bytes": 5776,
+      "sha256": "5e0fa0ca0c6b1ac52a4f940a82f562f5224d7152c07cc23146872ad6ce7da66a",
+      "seconds": 0.373,
+      "pack": "minigolf",
+      "packPath": "sfx/impact-metal-light-1.ogg",
+      "source": "kenney-impact",
+      "member": "Audio/impactMetal_light_000.ogg",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "audio/golf-impact-metal-light-2.ogg",
+      "bytes": 5315,
+      "sha256": "ba3c2a026eec7659615772e94753cb89dd3968a7df75015567c802769947f6d8",
+      "seconds": 0.249,
+      "pack": "minigolf",
+      "packPath": "sfx/impact-metal-light-2.ogg",
+      "source": "kenney-impact",
+      "member": "Audio/impactMetal_light_001.ogg",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "audio/golf-impact-metal-light-3.ogg",
+      "bytes": 5158,
+      "sha256": "fbef16bec6e1fa19bb77b140acf87ca6715300335960309ba5cf4790a185d794",
+      "seconds": 0.233,
+      "pack": "minigolf",
+      "packPath": "sfx/impact-metal-light-3.ogg",
+      "source": "kenney-impact",
+      "member": "Audio/impactMetal_light_002.ogg",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "audio/golf-impact-soft-light-1.ogg",
+      "bytes": 4169,
+      "sha256": "6c24ee5e05fb0a1bcd16bca191bf4dab4bde15b7259887385b6c70de16dae10e",
+      "seconds": 0.115,
+      "pack": "minigolf",
+      "packPath": "sfx/impact-soft-light-1.ogg",
+      "source": "kenney-impact",
+      "member": "Audio/impactSoft_medium_000.ogg",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "audio/golf-cup-rattle-1.ogg",
+      "bytes": 4856,
+      "sha256": "514a042ea3f249e7f035b71d8aba56a9439e42302e35d5f6b1b94746321e857d",
+      "seconds": 0.156,
+      "pack": "minigolf",
+      "packPath": "sfx/cup-rattle-1.ogg",
+      "source": "kenney-impact",
+      "member": "Audio/impactTin_medium_000.ogg",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "audio/golf-roll-hard-1.ogg",
+      "bytes": 25161,
+      "sha256": "c630e015cf500c7a0682ec42759ed6f066339fac5e34e13eb75a7ceb7bb88cb2",
+      "seconds": 3.1,
+      "pack": "minigolf",
+      "packPath": "sfx/roll-hard-1.ogg",
+      "source": "oga-bowling-roll",
+      "member": "qubodup-bowling-roll/qubodup-bowling_roll-nofadeout.ogg",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "audio/golf-roll-soft-1.ogg",
+      "bytes": 13980,
+      "sha256": "482e91d4fe3d5289ac6db84eaca2fdda990f6afa350dadd359948270b1de1f00",
+      "seconds": 1.056,
+      "pack": "minigolf",
+      "packPath": "sfx/roll-soft-1.ogg",
+      "source": "oga-sfx-loops",
+      "member": "rolling.ogg",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "audio/golf-win-moon-1.ogg",
+      "bytes": 27007,
+      "sha256": "52293ebd29c7fedb72118fffebb12bf8df94ea220fcc373892a6089411392531",
+      "seconds": 1.758,
+      "pack": "minigolf",
+      "packPath": "sfx/win-moon-1.ogg",
+      "source": "kenney-jingles",
+      "member": "Audio/8-Bit jingles/jingles_NES00.ogg",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "audio/golf-win-temple-1.ogg",
+      "bytes": 13424,
+      "sha256": "7625138d6857238c460b0fac1094d440ca6f2ace59bd7f93b98ab29fc071d274",
+      "seconds": 1.324,
+      "pack": "minigolf",
+      "packPath": "sfx/win-temple-1.ogg",
+      "source": "kenney-jingles",
+      "member": "Audio/Pizzicato jingles/jingles_PIZZI07.ogg",
       "license": "CC0-1.0"
     }
   ],
   "sources": [
+    {
+      "id": "oga-wood-metal",
+      "title": "100 CC0 metal and wood SFX",
+      "author": "rubberduck",
+      "page": "https://opengameart.org/content/100-cc0-metal-and-wood-sfx",
+      "download": "https://opengameart.org/sites/default/files/100-CC0-wood-metal-SFX.zip",
+      "file": "100-CC0-wood-metal-SFX.zip",
+      "bytes": 1990361,
+      "sha256": "be6eba63b03409ac0c77787a956b1503a7c186403d04aef9725c52644a4b7878",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "pack": "aura-drift"
+    },
+    {
+      "id": "oga-breaking-falling",
+      "title": "75 CC0 breaking / falling / hit sfx",
+      "author": "rubberduck",
+      "page": "https://opengameart.org/content/75-cc0-breaking-falling-hit-sfx",
+      "download": "https://opengameart.org/sites/default/files/sfx_breaking_and_falling.zip",
+      "file": "sfx_breaking_and_falling.zip",
+      "bytes": 1624406,
+      "sha256": "e6ee04d91c5f4d30cfda1260d2c9d1faf96fda36319287215fbd07bcb1a80451",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "pack": "aura-drift"
+    },
+    {
+      "id": "bsb-0543",
+      "title": "Metal bucket",
+      "author": "Joseph SARDIN",
+      "page": "https://bigsoundbank.com/metal-bucket-s0543.html",
+      "download": "https://bigsoundbank.com/UPLOAD/ogg/0543.ogg",
+      "file": "0543.ogg",
+      "bytes": 576786,
+      "sha256": "7f41544f07a54642cad98ce00a57409b4a874151605f3cc73d7934d7b7ece6a1",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "pack": "aura-drift"
+    },
     {
       "id": "kenney-impact",
       "title": "Impact Sounds",
@@ -262,7 +596,34 @@
       "bytes": 800850,
       "sha256": "029d734af1582474edf3a694d1b0cebc97c1c152f2f39fa34d4c2bafc5de77f8",
       "license": "CC0-1.0",
-      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/"
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "pack": "minigolf"
+    },
+    {
+      "id": "oga-bowling-roll",
+      "title": "Bowling Ball Rolling",
+      "author": "qubodup",
+      "page": "https://opengameart.org/content/bowling-ball-rolling",
+      "download": "https://opengameart.org/sites/default/files/qubodup-bowling-roll.7z",
+      "file": "qubodup-bowling-roll.7z",
+      "bytes": 195563,
+      "sha256": "3c99cfe42ecf8a87ab13f66f0f4c16d0a2bdbf75f825eb2e959baab581091af8",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "pack": "minigolf"
+    },
+    {
+      "id": "oga-sfx-loops",
+      "title": "30 CC0 SFX Loops",
+      "author": "rubberduck",
+      "page": "https://opengameart.org/content/30-cc0-sfx-loops",
+      "download": "https://opengameart.org/sites/default/files/sfx_loops.zip",
+      "file": "sfx_loops.zip",
+      "bytes": 3526706,
+      "sha256": "9c013474c7e56192a0d1b2840535a1e1d8b93166948d4a9f7136bb6c3d5421cd",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "pack": "minigolf"
     },
     {
       "id": "kenney-jingles",
@@ -274,7 +635,8 @@
       "bytes": 1239525,
       "sha256": "b729ba57959bd58793d2c5cafa348aaf2655d354f3da35ec4729e03ec77197b8",
       "license": "CC0-1.0",
-      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/"
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "pack": "minigolf"
     }
   ]
 }

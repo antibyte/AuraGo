@@ -6,6 +6,7 @@ export const MAX_VOICES = 24;
 export const MAX_ROLLS = 4;
 export const PAN_RANGE = 0.26;
 export const IMPACT_MIN_SPEED = 0.15;
+const ROLL_GAIN = 1.0;
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
 export function panFor(x) { return Number.isFinite(x) ? clamp(x / PAN_RANGE, -1, 1) * 0.8 : 0; }
@@ -122,6 +123,7 @@ export function createSfx(engine) {
         tail.connect(engine.buses.effects);
         if (def.wet > 0 && engine.reverbSend) { const send = c.createGain(); send.gain.value = def.wet; tail.connect(send); send.connect(engine.reverbSend); }
         def.run(kit, t, snd.rate, vg);
+        if (def.duck && engine.duckMusic) engine.duckMusic(def.duck * (.5 + .5 * snd.gain), def.dur * .5);
         return true;
     }
 
@@ -141,47 +143,62 @@ export function createSfx(engine) {
         plungerStep = step;
     }
 
-    // ---- continuous rolling, max 4 voices ----
+    // ---- continuous rolling: looped recordings (samples.js LOOPS), max 4 voices ----
+    // Per voice three looping sources (hard roll, soft roll, metal scrape) behind their own filters; the ball's surface
+    // kind picks the mix, its speed drives gain and playback rate. Everything moves with setTargetAtTime (no zipper noise).
     function buildSlots() {
-        const c = engine.ctx;
+        const c = engine.ctx, hardB = engine.loop('hard'), softB = engine.loop('soft'), scrapeB = engine.loop('scrape');
+        if (!hardB || !softB || !scrapeB) return null; // samples still loading: try again on the next roll() call
+        const filt = (type, freq, q = .7) => { const f = c.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q; return f; };
+        const gain = v => { const g = c.createGain(); g.gain.value = v; return g; };
+        const loopSrc = buf => { const s = c.createBufferSource(); s.buffer = buf; s.loop = true; s.start(0, Math.random() * buf.duration); return s; };
         return Array.from({ length: MAX_ROLLS }, () => {
-            const src = c.createBufferSource(), filter = c.createBiquadFilter(), am = c.createGain(), level = c.createGain(), lfo = c.createOscillator(), depth = c.createGain();
-            src.buffer = engine.noise('pink'); src.loop = true; src.playbackRate.value = 1;
-            level.gain.value = 0; lfo.type = 'sine'; lfo.frequency.value = 12; depth.gain.value = 0; lfo.connect(depth); depth.connect(am.gain);
-            src.connect(filter); filter.connect(am); am.connect(level);
+            const level = gain(0), lfo = c.createOscillator(), depth = gain(0), am = gain(1);
+            const hard = loopSrc(hardB), hardLp = filt('lowpass', 5000), hardHp = filt('highpass', 40), hardG = gain(0);
+            hard.connect(hardLp); hardLp.connect(hardHp); hardHp.connect(hardG); hardG.connect(level);
+            const soft = loopSrc(softB), softBp = filt('bandpass', 900, 2), softG = gain(0);
+            soft.connect(softBp); softBp.connect(softG); softG.connect(level);
+            const scrape = loopSrc(scrapeB), scrapeHp = filt('highpass', 1500), scrapeG = gain(0);
+            scrape.connect(scrapeHp); scrapeHp.connect(am); am.connect(scrapeG); scrapeG.connect(level);
+            lfo.type = 'square'; lfo.frequency.value = 30; lfo.connect(depth); depth.connect(am.gain); lfo.start();
             let tail = level;
             const pan = c.createStereoPanner ? c.createStereoPanner() : null;
             if (pan) { level.connect(pan); tail = pan; }
             tail.connect(engine.buses.effects);
-            src.start(0, Math.random() * 1.5); lfo.start();
-            return { src, filter, am, level, lfo, depth, pan, kind: '' };
+            return { srcs: [hard, soft, scrape], lfo, level, pan, hardLp, hardHp, hardG, softBp, softG, scrapeHp, scrapeG, am, depth, kind: '' };
         });
     }
+    // Per surface kind: mix gains, filter settings and the playback-rate range over ball speed.
+    const ROLL_KINDS = {
+        field: { hard: 1, soft: 0, scrape: 0, lp: 5500, hp: 40, rate: [.7, .75] },
+        plastic: { hard: .7, soft: 1.5, scrape: 0, lp: 2600, hp: 250, bp: 1500, q: 1.1, rate: [.9, .5] },
+        wire: { hard: .8, soft: 0, scrape: 2.2, lp: 9000, hp: 2000, scrapeHp: 1400, am: 1, rate: [.9, .5] },
+        tube: { hard: 1.15, soft: 0, scrape: 0, lp: 650, hp: 30, rate: [.6, .5] }
+    };
     function shape(slot, kind, speed, t) {
-        const f = slot.filter, k = clamp(speed / 3, 0, 1);
-        if (slot.kind !== kind) { slot.kind = kind; slot.lfo.frequency.setValueAtTime(kind === 'plastic' ? 11 : 40, t); }
-        let freq = 600, q = .7, ftype = 'bandpass', d = 0, am = 1;
-        if (kind === 'field') { freq = 400 + 500 * k; q = .9; }
-        else if (kind === 'plastic') { ftype = 'bandpass'; freq = 1600; q = 5; d = .3; am = .7; }
-        else if (kind === 'wire') { ftype = 'highpass'; freq = 3000; q = .7; d = .7; am = .45; slot.lfo.frequency.setTargetAtTime(30 + 30 * k, t, .05); }
-        else { ftype = 'lowpass'; freq = 600; q = .7; }
-        if (f.type !== ftype) f.type = ftype;
-        f.frequency.setTargetAtTime(freq, t, .04); f.Q.value = q;
-        slot.am.gain.setTargetAtTime(am, t, .04); slot.depth.gain.setTargetAtTime(d, t, .04);
-        slot.src.playbackRate.setTargetAtTime(.8 + .5 * k, t, .05);
+        const p = ROLL_KINDS[kind] || ROLL_KINDS.field, k = clamp(speed / 3, 0, 1), tc = .05;
+        slot.kind = kind;
+        slot.hardLp.frequency.setTargetAtTime(p.lp, t, tc); slot.hardHp.frequency.setTargetAtTime(p.hp, t, tc);
+        slot.softBp.frequency.setTargetAtTime(p.bp || 900, t, tc); slot.softBp.Q.setTargetAtTime(p.q || 2, t, tc);
+        slot.scrapeHp.frequency.setTargetAtTime(p.scrapeHp || 1500, t, tc);
+        slot.hardG.gain.setTargetAtTime(p.hard, t, tc); slot.softG.gain.setTargetAtTime(p.soft, t, tc); slot.scrapeG.gain.setTargetAtTime(p.scrape, t, tc);
+        slot.depth.gain.setTargetAtTime(p.am ? .42 : 0, t, tc); slot.am.gain.setTargetAtTime(p.am ? .58 : 1, t, tc);
+        slot.lfo.frequency.setTargetAtTime(p.am ? 26 + 30 * k : 30, t, tc);
+        const rate = p.rate[0] + p.rate[1] * k;
+        for (const s of slot.srcs) s.playbackRate.setTargetAtTime(rate, t, .06);
     }
     function roll(balls) {
         if (!running()) return;
-        if (!slots) slots = buildSlots();
+        if (!slots) { slots = buildSlots(); if (!slots) return; }
         const t = engine.ctx.currentTime, active = [];
         for (const b of balls || []) { const kind = rollKind(b), lvl = kind ? rollLevel(b.speed || 0) : 0; if (lvl > 0) active.push({ b, kind, lvl }); }
         active.sort((a, b) => b.lvl - a.lvl);
         slots.forEach((slot, i) => {
             const a = active[i];
-            if (!a) { slot.level.gain.setTargetAtTime(0, t, .06); return; }
+            if (!a) { slot.level.gain.setTargetAtTime(0, t, .08); return; }
             shape(slot, a.kind, a.b.speed, t);
-            slot.level.gain.setTargetAtTime(a.lvl * (a.kind === 'tube' ? 1.1 : 1), t, .04);
-            if (slot.pan) slot.pan.pan.setTargetAtTime(panFor(a.b.x), t, .04);
+            slot.level.gain.setTargetAtTime(a.lvl * ROLL_GAIN, t, .06);
+            if (slot.pan) slot.pan.pan.setTargetAtTime(panFor(a.b.x), t, .05);
         });
     }
 
@@ -202,7 +219,7 @@ export function createSfx(engine) {
     }
 
     function stopAll() {
-        if (slots) { for (const s of slots) { try { s.src.stop(); s.lfo.stop(); s.level.disconnect(); } catch { /* ignore */ } } slots = null; }
+        if (slots) { for (const s of slots) { try { for (const src of s.srcs) src.stop(); s.lfo.stop(); s.level.disconnect(); } catch { /* ignore */ } } slots = null; }
         if (magnet) { try { magnet.a.stop(); magnet.b.stop(); magnet.g.disconnect(); } catch { /* ignore */ } magnet = null; }
         limiter.clear();
     }
