@@ -500,7 +500,7 @@ export async function createCity(host, options) {
     const previousCarrier=visitor.follow;visitor.follow=experience.rideBody();visitor.ignore=visitor.follow||previousCarrier;
     life?.update(step,!reduced);drones.update(step,simulationTime,!reduced);
     traffic.propose(visitor,{...camera.position,heading:0},(_,p)=>camera.position.set(p.x,p.y,p.z));
-    traffic.solve(step);experience.syncRide?.();
+    traffic.solve(step);experience.settle(reduced?0:step);experience.syncRide?.();
     if(visitor.follow)Object.assign(visitor,{x:camera.position.x,y:camera.position.y,z:camera.position.z});
     visitor.ignore=visitor.follow;
   });

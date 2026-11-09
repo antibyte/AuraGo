@@ -1,6 +1,7 @@
 import {createWayfinder,livingPlaces} from './sysworld-places.js';
 import {bodyShape} from './sysworld-traffic.js';
 import {createSocialSignals} from './sysworld-signals.js';
+import {springStep,findRig,adaptFeet} from './sysworld-footing.js';
 
 const turn=(from,to,dt)=>from+Math.atan2(Math.sin(to-from),Math.cos(to-from))*Math.min(1,dt*5);
 // The walk and carry clips are authored for 1.65 m/s with planted feet; a faster stride plays them faster.
@@ -24,7 +25,10 @@ export function createSociety(scene,{traffic,camera,floor,onSelect,onDemonstrate
     if(!body){model.node.visible=false;return null;}
     const a={...model,id,index,body,role,state:'idle',path:[],until:index*.3,trip:index,cooldown:8+index*.7,source:'ambient',carrying:false,parcels:[],soundX:body.x,soundZ:body.z};
     model.node.traverse(n=>{if(n.isMesh&&/parcel/.test(n.name)){a.parcels.push(n);n.visible=false;}});
-    actors.push(a);model.node.position.set(body.x,body.y,body.z);return a;
+    actors.push(a);model.node.position.set(body.x,body.y,body.z);
+    // Damped height and slope pitch for every resident; feet only when the rig is complete.
+    a.height={y:body.y,v:0};a.pitch={y:0,v:0};model.node.rotation.order='YXZ';a.rig=findRig(model.node);
+    return a;
   }
   function patrol(id,body,node,pause) {const a={id,body,node,pause,role:'patrol',state:'patrol',cooldown:7+actors.length,path:[],soundX:body.x,soundZ:body.z};actors.push(a);return a;}
   function choose(a) {
@@ -176,8 +180,23 @@ export function createSociety(scene,{traffic,camera,floor,onSelect,onDemonstrate
     signals.update(dt,true);
     const current=actors.find(a=>a.id===selected);if(current&&current.state!==selectedStatus){selectedStatus=current.state;onSelect?.({...describe(current),refresh:true});}
   }
+  // One fixed step after the mixer has posed the clips and traffic has committed every move.
+  function settle(dt) {
+    if(disposed)return;
+    const feet=tier!=='low';
+    for(const a of actors) {
+      if(!a.height)continue;                             // hovering patrols own their height
+      if(!a.body.enabled||!a.node.visible)continue;
+      const b=a.body,y=springStep(a.height,b.y,dt);
+      const fx=Math.sin(b.heading),fz=Math.cos(b.heading),slope=floor(b.x+fx*.35,b.z+fz*.35)-floor(b.x-fx*.35,b.z-fz*.35);
+      const pitch=springStep(a.pitch,Math.max(-.08,Math.min(.08,Math.atan2(slope,.7)*.5)),dt);
+      a.node.position.set(b.x,y,b.z);a.node.rotation.y=b.heading;a.node.rotation.x=-pitch;
+      if(feet&&a.rig)adaptFeet(a.rig,a.node,floor);
+    }
+  }
   return {
     add,patrol,update,suspend,
+    settle,
     addPlace(place,entry) {
       if(places.has(place.id))return;places.set(place.id,place);
       for(const point of entry.navigation.workpoints||[])slots.push({id:place.id+':'+point.id,place:place.id,role:place.role,x:place.x+point.position[0],y:floor(place.x,place.z),z:place.z+point.position[2],owner:null});
@@ -210,7 +229,7 @@ export function createSociety(scene,{traffic,camera,floor,onSelect,onDemonstrate
       const place=livingPlaces.find(p=>p.district===(e.to==='agent'?e.from:e.to));
       if(place&&places.has(place.id))onDemonstrate?.(place.id,2,e.state);
     },
-    stats:()=>({completed,meetings:meetings.length,reservations:slots.filter(s=>s.owner).length,signals:signals.stats(),residents:actors.filter(a=>a.body.enabled).map(a=>({...describe(a),x:a.body.x,z:a.body.z,heading:a.body.heading})),places:[...places.keys()]}),
+    stats:()=>({completed,rigs:actors.filter(a=>a.rig).length,meetings:meetings.length,reservations:slots.filter(s=>s.owner).length,signals:signals.stats(),residents:actors.filter(a=>a.body.enabled).map(a=>({...describe(a),x:a.body.x,z:a.body.z,heading:a.body.heading})),places:[...places.keys()]}),
     dispose(){disposed=true;suspend();actors.forEach(a=>traffic.remove(a.id));actors.length=0;places.clear();slots.length=0;signals.dispose();},
   };
 }

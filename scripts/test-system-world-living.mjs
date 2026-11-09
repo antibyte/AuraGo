@@ -39,7 +39,7 @@ const seconds=Number(process.env.SYSTEM_WORLD_SIM_SECONDS||120);
 const simulate=fixedSteps(dt=>{
   traffic.begin();time+=dt;
   experience.update(dt,true,'orbit');life.update(dt,true);drones.update(dt,time,true);
-  traffic.propose(visitor,{...camera.position,heading:0});traffic.solve(dt);
+  traffic.propose(visitor,{...camera.position,heading:0});traffic.solve(dt);experience.settle(dt);
   if(++frames%30===0)for(const p of traffic.stats().poses){
     const b=traffic.body(p.id);assert.ok(traffic.clear(b,b,b),`Overlap at ${time.toFixed(1)}s: ${JSON.stringify(p)}`);
     const before=starts.get(p.id);if(before){
@@ -53,6 +53,7 @@ try{
   await wait(()=>ready&&experience.stats().society.places.length===6&&life.stats().robots===5);
   drones.setTemplate(drone.scene);
   assert.equal(experience.stats().society.residents.length,24,'All five patrols and nineteen residents have safe spawn positions');
+  assert.equal(experience.stats().society.rigs,19,'Every resident exposes its leg rig (structure, leg/shin/foot per side) with soles at its origin');
   assert.equal(drones.stats().drones,6);
   const intervals=[1/120,1/60,1/30,.08,.013,.2];
   for(let i=0;time<seconds;i++){

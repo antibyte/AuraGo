@@ -408,7 +408,7 @@ export function createExperience(scene,options){
       if(!box.body){box.elapsed=9;box.node.visible=false;continue;}
       traffic.propose(box.body,next,(accepted,b)=>{if(!accepted)box.elapsed-=step;box.node.position.set(b.x,b.y,b.z);});
     }
-    if(!options.traffic)traffic.solve(step);
+    if(!options.traffic){traffic.solve(step);society.settle(step);}
     options.onInteraction?.(near,visited.size,room);
   }
   async function setTier(value){tier=value;if(!manifest)return;const level=value==='low'?2:value==='medium'?1:0;
@@ -418,6 +418,7 @@ export function createExperience(scene,options){
     }catch(e){if(!disposed)options.onError?.(e);}
   }
   return {update,interact,endRide,setTier,society,
+    settle(dt){if(!disposed&&manifest)society.settle(dt);},
     suspend(){society.suspend();machinery.clear();missionSeeded=false;for(const box of freight){box.elapsed=9;box.node.visible=false;if(box.body)traffic.remove(box.body.id);box.body=null;}},
     syncRide(){if(ride?.kind==='tram'){const t=trams[ride.index];route.getTangentAt(t.u,ahead);camera.position.copy(t.node.position).addScaledVector(ahead,ride.offset);camera.position.y+=2.3;camera.lookAt(t.node.position.x+ahead.x*16,camera.position.y,t.node.position.z+ahead.z*16);}},
     socialAction(verb,id){const s=stations.find(s=>s.id===id);return society.action(options.reduced()&&verb==='guide'?'cancel':verb,s?{x:s.platformX,z:s.platformZ}:null);},
