@@ -156,7 +156,7 @@ func DispatchToolCallResult(ctx context.Context, tc *ToolCall, dc *DispatchConte
 	// LLM Guardian: pre-execution security check
 	if llmGuardian != nil {
 		subject := guardianSubjectCall(*tc)
-		sourceWrite := subject.Action == "homepage_file" && subject.Operation == "write_file"
+		check, sourceScan, controlScan, sourceWrite := storedFileGuardianCheck(subject, guardian)
 		// Build guardian context: prefer the triggering user message over tc.Content
 		guardianCtx := userContext
 		if guardianCtx == "" && dc.AuthorizingUserIntent == nil && !sourceWrite {
@@ -168,15 +168,9 @@ func DispatchToolCallResult(ctx context.Context, tc *ToolCall, dc *DispatchConte
 		// Provenance, not a verdict: the judge sees that this session read content
 		// from outside before the call it is judging.
 		guardianCtx = guardianContextWithReads(guardianCtx, dc.SessionID)
-		check := security.GuardianCheck{
-			Operation:  subject.Action,
-			Parameters: toolCallParams(subject),
-			Context:    guardianCtx,
-		}
+		check.Context = guardianCtx
 		sourceLevel := security.ThreatNone
 		if sourceWrite {
-			var sourceScan, controlScan security.ScanResult
-			check, sourceScan, controlScan = homepageSourceGuardianCheck(check, subject.Content, guardian)
 			sourceLevel = sourceScan.Level
 			if sourceScan.Incomplete || controlScan.Incomplete || controlScan.Level >= security.ThreatHigh {
 				tc.GuardianBlocked, tc.GuardianBlockReason = true, "quarantine"
@@ -231,6 +225,8 @@ func DispatchToolCallResult(ctx context.Context, tc *ToolCall, dc *DispatchConte
 	startTime := time.Now()
 	var trustedStatus ToolResultStatus
 	ctx = context.WithValue(ctx, toolOutcomeKey{}, &trustedStatus)
+	origin := archivedOutputOrigin{Tool: tc.Action, Operation: tc.Operation}
+	ctx = context.WithValue(ctx, archivedOutputOriginKey{}, &origin)
 	// Run-scoped gates travel with this dispatch only. They narrow the
 	// server-owned process snapshot and are never written process-wide.
 	ctx = tools.WithRuntimePermissions(ctx, tools.RuntimePermissionsFromConfig(dc.Cfg))
@@ -258,7 +254,11 @@ func DispatchToolCallResult(ctx context.Context, tc *ToolCall, dc *DispatchConte
 	// Guardian: Sanitize tool output (isolation + role-marker stripping)
 	checked := guardian.ProtectExternal(ctx, security.ExternalToolSource(tc.Action, tc.Operation), sanitized)
 	sanitized = checked.Text
-	sanitized = guardian.SanitizeToolOutput(tc.Action, sanitized)
+	if tc.Action == "read_tool_output" || tc.Action == "retrieve_original_output" {
+		sanitized = guardian.SanitizeArchivedToolOutput(origin.Tool, sanitized)
+	} else {
+		sanitized = guardian.SanitizeToolOutput(origin.Tool, sanitized)
+	}
 	if checked.Datamarked {
 		sanitized += "\n" + security.DatamarkNotice
 	}
@@ -275,7 +275,9 @@ func DispatchToolCallResult(ctx context.Context, tc *ToolCall, dc *DispatchConte
 	// Recording their paths as copied text blocks the authored attachment node.
 	// Keep recording external reads and all model-directed tool conversations.
 	if dc.MessageSource != MessageSourceFlow || tc.Action != "document_creator" || status != ToolResultSuccess {
-		recordIsolatedToolCallOutput(dc.SessionID, *tc, output)
+		sourceCall := *tc
+		sourceCall.Action, sourceCall.Operation = origin.Tool, origin.Operation
+		recordIsolatedToolCallOutput(dc.SessionID, sourceCall, output)
 	}
 	return ToolDispatchResult{
 		Output:  output,
@@ -2221,10 +2223,10 @@ func toolCallParams(tc ToolCall) map[string]string {
 		m["operation"] = tc.Operation
 	}
 	if tc.Command != "" {
-		m["command"] = truncateUTF8HeadTail(tc.Command, 600)
+		m["command"] = tc.Command
 	}
 	if tc.Code != "" {
-		m["code"] = truncateUTF8HeadTail(tc.Code, 300)
+		m["code"] = tc.Code
 	}
 	if path := firstNonEmpty(tc.FilePath, tc.Path); path != "" {
 		m["file_path"] = guardianDisplayPath(tc, path)

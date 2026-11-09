@@ -27,6 +27,18 @@ type readToolOutputResponse struct {
 	Message          string  `json:"message,omitempty"`
 }
 
+type archivedOutputOriginKey struct{}
+
+type archivedOutputOrigin struct {
+	Tool, Operation string
+}
+
+func setArchivedOutputOrigin(ctx context.Context, out *memory.CompressedToolOutput) {
+	if origin, ok := ctx.Value(archivedOutputOriginKey{}).(*archivedOutputOrigin); ok {
+		origin.Tool, origin.Operation = out.ToolName, out.ToolOperation
+	}
+}
+
 const (
 	// maxReadToolOutputChars caps an explicit max_chars; the inline budget of
 	// the dispatch caps every reply as the model receives it.
@@ -69,6 +81,8 @@ func handleReadToolOutput(ctx context.Context, tc ToolCall, dc *DispatchContext)
 	if viewErr != nil {
 		return readToolOutputError(viewErr.Error())
 	}
+	// Only the session-authorized archive record supplies the output policy.
+	setArchivedOutputOrigin(ctx, out)
 	resp := readToolOutputResponse{
 		Status:           "success",
 		OutputRef:        out.OutputRef,
@@ -78,7 +92,7 @@ func handleReadToolOutput(ctx context.Context, tc ToolCall, dc *DispatchContext)
 		FilterUsed:       out.FilterUsed,
 		CompressionRatio: out.CompressionRatio,
 	}
-	// The Guardian isolates every read_tool_output reply (external output).
+	// Dispatch preserves the archived tool's output policy and always isolates it.
 	// Without one the reply keeps the original's isolation by itself.
 	isolate := isolated && (dc.Guardian == nil)
 	reply := fitReadToolOutputReply(resp, content, req, false, readToolOutputBudget(dc))
@@ -204,6 +218,7 @@ func handleRetrieveOriginalOutput(ctx context.Context, tc ToolCall, dc *Dispatch
 	if err != nil {
 		return readToolOutputError(err.Error())
 	}
+	setArchivedOutputOrigin(ctx, out)
 	_ = dc.ShortTermMem.MarkCompressedOutputAccessed(ctx, out.ID)
 	content := out.OriginalContent
 	const maxRetrievableOriginalChars = 32000

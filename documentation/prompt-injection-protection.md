@@ -78,6 +78,26 @@ Spotlight and Canary options remain inert for legacy configuration compatibility
 
 ## Internal content and provenance
 
+Exact local file writes (`filesystem.write_file`, `file_editor` text edits and
+`homepage_file` writes/text edits) distinguish file data from action metadata.
+Quoted instructions in content, replacement text or an anchor are scanned in
+full. The action reviewer sees bounded, fenced file data and fixed scan findings.
+Complete values bind the review cache. Source findings do not set the action's
+instruction-override flag. Direct verdict-steering instructions still trigger
+the existing conservative refusal, including when quoted in a file. A completed explicit review is required to resolve a
+high source finding; missing/incomplete reviews and hostile metadata remain
+blocked. Paths, scope, read-only mode and action approvals retain their normal
+checks. Executable commands, memory writes and tools that build or install code
+retain their existing action checks.
+
+The Homepage registry is an internal ledger: flagged records remain isolated and
+carry a warning. Bound Homepage file results use project-source isolation;
+critical or boundary-forging content is escaped. The two archive readers inherit
+this output policy only from their session-authorized stored record, never from
+an embedded `tool_name` or a payload claim. Unknown and external sources retain
+quarantine. Command/code verdict caches use the complete arguments even when the
+reviewer's display is bounded.
+
 AuraGo's own stores (memory, journal, notes, missions, the scheduler, the knowledge
 graph, plans, inventory, tool manuals and system metrics) are scanned and fenced like
 other tool output, but they are never withheld. A finding adds a

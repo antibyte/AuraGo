@@ -27,15 +27,25 @@ var internalToolOutputs = map[string]bool{
 	"manage_notes": true, "manage_journal": true,
 	"manage_missions": true, "cron_scheduler": true, "schedule_cron": true,
 	"manage_plan": true, "manage_todos": true, "manage_appointments": true,
-	"query_inventory":  true,
-	"read_tool_manual": true,
-	"system_metrics":   true, "get_system_metrics": true,
+	"homepage_registry": true,
+	"query_inventory":   true,
+	"read_tool_manual":  true,
+	"system_metrics":    true, "get_system_metrics": true,
 }
 
 // IsInternalToolOutput reports whether tool returns AuraGo's own store content
 // (see toolOutputInternal).
 func IsInternalToolOutput(tool string) bool {
 	return internalToolOutputs[strings.ToLower(strings.TrimSpace(tool))]
+}
+
+// SanitizeArchivedToolOutput restores stored source/store policy. Discovery
+// envelopes still cross the archive's scanning and isolation boundary.
+func (g *Guardian) SanitizeArchivedToolOutput(tool, output string) string {
+	if classifyToolOutput(tool) == toolOutputTrusted {
+		tool = "read_tool_output"
+	}
+	return g.SanitizeToolOutput(tool, output)
 }
 
 func classifyToolOutput(action string) toolOutputTrust {
@@ -47,7 +57,7 @@ func classifyToolOutput(action string) toolOutputTrust {
 		return toolOutputTrusted
 	case "execute_shell", "execute_python", "run_tool":
 		return toolOutputExternal
-	case "game_maker_project", "game_maker_file", "game_maker_asset", "game_maker_validate",
+	case "homepage_file", "game_maker_project", "game_maker_file", "game_maker_asset", "game_maker_validate",
 		// CYD Creator job tools that return C++ source, layout JSON, build
 		// diagnostics or API reference text: copyable code must stay unescaped.
 		"cyd_creator_read_project", "cyd_creator_read_file", "cyd_creator_build", "cyd_creator_api_reference",
