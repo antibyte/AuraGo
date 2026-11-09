@@ -640,7 +640,7 @@ func (j *storymakerAgentJob) check(ctx context.Context) (storymaker.CheckReport,
 }
 
 func (j *storymakerAgentJob) emitCheck(report storymaker.CheckReport) {
-	j.emit(agentEventCheck, map[string]any{"issues": len(report.Issues), "advice": len(report.Advice), "rounds_left": report.RoundsLeft, "compile": report.Compile})
+	j.emit(agentEventCheck, map[string]any{"issues": len(report.Issues), "advice": len(report.Advice), "rounds_left": report.RoundsLeft, "compile": report.Compile, "compile_reason": report.CompileReason})
 }
 
 // keepAnswer remembers the last text reply. A revise job keeps the reply of its revise loop, because the

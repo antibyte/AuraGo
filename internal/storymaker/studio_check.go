@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"regexp"
 	"slices"
 )
 
@@ -33,6 +34,7 @@ type CheckReport struct {
 	TotalSeconds                float64
 	TargetSeconds               int
 	Compile                     string
+	CompileReason               string // the closed code of why the compile check was unavailable, "" otherwise
 	RoundsLeft                  int
 }
 
@@ -328,7 +330,7 @@ func (s *Studio) runCheck(ctx context.Context) (CheckReport, string, error) {
 
 	report := CheckReport{
 		Environment: environment, Scenes: scenes, TotalSeconds: total,
-		TargetSeconds: s.job.TargetSeconds, Compile: state,
+		TargetSeconds: s.job.TargetSeconds, Compile: state, CompileReason: compileReasonCode(summary, state),
 	}
 	for _, is := range found {
 		switch {
@@ -378,6 +380,24 @@ func checkCompileIssues(list []Issue) []Issue {
 		}
 	}
 	return out
+}
+
+// CompileReasonNone is the reason code when no compile check is wired in, or when the reason text is not a code.
+const CompileReasonNone = "no_compile"
+
+var compileReasonPattern = regexp.MustCompile(`^[a-z][a-z_]{0,39}$`)
+
+// compileReasonCode is the closed code of why a compile check was unavailable (browser_unavailable, compile_timeout,
+// browser_crashed, compile_setup, no_compile), or "" when it ran. The render package gives its own code; any other text
+// counts as no_compile, so free text never leaves this function.
+func compileReasonCode(summary CompileSummary, state string) string {
+	if state != "unavailable" {
+		return ""
+	}
+	if compileReasonPattern.MatchString(summary.Reason) {
+		return summary.Reason
+	}
+	return CompileReasonNone
 }
 
 // compileForCheck returns the compile result of this story version. A result is kept per etag,

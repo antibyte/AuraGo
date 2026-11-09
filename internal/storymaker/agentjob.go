@@ -28,6 +28,8 @@ const (
 type AgentCheck struct {
 	Code    string `json:"code"`
 	SceneID string `json:"scene_id,omitempty"`
+	// Detail is a closed code that explains the check, for compile_unverified the reason (browser_unavailable and so on).
+	Detail string `json:"detail,omitempty"`
 }
 
 // AgentJobInfo is the agent part of a job record. Kind is create or revise. Phase is outline, cast, fill, check,
@@ -80,6 +82,11 @@ func DecideOutcome(in OutcomeInput) (outcome string, checks []AgentCheck) {
 	add(CodeLayoutUnverified, "")
 	if in.Check.Compile == "unavailable" {
 		add(outcomeCheckCompileUnverified, "")
+		for i := range checks {
+			if checks[i].Code == outcomeCheckCompileUnverified {
+				checks[i].Detail = in.Check.CompileReason
+			}
+		}
 	}
 	if in.Narration != "" {
 		add(in.Narration, "")
