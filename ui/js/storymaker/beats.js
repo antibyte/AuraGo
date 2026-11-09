@@ -163,7 +163,7 @@
         function walkSeconds(from, to) {
             var cyc = cat.cycles.walk, speed = cyc && cyc.speed > 0 ? cyc.speed : 12;
             var dx = to.x - from.x, dy = to.y - from.y, dist = Math.sqrt(dx * dx + dy * dy);
-            var depth = (stage.depthScale(from.y) + stage.depthScale(to.y)) / 2;
+            var depth = (stage.depthScale(from.y, from.depth) + stage.depthScale(to.y, to.depth)) / 2;
             return Math.max(0.3, dist / (speed / 100 * SM.stage.DESIGN_W * depth));
         }
 
@@ -261,7 +261,7 @@
                     a.look.set(t0, null);
                     a.walks.add(t0, t0 + dur, {});
                     if (to.face) a.facing.set(t0 + dur, to.face === 'left' ? -1 : 1);
-                    if (typeof to.depth === 'number') a.depth = to.depth;
+                    a.depth = typeof to.depth === 'number' ? to.depth : null;
                 }
             },
             exit: {
@@ -282,7 +282,7 @@
                     var e = find(b.who || b.target);
                     var to = b.to !== undefined ? stage.resolve(b.to) : null;
                     if (!e || !to) return 0.6 * f;
-                    return walkSeconds({ x: e.x.at(t0), y: e.y.at(t0) }, to) * f;
+                    return walkSeconds({ x: e.x.at(t0), y: e.y.at(t0), depth: e.depth }, to) * f;
                 },
                 run: function (b, j, t0, dur) { moveBeat(b, j, t0, dur, true); }
             },
@@ -457,7 +457,7 @@
                 e.walks.add(t0, t0 + dur, {});
                 if (to.face) e.facing.set(t0 + dur, to.face === 'left' ? -1 : 1);
             }
-            if (typeof to.depth === 'number') e.depth = to.depth;
+            e.depth = typeof to.depth === 'number' ? to.depth : null;
             moveTo(e, t0, t0 + dur, to, ease);
         }
 

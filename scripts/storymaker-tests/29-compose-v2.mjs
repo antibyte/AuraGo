@@ -2,6 +2,7 @@
 // the frame height, the automatic push-in, and every v1 story untouched.
 import assert from 'node:assert/strict';
 import { t } from '../storymaker-test-context.mjs';
+import { renderAssets } from '../storymaker-test-support.mjs';
 
 const { check, near } = t;
 const SM = t.core();
@@ -126,4 +127,62 @@ check('compose v2: a scene without its own camera pushes in onto the speaker, an
 
     near(zoomAt(compile(film()), 60), 1, 1e-9, 'a story without compose never pushes in');
     assert.equal(SM.compose.hasOwnCamera({ camera: { framing: 'wide' }, beats: [] }), false, 'the default wide framing is no choice');
+});
+
+// beatsOnly(style, beats): the film with its own beats (no show beats), so the actor is the only mover.
+const beatsOnly = (style, beats) => film(style, { beats });
+const lastSeg = track => track.segs[track.segs.length - 1];
+
+check('compose v2: a move or enter to an explicit point drops the spot depth (the size follows the y of the point); v1 is unchanged', () => {
+    const s1 = SM.stage.create({ aspect: '16:9', env: plainEnv() });
+    const s2 = SM.stage.create({ aspect: '16:9', env: plainEnv(), compose: 'v2', captions: true });
+    const point = { x: 50, y: 30 };
+    const beatsOf = {
+        move: [{ do: 'move', who: 'anna', to: point, duration: 1 }],
+        walk: [{ do: 'walk', who: 'anna', to: point, duration: 1 }],
+        enter: [{ do: 'enter', who: 'anna', from: 'left', to: point, duration: 1 }]
+    };
+    for (const kind of Object.keys(beatsOf)) {
+        const a = entitiesOf(compile(beatsOnly({}, beatsOf[kind]))).find(e => e.type === 'actor');
+        const b = entitiesOf(compile(beatsOnly({ compose: 'v2' }, beatsOf[kind]))).find(e => e.type === 'actor');
+        const end = lastSeg(b.y).t1 + 0.5;
+        assert.equal(b.depth, null, kind + ': no stale spot depth at a point');
+        assert.equal(a.depth, null, kind + ': v1 has no depth either');
+        near(b.y.at(end), a.y.at(end), 1e-9, kind + ': the same point in both');
+        near(s2.depthScale(b.y.at(end), b.depth), s2.depthScale(b.y.at(end), null), 1e-9, kind + ': the y-based depth scale');
+        near(s2.depthScale(b.y.at(end), b.depth), s1.depthScale(a.y.at(end), a.depth), 1e-9, kind + ': the size of v1');
+    }
+    // a move to a base spot keeps the spot depth (the old size at the lifted feet line)
+    const home = entitiesOf(compile(beatsOnly({ compose: 'v2' }, [{ do: 'move', who: 'anna', to: 'right', duration: 1 }]))).find(e => e.type === 'actor');
+    assert.equal(typeof home.depth, 'number', 'a base spot keeps its depth');
+});
+
+check('compose v2: a walk between base spots takes the same time as in v1', () => {
+    const walkSeconds = style => {
+        const actor = entitiesOf(compile(beatsOnly(style, [{ do: 'walk', who: 'anna', to: 'right' }]))).find(e => e.type === 'actor');
+        const seg = lastSeg(actor.x);
+        return seg.t1 - seg.t0;
+    };
+    const v1 = walkSeconds({}), v2 = walkSeconds({ compose: 'v2' });
+    assert.ok(v1 > 0.3, 'a real walk, not the minimum');
+    near(v2, v1, 1e-9, 'the walk time');
+});
+
+check('compose v2: render builds the compile stage again (same spot y, captionSafe); a code scene gets no compose', () => {
+    const story = film({ compose: 'v2' });
+    story.scenes.push({ id: 's2', kind: 'code', narration: 'So sieht das aus.' });
+    const out = compile(story), tl = out.timeline;
+    const rc = SM.render.makeContext(tl, renderAssets(), tl.width, tl.height);
+    const scene = tl.scenes.find(s => s.id === 's1'), codeScene = tl.scenes.find(s => s.id === 's2');
+    assert.equal(codeScene.kind, 'code');
+    const viaRender = SM.render.stageFor(scene, rc);
+    const viaCompile = SM.stage.create({ aspect: tl.aspect, width: tl.width, height: tl.height, env: scene.env, compose: 'v2', captions: true });
+    assert.equal(viaRender.captionSafe, true);
+    assert.equal(viaRender.captionSafe, viaCompile.captionSafe);
+    for (const name of ['left', 'center', 'right']) near(viaRender.spot(name).y, viaCompile.spot(name).y, 1e-9, name);
+    const actor = scene.entities.find(e => e.type === 'actor');
+    near(viaRender.spot('left').y, actor.y.at(0), 1e-9, 'the actor stands on the spot the render stage reports');
+    assert.equal(SM.render.stageFor(codeScene, rc).captionSafe, false, 'a code scene is drawn without compose');
+    const plainCode = SM.stage.create({ aspect: tl.aspect, width: tl.width, height: tl.height, env: null });
+    near(SM.render.stageFor(codeScene, rc).spot('left').y, plainCode.spot('left').y, 1e-9, 'and keeps the old feet line');
 });
