@@ -82,6 +82,30 @@ func TestSceneWriteLeavesOtherLanguagesAndUeSpellingsAlone(t *testing.T) {
 	}
 }
 
+// A refused outline call can leave repairs pending (the first scene was repaired, the second id is a duplicate). A later
+// scene write without a loss must not report or count them. A one-scene outline would not do: it is refused before any text
+// is repaired.
+func TestSceneWriteDropsRepairsLeftByARefusedOutline(t *testing.T) {
+	studio, _, _ := newStudioWriteRig(t, nil)
+	studio.SetPhase(PhaseOutline, "")
+	refused := studioWriteCall(t, studio, ToolStory, "outline",
+		`{"data":{"template":"concept_explainer","target_seconds":60,"scenes":[{"id":"s1","narration":"Eine Firewall pruft das."},{"id":"s1","narration":"Noch eine Zeile."}]}}`)
+	if refused["status"] == "ok" {
+		t.Fatalf("the outline must be refused: %v", refused)
+	}
+	studio.SetPhase(PhaseFill, "s1")
+	clean := studioWriteCall(t, studio, ToolStory, "patch_scene", `{"scene_id":"s1","data":{"narration":"Eine {1}Firewall prüft das."}}`)
+	if clean["status"] != "ok" {
+		t.Fatalf("patch_scene = %v", clean)
+	}
+	if _, has := clean["repaired"]; has {
+		t.Fatalf("stale repairs leaked into a clean scene write: %v", clean)
+	}
+	if studio.Repairs() != 0 {
+		t.Fatalf("Repairs = %d, want 0", studio.Repairs())
+	}
+}
+
 func TestOutlineRepairsUmlautsBeforeTheWordCount(t *testing.T) {
 	studio, ps, projectID := newStudioWriteRig(t, nil)
 	studio.SetPhase(PhaseOutline, "")
