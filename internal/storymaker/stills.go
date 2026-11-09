@@ -37,7 +37,7 @@ const (
 	lookAlikeMinRun = 3
 	// lookAlikeMaxDistance is the most bits (of 64) in which the hashes of two neighbouring scenes may differ for the scenes to
 	// count as alike. Measured on the real firewall run (neighbour distances 0 0 5 10 6 3 without composition v2, 11 4 8 9 7 8
-	// with it) and on the varied story (31 33 23 30 37 36): 16 flags both versions of the real run and leaves the varied story.
+	// with it) and on the varied story (37 32 24 30 39 36): 16 flags both versions of the real run and leaves the varied story.
 	lookAlikeMaxDistance = 16
 )
 
