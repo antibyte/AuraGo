@@ -1,0 +1,346 @@
+{
+  "schema": "storymaker/1",
+  "title": "Dein unsichtbares Tor – So schützt dich die Firewall",
+  "format": {
+    "aspect": "16:9",
+    "fps": 30
+  },
+  "style": {
+    "palette": "calm",
+    "font": "default",
+    "captions": true,
+    "rhythm": "standard",
+    "auto_sfx": true
+  },
+  "voice": {
+    "provider": "phonon",
+    "voice": "2A2fFf8SkDEJ8nzx",
+    "language": "de"
+  },
+  "music": {
+    "mode": "file",
+    "track": "3750",
+    "volume": 0.5
+  },
+  "cast": [
+    {
+      "id": "tobias",
+      "name": "Tobias",
+      "character": "char.it-tech-1"
+    },
+    {
+      "id": "laura",
+      "name": "Laura",
+      "character": "char.office-woman-1"
+    }
+  ],
+  "scenes": [
+    {
+      "id": "s1",
+      "environment": "env.plain-stage",
+      "variant": "day",
+      "narration": "Jede Sekunde, in der dein Computer {1}online ist, stromen {2}tausende kleine Datenpakete von aller Herren Ländern direkt auf dich zu.",
+      "speaker": "tobias",
+      "actors": [
+        {
+          "cast": "tobias",
+          "at": "left",
+          "pose": "present",
+          "facing": "auto",
+          "expression": "neutral",
+          "scale": 1
+        }
+      ],
+      "beats": [
+        {
+          "do": "show",
+          "item": "prop.laptop",
+          "at": "center",
+          "entry": "pop",
+          "id": "laptop",
+          "cue": 1
+        },
+        {
+          "do": "show",
+          "item": "prop.cloud",
+          "at": "right",
+          "entry": "slide",
+          "id": "cloud",
+          "cue": 2
+        },
+        {
+          "do": "gesture",
+          "who": "tobias",
+          "gesture": "point",
+          "with": "prev"
+        },
+        {
+          "do": "emote",
+          "who": "tobias",
+          "expression": "determined",
+          "with": "prev"
+        }
+      ],
+      "transition": "cut",
+      "duration": "auto",
+      "camera": {
+        "framing": "wide"
+      }
+    },
+    {
+      "id": "s2",
+      "environment": "env.plain-stage",
+      "variant": "day",
+      "narration": "Die meisten sind zwar harmlos, doch zwischen ihnen versteckt sich {1}Schadcode{1}, Spionage oder sogar gezielte Sabotage fremder Akteure.",
+      "speaker": "tobias",
+      "actors": [
+        {
+          "cast": "tobias",
+          "at": "left",
+          "pose": "present",
+          "facing": "auto",
+          "expression": "worried",
+          "scale": 1
+        }
+      ],
+      "beats": [
+        {
+          "do": "show",
+          "item": "prop.warning",
+          "at": "right",
+          "entry": "fade",
+          "id": "warning-1",
+          "cue": 1
+        },
+        {
+          "do": "gesture",
+          "who": "tobias",
+          "gesture": "point",
+          "with": "prev"
+        }
+      ],
+      "transition": "fade",
+      "duration": "auto",
+      "camera": {
+        "framing": "wide"
+      }
+    },
+    {
+      "id": "s3",
+      "environment": "env.plain-stage",
+      "variant": "day",
+      "narration": "Genau hier greift die {1}Firewall{1}: ein unsichtbares Tor, das jeden einzelnen Datenstrom gewissenhaft pruft, bevor er dich erreicht.",
+      "speaker": "tobias",
+      "actors": [
+        {
+          "cast": "tobias",
+          "at": "left",
+          "pose": "present",
+          "facing": "right",
+          "expression": "determined",
+          "scale": 1
+        }
+      ],
+      "beats": [
+        {
+          "do": "show",
+          "item": "prop.firewall",
+          "at": "right",
+          "entry": "none",
+          "id": "firewall-1",
+          "cue": 1
+        },
+        {
+          "do": "gesture",
+          "who": "tobias",
+          "gesture": "point",
+          "with": "prev"
+        }
+      ],
+      "transition": "fade",
+      "duration": "auto",
+      "camera": {
+        "framing": "wide"
+      }
+    },
+    {
+      "id": "s4",
+      "environment": "env.plain-stage",
+      "variant": "day",
+      "narration": "Sie legt fest, welche Pakete durch durfen und welche nicht - strikt nach deinen personlichen {1}Schutzregeln{1}.",
+      "speaker": "tobias",
+      "actors": [
+        {
+          "cast": "tobias",
+          "at": "left",
+          "pose": "present",
+          "facing": "auto",
+          "expression": "determined",
+          "scale": 1
+        }
+      ],
+      "beats": [
+        {
+          "do": "show",
+          "item": "prop.folder",
+          "at": "right",
+          "entry": "slide",
+          "id": "rules",
+          "cue": 1
+        },
+        {
+          "do": "gesture",
+          "who": "tobias",
+          "gesture": "point",
+          "with": "prev"
+        },
+        {
+          "do": "highlight",
+          "target": "rules",
+          "style": "pulse",
+          "with": "prev",
+          "duration": 0.8
+        }
+      ],
+      "transition": "fade",
+      "duration": "auto",
+      "camera": {
+        "framing": "wide"
+      }
+    },
+    {
+      "id": "s5",
+      "environment": "env.plain-stage",
+      "variant": "day",
+      "narration": "Jedes Paket ohne gültige Erlaubnis wird sofort {1}abgewiesen und stürmt niemals ins Innere deines Systems.",
+      "speaker": "tobias",
+      "actors": [
+        {
+          "cast": "tobias",
+          "at": "left",
+          "pose": "present",
+          "facing": "auto",
+          "expression": "determined",
+          "scale": 1
+        }
+      ],
+      "beats": [
+        {
+          "do": "show",
+          "item": "prop.shield",
+          "at": "right",
+          "entry": "pop",
+          "id": "shield",
+          "cue": 1
+        },
+        {
+          "do": "show",
+          "text": "ABGEWIESEN",
+          "at": "center",
+          "entry": "none",
+          "id": "text-1",
+          "cue": 1
+        },
+        {
+          "do": "gesture",
+          "who": "tobias",
+          "gesture": "point",
+          "with": "prev"
+        },
+        {
+          "do": "highlight",
+          "target": "shield",
+          "style": "pulse",
+          "duration": 0.8
+        }
+      ],
+      "transition": "cut",
+      "duration": "auto",
+      "camera": {
+        "framing": "wide"
+      }
+    },
+    {
+      "id": "s6",
+      "environment": "env.plain-stage",
+      "variant": "day",
+      "narration": "Das {1}Ergebnis: dein System bleibt {2}dauerhaft geschützt, ganz ohne dass du selbst ständig hinschauen musstest.",
+      "speaker": "tobias",
+      "actors": [
+        {
+          "cast": "tobias",
+          "at": "left",
+          "pose": "present",
+          "facing": "auto",
+          "expression": "happy",
+          "scale": 1
+        }
+      ],
+      "beats": [
+        {
+          "do": "show",
+          "item": "prop.hard-drive",
+          "at": "right",
+          "entry": "slide",
+          "id": "hard-drive-1",
+          "cue": 1
+        },
+        {
+          "do": "look",
+          "who": "tobias",
+          "target": "right",
+          "with": "prev"
+        },
+        {
+          "do": "gesture",
+          "who": "tobias",
+          "gesture": "thumbs-up",
+          "with": "prev"
+        }
+      ],
+      "transition": "fade",
+      "duration": "auto",
+      "camera": {
+        "framing": "wide"
+      }
+    },
+    {
+      "id": "s7",
+      "environment": "env.plain-stage",
+      "variant": "day",
+      "narration": "Einfach ein Tor, das rund um die {1}Uhr wachsam bleibt, wahrend du deinen eigenen Tag in Ruhe genießt.",
+      "speaker": "tobias",
+      "actors": [
+        {
+          "cast": "tobias",
+          "at": "left",
+          "pose": "stand",
+          "facing": "auto",
+          "expression": "happy",
+          "scale": 1
+        }
+      ],
+      "beats": [
+        {
+          "do": "show",
+          "item": "prop.clock",
+          "at": "right",
+          "entry": "none",
+          "id": "clock-1",
+          "cue": 1
+        },
+        {
+          "do": "gesture",
+          "who": "tobias",
+          "gesture": "thumbs-up",
+          "with": "prev"
+        }
+      ],
+      "transition": "fade",
+      "duration": "auto",
+      "camera": {
+        "framing": "wide"
+      }
+    }
+  ]
+}
