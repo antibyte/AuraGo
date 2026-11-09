@@ -32,13 +32,13 @@ export function skyWalkable(x,z,cabUp){
 }
 export const dronePad={x:78,z:30};
 // Hover-pack docks: x/z is the dock centre, glTF +Z (the front) faces the street along `angle`. All stand on
-// open pavement beside a lane (never on the tram rails) with every other placement at least 3 m away;
+// open pavement beside a lane (never on the tram rails) with every other placement at least 3 m away and at least 2 m from every pedestrian node (no dock on a zebra or its dropped kerb);
 // scripts/test-system-world-hover.mjs checks them against the real colliders and walkability.
 export const hoverPads=[
-  {id:'south',x:-11,z:64.3,angle:Math.PI},
+  {id:'south',x:-7.8,z:63.6,angle:Math.PI},
   {id:'harbour',x:23.3,z:75,angle:-Math.PI/2},
   {id:'west',x:-72.3,z:-22,angle:Math.PI/2},
-  {id:'east',x:72.3,z:21,angle:-Math.PI/2},
+  {id:'east',x:72.3,z:42,angle:-Math.PI/2},
   {id:'north',x:-8,z:-26.7,angle:Math.PI},
 ];
 export const towers=[{x:30.5,z:-55,scale:1},{x:49,z:-55,scale:1.25},{x:-3,z:-57,scale:1.2}];

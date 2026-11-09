@@ -1,3 +1,4 @@
+import {surfaces} from './sysworld-layout.js';
 // Fixed places belong to the city, never to a changing telemetry inventory.
 export const livingPlaces = [
   {id:'repair-bay',district:'infra',x:-28,z:-62,role:'technician'},
@@ -9,11 +10,11 @@ export const livingPlaces = [
 ];
 
 // Civic landmarks are authored in Blender and keep their own animated parts.
-// The gateway stands on the pavement (0.5 m) so its arch clears the road; the
+// The gateway stands on the pavement so its arch clears the road; the
 // turbine stands on the harbour water below the quay.
 export const landmarkPlaces = [
   {id:'data-monument',x:0,z:24,y:0,angle:0,clip:'spin'},
-  {id:'neon-gate',x:-18,z:0,y:.5,angle:0,clip:'pulse'},
+  {id:'neon-gate',x:-18,z:0,y:surfaces.pavement,angle:0,clip:'pulse'},
   {id:'sky-pod',x:56,z:47,y:0,angle:0,clip:'scan'},
   {id:'tidal-turbine',x:0,z:96,y:-3.2,angle:Math.PI,clip:'spin'},
 ];

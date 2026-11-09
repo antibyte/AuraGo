@@ -9,6 +9,7 @@ import {canWalk,groundHeight,roomAt,tramWaypoints,dronePad} from '../ui/js/deskt
 import {streets,streetAt,hoverPads} from '../ui/js/desktop/apps/sysworld-layout.js';
 import {installCityColliders} from '../ui/js/desktop/apps/sysworld-colliders.js';
 import {createTraffic} from '../ui/js/desktop/apps/sysworld-traffic.js';
+import {pedestrianGraph} from '../ui/js/desktop/apps/sysworld-ground.js';
 
 // The street-mode visitor: a slim body from the soles (2.3 m below the eye) to just above the head.
 const walker={circles:[{x:0,z:0,r:.24}],minY:-2.3,maxY:.4,reach:.24};
@@ -220,6 +221,8 @@ try{
       assert.ok(clearance(c.traffic,p.x,p.z)>=3,`${p.id}: another placement within 3 m (${clearance(c.traffic,p.x,p.z).toFixed(2)} m)`);
       assert.ok(clearance(c.traffic,stand.x,stand.z)>=1.5,`${p.id}: the standing spot is crowded`);
       assert.ok(Math.hypot(p.x-dronePad.x,p.z-dronePad.z)>=6,`${p.id}: on the drone pad`);
+      // Docks stay off the zebra crossings: no pedestrian node within 2 m of a dock centre.
+      for(const n of pedestrianGraph().nodes)assert.ok(Math.hypot(n.x-p.x,n.z-p.z)>=2,`${p.id}: blocks the pavement node at ${n.x}, ${n.z}`);
       assert.ok(c.traffic.clear({id:'v',...walker},{x:stand.x,y:2.9,z:stand.z,heading:0},{x:stand.x,y:2.9,z:stand.z,heading:0},false),`${p.id}: the visitor cannot stand in front of the dock`);
       assert.ok([1.5,2.5,3.5,4.5,5.5].some(d=>lane(p.x+d*s,p.z+d*k)),`${p.id}: does not face the street`);
       assert.ok(reachesLane(c.traffic,stand.x,stand.z),`${p.id}: not reachable on foot from a street`);

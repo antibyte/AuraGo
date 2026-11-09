@@ -45,7 +45,8 @@ export function createExperience(scene,options){
     const points=[],indices=[],segments=512;
     for(let i=0;i<=segments;i++){
       route.getPointAt(i/segments,tmp);route.getTangentAt(i/segments,ahead);
-      for(const width of[-.045,.045]){const offset=side*.85+width;points.push(tmp.x-ahead.z*offset,.21,tmp.z+ahead.x*offset);}
+      // Rail heads 9 cm above the carriageway.
+      for(const width of[-.045,.045]){const offset=side*.85+width;points.push(tmp.x-ahead.z*offset,surfaces.road+.09,tmp.z+ahead.x*offset);}
       if(i<segments){const n=i*2;indices.push(n,n+1,n+2,n+1,n+3,n+2);}
     }
     const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(points,3));geometry.setIndex(indices);geometry.computeVertexNormals();geometries.add(geometry);group.add(new THREE.Mesh(geometry,railMaterial));
@@ -323,7 +324,7 @@ export function createExperience(scene,options){
       seat();flight.reset();endHover(false);return;
     }
     if(ride.kind==='lift'){const r=rooms.get(ride.id),plot=interiors.find(p=>p.id===ride.id);r.liftTarget=r.liftValue<2?0:4;camera.position.set(plot.x+1.5,2.4+surfaces.room+r.liftTarget,plot.liftZ);}
-    if(ride.kind==='tram'){const s=stations.find(s=>s.id===ride.station)||stations[0];camera.position.set(s.platformX,2.4+surfaces.pavement+.3,s.platformZ);}
+    if(ride.kind==='tram'){const s=stations.find(s=>s.id===ride.station)||stations[0];camera.position.set(s.platformX,2.4+groundHeight(s.platformX,s.platformZ),s.platformZ);}
     if(ride.kind==='drone')camera.position.copy(ride.origin);
     if(ride.kind==='sky'){sky.motion=null;sky.value=ride.to;sky.cab.position.y=sky.value;cabCamera();}
     if(ride.kind==='scope'){

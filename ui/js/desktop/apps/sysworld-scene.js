@@ -92,14 +92,17 @@ export const placements = [];
       place('street-tile', x, (a + b) / 2, 0, Math.PI / 2, [(b - a) / 16, 1, 1]);
     }
   }
+  // Lamps and planters stand 5 cm into the pavement. Each planter sits on the block-centre side of
+  // its lamp (towards x = +-43), clear of every zebra crossing and its dropped kerb.
+  const sunk = groundLevels.pavement - .05;
   for (const z of zs) for (const x of [-55, -31, 31, 55]) {
-    place('street-lamp', x, z - 4.5, .45); place('planter', x + 4, z - 4.5, .45);
+    place('street-lamp', x, z - 4.5, sunk); place('planter', x + 4 * Math.sign(Math.sign(x) * 43 - x), z - 4.5, sunk);
   }
   for (const {x,z,scale:s} of towers) {
     place('data-tower-a', x, z, 0, 0, [1,s,1]);
   }
   place('skybridge', 39.75, -55, 15);
-  place('server-rack', -55, -36.7, .5); place('server-rack', -49, -36.7, .5);
+  place('server-rack', -55, -36.7, groundLevels.pavement); place('server-rack', -49, -36.7, groundLevels.pavement);
   // Distant buildings are scenery, never presented as additional real entities. The seeded
   // skyline is jittered, leaves gaps, turns some towers and rises towards the middle; a
   // lower far row behind it adds depth that the fog keeps faint.

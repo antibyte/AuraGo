@@ -197,7 +197,8 @@ export function createAtmosphere(scene, options = {}) {
   geometries.push(lampGeometry); materials.push(lampMaterial);
   const scratch = new THREE.Object3D();
   lamps.forEach((lamp, i) => {
-    scratch.position.set(lamp.x + 1.9 * Math.cos(lamp.angle || 0), 3.35, lamp.z - 1.9 * Math.sin(lamp.angle || 0)); scratch.updateMatrix(); lampCones.setMatrixAt(i, scratch.matrix);
+    // cone apex 2.9 m above the lamp base
+    scratch.position.set(lamp.x + 1.9 * Math.cos(lamp.angle || 0), (lamp.y || 0) + 2.9, lamp.z - 1.9 * Math.sin(lamp.angle || 0)); scratch.updateMatrix(); lampCones.setMatrixAt(i, scratch.matrix);
   });
   lampCones.count = lamps.length; lampCones.instanceMatrix.needsUpdate = true; group.add(lampCones);
   // A faint coastline behind and beside the city gives the horizon depth; settlement lights
