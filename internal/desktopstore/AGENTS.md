@@ -98,6 +98,14 @@ Store app configuration, runtime, assets, and publication.
   implements `LLMRelayProvider` (`Config.LLMRelay`); a nil provider, a provider
   error or an invalid origin fails the install before the image pull
   (`prepareDeepTutorInstall`) with a secret-free operation error.
+- Reachability requirements (the server-side provider check owns the messages):
+  AuraGo login must be enabled (Config > Auth, password set), because the
+  container reaches AuraGo's address and without login every AuraGo route would
+  be open to it. On stock Linux installs (`server.host` 127.0.0.1, HTTPS on) a
+  plain-HTTP listener on a non-loopback address is needed, for example
+  `AURAGO_SERVER_HOST=0.0.0.0` with HTTPS disabled for the relay port; Docker
+  Desktop (Windows/macOS) reaches a loopback listener through
+  `host.docker.internal`.
 - The relay token is the generated secret `llm_relay_token` (Vault key
   `desktop_store_deeptutor_llm_relay_token`, never exposed). `resolveEnv` runs
   the generic generated-secret path and then strips the token env, so the
@@ -117,10 +125,14 @@ Store app configuration, runtime, assets, and publication.
   `delete_data` rotates it.
 - `ContainerSpec.Entrypoint` becomes the create payload's `Entrypoint` only when
   non-empty. DeepTutor's is `/bin/sh -c <deepTutorWrapper> aurago-deeptutor`:
-  run `python -c "$AURAGO_DT_MERGE_PY"` (fail-open: a non-zero exit prints one
-  stderr line and DeepTutor still starts), unset the script and the token from
-  the environment, then `exec /app/entrypoint.sh "$@"`. The image has no Cmd, so
-  dropping the default Cmd is harmless.
+  run `python -I -c "$AURAGO_DT_MERGE_PY"` (fail-open: a non-zero exit prints
+  one stderr line and DeepTutor still starts), unset the script and the token
+  from the environment, then `exec /app/entrypoint.sh "$@"`. `-I` keeps the
+  working directory `/app` (maybe writable by DeepTutor's user) and `PYTHON*`
+  variables out of root's import path. The image has no Cmd (`docker inspect`:
+  Entrypoint `["/app/entrypoint.sh"]`, Cmd `null`), so `"$@"` is empty and
+  `exec /app/entrypoint.sh "$@"` is correct; dropping the default Cmd is
+  harmless. Do not "fix" this.
 - `deeptutor_assets/aurago_catalog_merge.py` (stdlib, runs as root before the
   image's own directory setup and `chown`) merges ONE llm profile and, when the
   relay reports embeddings, ONE embedding profile into
@@ -138,6 +150,16 @@ Store app configuration, runtime, assets, and publication.
   filled from one probe request to the relay (bounded, no redirects, no proxy)
   because GraphRAG needs a known dimension; a failed probe leaves it empty.
   Vision, context window and capabilities are only set when a profile is created.
+  The script runs as root while DeepTutor's user can write `/app/data`, so it
+  never follows a planted link: it refuses to merge (one stderr line, exit 0,
+  DeepTutor still starts) when the settings directory or a parent below the data
+  root is a symlink or resolves elsewhere, or when the catalog or the marker is
+  a symlink, a hard-linked file or not a regular file (a FIFO cannot hang the
+  start); files are opened with `O_NOFOLLOW` and the corrupt-catalog copy uses
+  `O_EXCL`. Verified in the real image on its default path (symlinked
+  `user/settings`, symlinked `user`, symlinked catalog and marker, hard link,
+  FIFO, planted backup names); the Go link tests skip where symlinks are not
+  allowed (Windows without privilege).
 - Verified against the real image `1.7.2` on 2026-11-09 (Docker Desktop,
   linux/amd64): entrypoint `/app/entrypoint.sh`, no Cmd, root, workdir `/app`,
   Python 3.11. `model_catalog.py` does not validate ids (`setdefault` only).

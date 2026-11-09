@@ -37,8 +37,14 @@ type mergeRun struct {
 	env    map[string]string
 }
 
+// newMergeRun uses the layout the script expects: <data root>/user/settings.
 func newMergeRun(t *testing.T) *mergeRun {
-	return &mergeRun{python: deepTutorPython(t), dir: t.TempDir(), env: map[string]string{
+	t.Helper()
+	dir := filepath.Join(t.TempDir(), "user", "settings")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return &mergeRun{python: deepTutorPython(t), dir: dir, env: map[string]string{
 		"AURAGO_DT_RELAY_URL":   "http://relay.test:8088/api/store-llm/deeptutor/v1",
 		"AURAGO_DT_RELAY_TOKEN": "token-one-" + strings.Repeat("a", 32),
 		"AURAGO_DT_VISION":      "1",
@@ -392,4 +398,93 @@ func mustRead(t *testing.T, path string) []byte {
 		t.Fatal(err)
 	}
 	return raw
+}
+
+// symlinkOrSkip creates a link; hosts without symlink support (for example
+// Windows without developer mode) skip the test.
+func symlinkOrSkip(t *testing.T, target, link string) {
+	t.Helper()
+	if err := os.Symlink(target, link); err != nil {
+		t.Skipf("symlinks are not available here: %v", err)
+	}
+}
+
+func requireRefusedAndUntouched(t *testing.T, out string, outside map[string]string) {
+	t.Helper()
+	if !strings.Contains(out, "refusing to merge") {
+		t.Fatalf("the merge was not refused: %s", out)
+	}
+	for path, want := range outside {
+		if got := string(mustRead(t, path)); got != want {
+			t.Fatalf("%s was written through a link: %q", path, got)
+		}
+	}
+}
+
+// The DeepTutor user can write the data volume while the script runs as root,
+// so a link planted there must never be followed (read, copied or replaced).
+func TestDeepTutorMergeScriptRefusesLinksInTheDataVolume(t *testing.T) {
+	const decoy = `{"decoy":"keep"}`
+
+	t.Run("settings directory is a symlink", func(t *testing.T) {
+		m := newMergeRun(t)
+		elsewhere := filepath.Join(t.TempDir(), "elsewhere")
+		if err := os.MkdirAll(elsewhere, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Remove(m.dir); err != nil {
+			t.Fatal(err)
+		}
+		symlinkOrSkip(t, elsewhere, m.dir)
+		requireRefusedAndUntouched(t, m.run(t), nil)
+		if entries, _ := os.ReadDir(elsewhere); len(entries) != 0 {
+			t.Fatalf("files were created through the settings link: %v", entries)
+		}
+	})
+
+	t.Run("a parent below the data root is a symlink", func(t *testing.T) {
+		m := newMergeRun(t)
+		userDir := filepath.Dir(m.dir)
+		elsewhere := filepath.Join(t.TempDir(), "elsewhere")
+		if err := os.MkdirAll(filepath.Join(elsewhere, "settings"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.RemoveAll(userDir); err != nil {
+			t.Fatal(err)
+		}
+		symlinkOrSkip(t, elsewhere, userDir)
+		requireRefusedAndUntouched(t, m.run(t), nil)
+		if entries, _ := os.ReadDir(filepath.Join(elsewhere, "settings")); len(entries) != 0 {
+			t.Fatalf("files were created through the parent link: %v", entries)
+		}
+	})
+
+	t.Run("catalog is a symlink", func(t *testing.T) {
+		m := newMergeRun(t)
+		outside := filepath.Join(t.TempDir(), "outside.json")
+		if err := os.WriteFile(outside, []byte(decoy), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		symlinkOrSkip(t, outside, m.catalogPath())
+		requireRefusedAndUntouched(t, m.run(t), map[string]string{outside: decoy})
+		if info, err := os.Lstat(m.catalogPath()); err != nil || info.Mode()&os.ModeSymlink == 0 {
+			t.Fatalf("the catalog link was replaced: %v %v", info, err)
+		}
+		if _, err := os.Stat(m.markerPath()); !os.IsNotExist(err) {
+			t.Fatalf("a marker was written next to a refused catalog: %v", err)
+		}
+	})
+
+	t.Run("marker is a symlink", func(t *testing.T) {
+		m := newMergeRun(t)
+		outside := filepath.Join(t.TempDir(), "outside.json")
+		if err := os.WriteFile(outside, []byte(decoy), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		symlinkOrSkip(t, outside, m.markerPath())
+		requireRefusedAndUntouched(t, m.run(t), map[string]string{outside: decoy})
+		if _, err := os.Stat(m.catalogPath()); !os.IsNotExist(err) {
+			t.Fatalf("a catalog was written although the marker was refused: %v", err)
+		}
+	})
 }

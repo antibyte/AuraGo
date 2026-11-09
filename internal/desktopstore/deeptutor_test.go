@@ -123,7 +123,7 @@ func TestInstallDeepTutorWiresRelayWrapperAndKeepsTokenOutOfTheRecord(t *testing
 	if strings.Join(spec.Entrypoint, "\x00") != strings.Join(wantEntrypoint, "\x00") {
 		t.Fatalf("entrypoint = %#v", spec.Entrypoint)
 	}
-	for _, want := range []string{`python -c "$AURAGO_DT_MERGE_PY"`, `exec /app/entrypoint.sh "$@"`} {
+	for _, want := range []string{`python -I -c "$AURAGO_DT_MERGE_PY"`, `exec /app/entrypoint.sh "$@"`} {
 		if !strings.Contains(spec.Entrypoint[2], want) {
 			t.Fatalf("wrapper lacks %q: %s", want, spec.Entrypoint[2])
 		}

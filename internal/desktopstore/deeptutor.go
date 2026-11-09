@@ -41,11 +41,14 @@ const (
 	deepTutorReadinessTimeout = 5 * time.Minute
 )
 
-// deepTutorWrapper runs in front of the image entrypoint. The merge is
-// fail-open: a problem is reported on stderr and DeepTutor still starts. The
-// script and the token leave the environment before DeepTutor's processes
-// start, so they do not appear in what those processes inherit.
-const deepTutorWrapper = `python -c "$AURAGO_DT_MERGE_PY" || echo "aurago-deeptutor: the AuraGo model profile could not be merged; starting DeepTutor without it" >&2
+// deepTutorWrapper runs in front of the image entrypoint. python -I keeps the
+// working directory (/app) and PYTHON* variables out of the interpreter's
+// search path: the script runs as root and /app may be writable by DeepTutor's
+// user. The merge is fail-open: a problem is reported on stderr and DeepTutor
+// still starts. The script and the token leave the environment before
+// DeepTutor's processes start, so they do not appear in what those processes
+// inherit. The image has no Cmd, so "$@" is empty.
+const deepTutorWrapper = `python -I -c "$AURAGO_DT_MERGE_PY" || echo "aurago-deeptutor: the AuraGo model profile could not be merged; starting DeepTutor without it" >&2
 unset AURAGO_DT_MERGE_PY AURAGO_DT_RELAY_TOKEN
 exec /app/entrypoint.sh "$@"`
 

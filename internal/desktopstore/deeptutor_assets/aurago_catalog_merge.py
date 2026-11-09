@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """AuraGo Software Store: merge the managed AuraGo profiles into DeepTutor.
 
-The Store runs this script (python -c "$AURAGO_DT_MERGE_PY") as root in front of
+The Store runs this script (python -I -c "$AURAGO_DT_MERGE_PY") as root in front of
 the image entrypoint, on every container start. It adds one LLM profile named
 "AuraGo" and, when the AuraGo relay reports embeddings, one embedding profile to
 DeepTutor's data/user/settings/model_catalog.json. Both point at the token-gated
@@ -17,6 +17,12 @@ Contract (kept in step with internal/desktopstore/AGENTS.md):
   * the managed profiles become active only for a service without any usable
     profile; all other profiles and unknown keys are kept as they are;
   * every write is atomic (temp file + os.replace) and mode 0600;
+  * root must never follow a link planted in the data volume, which the
+    DeepTutor user can write: the script refuses to merge (one stderr line,
+    exit 0) when the settings directory or one of its parents below the data
+    root is not a plain directory, when it resolves outside the data root, or
+    when the catalog or the marker is a symbolic link, a hard-linked file or
+    not a regular file; files are opened with O_NOFOLLOW where available;
   * handled problems exit 0 (the Store wrapper starts DeepTutor anyway),
     unexpected exceptions exit 1.
 
@@ -27,7 +33,7 @@ AURAGO_DT_EMBEDDINGS, AURAGO_DT_CONTEXT, and AURAGO_DT_SETTINGS_DIR (tests only)
 import hashlib
 import json
 import os
-import shutil
+import stat
 import sys
 import tempfile
 import time
@@ -46,6 +52,15 @@ CATALOG_NAME = "model_catalog.json"
 MARKER_NAME = ".aurago-managed.json"
 SERVICE_NAMES = ("llm", "task", "embedding", "search", "tts", "stt", "imagegen", "videogen")
 PROBE_TIMEOUT_SECONDS = 8
+
+# Flags for opening files in a directory the DeepTutor user can write.
+OPEN_READ = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_BINARY", 0)
+OPEN_CREATE_NEW = (os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+                   | getattr(os, "O_BINARY", 0))
+
+
+class Refused(Exception):
+    """The settings area is not what the Store created: leave it untouched."""
 
 
 def log(message):
@@ -87,42 +102,106 @@ def fingerprint_of(url, token, vision, embeddings, context):
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
-def read_marker(path):
+def check_layout(settings_dir):
+    """Refuse a settings directory that is, or sits below, a link or other non-directory.
+
+    The data root is two levels above the settings directory (/app/data for
+    /app/data/user/settings). Nothing below it may be a symbolic link, and the
+    real path of the settings directory must be exactly where it is expected.
+    """
+    data_root = os.path.dirname(os.path.dirname(settings_dir))
+    relative = os.path.relpath(settings_dir, data_root)
+    current = data_root
+    for part in relative.split(os.sep):
+        current = os.path.join(current, part)
+        try:
+            info = os.lstat(current)
+        except FileNotFoundError:
+            break
+        if stat.S_ISLNK(info.st_mode) or not stat.S_ISDIR(info.st_mode):
+            raise Refused("%s is not a plain directory" % os.path.relpath(current, data_root))
+    if os.path.realpath(settings_dir) != os.path.join(os.path.realpath(data_root), relative):
+        raise Refused("the settings directory resolves outside the data volume")
+
+
+def check_file(path):
+    """Refuse a catalog or marker that is not an ordinary single-link regular file."""
     try:
-        with open(path, "r", encoding="utf-8") as handle:
-            data = json.load(handle)
-    except (OSError, ValueError):
+        info = os.lstat(path)
+    except FileNotFoundError:
+        return
+    if stat.S_ISLNK(info.st_mode):
+        raise Refused("%s is a symbolic link" % os.path.basename(path))
+    if not stat.S_ISREG(info.st_mode) or info.st_nlink > 1:
+        raise Refused("%s is not an ordinary file" % os.path.basename(path))
+
+
+def read_file(path):
+    """Return the bytes of an ordinary file, or None when it does not exist."""
+    check_file(path)
+    try:
+        fd = os.open(path, OPEN_READ)
+    except FileNotFoundError:
+        return None
+    except OSError:
+        # For example ELOOP when a link replaced the file after the check.
+        raise Refused("%s cannot be opened safely" % os.path.basename(path))
+    with os.fdopen(fd, "rb") as handle:
+        info = os.fstat(handle.fileno())
+        if not stat.S_ISREG(info.st_mode) or info.st_nlink > 1:
+            raise Refused("%s is not an ordinary file" % os.path.basename(path))
+        return handle.read()
+
+
+def write_backup(path, raw):
+    """Keep the unreadable catalog next to it; never write through an existing name."""
+    stamp = int(time.time())
+    for attempt in range(10):
+        backup = "%s.corrupt-%d%s" % (path, stamp, "-%d" % attempt if attempt else "")
+        try:
+            fd = os.open(backup, OPEN_CREATE_NEW, 0o600)
+        except FileExistsError:
+            continue
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(raw)
+        return backup
+    raise Refused("no free name for the backup of %s" % os.path.basename(path))
+
+
+def read_marker(path):
+    raw = read_file(path)
+    if raw is None:
+        return {}
+    try:
+        data = json.loads(raw.decode("utf-8"))
+    except ValueError:
         return {}
     return data if isinstance(data, dict) else {}
 
 
 def catalog_is_readable(path):
+    raw = read_file(path)
+    if raw is None:
+        return False
     try:
-        with open(path, "rb") as handle:
-            return isinstance(json.loads(handle.read().decode("utf-8")), dict)
-    except (OSError, ValueError):
+        return isinstance(json.loads(raw.decode("utf-8")), dict)
+    except ValueError:
         return False
 
 
 def read_catalog(path):
     """Return (catalog, usable). usable is False for a missing or damaged file."""
-    try:
-        with open(path, "rb") as handle:
-            raw = handle.read()
-    except FileNotFoundError:
-        return default_catalog(), False
-    if not raw.strip():
+    raw = read_file(path)
+    if raw is None or not raw.strip():
         # DeepTutor treats an empty file like a missing one.
         return default_catalog(), False
     try:
         data = json.loads(raw.decode("utf-8"))
-    except (ValueError, UnicodeDecodeError):
+    except ValueError:
         data = None
     if isinstance(data, dict):
         return data, True
-    backup = "%s.corrupt-%d" % (path, int(time.time()))
-    shutil.copyfile(path, backup)
-    os.chmod(backup, 0o600)
+    backup = write_backup(path, raw)
     warn("%s is not a valid JSON object; kept a copy as %s and started from defaults"
          % (CATALOG_NAME, os.path.basename(backup)))
     return default_catalog(), False
@@ -301,17 +380,28 @@ def main():
     vision = env_flag("AURAGO_DT_VISION")
     embeddings = env_flag("AURAGO_DT_EMBEDDINGS")
     context = env_positive_int("AURAGO_DT_CONTEXT")
-    settings_dir = os.environ.get("AURAGO_DT_SETTINGS_DIR", "").strip() or DEFAULT_SETTINGS_DIR
+    settings_dir = os.path.abspath(os.environ.get("AURAGO_DT_SETTINGS_DIR", "").strip() or DEFAULT_SETTINGS_DIR)
     catalog_path = os.path.join(settings_dir, CATALOG_NAME)
     marker_path = os.path.join(settings_dir, MARKER_NAME)
 
+    try:
+        merge(settings_dir, catalog_path, marker_path, relay_url, token, vision, embeddings, context)
+    except Refused as exc:
+        warn("refusing to merge, %s; DeepTutor starts without the AuraGo profile" % exc)
+    return 0
+
+
+def merge(settings_dir, catalog_path, marker_path, relay_url, token, vision, embeddings, context):
+    check_layout(settings_dir)
+    check_file(catalog_path)
+    check_file(marker_path)
     fingerprint = fingerprint_of(relay_url, token, vision, embeddings, context)
     marker = read_marker(marker_path)
     # Only a readable catalog counts as applied: DeepTutor replaces a damaged
     # one by defaults, which would otherwise lose the profile for good.
     if marker.get("fingerprint") == fingerprint and catalog_is_readable(catalog_path):
         log("the AuraGo model profile is already applied")
-        return 0
+        return
 
     os.makedirs(settings_dir, exist_ok=True)
     catalog, usable = read_catalog(catalog_path)
@@ -340,7 +430,6 @@ def main():
     })
     log("llm profile %s, embedding profile %s (vision=%s, context=%s)"
         % (llm_result, embedding_result, "on" if vision else "off", context or "unknown"))
-    return 0
 
 
 if __name__ == "__main__":
