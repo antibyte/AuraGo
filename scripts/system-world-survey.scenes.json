@@ -1,0 +1,18 @@
+[
+  {"name":"overview-day","position":[95,70,120],"target":[0,10,-10],"fov":43,"environment":"day","weather":"clear","frames":40,"waitMs":400},
+  {"name":"street-agent","position":[12,1.9,19],"target":[0,6,-12],"fov":43,"environment":"day","weather":"clear","frames":40,"waitMs":400},
+  {"name":"kerb-close","position":[22.5,1.2,30],"target":[18,0.2,36],"fov":43,"environment":"day","weather":"clear","frames":40,"waitMs":400},
+  {"name":"crossing","position":[26,3,21],"target":[18,0,13],"fov":43,"environment":"day","weather":"clear","frames":40,"waitMs":400},
+  {"name":"boulevard-south","position":[-30,2.2,64.2],"target":[10,2,60],"fov":43,"environment":"day","weather":"clear","frames":40,"waitMs":400},
+  {"name":"pavilion-front","position":[0,2.2,62],"target":[0,2,73],"fov":43,"environment":"day","weather":"clear","frames":40,"waitMs":400},
+  {"name":"quay","position":[30,2.5,77],"target":[-10,1.5,76],"fov":43,"environment":"day","weather":"clear","frames":40,"waitMs":400},
+  {"name":"memory-facade","position":[-30,3,2],"target":[-43,6,-10],"fov":43,"environment":"day","weather":"clear","frames":40,"waitMs":400},
+  {"name":"foundry-facade","position":[-28,3,-40],"target":[-43,6,-53],"fov":43,"environment":"day","weather":"clear","frames":40,"waitMs":400},
+  {"name":"atrium-facade","position":[-28,3,22],"target":[-43,5,36],"fov":43,"environment":"day","weather":"clear","frames":40,"waitMs":400},
+  {"name":"night-street","position":[12,1.9,19],"target":[0,6,-12],"fov":43,"environment":"night","weather":"clear","frames":40,"waitMs":400},
+  {"name":"evening-overview","position":[95,70,120],"target":[0,10,-10],"fov":43,"environment":"evening","weather":"clear","frames":40,"waitMs":400},
+  {"name":"rain-crossing","position":[26,3,21],"target":[18,0,13],"fov":43,"environment":"day","weather":"rain","frames":60,"waitMs":600},
+  {"name":"resident-feet-0","followResident":0,"offset":[2.2,0.7,2.2],"lookHeight":0.5,"fov":43,"environment":"day","weather":"clear","frames":40,"waitMs":400,"sequence":4,"intervalMs":350},
+  {"name":"resident-feet-5","followResident":5,"offset":[2.2,0.7,2.2],"lookHeight":0.5,"fov":43,"environment":"day","weather":"clear","frames":40,"waitMs":400,"sequence":4,"intervalMs":350},
+  {"name":"resident-feet-11","followResident":11,"offset":[2.2,0.7,2.2],"lookHeight":0.5,"fov":43,"environment":"day","weather":"clear","frames":40,"waitMs":400,"sequence":4,"intervalMs":350}
+]
