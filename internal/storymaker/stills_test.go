@@ -2,6 +2,7 @@ package storymaker
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"image"
 	"image/color"
@@ -186,4 +187,115 @@ func mustIndex(t *testing.T, path string) int {
 		t.Fatalf("path %q: %v", path, err)
 	}
 	return n
+}
+
+// grayPNG is a uniform grey PNG of the given size; it compresses to a few bytes, whatever its size.
+func grayPNG(t *testing.T, w, h int) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, image.NewGray(image.Rect(0, 0, w, h))); err != nil {
+		t.Fatal(err)
+	}
+	return buf.Bytes()
+}
+
+func sheetSize(t *testing.T, sheet []byte) image.Point {
+	t.Helper()
+	cfg, err := png.DecodeConfig(bytes.NewReader(sheet))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return image.Pt(cfg.Width, cfg.Height)
+}
+
+func repeatBytes(data []byte, n int) [][]byte {
+	out := make([][]byte, n)
+	for i := range out {
+		out[i] = data
+	}
+	return out
+}
+
+// The sheet of a long film shrinks its thumbnails to stay within 16 million pixels, and a short film keeps them at 480.
+func TestContactSheetStaysWithinThePixelBudget(t *testing.T) {
+	// 200 stills of a 9:16 film (MaxScenes): 480 pixel thumbnails would make 84 million pixels.
+	sheet, err := ContactSheet(repeatBytes(grayPNG(t, 36, 64), 200))
+	if err != nil {
+		t.Fatal(err)
+	}
+	size := sheetSize(t, sheet)
+	thumbW := (size.X - 5*stillsGap) / StillsSheetColumns
+	if size.X*size.Y > stillsSheetMaxPixels || thumbW < stillsMinThumbWidth || thumbW >= StillsThumbWidth {
+		t.Fatalf("a 200 scene 9:16 sheet is %v (%d pixels, %d pixel thumbnails)", size, size.X*size.Y, thumbW)
+	}
+	// Seven scenes of 16:9 are far below the budget: the thumbnails stay at 480 pixels, as before.
+	sheet, err = ContactSheet(repeatBytes(grayPNG(t, 64, 36), 7))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if size := sheetSize(t, sheet); size != image.Pt(4*StillsThumbWidth+5*stillsGap, 2*270+3*stillsGap) {
+		t.Fatalf("a 7 scene 16:9 sheet is %v", size)
+	}
+
+	// The geometry: the widest thumbnail that fits, and no sheet when the narrowest does not.
+	for _, tc := range []struct {
+		name    string
+		w, h, n int
+		thumbW  int
+		fits    bool
+	}{
+		{"seven scenes", 1920, 1080, 7, StillsThumbWidth, true},
+		{"200 scenes of 16:9", 1920, 1080, 200, 360, true},
+		{"200 scenes of 9:16", 1080, 1920, 200, 180, true},
+		{"a hundred thousand scenes", 1920, 1080, 100000, 0, false},
+		{"a very tall still", 4, 100000, 1, 0, false},
+	} {
+		thumbW, thumbH, ok := sheetGeometry(tc.w, tc.h, tc.n)
+		if ok != tc.fits || thumbW != tc.thumbW {
+			t.Errorf("%s: thumbnail width %d, fits %v; want %d, %v", tc.name, thumbW, ok, tc.thumbW, tc.fits)
+			continue
+		}
+		if ok {
+			cols := min(StillsSheetColumns, tc.n)
+			rows := (tc.n + cols - 1) / cols
+			if pixels := (cols*thumbW + (cols+1)*stillsGap) * (rows*thumbH + (rows+1)*stillsGap); pixels > stillsSheetMaxPixels {
+				t.Errorf("%s: %d pixels", tc.name, pixels)
+			}
+		}
+	}
+
+	// A film whose sheet cannot fit still gets its hashes: no sheet, no error.
+	tall := grayPNG(t, 4, 100000)
+	if _, err := ContactSheet([][]byte{tall}); !errors.Is(err, ErrSheetTooLarge) {
+		t.Fatalf("ContactSheet of a very tall still = %v, want ErrSheetTooLarge", err)
+	}
+	sheet, stills, err := BuildStills([]string{"s1"}, []int{0}, [][]byte{tall})
+	if err != nil || sheet != nil || len(stills) != 1 || stills[0].SceneID != "s1" {
+		t.Fatalf("BuildStills of a very tall still: sheet %d bytes, stills %+v, error %v", len(sheet), stills, err)
+	}
+}
+
+// A still over 8 MB, or over 16 million pixels, is refused before it is decoded.
+func TestStillsRefuseOversizedPNGs(t *testing.T) {
+	tooBig := make([]byte, MaxStillBytes+1)
+	copy(tooBig, "\x89PNG\r\n\x1a\n")
+	tooWide := grayPNG(t, 4100, 4100) // 16.8 million pixels in a few hundred bytes
+	for name, data := range map[string][]byte{"too many bytes": tooBig, "too many pixels": tooWide} {
+		if _, err := DifferenceHash(data); err == nil {
+			t.Errorf("%s: DifferenceHash accepted the still", name)
+		}
+		if _, err := ContactSheet([][]byte{stillPNG(t, true, false), data}); err == nil {
+			t.Errorf("%s: ContactSheet accepted the still", name)
+		}
+		if _, err := ContactSheet([][]byte{data}); err == nil {
+			t.Errorf("%s: ContactSheet accepted the still as its first", name)
+		}
+		if _, _, err := BuildStills([]string{"s1"}, []int{0}, [][]byte{data}); err == nil {
+			t.Errorf("%s: BuildStills accepted the still", name)
+		}
+	}
+	// The limits are inclusive: a still of exactly 4000x4000 pixels is fine.
+	if _, err := DifferenceHash(grayPNG(t, 4000, 4000)); err != nil {
+		t.Errorf("16 million pixels exactly: %v", err)
+	}
 }

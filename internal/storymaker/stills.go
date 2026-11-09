@@ -2,6 +2,7 @@ package storymaker
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"image"
 	"image/color"
@@ -14,10 +15,24 @@ import (
 )
 
 const (
-	// StillsSheetColumns and StillsThumbWidth shape the contact sheet: four columns of 480 pixel wide thumbnails.
+	// StillsSheetColumns and StillsThumbWidth shape the contact sheet: four columns of thumbnails, up to 480 pixels wide.
 	StillsSheetColumns = 4
 	StillsThumbWidth   = 480
 	stillsGap          = 8
+
+	// The pixel budget of the contact sheet. A film has up to MaxScenes (200) scenes and the sheet holds one thumbnail per scene,
+	// so a sheet at full size would be far too large for a long film (200 stills of 9:16 are 84 million pixels, over 300 MB as
+	// an RGBA buffer). The sheet keeps stillsSheetMaxPixels at most: the thumbnail width goes down from StillsThumbWidth in steps
+	// of stillsThumbStep to stillsMinThumbWidth until the sheet fits; a short film (seven scenes of 16:9 are 1.1 million pixels)
+	// keeps the full width. If even the narrowest thumbnails do not fit, there is no sheet (ErrSheetTooLarge); the hashes stay.
+	stillsSheetMaxPixels = 16_000_000
+	stillsMinThumbWidth  = 120
+	stillsThumbStep      = 60
+
+	// MaxStillBytes bounds one PNG still (a 1920x1080 screenshot is far below it) and maxStillPixels its width times its height,
+	// so a still cannot make the decoder allocate more than a few hundred megabytes.
+	MaxStillBytes  = 8 << 20
+	maxStillPixels = 16_000_000
 
 	lookAlikeMinRun = 3
 	// lookAlikeMaxDistance is the most bits (of 64) in which the hashes of two neighbouring scenes may differ for the scenes to
@@ -33,7 +48,29 @@ type StillInfo struct {
 	Hash    uint64
 }
 
+// ErrSheetTooLarge says that a contact sheet would exceed the pixel budget even with the narrowest thumbnails.
+var ErrSheetTooLarge = errors.New("storymaker: the contact sheet would be too large")
+
+// stillConfig reads the size of a still from its header, without decoding the pixels, and refuses a still over MaxStillBytes or
+// maxStillPixels. Every decode goes through it, so the caps hold before any pixel memory is allocated.
+func stillConfig(data []byte) (image.Config, error) {
+	if len(data) > MaxStillBytes {
+		return image.Config{}, fmt.Errorf("storymaker: a still of %d bytes is over the limit of %d bytes", len(data), MaxStillBytes)
+	}
+	cfg, err := png.DecodeConfig(bytes.NewReader(data))
+	if err != nil {
+		return image.Config{}, fmt.Errorf("storymaker: a still is not a PNG: %w", err)
+	}
+	if cfg.Width < 1 || cfg.Height < 1 || int64(cfg.Width)*int64(cfg.Height) > maxStillPixels {
+		return image.Config{}, fmt.Errorf("storymaker: a still of %dx%d pixels is over the limit of %d pixels", cfg.Width, cfg.Height, maxStillPixels)
+	}
+	return cfg, nil
+}
+
 func decodeStill(data []byte) (image.Image, error) {
+	if _, err := stillConfig(data); err != nil {
+		return nil, err
+	}
 	img, err := png.Decode(bytes.NewReader(data))
 	if err != nil {
 		return nil, fmt.Errorf("storymaker: a still is not a PNG: %w", err)
@@ -68,30 +105,52 @@ func DifferenceHash(data []byte) (uint64, error) {
 // HashDistance is the number of bits in which two hashes differ.
 func HashDistance(a, b uint64) int { return bits.OnesCount64(a ^ b) }
 
-// ContactSheet lays PNG stills out in rows of up to four columns, each scaled to 480 pixels wide, on a dark ground, and
-// returns the sheet as a PNG. The order is left to right, top to bottom. The thumbnails keep the aspect of the first still.
+// sheetGeometry sizes the contact sheet of n stills of w x h pixels: the widest thumbnail (StillsThumbWidth down to
+// stillsMinThumbWidth, in steps of stillsThumbStep) at which the sheet stays within stillsSheetMaxPixels, and its height. ok is
+// false when even the narrowest thumbnail does not fit. The thumbnails keep the aspect of the still.
+func sheetGeometry(w, h, n int) (thumbW, thumbH int, ok bool) {
+	cols := min(StillsSheetColumns, n)
+	rows := (n + cols - 1) / cols
+	for tw := StillsThumbWidth; tw >= stillsMinThumbWidth; tw -= stillsThumbStep {
+		th := max(1, int64(tw)*int64(h)/int64(max(w, 1)))
+		sheetW := int64(cols*tw + (cols+1)*stillsGap)
+		sheetH := int64(rows)*th + int64(rows+1)*stillsGap
+		if sheetW*sheetH <= stillsSheetMaxPixels {
+			return tw, int(th), true
+		}
+	}
+	return 0, 0, false
+}
+
+// ContactSheet lays PNG stills out in rows of up to four columns, each scaled to at most 480 pixels wide, on a dark ground, and
+// returns the sheet as a PNG. The order is left to right, top to bottom. The thumbnails keep the aspect of the first still, and
+// all stills of a film have one size. The sheet stays within stillsSheetMaxPixels: a long film gets narrower thumbnails, and one
+// that does not fit even at the narrowest gets ErrSheetTooLarge. The stills are decoded one at a time and each is drawn into
+// the sheet at once, so only one decoded picture and the sheet are in memory.
 func ContactSheet(pngs [][]byte) ([]byte, error) {
 	if len(pngs) == 0 {
 		return nil, fmt.Errorf("storymaker: a contact sheet needs at least one still")
 	}
-	images := make([]image.Image, len(pngs))
+	first, err := stillConfig(pngs[0])
+	if err != nil {
+		return nil, fmt.Errorf("still 1: %w", err)
+	}
+	thumbW, thumbH, ok := sheetGeometry(first.Width, first.Height, len(pngs))
+	if !ok {
+		return nil, ErrSheetTooLarge
+	}
+	cols := min(StillsSheetColumns, len(pngs))
+	rows := (len(pngs) + cols - 1) / cols
+	sheet := image.NewRGBA(image.Rect(0, 0, cols*thumbW+(cols+1)*stillsGap, rows*thumbH+(rows+1)*stillsGap))
+	draw.Draw(sheet, sheet.Bounds(), &image.Uniform{C: color.RGBA{R: 24, G: 24, B: 28, A: 255}}, image.Point{}, draw.Src)
 	for i, data := range pngs {
 		img, err := decodeStill(data)
 		if err != nil {
 			return nil, fmt.Errorf("still %d: %w", i+1, err)
 		}
-		images[i] = img
-	}
-	first := images[0].Bounds()
-	thumbH := max(1, StillsThumbWidth*first.Dy()/max(first.Dx(), 1))
-	cols := min(StillsSheetColumns, len(images))
-	rows := (len(images) + cols - 1) / cols
-	sheet := image.NewRGBA(image.Rect(0, 0, cols*StillsThumbWidth+(cols+1)*stillsGap, rows*thumbH+(rows+1)*stillsGap))
-	draw.Draw(sheet, sheet.Bounds(), &image.Uniform{C: color.RGBA{R: 24, G: 24, B: 28, A: 255}}, image.Point{}, draw.Src)
-	for i, img := range images {
-		x := stillsGap + (i%cols)*(StillsThumbWidth+stillsGap)
+		x := stillsGap + (i%cols)*(thumbW+stillsGap)
 		y := stillsGap + (i/cols)*(thumbH+stillsGap)
-		xdraw.CatmullRom.Scale(sheet, image.Rect(x, y, x+StillsThumbWidth, y+thumbH), img, img.Bounds(), xdraw.Over, nil)
+		xdraw.CatmullRom.Scale(sheet, image.Rect(x, y, x+thumbW, y+thumbH), img, img.Bounds(), xdraw.Over, nil)
 	}
 	var out bytes.Buffer
 	if err := png.Encode(&out, sheet); err != nil {
@@ -101,7 +160,8 @@ func ContactSheet(pngs [][]byte) ([]byte, error) {
 }
 
 // BuildStills hashes every still and lays them out as a contact sheet. The three lists have the same length and the same
-// order; the stills are PNG bytes.
+// order; the stills are PNG bytes. A sheet over the pixel budget is no failure: the sheet is nil and the hashes stay, so the
+// look-alike finding still works.
 func BuildStills(sceneIDs []string, indexes []int, pngs [][]byte) (sheet []byte, stills []StillInfo, err error) {
 	if len(sceneIDs) != len(pngs) || len(indexes) != len(pngs) {
 		return nil, nil, fmt.Errorf("storymaker: %d scene ids, %d indexes and %d stills do not match", len(sceneIDs), len(indexes), len(pngs))
@@ -114,6 +174,9 @@ func BuildStills(sceneIDs []string, indexes []int, pngs [][]byte) (sheet []byte,
 		stills = append(stills, StillInfo{SceneID: sceneIDs[i], Index: indexes[i], Hash: hash})
 	}
 	sheet, err = ContactSheet(pngs)
+	if errors.Is(err, ErrSheetTooLarge) {
+		return nil, stills, nil
+	}
 	if err != nil {
 		return nil, nil, err
 	}
