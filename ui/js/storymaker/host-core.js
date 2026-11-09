@@ -9,7 +9,7 @@
 
     var LIMITS = {
         compileDeadlineMs: 10000, sceneBuildDeadlineMs: 2000, frameDeadlineMs: 250, warmupFrames: 3, warmupDeadlineMs: 4000,
-        helloDeadlineMs: 5000, assetsDeadlineMs: 20000
+        helloDeadlineMs: 5000, assetsDeadlineMs: 20000, layoutDeadlineMs: 15000
     };
 
     function fail(code, message, extra) {

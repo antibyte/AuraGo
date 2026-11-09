@@ -438,10 +438,10 @@
             var at = resolveAt(b.at, beatPath(j, 'at'), 'center');
             needFile(entry);
             // composition v2: the first cue-bound prop of the scene is the hero; an explicit scale wins
-            var isHero = composeV2 && !hero && !!b.cue, scale = b.scale;
-            if (isHero && !(scale > 0)) scale = SM.compose.heroScale(entry, stage.depthScale(at.y, at.depth));
+            var isHero = !hero && !!b.cue, scale = b.scale;
+            if (isHero && composeV2 && !(scale > 0)) scale = SM.compose.heroScale(entry, stage.depthScale(at.y, at.depth));
             var prop = S.createProp({ id: instanceId(b.item, b.id), item: b.item, x: at.x, y: at.y, scale: scale, layer: b.layer, hidden: true, depth: at.depth });
-            if (isHero) hero = prop;
+            if (isHero) { hero = prop; prop.hero = true; }
             register(prop, b.item);
             return prop;
         }

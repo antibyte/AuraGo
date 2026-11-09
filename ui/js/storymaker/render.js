@@ -317,14 +317,27 @@
         if (!timeline.style.captions || !timeline.captions || !timeline.captions.length) return;
         var cap = SM.captions.at(timeline.captions, n * 1000 / timeline.fps);
         if (!cap) return;
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        var c = captionLayout(ctx, cap, rc);
+        SM.text.draw(ctx, c.lay, c.style, c.x, c.y, SM.parts.makeResolver([rc.palette]), 1);
+        ctx.globalAlpha = 1;
+    }
+
+    // captionLayout(ctx, cap, rc): the layout, the style and the anchor (x, y of the block centre) of a burned caption. The box
+    // bottom sits at 92 % of the height, 82 % in 9:16. drawCaptions draws it and the layout run measures it.
+    function captionLayout(ctx, cap, rc) {
         var style = rc.cat.textStyles.subtitle || rc.cat.textStyles.title || FALLBACK_TEXT_STYLE;
         var x = rc.W / 2, bottom = rc.H * (rc.aspect === '9:16' ? 0.82 : 0.92);
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
         var lay = SM.text.layout(ctx, cap.lines.join('\n'), style, {
             canvasH: rc.H, short: Math.min(rc.W, rc.H), maxWidth: SM.text.maxWidthFor(rc.W, rc.safe, x, style.align || 'center'), family: familyOf(rc, style)
         });
-        SM.text.draw(ctx, lay, style, x, bottom - lay.height / 2 - lay.pad, SM.parts.makeResolver([rc.palette]), 1);
-        ctx.globalAlpha = 1;
+        return { style: style, lay: lay, x: x, y: bottom - lay.height / 2 - lay.pad };
+    }
+
+    // captionBox(ctx, cap, rc): the box of a burned caption in canvas pixels, padding included.
+    function captionBox(ctx, cap, rc) {
+        var c = captionLayout(ctx, cap, rc);
+        return { x: c.x - c.lay.width / 2 - c.lay.pad, y: c.y - c.lay.height / 2 - c.lay.pad, w: c.lay.width + c.lay.pad * 2, h: c.lay.height + c.lay.pad * 2 };
     }
 
     // renderFrame(timeline, n, ctx, assets, opts): assets = {rig, props: {file: json}, envs: {file: json}, codeFrames,
@@ -351,7 +364,8 @@
 
     SM.render = {
         renderFrame: renderFrame, drawScene: drawScene, rigState: rigState, makeContext: makeContext, familyOf: familyOf,
-        drawBackdrop: drawBackdrop, drawText: drawText, stageFor: stageFor, pulseOf: pulseOf
+        drawBackdrop: drawBackdrop, drawText: drawText, stageFor: stageFor, pulseOf: pulseOf,
+        entityBox: entityBox, textBox: textBox, captionBox: captionBox
         , drawShapeEntity: drawShapeEntity, drawBubble: drawBubble, drawHighlight: drawHighlight
     };
     SM.renderFrame = renderFrame;

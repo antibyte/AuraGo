@@ -124,6 +124,15 @@
                     for (var id in frames) if (frames[id] && typeof frames[id].close === 'function') frames[id].close();
                 }
             }
+            case 'layout': {
+                if (!this.timeline) throw fail('code_error', 'layout before compile');
+                var ltl = this.timeline, lself = this;
+                var lassets = {
+                    raster: null, bitmaps: this.bitmaps, rig: this.files[ltl.rigFile] || null, props: this.files, envs: this.files,
+                    codeFrames: {}, codeErrors: {}, canvas: function (name, w, h) { return lself.canvas(name, w, h); }
+                };
+                return { payload: { layout: SM.layout.measure(ltl, lassets) } };
+            }
             case 'dispose':
                 this.disposeGraphics();
                 this.timeline = null;

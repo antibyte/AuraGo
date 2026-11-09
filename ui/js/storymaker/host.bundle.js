@@ -51,7 +51,7 @@
 
     var LIMITS = {
         compileDeadlineMs: 10000, sceneBuildDeadlineMs: 2000, frameDeadlineMs: 250, warmupFrames: 3, warmupDeadlineMs: 4000,
-        helloDeadlineMs: 5000, assetsDeadlineMs: 20000
+        helloDeadlineMs: 5000, assetsDeadlineMs: 20000, layoutDeadlineMs: 15000
     };
 
     function fail(code, message, extra) {
@@ -1120,6 +1120,15 @@
             });
             await loaded.prepare();
             var rep = loaded.report;
+            if (boot.layout === true) {
+                // The compile check wants the geometry of every scene. A failure costs the geometry, never the report.
+                try {
+                    var measured = await engine.send({ type: 'layout' }, env.limits.layoutDeadlineMs > 0 ? env.limits.layoutDeadlineMs : 15000);
+                    rep.layout = measured.layout || [];
+                } catch (layoutErr) {
+                    rep.layout_error = String(layoutErr && layoutErr.message || layoutErr).slice(0, 200);
+                }
+            }
             // Parallel path: only PNG is encoded in the worker, and a main engine in the document-realm fallback stays serial.
             // The helpers start before the report, so their start-up cannot trip the 10 s frame watchdog of Go.
             var parallel = boot.transport === 'png' && boot.workers > 1 && boot.chunk > 0 && engine.mode === 'workers';

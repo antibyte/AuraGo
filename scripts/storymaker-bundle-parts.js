@@ -40,6 +40,7 @@ export const storymakerPlayerParts = [
   'ui/js/storymaker/compile.js',
   'ui/js/storymaker/transitions.js',
   'ui/js/storymaker/render.js',
+  'ui/js/storymaker/layout.js',
   'ui/js/storymaker/raster-rig.js',
   'ui/js/storymaker/raster.js',
   'ui/js/storymaker/codescene.js',
