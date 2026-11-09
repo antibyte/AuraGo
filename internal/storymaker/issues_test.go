@@ -55,3 +55,16 @@ func TestHasErrors(t *testing.T) {
 		t.Fatal("HasErrors")
 	}
 }
+
+func TestIssueCraftIsModelFixableAndWarningOnly(t *testing.T) {
+	for _, code := range []string{CodeEnvironmentMonotony, CodeFramingMonotony, CodeGestureMonotony, CodeCastUnused} {
+		if !IssueCraft(code) || !IssueModelFixable(Issue{Severity: SeverityWarning, Code: code}) || !issueNeverBlocks(code) {
+			t.Errorf("%s must be a craft code that the model can fix and that never blocks", code)
+		}
+	}
+	for _, code := range []string{CodeSceneUnfilled, CodeOverBudget, CodeSpotOverlap, CodeEntryMonotony} {
+		if IssueCraft(code) || issueNeverBlocks(code) {
+			t.Errorf("%s must not be a craft code", code)
+		}
+	}
+}

@@ -66,7 +66,7 @@ type OutcomeInput struct {
 }
 
 // DecideOutcome applies the outcome rule. failed: no outline was saved. incomplete: a timeout, a model error, or an
-// unfilled scene, a model-fixable issue, a compile failure or an environment error is left. Otherwise ready_unverified:
+// unfilled scene, a model-fixable issue (craft findings excepted), a compile failure or an environment error is left. Otherwise ready_unverified:
 // layout is never verified, so this slice never answers ready. Advice is not listed. Environment items are listed.
 func DecideOutcome(in OutcomeInput) (outcome string, checks []AgentCheck) {
 	seen := map[AgentCheck]bool{}
@@ -101,7 +101,7 @@ func DecideOutcome(in OutcomeInput) (outcome string, checks []AgentCheck) {
 		add(is.Code, is.SceneID)
 		compileFailed = compileFailed || is.Code == CodeCompileFailed
 		// An error among the environment items blocks by its own code. over_target and compile_failed keep their rules.
-		blocked = blocked || IssueModelFixable(is) || (is.Severity == SeverityError && is.Code != CodeOverTarget && is.Code != CodeCompileFailed)
+		blocked = blocked || (IssueModelFixable(is) && !issueNeverBlocks(is.Code)) || (is.Severity == SeverityError && is.Code != CodeOverTarget && is.Code != CodeCompileFailed)
 	}
 	if in.Check.Compile == "failed" && !compileFailed {
 		add(CodeCompileFailed, "")

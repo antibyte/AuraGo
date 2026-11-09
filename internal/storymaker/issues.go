@@ -55,6 +55,9 @@ func HasErrors(issues []Issue) bool {
 // Validate, scene_unfilled, and compile_failed that names a scene. Code scenes and render deadlines
 // are outside its tools.
 func IssueModelFixable(i Issue) bool {
+	if IssueCraft(i.Code) {
+		return true
+	}
 	switch i.Code {
 	case CodeSceneUnfilled:
 		return true
@@ -64,6 +67,22 @@ func IssueModelFixable(i Issue) bool {
 		return false
 	}
 	return i.Severity == SeverityError
+}
+
+// IssueCraft says whether a code is a film-level craft finding: the film is valid but looks uniform. The model can fix
+// it with its story tools, so IssueModelFixable is true for it and the check loop runs while rounds remain.
+func IssueCraft(code string) bool {
+	switch code {
+	case CodeEnvironmentMonotony, CodeFramingMonotony, CodeGestureMonotony, CodeCastUnused:
+		return true
+	}
+	return false
+}
+
+// issueNeverBlocks says whether a model-fixable code stays an open check instead of turning the outcome into
+// incomplete. Craft codes and, from batch D on, layout codes never block.
+func issueNeverBlocks(code string) bool {
+	return IssueCraft(code)
 }
 
 // IssueAdvisory says whether a lint code earns one optional fix loop. These codes never block the

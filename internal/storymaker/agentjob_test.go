@@ -19,6 +19,8 @@ func TestDecideOutcomeTable(t *testing.T) {
 	}{
 		{name: "no outline", in: OutcomeInput{Progress: StudioProgress{ScenesTotal: 0}}, outcome: OutcomeFailed, checks: []AgentCheck{layout}},
 		{name: "clean, advice is not listed", in: OutcomeInput{Progress: done, Check: CheckReport{Compile: "ok", Advice: []Issue{{Severity: SeverityWarning, Code: CodeCueLate, SceneID: "s1"}}}}, outcome: OutcomeReadyUnverified, checks: []AgentCheck{layout}},
+		{name: "a craft finding is listed and never blocks", in: OutcomeInput{Progress: done, Check: CheckReport{Compile: "ok", Issues: []Issue{{Severity: SeverityWarning, Code: CodeEnvironmentMonotony}, {Severity: SeverityWarning, Code: CodeCastUnused, SceneID: "s3"}}}}, outcome: OutcomeReadyUnverified, checks: []AgentCheck{layout, {Code: CodeEnvironmentMonotony}, {Code: CodeCastUnused, SceneID: "s3"}}},
+		{name: "a real model-fixable error still blocks next to a craft finding", in: OutcomeInput{Progress: done, Check: CheckReport{Compile: "ok", Issues: []Issue{{Severity: SeverityWarning, Code: CodeGestureMonotony}, {Severity: SeverityError, Code: CodeSceneUnfilled, SceneID: "s2"}}}}, outcome: OutcomeIncomplete, checks: []AgentCheck{layout, {Code: CodeGestureMonotony}, {Code: CodeSceneUnfilled, SceneID: "s2"}}},
 		{name: "timeout", in: OutcomeInput{Progress: done, TimedOut: true}, outcome: OutcomeIncomplete, checks: []AgentCheck{layout}},
 		{name: "model error", in: OutcomeInput{Progress: done, ModelError: true}, outcome: OutcomeIncomplete, checks: []AgentCheck{layout, {Code: "model_error"}}},
 		{name: "unfilled scene", in: OutcomeInput{Progress: StudioProgress{ScenesTotal: 2, ScenesDone: 1, Unfilled: []string{"s2"}}}, outcome: OutcomeIncomplete, checks: []AgentCheck{layout, {Code: CodeSceneUnfilled, SceneID: "s2"}}},

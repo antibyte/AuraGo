@@ -72,6 +72,15 @@ const (
 	CodeSpotOverlap   = "spot_overlap"
 )
 
+// Issue codes of the film-level craft lint (LintFilmCraft). Only the create job's check emits them. The model can fix
+// them while check rounds remain, but they never block an outcome: what is left becomes an open check.
+const (
+	CodeEnvironmentMonotony = "environment_monotony"
+	CodeFramingMonotony     = "framing_monotony"
+	CodeGestureMonotony     = "gesture_monotony"
+	CodeCastUnused          = "cast_unused"
+)
+
 // Issue is one validation finding. Path is a JSON Pointer (RFC 6901) from the story root.
 type Issue struct {
 	Severity  string   `json:"severity"`
