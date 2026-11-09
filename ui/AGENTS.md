@@ -601,6 +601,7 @@ New app-scoped prefixes must contain no `ad` substring; verify
   `.vd-widget::after`. Keep all 16 `lang/desktop` locales covered.
   Verify with `TestDesktopWidgetPinContract`, `TestDesktopWidgetPinTranslations`,
   `TestWidgetPinConfigPersistsAcrossRestart` and `TestDesktopWidgetLayoutBrowser`.
+
 - Leafy is an opt-in installation-wide plant. Its foreground runtime in
   `js/desktop/leafy/` belongs to the widget cleanup scope; never simulate biology
   from frames or client time. Mount foliage inside `vd-workspace`, above icons
