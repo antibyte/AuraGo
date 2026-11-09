@@ -85,6 +85,18 @@ func issueNeverBlocks(code string) bool {
 	return IssueCraft(code)
 }
 
+// HasBlockingIssue reports whether any of the model-fixable issues of a report would turn the outcome into incomplete.
+// Craft findings are in the list so the check loop can fix them while rounds remain, but they never block, so they do not
+// earn the extra check loop after narration either.
+func HasBlockingIssue(issues []Issue) bool {
+	for _, is := range issues {
+		if !issueNeverBlocks(is.Code) {
+			return true
+		}
+	}
+	return false
+}
+
 // IssueAdvisory says whether a lint code earns one optional fix loop. These codes never block the
 // outcome and are not listed as open checks.
 func IssueAdvisory(code string) bool {

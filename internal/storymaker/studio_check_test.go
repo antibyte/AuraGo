@@ -89,6 +89,33 @@ func TestStudioCheckFindsUnfilledAndEnvironmentNeverBlocks(t *testing.T) {
 	}
 }
 
+// RoundsLeft follows the validate calls of the model, which is the number a report from an earlier Check cannot know.
+func TestStudioRoundsLeftFollowsValidateCalls(t *testing.T) {
+	studio, _, _ := newStudioWriteRig(t, nil)
+	if got := studio.RoundsLeft(); got != 6 {
+		t.Fatalf("RoundsLeft before any validate = %d, want 6", got)
+	}
+	report, err := studio.Check(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := studio.RoundsLeft(); got != 6 || report.RoundsLeft != 6 {
+		t.Fatalf("Check charges no round: RoundsLeft = %d, report = %d", got, report.RoundsLeft)
+	}
+	studio.SetPhase(PhaseCheck, "")
+	studioWriteCall(t, studio, ToolCheck, "validate", `{}`)
+	studioWriteCall(t, studio, ToolCheck, "validate", `{}`)
+	if got := studio.RoundsLeft(); got != 4 {
+		t.Fatalf("RoundsLeft after two validate calls = %d, want 4", got)
+	}
+	for i := 0; i < StudioCheckRounds; i++ {
+		studioWriteCall(t, studio, ToolCheck, "validate", `{}`)
+	}
+	if got := studio.RoundsLeft(); got != 0 {
+		t.Fatalf("RoundsLeft with every round used = %d, want 0", got)
+	}
+}
+
 func TestStudioPacketContinuityAndSuggestions(t *testing.T) {
 	ctx := context.Background()
 	studio, _, _ := newStudioWriteRig(t, nil)

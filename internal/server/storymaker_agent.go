@@ -153,7 +153,6 @@ type storymakerAgentJob struct {
 	modelError bool
 	failure    string
 	adviceDone bool
-	roundsLeft int
 	summary    string
 	before     *storymaker.Story
 
@@ -636,7 +635,6 @@ func (j *storymakerAgentJob) check(ctx context.Context) (storymaker.CheckReport,
 	if err != nil {
 		return storymaker.CheckReport{}, err
 	}
-	j.roundsLeft = report.RoundsLeft
 	j.emitCheck(report)
 	return report, nil
 }
@@ -893,7 +891,9 @@ func (j *storymakerAgentJob) finalCheck(ctx context.Context) (storymaker.CheckRe
 	if err != nil {
 		return storymaker.CheckReport{}, err
 	}
-	report.RoundsLeft = j.roundsLeft
+	// The fresh Studio has used no round. The rounds of this job were used on the job's own Studio, by the validate calls
+	// of the model, so only that Studio knows how many are left.
+	report.RoundsLeft = j.studio.RoundsLeft()
 	j.emitCheck(report)
 	return report, nil
 }
@@ -912,7 +912,8 @@ func (j *storymakerAgentJob) readStory(ctx context.Context) *storymaker.Story {
 }
 
 // finish narrates, runs the final compile and publishes the outcome. Real audio lengths can produce a
-// model-fixable issue after the last fix round, so that case gets one more check loop and narrates again.
+// blocking model-fixable issue after the last fix round, so that case gets one more check loop and narrates again.
+// Craft findings never block, so they do not start that loop.
 // A story that still has no outline ends here as failed. The final state is read through a detached
 // context, so an outcome is still reached after a timeout.
 func (j *storymakerAgentJob) finish(runCtx, jobCtx context.Context) (render.Output, error) {
@@ -925,7 +926,7 @@ func (j *storymakerAgentJob) finish(runCtx, jobCtx context.Context) (render.Outp
 	}
 	narration := j.narrate(runCtx, jobCtx)
 	report, err := j.finalCheck(final)
-	if err == nil && jobCtx.Err() == nil && len(report.Issues) > 0 && report.RoundsLeft > 0 {
+	if err == nil && jobCtx.Err() == nil && storymaker.HasBlockingIssue(report.Issues) && report.RoundsLeft > 0 {
 		answer, _ := j.runPhase(jobCtx, storymakerAgentLoop{phase: storymaker.PhaseCheck})
 		j.keepAnswer(answer)
 		open, _ = j.studio.Progress(final)

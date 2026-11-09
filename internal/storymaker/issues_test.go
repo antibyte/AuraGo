@@ -56,6 +56,21 @@ func TestHasErrors(t *testing.T) {
 	}
 }
 
+// Craft findings are in the check report so the model can fix them, but they alone do not earn the extra check loop.
+func TestHasBlockingIssue(t *testing.T) {
+	craft := Issue{Severity: SeverityWarning, Code: CodeGestureMonotony}
+	unfilled := Issue{Severity: SeverityError, SceneID: "s2", Code: CodeSceneUnfilled}
+	if HasBlockingIssue(nil) || HasBlockingIssue([]Issue{}) {
+		t.Error("no issue cannot block")
+	}
+	if HasBlockingIssue([]Issue{craft, {Severity: SeverityWarning, Code: CodeCastUnused}}) {
+		t.Error("craft findings alone must not block")
+	}
+	if !HasBlockingIssue([]Issue{craft, unfilled}) {
+		t.Error("a craft finding next to scene_unfilled must block")
+	}
+}
+
 func TestIssueCraftIsModelFixableAndWarningOnly(t *testing.T) {
 	for _, code := range []string{CodeEnvironmentMonotony, CodeFramingMonotony, CodeGestureMonotony, CodeCastUnused} {
 		if !IssueCraft(code) || !IssueModelFixable(Issue{Severity: SeverityWarning, Code: code}) || !issueNeverBlocks(code) {

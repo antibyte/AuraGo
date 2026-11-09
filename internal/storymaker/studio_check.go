@@ -217,6 +217,14 @@ func (s *Studio) Check(ctx context.Context) (CheckReport, error) {
 	return report, err
 }
 
+// RoundsLeft is the number of check rounds the model has not used yet. Only its own validate calls use a round, so the
+// number is current after any of them; the CheckReport of an earlier Check can be stale.
+func (s *Studio) RoundsLeft() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return max(0, StudioCheckRounds-s.checkRounds)
+}
+
 // Progress counts the saved story. A blank story, as ProjectStore.Create writes it, reports zero
 // scenes, so ScenesTotal 0 means that no outline is saved.
 func (s *Studio) Progress(ctx context.Context) (StudioProgress, error) {

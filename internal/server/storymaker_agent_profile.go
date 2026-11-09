@@ -120,7 +120,7 @@ var storymakerToolExamples = map[string][]string{
 	},
 	storymaker.PhaseFill: {
 		`{"action":"storymaker_catalog","operation":"search","kind":"prop","query":"lock"}`,
-		`{"action":"storymaker_story","operation":"put_scene","scene_id":"s1","data":{"narration":"Eine {1}Firewall prüft jedes Paket.","speaker":"anna","environment":"env.office","actors":[{"cast":"anna","at":"desk","pose":"typing","expression":"neutral"}],"beats":[{"do":"show","item":"prop.lock","at":"right","entry":"pop","cue":1},{"do":"gesture","who":"anna","gesture":"point","with":"prev"}]}}`,
+		`{"action":"storymaker_story","operation":"put_scene","scene_id":"s1","data":{"narration":"Eine {1}Firewall prüft jedes Paket.","speaker":"anna","environment":"env.server-room","actors":[{"cast":"anna","at":"left","pose":"stand","expression":"neutral"}],"beats":[{"do":"show","item":"prop.lock","at":"center","entry":"fade","cue":1},{"do":"gesture","who":"anna","gesture":"wave","with":"prev"}]}}`,
 	},
 	storymaker.PhaseCheck: {
 		`{"action":"storymaker_check","operation":"validate"}`,
