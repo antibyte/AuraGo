@@ -101,3 +101,57 @@ func TestCheckHoldsNo916FilmToTheCaptionRule(t *testing.T) {
 		t.Fatalf("the same 16:9 film must be flagged: %v", codes)
 	}
 }
+
+// The caption rule skips a scene with a close framing, a camera target or a camera beat; a medium scene is held to it, since
+// the player lifts its feet. The fixture's s1 has the framing medium and the measured feet stand in the caption band.
+func TestCheckCaptionRuleSkipsScenesWithTheirOwnCamera(t *testing.T) {
+	caption := LayoutBox{0.2, 0.794, 0.6, 0.126}
+	studio, ps, projectID := newStudioWriteRig(t, func(context.Context, string) (CompileSummary, error) {
+		sc := layoutScene("s1", 0)
+		sc.Caption = &caption
+		sc.Actors = []LayoutActor{{ID: "anna", Box: LayoutBox{0.25, 0.40, 0.12, 0.48}}}
+		return CompileSummary{Available: true, DurationMS: 8000, StoryboardScenes: 2, Layout: []LayoutScene{sc, layoutScene("s2", 1)}}, nil
+	})
+	saveFixture(t, ps, projectID, "agent-varied")
+	flagged := func(change func(sc *Scene)) bool {
+		raw, _, _ := ps.LoadStory(context.Background(), projectID)
+		s := mustDecode(t, string(raw))
+		s.Style.Compose = "v2"
+		s.Style.Captions = true
+		s.Format.Aspect = "16:9"
+		s.Scenes[0].Camera = &Camera{Framing: "wide"}
+		change(&s.Scenes[0])
+		out, err := CanonicalJSON(s)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := ps.SaveStory(context.Background(), projectID, out, ""); err != nil {
+			t.Fatal(err)
+		}
+		report, err := studio.Check(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, is := range report.Issues {
+			if is.Code == CodeCaptionOverlap && is.SceneID == "s1" {
+				return true
+			}
+		}
+		return false
+	}
+	if !flagged(func(sc *Scene) { sc.Camera = &Camera{Framing: "medium"} }) {
+		t.Error("a medium framing is not exempt: the player lifts the feet")
+	}
+	if !flagged(func(sc *Scene) { sc.Camera = &Camera{Framing: "wide"} }) {
+		t.Error("the wide framing is held to the rule")
+	}
+	if flagged(func(sc *Scene) { sc.Camera = &Camera{Framing: "close"} }) {
+		t.Error("a close framing is exempt")
+	}
+	if flagged(func(sc *Scene) { sc.Camera = &Camera{Framing: "medium", Target: "anna"} }) {
+		t.Error("a camera target is exempt")
+	}
+	if flagged(func(sc *Scene) { sc.Beats = append(sc.Beats, Beat{Do: "camera", Op: "zoom", Amount: 1.25}) }) {
+		t.Error("a camera beat is exempt")
+	}
+}

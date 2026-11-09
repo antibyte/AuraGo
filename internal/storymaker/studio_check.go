@@ -321,7 +321,10 @@ func (s *Studio) runCheck(ctx context.Context) (CheckReport, string, error) {
 	}
 	summary, state, environment := s.compileForCheck(ctx, etag)
 	found = append(found, checkCompileIssues(summary.Issues)...)
-	found = append(found, LayoutIssues(summary.Layout, LayoutOptions{CaptionRule: story.Style.Compose == "v2" && story.Style.Captions && story.Format.Aspect != "9:16"})...)
+	found = append(found, LayoutIssues(summary.Layout, LayoutOptions{
+		CaptionRule:   story.Style.Compose == "v2" && story.Style.Captions && story.Format.Aspect != "9:16",
+		CaptionExempt: captionExemptScenes(&story),
+	})...)
 	found = append(found, LookAlikeIssues(summary.Stills)...)
 	found = append(found, LintForJob(&story)...)
 	found = append(found, s.craftIssues(ctx, &story)...)
@@ -349,6 +352,27 @@ func (s *Studio) runCheck(ctx context.Context) (CheckReport, string, error) {
 	}
 	report.RoundsLeft = max(0, StudioCheckRounds-s.checkRounds)
 	return report, etag, nil
+}
+
+// captionExemptScenes names the scenes the caption rule skips: the player keeps the feet above the caption box only for the
+// default camera and for a medium framing. A close framing, a camera target and a camera beat move the stage by their own
+// rules, so the feet there are the author's choice.
+func captionExemptScenes(story *Story) map[string]bool {
+	out := map[string]bool{}
+	for i := range story.Scenes {
+		sc := &story.Scenes[i]
+		if sc.Camera != nil && (sc.Camera.Framing == "close" || sc.Camera.Target != "") {
+			out[sc.ID] = true
+			continue
+		}
+		for _, b := range sc.Beats {
+			if b.Do == "camera" {
+				out[sc.ID] = true
+				break
+			}
+		}
+	}
+	return out
 }
 
 // dedupeCheckIssues removes duplicate findings for the same scene and code (or exact path) when

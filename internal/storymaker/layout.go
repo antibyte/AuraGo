@@ -61,9 +61,13 @@ const (
 )
 
 // LayoutOptions say which rules apply. CaptionRule is true for a composition v2 film with captions on in 16:9 or 1:1: the
-// player does not lift the feet in 9:16, so the finding could never be cleared there.
+// player does not lift the feet in 9:16, so the finding could never be cleared there. CaptionExempt lists the scenes (id ->
+// true) whose camera the player does not make caption-safe: a close framing, a camera target or a camera beat. Their feet and
+// bases may stand in the caption band, so the caption rule skips them. A medium framing is adjusted by the player and is not
+// exempt.
 type LayoutOptions struct {
-	CaptionRule bool
+	CaptionRule   bool
+	CaptionExempt map[string]bool
 }
 
 // IssueLayout says whether a code is a finding of the layout run. Like the craft codes they are model-fixable and never
@@ -87,17 +91,17 @@ func LayoutIssues(scenes []LayoutScene, opts LayoutOptions) []Issue {
 		add := func(code, message, fix string) {
 			out = append(out, Issue{Severity: SeverityWarning, SceneID: sc.ID, Path: path, Code: code, Message: message, Fix: fix})
 		}
-		if opts.CaptionRule && sc.Caption != nil {
+		if opts.CaptionRule && sc.Caption != nil && !opts.CaptionExempt[sc.ID] {
 			for _, a := range sc.Actors {
 				if footInCaption(a.Box, *sc.Caption) {
 					add(CodeCaptionOverlap, fmt.Sprintf("The caption covers the feet of %s in scene %s.", a.ID, sc.ID),
-						`Move the actor to a base spot ("left", "center" or "right") with patch_scene and the whole actors list, or shorten the narration so the caption has one line.`)
+						`Move the actor to a base spot ("left", "center" or "right") with patch_scene and the whole actors list, or shorten the narration so the caption has one line. Or give the scene the camera framing "wide".`)
 				}
 			}
 			for _, p := range sc.Props {
 				if !p.Back && footInCaption(p.Box, *sc.Caption) {
 					add(CodeCaptionOverlap, fmt.Sprintf("The caption covers the base of %s in scene %s.", p.ID, sc.ID),
-						`Show the prop at a higher spot such as "board" or "center" with patch_scene and the whole beats list.`)
+						`Show the prop at a higher spot such as "board" or "center" with patch_scene and the whole beats list. Or give the scene the camera framing "wide".`)
 				}
 			}
 		}

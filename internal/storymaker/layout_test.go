@@ -50,6 +50,36 @@ func TestLayoutIssuesCaptionOverlap(t *testing.T) {
 	}
 }
 
+// A scene whose camera the player does not make caption-safe is skipped by the caption rule; the other scenes keep it. Both
+// fix texts name the wide framing as the alternative.
+func TestLayoutIssuesCaptionRuleSkipsExemptScenes(t *testing.T) {
+	caption := LayoutBox{0.2, 0.794, 0.6, 0.126}
+	exempt, other := layoutScene("s1", 0), layoutScene("s2", 1)
+	for _, sc := range []*LayoutScene{&exempt, &other} {
+		sc.Caption = &caption
+		sc.Actors = []LayoutActor{{ID: "anna", Box: LayoutBox{0.25, 0.40, 0.12, 0.48}}}
+		sc.Props = []LayoutProp{{ID: "lock", Item: "prop.lock", Box: LayoutBox{0.45, 0.70, 0.12, 0.18}}}
+	}
+	got := LayoutIssues([]LayoutScene{exempt, other}, LayoutOptions{CaptionRule: true, CaptionExempt: map[string]bool{"s1": true}})
+	if !slices.Equal(layoutCodes(got), []string{CodeCaptionOverlap, CodeCaptionOverlap}) {
+		t.Fatalf("issues = %v", layoutCodes(got))
+	}
+	for _, is := range got {
+		if is.SceneID != "s2" {
+			t.Errorf("the exempt scene s1 must have no caption finding: %+v", is)
+		}
+		if !strings.Contains(is.Fix, `Or give the scene the camera framing "wide".`) {
+			t.Errorf("the fix names the wide framing: %q", is.Fix)
+		}
+	}
+	if got := LayoutIssues([]LayoutScene{exempt}, LayoutOptions{CaptionRule: true, CaptionExempt: map[string]bool{"s1": true}}); len(got) != 0 {
+		t.Fatalf("an exempt scene has no caption finding: %v", layoutCodes(got))
+	}
+	if got := LayoutIssues([]LayoutScene{exempt}, LayoutOptions{CaptionRule: true, CaptionExempt: map[string]bool{"s9": true}}); len(got) != 2 {
+		t.Fatalf("another scene's exemption does not count: %v", layoutCodes(got))
+	}
+}
+
 func TestLayoutIssuesHeroPropTooSmall(t *testing.T) {
 	sc := layoutScene("s2", 1)
 	sc.Props = []LayoutProp{
