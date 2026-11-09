@@ -1,0 +1,56 @@
+{
+  "env.plain-stage": {
+    "about": "Neutral empty stage. Use it only when nothing else fits.",
+    "tags": []
+  },
+  "env.office": {
+    "about": "Bright office with a desk, big windows, a bookshelf and a wall board. Work, teams, meetings, business.",
+    "tags": ["office", "work", "team", "meeting", "business", "company", "employee", "colleague", "büro", "arbeit", "firma", "unternehmen", "mitarbeiter", "kolleg", "besprechung", "geschäft"],
+    "base": true
+  },
+  "env.home-office": {
+    "about": "Home workplace with desk and window. Remote work, private devices, everyday users.",
+    "tags": ["home", "remote", "private", "everyday", "personal", "zuhause", "homeoffice", "privat", "alltag", "persönlich", "heimnetz", "telearbeit"],
+    "base": true
+  },
+  "env.abstract-tech": {
+    "about": "Teal tech room with glass panels and glowing lights. Networks, data, code, cloud, security concepts.",
+    "tags": ["network", "data", "code", "cloud", "digital", "internet", "security", "firewall", "encryption", "packet", "online", "software", "attack", "hacker", "virus", "malware", "netzwerk", "daten", "verschlüssel", "sicherheit", "paket", "schutz", "angriff"],
+    "base": true
+  },
+  "env.server-room": {
+    "about": "Server racks and cables. Infrastructure, hosting, backups, operations.",
+    "tags": ["server", "rack", "hosting", "infrastructure", "backup", "database", "datacenter", "operations", "serverraum", "rechenzentrum", "infrastruktur", "sicherung", "datenbank", "betrieb"],
+    "base": true
+  },
+  "env.classroom": {
+    "about": "School classroom with a board. Learning, training, explaining step by step.",
+    "tags": ["learn", "school", "teach", "lesson", "training", "student", "course", "explain", "lernen", "schule", "unterricht", "lehrer", "schüler", "kurs", "ausbildung", "erklär"],
+    "base": true
+  },
+  "env.laboratory": {
+    "about": "Research laboratory. Experiments, science, testing, measuring.",
+    "tags": ["science", "experiment", "research", "test", "measure", "chemistry", "biology", "lab", "wissenschaft", "forschung", "versuch", "messung", "chemie", "labor", "analyse"]
+  },
+  "env.workshop": {
+    "about": "Workshop with tools. Building, repairing, craft, hardware.",
+    "tags": ["build", "repair", "tool", "craft", "hardware", "machine", "maintenance", "bauen", "reparatur", "werkzeug", "handwerk", "maschine", "wartung", "werkstatt"]
+  },
+  "env.medical-office": {
+    "about": "Doctor's office. Health, care, patients, medicine.",
+    "tags": ["health", "doctor", "patient", "medicine", "care", "clinic", "hospital", "gesundheit", "arzt", "ärztin", "medizin", "pflege", "praxis", "krank"]
+  },
+  "env.living-room": {
+    "about": "Living room. Family, home, leisure, everyday life, consumer devices.",
+    "tags": ["family", "leisure", "tv", "consumer", "comfort", "familie", "wohnzimmer", "freizeit", "fernseher", "gemütlich", "kinder", "smart", "haushalt"],
+    "base": true
+  },
+  "env.city-street": {
+    "about": "City street. Traffic, shops, mobility, public places, the outside world.",
+    "tags": ["city", "street", "traffic", "shop", "mobility", "public", "outside", "stadt", "straße", "verkehr", "laden", "öffentlich", "unterwegs", "mobil", "kunden"]
+  },
+  "env.park": {
+    "about": "Park with trees. Nature, relaxation, outdoors, a calm ending.",
+    "tags": ["nature", "park", "outdoor", "relax", "environment", "green", "tree", "natur", "draußen", "entspann", "umwelt", "grün", "baum", "spazier", "erholung"]
+  }
+}
