@@ -78,3 +78,52 @@ check('compose v2: a prop at a base spot keeps the size it has in v1 (createProp
     const s2 = SM.stage.create({ aspect: '16:9', env: plainEnv(), compose: 'v2', captions: true });
     near(s2.depthScale(propB.y.at(0), propB.depth), s1.depthScale(propA.y.at(0), propA.depth), 1e-9);
 });
+
+check('compose v2: heroScale puts a prop at a quarter of the frame height and clamps', () => {
+    near(SM.compose.heroScale({ size: { h: 0.14 } }, 0.973), 0.24 / (0.14 * 0.973), 0.001);
+    assert.equal(SM.compose.heroScale({ size: { h: 0.5 } }, 1), 0.5, 'clamped at the bottom');
+    assert.equal(SM.compose.heroScale({ size: { h: 0.05 } }, 1), 3, 'clamped at the top');
+    near(SM.compose.heroScale({}, 1), 0.24 / 0.15, 0.001, 'an entry without size.h counts 0.15');
+    near(SM.compose.heroScale({ size: { h: 0.1 } }, 0), 2.4, 0.001, 'no depth counts 1');
+});
+
+check('compose v2: the first cue-bound prop is the hero, an explicit scale wins, v1 is untouched', () => {
+    const stage = SM.stage.create({ aspect: '16:9', env: plainEnv(), compose: 'v2', captions: true });
+    const props = entitiesOf(compile(film({ compose: 'v2' }))).filter(e => e.type === 'prop');
+    const lock = props.find(e => e.item === 'prop.lock'), shield = props.find(e => e.item === 'prop.shield');
+    near(t.byId('prop.lock').size.h * stage.depthScale(lock.y.at(0), lock.depth) * lock.baseScale, 0.24, 0.002, 'the hero stands a quarter of the frame height high');
+    assert.equal(shield.baseScale, 1, 'only the first cue-bound show is the hero');
+
+    const explicit = film({ compose: 'v2' });
+    explicit.scenes[0].beats[0].scale = 1.2;
+    const heroWithScale = entitiesOf(compile(explicit)).find(e => e.item === 'prop.lock');
+    assert.equal(heroWithScale.baseScale, 1.2, 'an explicit scale wins');
+    assert.equal(entitiesOf(compile(explicit)).find(e => e.item === 'prop.shield').baseScale, 1, 'and still counts as the hero');
+
+    for (const e of entitiesOf(compile(film())).filter(x => x.type === 'prop')) assert.equal(e.baseScale, 1, 'v1 props keep their size');
+
+    const uncued = film({ compose: 'v2' });
+    delete uncued.scenes[0].beats[0].cue; delete uncued.scenes[0].beats[1].cue;
+    for (const e of entitiesOf(compile(uncued)).filter(x => x.type === 'prop')) assert.equal(e.baseScale, 1, 'a show without a cue is no hero');
+});
+
+check('compose v2: a scene without its own camera pushes in onto the speaker, an own camera switches it off, v1 stays still', () => {
+    const zoomAt = (out, s) => SM.camera.at(out.timeline.scenes[0].camera, s).zoom;
+    const push = compile(film({ compose: 'v2' }));
+    near(zoomAt(push, 0), 1, 1e-9, 'starts wide');
+    near(zoomAt(push, 60), 1.08, 1e-6, 'ends at 1.08');
+    assert.ok(zoomAt(push, 2) > 1 && zoomAt(push, 2) < 1.08, 'and moves in between');
+    near(zoomAt(compile(film({ compose: 'v2', rhythm: 'calm' })), 60), 1.04, 1e-6, 'calm moves less');
+
+    const framed = compile(film({ compose: 'v2' }, { camera: { framing: 'medium' } }));
+    near(zoomAt(framed, 0), 1.35, 1e-9, 'an own framing wins');
+    near(zoomAt(framed, 60), 1.35, 1e-9, 'and nothing pushes in');
+    const targeted = compile(film({ compose: 'v2' }, { camera: { framing: 'wide', target: 'left' } }));
+    near(zoomAt(targeted, 60), 1, 1e-9, 'a camera target counts as an own camera');
+    const withBeat = film({ compose: 'v2' });
+    withBeat.scenes[0].beats.push({ do: 'camera', op: 'zoom', amount: 1.25 });
+    near(zoomAt(compile(withBeat), 60), 1.25, 1e-6, 'a camera beat switches the push-in off');
+
+    near(zoomAt(compile(film()), 60), 1, 1e-9, 'a story without compose never pushes in');
+    assert.equal(SM.compose.hasOwnCamera({ camera: { framing: 'wide' }, beats: [] }), false, 'the default wide framing is no choice');
+});

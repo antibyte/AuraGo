@@ -2579,6 +2579,7 @@
         var placed = 0;
         // f scales compile defaults only; explicit durations, delays, wait and cue times stay as written.
         var f = SM.motion.factor(c.story && c.story.style), DEF = SM.motion.DEFAULTS;
+        var composeV2 = SM.compose.isV2(c.story), hero = null;   // hero: the prop that composition v2 enlarges
 
         function warn(severity, path, code, message) { issues.push(P.issue(severity, sid, path, code, message)); }
         function beatPath(j, field) { return '/scenes/' + index + '/beats/' + j + (field ? '/' + field : ''); }
@@ -2971,7 +2972,11 @@
             if (!entry || entry.kind !== 'prop') { warn('warning', beatPath(j, 'item'), 'unknown_asset', 'Unknown prop "' + b.item + '".'); return null; }
             var at = resolveAt(b.at, beatPath(j, 'at'), 'center');
             needFile(entry);
-            var prop = S.createProp({ id: instanceId(b.item, b.id), item: b.item, x: at.x, y: at.y, scale: b.scale, layer: b.layer, hidden: true, depth: at.depth });
+            // composition v2: the first cue-bound prop of the scene is the hero; an explicit scale wins
+            var isHero = composeV2 && !hero && !!b.cue, scale = b.scale;
+            if (isHero && !(scale > 0)) scale = SM.compose.heroScale(entry, stage.depthScale(at.y, at.depth));
+            var prop = S.createProp({ id: instanceId(b.item, b.id), item: b.item, x: at.x, y: at.y, scale: scale, layer: b.layer, hidden: true, depth: at.depth });
+            if (isHero) hero = prop;
             register(prop, b.item);
             return prop;
         }
@@ -3051,6 +3056,15 @@
         var popEntry = c.story && c.story.style && c.story.style.auto_sfx === true ? S.sfxEntry(cat, 'sfx.pop') : null;
         if (popEntry) sfxEvents = sfxEvents.concat(SM.motion.autoSfxEvents({ sceneId: sid, log: log, beats: beats, entry: popEntry, lastTake: lastTake }));
 
+        // composition v2: a scene without its own camera pushes in slowly onto the speaker (or the hero prop)
+        if (composeV2 && !SM.compose.hasOwnCamera(scene)) {
+            var pushEnd = Math.max(beatsEnd, plan.narration.start + plan.narration.seconds), pushRef = speakerActor || hero;
+            var pushFocus = pushRef ? focusOf(pushRef.id, 0) : null;
+            if (pushEnd > 0) {
+                SM.camera.addZoom(cam, 0, pushEnd, SM.compose.pushInAmount(c.story.style), 'ease-in-out');
+                if (pushFocus) SM.camera.addPan(cam, 0, pushEnd, pushFocus.x, cam.cy.at(0), 'ease-in-out');
+            }
+        }
         var motionEnd = SM.camera.end(cam);
         for (var k = 0; k < entities.length; k++) { var ee = S.entityEnd(entities[k]); if (ee > motionEnd) motionEnd = ee; }
         return {
