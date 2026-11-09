@@ -17,7 +17,7 @@ export const params = {
     lang: q.get('lang') || 'en',
     scene: q.get('scene') || '',
     seed: Number(q.get('seed')) || 1,
-    autoplay: q.get('autoplay') === '1'
+    autoplay: q.get('autoplay') === '1' || (q.get('scene') || '').startsWith('follow')
 };
 
 const stage = document.getElementById('stage');
@@ -51,7 +51,7 @@ async function modeEngine(h) {
     ]);
     const layout = h.layout, ctrl = new AbortController();
     const spec = params.scene || '';
-    const cameraName = ['play', 'top', 'showcase', 'attract'].includes(params.camera) ? params.camera : spec === 'attract' ? 'attract' : 'play';
+    const cameraName = ['follow', 'play', 'top', 'showcase', 'attract'].includes(params.camera) ? params.camera : spec === 'attract' ? 'attract' : 'play';
     const sc = await sceneMod.createScene(h.stage, { tableId: params.table, layout, settings: { quality: params.quality, camera: cameraName, reduced: false }, assetURL: p => p, signal: ctrl.signal, tr: harnessTr });
     const lamps = lampMod.createLamps(layout, { seed: params.seed });
     const dmd = dmdMod.createDmd({ raster: rasterMod.createRaster(), tr: harnessTr, locale: params.lang });
@@ -102,8 +102,8 @@ async function modeGame(h) {
     const dict = await fetch('/lang/desktop/' + params.lang + '.json').then(r => r.json()).catch(() => ({}));
     document.documentElement.lang = params.lang;
     const stored = (() => { try { return JSON.parse(localStorage.getItem(storageMod.STORAGE.settings)) || {}; } catch (_) { return {}; } })();
-    const camera = ['play', 'top'].includes(params.camera) ? params.camera : stored.camera;
-    localStorage.setItem(storageMod.STORAGE.settings, JSON.stringify({ ...stored, quality: params.quality, camera }));
+    const camera = ['follow', 'play', 'top'].includes(params.camera) ? params.camera : stored.camera;
+    localStorage.setItem(storageMod.STORAGE.settings, JSON.stringify({ ...stored, quality: params.quality, camera, cameraRev: storageMod.CAMERA_REV }));
     const game = gameMod.mountGame(h.stage, { t: key => dict[key] ?? key, assetURL: p => p, isActive: () => true, testing: true, table: params.table, seed: params.seed });
     h.game = game;
     const ready = () => { const i = game.inspect(); return i.panel === 'lobby' || i.panel === 'error' ? i : null; };
@@ -116,8 +116,8 @@ async function modeGame(h) {
         const bot = botMod.createBot(h.layout, params.seed);
         game.start(false, ['AAA']);
         game.autoplay((balls, tick) => bot.controls(balls, tick));
-        game.advance(480 * 14);
-        await new Promise(resolve => setTimeout(resolve, 600));
+        // scene=follow[:seconds]: no fast-forward, the bot plays in real time so the ball cam can be shot at several moments.
+        if (!params.scene.startsWith('follow')) { game.advance(480 * 14); await new Promise(resolve => setTimeout(resolve, 600)); }
     }
     return { dispose() { game.dispose(); } };
 }

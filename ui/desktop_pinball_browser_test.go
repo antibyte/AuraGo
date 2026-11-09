@@ -126,6 +126,15 @@ window.fixture=mountGame(document.getElementById('host'),{t:k=>words[k]||k,asset
 	if !page.MustEval(`()=>{const s=fixture.inspect();return s.round.phase==='play'&&s.stats.balls===1&&s.physics.balls.length>0&&s.physics.balls.every(b=>[b.x,b.y,b.h,b.vx,b.vy].every(Number.isFinite))}`).Bool() {
 		t.Fatalf("physical training launch failed: %s", page.MustEval(`()=>JSON.stringify(fixture.inspect().round)`).Str())
 	}
+	// The ball cam is the default; the camera key cycles follow -> play -> top -> follow.
+	camMode := `()=>fixture.internals().scene.three.rig.mode`
+	if got := page.MustEval(camMode).Str(); got != "follow" {
+		t.Fatalf("default camera = %q, want follow", got)
+	}
+	for _, want := range []string{"play", "top", "follow"} {
+		page.Keyboard.MustType(input.KeyC)
+		page.MustWait(`()=>fixture.internals().scene.three.rig.mode==='` + want + `'`)
+	}
 	page.MustEval(`()=>new Promise(resolve=>requestAnimationFrame(()=>{const end=performance.now()+300;while(performance.now()<end);requestAnimationFrame(()=>requestAnimationFrame(resolve))}))`)
 	if !page.MustEval(`()=>{const s=fixture.inspect();return s.paused===false&&s.panel===''}`).Bool() {
 		t.Fatal("a 300 ms busy frame paused the game")
