@@ -150,6 +150,18 @@ func TestSetupInstallAlignsRateLimitsWithManagedCapacity(t *testing.T) {
 	}
 }
 
+func TestSetupInstallKeepsMachinesOnDemandAndRemovesEmptyCgroups(t *testing.T) {
+	for _, skipDesktop := range []bool{false, true} {
+		script := (SetupManager{InstallOptions: SetupInstallOptions{SkipDesktop: skipDesktop}}).installScript()
+		if strings.Count(script, "BORING_DESKTOP_POOL=0\n") != 1 {
+			t.Fatal("managed machines must start on demand, including hosts with desktop images")
+		}
+		if strings.Contains(script, "-empty -delete") || strings.Count(script, "-depth -mindepth 1 -maxdepth 3 -type d -exec rmdir -- {} +") != 3 {
+			t.Fatal("cgroup cleanup must use child-first rmdir: virtual controller files prevent find -empty")
+		}
+	}
+}
+
 func TestSetupRepairReusesAssetsAndWaitsForBoringdHealth(t *testing.T) {
 	script := (SetupManager{}).installScript()
 

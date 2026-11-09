@@ -562,7 +562,8 @@ cat > "${BORING_CG_CLEANUP}" <<'CG_CLEANUP_EOF'
 # Remove empty child cgroups under boringd.service so the delegated service
 # cgroup can be released by systemd.
 cd /sys/fs/cgroup/system.slice/boringd.service 2>/dev/null || exit 0
-find . -mindepth 1 -maxdepth 3 -type d -empty -delete 2>/dev/null || true
+# Controller files are virtual; the kernel allows rmdir only after tasks exit.
+find . -depth -mindepth 1 -maxdepth 3 -type d -exec rmdir -- {} + 2>/dev/null || true
 CG_CLEANUP_EOF
 chmod +x "${BORING_CG_CLEANUP}"
 
@@ -581,6 +582,7 @@ cat > /etc/boring/boringd.env <<EOF
 BORING_ADDR=${BORING_ADDR_VALUE}
 BORING_ALLOW_PERSISTENT=${BORING_ALLOW_PERSISTENT_VALUE}
 BORING_JAILER=1
+BORING_DESKTOP_POOL=0
 BORING_NET=${BORING_NET_VALUE}
 BORING_TOKEN=${BORING_TOKEN_VALUE}
 BORING_ANTHROPIC_KEY=${BORING_ANTHROPIC_KEY_VALUE}
@@ -614,12 +616,12 @@ if [ -d "${BORING_CG}" ]; then
 	for _ in $(seq 1 30); do
 		if [ ! -s "${BORING_CG}/cgroup.procs" ]; then
 			# No processes left in the main cgroup; attempt to remove empty child cgroups.
-			find "${BORING_CG}" -mindepth 1 -maxdepth 3 -type d -empty -delete 2>/dev/null || true
+			find "${BORING_CG}" -depth -mindepth 1 -maxdepth 3 -type d -exec rmdir -- {} + 2>/dev/null || true
 			break
 		fi
 		sleep 1
 	done
-	find "${BORING_CG}" -mindepth 1 -maxdepth 3 -type d -empty -delete 2>/dev/null || true
+	find "${BORING_CG}" -depth -mindepth 1 -maxdepth 3 -type d -exec rmdir -- {} + 2>/dev/null || true
 fi
 
 log "starting fresh boringd instance"

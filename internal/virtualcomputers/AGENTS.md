@@ -10,6 +10,11 @@ Workspace leases, managed Garage storage, desktop images and guest browser lifec
 
 ## Local Contracts
 
+### Managed host idle behavior
+
+- Managed installs set `BORING_DESKTOP_POOL=0`: create guests on demand rather than inheriting upstream's desktop warm pool and its five-second failed-boot retries. Desktop images remain available for requested machines.
+- After stopping boringd, remove empty child cgroups with depth-first `rmdir`. Never use `find -empty -delete`: cgroup controller files are virtual and keep that test false. The kernel rejects removal of populated groups. Verify `TestSetupInstallKeepsMachinesOnDemandAndRemovesEmptyCgroups` and the existing generated Bash syntax check.
+
 ### Manual machine networking
 - `virtual_computers.allow_internet` is the parent gate for manual machine launches. The New computer dialog offers Internet and Offline only when the gate is enabled, defaults to Internet in that case, and sends the explicit per-machine `allow_internet` choice. The server rejects a direct internet-enabled launch while the gate is off; existing offline machines are not silently reconfigured.
 
