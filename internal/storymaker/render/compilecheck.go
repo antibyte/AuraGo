@@ -18,6 +18,9 @@ import (
 // compileCheckLimit bounds one compile check, browser probe included. A variable, so a test can shorten it.
 var compileCheckLimit = 60 * time.Second
 
+// stillsLimitFactor widens compileCheckLimit when the run also takes stills.
+const stillsLimitFactor = 3
+
 const (
 	// compileOnlyAnswer is the error of the report answer. host-render.js ends on any answer without start.
 	compileOnlyAnswer = "compile_only"
@@ -59,7 +62,11 @@ type compileCheckCue struct {
 // A check that cannot run answers Available false with a Reason. A cancelled ctx returns its error. A page or compile
 // failure is an issue with code compile_failed. Cue times are scene-local, as the report gives them.
 func (r *Runner) CompileCheck(ctx context.Context, projectID string, st Settings) (storymaker.CompileSummary, error) {
-	checkCtx, cancel := context.WithTimeout(ctx, compileCheckLimit)
+	limit := compileCheckLimit
+	if st.Stills {
+		limit *= stillsLimitFactor
+	}
+	checkCtx, cancel := context.WithTimeout(ctx, limit)
 	defer cancel()
 	if r.deps.Browsers == nil {
 		return compileUnavailable(ctx, CodeBrowserUnavailable)
@@ -122,17 +129,22 @@ func (r *Runner) compileInBrowser(ctx, checkCtx context.Context, plan *Plan, bin
 	if frameLimit <= 0 {
 		frameLimit = st.MaxDurationSeconds * fps
 	}
+	// With stills the page stays open and Go drives its screenshots; without them the report ends the run.
+	compileTransport, reportAnswer := DefaultTransport, ReportAnswer{Error: compileOnlyAnswer, Message: "This page only compiles the story."}
+	if st.Stills {
+		compileTransport, reportAnswer = TransportScreenshot, ReportAnswer{Start: true}
+	}
 	reports := make(chan []byte, 1)
 	pageErrors := make(chan PageError, 1)
 	// No workers: helper workers would only start up for frames that never come.
-	listener, err := StartListener(prefix, snap, PageParams{Width: width, Height: height, FPS: fps, Transport: DefaultTransport, FrameLimit: frameLimit, FrameDeadlineMS: frameDeadlineMS, Layout: true, Token: token, AudioInfo: plan.AudioJSON},
+	listener, err := StartListener(prefix, snap, PageParams{Width: width, Height: height, FPS: fps, Transport: compileTransport, FrameLimit: frameLimit, FrameDeadlineMS: frameDeadlineMS, Layout: true, Token: token, AudioInfo: plan.AudioJSON},
 		Hooks{
 			Report: func(body []byte) ReportAnswer {
 				select {
 				case reports <- body:
 				default:
 				}
-				return ReportAnswer{Error: compileOnlyAnswer, Message: "This page only compiles the story."}
+				return reportAnswer
 			},
 			Error: func(e PageError) {
 				select {
@@ -193,14 +205,18 @@ func (r *Runner) compileInBrowser(ctx, checkCtx context.Context, plan *Plan, bin
 		}
 		return compileFailure(sceneID, e.Code+": "+e.Message), nil
 	case body := <-reports:
-		// Shutdown lets the handler finish, so the page reads its answer. Close would cut it.
-		shutdownCtx, stop := context.WithTimeout(context.Background(), compileShutdownWait)
-		_ = listener.srv.Shutdown(shutdownCtx)
-		stop()
 		summary := summarizeCompileReport(body, want, frameLimit)
 		if summary.LayoutError != "" {
 			r.deps.Logger.Warn("[Storymaker] The layout measurement of the compile check failed", "issue", summary.LayoutError)
 		}
+		// The stills are taken before the listener shuts down: the page still needs it while it renders a frame.
+		if st.Stills && summary.Available && !storymaker.HasErrors(summary.Issues) {
+			r.captureStills(checkCtx, page, &summary, fps, frameLimit)
+		}
+		// Shutdown lets the handler finish, so the page reads its answer. Close would cut it.
+		shutdownCtx, stop := context.WithTimeout(context.Background(), compileShutdownWait)
+		_ = listener.srv.Shutdown(shutdownCtx)
+		stop()
 		return summary, nil
 	}
 }

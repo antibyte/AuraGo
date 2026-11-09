@@ -75,6 +75,8 @@ type Settings struct {
 	Limits             storymaker.Limits
 	LogicalCPUs        int   // runtime.NumCPU() in production
 	FreeMemoryMB       int64 // available memory in MiB; 0 means unknown, no memory bound
+	// Stills makes a compile check take one still per measured scene in the same browser run (only CompileCheck reads it).
+	Stills bool
 }
 
 // Deps are the services a render needs.
