@@ -20,7 +20,7 @@ import (
 //
 //	AURAGO_RUN_BROWSER_SMOKE=1 AURAGO_PINBALL_SURVEY=1 [AURAGO_PINBALL_SCENES="neon:2d:low,neon:top:low"] go test -run TestDesktopPinballSurvey -count=1 .
 //
-// Scene format table:scene:quality; scenes: follow:<seconds>[:narrow|:reduced] (real bot game with the ball cam, shots at the ball low / high or on a ramp / in the shooter lane / multiball), 2d, play, top, showcase, attract, action, closeup:x,y,h, preview[:x,y,h] (1280x640 lobby card shot, no ball), dmd:<scene>.
+// Scene format table:scene:quality; scenes: followat:x;y[;x;y...][:narrow|:reduced] (ball cam with balls placed at fixed spots, physics frozen), follow:<seconds>[:narrow|:reduced] (real bot game with the ball cam, shots at the ball low / high or on a ramp / in the shooter lane / multiball), 2d, play, top, showcase, attract, action, closeup:x,y,h, preview[:x,y,h] (1280x640 lobby card shot, no ball), dmd:<scene>.
 // PNGs go to AURAGO_BROWSER_ARTIFACT_DIR, else ../reports/pinball-survey (git-ignored).
 func TestDesktopPinballSurvey(t *testing.T) {
 	if os.Getenv("AURAGO_PINBALL_SURVEY") != "1" {
@@ -103,7 +103,7 @@ func TestDesktopPinballSurvey(t *testing.T) {
 			}
 			shot("")
 			t.Logf("graphics %s", page.MustEval(`()=>{const h=window.pinballHarness;const g=h.game?h.game.inspect().graphics:(h.engine?h.engine.scene.stats():null);return g?JSON.stringify({q:g.quality,calls:g.drawCalls,tris:g.triangles,lights:g.lights,tex:g.textures}):""}`).Str())
-			if strings.HasPrefix(scene, "follow") {
+			if strings.HasPrefix(scene, "follow:") {
 				surveyFollow(t, page, scene, shot)
 			}
 			if scene == "2d" {
@@ -142,6 +142,10 @@ func pinballSurveyURL(table, scene, quality string) string {
 	case scene == "play":
 		q.Set("mode", "game")
 		q.Set("autoplay", "1")
+	case strings.HasPrefix(scene, "followat:"):
+		q.Set("mode", "game")
+		q.Set("scene", strings.TrimSuffix(strings.TrimSuffix(scene, ":narrow"), ":reduced"))
+		q.Set("camera", "follow")
 	case strings.HasPrefix(scene, "follow"):
 		q.Set("mode", "game")
 		q.Set("scene", "follow")

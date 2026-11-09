@@ -17,7 +17,7 @@ export const params = {
     lang: q.get('lang') || 'en',
     scene: q.get('scene') || '',
     seed: Number(q.get('seed')) || 1,
-    autoplay: q.get('autoplay') === '1' || (q.get('scene') || '').startsWith('follow')
+    autoplay: q.get('autoplay') === '1' || /^follow(:|$)/.test(q.get('scene') || '')
 };
 
 const stage = document.getElementById('stage');
@@ -117,7 +117,15 @@ async function modeGame(h) {
         game.start(false, ['AAA']);
         game.autoplay((balls, tick) => bot.controls(balls, tick));
         // scene=follow[:seconds]: no fast-forward, the bot plays in real time so the ball cam can be shot at several moments.
-        if (!params.scene.startsWith('follow')) { game.advance(480 * 14); await new Promise(resolve => setTimeout(resolve, 600)); }
+        if (!/^follow(:|$)/.test(params.scene)) { game.advance(480 * 14); await new Promise(resolve => setTimeout(resolve, 600)); }
+    }
+    // scene=followat:x;y[;x;y...]: ball cam with the balls placed at fixed spots, physics frozen, camera settled (deterministic survey shots).
+    const at = /^followat:(.+)$/.exec(params.scene);
+    if (at) {
+        game.start(false, ['AAA']); game.hold(true);
+        game.placeBalls(at[1].split(/[;,]/).map(Number)); game.advance(2, {});
+        const scene = game.internals().scene, f0 = scene.stats().frames;
+        await new Promise(resolve => { const t0 = performance.now(); const wait = () => (scene.stats().frames - f0 >= 40 || performance.now() - t0 > 120000 ? resolve() : setTimeout(wait, 50)); wait(); });
     }
     return { dispose() { game.dispose(); } };
 }

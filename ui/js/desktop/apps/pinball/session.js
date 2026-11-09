@@ -137,11 +137,22 @@ export function createSession(table, { seed = 1 } = {}) {
         return ids;
     }
 
+    // Testing hook: replace all balls by field balls at [x, y, ...] pairs (resting), as stress() registers them.
+    function placeBalls(coords) {
+        if (!game) throw Error('game');
+        world.command({ type: 'clearBalls' });
+        const ids = [];
+        for (let i = 0; i + 1 < coords.length; i += 2) { const id = game.balls.nextId + i / 2; ids.push(id); world.placeBall(id, coords[i], coords[i + 1], 0, 0); }
+        rules.debugBalls(game, ids);
+        game.phase = 'play'; game.launched = true;
+        return ids;
+    }
+
     return {
         get world() { return world; },
         get game() { return game; },
         get ticks() { return ticks; },
-        table, layout, startGame, endGame, tick, nudge, inject, setScores, lampModes, dmdState, resetTraining, stress, rollBalls,
+        table, layout, startGame, endGame, tick, nudge, inject, setScores, lampModes, dmdState, resetTraining, stress, placeBalls, rollBalls,
         toyState: () => (game ? rules.toyState(game) : {}),
         onEvent(fn) { eventListeners.add(fn); return () => eventListeners.delete(fn); },
         onPresentation(fn) { presentationListeners.add(fn); return () => presentationListeners.delete(fn); },

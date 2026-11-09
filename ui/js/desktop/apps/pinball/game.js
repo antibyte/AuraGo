@@ -254,6 +254,7 @@ export function mountGame(host, context = {}) {
             start(training = false, players) { names = players || names; start(training); },
             autoplay(fn) { autoplay = fn || null; },
             hold(on) { held = !!on; },
+            placeBalls(coords) { return session.placeBalls(coords); },
             stress() { if (!game()) throw Error('round'); session.stress(4); resume(); },
             fire(ev) { session.inject(ev); },
             internals: () => ({ session, scene, lamps, dmd, audio, view, input, presenter, settings })

@@ -9,7 +9,8 @@ export const FOLLOW = Object.freeze({
     tauDepth: 0.55,       // s, time constant of the zoom spring
     lookahead: 0.14,      // s of ball velocity added to the target
     lookMax: 0.09,        // m, largest lookahead shift
-    yMin: -0.03,          // lowest visible playfield y (lockdown bar edge)
+    yMin: -0.03,          // lowest visible playfield y, used while the ball sits in the shooter lane (plunger rod stays visible)
+    yMinField: 0.03,      // lowest visible playfield y for field balls and the resting view (flippers sit lower on screen, drain gap still shown)
     yMax: 1.07,           // highest visible playfield y (top arc)
     restY: 0.25,          // framing centre without a ball in play (clamped to the flippers view)
     xGain: 0.7,           // fraction of the ball x followed when the width does not fit
@@ -31,7 +32,7 @@ const lift = (b, p) => num(b.h, 0) / Math.tan(p.elevation * Math.PI / 180);
 export function followGoal(balls, opts = {}) {
     const p = { ...FOLLOW, ...opts }, xRange = Math.max(0, num(opts.xRange, 0));
     const list = (Array.isArray(balls) ? balls : []).filter(live).sort((a, b) => a.y - b.y);
-    if (!list.length) return { y: clamp(p.restY, p.yMin + p.depth / 2, p.yMax - p.depth / 2), x: 0, depth: p.depth, balls: 0 };
+    if (!list.length) return { y: clamp(p.restY, p.yMinField + p.depth / 2, p.yMax - p.depth / 2), x: 0, depth: p.depth, balls: 0 };
     const eff = b => {
         const still = b.mode === 'held' || b.mode === 'grab' || b.mode === 'shooter';
         const look = still ? 0 : clamp(num(b.vy, 0) * p.lookahead, -p.lookMax, p.lookMax);
@@ -46,7 +47,8 @@ export function followGoal(balls, opts = {}) {
     }
     const lookX = first.mode === 'held' || first.mode === 'grab' || first.mode === 'shooter' ? 0 : clamp(num(first.vx, 0) * p.lookahead, -p.lookMax, p.lookMax);
     const x = clamp((first.x + lookX) * p.xGain, -xRange, xRange);
-    return { y: clamp(center, p.yMin + depth / 2, p.yMax - depth / 2), x, depth, balls: list.length };
+    const floor = first.mode === 'shooter' ? p.yMin : p.yMinField;
+    return { y: clamp(center, floor + depth / 2, p.yMax - depth / 2), x, depth, balls: list.length };
 }
 
 export const createFollow = () => ({ ready: false, y: 0, vy: 0, x: 0, vx: 0, depth: FOLLOW.depth, vd: 0 });

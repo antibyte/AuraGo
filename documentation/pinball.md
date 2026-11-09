@@ -137,7 +137,7 @@ it is playing.
 
   The ball cam follows the lowest ball in play (the one closest to the drain) with a short
   lookahead along its velocity, and stays inside the table so the flippers are fully visible when
-  the ball is low and the top arc is the upper limit. With several balls far apart it zooms out
+  the ball is low (the lowest visible point is 0.03 m above the lockdown bar line, or the bar edge itself while the ball sits in the shooter lane so the plunger stays in view) and the top arc is the upper limit. With several balls far apart it zooms out
   smoothly until the two lowest balls fit (at most the whole table). Balls held in scoops, locks
   or by magnets and balls in the shooter lane keep a steady frame; without a ball in play the view
   rests on the flippers. Switching cameras blends over half a second. With **Reduce effects** (or

@@ -11,18 +11,20 @@ assert.ok(g.balls === 2 && g.y > 0.45 && g.y < 0.8, 'follows the lower of the tw
 
 // Clamp: a low ball leaves the flippers view at the bottom, a high ball the top arc at the upper limit.
 g = followGoal([ball(0.04)]);
-assert.ok(Math.abs(g.y - (FOLLOW.yMin + half)) < 1e-9, 'bottom clamp keeps the flippers in frame');
+assert.ok(Math.abs(g.y - (FOLLOW.yMinField + half)) < 1e-9, 'field bottom clamp keeps the flippers in frame');
+assert.ok(FOLLOW.yMinField > FOLLOW.yMin && FOLLOW.yMinField < 0.075, 'field floor sits above the shooter floor and below the drain');
 g = followGoal([ball(1.05)]);
 assert.ok(Math.abs(g.y - (FOLLOW.yMax - half)) < 1e-9, 'top clamp stops at the top arc');
 g = followGoal([ball(0.05, { vy: -3 })]);
-assert.ok(g.y - half >= FOLLOW.yMin - 1e-9, 'lookahead cannot push the window below the table');
+assert.ok(g.y - half >= FOLLOW.yMinField - 1e-9, 'lookahead cannot push the window below the field floor');
 
 // Lookahead follows the velocity (bounded); held balls do not look ahead; a raised ball shifts the target up the table.
 const base = followGoal([ball(0.5)]).y;
 assert.ok(followGoal([ball(0.5, { vy: 2 })]).y > base && followGoal([ball(0.5, { vy: 2 })]).y - base <= FOLLOW.lookMax + 1e-9);
 assert.equal(followGoal([ball(0.5, { vy: 2, mode: 'held' })]).y, base);
 assert.ok(followGoal([ball(0.5, { h: 0.08 })]).y > base, 'ramp height raises the target');
-assert.equal(followGoal([ball(0.15, { x: 0.24, mode: 'shooter' })]).y, FOLLOW.yMin + half, 'shooter lane stays framed at the bottom');
+assert.equal(followGoal([ball(0.15, { x: 0.24, mode: 'shooter' })]).y, FOLLOW.yMin + half, 'shooter lane keeps the lower floor so the plunger stays visible');
+assert.equal(followGoal([ball(0.02, { x: 0.24, mode: 'shooter' }), ball(0.5, { id: 2 })]).y - followGoal([ball(0.02, { x: 0.24, mode: 'shooter' }), ball(0.5, { id: 2 })]).depth / 2 >= FOLLOW.yMin - 1e-9, true);
 
 // Lateral follow is limited to the range the window leaves (0 when the full width fits).
 assert.equal(followGoal([ball(0.5, { x: 0.2 })]).x, 0);
@@ -38,7 +40,7 @@ assert.ok(g.y - g.depth / 2 <= 0.15 && g.y + g.depth / 2 >= 0.95 - 0.01 || g.dep
 // No balls: resting framing around the flippers, finite everywhere (including garbage input).
 for (const none of [[], null, undefined, [ball(0.3, { hidden: true })], [{ x: NaN, y: NaN, mode: 'field' }]]) {
     g = followGoal(none);
-    assert.deepEqual([g.y, g.x, g.depth, g.balls], [FOLLOW.yMin + half, 0, FOLLOW.depth, 0].map((v, i) => i === 0 ? Math.max(v, Math.min(FOLLOW.restY, FOLLOW.yMax - half)) : v));
+    assert.deepEqual([g.y, g.x, g.depth, g.balls], [Math.max(FOLLOW.yMinField + half, Math.min(FOLLOW.restY, FOLLOW.yMax - half)), 0, FOLLOW.depth, 0]);
 }
 const odd = followGoal([ball(0.5, { vy: NaN, vx: Infinity, h: undefined })]);
 assert.ok(Object.values(odd).every(Number.isFinite), 'NaN input stays finite');
@@ -63,5 +65,5 @@ assert.ok(Math.abs(c60.y - c144.y) < 0.02, 'frame-rate independent tracking');
 // A big step never overshoots past the table; the depth spring stays in range.
 const w = createFollow(); stepFollow(w, followGoal([ball(1.0)]), 0);
 for (let i = 0; i < 600; i++) { stepFollow(w, followGoal([ball(0.02)]), 1 / 60); assert.ok(w.y - w.depth / 2 >= FOLLOW.yMin - 1e-9 && w.y + w.depth / 2 <= FOLLOW.yMax + 1e-9); }
-assert.ok(Math.abs(w.y - (FOLLOW.yMin + half)) < 1e-3);
+assert.ok(Math.abs(w.y - (FOLLOW.yMinField + half)) < 1e-3);
 console.log('pinball follow ok');
