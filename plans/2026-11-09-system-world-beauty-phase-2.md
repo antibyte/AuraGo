@@ -58,8 +58,8 @@
 - **Diagnostics.** `SysWorldApp.inspect()` spreads `city.stats()`, so new stats fields reach the browser test.
 
 **Could not verify**
-1. **gltfpack and UVs on texture-free materials.** Whether 1.3.0 keeps absolute texture coordinates (`-vtf`) for materials without textures. The dequantisation may only be written into `KHR_texture_transform` on texture slots. Task 1 adds a decode check, and it decides at Task 0.
-2. **`-vtf`.** Whether gltfpack 1.3.0 supports `-vtf` (float texcoords), the fallback.
+1. **gltfpack and UVs on texture-free materials.** Settled by the main session on 2026-11-10 with `data-tower-a.lod0`: quantised texture coordinates (`-vt 14`) are normalised to 0..1 and lose the room coordinates, because the dequantisation is only written into `KHR_texture_transform` on texture slots.
+2. **`-vtf`.** Settled as well: gltfpack 1.3.0 accepts `-vtf` and writes float TEXCOORD_0 with the room coordinates intact, at practically the same file size. The plan uses `-vtf` throughout; Task 1's decode check still guards it.
 3. **Exporter V flip.** That the Blender 5.2 glTF exporter writes V as `1 − v` (standard exporter behaviour). The decode check fails loudly if not, with the fix described there.
 4. **v3 bounds** against v1 bounds. Task 3 measures them.
 5. **GPU compile** and the visual result. No GPU here; the survey and browser runs prove them.
@@ -210,8 +210,10 @@
   - In `prepare`, change `if (WINDOWS.has(material?.name)) windowSeeds(mesh.geometry);` to `if (WINDOWS.has(material?.name)) windowSeeds(mesh.geometry, !!material.vertexColors);`.
   - v1 materials have no vertex colours, so the remaining v1 models keep per-pane seeds unchanged.
 - [ ] **`scripts/build-system-world-v3.mjs`.**
-  - Change `const PACK_FLAGS = ['-cc', '-kn', '-km', '-ke', '-kv'];` to `const PACK_FLAGS = ['-cc', '-kn', '-km', '-ke', '-kv', '-vt', '14'];`.
-  - Add to the header comment: ` * -vtf keeps window room coordinates (TEXCOORD_0, up to about 70) exact to 0.005 of a room.`
+  - Change `const PACK_FLAGS = ['-cc', '-kn', '-km', '-ke', '-kv'];` to `const PACK_FLAGS = ['-cc', '-kn', '-km', '-ke', '-kv', '-vtf'];`.
+  - Add to the header comment: ` * -vtf keeps window room coordinates (TEXCOORD_0, up to about 70) as floats; quantised texture`
+    ` * coordinates would be normalised to 0..1 because the kit has no textures to carry the transform.`
+  - The street payload was packed without `-vtf`, so `--check` reports a repack difference until Task 0 repacks everything. That is expected.
 - [ ] **`scripts/test-system-world-v3.mjs`.**
   - Add imports at the top:
     ```js
@@ -268,7 +270,7 @@
         assert.ok(checked > 0, lod.file + ': no pane triangle carries room coordinates');
       });
     }
-    if (windowDesigns.size) assert.match(manifest.pack ?? '', /-vtf\b|-vtf\b/, 'Room coordinates need 14-bit (or float) texture coordinates');
+    if (windowDesigns.size) assert.match(manifest.pack ?? '', /-vtf\b/, 'Room coordinates need float texture coordinates');
     console.log('System World v3 window panes: ' + (windowDesigns.size ? windowDesigns.size + ' designs, ' + paneTriangles + ' pane triangles verified' : 'none shipped yet'));
     ```
 - [ ] Run, each must pass:
@@ -279,7 +281,7 @@
     - Without `disposable/system-world/v3-raw` the repack is skipped.
     - If the raw directory exists and the repack differs **only** because of the new flag, report it and continue. Task 0 repacks.
   - `go test ./ui -run '^TestDesktopSysWorld' -count=1` → PASS.
-- [ ] Commit: `feat(system-world): surfaces and kit tests ready for kit v3 buildings (window panes, glass kind, fixtures, 14-bit UVs)`.
+- [ ] Commit: `feat(system-world): surfaces and kit tests ready for kit v3 buildings (window panes, glass kind, fixtures, float UVs)`.
 
 **Acceptance**
 - `city.window` is exempt from the surface maps, and `city.glass` has a kind.
@@ -317,7 +319,7 @@
 - The manifest `pack` is `gltfpack@1.3.0 -cc -kn -km -ke -kv -vtf`.
 
 **If the pane UV check fails**
-- **Corners off the grid, or bay and storey lengths absurd.** gltfpack normalised the texture coordinates. Replace `'-vt', '14'` with `'-vtf'` in `PACK_FLAGS` and repack. If 1.3.0 rejects `-vtf`, use `'-noq'` and report the size growth.
+- **Corners off the grid, or bay and storey lengths absurd.** gltfpack normalised the texture coordinates although `-vtf` is set (verified on 2026-11-10 that 1.3.0 keeps float room coordinates with `-vtf`). Check that `PACK_FLAGS` really carries `-vtf`; as a last resort use `'-noq'` and report the size growth.
 - **`pv.y` negative everywhere.** The exporter did not flip V. Tell the plan executor to change `1.0-uv.y` to `uv.y` in `WINDOW_SHADER.vertexMain` (Task 2), and `1 - uv.getY(i)` to `uv.getY(i)` in the check.
 
 ---
