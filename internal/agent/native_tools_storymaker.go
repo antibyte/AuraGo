@@ -254,6 +254,7 @@ func storymakerBeatSchema(compact bool, names StorymakerNames) map[string]interf
 	properties["delay"] = storymakerTyped("number")
 	properties["duration"] = storymakerTyped("number")
 	properties["ease"] = storymakerEnum("linear", "ease-in", "ease-out", "ease-in-out", "back-out", "bounce-out")
+	properties["scale"] = storymakerTyped("number")
 	return schema(properties, "do")
 }
 
