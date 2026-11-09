@@ -394,6 +394,9 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	registerWhatsAppRoutes(mux, s)
 
 	mux.HandleFunc("/v1/chat/completions", handleChatCompletions(s, sse))
+	// Token-gated OpenAI-compatible relay for Store apps (authBypassSubtrees
+	// lets it through the session layer; the handler authenticates itself).
+	registerStoreLLMRelayRoutes(mux, s)
 	registerRealtimeSpeechHandlers(mux, s, sse)
 	registerSIPHandlers(mux, s)
 	mux.HandleFunc("/api/chat/sessions", func(w http.ResponseWriter, r *http.Request) {

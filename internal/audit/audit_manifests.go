@@ -183,6 +183,8 @@ func RouteContractManifest() []RouteContract {
 		{Pattern: "/api/setup/local-llm/", Methods: []string{"GET", "POST"}, Auth: "public-setup-csrf-or-job-token", Category: "setup", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/mcp", Methods: []string{"GET", "POST", "PUT", "DELETE"}, Auth: "session", Category: "mcp", ContentTypes: []string{"application/json"}},
 		{Pattern: "/mcp", Methods: []string{"POST"}, Auth: "bearer-token", Category: "mcp"},
+		// Store LLM relay: in authBypassSubtrees, every request carries the Store app token (internal/server/store_llm_relay.go).
+		{Pattern: "/api/store-llm/deeptutor/v1/", Methods: []string{"GET", "POST"}, Auth: "store-relay-token", Category: "store", ContentTypes: []string{"application/json", "text/event-stream"}},
 		{Pattern: "/api/chromecast/discover", Methods: []string{"GET"}, Auth: "session-admin", Category: "integration", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/chromecast/test", Methods: []string{"POST"}, Auth: "session-admin", Category: "integration", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/", Methods: []string{"GET", "POST", "PUT", "DELETE"}, Auth: "session", Category: "misc"},

@@ -798,6 +798,7 @@ var authBypassSubtrees = []string{
 	"/api/cyd/speak/",                // CYD sanoTTS PCM — Bearer scope cyd
 	"/api/cyd-creator/device/",       // CYD Creator device endpoints — device token checked by every handler
 	"/webhook/",                      // webhook receiver — per-webhook bound token or HMAC signature
+	storeLLMRelayAuthPrefix,          // Store LLM relay (/api/store-llm/deeptutor/v1/) — authenticates every request itself with the app's Store token
 	"/css/",
 	"/fonts/",
 	"/img/",
@@ -836,6 +837,11 @@ func matchesExactOrSubtree(path string, exact map[string]bool, subtrees []string
 }
 
 func isAuthBypassed(path string) bool {
+	// The relay prefix is a plain string prefix below, so refuse any path that
+	// could be normalized, decoded or routed to another handler first.
+	if strings.HasPrefix(path, storeLLMRelayAuthPrefix) && !isStoreLLMRelayPath(path) {
+		return false
+	}
 	return matchesExactOrSubtree(path, authBypassExactPaths, authBypassSubtrees) || isPublicUIAssetPath(path)
 }
 
@@ -955,7 +961,9 @@ func authMiddleware(s *Server, next http.Handler) http.Handler {
 			return
 		}
 
-		if !enabled && !s.rebindingSafeHost(r) {
+		// The Store LLM relay (token-gated) is also reached by containers under the
+		// Docker host alias; no other route gains that Host.
+		if !enabled && !s.rebindingSafeHost(r) && !storeLLMRelayHostAllowed(r) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusForbidden)
 			_, _ = w.Write([]byte(`{"error":"login_required_for_host","message":"Enable login or open AuraGo using an IP address, localhost, or a configured host name."}`))
