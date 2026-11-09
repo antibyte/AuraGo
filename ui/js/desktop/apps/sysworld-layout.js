@@ -1,5 +1,5 @@
 // Metres, Y up. Roads, plots, transport and walkable surfaces share this layout.
-export const streets = {xs:[-67,-18,18,67],zs:[-77,-32,13,59],halfWidth:6,laneHalfWidth:3.3,minX:-85,maxX:85,minZ:-94,maxZ:80};
+export const streets = {xs:[-67,-18,18,67],zs:[-77,-32,13,59],halfWidth:6,laneHalfWidth:3.3,minX:-85,maxX:85,minZ:-94,maxZ:80,quayZ:74};
 export const surfaces = {ground:0,road:.12,pavement:.5,quay:.08,room:.16,gallery:4.16};
 // The waterfront pavilions face north, onto the southern boulevard. Their
 // complete footprints (including walls) stay beyond its southern pavement.
