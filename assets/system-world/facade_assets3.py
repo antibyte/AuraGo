@@ -14,10 +14,11 @@ GROUND = 5.0          # ground floor height above the podium
 FACE_OFFSET = 16      # UV u offset between the faces of one building
 
 
-def perimeter(w, d):
-    """Faces of a box footprint, counter-clockwise: (corner, direction, width)."""
-    return [((-w/2, -d/2), (1, 0), w), ((w/2, -d/2), (0, 1), d),
-            ((w/2, d/2), (-1, 0), w), ((-w/2, d/2), (0, -1), d)]
+def perimeter(w, d, at=(0, 0)):
+    """Faces of a box footprint centred on `at`, counter-clockwise: (corner, direction, width)."""
+    x, y = at
+    return [((x - w/2, y - d/2), (1, 0), w), ((x + w/2, y - d/2), (0, 1), d),
+            ((x + w/2, y + d/2), (-1, 0), w), ((x - w/2, y + d/2), (0, -1), d)]
 
 
 def along(p0, u, s, out=0.0):
@@ -38,12 +39,24 @@ def face_box(g, p0, u, s, out, z, size, mat, bevel=0, segments=1, tint=1.0):
     g.box((x, y, z), size, mat, bevel, segments, angle=atan2(u[1], u[0]), tint=tint)
 
 
-def podium(g, w, d, steps=True):
+def podium(g, w, d, steps=True, stair_x=0.0, stair_w=4.4):
     g.box((0, 0, .35), (w, d, .7), 'stone', .1, 2)
     g.box((0, 0, .79), (w - .5, d - .5, .18), 'bronze', .03, 1)
     if steps and g.lod < 2:
-        for i in range(3):
-            g.box((0, -d/2 - .17 - i*.34, .77 - .22*(i + 1)), (4.4, .34, .22), 'stone', .02, 1, tint=.95)
+        stairs(g, stair_x, -d/2, stair_w)
+
+
+def stairs(g, x, y, width, count=3):
+    """Steps from the pavement up to the podium on a -Y edge at (x, y)."""
+    rise = .88 / (count + 1)
+    for i in range(count):
+        g.box((x, y - .17 - i*.34, .88 - rise*(i + 1) - rise/2 + .0), (width, .34, rise), 'stone', .02, 1, tint=.95)
+
+
+def planter(g, x, y, z, size=(2.4, .7, .5), angle=0):
+    """Ceramic trough with a clipped hedge."""
+    g.box((x, y, z + size[2]/2), size, 'ceramic', .04, 1, angle=angle)
+    g.box((x, y, z + size[2] + .2), (size[0] - .16, size[1] - .16, .44), 'leaf', .1, 2, angle=angle, tint=.9)
 
 
 def roof_unit(g, x, y, z, size=(2.4, 1.6, 1.1), angle=0):
@@ -66,32 +79,33 @@ def roof_unit(g, x, y, z, size=(2.4, 1.6, 1.1), angle=0):
                 g.box((x, y - size[1]/2 - .012, z + .22 + i*.16), (size[0] - .3, .03, .05), 'graphite', 0)
 
 
-def glass_tier(g, w, d, z0, z1, row0=0, floors=None, bay=1.85, piers='ceramic', belt=5, slab='graphite'):
+def glass_tier(g, w, d, z0, z1, row0=0, floors=None, bay=1.85, piers='ceramic', belt=5, slab='graphite',
+               at=(0, 0), fin='titanium'):
     """Slab-and-glass storeys between z0 and z1: panes with room UVs, slabs, fins, corner piers."""
     lod = g.lod
     floors = floors or max(1, round((z1 - z0) / 3.05))
     floor_h = (z1 - z0) / floors
-    faces = perimeter(w, d)
+    faces = perimeter(w, d, at)
     for index, (p0, u, width) in enumerate(faces):
         bays = max(2, round(width / bay))
         offset = index * FACE_OFFSET
         pane(g, p0, u, 0, width, z0, z1, (offset, row0), (offset + bays, row0 + floors))
-        if lod < 2:
+        if lod < 2 and fin:
             for j in range(1, bays):
-                face_box(g, p0, u, j * width / bays, .13, (z0 + z1) / 2, (.07, .26, z1 - z0), 'titanium')
+                face_box(g, p0, u, j * width / bays, .13, (z0 + z1) / 2, (.07, .26, z1 - z0), fin)
     step = (1, 1, 3)[lod]
     for k in range(0, floors + 1, step):
         z = z0 + k * floor_h
         if belt and k and k % belt == 0 and k < floors and lod < 2:
-            g.box((0, 0, z), (w + .7, d + .7, .95), 'titanium', .04, 1)
+            g.box((at[0], at[1], z), (w + .7, d + .7, .95), 'titanium', .04, 1)
             if lod == 0:
                 for (p0, u, width) in faces:
                     for i in range(4):
                         face_box(g, p0, u, width/2, .37, z - .3 + i*.2, (width - .8, .04, .07), 'graphite', 0)
         else:
-            g.box((0, 0, z), (w + .56, d + .56, .5), slab, .035, 1)
+            g.box((at[0], at[1], z), (w + .56, d + .56, .5), slab, .035, 1)
             if lod == 0:
-                g.box((0, 0, z + .27), (w + .6, d + .6, .035), 'titanium', 0)
+                g.box((at[0], at[1], z + .27), (w + .6, d + .6, .035), 'titanium', 0)
     if piers:
         for (p0, u, width) in faces:
             x, y = along(p0, u, 0, .12)
@@ -99,12 +113,12 @@ def glass_tier(g, w, d, z0, z1, row0=0, floors=None, bay=1.85, piers='ceramic', 
     return floors
 
 
-def terrace(g, w, d, z, rail=True):
-    """Bronze cap with a light line and a slim guard rail around a setback roof."""
-    g.box((0, 0, z + .16), (w + .7, d + .7, .32), 'bronze', .05, 1)
-    g.box((0, 0, z - .04), (w + .76, d + .76, .06), 'ivory', 0)
+def terrace(g, w, d, z, rail=True, at=(0, 0), cap='bronze', light='ivory'):
+    """Cap with a light line and a slim guard rail around a setback roof."""
+    g.box((at[0], at[1], z + .16), (w + .7, d + .7, .32), cap, .05, 1)
+    g.box((at[0], at[1], z - .04), (w + .76, d + .76, .06), light, 0)
     if rail and g.lod < 2:
-        for (p0, u, width) in perimeter(w + .5, d + .5):
+        for (p0, u, width) in perimeter(w + .5, d + .5, at):
             face_box(g, p0, u, width/2, -.03, z + 1.28, (width, .05, .05), 'titanium', 0)
             if g.lod == 0:
                 face_box(g, p0, u, width/2, -.03, z + .82, (width, .03, .03), 'titanium', 0)
