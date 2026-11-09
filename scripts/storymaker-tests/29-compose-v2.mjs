@@ -186,3 +186,55 @@ check('compose v2: render builds the compile stage again (same spot y, captionSa
     const plainCode = SM.stage.create({ aspect: tl.aspect, width: tl.width, height: tl.height, env: null });
     near(SM.render.stageFor(codeScene, rc).spot('left').y, plainCode.spot('left').y, 1e-9, 'and keeps the old feet line');
 });
+
+// mediumShot(style, camera, aspect): the film with the given camera, compiled; the feet and the head of the speaker as a
+// share of the frame height at t = 0 under the camera window of the scene, and the raw camera centre.
+function mediumShot(style, camera, aspect) {
+    const story = film(style, { camera });
+    story.format.aspect = aspect || '16:9';
+    const sc = compile(story).timeline.scenes[0], actor = sc.entities.find(e => e.type === 'actor');
+    const stage = SM.stage.create({
+        aspect: story.format.aspect, env: sc.env, compose: style.compose || '', captions: story.style.captions !== false
+    });
+    const cam = SM.camera.at(sc.camera, 0), win = stage.cameraWindow(cam);
+    const depth = stage.depthScale(actor.y.at(0), actor.depth);
+    const feet = (actor.y.at(0) - win.y) / win.h;
+    return { feet, head: feet - 0.535 * SM.stage.DESIGN_H * depth / win.h, cy: cam.cy, feetY: actor.y.at(0), depth, stage };
+}
+
+check('compose v2: mediumFocusY puts the feet at 78 percent of the window height', () => {
+    assert.equal(SM.compose.MEDIUM_FEET_ON_SCREEN, 0.78);
+    const h = 1080 / 1.35;
+    near(SM.compose.mediumFocusY(799.2, 1.35, 1080), 799.2 - 0.78 * h + h / 2, 1e-9, 'the formula');
+    const top = SM.compose.mediumFocusY(799.2, 1.35, 1080) - h / 2;
+    near((799.2 - top) / h, 0.78, 1e-9, 'and the feet land at 78 percent of the window');
+});
+
+check('compose v2: medium framing under captions keeps the feet above the caption box, the head inside the frame', () => {
+    const v2 = mediumShot({ compose: 'v2' }, { framing: 'medium' });
+    near(v2.feet, 0.78, 0.01, 'the feet stand at 78 percent of the frame height');
+    assert.ok(v2.feet < 0.794, 'above the top of the two-line caption box (79.4 percent)');
+    assert.ok(v2.head > 0.02 && v2.head < 0.2, 'the head is inside the frame, with some air above it: ' + v2.head);
+    assert.ok(v2.feet - v2.head > 0.6, 'and the actor is large: ' + (v2.feet - v2.head));
+    const square = mediumShot({ compose: 'v2' }, { framing: 'medium' }, '1:1');
+    near(square.feet, 0.78, 0.01, '1:1 has the same caption box');
+    assert.ok(square.head > 0.02, '1:1: the head is inside the frame: ' + square.head);
+});
+
+check('compose v2: medium framing without captions, without compose and in 9:16 keeps the old feet line; close and a target do not move', () => {
+    const v1 = mediumShot({}, { framing: 'medium' });
+    near(v1.feet, 0.86, 0.01, 'a story without compose: the old value');
+    const bare = mediumShot({ compose: 'v2', captions: false }, { framing: 'medium' });
+    near(bare.feet, 0.86, 0.01, 'v2 without captions: the old value');
+    near(bare.feet, v1.feet, 1e-9, 'the same as v1');
+
+    const tall1 = mediumShot({}, { framing: 'medium' }, '9:16'), tall2 = mediumShot({ compose: 'v2' }, { framing: 'medium' }, '9:16');
+    assert.equal(tall2.stage.captionSafe, false);
+    near(tall2.cy, tall1.cy, 1e-9, '9:16: the camera centre of v1');
+
+    // close framing and a camera target keep the focus of the first actor (feet minus the reach) or of the target
+    const close = mediumShot({ compose: 'v2' }, { framing: 'close' });
+    near(close.cy, close.feetY - 297 * close.depth, 1e-6, 'close framing is not adjusted');
+    const target = mediumShot({ compose: 'v2' }, { framing: 'medium', target: 'left' });
+    near(target.cy, target.stage.spot('left').y - 150, 1e-6, 'a camera target is not adjusted');
+});

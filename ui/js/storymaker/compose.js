@@ -9,6 +9,10 @@
     var HERO_HEIGHT = 0.24;                 // of the frame height: the height of a scene's hero prop
     var HERO_MIN = 0.5, HERO_MAX = 3;       // the scale that makes it so is clamped to this range
     var PUSH_IN = 1.08, PUSH_IN_CALM = 1.04;
+    // Medium framing under captions: the speaker's feet stand at this share of the window height, above the caption box
+    // (79.4 percent). The actor is about 0.72 of the window height at zoom 1.35, so the head ends up about 6 percent below the
+    // top edge. Plain medium framing puts the feet at about 86 percent, inside the caption.
+    var MEDIUM_FEET_ON_SCREEN = 0.78;
 
     // isV2(story): true for style.compose "v2".
     function isV2(story) { return !!(story && story.style && story.style.compose === 'v2'); }
@@ -32,11 +36,19 @@
         return false;
     }
 
+    // mediumFocusY(feetY, zoom, visH): the camera centre (design y) that puts feetY at MEDIUM_FEET_ON_SCREEN of the window
+    // height. The window is visH / zoom high and starts at centre - height / 2, so feetY = top + 0.78 * height.
+    function mediumFocusY(feetY, zoom, visH) {
+        var h = visH / zoom;
+        return feetY - MEDIUM_FEET_ON_SCREEN * h + h / 2;
+    }
+
     // pushInAmount(style): the zoom a scene reaches by its end; rhythm calm moves less.
     function pushInAmount(style) { return style && style.rhythm === 'calm' ? PUSH_IN_CALM : PUSH_IN; }
 
     SM.compose = {
-        isV2: isV2, heroScale: heroScale, hasOwnCamera: hasOwnCamera, pushInAmount: pushInAmount,
-        HERO_HEIGHT: HERO_HEIGHT, HERO_MIN: HERO_MIN, HERO_MAX: HERO_MAX, PUSH_IN: PUSH_IN, PUSH_IN_CALM: PUSH_IN_CALM
+        isV2: isV2, heroScale: heroScale, hasOwnCamera: hasOwnCamera, pushInAmount: pushInAmount, mediumFocusY: mediumFocusY,
+        HERO_HEIGHT: HERO_HEIGHT, HERO_MIN: HERO_MIN, HERO_MAX: HERO_MAX, PUSH_IN: PUSH_IN, PUSH_IN_CALM: PUSH_IN_CALM,
+        MEDIUM_FEET_ON_SCREEN: MEDIUM_FEET_ON_SCREEN
     };
 })(typeof globalThis !== 'undefined' ? globalThis : self);

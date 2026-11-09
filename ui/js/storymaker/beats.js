@@ -157,6 +157,10 @@
         var startFocus = scene.camera && scene.camera.target ? focusOf(scene.camera.target, 0) : null;
         if (!startFocus && framing !== 'wide' && firstActor) startFocus = focusOf(firstActor.id, 0);
         cam.zoom.init = SM.camera.FRAMING[framing];
+        // composition v2 with captions: a medium shot lowers the feet from 86 to 78 percent of the frame, above the caption box
+        if (composeV2 && stage.captionSafe && framing === 'medium' && !(scene.camera && scene.camera.target) && firstActor) {
+            startFocus.y = SM.compose.mediumFocusY(firstActor.y.at(0), cam.zoom.init, stage.vis.h);
+        }
         if (startFocus) { cam.cx.init = startFocus.x; cam.cy.init = startFocus.y; }
 
         // ---- beats
