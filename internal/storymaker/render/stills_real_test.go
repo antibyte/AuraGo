@@ -93,6 +93,9 @@ func TestCompileCheckStillsOfTheRealRuns(t *testing.T) {
 			if overlaps != 0 {
 				t.Errorf("composition v2 must keep feet and prop bases out of the caption band, got %d overlaps", overlaps)
 			}
+			if len(lookAlike) == 0 {
+				t.Errorf("the same seven scenes under v2 still share one stage and one actor spot: expected scenes_look_alike")
+			}
 		case "varied-v2":
 			if overlaps != 0 {
 				t.Errorf("the varied story under v2 has %d caption overlaps", overlaps)
