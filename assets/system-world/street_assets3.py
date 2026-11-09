@@ -173,7 +173,8 @@ def drain(g, x0, x1, sign):
         xs = [x0 + (x1 - x0) * i / 8 for i in range(9)]
         g.grid(xs, sorted((side(y0), side(y1))), ROAD, 'iron', tint=lambda i, j: (.9, .3)[i % 2])
         return True
-    pit = ROAD - .04
+    # Shallow on purpose: the model stays within the 1.5 cm contract of the height profile.
+    pit = ROAD - .012
     frame = .022
     bars = 6
     inner0, inner1 = x0 + frame, x1 - frame
@@ -241,20 +242,24 @@ def street_fill(g):
 
 def street_zebra(g):
     """Pedestrian crossing: zebra bars across the road and dropped kerbs on both sides."""
-    steps = (3, 2, 1)[g.lod]
-    flare = [OPENING + FLARE * i / steps for i in range(steps + 1)]
+    # The flare is a ruled surface. Columns are spaced so that the kerb run shrinks by a
+    # constant ratio per step, which keeps the triangulated surface close to the profile.
+    steps = (10, 5, 3)[g.lod]
+    ratio = RUN / DROPPED_RUN
+    flare = [OPENING + FLARE * (DROPPED_RUN - DROPPED_RUN * ratio ** (i / steps)) / (DROPPED_RUN - RUN)
+             for i in range(steps + 1)]
     columns = merged([-v for v in flare], flare, [0.0] if g.lod == 0 else [])
     joints = [False] * (len(columns) - 1)
     kerb_sides(g, columns, joints, dropped=0.0, tactile=(-OPENING, OPENING))
     bar = 1.5
     ys = [-GUTTER] + [-2.75 + .5 * i for i in range(12)] + [GUTTER]
-    xs = merged(columns, [-bar, bar])
+    xs = [-2, -bar, bar, 2]
 
     def mark(xm, ym):
         return abs(xm) < bar and int((ym + 2.75) // .5) % 2 == 0 and abs(ym) < 2.75
 
     if g.lod == 2:
-        xs, ys = [-2, -bar, bar, 2], [-GUTTER] + [-2.75 + i for i in range(6)] + [GUTTER]
+        ys = [-GUTTER] + [-2.75 + i for i in range(6)] + [GUTTER]
         mark = lambda xm, ym: abs(xm) < bar and abs(ym) < 2.75 and int(ym + 2.75) % 2 == 0
     carriageway(g, xs, ys, mark)
     if g.lod == 0:
@@ -267,7 +272,7 @@ def street_zebra(g):
 
 def corner_rows(g, sx, sy):
     """Rows along the kerb of one intersection corner, each from gutter edge to kerb top."""
-    arc = (10, 5, 2)[g.lod]
+    arc = (10, 6, 4)[g.lod]
     offsets = [GUTTER - LINE, 0.0]
     heights = [ROAD, ROAD]
     if g.lod == 0:
