@@ -148,6 +148,7 @@ type Style struct {
 	Captions bool   `json:"captions"`
 	Rhythm   string `json:"rhythm,omitempty"` // "" | calm | standard | lively; Go never writes a default
 	AutoSFX  bool   `json:"auto_sfx,omitempty"`
+	Compose  string `json:"compose,omitempty"` // "" | v2: the composition rules of the player (caption-safe floor, hero prop, push-in); only agent projects set it
 }
 
 // UnmarshalJSON defaults captions to true when a style object omits the key.
@@ -259,6 +260,7 @@ type Beat struct {
 	Data       *ChartData `json:"data,omitempty"`
 	At         *Position  `json:"at,omitempty"`
 	Entry      string     `json:"entry,omitempty"`
+	Scale      float64    `json:"scale,omitempty"` // 0.5 to 2, a show beat with an item only; 0 = unset
 	ID         string     `json:"id,omitempty"`
 	Op         string     `json:"op,omitempty"`
 	Amount     float64    `json:"amount,omitempty"`

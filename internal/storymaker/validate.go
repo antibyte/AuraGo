@@ -221,6 +221,11 @@ func (v *validator) format() {
 
 func (v *validator) style() {
 	st := &v.s.Style
+	switch st.Compose {
+	case "", "v2":
+	default:
+		v.errorf(CodeInvalidValue, "/style/compose", fmt.Sprintf("The composition %q is not supported.", clip(st.Compose, 20)), `Leave "compose" out, or use "v2".`)
+	}
 	if st.Palette == "" {
 		v.errorf(CodeMissingField, "/style/palette", "The style needs a palette.", `Add "style": {"palette":"sunny","font":"default","captions":true}.`)
 	} else {
@@ -877,6 +882,12 @@ func (v *validator) beat(bb string, j int, b *Beat, sc *Scene, env string, refs 
 		v.bareName(bb+"/ease", &b.Ease, specEase)
 	}
 
+	if b.Scale != 0 {
+		v.scale(bb+"/scale", b.Scale)
+		if b.Do != "show" || b.Item == "" {
+			v.warnf(CodeInvalidValue, bb+"/scale", `A beat scale only applies to a "show" beat with an "item".`, `Remove "scale", or use it on a show beat: {"do":"show","item":"prop.lock","at":"center","entry":"pop","scale":1.5}.`)
+		}
+	}
 	needWho := func(enter bool) {
 		if b.Who == "" {
 			v.missing(bb, b, "who", " (a cast id)")
