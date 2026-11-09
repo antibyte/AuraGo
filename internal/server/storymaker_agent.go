@@ -448,6 +448,28 @@ func storymakerAgentVoiceReady(providers []storymaker.VoiceProvider, voice *stor
 	return false
 }
 
+// withReview saves the contact sheet of a compile check as the project's review evidence, records it in the job document and
+// drops it from the summary, so the Studio does not cache a picture per story version. A failed save is logged and costs the
+// link only.
+func (j *storymakerAgentJob) withReview(inner func(context.Context, string) (storymaker.CompileSummary, error)) func(context.Context, string) (storymaker.CompileSummary, error) {
+	return func(ctx context.Context, projectID string) (storymaker.CompileSummary, error) {
+		summary, err := inner(ctx, projectID)
+		if err != nil || len(summary.Sheet) == 0 {
+			return summary, err
+		}
+		if saveErr := j.rt.projects.SaveReviewSheet(ctx, projectID, summary.Sheet); saveErr != nil {
+			j.logger.Warn("[Storymaker] The contact sheet could not be saved", "job_id", j.job.ID, "error", saveErr)
+		} else {
+			scenes := len(summary.Stills)
+			j.update(func(info *storymaker.AgentJobInfo) {
+				info.Review = &storymaker.AgentReview{Sheet: storymaker.ReviewSheetName, Scenes: scenes}
+			})
+		}
+		summary.Sheet = nil
+		return summary, nil
+	}
+}
+
 // storymakerAgentCompile runs the compile check with settings of its own: storymakerSettings fails
 // without FFmpeg, and a compile check needs no FFmpeg.
 func (s *Server) storymakerAgentCompile(rt *storymakerRuntime, cfg *config.Config) func(context.Context, string) (storymaker.CompileSummary, error) {
@@ -457,6 +479,7 @@ func (s *Server) storymakerAgentCompile(rt *storymakerRuntime, cfg *config.Confi
 		BrowserPath:        cfg.Storymaker.Render.BrowserPath,
 		Transport:          cfg.Storymaker.Render.Transport,
 		Limits:             storymakerLimits(cfg),
+		Stills:             true,
 	}
 	return func(ctx context.Context, projectID string) (storymaker.CompileSummary, error) {
 		return rt.runner.CompileCheck(ctx, projectID, settings)
@@ -553,7 +576,7 @@ func (s *Server) newStorymakerAgentJob(ctx context.Context, rt *storymakerRuntim
 		Catalog:            rt.catalog,
 		Limits:             storymakerLimits(cfg),
 		Voices:             s.storymakerVoiceProviders,
-		Compile:            s.storymakerAgentCompile(rt, cfg),
+		Compile:            j.withReview(s.storymakerAgentCompile(rt, cfg)),
 		MaxDurationSeconds: cfg.Storymaker.Render.MaxDurationSeconds,
 		ReadOnly: func() bool {
 			latest := s.ConfigSnapshot()

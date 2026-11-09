@@ -149,6 +149,8 @@ func handleStorymaker(s *Server) http.HandlerFunc {
 				handleStorymakerAgentRevise(s, w, r, id)
 			case len(parts) == 3 && parts[2] == "narrate":
 				handleStorymakerNarrate(s, w, r, id)
+			case len(parts) == 4 && parts[2] == "review" && parts[3] == storymaker.ReviewSheetName:
+				handleStorymakerReviewSheet(s, w, r, id)
 			case len(parts) == 5 && parts[2] == "audio":
 				handleStorymakerAudio(s, w, r, id, parts[3], parts[4])
 			case len(parts) == 5 && parts[2] == "scenes" && parts[4] == "code":
