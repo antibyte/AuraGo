@@ -68,11 +68,12 @@
         return e;
     }
 
-    // createProp({id, item, x, y, scale, layer, hidden})
+    // createProp({id, item, x, y, scale, layer, hidden, depth})
     function createProp(def) {
         var e = base('prop', def.id, def.x, def.y);
         e.item = def.item;
         e.layer = def.layer === 'back' ? 'back' : 'front';
+        e.depth = typeof def.depth === 'number' ? def.depth : null;
         e.highlights = new (T().Intervals)();
         e.baseScale = def.scale > 0 ? def.scale : 1;
         if (def.hidden) e.alpha.init = 0;

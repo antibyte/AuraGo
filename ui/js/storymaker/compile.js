@@ -64,6 +64,7 @@
         var lastTake = new Map(); // soundId -> take, spans the film (frozen 4.3)
         var captionList = [];
         var captionsOn = !(story.style && story.style.captions === false);
+        var composeStyle = SM.compose.isV2(story) ? 'v2' : '';
         var glyphIdx = P.glyphIndex(catalog), fontChain = glyphIdx ? SM.glyphs.chain(glyphIdx, '$style') : undefined;
         var catalogFamilies = {};
         Object.keys(families).forEach(function (k) { catalogFamilies[families[k]] = true; });
@@ -90,7 +91,7 @@
                 } else if (envEntry.file) needs['catalog:' + envEntry.file] = true;
             } else envEntry = null;
             var variant = sc.variant === 'night' ? 'night' : 'day';
-            var stage = SM.stage.create({ aspect: fmt.aspect, width: fmt.width, height: fmt.height, env: envEntry, safe: catalog && catalog.stage && catalog.stage.safe });
+            var stage = SM.stage.create({ aspect: fmt.aspect, width: fmt.width, height: fmt.height, env: envEntry, safe: catalog && catalog.stage && catalog.stage.safe, compose: composeStyle, captions: captionsOn });
             var built = { entities: [], camera: SM.camera.create(1, stage.vis.x + stage.vis.w / 2, stage.vis.y + stage.vis.h / 2), beatsEnd: 0, motionEnd: 0, blocksEnd: 0, holdsEnd: 0 };
             var codeInfo = null;
             if (isCode) {
@@ -213,7 +214,7 @@
         };
         var timeline = {
             version: 1, fps: fps, width: fmt.width, height: fmt.height, aspect: fmt.aspect, frame_count: frameCount,
-            catalog_version: cat.version, palette: palette, style: { font: styleFont, captions: !(story.style && story.style.captions === false) },
+            catalog_version: cat.version, palette: palette, style: { font: styleFont, captions: !(story.style && story.style.captions === false), compose: composeStyle },
             fontFamilies: families, fontChain: fontChain, cat: cat, rigFile: catalog && catalog.rig && catalog.rig.file || '', safe: catalog && catalog.stage && catalog.stage.safe || null,
             scenes: scenes, schedule: schedule, narrationEvents: narrationEvents
         };

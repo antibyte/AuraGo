@@ -724,6 +724,10 @@
     };
     var BASE_SPOTS = ['far-left', 'left', 'center', 'right', 'far-right'];
     var SLICE_MARGIN = 0.03;   // a spot closer than this fraction of the slice width to its edge counts as outside
+    // Composition v2 (style.compose): with captions on, the feet line of the base spots moves above the caption band, which
+    // starts at 79.4 percent of the height in 16:9 and 1:1 (9:16 has its band higher and needs no move). The depth scale of
+    // the old feet line is kept, so actors and props keep their size.
+    var V2_FEET_Y = 74;
 
     function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
     function num(v, d) { return typeof v === 'number' && isFinite(v) ? v : d; }
@@ -735,7 +739,8 @@
         return { width: Math.round(width), height: Math.round(width * base[1] / base[0]) };
     }
 
-    // create({aspect, width, height, env, safe}): env is a catalog environment entry (spots, floor, aspects) or null.
+    // create({aspect, width, height, env, safe, compose, captions}): env is a catalog environment entry (spots, floor, aspects)
+    // or null. compose 'v2' with captions on (not false) lifts the base spots above the caption band, except in 9:16.
     function create(opts) {
         opts = opts || {};
         var aspect = SIZES[opts.aspect] ? opts.aspect : '16:9';
@@ -755,10 +760,11 @@
         var vis = { x: visX, y: visY, w: visW, h: visH };
         var cropped = visW < DESIGN_W - 0.5;
         var floor = env && env.floor ? env.floor : DEFAULT_FLOOR;
+        var captionSafe = opts.compose === 'v2' && opts.captions !== false && aspect !== '9:16';
 
         var stage = {
             aspect: aspect, width: width, height: height, scale: width / visW, vis: vis, safe: safe, floor: floor,
-            cropped: cropped, focusX: visX + visW / 2, env: env
+            cropped: cropped, focusX: visX + visW / 2, env: env, captionSafe: captionSafe
         };
 
         // Percent of the design frame to design pixels.
@@ -783,6 +789,9 @@
             return !!((env && env.spots && env.spots[name]) || DEFAULT_SPOTS[name]);
         };
 
+        // floorT(yPct): the depth of a feet line, 0 at y_far to 1 at y_near.
+        function floorT(yPct) { var span = floor.y_near - floor.y_far; return span === 0 ? 1 : clamp((yPct - floor.y_far) / span, 0, 1); }
+
         // spot(name) = {x, y, face, depth, name} in design pixels, or null for an unknown name. The per-aspect override wins;
         // without one the spot keeps its design position (furniture such as the desk is drawn there), unless a cropped aspect
         // would put it outside the visible slice (3 percent margin): then it is squeezed into the slice, so a catalog that
@@ -796,7 +805,13 @@
                 x = vis.x + xPct / 100 * vis.w;
             }
             var face = (o && o.face) || src.face || null;
-            return { name: name, x: x, y: yPct / 100 * DESIGN_H, face: face, depth: typeof src.depth === 'number' ? src.depth : null };
+            var depth = typeof src.depth === 'number' ? src.depth : null;
+            if (captionSafe && yPct > V2_FEET_Y && BASE_SPOTS.indexOf(name) >= 0) {
+                // the depth of the old feet line becomes explicit before the feet move up, so the size stays
+                if (depth === null) depth = floorT(yPct);
+                yPct = V2_FEET_Y;
+            }
+            return { name: name, x: x, y: yPct / 100 * DESIGN_H, face: face, depth: depth };
         };
 
         // resolve(at, fallbackName): a spot name or {x, y} to {x, y, face, depth, spot}. Unknown values give null.
@@ -857,7 +872,7 @@
 
     SM.stage = {
         create: create, sizeFor: sizeFor, DESIGN_W: DESIGN_W, DESIGN_H: DESIGN_H, SIZES: SIZES,
-        DEFAULT_SAFE: DEFAULT_SAFE, DEFAULT_FLOOR: DEFAULT_FLOOR, DEFAULT_SPOTS: DEFAULT_SPOTS
+        DEFAULT_SAFE: DEFAULT_SAFE, DEFAULT_FLOOR: DEFAULT_FLOOR, DEFAULT_SPOTS: DEFAULT_SPOTS, V2_FEET_Y: V2_FEET_Y
     };
 })(typeof globalThis !== 'undefined' ? globalThis : self);
 
@@ -1661,11 +1676,12 @@
         return e;
     }
 
-    // createProp({id, item, x, y, scale, layer, hidden})
+    // createProp({id, item, x, y, scale, layer, hidden, depth})
     function createProp(def) {
         var e = base('prop', def.id, def.x, def.y);
         e.item = def.item;
         e.layer = def.layer === 'back' ? 'back' : 'front';
+        e.depth = typeof def.depth === 'number' ? def.depth : null;
         e.highlights = new (T().Intervals)();
         e.baseScale = def.scale > 0 ? def.scale : 1;
         if (def.hidden) e.alpha.init = 0;
@@ -2471,6 +2487,51 @@
 })(typeof globalThis !== 'undefined' ? globalThis : self);
 
 ;
+/* ui/js/storymaker/compose.js */
+// Storymaker player: composition v2. A story with style.compose "v2" (the agent's projects) gets three rules on top of the
+// stage: the base spots stand above the caption band (stage.js), the first cue-bound prop of a scene is enlarged to about a
+// quarter of the frame height, and a scene without its own camera pushes in slowly. A story without compose keeps every
+// position, size and camera as before. Classic script; publishes StorymakerCore.compose.
+(function (root) {
+    'use strict';
+    var SM = root.StorymakerCore || (root.StorymakerCore = {});
+
+    var HERO_HEIGHT = 0.24;                 // of the frame height: the height of a scene's hero prop
+    var HERO_MIN = 0.5, HERO_MAX = 3;       // the scale that makes it so is clamped to this range
+    var PUSH_IN = 1.08, PUSH_IN_CALM = 1.04;
+
+    // isV2(story): true for style.compose "v2".
+    function isV2(story) { return !!(story && story.style && story.style.compose === 'v2'); }
+
+    // heroScale(entry, depth): the scale that makes a prop of the catalog entry HERO_HEIGHT of the frame height at the given
+    // depth scale: size.h * depth * scale = HERO_HEIGHT. An entry without size.h counts 0.15, as the renderers do.
+    function heroScale(entry, depth) {
+        var h = entry && entry.size && entry.size.h > 0 ? entry.size.h : 0.15;
+        var d = depth > 0 ? depth : 1;
+        var s = Math.round(HERO_HEIGHT / (h * d) * 1000) / 1000;
+        return s < HERO_MIN ? HERO_MIN : (s > HERO_MAX ? HERO_MAX : s);
+    }
+
+    // hasOwnCamera(scene): the author chose a camera, so the automatic push-in stays off. ApplyDefaults writes framing wide
+    // into every scene, so only a framing other than wide, a target or a camera beat counts.
+    function hasOwnCamera(scene) {
+        var cam = scene && scene.camera;
+        if (cam && ((cam.framing && cam.framing !== 'wide') || cam.target)) return true;
+        var beats = scene && scene.beats || [];
+        for (var i = 0; i < beats.length; i++) if (beats[i] && beats[i].do === 'camera') return true;
+        return false;
+    }
+
+    // pushInAmount(style): the zoom a scene reaches by its end; rhythm calm moves less.
+    function pushInAmount(style) { return style && style.rhythm === 'calm' ? PUSH_IN_CALM : PUSH_IN; }
+
+    SM.compose = {
+        isV2: isV2, heroScale: heroScale, hasOwnCamera: hasOwnCamera, pushInAmount: pushInAmount,
+        HERO_HEIGHT: HERO_HEIGHT, HERO_MIN: HERO_MIN, HERO_MAX: HERO_MAX, PUSH_IN: PUSH_IN, PUSH_IN_CALM: PUSH_IN_CALM
+    };
+})(typeof globalThis !== 'undefined' ? globalThis : self);
+
+;
 /* ui/js/storymaker/beats.js */
 // Storymaker player: storyboard scenes. buildStoryboard turns one scene (actors, props, camera, beats) into entities
 // with tracks. The scheduler: a beat on another target starts at 0.4 of the anchor, a beat on the same target follows it,
@@ -3209,6 +3270,7 @@
         var lastTake = new Map(); // soundId -> take, spans the film (frozen 4.3)
         var captionList = [];
         var captionsOn = !(story.style && story.style.captions === false);
+        var composeStyle = SM.compose.isV2(story) ? 'v2' : '';
         var glyphIdx = P.glyphIndex(catalog), fontChain = glyphIdx ? SM.glyphs.chain(glyphIdx, '$style') : undefined;
         var catalogFamilies = {};
         Object.keys(families).forEach(function (k) { catalogFamilies[families[k]] = true; });
@@ -3235,7 +3297,7 @@
                 } else if (envEntry.file) needs['catalog:' + envEntry.file] = true;
             } else envEntry = null;
             var variant = sc.variant === 'night' ? 'night' : 'day';
-            var stage = SM.stage.create({ aspect: fmt.aspect, width: fmt.width, height: fmt.height, env: envEntry, safe: catalog && catalog.stage && catalog.stage.safe });
+            var stage = SM.stage.create({ aspect: fmt.aspect, width: fmt.width, height: fmt.height, env: envEntry, safe: catalog && catalog.stage && catalog.stage.safe, compose: composeStyle, captions: captionsOn });
             var built = { entities: [], camera: SM.camera.create(1, stage.vis.x + stage.vis.w / 2, stage.vis.y + stage.vis.h / 2), beatsEnd: 0, motionEnd: 0, blocksEnd: 0, holdsEnd: 0 };
             var codeInfo = null;
             if (isCode) {
@@ -3358,7 +3420,7 @@
         };
         var timeline = {
             version: 1, fps: fps, width: fmt.width, height: fmt.height, aspect: fmt.aspect, frame_count: frameCount,
-            catalog_version: cat.version, palette: palette, style: { font: styleFont, captions: !(story.style && story.style.captions === false) },
+            catalog_version: cat.version, palette: palette, style: { font: styleFont, captions: !(story.style && story.style.captions === false), compose: composeStyle },
             fontFamilies: families, fontChain: fontChain, cat: cat, rigFile: catalog && catalog.rig && catalog.rig.file || '', safe: catalog && catalog.stage && catalog.stage.safe || null,
             scenes: scenes, schedule: schedule, narrationEvents: narrationEvents
         };
@@ -3458,6 +3520,7 @@
         return {
             W: W, H: H, aspect: timeline.aspect, fps: timeline.fps, palette: timeline.palette, cat: timeline.cat,
             families: timeline.fontFamilies, fontChain: timeline.fontChain, styleFont: timeline.style.font, safe: timeline.safe || SM.stage.DEFAULT_SAFE,
+            compose: timeline.style.compose || '', captions: timeline.style.captions !== false,
             assets: assets || {}, codeFrames: (assets && assets.codeFrames) || {}, codeErrors: (assets && assets.codeErrors) || {}
         };
     }
@@ -3465,7 +3528,7 @@
     function stageFor(sc, rc) {
         var key = rc.W + 'x' + rc.H;
         if (!sc.stages) sc.stages = {};
-        if (!sc.stages[key]) sc.stages[key] = SM.stage.create({ aspect: rc.aspect, width: rc.W, height: rc.H, env: sc.env, safe: rc.safe });
+        if (!sc.stages[key]) sc.stages[key] = SM.stage.create({ aspect: rc.aspect, width: rc.W, height: rc.H, env: sc.env, safe: rc.safe, compose: sc.kind === 'code' ? '' : rc.compose, captions: rc.captions });
         return sc.stages[key];
     }
 

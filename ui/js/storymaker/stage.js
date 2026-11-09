@@ -17,6 +17,10 @@
     };
     var BASE_SPOTS = ['far-left', 'left', 'center', 'right', 'far-right'];
     var SLICE_MARGIN = 0.03;   // a spot closer than this fraction of the slice width to its edge counts as outside
+    // Composition v2 (style.compose): with captions on, the feet line of the base spots moves above the caption band, which
+    // starts at 79.4 percent of the height in 16:9 and 1:1 (9:16 has its band higher and needs no move). The depth scale of
+    // the old feet line is kept, so actors and props keep their size.
+    var V2_FEET_Y = 74;
 
     function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
     function num(v, d) { return typeof v === 'number' && isFinite(v) ? v : d; }
@@ -28,7 +32,8 @@
         return { width: Math.round(width), height: Math.round(width * base[1] / base[0]) };
     }
 
-    // create({aspect, width, height, env, safe}): env is a catalog environment entry (spots, floor, aspects) or null.
+    // create({aspect, width, height, env, safe, compose, captions}): env is a catalog environment entry (spots, floor, aspects)
+    // or null. compose 'v2' with captions on (not false) lifts the base spots above the caption band, except in 9:16.
     function create(opts) {
         opts = opts || {};
         var aspect = SIZES[opts.aspect] ? opts.aspect : '16:9';
@@ -48,10 +53,11 @@
         var vis = { x: visX, y: visY, w: visW, h: visH };
         var cropped = visW < DESIGN_W - 0.5;
         var floor = env && env.floor ? env.floor : DEFAULT_FLOOR;
+        var captionSafe = opts.compose === 'v2' && opts.captions !== false && aspect !== '9:16';
 
         var stage = {
             aspect: aspect, width: width, height: height, scale: width / visW, vis: vis, safe: safe, floor: floor,
-            cropped: cropped, focusX: visX + visW / 2, env: env
+            cropped: cropped, focusX: visX + visW / 2, env: env, captionSafe: captionSafe
         };
 
         // Percent of the design frame to design pixels.
@@ -76,6 +82,9 @@
             return !!((env && env.spots && env.spots[name]) || DEFAULT_SPOTS[name]);
         };
 
+        // floorT(yPct): the depth of a feet line, 0 at y_far to 1 at y_near.
+        function floorT(yPct) { var span = floor.y_near - floor.y_far; return span === 0 ? 1 : clamp((yPct - floor.y_far) / span, 0, 1); }
+
         // spot(name) = {x, y, face, depth, name} in design pixels, or null for an unknown name. The per-aspect override wins;
         // without one the spot keeps its design position (furniture such as the desk is drawn there), unless a cropped aspect
         // would put it outside the visible slice (3 percent margin): then it is squeezed into the slice, so a catalog that
@@ -89,7 +98,13 @@
                 x = vis.x + xPct / 100 * vis.w;
             }
             var face = (o && o.face) || src.face || null;
-            return { name: name, x: x, y: yPct / 100 * DESIGN_H, face: face, depth: typeof src.depth === 'number' ? src.depth : null };
+            var depth = typeof src.depth === 'number' ? src.depth : null;
+            if (captionSafe && yPct > V2_FEET_Y && BASE_SPOTS.indexOf(name) >= 0) {
+                // the depth of the old feet line becomes explicit before the feet move up, so the size stays
+                if (depth === null) depth = floorT(yPct);
+                yPct = V2_FEET_Y;
+            }
+            return { name: name, x: x, y: yPct / 100 * DESIGN_H, face: face, depth: depth };
         };
 
         // resolve(at, fallbackName): a spot name or {x, y} to {x, y, face, depth, spot}. Unknown values give null.
@@ -150,6 +165,6 @@
 
     SM.stage = {
         create: create, sizeFor: sizeFor, DESIGN_W: DESIGN_W, DESIGN_H: DESIGN_H, SIZES: SIZES,
-        DEFAULT_SAFE: DEFAULT_SAFE, DEFAULT_FLOOR: DEFAULT_FLOOR, DEFAULT_SPOTS: DEFAULT_SPOTS
+        DEFAULT_SAFE: DEFAULT_SAFE, DEFAULT_FLOOR: DEFAULT_FLOOR, DEFAULT_SPOTS: DEFAULT_SPOTS, V2_FEET_Y: V2_FEET_Y
     };
 })(typeof globalThis !== 'undefined' ? globalThis : self);

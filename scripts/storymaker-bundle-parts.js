@@ -33,6 +33,7 @@ export const storymakerPlayerParts = [
   'ui/js/storymaker/plan.js',
   'ui/js/storymaker/motion.js',
   'ui/js/storymaker/bubble.js',
+  'ui/js/storymaker/compose.js',
   'ui/js/storymaker/beats.js',
   'ui/js/storymaker/lint.js',
   'ui/js/storymaker/checks.js',

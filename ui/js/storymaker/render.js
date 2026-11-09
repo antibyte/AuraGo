@@ -20,6 +20,7 @@
         return {
             W: W, H: H, aspect: timeline.aspect, fps: timeline.fps, palette: timeline.palette, cat: timeline.cat,
             families: timeline.fontFamilies, fontChain: timeline.fontChain, styleFont: timeline.style.font, safe: timeline.safe || SM.stage.DEFAULT_SAFE,
+            compose: timeline.style.compose || '', captions: timeline.style.captions !== false,
             assets: assets || {}, codeFrames: (assets && assets.codeFrames) || {}, codeErrors: (assets && assets.codeErrors) || {}
         };
     }
@@ -27,7 +28,7 @@
     function stageFor(sc, rc) {
         var key = rc.W + 'x' + rc.H;
         if (!sc.stages) sc.stages = {};
-        if (!sc.stages[key]) sc.stages[key] = SM.stage.create({ aspect: rc.aspect, width: rc.W, height: rc.H, env: sc.env, safe: rc.safe });
+        if (!sc.stages[key]) sc.stages[key] = SM.stage.create({ aspect: rc.aspect, width: rc.W, height: rc.H, env: sc.env, safe: rc.safe, compose: sc.kind === 'code' ? '' : rc.compose, captions: rc.captions });
         return sc.stages[key];
     }
 
