@@ -383,6 +383,7 @@
   "storymaker.agent.check_compile_failed": "पूर्वावलोकन इस फ़िल्म को तैयार नहीं कर सका। लेखक से इसे ठीक करने को कहें, या समस्याओं की सूची देखें।",
   "storymaker.agent.check_over_target": "फ़िल्म आपके अनुरोध से लंबी है। लेखक से इसे छोटा करने को कहें।",
   "storymaker.agent.check_over_budget": "एक दृश्य में योजना से अधिक शब्द हैं। लेखक से इसे छोटा करने को कहें।",
+  "storymaker.agent.check_craft": "फ़िल्म अब भी एक बात में एक जैसी लगती है: माहौल, फ़्रेमिंग, हाव-भाव या किरदार। इसे एक बार देखें और चाहें तो दृश्य बदलें।",
   "storymaker.agent.check_unknown": "अभी कुछ देखना बाकी है।",
   "storymaker.agent.make_silent": "बिना आवाज़ निर्यात करें",
   "storymaker.agent.make_silent_done": "भाषण अब स्क्रीन पर पाठ है, और फ़िल्म निर्यात की जा सकती है।",

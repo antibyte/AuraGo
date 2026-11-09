@@ -383,6 +383,7 @@
   "storymaker.agent.check_compile_failed": "The preview could not prepare this film. Ask the author to fix it, or check the issues list.",
   "storymaker.agent.check_over_target": "The film is longer than you asked for. Ask the author to shorten it.",
   "storymaker.agent.check_over_budget": "A scene has more words than planned. Ask the author to shorten it.",
+  "storymaker.agent.check_craft": "The film still looks alike in one respect: environments, framing, gestures or cast. Watch it once and adjust scenes if you like.",
   "storymaker.agent.check_unknown": "Something still needs a look.",
   "storymaker.agent.make_silent": "Export without voice",
   "storymaker.agent.make_silent_done": "The speech is now on-screen text, and the film can be exported.",

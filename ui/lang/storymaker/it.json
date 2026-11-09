@@ -383,6 +383,7 @@
   "storymaker.agent.check_compile_failed": "L'anteprima non è riuscita a preparare questo film. Chiedi una correzione all'autore, oppure guarda l'elenco dei problemi.",
   "storymaker.agent.check_over_target": "Il film è più lungo di quanto richiesto. Chiedi all'autore di accorciarlo.",
   "storymaker.agent.check_over_budget": "Una scena ha più parole del previsto. Chiedi all'autore di accorciarla.",
+  "storymaker.agent.check_craft": "Il film appare ancora uniforme sotto un aspetto: ambienti, inquadratura, gesti o cast. Guardalo una volta e modifica le scene se vuoi.",
   "storymaker.agent.check_unknown": "C'è ancora qualcosa da controllare.",
   "storymaker.agent.make_silent": "Esporta senza voce",
   "storymaker.agent.make_silent_done": "Il parlato ora è testo sullo schermo e il film può essere esportato.",

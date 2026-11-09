@@ -383,6 +383,7 @@
   "storymaker.agent.check_compile_failed": "Podgląd nie mógł przygotować tego filmu. Poproś autora o poprawkę albo sprawdź listę problemów.",
   "storymaker.agent.check_over_target": "Film jest dłuższy, niż prosiłeś. Poproś autora o skrócenie.",
   "storymaker.agent.check_over_budget": "Scena ma więcej słów, niż planowano. Poproś autora o skrócenie.",
+  "storymaker.agent.check_craft": "Film nadal wygląda jednolicie pod jednym względem: otoczenie, kadr, gesty lub obsada. Obejrzyj go raz i w razie potrzeby popraw sceny.",
   "storymaker.agent.check_unknown": "Coś wciąż wymaga sprawdzenia.",
   "storymaker.agent.make_silent": "Eksportuj bez głosu",
   "storymaker.agent.make_silent_done": "Mowa jest teraz tekstem na ekranie, a film można wyeksportować.",

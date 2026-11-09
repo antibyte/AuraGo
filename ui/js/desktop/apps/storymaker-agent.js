@@ -43,7 +43,11 @@
         scene_unfilled: 'storymaker.agent.check_scene_unfilled',
         compile_failed: 'storymaker.agent.check_compile_failed',
         over_target: 'storymaker.agent.check_over_target',
-        over_budget: 'storymaker.agent.check_over_budget'
+        over_budget: 'storymaker.agent.check_over_budget',
+        environment_monotony: 'storymaker.agent.check_craft',
+        framing_monotony: 'storymaker.agent.check_craft',
+        gesture_monotony: 'storymaker.agent.check_craft',
+        cast_unused: 'storymaker.agent.check_craft'
     };
 
     function isActive(job) {

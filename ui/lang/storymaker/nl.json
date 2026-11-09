@@ -383,6 +383,7 @@
   "storymaker.agent.check_compile_failed": "De preview kon deze film niet voorbereiden. Vraag de auteur om een correctie, of bekijk de lijst met problemen.",
   "storymaker.agent.check_over_target": "De film is langer dan je vroeg. Vraag de auteur om hem in te korten.",
   "storymaker.agent.check_over_budget": "Een scène heeft meer woorden dan gepland. Vraag de auteur om hem in te korten.",
+  "storymaker.agent.check_craft": "De film oogt nog op één punt eentonig: omgevingen, camera, gebaren of cast. Bekijk hem eenmaal en pas scènes aan als je wilt.",
   "storymaker.agent.check_unknown": "Er moet nog iets worden bekeken.",
   "storymaker.agent.make_silent": "Exporteren zonder stem",
   "storymaker.agent.make_silent_done": "De spraak is nu tekst in beeld, en de film kan worden geëxporteerd.",

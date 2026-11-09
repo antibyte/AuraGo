@@ -383,6 +383,7 @@
   "storymaker.agent.check_compile_failed": "プレビューでこの映像を準備できませんでした。作家に修正を依頼するか、問題の一覧を確認してください。",
   "storymaker.agent.check_over_target": "映像が希望より長くなっています。作家に短縮を依頼してください。",
   "storymaker.agent.check_over_budget": "シーンの語数が予定より多くなっています。作家に短縮を依頼してください。",
+  "storymaker.agent.check_craft": "動画はまだ、環境・カメラ・ジェスチャー・キャストのいずれかで単調に見えます。一度ご覧になり、必要ならシーンを調整してください。",
   "storymaker.agent.check_unknown": "まだ確認が必要な点があります。",
   "storymaker.agent.make_silent": "音声なしで書き出す",
   "storymaker.agent.make_silent_done": "音声は画面上の文字になり、映像を書き出せるようになりました。",

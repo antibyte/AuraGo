@@ -383,6 +383,7 @@
   "storymaker.agent.check_compile_failed": "预览无法准备这部影片。请让作者修复，或查看问题列表。",
   "storymaker.agent.check_over_target": "影片比你要求的长。请让作者缩短。",
   "storymaker.agent.check_over_budget": "某个场景的字数超出计划。请让作者缩短。",
+  "storymaker.agent.check_craft": "影片在某一方面仍显单调：场景、镜头、手势或角色。请观看一次，如有需要再调整场景。",
   "storymaker.agent.check_unknown": "还有内容需要查看。",
   "storymaker.agent.make_silent": "不带语音导出",
   "storymaker.agent.make_silent_done": "语音现在是屏幕文字，影片可以导出了。",
