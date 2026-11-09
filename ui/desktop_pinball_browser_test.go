@@ -24,7 +24,7 @@ func TestDesktopPinballBrowser(t *testing.T) {
 import {mountGame} from '/js/vendor/pinball/game.esm.js';
 const words=await(await fetch('/lang/desktop/de.json')).json(),query=new URLSearchParams(location.search),fault=query.get('fault');
 if(fault==='webgl'){const native=HTMLCanvasElement.prototype.getContext;HTMLCanvasElement.prototype.getContext=function(type,...args){return type.includes('webgl')?null:native.call(this,type,...args)}}
-localStorage.setItem('aurago.desktop.pinball.settings.v1',JSON.stringify({quality:query.get('quality')||'low'}));
+if(!query.has('keep'))localStorage.setItem('aurago.desktop.pinball.settings.v1',JSON.stringify({quality:query.get('quality')||'low'}));
 window.fixture=mountGame(document.getElementById('host'),{t:k=>words[k]||k,assetURL:p=>fault==='assets'&&p.endsWith('/manifest.json')?'/missing-pinball.json':p,isActive:()=>window.fixtureActive!==false,testing:true});
 </script></body></html>`)
 	})
@@ -50,6 +50,9 @@ window.fixture=mountGame(document.getElementById('host'),{t:k=>words[k]||k,asset
 		page.MustNavigate(server.URL + "/fixture?quality=high")
 	}
 	page.MustWait(`()=>window.fixture?.inspect().panel==='lobby'`)
+	if _, err := page.Timeout(20 * time.Second).Eval(`()=>new Promise((ok,no)=>{const t0=performance.now();(function poll(){const s=fixture.inspect();if(s.dmd?.base==='attract'&&s.lamps.lit>0&&s.attract===true)return ok(true);if(performance.now()-t0>15000)return no(new Error(JSON.stringify({dmd:s.dmd,lamps:s.lamps,attract:s.attract})));setTimeout(poll,100)})()})`); err != nil {
+		t.Fatalf("lobby attract state: %v", err)
+	}
 	page.MustEval(`()=>{const e=document.querySelector('[data-setting="camera"]');e.value='showcase';e.dispatchEvent(new Event('change',{bubbles:true}))}`)
 	page.MustWait(`()=>fixture.inspect().panel==='showcase'`)
 	page.MustElement(`[data-action="resume"]`).MustClick()
@@ -63,7 +66,7 @@ window.fixture=mountGame(document.getElementById('host'),{t:k=>words[k]||k,asset
 			page.MustElement(`[data-action="table-` + table + `"]`).MustClick()
 			page.MustWait(`id=>fixture.inspect().table===id&&fixture.inspect().panel==='lobby'`, table)
 		}
-		if !page.MustEval(`()=>fixture.inspect().graphics.ready&&fixture.inspect().graphics.actorOrder&&document.querySelectorAll('.pb-canvas').length===1&&fixture.inspect().audio.unlocked===false`).Bool() {
+		if !page.MustEval(`()=>fixture.inspect().graphics.ready&&!!fixture.inspect().graphics.flipperOrder&&document.querySelectorAll('.pb-canvas').length===1&&!!document.querySelector('.pb-dmd canvas')&&fixture.inspect().audio.unlocked===false`).Bool() {
 			t.Fatal("table preview or gesture audio lifecycle failed")
 		}
 		t.Logf("%s graphics: %s", table, page.MustEval(`()=>JSON.stringify(fixture.inspect().graphics)`).Str())
@@ -120,8 +123,12 @@ window.fixture=mountGame(document.getElementById('host'),{t:k=>words[k]||k,asset
 	page.MustWait(`()=>fixture.inspect().round?.training===true`)
 	page.MustEval(`()=>fixture.advance(960,{plunger:1})`)
 	page.MustEval(`()=>fixture.advance(240,{})`)
-	if !page.MustEval(`()=>fixture.inspect().stats.balls===1&&fixture.inspect().physics.balls.every(b=>b.position.every(Number.isFinite))`).Bool() {
-		t.Fatal("physical training launch failed")
+	if !page.MustEval(`()=>{const s=fixture.inspect();return s.round.phase==='play'&&s.stats.balls===1&&s.physics.balls.length>0&&s.physics.balls.every(b=>[b.x,b.y,b.h,b.vx,b.vy].every(Number.isFinite))}`).Bool() {
+		t.Fatalf("physical training launch failed: %s", page.MustEval(`()=>JSON.stringify(fixture.inspect().round)`).Str())
+	}
+	page.MustEval(`()=>new Promise(resolve=>requestAnimationFrame(()=>{const end=performance.now()+300;while(performance.now()<end);requestAnimationFrame(()=>requestAnimationFrame(resolve))}))`)
+	if !page.MustEval(`()=>{const s=fixture.inspect();return s.paused===false&&s.panel===''}`).Bool() {
+		t.Fatal("a 300 ms busy frame paused the game")
 	}
 	page.MustEval(`()=>fixtureActive=false`)
 	page.MustWait(`()=>fixture.inspect().paused===true`)
@@ -130,8 +137,8 @@ window.fixture=mountGame(document.getElementById('host'),{t:k=>words[k]||k,asset
 		t.Fatal("focus regain resumed without acknowledgement")
 	}
 	page.MustElement(`[data-action="settings"]`).MustClick()
-	page.MustEval(`()=>{const e=document.querySelector('[data-setting="effects"]');e.value='0';e.dispatchEvent(new Event('input',{bubbles:true}))}`)
-	if !page.MustEval(`()=>JSON.parse(localStorage.getItem('aurago.desktop.pinball.settings.v1')).effects===0`).Bool() {
+	page.MustEval(`()=>{for(const [k,v] of [['effects','0'],['music','0.2']]){const e=document.querySelector('[data-setting="'+k+'"]');e.value=v;e.dispatchEvent(new Event('input',{bubbles:true}))}}`)
+	if !page.MustEval(`()=>{const s=JSON.parse(localStorage.getItem('aurago.desktop.pinball.settings.v1'));return s.effects===0&&s.music===0.2}`).Bool() {
 		t.Fatal("zero volume was lost")
 	}
 	page.MustElement(`[data-action="bind-keys-left"]`).MustClick()
@@ -143,7 +150,7 @@ window.fixture=mountGame(document.getElementById('host'),{t:k=>words[k]||k,asset
 		t.Fatal(err)
 	}
 	page.MustEval(`()=>fixture.advance(48)`)
-	if !page.MustEval(`()=>fixture.inspect().physics.actors['flipper-left'].rotation[1]<0`).Bool() {
+	if !page.MustEval(`()=>fixture.inspect().physics.flippers[0].angle>0&&fixture.inspect().physics.flippers[0].up`).Bool() {
 		t.Fatal("physical left flipper did not move")
 	}
 	if err := page.Keyboard.Release(input.KeyK); err != nil {
@@ -155,13 +162,19 @@ window.fixture=mountGame(document.getElementById('host'),{t:k=>words[k]||k,asset
 	page.MustWait(`()=>!!document.fullscreenElement`)
 	page.MustEval(`()=>document.exitFullscreen()`)
 	page.MustEval(`()=>fixture.dispose()`)
-	if !page.MustEval(`()=>document.querySelectorAll('.pb-app,.pb-canvas').length===0`).Bool() {
+	if !page.MustEval(`()=>{const s=fixture.inspect();return document.querySelectorAll('.pb-app,.pb-canvas').length===0&&!!s}`).Bool() {
 		t.Fatal("window resources survived disposal")
 	}
+	page.MustNavigate(server.URL + "/fixture?keep=1")
+	page.MustWait(`()=>window.fixture?.inspect().panel==='lobby'`)
+	if !page.MustEval(`()=>{const s=fixture.inspect().settings;return s.effects===0&&s.music===0.2&&s.keys.left==='KeyK'}`).Bool() {
+		t.Fatal("settings did not survive a reload")
+	}
+	page.MustEval(`()=>fixture.dispose()`)
 	for _, fault := range []string{"webgl", "assets"} {
 		page.MustNavigate(server.URL + "/fixture?fault=" + fault)
 		page.MustWait(`()=>window.fixture?.inspect().panel==='error'`)
-		if !page.MustEval(`()=>!!document.querySelector('[data-action="retry"]')&&document.querySelectorAll('.pb-canvas').length===0&&!document.querySelector('.pb-panel').textContent.includes('pinball.')`).Bool() {
+		if !page.MustEval(`()=>!!document.querySelector('[data-action="retry"]')&&document.querySelectorAll('.pb-canvas').length===0&&!document.querySelector('.pb-panel').textContent.includes('pinball.')&&document.querySelector('[data-action="retry"]').textContent.trim().length>0&&document.querySelector('[data-action="retry"]').textContent!=='retry'`).Bool() {
 			t.Fatalf("%s error did not show a translated retry view", fault)
 		}
 		page.MustEval(`()=>fixture.dispose()`)

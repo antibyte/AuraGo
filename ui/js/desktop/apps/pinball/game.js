@@ -181,7 +181,7 @@ export function mountGame(host, context = {}) {
                 doTicks(time, dt);
                 if (g.phase === 'over' && !saved && (overFor += dt) > OVER_DELAY) finish(g);
             } else input.nudges();
-            const step = paused ? 0 : dt;
+            const step = paused && g ? 0 : dt;   // the attract show keeps running behind the lobby; only a paused round freezes
             presenter.attract(step, !g);
             session.lampModes(modes); lamps.setModes(modes); lamps.update(step);
             dmd.update(step, session.dmdState()); dmdView.draw(dmd.frame, dmd.version);
